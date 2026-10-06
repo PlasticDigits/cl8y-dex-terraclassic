@@ -22,6 +22,10 @@ TERRAD_HOST_BROADCAST_MODE="${TERRAD_HOST_BROADCAST_MODE:-sync}"
 # block on dozens of interactive unlocks. Unset after deploy. Never commit this value.
 TERRAD_HOST_KEYRING_PASS="${TERRAD_HOST_KEYRING_PASS:-}"
 
+# Network identity is independent of the --chain-id signing parameter.
+# shellcheck source=chain-attestation.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/chain-attestation.sh"
+
 # Resolve keyring backend once. Wrong backend → terrad treats the key *name* as an address and
 # fails with: "decoding bech32 failed: invalid separator index -1".
 terrad_host_resolve_keyring_backend() {
@@ -119,8 +123,36 @@ terrad_host_exec_retry() {
 # SIGPIPE (exit 141) when terrad closes stdin — that must NOT override terrad's real exit
 # status (otherwise unlock looks like failure with empty stderr after a correct passphrase).
 terrad_host_exec() {
+  local -a command_args=("$@")
+  if [[ "${1:-}" == tx ]]; then
+    local node="$TERRAD_HOST_NODE" index
+    for ((index = 0; index < ${#command_args[@]}; index++)); do
+      case "${command_args[$index]}" in
+        --node) node="${command_args[$((index + 1))]:-}" ;;
+        --node=*) node="${command_args[$index]#--node=}" ;;
+        --chain-id)
+          [[ "${command_args[$((index + 1))]:-}" == "$TERRAD_HOST_CHAIN_ID" ]] || {
+            echo "[chain-attestation] FAIL: command signing chain differs from policy" >&2; return 1;
+          } ;;
+        --chain-id=*)
+          [[ "${command_args[$index]#--chain-id=}" == "$TERRAD_HOST_CHAIN_ID" ]] || {
+            echo "[chain-attestation] FAIL: command signing chain differs from policy" >&2; return 1;
+          } ;;
+      esac
+    done
+    terrad_host_attest "$node" || return 1
+    # A retry may select a verified fallback. Use that exact endpoint for tx.
+    for ((index = 0; index < ${#command_args[@]}; index++)); do
+      case "${command_args[$index]}" in
+        --node) command_args[$((index + 1))]="$TERRAD_HOST_NODE" ;;
+        --node=*) command_args[$index]="--node=$TERRAD_HOST_NODE" ;;
+      esac
+    done
+    # terrad tx defaults its node if no flag was supplied; never use that default.
+    command_args+=(--node "$TERRAD_HOST_NODE" --chain-id "$TERRAD_HOST_CHAIN_ID")
+  fi
   if [[ -z "${TERRAD_HOST_KEYRING_PASS:-}" ]]; then
-    terrad "$@"
+    terrad "${command_args[@]}"
     return $?
   fi
   local st pipefail_was=0
@@ -133,7 +165,7 @@ terrad_host_exec() {
     for _i in $(seq 1 64); do
       printf '%s\n' "$TERRAD_HOST_KEYRING_PASS" || break
     done
-  } | terrad "$@"
+  } | terrad "${command_args[@]}"
   st=${PIPESTATUS[1]}
   [[ "$pipefail_was" -eq 1 ]] && set -o pipefail
   return "$st"
@@ -192,6 +224,7 @@ EOF
 # account-sequence races (broadcast often succeeded before the reset).
 # Usage: terrad_host_tx wasm store ... | jq -r .txhash
 terrad_host_tx() {
+  terrad_host_attest || return 1
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     echo "[DRY_RUN] terrad tx $*" >&2
     echo '{"txhash":"DRY_RUN_TX","code":0}'

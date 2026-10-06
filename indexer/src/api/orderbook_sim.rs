@@ -363,9 +363,13 @@ pub async fn simulate_orderbook_cached(
     pair_addr: &str,
     requested_depth: usize,
 ) -> Result<OrderbookData, Box<dyn std::error::Error + Send + Sync>> {
+    lcd.require_verified_chain().await?;
     let now = Instant::now();
     let fee_bps = resolve_fee_bps(pool, lcd, pair_addr).await;
-    let prefix = format!("{pair_addr}:{requested_depth}:{fee_bps}:");
+    let prefix = format!(
+        "{}|{pair_addr}:{requested_depth}:{fee_bps}:",
+        lcd.chain_cache_namespace()
+    );
     {
         let guard = cache.inner.read().await;
         for (key, (data, exp)) in guard.iter() {

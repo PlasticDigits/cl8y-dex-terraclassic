@@ -48,7 +48,7 @@ source "$SCRIPT_DIR/lib/terrad-host.sh"
 
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
-LCD_URL="${ORACLE_RB_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${ORACLE_RB_LCD_URL%/}}"
 INDEXER="${ORACLE_RB_INDEXER%/}"
 UST1_MATH="$SCRIPT_DIR/lib/ust1-lp-rebalance-math.py"
 CLUNC_MATH="$SCRIPT_DIR/lib/clunc-custc-lp-math.py"
@@ -190,7 +190,19 @@ prompt_keyring_pass() {
   [[ -n "$TERRAD_HOST_KEYRING_PASS" ]] || die "empty passphrase"
 }
 
+# Validate immediately before generate-only, signing or broadcast entry points.
+# Each command substitution re-fetches independently; no cached healthy status.
+oracle_prepare_guard() {
+  local current
+  current="$(fetch_oracles_ok)" || die "fresh source quorum required before transaction preparation"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.lunc_usd' <<<"$current")" "$LUNC_USD" \
+    || die "LUNC oracle moved; recompute swap plan"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.ustc_usd' <<<"$current")" "$USTC_USD" \
+    || die "USTC oracle moved; recompute swap plan"
+}
+
 broadcast_from() {
+  oracle_prepare_guard
   local key="$1" expected="$2" label="$3"
   shift 3
   local out tx_hash
@@ -222,6 +234,9 @@ broadcast_minter() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
+
+  oracle_prepare_guard
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2
@@ -326,6 +341,7 @@ cw20_swap_msg() {
 
 # One generate-only wasm execute (admin). Caller merges messages into a single tx.
 generate_admin_unsigned() {
+  oracle_prepare_guard
   local contract="$1" msg="$2" outfile="$3"
   local saved_gas="${TERRAD_HOST_GAS:-}"
   TERRAD_HOST_KEY="$ADMIN_KEY"
@@ -371,6 +387,7 @@ PY
 }
 
 broadcast_admin_unsigned() {
+  oracle_prepare_guard
   local label="$1" unsigned="$2"
   local workdir signed out tx_hash code
   echo "  → $label" >&2
@@ -450,6 +467,7 @@ PY
 }
 
 fetch_oracles() {
+  terrad_host_attest || return 1
   python3 "$CLUNC_MATH" --fetch-oracles <<EOF
 {
   "mode": "fetch-oracles",
@@ -761,6 +779,10 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
 fi
 
 [[ "$ADMIN_ADDR" != "$TREASURY" ]] || die "ops wallet must not be the CMM treasury"
+
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $FACTORY $UST1 $CUSTC $CLUNC $PAIR_UST1 $PAIR_CLUNC $LP_CLUNC_PIN $TREASURY $WRAP_MAPPER"
+terrad_host_attest || die "chain/protocol trust preflight failed"
 
 echo "[preflight] tokens"
 SYM_UST1="$(token_symbol "$UST1")"

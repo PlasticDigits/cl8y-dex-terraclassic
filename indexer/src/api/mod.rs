@@ -49,6 +49,7 @@ pub use protocol_top_pairs::reset_protocol_top_pairs_cache;
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
 mod route_exact_output;
+mod route_exact_output_admission;
 mod route_exact_output_reference;
 mod route_graph;
 #[allow(unused_imports)] // re-exported for integration tests
@@ -504,23 +505,27 @@ pub async fn find_pair_by_ticker(
 )]
 struct ApiDoc;
 
-/// Liveness body. `git_sha` is omitted when unset or rejected (same JSON as before).
+/// Cheap liveness with the last observed chain identity; `git_sha` is omitted when invalid.
 #[derive(Serialize, ToSchema)]
 struct HealthResponse {
     status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     git_sha: Option<String>,
+    chain_identity: crate::lcd::ChainIdentityHealth,
 }
 
 #[utoipa::path(
     get,
     path = "/health",
     responses(
-        (status = 200, description = "Liveness. Optional git_sha when GIT_SHA or SOURCE_COMMIT is valid hex.", body = HealthResponse),
+        (status = 200, description = "Liveness with chain identity observations. Optional git_sha when GIT_SHA or SOURCE_COMMIT is valid hex.", body = HealthResponse),
     ),
     tag = "Health"
 )]
-async fn health() -> axum::Json<HealthResponse> {
+async fn health(
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> axum::Json<HealthResponse> {
+    let chain_identity = state.lcd.chain_identity_health().await;
     // Per-request env (H1276-2). Do not cache on AppState; do not load .env here.
     let git_sha_env = std::env::var("GIT_SHA").ok();
     let source_commit_env = std::env::var("SOURCE_COMMIT").ok();
@@ -530,6 +535,7 @@ async fn health() -> axum::Json<HealthResponse> {
         Some(git_sha) => axum::Json(HealthResponse {
             status: "ok".to_string(),
             git_sha: Some(git_sha),
+            chain_identity,
         }),
         None => {
             let reason = if selected.is_none() {
@@ -541,6 +547,7 @@ async fn health() -> axum::Json<HealthResponse> {
             axum::Json(HealthResponse {
                 status: "ok".to_string(),
                 git_sha: None,
+                chain_identity,
             })
         }
     }
@@ -607,6 +614,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
         .route("/cg/orderbook", get(cg::cg_orderbook))
         .route("/cmc/orderbook/{market_pair}", get(cmc::cmc_orderbook));
+    let lcd_heavy_router = lcd_heavy_router.layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        require_quote_chain,
+    ));
     let lcd_heavy_router =
         apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
 
@@ -756,6 +767,22 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             Duration::from_secs(30),
         ))
         .with_state(state)
+}
+
+/// Fresh attestation precedes handlers that can reuse chain-dependent quote caches (#1392).
+async fn require_quote_chain(
+    axum::extract::State(state): axum::extract::State<AppState>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    if state.lcd.require_verified_chain().await.is_err() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No endpoint attests the expected chain",
+        ).into_response();
+    }
+    next.run(request).await
 }
 
 /// Bind the API TCP listener. When `ipv6_enabled` is false (default), creates an IPv4-only socket

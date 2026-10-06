@@ -15,9 +15,24 @@ use serde_json::{Value, json};
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
+/// Fixture identity is explicit; no production client bypass is available.
+pub async fn mock_chain_identity(server: &MockServer, chain: &str) {
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path(
+            "/cosmos/base/tendermint/v1beta1/node_info",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "default_node_info":{"network":chain}
+        })))
+        .with_priority(1)
+        .mount(server)
+        .await;
+}
+
 /// Existing ordinary CW20 fixtures explicitly attest immutable honest implementation.
 pub async fn start_ordinary_code_mock() -> MockServer {
     let server = MockServer::start().await;
+    mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+$"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -484,7 +499,7 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
                 r"^/cosmos/base/tendermint/v1beta1/blocks/latest$",
             ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "block": { "header": { "height": height, "time": "2026-06-05T00:00:00Z" } }
+                "block": { "header": { "chain_id": "columbus-5", "height": height, "time": "2026-06-05T00:00:00Z" } }
             })))
             .mount(&server)
             .await;

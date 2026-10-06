@@ -714,6 +714,53 @@ describe('SwapPage', () => {
     })
   })
 
+  it('blocks deterministic route rejection before a viable pool-only fallback (#1390)', async () => {
+    const user = userEvent.setup()
+    const from = 'terra1from00000000000000000000000000000001'
+    const to = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({
+      address: 'terra1wallet000000000000000000000000001',
+      walletType: 'simulated',
+      error: null,
+    })
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: from } }, { token: { contract_addr: to } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([from, to])
+    vi.mocked(findRoute).mockReturnValue([
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: from } },
+          ask_asset_info: { token: { contract_addr: to } },
+        },
+      },
+    ])
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 422 Unprocessable Entity'))
+    vi.mocked(simulateSwap)
+      .mockClear()
+      .mockResolvedValue({ return_amount: '1000000', spread_amount: '0', commission_amount: '0' })
+    vi.mocked(simulateMultiHopSwap).mockClear().mockResolvedValue({ amount: '1000000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+    await waitFor(() =>
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(from, to, '1000000', expect.any(Object))
+    )
+    expect(await screen.findByTestId('swap-quote-retry-error')).toHaveTextContent(/Route validation rejected/)
+    expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
+    expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+
   it('shows market-data outage banner when sim fails with indexer transport error (GitLab #241)', async () => {
     const user = userEvent.setup()
     const wallet = 'terra1wallet000000000000000000000000000001'
@@ -1975,6 +2022,53 @@ describe('SwapPage', () => {
     const mockUstr = 'terra1ustr_mock_address_for_testing_xxxx'
     const mockCustc = 'terra1ustc_c_mock_for_1218_testingxxxx'
     const mockUst1 = 'terra1ust1_mock_for_1218_testingxxxxxx'
+
+    it('keeps a wrapped route validation rejection closed before native fallback (#1390)', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(netCw20AfterNativeWrap).mockResolvedValue(980000n)
+      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
+              ask_asset_info: { token: { contract_addr: mockUstr } },
+            },
+          },
+        ],
+        needsWrapInput: true,
+        needsUnwrapOutput: false,
+      })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair_clunc_ustr',
+            liquidity_token: 'terra1lp1',
+            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: mockUstr } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+      vi.mocked(simulateNativeSwap).mockClear().mockResolvedValue({
+        amount: '50000000',
+        isDirectWrapUnwrap: false,
+        routerMinReceiveBase: '50000000',
+      })
+      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(
+        new Error('Indexer API error: 422 Unprocessable Entity')
+      )
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+      await waitFor(() =>
+        expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(MOCK_LUNC_C, mockUstr, '980000', expect.any(Object))
+      )
+      expect(await screen.findByTestId('swap-quote-retry-error')).toHaveTextContent(/Route validation rejected/)
+      expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
+      expect(simulateNativeSwap).not.toHaveBeenCalled()
+    })
 
     it('quotes LUNC→USTR via getRouteSolve(cLUNC) and submits those hops (P1/P2)', async () => {
       const user = userEvent.setup()

@@ -21,7 +21,7 @@ Use when running or changing the **$200-base cUSTC** mint → indexer **best sol
 5. **Stop on CMM vFDUSD × Venus × FDUSD/USD only.** Do not add CMM’s UST1. Do not stop on swapped USD. Do not assume 1 vFDUSD = $1. Live default **loops with fresh 45–75 minute waits after each tick** until that USD ≥ `$CUSTC_UST1_TARGET_USD` (500). Never align waits to wall-clock hours. Dry-run is one tick.
 6. Prefer `DRY_RUN=1` before a live broadcast. Live needs `CUSTC_UST1_YES=1` when stdin is not a TTY. A tick `die` in loop mode sleeps and retries rather than exiting.
 7. **Mint preparation retries** — generate-only, both signer commands, and multisign use `terrad_host_exec_retry` (six attempts; 4/6/8/10/12-second waits). Permanent errors stop immediately, and failed stdout must never reach the transaction/signature files. Do not wrap the whole mint or tick in a short-retry loop. Multisig broadcast is a separate single attempt.
-8. **RPC** — this buyback defaults to `https://rpc.terra-classic.hexxagon.io:443`; set it before sourcing shared host helpers, respect `TERRAD_HOST_NODE`, and print the node in the header. Restart a running loop to load changes.
+8. **RPC** — this buyback defaults to `https://rpc.terra-classic.hexxagon.io:443`; set it before sourcing shared host helpers, respect `TERRAD_HOST_NODE`, and report the selected candidate without echoing provider URLs. Restart a running loop to load changes.
 
 ## Quick commands
 
@@ -38,3 +38,15 @@ CUSTC_UST1_LOOP=0 CUSTC_UST1_YES=1 ./scripts/mint-swap-custc-ust1.sh
 - [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus redeem is not CEX FDUSD/USD
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute via `/route/solve`
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+## Chain identity (#1392)
+
+Use [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md) and the shared
+[endpoint policy](../docs/runbooks/chain-attestation.md). A signing `--chain-id`
+is not node attestation. Run `make verify-issue-1392`; recheck identity on each
+tick and retry, including dry runs. Never treat a skipped check as deployment evidence.
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

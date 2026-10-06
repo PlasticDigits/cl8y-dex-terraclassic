@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 use crate::indexer::economic_usd::{resolve_economic_marks, EconomicMark};
+use crate::indexer::hub_guard::{contain_mark, HubReference};
 use crate::indexer::hub_usd::{
     resolve_hub_usd, resolve_lunc_hub_mark, AssetRef, HubMark, HubTicker, HubUsdConfig,
     HubUsdSnapshot, ReservePair,
@@ -41,6 +42,10 @@ pub struct HubPriceRow {
     pub source_pair_address: Option<String>,
     pub tvl_usd: Option<BigDecimal>,
     pub updated_at: DateTime<Utc>,
+    pub as_of: Option<DateTime<Utc>>,
+    pub priced_leg_depth_usd: Option<BigDecimal>,
+    pub quality: String,
+    pub upstream_available: bool,
 }
 
 fn asset_ref(
@@ -165,7 +170,7 @@ async fn lookup_clunc_asset_id(
 ) -> Result<Option<i32>, sqlx::Error> {
     sqlx::query_scalar(
         "SELECT id FROM assets
-         WHERE is_cw20 AND contract_address = $1
+         WHERE is_cw20 AND denom IS NULL AND contract_address = $1
          ORDER BY id ASC
          LIMIT 1",
     )
@@ -180,7 +185,7 @@ async fn lookup_custc_asset_id(
 ) -> Result<Option<i32>, sqlx::Error> {
     let cw20: Option<i32> = sqlx::query_scalar(
         "SELECT id FROM assets
-         WHERE is_cw20 AND contract_address = $1
+         WHERE is_cw20 AND denom IS NULL AND contract_address = $1
          ORDER BY id ASC
          LIMIT 1",
     )
@@ -190,14 +195,46 @@ async fn lookup_custc_asset_id(
     if cw20.is_some() {
         return Ok(cw20);
     }
-    sqlx::query_scalar("SELECT id FROM assets WHERE denom = 'uusd' ORDER BY id ASC LIMIT 1")
+    sqlx::query_scalar("SELECT id FROM assets WHERE NOT is_cw20 AND contract_address IS NULL AND denom = 'uusd' ORDER BY id ASC LIMIT 1")
         .fetch_optional(pool)
+        .await
+}
+
+/// TTL/quality is enforced at every live hub read, including refreshed wrappers.
+pub fn row_usable(row: &HubPriceRow, now: DateTime<Utc>) -> bool {
+    let ttl = match row.ticker.as_str() {
+        "custc" | "lunc" => crate::indexer::oracle::ORACLE_MAX_AGE_SECS,
+        "ust1" | "ustr" => live_hub_max_age_seconds(),
+        _ => return false,
+    };
+    row.upstream_available
+        && matches!(row.quality.as_str(), "bounded_spot" | "external_quorum")
+        && row
+            .as_of
+            .is_some_and(|at| at <= now && (now - at) <= chrono::Duration::seconds(ttl))
+        && row.price_usd > BigDecimal::from(0)
+}
+
+pub fn live_hub_max_age_seconds() -> i64 {
+    crate::indexer::protocol_tvl::max_staleness_from_env()
+        .as_secs()
+        .min(i64::MAX as u64) as i64
+}
+
+pub async fn get_hub_references(pool: &PgPool) -> Result<Vec<HubReference>, sqlx::Error> {
+    sqlx::query_as("SELECT * FROM hub_price_references")
+        .fetch_all(pool)
         .await
 }
 
 pub async fn get_all_hub_prices(pool: &PgPool) -> Result<Vec<HubPriceRow>, sqlx::Error> {
     sqlx::query_as(
-        "SELECT ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at
+        "SELECT ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at, as_of, priced_leg_depth_usd, quality,
+         EXISTS (SELECT 1 FROM oracle_state os
+             WHERE os.ticker = CASE WHEN hub_prices.ticker = 'lunc' THEN 'lunc' ELSE 'ustc' END
+             AND os.quality = 'fresh' AND cardinality(os.accepted_sources) >= 2
+             AND os.price_usd BETWEEN 0.000000000001 AND 1000000
+             AND os.as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()) AS upstream_available
          FROM hub_prices
          ORDER BY ticker",
     )
@@ -210,7 +247,12 @@ pub async fn get_hub_price(
     ticker: HubTicker,
 ) -> Result<Option<HubPriceRow>, sqlx::Error> {
     sqlx::query_as(
-        "SELECT ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at
+        "SELECT ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at, as_of, priced_leg_depth_usd, quality,
+         EXISTS (SELECT 1 FROM oracle_state os
+             WHERE os.ticker = CASE WHEN hub_prices.ticker = 'lunc' THEN 'lunc' ELSE 'ustc' END
+             AND os.quality = 'fresh' AND cardinality(os.accepted_sources) >= 2
+             AND os.price_usd BETWEEN 0.000000000001 AND 1000000
+             AND os.as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()) AS upstream_available
          FROM hub_prices
          WHERE ticker = $1",
     )
@@ -226,6 +268,9 @@ pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
     let rows = get_all_hub_prices(pool).await?;
     let mut hub = HubQuoteUsd::default();
     for row in rows {
+        if !row_usable(&row, Utc::now()) {
+            continue;
+        }
         match row.ticker.as_str() {
             "ust1" => hub.ust1 = Some(row.price_usd),
             "ustr" => hub.ustr = Some(row.price_usd),
@@ -235,7 +280,12 @@ pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
     let econ_rows: Vec<(String, BigDecimal)> = sqlx::query_as(
         "SELECT contract_address, price_usd
          FROM economic_token_marks
-         WHERE price_usd > 0",
+         WHERE price_usd > 0 AND as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()
+         AND EXISTS (SELECT 1 FROM oracle_state WHERE quality='fresh'
+             AND ticker=CASE WHEN economic_token_marks.anchor_ticker='lunc' THEN 'lunc' ELSE 'ustc' END
+             AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW())
+         AND (anchor_ticker IN ('custc','lunc') OR EXISTS (SELECT 1 FROM hub_price_references
+             WHERE ticker=economic_token_marks.anchor_ticker AND quality='bounded_spot'))",
     )
     .fetch_all(pool)
     .await?;
@@ -273,8 +323,8 @@ async fn insert_mark(
     }
     sqlx::query(
         "INSERT INTO hub_prices
-            (ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+            (ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at, as_of, priced_leg_depth_usd, quality)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)",
     )
     .bind(mark.ticker.as_str())
     .bind(mark.asset_id)
@@ -282,6 +332,9 @@ async fn insert_mark(
     .bind(mark.source_pair_id)
     .bind(&mark.source_pair_address)
     .bind(&mark.tvl_usd)
+    .bind(mark.as_of)
+    .bind(&mark.priced_leg_depth_usd)
+    .bind(if mark.source_pair_id.is_some() { "bounded_spot" } else { "external_quorum" })
     .execute(&mut **tx)
     .await?;
     Ok(())
@@ -304,8 +357,8 @@ async fn replace_economic_marks(
         }
         sqlx::query(
             "INSERT INTO economic_token_marks
-                (contract_address, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+                (contract_address, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at, as_of, anchor_ticker)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)",
         )
         .bind(&contract)
         .bind(mark.asset_id)
@@ -313,6 +366,8 @@ async fn replace_economic_marks(
         .bind(mark.source_pair_id)
         .bind(&mark.source_pair_address)
         .bind(&mark.tvl_usd)
+        .bind(mark.as_of)
+        .bind(&mark.anchor_ticker)
         .execute(&mut **tx)
         .await?;
     }
@@ -333,11 +388,164 @@ pub async fn refresh_hub_prices(
     let custc_id = lookup_custc_asset_id(pool, cfg).await?;
     let clunc_id = lookup_clunc_asset_id(pool, cfg).await?;
     let now = Utc::now();
-    let mut snap = resolve_hub_usd(now, cfg, ustc_oracle, &pairs, custc_id);
-    snap.lunc = resolve_lunc_hub_mark(lunc_oracle, clunc_id);
-    let economic = resolve_economic_marks(now, cfg, &pairs, &snap);
-
     let mut tx = pool.begin().await?;
+    // Serialize reference updates independently of protocol liquidity refresh.
+    sqlx::query("SELECT pg_advisory_xact_lock(1391)")
+        .execute(&mut *tx)
+        .await?;
+    let states: Vec<HubReference> = sqlx::query_as("SELECT * FROM hub_price_references")
+        .fetch_all(&mut *tx)
+        .await?;
+    let mut references: std::collections::HashMap<String, HubReference> =
+        states.into_iter().map(|s| (s.ticker.clone(), s)).collect();
+    // Only the exact currently certified external values may establish references.
+    // A stale SharedPrice or an uncatalogued caller cannot poison the bootstrap.
+    let certified: Vec<(String, BigDecimal)> = sqlx::query_as(
+        "SELECT ticker,price_usd FROM oracle_state
+        WHERE quality='fresh' AND cardinality(accepted_sources)>=2
+          AND price_usd BETWEEN 0.000000000001 AND 1000000
+          AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()",
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    let ustc_oracle = ustc_oracle.filter(|price| {
+        certified
+            .iter()
+            .any(|(ticker, value)| ticker == "ustc" && value == *price)
+    });
+    let lunc_oracle = lunc_oracle.filter(|price| {
+        certified
+            .iter()
+            .any(|(ticker, value)| ticker == "lunc" && value == *price)
+    });
+    let mut snap = resolve_hub_usd(now, cfg, ustc_oracle, &pairs, custc_id);
+    // Keep an eligible established USTR source instead of switching on tiny depth changes.
+    if let Some(reference) = references.get("ustr").filter(|r| r.confirmed) {
+        let pinned: Vec<_> = pairs
+            .iter()
+            .filter(|p| {
+                !(crate::indexer::hub_usd::is_hub_ustr(&p.asset_0, cfg)
+                    || crate::indexer::hub_usd::is_hub_ustr(&p.asset_1, cfg))
+                    || p.pair_address == reference.source_pair_address
+            })
+            .cloned()
+            .collect();
+        let preferred = resolve_hub_usd(now, cfg, ustc_oracle, &pinned, custc_id);
+        if preferred.ustr.is_some() {
+            snap.ustr = preferred.ustr;
+        }
+    }
+    if let Some(ustc) = ustc_oracle {
+        let mut state = references.remove("ust1");
+        if let Some(mark) = &snap.ust1 {
+            if !contain_mark(
+                now,
+                mark,
+                ustc,
+                &mut state,
+                &format!(
+                    "{}|{}|{}",
+                    cfg.custc_address, cfg.ust1_address, cfg.ustr_address
+                ),
+            ) {
+                snap.ust1 = None;
+            }
+        } else if let Some(state) = &mut state {
+            state.quality = "unavailable".into();
+        }
+        if let Some(state) = state {
+            references.insert("ust1".into(), state);
+        }
+        if snap.ust1.is_none() {
+            // An unconfirmed/divergent UST1 must not anchor USTR or economic marks.
+            let direct: Vec<_> = pairs
+                .iter()
+                .filter(|p| {
+                    !crate::indexer::hub_usd::is_hub_ust1(&p.asset_0, cfg)
+                        && !crate::indexer::hub_usd::is_hub_ust1(&p.asset_1, cfg)
+                })
+                .cloned()
+                .collect();
+            snap.ustr = resolve_hub_usd(now, cfg, ustc_oracle, &direct, custc_id).ustr;
+        }
+        let mut state = references.remove("ustr");
+        if let Some(mark) = &snap.ustr {
+            if !contain_mark(
+                now,
+                mark,
+                ustc,
+                &mut state,
+                &format!(
+                    "{}|{}|{}",
+                    cfg.custc_address, cfg.ust1_address, cfg.ustr_address
+                ),
+            ) {
+                snap.ustr = None;
+            }
+        } else if let Some(state) = &mut state {
+            state.quality = "unavailable".into();
+        }
+        if let Some(state) = state {
+            references.insert("ustr".into(), state);
+        }
+    } else {
+        for reference in references.values_mut() {
+            reference.quality = "unavailable".into();
+        }
+    }
+    // A USTR reserve refresh cannot renew the original UST1 anchor timestamp.
+    if let Some(mark) = &mut snap.ustr {
+        if pairs
+            .iter()
+            .find(|p| Some(p.pair_id) == mark.source_pair_id)
+            .is_some_and(|p| {
+                crate::indexer::hub_usd::is_hub_ust1(&p.asset_0, cfg)
+                    || crate::indexer::hub_usd::is_hub_ust1(&p.asset_1, cfg)
+            })
+        {
+            mark.as_of = mark
+                .as_of
+                .zip(snap.ust1.as_ref().and_then(|m| m.as_of))
+                .map(|(a, b)| a.min(b));
+        }
+    }
+    snap.lunc = resolve_lunc_hub_mark(lunc_oracle, clunc_id);
+    // External wrap provenance carries original upstream time, never a refresh timestamp.
+    for (ticker, mark) in [("ustc", &mut snap.custc), ("lunc", &mut snap.lunc)] {
+        if let Some(mark) = mark {
+            mark.as_of = sqlx::query_scalar(
+                "SELECT as_of FROM oracle_state WHERE ticker = $1 AND quality = 'fresh'",
+            )
+            .bind(ticker)
+            .fetch_optional(&mut *tx)
+            .await?
+            .flatten();
+        }
+    }
+    let economic = resolve_economic_marks(now, cfg, &pairs, &snap);
+    for reference in references.values() {
+        if reference.quality == "divergent" {
+            tracing::warn!(ticker = %reference.ticker, divergence_pct = %reference.divergence_pct,
+                limit_pct = 10, source_pair = %reference.pending_pair_address,
+                "Hub spot divergence rejected (#1391)");
+        }
+        sqlx::query("INSERT INTO hub_price_references
+            (ticker, reference_ratio, reference_at, source_pair_address, pending_pair_address,
+             pending_since, last_observed_at, confirmed, quality, divergence_pct, identity_key, last_observed_ratio)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            ON CONFLICT (ticker) DO UPDATE SET
+             source_pair_address = EXCLUDED.source_pair_address,
+             pending_pair_address = EXCLUDED.pending_pair_address,
+             pending_since = EXCLUDED.pending_since, last_observed_at = EXCLUDED.last_observed_at,
+             last_observed_ratio = EXCLUDED.last_observed_ratio,
+             confirmed = EXCLUDED.confirmed, quality = EXCLUDED.quality,
+             divergence_pct = EXCLUDED.divergence_pct")
+            .bind(&reference.ticker).bind(&reference.reference_ratio).bind(reference.reference_at)
+            .bind(&reference.source_pair_address).bind(&reference.pending_pair_address)
+            .bind(reference.pending_since).bind(reference.last_observed_at).bind(reference.confirmed)
+            .bind(&reference.quality).bind(&reference.divergence_pct)
+            .bind(&reference.identity_key).bind(&reference.last_observed_ratio).execute(&mut *tx).await?;
+    }
     replace_snapshot(&mut tx, &snap).await?;
     replace_economic_marks(&mut tx, &economic).await?;
     tx.commit().await?;
@@ -396,5 +604,35 @@ pub async fn run_hub_usd_refresh_loop(
             tracing::warn!("Protocol liquidity refresh after hub USD failed: {}", e);
         }
         tokio::time::sleep(interval).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn missing_source_pair_id_cannot_extend_spot_ttl() {
+        let now = Utc::now();
+        let mut row = HubPriceRow {
+            ticker: "ust1".into(),
+            asset_id: None,
+            price_usd: BigDecimal::from(1),
+            source_pair_id: None,
+            source_pair_address: Some("canonical-pair".into()),
+            tvl_usd: None,
+            updated_at: now,
+            as_of: Some(now - chrono::Duration::seconds(live_hub_max_age_seconds() + 1)),
+            priced_leg_depth_usd: None,
+            quality: "bounded_spot".into(),
+            upstream_available: true,
+        };
+        assert!(
+            !row_usable(&row, now),
+            "deleted source FK must retain spot TTL"
+        );
+        row.ticker = "ustr".into();
+        assert!(!row_usable(&row, now));
+        row.as_of = Some(now);
+        assert!(row_usable(&row, now));
     }
 }

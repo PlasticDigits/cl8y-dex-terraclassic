@@ -27,7 +27,7 @@
 : "${CLUNC_LP_ADD_USD:=}"
 : "${CLUNC_LP_PRICE_TOLERANCE:=0.001}"
 : "${CLUNC_LP_CROSS_CHECK_TOLERANCE:=0.03}"
-: "${CLUNC_LP_ORACLE_MAX_AGE_SEC:=1800}"
+: "${CLUNC_LP_ORACLE_MAX_AGE_SEC:=300}"
 : "${CLUNC_LP_INDEXER:=https://indexer.dex.cl8y.com}"
 : "${CLUNC_LP_LCD_URL:=https://terra-classic-lcd.publicnode.com}"
 

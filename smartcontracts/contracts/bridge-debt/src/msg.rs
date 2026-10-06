@@ -1,3 +1,4 @@
+pub use crate::state::{IssuanceLimits, MarketPins, UpgradePins};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
@@ -13,6 +14,29 @@ pub enum ExecuteMsg {
     SetDebtCodeId {
         code_id: u64,
     },
+    /// Explicit implementation approval for future registration/upgrade.
+    ApproveUnderlyingCode {
+        code_id: u64,
+        multi_minter: bool,
+    },
+    ConfigureMarket {
+        underlying: String,
+        limits: IssuanceLimits,
+        paused: bool,
+    },
+    ProposeMarketUpgrade {
+        underlying: String,
+        debt_code_id: u64,
+        underlying_code_id: u64,
+    },
+    AcceptMarketUpgrade {
+        underlying: String,
+    },
+    CancelMarketUpgrade {
+        underlying: String,
+    },
+    AcceptOwner {},
+    CancelOwnerTransfer {},
     /// Owner: bind a bridged CW20 to its Bridge-Debt receipt.
     ///
     /// The debt token's debtor (the CMM, for USDT-Bridge-Debt) is read from
@@ -66,6 +90,7 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct ConfigResponse {
     pub owner: Addr,
+    pub pending_owner: Option<Addr>,
     pub debt_code_id: Option<u64>,
 }
 
@@ -76,6 +101,14 @@ pub struct MarketResponse {
     pub debtor: Addr,
     pub decimals: u8,
     pub outstanding: Uint128,
+    pub debt_code_id: Option<u64>,
+    pub underlying_code_id: Option<u64>,
+    pub pins: Option<MarketPins>,
+    pub limits: Option<IssuanceLimits>,
+    pub paused: bool,
+    pub epoch: u64,
+    pub epoch_issued: Uint128,
+    pub pending_upgrade: Option<UpgradePins>,
 }
 
 #[cw_serde]
@@ -84,4 +117,14 @@ pub struct MarketsResponse {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    /// Explicit reviewed identities for every legacy market. No automatic trust of live code.
+    #[serde(default)]
+    pub legacy_pins: Vec<LegacyMarketPin>,
+}
+
+#[cw_serde]
+pub struct LegacyMarketPin {
+    pub underlying: String,
+    pub pins: MarketPins,
+}

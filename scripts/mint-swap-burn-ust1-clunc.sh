@@ -22,8 +22,10 @@
 #
 # Never commit TERRAD_HOST_KEYRING_PASS.
 set -euo pipefail
+shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/oracle-safety.sh"
 # shellcheck source=lib/ust1-clunc-buyback-defaults.sh
 source "$SCRIPT_DIR/lib/ust1-clunc-buyback-defaults.sh"
 # shellcheck source=lib/terrad-host.sh
@@ -34,7 +36,7 @@ TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:4
 # Hybrid solver hops can sim low vs execute; 1.6 matches this workload better than 1.4.
 TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-1.6}"
 
-LCD_URL="${UST1_CLUNC_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${UST1_CLUNC_LCD_URL%/}}"
 INDEXER="${UST1_CLUNC_INDEXER%/}"
 MATH_PY="$SCRIPT_DIR/lib/ust1-clunc-buyback-math.py"
 MSIG_KEY="${UST1_CLUNC_MSIG_KEY}"
@@ -178,11 +180,16 @@ is_minter() {
 
 fetch_lunc_usd() {
   if [[ -n "${UST1_CLUNC_LUNC_USD:-}" ]]; then
-    printf '%s' "$UST1_CLUNC_LUNC_USD"
-    return 0
+    oracle_safety_override "$UST1_CLUNC_LUNC_USD"
+    return $?
   fi
-  curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-    "$UST1_CLUNC_INDEXER_ORACLE" | jq -er '.price_usd // empty'
+  oracle_safety_fetch "$UST1_CLUNC_INDEXER_ORACLE" "lunc"
+}
+
+validate_financial_marks() {
+  local current
+  current="$(fetch_lunc_usd)" || return 1
+  oracle_safety_movement "$current" "$lunc_usd"
 }
 
 prompt_keyring_pass() {
@@ -200,6 +207,7 @@ prompt_keyring_pass() {
 }
 
 broadcast_admin() {
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1"
   shift
   local out tx_hash
@@ -219,6 +227,9 @@ broadcast_admin() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
+
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2
@@ -360,6 +371,7 @@ stop_if_target() {
 }
 
 one_tick() {
+  terrad_host_attest || return 1
   local lunc_usd mint_raw have need quote est min_recv hops hook_json hook_b64 send_msg
   local before after delta hop_returns
   local state burned_raw burned_usd rounds
@@ -406,6 +418,8 @@ one_tick() {
   [[ "$min_recv" != "0" ]] || die "min_receive is 0 (quote too small for slippage $SLIP%)"
   echo "  min_receive=$min_recv (${SLIP}% floor of $est)"
 
+  TERRAD_HOST_IDENTITY_CONTRACTS+=" $(jq -r '[(.hops[]?.pair // empty), (.router_operations[]?.terra_swap.offer_asset_info.token.contract_addr // empty), (.router_operations[]?.terra_swap.ask_asset_info.token.contract_addr // empty)] | unique | join(" ")' <<<"$quote")"
+  terrad_host_attest || return 1
   echo "[hop-sim] pair hybrid_simulation for #334 book min_return"
   hop_returns="$(sim_hop_returns "$quote" "$mint_raw")"
   echo "  hop_returns=$hop_returns"
@@ -483,6 +497,10 @@ python3 "$MATH_PY" self-test >/dev/null
 
 print_header
 echo ""
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $UST1_CLUNC_FACTORY $ROUTER $UST1 $CLUNC $TREASURY"
+terrad_host_attest || die "chain/protocol trust preflight failed"
+
 echo "[preflight] tokens + extra minter $MSIG_ADDR"
 DEC_UST1="$(token_decimals "$UST1")"
 DEC_CLUNC="$(token_decimals "$CLUNC")"

@@ -479,6 +479,7 @@ echo "[8] Writing $OUT_DIR"
 {
   echo "# Coolify indexer env for $MAINNET_SOFT_LAUNCH_INDEXER_ORIGIN"
   echo "RUN_MODE=prod"
+  echo "EXPECTED_CHAIN_ID=$TERRAD_HOST_CHAIN_ID"
   echo "API_BIND=0.0.0.0"
   echo "API_PORT=3001"
   echo "FACTORY_ADDRESS=$FACTORY_ADDRESS"

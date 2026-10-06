@@ -15,7 +15,7 @@
 # Seed is $USD_EACH of cLUNC (oracle) + $USD_EACH of USDT (assume $1).
 : "${CLUNC_USDT_USD_EACH:=1000}"
 : "${CLUNC_USDT_USDT_USD:=1}"
-: "${CLUNC_USDT_ORACLE_MAX_AGE_SEC:=1800}"
+: "${CLUNC_USDT_ORACLE_MAX_AGE_SEC:=300}"
 : "${CLUNC_USDT_PRICE_MOVE_TOLERANCE:=0.01}"
 : "${CLUNC_USDT_INDEXER:=https://indexer.dex.cl8y.com}"
 : "${CLUNC_USDT_INDEXER_ORACLE:=https://indexer.dex.cl8y.com/api/v1/oracle/price/lunc}"

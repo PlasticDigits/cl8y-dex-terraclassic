@@ -6,12 +6,13 @@
 //! - `POST /api/v1/route/solve`: BFS discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
 
 use std::collections::{HashMap, VecDeque};
+use std::net::SocketAddr;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::StatusCode;
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
@@ -426,11 +427,12 @@ pub(crate) fn apply_hybrid_by_hop(
 
 async fn resolve_route_with_max_hops(
     pool: &PgPool,
+    namespace: &str,
     token_in: &str,
     token_out: &str,
     max_hops: usize,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    let snapshot = route_graph::get_route_graph_snapshot(pool).await?;
+    let snapshot = route_graph::get_route_graph_snapshot(pool, namespace).await?;
     let (id_to_addr, addr_to_id) = (&snapshot.id_to_addr, &snapshot.addr_to_id);
 
     let start = resolve_id(addr_to_id, token_in).ok_or_else(|| {
@@ -465,10 +467,11 @@ async fn resolve_route_with_max_hops(
 
 async fn resolve_route(
     pool: &PgPool,
+    namespace: &str,
     token_in: &str,
     token_out: &str,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    resolve_route_with_max_hops(pool, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
+    resolve_route_with_max_hops(pool, namespace, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
 }
 
 fn parse_amount_in(raw: Option<&String>) -> Option<&str> {
@@ -557,6 +560,12 @@ pub(crate) async fn validate_route_tax(
         trader.trader.as_deref().or(trader.sender.as_deref()),
     )
     .await;
+    if let Some(asset) = crate::api::community_tax_rank::repeated_route_tax_asset(hops, &taxes) {
+        return Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            format!("repeated route-tax-capable asset in swap path: {asset}"),
+        ));
+    }
     if crate::api::community_tax_rank::path_sells_middle_tax_hop(hops, token_in, &taxes) {
         return Err((StatusCode::UNPROCESSABLE_ENTITY,
             "Trading tax capability unavailable or unsupported legacy route; refresh or choose a supported route".into()));
@@ -614,14 +623,23 @@ pub(crate) async fn maybe_simulate(
             .and_then(|a| a.as_str())
             .map(|s| s.to_string())),
         Err(e) => {
-            let msg = e.to_string();
-            tracing::warn!("router simulate_swap_operations failed: {}", msg);
-            Err((
-                StatusCode::BAD_REQUEST,
-                "router simulation failed for the given route and hybrid parameters".to_string(),
-            ))
+            tracing::warn!(error = %e, "router simulate_swap_operations failed");
+            Err(router_preview_error(&e))
         }
     }
+}
+
+/// Preserve deterministic on-chain rejection as an observable validation failure.
+/// Never expose LCD URLs, raw contract errors or trader addresses in the API response.
+fn router_preview_error(error: &crate::lcd::LcdError) -> (StatusCode, String) {
+    if matches!(error, crate::lcd::LcdError::ContractQueryRejected(_)) {
+        return (StatusCode::UNPROCESSABLE_ENTITY,
+            "router_preview_rejected: on-chain route or tax/launch guard validation rejected the preview; refresh or choose another route".into());
+    }
+    (
+        StatusCode::BAD_REQUEST,
+        "router simulation failed for the given route and hybrid parameters".into(),
+    )
 }
 
 pub(crate) fn quote_kind_after_sim(
@@ -799,13 +817,22 @@ pub(crate) async fn resolve_discount_bps(
         (Some(t), Some(s)) => (t.trim(), s.trim()),
     };
 
-    let cache_key = discount_bps_cache_key(trader, sender);
+    if state.lcd.require_verified_chain().await.is_err() {
+        return 0;
+    }
+    let cache_key = format!(
+        "{}|{}",
+        state.lcd.chain_cache_namespace(),
+        discount_bps_cache_key(trader, sender)
+    );
     if let Some(bps) = discount_bps_cache_get(&cache_key) {
         return bps;
     }
 
     let bps = resolve_discount_bps_uncached(state, quote_trader, trader, sender).await;
-    discount_bps_cache_put(&cache_key, bps);
+    if state.lcd.require_verified_chain().await.is_ok() {
+        discount_bps_cache_put(&cache_key, bps);
+    }
     bps
 }
 
@@ -925,6 +952,12 @@ async fn execute_hybrid_route_solve(
         ));
     }
 
+    state.lcd.require_verified_chain().await.map_err(|_| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No endpoint attests the expected chain".to_string(),
+        )
+    })?;
     let max_makers = clamp_max_maker_fills(max_maker_fills);
     let bucket = amount_cache_key(amount_u);
     let discount_bps = resolve_discount_bps(state, quote_trader).await;
@@ -942,7 +975,11 @@ async fn execute_hybrid_route_solve(
             .or(quote_trader.sender.as_deref()),
     )
     .await;
-    let tax_identity = cache_taxes.cache_identity();
+    let tax_identity = format!(
+        "{}|{}",
+        state.lcd.chain_cache_namespace(),
+        cache_taxes.cache_identity()
+    );
     let bucket = if cache_taxes
         .by_addr
         .values()
@@ -1029,10 +1066,18 @@ async fn execute_hybrid_route_solve(
 async fn exact_output_get(
     state: &AppState,
     q: &SolveRouteParams,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let target = crate::api::route_exact_output::validate_request(q)?;
     let trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
-    crate::api::route_exact_output::solve(state, q, target, &trader).await
+    crate::api::route_exact_output::solve(
+        state,
+        q,
+        target,
+        &trader,
+        crate::api::route_exact_output_admission::client_key(peer),
+    )
+    .await
 }
 
 /// Retail / integrator best-execution route: server-chosen hybrid splits (GitLab #189).
@@ -1045,7 +1090,7 @@ async fn exact_output_get(
         (status = 400, description = "Missing or invalid amount_in, or unknown token"),
         (status = 404, description = "No route within 4 hops"),
         (status = 502, description = "Hybrid optimization LCD failure (sanitized body)"),
-        (status = 422, description = "Receive target infeasible with fresh supported pool paths"),
+        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, on-chain preview/guard rejection, or infeasible receive target"),
         (status = 429, description = "Exact-output concurrency limit"),
         (status = 503, description = "Fresh router validation unavailable or rejected"),
         (status = 504, description = "Exact-output sizing exceeded time budget"),
@@ -1055,9 +1100,10 @@ async fn exact_output_get(
 pub async fn solve_route_best(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q).await;
+        return exact_output_get(&state, &q, peer).await;
     }
     let Some(amount_raw) = q
         .amount_in
@@ -1092,7 +1138,7 @@ pub async fn solve_route_best(
         (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
         (status = 400, description = "token_in or token_out not found in indexer assets"),
         (status = 404, description = "No route within hop limit"),
-        (status = 422, description = "Receive target infeasible with fresh supported pool paths"),
+        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, on-chain preview/guard rejection, or infeasible receive target"),
         (status = 429, description = "Exact-output concurrency limit"),
         (status = 503, description = "Fresh router validation unavailable or rejected"),
         (status = 504, description = "Exact-output sizing exceeded time budget"),
@@ -1102,9 +1148,10 @@ pub async fn solve_route_best(
 pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q).await;
+        return exact_output_get(&state, &q, peer).await;
     }
     let amount_raw = parse_amount_in(q.amount_in.as_ref());
     let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
@@ -1129,8 +1176,14 @@ pub async fn solve_route(
     }
 
     let max_hops = get_pool_only_max_hops(&q);
-    let resolved =
-        resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, max_hops).await?;
+    let resolved = resolve_route_with_max_hops(
+        &state.pool,
+        &state.lcd.chain_cache_namespace(),
+        &q.token_in,
+        &q.token_out,
+        max_hops,
+    )
+    .await?;
     let taxes = if amount_raw.is_some() {
         validate_route_tax(
             &state,
@@ -1220,6 +1273,7 @@ pub async fn solve_route(
         (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
         (status = 400, description = "Bad request (unknown token, hybrid length mismatch, or router simulation error)"),
         (status = 404, description = "No route within 4 hops"),
+        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, or on-chain preview/guard rejection"),
     ),
     tag = "Routing"
 )]
@@ -1234,7 +1288,13 @@ pub async fn solve_route_post(
         ));
     }
     let quote_trader = parse_quote_trader(body.trader.clone(), body.sender.clone())?;
-    let resolved = resolve_route(&state.pool, &body.token_in, &body.token_out).await?;
+    let resolved = resolve_route(
+        &state.pool,
+        &state.lcd.chain_cache_namespace(),
+        &body.token_in,
+        &body.token_out,
+    )
+    .await?;
     let intermediate_tokens = build_intermediate_tokens(&resolved);
     let ops = if let Some(ref hybrid) = body.hybrid_by_hop {
         apply_hybrid_by_hop(resolved.ops, hybrid)?
@@ -1334,10 +1394,27 @@ pub async fn solve_route_post(
 
 #[cfg(test)]
 mod quote_trader_tests {
-    use super::parse_quote_trader;
+    use super::{parse_quote_trader, router_preview_error};
     use axum::http::StatusCode;
 
     const VALID: &str = "terra1discountwallet000000000000000000000";
+
+    #[test]
+    fn router_preview_rejection_is_explicit_and_sanitized() {
+        let rejected = crate::lcd::LcdError::ContractQueryRejected(
+            "query wasm contract failed: cooldown terra1private http://private-lcd".into(),
+        );
+        let (status, message) = router_preview_error(&rejected);
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(message.contains("router_preview_rejected"));
+        assert!(message.contains("guard"));
+        assert!(!message.contains("terra1private"));
+        assert!(!message.contains("http://"));
+        let (status, message) =
+            router_preview_error(&crate::lcd::LcdError::AllEndpointsFailed("LCD down".into()));
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(!message.contains("guard"));
+    }
 
     #[test]
     fn parse_quote_trader_empty_is_default() {

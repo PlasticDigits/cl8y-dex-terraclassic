@@ -7,6 +7,7 @@ This document describes **how to handle secrets** when operating the indexer and
 | Variable | Role | Notes |
 |----------|------|--------|
 | `DATABASE_URL` | Postgres connection | Use TLS to the DB provider when available; rotate credentials if leaked. |
+| `EXPECTED_CHAIN_ID` | Expected LCD network | Required in every mode: `columbus-5` for mainnet; `localterra` only for explicitly local deployments. Every selected endpoint is checked before its data is consumed ([#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392)). |
 | `LCD_URLS` | Comma-separated LCD endpoints | **Production:** Set `RUN_MODE=prod` and use **operator-controlled** LCD URLs (not the built-in public defaults). Optional API keys if your provider uses them—pass via env or sidecar, not in repo. |
 | `CORS_ORIGINS` | Browser origin allowlist | Not a substitute for auth; restrict to your frontends. |
 | `VITE_INDEXER_URL` (frontend) | Browser quote / charts API | **Production:** HTTPS only. MITM or a compromised indexer can serve misleading routes while pools remain valid on-chain ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)). |
@@ -35,6 +36,8 @@ LCD-heavy routes fan out multiple upstream LCD `smart` queries per HTTP request.
 **Integrator guidance:** debounced swap/trade quotes (`/api/v1/route/solve/best`) should stay under **10 RPS per IP**; use CG/CMC orderbook caches instead of hammering `limit-book` walks. See [`integrators.md`](./integrators.md).
 
 ## Indexer required env (all `RUN_MODE`)
+
+- **`EXPECTED_CHAIN_ID` is required**; do not infer it from endpoint responses. See [chain attestation](runbooks/chain-attestation.md) and [agent checks](qa/issue-1392/README.md).
 
 - **`FACTORY_ADDRESS` must be non-empty** (whitespace-only is rejected) in **every** `RUN_MODE` — the indexer refuses to start with `ConfigError::EmptyFactoryAddress` ([#451](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/451) / SEC-I02). An empty factory address would disable pair provenance verification and allow indexing unverified (possibly spoofed) pairs.
 - Post-deploy QA asserts the env var is set: **`make qa-verify-deploy`** ([`scripts/qa/verify-deploy.sh`](../scripts/qa/verify-deploy.sh)).

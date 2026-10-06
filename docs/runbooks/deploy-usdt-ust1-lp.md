@@ -4,6 +4,11 @@ A bridged-mint borrow of asset XXX mints XXX for liquidity and the same amount o
 
 User bridge withdrawals stay on the bridge. Those mints are backed by a remote lock and do not create a Bridge-Debt balance.
 
+Issue #1393 hardening follows [BD1393-1–BD1393-10](../../skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md).
+Use [the agent checklist](../qa/issue-1393/README.md) and `make verify-issue-1393`.
+These are supply-accounting controls, not an enforced collateral guarantee.
+Any $1 receipt value is a display convention; it is not a peg or redemption price.
+
 ## Contracts
 
 | Crate | Role |
@@ -45,6 +50,19 @@ Then, as issuer owner:
 { "set_debt_code_id": { "code_id": "<bridge-debt-token code id>" } }
 ```
 
+Approve the reviewed underlying implementation separately from factory listing.
+Require the live LCD code ID to match the independently reviewed
+`REVIEWED_USDT_CODE_ID` (default `10184` for the existing USDT template).
+An observed implementation change needs a separate code review before overriding
+that input; the script rejects the mismatch before any transaction. `10184` is
+not an ID to reuse on another chain. Multi-minter templates must
+provide a complete bounded `Minters` inventory (at most 30 entries), while approved
+single-minter implementations pin `Minter` address and cap without that extension.
+
+```json
+{ "approve_underlying_code": { "code_id": 10184, "multi_minter": true } }
+```
+
 ```json
 {
   "register_market": {
@@ -53,6 +71,27 @@ Then, as issuer owner:
   }
 }
 ```
+
+Registration is issuance-disabled until explicit finite raw-unit limits exist:
+
+```json
+{
+  "configure_market": {
+    "underlying": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4",
+    "limits": {
+      "max_per_issue": "10000000000000000000000",
+      "max_outstanding": "10000000000000000000000",
+      "epoch_seconds": 86400,
+      "max_per_epoch": "10000000000000000000000"
+    },
+    "paused": false
+  }
+}
+```
+
+All caps must be positive. Epochs are fixed timestamp buckets, not rolling windows.
+Once configured, the duration cannot change; changing caps or pause does not reset
+consumed quota. Repayment reduces outstanding but does not refund epoch quota.
 
 ```json
 {
@@ -68,11 +107,65 @@ Then, as issuer owner:
 
 Registering another asset uses a new `XXX-Bridge-Debt` instance and the same issuer. Each receipt has one underlying.
 
+## Code upgrades, migration and owner transfer
+
+Every market retains its own receipt/underlying code IDs and exact primary minter,
+cap and sorted additional-minter inventory. Rotating `SetDebtCodeId` or approving
+another code affects future registrations; live code or minter drift fails closed
+for Issue, Repay and Recover. The script refuses mismatched existing pins or limits
+and never refreshes them automatically.
+
+For a reviewed code-only child upgrade, approve the target underlying implementation
+and call `propose_market_upgrade` with `underlying`, `debt_code_id` and
+`underlying_code_id`. Pending proposals disable Issue. A signer who is both child
+wasm admin and issuer owner should batch child `MsgMigrateContract` messages and
+the issuer `accept_market_upgrade` execute into one Cosmos transaction. Acceptance
+checks exact target code IDs, unchanged debtor, decimals, minter/cap inventory,
+receipt supply/accounting and underlying supply. Valid Repay while pending adjusts
+the proposal's supply snapshot by its burn; unrelated underlying mint/burn makes
+acceptance stale and needs `cancel_market_upgrade` followed by a reviewed new
+proposal. Cancel does not repair code drift or implicitly accept new implementations.
+
+Issuer migration verifies cw2 contract name and supported source versions. A legacy
+market requires an explicit reviewed `legacy_pins` entry, not automatic trust in
+whatever code happens to be live:
+
+```json
+{
+  "legacy_pins": [{
+    "underlying": "<underlying address>",
+    "pins": {
+      "debt_code_id": 123,
+      "underlying_code_id": 456,
+      "multi_minter": true,
+      "minter": "<primary minter>",
+      "minter_cap": null,
+      "additional_minters": ["<issuer>", "<other approved minter>"]
+    }
+  }]
+}
+```
+
+Supply/accounting and identity checks must pass for every market before migrated
+state is written. Already-pinned supported state can migrate with
+`{"legacy_pins":[]}`. Receipt migrations also reject wrong-contract and newer source
+versions. `update_owner` proposes a recipient; that recipient must call
+`accept_owner`. The current owner may call `cancel_owner_transfer` before acceptance.
+
+The owner still controls reviewed code approvals, future defaults, finite caps,
+pause, upgrade proposals and recovery of accidental underlying deposits. Child
+wasm admins can migrate underlying/receipt contracts; the issuer wasm admin can
+replace the issuer itself. Other legitimate underlying minters can create or burn
+supply outside this debt ledger. These residual powers and bridge custody trust
+remain explicit. Pause and issuance caps leave valid consistent Repay/Recover
+available; Recover never lowers debt. Receipt holders cannot transfer, burn or
+replace the issuer minter.
+
 ## 10,000 USDT / 10,000 UST1 LP
 
 [`scripts/deploy-usdt-ust1-lp.sh`](../../scripts/deploy-usdt-ust1-lp.sh) stores the two contracts, then:
 
-1. `multisig_2of3` (`multisig1` + `multisig2`) adds the issuer as a USDT minter and `Issue`s 10,000 USDT to `cl8y2_admin`. The matching `USDT-Bridge-Debt` is minted to the CMM inside that same transaction.
+1. `multisig_2of3` (`multisig1` + `multisig2`) adds the issuer as a USDT minter for a new market, approves the independently reviewed USDT implementation as multi-minter, registers the market and configures finite 10,000 USDT per-issue/outstanding/86400-second epoch caps before `Issue` to `cl8y2_admin`. The matching `USDT-Bridge-Debt` is minted to the CMM inside that same transaction. Resume skips already-issued debt, validates an existing market before setup mutations, and refuses partial debt, pauses, pending upgrades or differing pins/limits instead of silently widening issuance.
 2. `cl8y2_admin` mints 10,000 UST1 to itself, creates the factory pair, and provides liquidity to itself.
 3. `cl8y2_admin` transfers the LP token to the CMM treasury.
 

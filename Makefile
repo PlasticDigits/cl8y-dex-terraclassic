@@ -1438,10 +1438,19 @@ verify-issue-713:
 verify-issue-1376:
 	bash scripts/qa/verify-issue-1376.sh
 
+# Forgejo #1389 — bounded reverse work and fair exact-output capacity.
+.PHONY: verify-issue-1389
+verify-issue-1389:
+	bash scripts/qa/verify-issue-1389.sh
+
 # Forgejo #1381 — versioned gross-budget tax funding, regressions and retest.
 .PHONY: verify-issue-1381
 verify-issue-1381:
 	bash scripts/qa/verify-issue-1381.sh
+
+.PHONY: verify-issue-1393
+verify-issue-1393:
+	bash scripts/qa/verify-issue-1393.sh
 
 # Production rollout automation: behavioral tests and retest, no signing keys.
 .PHONY: verify-route-tax-rollout
@@ -1911,9 +1920,41 @@ front:
 	cd frontend-dapp && bash -c '. "$$HOME/.nvm/nvm.sh" && nvm use && VITE_NETWORK=local npm run dev -- --host'
 
 .PHONY: verify-issue-1380
+.PHONY: verify-issue-1395
+verify-issue-1395:
+	bash scripts/qa/verify-issue-1395.sh
+
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
 # Issue #1400: functional Forgejo policy, cache isolation and immutable inputs.
 .PHONY: verify-issue-1400
 verify-issue-1400:
 	bash scripts/qa/verify-issue-1400.sh
+
+
+.PHONY: verify-issue-1392
+verify-issue-1392:
+	bash scripts/qa/verify-issue-1392.sh
+
+.PHONY: verify-issue-1391
+verify-issue-1391:
+	bash scripts/qa/verify-issue-1391.sh
+
+# Forgejo #1390 — cyclic capable assets, owned refunds and launch-guard parity.
+.PHONY: verify-issue-1390
+verify-issue-1390:
+	bash scripts/qa/verify-issue-1390.sh
+
+# #1399 economic fillability, bounded legacy eviction, parity and retest.
+.PHONY: verify-issue-1399
+verify-issue-1399:
+	bash scripts/verify-issue-1399.sh
+
+# Forgejo #1388 — router trust lifecycle, artifact identity and settlement replay.
+.PHONY: verify-issue-1388
+verify-issue-1388:
+	bash scripts/qa/verify-issue-1388.sh
+
+.PHONY: verify-issue-1394
+verify-issue-1394:
+	bash scripts/verify-issue-1394.sh

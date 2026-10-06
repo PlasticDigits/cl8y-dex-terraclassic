@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_DOWN, getcontext
 from typing import Any
 
+from oracle_safety import age_seconds, positive_decimal, validate_quote
+
 getcontext().prec = 80
 
 UA = "cl8y-dex-ops/clunc-custc-lp (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)"
@@ -483,13 +485,6 @@ def _oracle_fail(errors: list[str], warnings: list[str] | None = None) -> dict[s
     }
 
 
-def _parse_iso(ts: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    except (TypeError, ValueError):
-        return None
-
-
 def fetch_oracles(inp: dict[str, Any]) -> dict[str, Any]:
     try:
         return _fetch_oracles_inner(inp)
@@ -510,23 +505,8 @@ def _fetch_oracles_inner(inp: dict[str, Any]) -> dict[str, Any]:
     hub = _http_json(f"{indexer}/api/v1/hub-prices")
 
     def idx_price(payload: dict[str, Any], ticker: str) -> tuple[Decimal, dict[str, Any]]:
-        if payload.get("ticker") != ticker:
-            raise ValueError(f"indexer ticker {payload.get('ticker')} != {ticker}")
-        px = payload.get("price_usd")
-        if px in (None, ""):
-            raise ValueError(f"indexer {ticker} price_usd empty")
-        avg_at = None
-        for src in payload.get("sources") or []:
-            if src.get("source") == "average":
-                avg_at = src.get("fetched_at")
-                break
-        if avg_at:
-            dt = _parse_iso(str(avg_at))
-            if dt is not None:
-                age = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds()
-                if age > max_age:
-                    raise ValueError(f"indexer {ticker} average is {int(age)}s old (max {max_age})")
-        return _d(px), payload
+        # Reject legacy/stale/degraded data even when the numeric price exists.
+        return validate_quote(payload, ticker, max_age_seconds=max_age), payload
 
     ustc_usd, ustc_raw = idx_price(ustc_idx, "ustc")
     lunc_usd, lunc_raw = idx_price(lunc_idx, "lunc")
@@ -541,26 +521,32 @@ def _fetch_oracles_inner(inp: dict[str, Any]) -> dict[str, Any]:
         row = hub_map.get(ticker) or {}
         hub_px = row.get("price_usd")
         if hub_px in (None, ""):
-            warnings.append(f"hub-prices {ticker} missing")
+            errors.append(f"hub-prices {ticker} missing")
             continue
+        if row.get("quality") != "external_quorum" or row.get("policy") != "hub-fixed-reference-v1":
+            errors.append(f"hub-prices {ticker} lacks fresh external source quality")
+        ttl = row.get("max_age_seconds")
+        if type(ttl) is not int or ttl <= 0 or age_seconds(row.get("as_of")) > min(ttl, max_age, 300):
+            errors.append(f"hub-prices {ticker} stale or invalid freshness policy")
+        hub_value = positive_decimal(hub_px)
         # Hub and /oracle/price refresh on different loops — 0.1% is too tight
         # mid-run. Warn inside 3%; only fail when they actually disagree.
-        if not within_tolerance(_d(hub_px), idx_px, Decimal("0.001")):
+        if not within_tolerance(hub_value, idx_px, Decimal("0.001")):
             msg = f"hub-prices {ticker} {hub_px} vs indexer {idx_px}"
-            if not within_tolerance(_d(hub_px), idx_px, cross_tol):
+            if not within_tolerance(hub_value, idx_px, cross_tol):
                 errors.append(msg)
             else:
                 warnings.append(msg)
         want = (addr_key or "").strip()
         got = (row.get("asset_address") or "").strip()
-        if want and got and got != want:
+        if want and got != want:
             errors.append(f"hub-prices {ticker} asset_address {got} != {want}")
 
     live: dict[str, dict[str, str]] = {"lunc": {}, "ustc": {}}
 
     def add_live(bucket: str, source: str, px: Any) -> None:
         try:
-            val = _d(px)
+            val = positive_decimal(px)
         except Exception:
             return
         if val <= 0:
@@ -617,7 +603,7 @@ def _fetch_oracles_inner(inp: dict[str, Any]) -> dict[str, Any]:
             lambda j: j["price"],
         ),
     ]
-    for bucket, source, url, pick in fetches:
+    for bucket, source, url, pick in ([] if skip_cross else fetches):
         try:
             add_live(bucket, source, pick(_http_json(url, timeout=15)))
         except Exception as exc:

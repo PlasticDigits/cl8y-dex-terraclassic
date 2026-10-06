@@ -238,7 +238,7 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
         db_orderbook_sim::preload_mirrors_for_pairs(&pool, &pair_addrs, &id_to_addr, 60_000)
             .await
             .expect("preload mirrors");
-    let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+    let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
     let source = HybridSimSource::Db {
         lcd_fallback: &lcd,
         mirrors: &mirrors,
@@ -312,6 +312,109 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
     );
     assert_eq!(j["estimated_amount_out"], stripped_out.to_string());
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+/// #1399: loading must preserve expired/zero/invalid scan positions, not just unit walk fixtures.
+#[serial]
+#[tokio::test]
+async fn db_hybrid_loader_preserves_legacy_prefix_until_bounded_cleanup() {
+    use cl8y_dex_indexer::api::db_orderbook_sim::{
+        load_hop_mirror, simulate_hybrid_from_mirror, simulate_pool_only_from_mirror,
+    };
+    use cl8y_dex_indexer::db::queries::pairs;
+    use std::collections::HashMap;
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_with_mirror(&pool).await;
+    let pair = pairs::get_pair_by_address(&pool, "terra1pairrouteabc")
+        .await
+        .unwrap()
+        .unwrap();
+    let addresses = HashMap::from([
+        (pair.asset_0_id, seed.token_a.clone()),
+        (pair.asset_1_id, seed.token_b.clone()),
+    ]);
+    let now = chrono::Utc::now().timestamp();
+    for side in ["bid", "ask"] {
+        let bad_price = if side == "bid" { "20" } else { "0.000000001" };
+        let mut rows: Vec<_> = (0..501)
+            .map(|index| {
+                resting_orders::RestingOrderInput {
+                    order_id: index + 1,
+                    side: side.into(),
+                    price: bd(bad_price),
+                    remaining: bd(match index % 3 {
+                        0 => "1",             // Live but economically unfillable.
+                        1 => "1000000000000", // Expired but otherwise fillable.
+                        _ => "0",
+                    }),
+                    owner: Some("terra1syntheticlegacy".into()),
+                    expires_at: (index % 3 == 1).then_some(now - 60),
+                }
+            })
+            .collect();
+        rows.push(resting_orders::RestingOrderInput {
+            order_id: 502,
+            side: side.into(),
+            price: bd(if side == "bid" { "1" } else { "0.5" }),
+            remaining: bd("100"),
+            owner: Some("terra1syntheticfillable".into()),
+            expires_at: None,
+        });
+        seed_route_pair_bids(&pool, &rows).await;
+        let load = || {
+            load_hop_mirror(
+                &pool,
+                &pair.contract_address,
+                &addresses,
+                &pair,
+                3_600_000,
+                now as u64,
+            )
+        };
+        let before = load().await.unwrap();
+        let orders = if side == "bid" {
+            &before.bids
+        } else {
+            &before.asks
+        };
+        assert_eq!(
+            orders.len(),
+            502,
+            "loader must retain every legacy scan step"
+        );
+        assert_eq!(orders[0].order_id, 1);
+        assert_eq!(orders[1].expires_at, Some(now - 60));
+        assert_eq!(orders[2].remaining, bd("0"));
+        assert_eq!(orders[501].order_id, 502);
+        let offer = if side == "bid" {
+            &seed.token_a
+        } else {
+            &seed.token_b
+        };
+        let pool_only = simulate_pool_only_from_mirror(&before, offer, 10, 10_000).unwrap();
+        let blocked =
+            simulate_hybrid_from_mirror(&before, offer, 10, 0, 10, 1, 10_000, None).unwrap();
+        assert_eq!(
+            blocked, pool_only,
+            "head scan ceiling must hide the deeper maker"
+        );
+
+        // Mirror the next chain snapshot after a bounded cleanup removed two head rows.
+        seed_route_pair_bids(&pool, &rows[2..]).await;
+        let after = load().await.unwrap();
+        let orders = if side == "bid" {
+            &after.bids
+        } else {
+            &after.asks
+        };
+        assert_eq!(orders.len(), 500);
+        assert_eq!(orders[0].order_id, 3);
+        let reachable =
+            simulate_hybrid_from_mirror(&after, offer, 10, 0, 10, 1, 10_000, None).unwrap();
+        assert_eq!(reachable, if side == "bid" { 10 } else { 20 });
+        assert!(reachable > pool_only);
+    }
 }
 
 fn bd(s: &str) -> BigDecimal {
@@ -393,7 +496,7 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         assert_eq!(hybrid["book_start_hint"], 42);
     }
 
-    // Expired head filtered from mirror → hint is first live order deeper in the book.
+    // Expired head remains in the mirror; generated hint selects the first live order.
     {
         let seed = common::seed_route_solve_with_mirror(&pool).await;
         let now = chrono::Utc::now().timestamp();

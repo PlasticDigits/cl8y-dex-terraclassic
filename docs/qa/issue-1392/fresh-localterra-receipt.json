@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-10-05T08:50:53.055471+00:00",
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "source_scope": "Issue #1392 final working-tree implementation",
+  "command": "python3 scripts/lib/chain-attestation.py --expected-chain localterra --lcd http://172.17.0.13:1317 --rpc http://172.17.0.13:26657",
+  "exit_code": 0,
+  "scope": "Read-only freshly provisioned isolated LocalTerra network/header agreement using the unchanged default 120-second freshness policy. No code identities requested, no transactions prepared/signed/broadcast. Earlier local factory code corroboration is separately recorded.",
+  "receipt": {
+    "rpc": "http://172.17.0.13:26657",
+    "expected_chain_id": "localterra",
+    "observed_chain_id": "localterra",
+    "height": 205,
+    "block_hash": "7dc498ef23cd83f529265160d9751d46bd69add414bf05d6335da16c31a9d5d7",
+    "identities": {}
+  }
+}

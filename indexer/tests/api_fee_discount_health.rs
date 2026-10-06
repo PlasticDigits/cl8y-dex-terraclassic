@@ -23,6 +23,7 @@ async fn build_app_with_health(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
+        "columbus-5",
     );
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     let state = AppState {
@@ -49,7 +50,7 @@ async fn build_app_with_health(
 
 #[serial]
 #[tokio::test]
-async fn generic_health_unchanged() {
+async fn generic_health_retains_liveness_and_adds_chain_observations() {
     let pool = common::setup_pool().await;
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
@@ -61,7 +62,13 @@ async fn generic_health_unchanged() {
 
     let resp = server.get("/health").await;
     resp.assert_status_ok();
-    assert_eq!(resp.json::<Value>(), serde_json::json!({ "status": "ok" }));
+    let body = resp.json::<Value>();
+    assert_eq!(body["status"], "ok");
+    assert!(body.get("git_sha").is_none());
+    assert_eq!(body["chain_identity"]["expected_chain_id"], "columbus-5");
+    assert!(body["chain_identity"]["endpoints"][0]["observed_chain_id"].is_null());
+    assert_eq!(body["chain_identity"]["endpoints"][0]["verified"], false);
+    assert!(body["chain_identity"]["endpoints"][0]["checked_at"].is_null());
 }
 
 #[tokio::test]
@@ -83,6 +90,7 @@ async fn unconfigured_fee_discount_health_returns_null_ok() {
 #[serial]
 async fn lcd_failure_increments_counter_without_leaking_upstream_text() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(
@@ -102,6 +110,7 @@ async fn lcd_failure_increments_counter_without_leaking_upstream_text() {
         cfg.lcd_urls.clone(),
         cfg.lcd_timeout_ms,
         cfg.lcd_cooldown_ms,
+        "columbus-5",
     );
 
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
@@ -139,6 +148,7 @@ async fn lcd_failure_increments_counter_without_leaking_upstream_text() {
 #[serial]
 async fn configured_successful_probe_reports_ok() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -160,6 +170,7 @@ async fn configured_successful_probe_reports_ok() {
         cfg.lcd_urls.clone(),
         cfg.lcd_timeout_ms,
         cfg.lcd_cooldown_ms,
+        "columbus-5",
     );
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
 

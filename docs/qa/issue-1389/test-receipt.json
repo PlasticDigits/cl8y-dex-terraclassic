@@ -1,0 +1,103 @@
+{
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "utc": "2026-10-05T07:32:46.094111+00:00",
+  "source_sha256": {
+    "smartcontracts/contracts/router/src/reverse_query.rs": "c27d6ab96d669293fccbdd95733d240b76c001b80db5b6a4a0dbca1287924ed1",
+    "smartcontracts/contracts/router/src/contract.rs": "92d17deeb2191b9e2dcdbcbb709e4c0cd620f262f171643064d18cf3b19eac9f",
+    "smartcontracts/contracts/router/src/route_tax.rs": "a77b221812ec84f07ed471f992c9755536d2b232f101be47746ad4787ccb2ac1",
+    "smartcontracts/contracts/pair/src/contract.rs": "182d30c17002ff0808e57b6c51f14175ef75e8aaf0b702b47523966cb4cedf38",
+    "smartcontracts/contracts/pair/src/hybrid_reverse.rs": "5a8ac3e18a3fd4725661d2a6dc6b26ec0f951b38cc1675cbc58169d03a4e4c8e",
+    "smartcontracts/contracts/pair/src/orderbook.rs": "b6ada684dd0892ea229823a7476f3a53ee86dc6ab9a487e9ac21cf24ae211d12",
+    "smartcontracts/packages/dex-common/src/pair.rs": "d099cd4f2938891904fe943045165c8311e71fafa83c29d015a1cab38748e05e",
+    "indexer/src/api/route_exact_output_admission.rs": "7dbe9c03e8b1dbbcd82ef5589aa4a6c66db5859cb7c4d918d2980989e4cb0fd3",
+    "indexer/src/api/route_exact_output.rs": "737c977decb8d2740cca34a675c777ebe0bddfef6f78385743c28e97a4ba4ea0",
+    "indexer/src/api/route_solver.rs": "031089ed6c247545df66864ad5b80ccb0debc57f30a24d65ef80040f3c30679d",
+    "indexer/src/api/mod.rs": "2f17b822d685492a250bd66758c71ae8b790d7ba34a48a400c1c41a019361c17",
+    "frontend-dapp/src/pages/SwapPage.queryParams.test.tsx": "2b231b9862b078bd8641a590ca84a7177914c486f99ffa4dbcb53d8d8323baca"
+  },
+  "workspace_executables": [
+    {
+      "crate": "cl8y_dex_factory",
+      "sha256": "ee72a388ea297a903ee09ef80f51c35302bd07b5311aff139a9f655456a1787b"
+    },
+    {
+      "crate": "cl8y_dex_pair",
+      "sha256": "e0775242c899f3b7036a9c9ff5392fd2ef80c4890d984e660880cd804f3c2002"
+    },
+    {
+      "crate": "cl8y_dex_router",
+      "sha256": "f4845ae39876006297fcf71408451187a03c00cc8dfe4c83bdf57febc86e6db9"
+    },
+    {
+      "crate": "cl8y_dex_fee_discount",
+      "sha256": "79351532e80b3df6d5a9220179dd9390834a31175bc6051dd61bf115323a6328"
+    },
+    {
+      "crate": "cl8y_dex_faucet",
+      "sha256": "cdce9b37a613cd38762e738a3655a694bf6b90b6174c8a5abeb7f0ac4217b3b1"
+    },
+    {
+      "crate": "cl8y_dex_burn_hook",
+      "sha256": "4b00ca8f45c0bf2a8363379f9521ddbc05c79f89db0ecd284364d5d1014b9b6f"
+    },
+    {
+      "crate": "cl8y_dex_tax_hook",
+      "sha256": "b0336f8d5bc2f8bda5715fdf4ba173ce8475d0355ab06f6fb7ffc81b5151ecb7"
+    },
+    {
+      "crate": "cl8y_dex_lp_burn_hook",
+      "sha256": "a75c28824a8737f0c5538d8f50ff928a203b7e793f0c71c935d4a78fd98d5579"
+    },
+    {
+      "crate": "cl8y_community_tax_token",
+      "sha256": "2e7d2a2b0947fc881840142e1f1bb73c06476690c05a528feae3a19b9dc01ae0"
+    },
+    {
+      "crate": "cl8y_community_tax_autolp",
+      "sha256": "c52a90fa833ece9372d429e413003f974dc2418231d9c8f53e23eb1244d16b1e"
+    },
+    {
+      "crate": "cl8y_community_token_launcher",
+      "sha256": "946e7a538463b46759d6f845c70ec5cf658c653ed89fdab134e0d6cbec89ad6e"
+    },
+    {
+      "crate": "bridge_debt_token",
+      "sha256": "99f026eeaf0c81a5a31deff65afeab0d9eeed76c153f2ff8937d3011121f84f7"
+    },
+    {
+      "crate": "bridge_debt",
+      "sha256": "0f78c9adb47c27a2b06d0706dcff575c5dc7bd4b3518e9408e82f84d46887a7d"
+    },
+    {
+      "crate": "dex_common",
+      "sha256": "6e859a7cbb59fa20d6e232d47d7dce2a744652cdbbccba2eab05acf477c978f6"
+    },
+    {
+      "crate": "cl8y_dex_tests",
+      "sha256": "90f2df953164c53305dbd1f50e6a43a750e89d971970199dd749156fd476ad00"
+    }
+  ],
+  "workspace_passed": 888,
+  "focused_retest_passed": 24,
+  "scope": "Implementation working tree; direct final workspace test executables after Cargo compilation; no production or gas acceptance",
+  "indexer": {
+    "utc": "2026-10-05T07:52:24Z",
+    "unit_passed_each_run": 19,
+    "api_passed_each_run": 12,
+    "admission_passed_each_run": 6,
+    "runs": 2,
+    "production_rlib_sha256": "58d4c6eb11e3e12218bb40aed327162a3d33fdcf1981e8a386364e55056e342f",
+    "unit_executable_sha256": "93cb73750d5689aff40b7e33fa347ddf542ebd32a4797f547be7582ec71ceda1",
+    "admission_executable_sha256": "c9ed73d3ecf150efaeefb34a795f52cc78b0f43deb17154d1756c233123f465e",
+    "integration_executable_sha256": "1370045609855ef3579f100a24ef56e52cc975338046b0b16cc5c1618d3d09bc"
+  },
+  "optimized_artifacts": {
+    "cl8y_dex_pair": "4dbc9ab3751608ae7f2157b3e094d3ff19ef91944262ba854f767384845a3fdc",
+    "cl8y_dex_router": "5d727822438de4a33d70c52942a178282c1ba2c090c0b7febd5f975243c89279"
+  },
+  "unverified": {
+    "gas": "LocalTerra height 838695 frozen since 2026-10-05T06:49:55Z with one pending transaction; fixture setup failed before VM assertions",
+    "browser": "Dedicated Vite page navigation could not complete load within 120 seconds before application assertions; RTL tests passed",
+    "production": "No deployment, migration, inventory acceptance or real-user activity"
+  }
+}

@@ -72,13 +72,19 @@ pub fn pct_change(now: &BigDecimal, then: &BigDecimal) -> Option<BigDecimal> {
 fn catalog_kind(asset: &AssetRef) -> Option<QuoteUsdKind> {
     use crate::config::*;
     if !asset.is_cw20 {
+        if asset.contract_address.is_some() {
+            return None;
+        }
         return match asset.denom.as_deref() {
             Some("uusd") => Some(QuoteUsdKind::Ustc),
             Some("uluna") => Some(QuoteUsdKind::Lunc),
             _ => None,
         };
     }
-    let address = asset.contract_address.as_deref()?.trim();
+    if asset.denom.is_some() {
+        return None;
+    }
+    let address = asset.contract_address.as_deref()?;
     for (name, default, kind) in [
         (
             "HUB_CUSTC_ADDRESS",
@@ -110,7 +116,7 @@ fn catalog_kind(asset: &AssetRef) -> Option<QuoteUsdKind> {
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| default.to_string());
-        if address.eq_ignore_ascii_case(pin.trim()) {
+        if address == pin {
             return Some(kind);
         }
     }
@@ -353,21 +359,17 @@ async fn load_quotes_tx(
     ),
     sqlx::Error,
 > {
-    let oracle_age = std::env::var("ORACLE_POLL_INTERVAL_MS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(30_000)
-        .saturating_mul(10)
-        .clamp(1_000, 300_000);
+    let oracle_age = crate::indexer::oracle::ORACLE_MAX_AGE_SECS as u64 * 1000;
     // Reserve-cache trust may last a full TTL after this valuation. Reserve a
     // source-lifetime budget so a nearly expired oracle cannot expire under it.
     let usable_age =
         oracle_age.saturating_sub(max_staleness.as_millis().min(u64::MAX as u128) as u64);
     let oracle_since = now - chrono::Duration::milliseconds(usable_age as i64);
     let rows: Vec<(String, BigDecimal)> = sqlx::query_as(
-        "SELECT DISTINCT ON (ticker) ticker, price_usd FROM oracle_prices
-         WHERE source = 'average' AND fetched_at BETWEEN $1 AND $2
-         ORDER BY ticker, fetched_at DESC",
+        "SELECT ticker, price_usd FROM oracle_state
+         WHERE quality = 'fresh' AND cardinality(accepted_sources) >= 2
+           AND price_usd BETWEEN 0.000000000001 AND 1000000
+           AND as_of BETWEEN $1 AND $2",
     )
     .bind(oracle_since)
     .bind(now)
@@ -384,10 +386,14 @@ async fn load_quotes_tx(
     let hub_since =
         now - chrono::Duration::from_std(max_staleness).unwrap_or(chrono::Duration::seconds(20));
     let rows: Vec<(String, BigDecimal, chrono::DateTime<Utc>)> = sqlx::query_as(
-        "SELECT ticker, price_usd, updated_at FROM hub_prices WHERE updated_at BETWEEN $1 AND $2",
+        "SELECT ticker, price_usd, as_of FROM hub_prices WHERE as_of BETWEEN $1 AND $2
+         AND quality = 'bounded_spot' AND price_usd > 0
+         AND EXISTS (SELECT 1 FROM oracle_state WHERE ticker='ustc' AND quality='fresh'
+             AND cardinality(accepted_sources)>=2 AND as_of BETWEEN $3 AND $2)",
     )
     .bind(hub_since)
     .bind(now)
+    .bind(oracle_since)
     .fetch_all(&mut **tx)
     .await?;
     let mut hub_times = std::collections::HashMap::new();
@@ -423,6 +429,9 @@ pub async fn refresh_protocol_liquidity_with_staleness(
     let pairs = hub_prices::list_protocol_reserve_pairs_tx(&mut tx).await?;
     let previous = liquidity_snapshots::get_liquidity_rollup_tx(&mut tx).await?;
     let (mut sum, priced) = collect_priced_pair_tvls(now, max_staleness, &quotes, &pairs);
+    if quotes.hub.ust1.is_some() || quotes.hub.ustr.is_some() {
+        sum.quality.reasons["advisory_hub_spot"] = serde_json::json!(1);
+    }
     // Hub marks have the same TTL as reserves: include their original time in
     // the oldest-used-input watermark instead of renewing a nearly expired mark.
     let priced_ids: std::collections::HashSet<_> =

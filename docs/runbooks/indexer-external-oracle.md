@@ -36,7 +36,7 @@ Venus **1 vFDUSD → FDUSD** is **not** this CEX feed. Indexer poller: [`indexer
 
 ### Sources
 
-Each poll stores per-source rows plus an `average` row. In-memory cache serves `price_usd` on the ticker price endpoint. CoinGecko is polled on alternate ticks (rate-limit soft-fail).
+Each poll stores per-source rows plus an `average` row. Certified `oracle_state` with quorum and bounded age serves current prices; legacy history is never a fresh fallback. CoinGecko is polled on alternate USTC/LUNC ticks, and on every FDUSD tick so that two-source feed can form a quorum.
 
 The oracle HTTP client sends a **stable descriptive User-Agent** (`cl8y-dex-indexer/<version> (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)`) on every KuCoin / MEXC / CoinGecko request ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko’s free API returns **HTTP 403** (`Please add a descriptive User-Agent`) if this header is missing or empty — that is a **client misconfiguration**, not quota. Distinguish:
 
@@ -46,13 +46,13 @@ The oracle HTTP client sends a **stable descriptive User-Agent** (`cl8y-dex-inde
 | **403** body asks for User-Agent | Missing descriptive UA | `MissingUserAgent` — error once, then debug; **not** 429 |
 | **403** other (ban / key) | Soft-fail | Parse/HTTP warn; truncated body (~120 chars) |
 
-Do **not** impersonate browsers, rotate User-Agents, or drop the CoinGecko source to “fix” 403. KuCoin/MEXC still average when CoinGecko is down (vFDUSD has no KuCoin pair).
+Do **not** impersonate browsers, rotate User-Agents, or drop the CoinGecko source to “fix” 403. KuCoin/MEXC remain usable when they agree; FDUSD requires both MEXC and CoinGecko because it has no KuCoin pair.
 
 ## Storage
 
 Table `oracle_prices(ticker, price_usd, source, fetched_at)` (migration `20260811000000_oracle_prices_multi_ticker.sql`). Replaces legacy `ustc_prices`.
 
-Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544) / [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)): USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; UST1/USTR = **`hub_prices`** (DEX largest-liquidity marks). **USTR is set by the market, not a fixed `2.5 ×` USTC peg.** Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only; hub fields are additive. DEX hub HTTP is `GET /api/v1/hub-prices` — **not** `/oracle/price/ustr` (400). Trader `total_volume_usd` is `SUM` of the same column. `/portfolio` + `/trader` header realized P&amp;L USD uses the same hub snapshot (**P560-1**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)) — never `$1` / `2.5×`.
+Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544) / [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)): USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; UST1/USTR = **`hub_prices`** (bounded non-oracle-grade DEX spot marks). **USTR is set by the market, not a fixed `2.5 ×` USTC peg.** Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only; hub fields are additive. DEX hub HTTP is `GET /api/v1/hub-prices` — **not** `/oracle/price/ustr` (400). Trader `total_volume_usd` is `SUM` of the same column. `/portfolio` + `/trader` header realized P&amp;L USD uses the same hub snapshot (**P560-1**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)) — never `$1` / `2.5×`.
 
 ## Invariants (X1–X7)
 
@@ -63,8 +63,8 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 | **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. Path `vfdusd` polls CEX FDUSD; logs/`display_name` are **FDUSD/USD**, not `vFDUSD/USD` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
 | **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD **or Venus**. Never use `OracleTicker::Vfdusd` as `usd_per_human` for symbol `VFDUSD`. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
-| **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
-| **X7** | Oracle HTTP client sends a stable, non-browser User-Agent identifying this indexer + repo ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko 403 User-Agent-missing is **not** `RateLimited`. Soft-fail: one source down still averages the rest. |
+| **X6** | Reject nonfinite, nonpositive, out-of-range and underflow values before insert; never default conversion failure to zero (#1391). |
+| **X7** | Oracle HTTP client sends a stable, non-browser User-Agent identifying this indexer + repo ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko 403 User-Agent-missing is **not** `RateLimited`. One source down is usable only with two agreeing peers; no quorum clears the current price (#1391). |
 
 ## Code map
 
@@ -89,3 +89,28 @@ make verify-issue-580
 # or: cd indexer && cargo test --lib oracle -- --quiet
 #     cd indexer && cargo test --test api_oracle -- --test-threads=1
 ```
+
+## Integrity policy and migration (#1391)
+
+Current responses add quality, as-of/age/TTL and source quorum/policy metadata.
+Only fresh certified values are numeric; stale, degraded and unavailable values
+are null. Hub metadata declares non-oracle-grade spot marks, independent priced-leg
+depth and fixed-reference divergence. Current hub/API/adapter reads qualify expiry.
+This does not prove independent fair value or authorize automated treasury use.
+See [the full policy, residual risks and release/agent checklist](../qa/issue-1391/README.md),
+[O1391 invariants](../indexer-invariants.md#oracle-integrity-and-hub-containment-1391)
+and [third-party agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md).
+
+SQLx applies new oracle-state and hub-reference migrations at indexer startup.
+Old historical rows are retained; they do not certify current healthy quotes.
+Hub prices temporarily remain observing until confirmation. Deploy the new API
+before using updated financial scripts: old price-only payloads deliberately fail
+closed. Fixed references survive restart and need a documented maintenance reset
+for intentional repricing. This PR alone is not production deployment evidence.
+
+Freshness is the age of completed **local HTTP observations**, captured before DB
+writes; it is not authenticated exchange market age. Provider HTTP-200 replay and
+coordinated stale but agreeing feeds remain possible. Source quorum and TTL do not
+establish fair value or settlement authority. New historical averages record their
+accepted sources; old samples stay uncertified. As-of repairs require certified
+prices within 300 seconds before each historical event and exact wrap contracts.

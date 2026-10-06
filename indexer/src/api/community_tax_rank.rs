@@ -7,8 +7,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use crate::api::AppState;
 use crate::api::route_solver::RouteHop;
+use crate::api::AppState;
 use crate::db::queries::community_tokens::{self, CommunityTokenRow};
 use crate::lcd::LcdClient;
 
@@ -163,6 +163,32 @@ pub fn buy_tax_applies(token_out_taxed: bool, hop_count: usize, router_hops_tax:
     hop_count <= 1 || router_hops_tax
 }
 
+/// The logical route visits its initial offer and each hop ask once. Shared offer/ask
+/// boundaries between adjacent hops are one visit. Launch guards are stateful: v1
+/// previews cannot promise parity when the same capable token is visited twice (#1390),
+/// even with zero current rates or a manager/protocol exemption.
+pub fn repeated_route_tax_asset<'a>(
+    hops: &'a [RouteHop],
+    snapshot: &TaxRankSnapshot,
+) -> Option<&'a str> {
+    let first = hops.first()?;
+    let mut visited = HashSet::new();
+    for asset in std::iter::once(first.offer_token.as_str())
+        .chain(hops.iter().map(|hop| hop.ask_token.as_str()))
+    {
+        let normalized = asset.trim().to_ascii_lowercase();
+        if snapshot
+            .by_addr
+            .get(&normalized)
+            .is_some_and(|token| token.route_funding_version == Some(1))
+            && !visited.insert(normalized)
+        {
+            return Some(asset);
+        }
+    }
+    None
+}
+
 /// Reject unresolved implementations and incompatible funding versions at every boundary.
 /// Supported v1 community intermediates remain eligible; ordinary implementations are attested.
 pub fn path_sells_middle_tax_hop(
@@ -170,6 +196,9 @@ pub fn path_sells_middle_tax_hop(
     token_in: &str,
     snapshot: &TaxRankSnapshot,
 ) -> bool {
+    if repeated_route_tax_asset(hops, snapshot).is_some() {
+        return true;
+    }
     if snapshot.path_route_local(hops) && !snapshot.router_funding_supported {
         return true;
     }
@@ -486,7 +515,7 @@ pub(crate) async fn try_load_tax_rank_snapshot(
     let mut snapshot = TaxRankSnapshot {
         instance_identity: vec![format!(
             "lcd{}:router{:?}",
-            state.lcd.cache_namespace(),
+            state.lcd.chain_cache_namespace(),
             state.router_address
         )],
         policy,
@@ -902,11 +931,40 @@ mod tests {
             &s
         ));
     }
+    #[test]
+    fn repeated_capable_assets_rejected_independent_of_rates_and_exemptions() {
+        for (buy, sell) in [(0, 0), (450, 100)] {
+            let mut token = tax_tok(TAX, 11667, buy, sell);
+            token.route_funding_version = Some(1);
+            let mut s = snap(Some(token), None, Default::default(), true);
+            s.router_funding_supported = true;
+            s.exempt_tokens.insert(TAX.into());
+            for hops in [
+                vec![hop(TAX, UST1), hop(UST1, TAX)],
+                vec![hop(UST1, TAX), hop(TAX, USTR), hop(USTR, TAX)],
+            ] {
+                assert_eq!(repeated_route_tax_asset(&hops, &s), Some(TAX));
+                assert!(!score_path(1_000_000, &hops, &hops[0].offer_token, &s).eligible);
+            }
+            // Adjacent ask/offer references are a single logical visit.
+            let simple = [hop(UST1, TAX), hop(TAX, USTR)];
+            assert_eq!(repeated_route_tax_asset(&simple, &s), None);
+            assert!(score_path(1_000_000, &simple, UST1, &s).eligible);
+            // Ordinary repeated assets remain supported when the capable asset is unique.
+            let ordinary_cycle = [hop(UST1, TAX), hop(TAX, USTR), hop(USTR, UST1)];
+            assert!(score_path(1_000_000, &ordinary_cycle, UST1, &s).eligible);
+            // Discovery failure must reject before a cycle can be treated as ordinary.
+            s.unresolved.insert(TAX.into());
+            assert!(!score_path(1_000_000, &simple, UST1, &s).eligible);
+        }
+    }
+
     #[tokio::test]
     async fn route_local_trader_protocol_flag_cannot_waive_tax() {
         use wiremock::matchers::{method, path_regex};
         use wiremock::{Mock, MockServer, ResponseTemplate};
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path_regex(r".*/smart/.*"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -914,7 +972,7 @@ mod tests {
             })))
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
         let mut token = tax_tok(TAX, 11667, 450, 100);
         token.route_funding_version = Some(1);
         assert!(!resolve_token_exempt(&lcd, &token, "terra1synthetictrader").await);

@@ -1,0 +1,21 @@
+{
+  "recorded_at_utc": "2026-10-05T06:33:19.459678+00:00",
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "source_scope": "Issue #1392 working-tree implementation",
+  "command": "python3 scripts/lib/chain-attestation.py --expected-chain columbus-5 --lcd https://terra-classic-lcd.publicnode.com --rpc https://terra-classic-rpc.publicnode.com:443 --contracts terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+  "exit_code": 0,
+  "scope": "Read-only network, freshness, matching common-height block, factory contract code ID and checksum. No transaction preparation/signing/broadcast/deployment.",
+  "receipt": {
+    "rpc": "https://terra-classic-rpc.publicnode.com:443",
+    "expected_chain_id": "columbus-5",
+    "observed_chain_id": "columbus-5",
+    "height": 30699184,
+    "block_hash": "fc6843d24e625307848499c0cade59c3ef2fd936fa6f7b52c7eae1d688a006fc",
+    "identities": {
+      "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea": {
+        "code_id": 11629,
+        "checksum": "64abbccbd801bd399ec9f246dc7bc350531b5eea66a6ea3d53a4fac3ff22982c"
+      }
+    }
+  }
+}

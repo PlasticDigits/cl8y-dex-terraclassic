@@ -643,7 +643,12 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(swap).not.toHaveBeenCalled()
   })
 
-  it('refetching and failed reverse quotes cannot reuse a previously executable offer', async () => {
+  it.each([
+    'reverse quote unavailable',
+    'Reverse query work budget exhausted',
+    'Indexer API error: 429 Too Many Requests',
+    'Indexer API error: 504 Gateway Timeout',
+  ])('failed receive refetch (%s) clears executable pay without an automatic retry (#1389)', async (failure) => {
     seedCw20Route()
     useWalletStore.setState({ address: 'terra1wallet000000000000000000000000000001', walletType: 'dev' })
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
@@ -665,10 +670,19 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(2))
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
     expect(screen.getByRole('button', { name: /calculating/i })).toBeDisabled()
-    await act(async () => rejectRefetch(new Error('reverse refetch unavailable')))
+    await act(async () => rejectRefetch(new Error(failure)))
     await waitFor(() => expect(screen.getByRole('button', { name: /^quote unavailable$/i })).toBeDisabled())
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
+    expect(screen.getByTestId('retry-error-button')).toBeEnabled()
+    // The query disables React Query retries and interval refresh after an error.
+    // This also checks cached forward operations cannot enable an accidental resend.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(2)
     expect(swap).not.toHaveBeenCalled()
+    expect(executeNativeSwap).not.toHaveBeenCalled()
   })
 })
 

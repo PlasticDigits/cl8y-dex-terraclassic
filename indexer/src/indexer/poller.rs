@@ -259,7 +259,7 @@ pub async fn run_indexer(
                 Ok(_meta) => {
                     last_indexed = height;
                     if height % 100 == 0 {
-                        tracing::info!("Indexed block {} / {}", height, latest);
+                        tracing::info!(height, latest, discovery = ?lcd.pair_discovery_counters(), "Indexed block");
                     }
                 }
                 Err(block_indexer::BlockIndexError::ReorgDetected {

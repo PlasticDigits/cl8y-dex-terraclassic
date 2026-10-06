@@ -35,3 +35,5 @@ default; `--migrate` uses the pinned artifact and existing 2-of-3 tool, while
 `--dry-run` never signs. Repeat live probes after any future migration;
 [the TWAP runbook](../docs/runbooks/pair-twap-uint256-columbus5.md) remains
 the state-preservation contract.
+
+- [Reverse-query availability #1389](AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](../docs/qa/issue-1389/README.md).

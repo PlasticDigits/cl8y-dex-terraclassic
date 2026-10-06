@@ -217,6 +217,7 @@ async fn mount_smart_mock(
     responder: impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static,
 ) -> MockServer {
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -615,6 +616,7 @@ async fn insert_hints_parity_with_client_resolver() {
         vec![common::lcd_mock::lcd_base_url(&mock)],
         cfg.lcd_timeout_ms,
         cfg.lcd_cooldown_ms,
+        "columbus-5",
     );
     let pair = "terra1pair";
     let prices = vec!["2.1".into(), "1.6".into(), "1.5".into(), "0.9".into()];
@@ -637,6 +639,7 @@ async fn insert_hints_budget_exhausted_pagination_gap() {
         vec![common::lcd_mock::lcd_base_url(&mock)],
         cfg.lcd_timeout_ms,
         cfg.lcd_cooldown_ms,
+        "columbus-5",
     );
     let result = resolve_limit_insert_hints(
         &lcd,

@@ -99,3 +99,8 @@ Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (C
 - Remove `PROTOCOL_EXEMPT` on the router (option 3) without accepting a pair-only tax token.
 - Claim hops skip buy/sell tax (option 1 copy).
 - Add pair/router FoT math to “make bps mean bps” on multi-hop.
+
+Launch-guard refinement: [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md) defines
+repeated-capable-asset rejection, authenticated original-input restoration and
+protocol-trader preview/error parity. [Agent checks](../docs/qa/issue-1390/README.md):
+`make verify-issue-1390`.

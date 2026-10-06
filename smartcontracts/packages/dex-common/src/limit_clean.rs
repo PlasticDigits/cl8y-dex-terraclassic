@@ -13,9 +13,9 @@ pub const MAX_CLEAN_SCAN_STEPS: u32 = 500;
 
 #[cw_serde]
 pub struct LimitCleanConfigResponse {
-    /// Min remaining token0 notional for asks; `0` disables force-clean on asks.
+    /// Min remaining token0 notional for asks; `0` disables threshold dust cleaning, not economic eviction.
     pub min_remaining_token0: Uint128,
-    /// Min remaining token1 notional for bids; `0` disables force-clean on bids.
+    /// Min remaining token1 notional for bids; `0` disables threshold dust cleaning, not economic eviction.
     pub min_remaining_token1: Uint128,
 }
 

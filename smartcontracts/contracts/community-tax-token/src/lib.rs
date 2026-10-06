@@ -17,7 +17,8 @@
 //!   Identical `minter` is also a no-op. EnableFeature is never mixed into a settings batch.
 //!   Official SKU unlock is manager → launcher → token (`origin.launcher` payer
 //!   is authorized for EnableFeature only; **T606-1–T606-4**).
-//! - **T592-5** — Manager-only config; wasm admin is **not** an execute path. Launcher
+//! - **T592-5** — Manager-only economic config; live wasm admin or configured factory governance
+//!   can rotate/revoke router trust (#1388). Launcher
 //!   stamps CMM governance as CosmWasm admin.
 //! - **T592-6** — MintControl is instantiate-only; `RevokeMint` is one-way.
 //! - **T592-7** — Classification: see `tax.rs`. Provide (`TransferFrom`) and limit
@@ -32,8 +33,15 @@
 //!   trader to the configured router's active context. `Swap.trader` alone cannot
 //!   attest funding. Missing context rejects; wallet extra-debit fallback is absent.
 //!   See `docs/qa/issue-1381/README.md` and shared `dex-common::route_tax` protocol.
+//! - **T592-14** — Governance router recovery uses live wasm-admin or configured factory
+//!   governance authority and
+//!   reviewed live code ID/checksum plus factory/funding/settlement capabilities.
+//!   Candidates must be immutable or owned by configured factory governance.
+//!   Settlement consumes (router, monotonic route ID, slot, token) once; a bounded
+//!   token record preserves the latest route and at most five slots. Failed routes
+//!   revert both consumption and balances. See `skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md`.
 //! - **T592-8** — No reflection, rebase, pause, or blacklist manager APIs.
-//! - **T592-9** — Protocol exemptions cannot be removed. `RegisterListedPair` requires
+//! - **T592-9** — Active protocol role exemptions cannot be removed; governance rotation removes an obsolete router exemption only when no other active role overlaps. `RegisterListedPair` requires
 //!   factory `Pair` lookup. Manager directory is a full tax skip for those three
 //!   kinds, not a transfer-only list, and does not grant listed-pair status.
 //! - **T592-10** — AutoLP is never invoked from `Transfer`/`Send`/`AfterSwap`.
@@ -50,6 +58,7 @@ pub mod identity;
 pub mod invoice;
 pub mod msg;
 pub mod pair_registry;
+pub mod router_trust;
 pub mod state;
 pub mod tax;
 
@@ -57,6 +66,8 @@ pub mod tax;
 mod adopt_multitest;
 #[cfg(test)]
 mod multitest;
+#[cfg(test)]
+mod router_trust_multitest;
 
 #[cfg(not(feature = "library"))]
 pub mod entry {

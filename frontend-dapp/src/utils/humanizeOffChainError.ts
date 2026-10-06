@@ -87,6 +87,10 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
     return INDEXER_RATE_LIMIT_RETRY_MESSAGE
   }
 
+  if (/Indexer API error:\s*422\b/i.test(m)) {
+    return 'Route validation rejected this quote. Refresh the quote or choose another route.'
+  }
+
   if (/Indexer API error:/i.test(m) && !/Indexer API error:\s*404\b/i.test(m)) {
     return 'Market data service returned an error. Wait a moment and retry, or check indexer status.'
   }

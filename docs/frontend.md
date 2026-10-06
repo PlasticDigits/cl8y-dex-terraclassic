@@ -1,5 +1,18 @@
 # Frontend Guide
 
+## Route launch guards (#1390)
+
+Logical routes visit the first offer and each ask once. Repeated route-tax-capable
+assets are rejected by execute, forward/reverse quotes, solver and client
+preflight even with zero rates, disabled guards or an exempt manager. Ordinary
+intermediate buy/sell remains valid; independent routes keep per-wallet cooldown.
+Only authenticated original-input residue restored to its payer can bypass
+max-wallet. Bought output, intermediate residue and other recipients remain
+capped. Protocol-exempt routed traders are rejected in previews and execution.
+See [LG1390 invariants](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md) and
+[agent review/verification checklist](qa/issue-1390/README.md).
+
+
 ## Design system
 
 Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) Swap flip plate), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
@@ -2592,3 +2605,12 @@ and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 ## Selector async lifecycle (#1400)
 
 Pair search cancels deferred blur/focus checks before rescheduling and on unmount. This prevents callbacks from reading a disposed document after navigation or test cleanup. Quote-start tests use a finite five-second wait for the production debounce and asynchronous token discovery while preserving exact funding/service assertions. These regressions are part of the [CI1400 review checklist](qa/issue-1400/README.md) and [agent protocol](../skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md).
+
+### Route validation errors (#1390)
+
+Solver HTTP 422 is a semantic route rejection. Swap, wrap-enter Swap, Trade and
+invoice quote paths stop without client/pool-only fallback or transport retry.
+Transient service outages retain existing fallback behavior. The user sees
+“Route validation rejected this quote. Refresh the quote or choose another
+route.” [LG1390](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md) and
+[agent verification](qa/issue-1390/README.md) govern these paths.

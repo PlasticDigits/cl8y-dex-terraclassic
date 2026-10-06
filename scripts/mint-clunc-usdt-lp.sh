@@ -32,7 +32,7 @@ TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:4
 TERRAD_HOST_KEY="${CLUNC_USDT_ADMIN_KEY}"
 TERRAD_HOST_EXPECTED_ADDR="${CLUNC_USDT_ADMIN_ADDR}"
 
-LCD_URL="${CLUNC_USDT_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${CLUNC_USDT_LCD_URL%/}}"
 MATH_PY="$SCRIPT_DIR/lib/clunc-usdt-lp-math.py"
 INDEXER_ORACLE="${CLUNC_USDT_INDEXER_ORACLE}"
 FACTORY="${CLUNC_USDT_FACTORY}"
@@ -190,7 +190,9 @@ prompt_keyring_pass() {
 broadcast_admin() {
   local label="$1"
   shift
-  local out tx_hash
+  local out tx_hash current
+  current="$(fetch_lunc_oracle)" || die "fresh source quorum required before transaction preparation"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.lunc_usd' <<<"$current")" "$LUNC_USD"     || die "oracle moved; recompute LP plan"
   echo "  → $label" >&2
   TERRAD_HOST_KEY="$ADMIN_KEY"
   TERRAD_HOST_EXPECTED_ADDR="$ADMIN_ADDR"
@@ -209,9 +211,10 @@ broadcast_admin() {
 fetch_lunc_oracle() {
   local raw parsed tries="${CLUNC_USDT_ORACLE_RETRIES:-4}" i
   if [[ -n "${CLUNC_USDT_LUNC_USD:-}" ]]; then
-    python3 "$MATH_PY" --parse-oracle --max-age 999999999 <<EOF
-{"ticker":"lunc","price_usd":"${CLUNC_USDT_LUNC_USD}","sources":[{"source":"average","fetched_at":"$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"}]}
-EOF
+    [[ "${DRY_RUN:-0}" == "1" ]] || die "CLUNC_USDT_LUNC_USD is only allowed with DRY_RUN=1"
+    local override
+    override="$(python3 "$SCRIPT_DIR/lib/oracle_safety.py" override "$CLUNC_USDT_LUNC_USD")" || return 1
+    jq -nc --arg px "$override" '{ok:true,lunc_usd:$px,age_sec:null,quality:"manual_dry_run",errors:[]}'
     return 0
   fi
   for ((i = 1; i <= tries; i++)); do
@@ -257,6 +260,10 @@ echo "LP recv:   $LP_RECEIVER"
 echo "USDT/\$:    $USDT_USD"
 echo "DRY_RUN:   ${DRY_RUN:-0}"
 echo ""
+
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $FACTORY $CLUNC $USDT"
+terrad_host_attest || die "chain/protocol trust preflight failed"
 
 echo "[preflight] token_info + code IDs + whitelist + minter"
 CLUNC_INFO="$(token_info "$CLUNC")"
@@ -314,7 +321,7 @@ BAL_USDT="$(cw20_balance "$USDT" "$ADMIN_ADDR")"
 echo "  balances: uluna=$HAVE_ULUNA cLUNC=$BAL_CLUNC USDT=$BAL_USDT"
 
 echo ""
-echo "[oracle] $INDEXER_ORACLE"
+echo "[oracle] configured endpoint"
 ORACLE_JSON="$(fetch_lunc_oracle)" || die "LUNC/USD oracle failed"
 LUNC_USD="$(jq -r '.lunc_usd' <<<"$ORACLE_JSON")"
 echo "  LUNC/USD=$LUNC_USD  age=$(jq -r '.age_sec // "n/a"' <<<"$ORACLE_JSON")s"

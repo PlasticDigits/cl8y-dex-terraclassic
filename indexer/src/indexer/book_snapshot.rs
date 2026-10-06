@@ -430,6 +430,7 @@ mod tests {
         use wiremock::matchers::{method, path_regex};
         use wiremock::{Mock, MockServer, ResponseTemplate};
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path_regex("/smart/"))
             .respond_with(|req: &wiremock::Request| {
@@ -451,7 +452,7 @@ mod tests {
             })
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
         let error = walk_resting_book_side(&lcd, "terra1pair", "bid")
             .await
             .unwrap_err();

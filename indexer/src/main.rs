@@ -147,6 +147,14 @@ async fn run_server() -> anyhow::Result<()> {
     let config = load_config_or_exit();
     startup::log_startup_config(&config);
 
+    let lcd_client = lcd::LcdClient::new(
+        config.lcd_urls.clone(),
+        config.lcd_timeout_ms,
+        config.lcd_cooldown_ms,
+        config.expected_chain_id.clone(),
+    );
+    lcd_client.attest_endpoints().await?;
+
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&config.database_url)
@@ -183,12 +191,6 @@ async fn run_server() -> anyhow::Result<()> {
     {
         tracing::warn!("candle gap fill failed: {}", e);
     }
-
-    let lcd_client = lcd::LcdClient::new(
-        config.lcd_urls.clone(),
-        config.lcd_timeout_ms,
-        config.lcd_cooldown_ms,
-    );
 
     let cancel = CancellationToken::new();
     let oracle_prices = indexer::oracle::OraclePriceHandles::new();

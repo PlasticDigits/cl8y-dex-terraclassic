@@ -1,19 +1,22 @@
 //! Tx log parsing for swaps, liquidity, and hooks.
 //!
-//! **Invariants:** duplicate wasm attribute keys use the last value (`wasm_attr_last`) where a
-//! single logical value is intended. **Lifecycle wasm** (`limit_order_expired_parked`,
+//! **Invariants:** duplicate wasm attribute keys use the last value within an action where a
+//! single logical value is intended. Swap, liquidity, hook, and **lifecycle wasm** (`limit_order_expired_parked`,
 //! `claim_expired_limit_order`, `limit_order_fill`) may share one `wasm` event with other actions
 //! when LCD output flattens attribute streams — those parsers scan **every** `action` occurrence
 //! (GitLab #141, #269). Wrap-mapper fees (`notify_deposit` / `unwrap`) use the same per-action
 //! scan in [`super::protocol_fees`] (GitLab #613).
 //! LocalTerra also emits standalone lifecycle rows as **`wasm-wasm`** events (same attribute keys).
 //! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
+//! #1395: raw quantities are bounded unsigned integers; malformed mandatory or present
+//! optional amounts reject their complete action, never become zero. Financial fields and
+//! identities are scoped to the same action/emitter. Columnar arrays retain row indices;
+//! missing entries reject an ambiguous batch. Rejected emissions retain replay ordinals.
 //! Full matrix: `docs/indexer-invariants.md`.
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use std::str::FromStr;
 
 use crate::config::Config;
 use crate::db::queries::{
@@ -23,31 +26,76 @@ use crate::db::queries::{
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
-    asset_resolver, candle_builder, gt_event_reserves, oracle, pair_discovery, pair_price_usd,
-    position_tracker, protocol_fees, swap_orientation, trader_tracker,
+    asset_resolver, candle_builder,
+    event_amount::{
+        parse_optional_raw_amount, parse_price, parse_raw_amount, report_amount_rejection,
+        AmountError,
+    },
+    gt_event_reserves, oracle, pair_discovery, pair_price_usd, position_tracker, protocol_fees,
+    swap_orientation, trader_tracker,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-/// Last value wins for duplicate keys (CosmWasm can emit repeated attribute keys).
-fn wasm_attr_last<'a>(attributes: &'a [Attribute], key: &str) -> Option<&'a str> {
-    attributes
-        .iter()
-        .rev()
-        .find(|a| a.key == key)
-        .map(|a| a.value.as_str())
+/// Keep error metadata fixed and bounded; reject complete logical events on conversion errors.
+fn required_amount(
+    kind: &'static str,
+    field: &'static str,
+    value: Option<&str>,
+) -> Option<BigDecimal> {
+    parse_raw_amount(value)
+        .map_err(|e| report_amount_rejection(kind, field, e))
+        .ok()
 }
 
-fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
-    // GitLab #285: only the runtime-reserved `_contract_address` (stamped by wasmd, which
-    // contracts cannot set) scopes a lifecycle event. The no-underscore `contract_address`
-    // is an ordinary attribute any contract can forge, so it must never be trusted as the
-    // emitter — treat it as data only.
-    wasm_attr_last(attributes, "_contract_address")
+fn optional_amount(
+    kind: &'static str,
+    field: &'static str,
+    value: Option<&str>,
+) -> Result<Option<BigDecimal>, AmountError> {
+    parse_optional_raw_amount(value).inspect_err(|e| report_amount_rejection(kind, field, *e))
+}
+
+fn optional_integer(
+    kind: &'static str,
+    field: &'static str,
+    value: Option<&str>,
+    max: i32,
+) -> Result<Option<i32>, AmountError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    parse_raw_amount(Some(value))
+        .and_then(|_| value.parse::<i32>().map_err(|_| AmountError::Overflow))
+        .and_then(|value| {
+            if value <= max {
+                Ok(Some(value))
+            } else {
+                Err(AmountError::Overflow)
+            }
+        })
+        .inspect_err(|e| report_amount_rejection(kind, field, *e))
+}
+
+fn required_price(kind: &'static str, value: Option<&str>) -> Option<BigDecimal> {
+    parse_price(value)
+        .map_err(|e| report_amount_rejection(kind, "price", e))
+        .ok()
+}
+
+fn optional_price(
+    kind: &'static str,
+    value: Option<&str>,
+) -> Result<Option<BigDecimal>, AmountError> {
+    value
+        .map(|v| parse_price(Some(v)))
+        .transpose()
+        .inspect_err(|e| report_amount_rejection(kind, "price", *e))
 }
 
 fn is_wasm_contract_addr_key(key: &str) -> bool {
-    // GitLab #285: scope events by the runtime-reserved key only (see `wasm_contract_addr`).
+    // #285: `_contract_address` is runtime-reserved and authenticated. The unreserved
+    // `contract_address` is caller-controlled data and never establishes an emitter.
     key == "_contract_address"
 }
 
@@ -87,6 +135,35 @@ fn wasm_kv_map_after_action(
     m
 }
 
+/// Authenticated logical actions, in wire order. Financial fields never cross the next
+/// action or runtime emitter boundary, including multiple same-family actions in one event.
+type WasmAction<'a> = (
+    usize,
+    &'a str,
+    &'a str,
+    std::collections::HashMap<&'a str, &'a str>,
+);
+
+fn wasm_actions(attrs: &[Attribute]) -> impl Iterator<Item = WasmAction<'_>> {
+    let mut emitter = None;
+    attrs.iter().enumerate().filter_map(move |(i, a)| {
+        if is_wasm_contract_addr_key(&a.key) {
+            emitter = Some(a.value.as_str());
+            return None;
+        }
+        if a.key != "action" {
+            return None;
+        }
+        let contract = emitter?;
+        Some((
+            i,
+            a.value.as_str(),
+            contract,
+            wasm_kv_map_after_action(attrs, i),
+        ))
+    })
+}
+
 fn parse_limit_order_expired_parked_from_wasm_attrs(
     attrs: &[Attribute],
 ) -> Vec<ParsedLimitOrderExpiredParked> {
@@ -105,10 +182,11 @@ fn parse_limit_order_expired_parked_from_wasm_attrs(
         let Ok(order_id) = order_id_s.parse::<i64>() else {
             continue;
         };
-        let Some(rem_s) = seg.get("remaining").copied() else {
-            continue;
-        };
-        let Some(remaining) = BigDecimal::from_str(rem_s).ok() else {
+        let Some(remaining) = required_amount(
+            "limit_order_expired_parked",
+            "remaining",
+            seg.get("remaining").copied(),
+        ) else {
             continue;
         };
         out.push(ParsedLimitOrderExpiredParked {
@@ -229,6 +307,9 @@ struct ParsedLimitOrderFill {
     swap_index: i32,
     /// When set, taken from on-chain `swap_index` wasm attr (GitLab #331).
     swap_index_from_chain: Option<i32>,
+    /// Attribute offset of this fill's action within its physical LCD event. Used only
+    /// to infer legacy swap ordinals when several swaps share one flattened event.
+    action_pos: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -508,6 +589,16 @@ async fn process_swap(
         decimals_base,
         decimals_quote,
     );
+    // A syntactically valid raw amount can still produce an unrepresentable derived price.
+    // Reject before any economic mutation rather than wedge the block with a SQL overflow.
+    if !pair_price_usd::fits_numeric_38_18(
+        &oriented
+            .price
+            .with_scale_round(18, bigdecimal::RoundingMode::HalfUp),
+    ) {
+        report_amount_rejection("swap", "derived_price", AmountError::Overflow);
+        return Ok(());
+    }
 
     let ustc_usd = ustc_price.read().await.clone();
     let lunc_usd = db_oracle::get_latest_average_price(pool, oracle::OracleTicker::Lunc)
@@ -577,6 +668,10 @@ async fn process_swap(
             None => None,
         }
     };
+    if !post_reserves_fit(&post_reserves) {
+        report_amount_rejection("swap", "derived_reserves", AmountError::Overflow);
+        return Ok(());
+    }
     let (post_r0, post_r1) = match &post_reserves {
         Some((a, b)) => (Some(a), Some(b)),
         None => (None, None),
@@ -820,53 +915,64 @@ pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
 
         let attrs = &event.attributes;
 
-        if wasm_attr_last(attrs, "action") != Some("swap") {
-            continue;
-        }
-
-        let contract = wasm_contract_addr(attrs);
-        let sender = wasm_attr_last(attrs, "sender");
-        let offer_amount = wasm_attr_last(attrs, "offer_amount");
-        let return_amount = wasm_attr_last(attrs, "return_amount");
-
-        if let (Some(contract), Some(sender), Some(offer), Some(ret)) =
-            (contract, sender, offer_amount, return_amount)
-        {
+        for (_, action, contract, seg) in wasm_actions(attrs) {
+            if action != "swap" {
+                continue;
+            }
+            let Some(sender) = seg.get("sender").copied() else {
+                continue;
+            };
+            // Reserve each authenticated emission's ordinal before validating amounts.
+            // A rejected hop must not change a following valid hop's replay identity.
             let swap_index = {
                 let c = per_pair_swap_index.entry(contract.to_string()).or_insert(0);
                 let i = *c;
                 *c += 1;
                 i
             };
-            swaps.push(ParsedSwap {
-                pair_address: contract.to_string(),
-                swap_index,
-                sender: sender.to_string(),
-                receiver: wasm_attr_last(attrs, "receiver").map(|s| s.to_string()),
-                offer_asset: wasm_attr_last(attrs, "offer_asset")
-                    .unwrap_or("")
-                    .to_string(),
-                ask_asset: wasm_attr_last(attrs, "ask_asset").unwrap_or("").to_string(),
-                offer_amount: offer.parse().unwrap_or_default(),
-                return_amount: ret.parse().unwrap_or_default(),
-                spread_amount: wasm_attr_last(attrs, "spread_amount").and_then(|s| s.parse().ok()),
-                commission_amount: wasm_attr_last(attrs, "commission_amount")
-                    .and_then(|s| s.parse().ok()),
-                effective_fee_bps: wasm_attr_last(attrs, "effective_fee_bps")
-                    .and_then(|s| s.parse().ok()),
-                pool_return_amount: wasm_attr_last(attrs, "pool_return_amount")
-                    .and_then(|s| s.parse().ok()),
-                book_return_amount: wasm_attr_last(attrs, "book_return_amount")
-                    .and_then(|s| s.parse().ok()),
-                limit_book_offer_consumed: wasm_attr_last(attrs, "limit_book_offer_consumed")
-                    .and_then(|s| s.parse().ok()),
-                reserve_0: wasm_attr_last(attrs, "reserve_0").and_then(|s| s.parse().ok()),
-                reserve_1: wasm_attr_last(attrs, "reserve_1").and_then(|s| s.parse().ok()),
-            });
+            if let Some(swap) = parse_swap_amounts(&seg, contract, sender, swap_index) {
+                swaps.push(swap);
+            }
         }
     }
 
     swaps
+}
+
+fn parse_swap_amounts(
+    seg: &std::collections::HashMap<&str, &str>,
+    contract: &str,
+    sender: &str,
+    swap_index: i32,
+) -> Option<ParsedSwap> {
+    // Last duplicate wins only within this authenticated logical action (#285).
+    let required = |field| required_amount("swap", field, seg.get(field).copied());
+    let optional = |field| optional_amount("swap", field, seg.get(field).copied()).ok();
+    Some(ParsedSwap {
+        pair_address: contract.to_string(),
+        swap_index,
+        sender: sender.to_string(),
+        receiver: seg.get("receiver").map(|s| s.to_string()),
+        offer_asset: seg.get("offer_asset").copied().unwrap_or("").to_string(),
+        ask_asset: seg.get("ask_asset").copied().unwrap_or("").to_string(),
+        offer_amount: required("offer_amount")?,
+        return_amount: required("return_amount")?,
+        spread_amount: optional("spread_amount")?,
+        commission_amount: optional("commission_amount")?,
+        effective_fee_bps: optional_integer(
+            "swap",
+            "effective_fee_bps",
+            seg.get("effective_fee_bps").copied(),
+            10_000,
+        )
+        .ok()?
+        .map(|v| v as i16),
+        pool_return_amount: optional("pool_return_amount")?,
+        book_return_amount: optional("book_return_amount")?,
+        limit_book_offer_consumed: optional("limit_book_offer_consumed")?,
+        reserve_0: optional("reserve_0")?,
+        reserve_1: optional("reserve_1")?,
+    })
 }
 
 fn parse_limit_order_fill_segment(
@@ -879,11 +985,29 @@ fn parse_limit_order_fill_segment(
     }
     let maker = seg.get("maker").copied()?;
     let order_id = seg.get("order_id")?.parse::<i64>().ok()?;
-    let price = seg.get("price")?.parse::<BigDecimal>().ok()?;
-    let token0_amount = seg.get("token0_amount")?.parse::<BigDecimal>().ok()?;
-    let token1_amount = seg.get("token1_amount")?.parse::<BigDecimal>().ok()?;
-    let commission_amount = seg.get("commission_amount")?.parse::<BigDecimal>().ok()?;
-    let swap_index_from_chain = seg.get("swap_index").and_then(|s| s.parse::<i32>().ok());
+    let price = required_price("limit_order_fill", seg.get("price").copied())?;
+    let token0_amount = required_amount(
+        "limit_order_fill",
+        "token0_amount",
+        seg.get("token0_amount").copied(),
+    )?;
+    let token1_amount = required_amount(
+        "limit_order_fill",
+        "token1_amount",
+        seg.get("token1_amount").copied(),
+    )?;
+    let commission_amount = required_amount(
+        "limit_order_fill",
+        "commission_amount",
+        seg.get("commission_amount").copied(),
+    )?;
+    let swap_index_from_chain = optional_integer(
+        "limit_order_fill",
+        "swap_index",
+        seg.get("swap_index").copied(),
+        i32::MAX,
+    )
+    .ok()?;
     Some(ParsedLimitOrderFill {
         pair_address: contract.to_string(),
         order_id,
@@ -895,11 +1019,15 @@ fn parse_limit_order_fill_segment(
         commission_amount,
         swap_index: swap_index_from_chain.unwrap_or(0),
         swap_index_from_chain,
+        action_pos: 0,
     })
 }
 
 /// Merged LCD streams may list multiple `limit_order_fill` actions with columnar field keys.
-fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLimitOrderFill>> {
+fn parse_limit_order_fills_columnar(
+    contract: &str,
+    attrs: &[Attribute],
+) -> Option<Vec<ParsedLimitOrderFill>> {
     let fill_count = attrs
         .iter()
         .filter(|a| a.key == "action" && a.value == "limit_order_fill")
@@ -907,91 +1035,103 @@ fn parse_limit_order_fills_columnar(attrs: &[Attribute]) -> Option<Vec<ParsedLim
     if fill_count <= 1 {
         return None;
     }
-    let contract = attrs
-        .iter()
-        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
-        .map(|a| a.value.as_str())?;
-
-    let order_ids: Vec<i64> = wasm_attr_values(attrs, "order_id")
-        .iter()
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    if order_ids.len() != fill_count {
+    // Only columnar streams have consecutive action headers. Interleaved streams need
+    // per-action provenance and segments, even when all columns happen to have equal lengths.
+    if !has_columnar_actions(attrs, "limit_order_fill") {
         return None;
     }
-
-    let sides: Vec<&str> = wasm_attr_values(attrs, "side");
-    let makers: Vec<&str> = wasm_attr_values(attrs, "maker");
-    let prices: Vec<BigDecimal> = wasm_attr_values(attrs, "price")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-    let token0_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "token0_amount")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-    let token1_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "token1_amount")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-    let commission_amounts: Vec<BigDecimal> = wasm_attr_values(attrs, "commission_amount")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-    let swap_indices: Vec<i32> = wasm_attr_values(attrs, "swap_index")
-        .iter()
-        .filter_map(|s| s.parse().ok())
-        .collect();
-
-    let n = fill_count;
-    if prices.len() != n
-        || token0_amounts.len() != n
-        || token1_amounts.len() != n
-        || commission_amounts.len() != n
-    {
-        return None;
-    }
-
-    let mut out = Vec::with_capacity(n);
-    for i in 0..n {
-        let side = sides.get(i).copied().or_else(|| sides.first().copied())?;
-        if side != "bid" && side != "ask" {
-            return None;
+    let keys = [
+        "order_id",
+        "side",
+        "maker",
+        "price",
+        "token0_amount",
+        "token1_amount",
+        "commission_amount",
+        "swap_index",
+    ];
+    let columns: Vec<Vec<&str>> = keys.iter().map(|k| wasm_attr_values(attrs, k)).collect();
+    // Missing column entries carry no row index. Quarantine this ambiguous batch rather
+    // than shift later values onto earlier identities; explicit invalid entries retain indexes.
+    for (key, column) in keys.iter().zip(&columns) {
+        let valid_length = match *key {
+            "side" | "maker" => column.len() == 1 || column.len() == fill_count,
+            "swap_index" => column.is_empty() || column.len() == fill_count,
+            _ => column.len() == fill_count,
+        };
+        if !valid_length {
+            report_amount_rejection("limit_order_fill", key, AmountError::Missing);
+            return Some(Vec::new());
         }
-        let maker = makers.get(i).copied().or_else(|| makers.first().copied())?;
-        let swap_index_from_chain = swap_indices.get(i).copied();
-        out.push(ParsedLimitOrderFill {
-            pair_address: contract.to_string(),
-            order_id: order_ids[i],
-            side: side.to_string(),
-            maker: maker.to_string(),
-            price: prices[i].clone(),
-            token0_amount: token0_amounts[i].clone(),
-            token1_amount: token1_amounts[i].clone(),
-            commission_amount: commission_amounts[i].clone(),
-            swap_index: swap_index_from_chain.unwrap_or(0),
-            swap_index_from_chain,
-        });
+    }
+    let mut out = Vec::new();
+    for i in 0..fill_count {
+        let mut seg = std::collections::HashMap::new();
+        for (key, column) in keys.iter().zip(&columns) {
+            let value = if matches!(*key, "side" | "maker") {
+                column.get(i).or_else(|| column.first())
+            } else {
+                column.get(i)
+            };
+            if let Some(value) = value {
+                seg.insert(*key, *value);
+            }
+        }
+        if let Some(fill) = parse_limit_order_fill_segment(contract, &seg) {
+            out.push(fill);
+        }
     }
     Some(out)
 }
 
-fn parse_limit_order_fills_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedLimitOrderFill> {
-    if let Some(columnar) = parse_limit_order_fills_columnar(attrs) {
-        return columnar;
-    }
+/// Detect the columnar wire format without mistaking interleaved actions for columns.
+fn has_columnar_actions(attrs: &[Attribute], action: &str) -> bool {
+    attrs.windows(2).any(|w| {
+        w[0].key == "action" && w[0].value == action && w[1].key == "action" && w[1].value == action
+    })
+}
 
+fn parse_limit_order_fills_from_wasm_attrs(attrs: &[Attribute]) -> Vec<ParsedLimitOrderFill> {
     let mut out = Vec::new();
-    for (i, a) in attrs.iter().enumerate() {
-        if a.key != "action" || a.value != "limit_order_fill" {
+    let mut i = 0;
+    while i < attrs.len() {
+        if attrs[i].key != "action" || attrs[i].value != "limit_order_fill" {
+            i += 1;
             continue;
         }
         let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            i += 1;
             continue;
         };
-        let seg = wasm_kv_map_after_action(attrs, i);
-        if let Some(fill) = parse_limit_order_fill_segment(contract, &seg) {
-            out.push(fill);
+        let mut headers_end = i + 1;
+        while headers_end < attrs.len()
+            && attrs[headers_end].key == "action"
+            && attrs[headers_end].value == "limit_order_fill"
+        {
+            headers_end += 1;
+        }
+        if headers_end > i + 1 {
+            // A columnar batch ends before another action or authenticated emitter. This
+            // prevents later swap fee columns or a foreign batch from contaminating rows.
+            let end = attrs[headers_end..]
+                .iter()
+                .position(|a| a.key == "action" || is_wasm_contract_addr_key(&a.key))
+                .map(|offset| headers_end + offset)
+                .unwrap_or(attrs.len());
+            if let Some(mut batch) = parse_limit_order_fills_columnar(contract, &attrs[i..end]) {
+                for fill in &mut batch {
+                    fill.action_pos = i;
+                }
+                out.extend(batch);
+            }
+            i = end;
+        } else {
+            let seg = wasm_kv_map_after_action(attrs, i);
+            if let Some(mut event) = parse_limit_order_fill_segment(contract, &seg) {
+                event.action_pos = i;
+                out.push(event);
+            }
+            i += 1;
         }
     }
     out
@@ -1006,15 +1146,9 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
         Vec::new()
     };
 
-    // GitLab #316: tag each fill with the per-pair swap ordinal of the swap that produced it so it
-    // links to the correct swap_events row when a tx has multiple swaps on one pair. Maker fills
-    // are emitted before their `swap` action in the same execute (the pair adds book_fill_events,
-    // then the swap attribute), so a fill belongs to the *upcoming* swap on its pair — the current
-    // per-pair count, before this event's swap is counted. The swap count mirrors parse_swaps
-    // exactly (one swap per wasm event, the event's last `action`), so the ordinals line up with
-    // the persisted swap_events.swap_index. (Two swaps on one pair merged into a single wasm event
-    // is not separable here — but parse_swaps only keeps the event's last swap in that case too,
-    // so neither side splits it; realistic multi-swap-same-pair txs arrive as separate events.)
+    // Maker fills precede their producing swap. Count all authenticated swap emissions,
+    // including rejected amounts, before each fill's physical action offset. Explicit
+    // on-chain indices retain priority; legacy flattened swaps share the same inference.
     let mut per_pair_swap_seen: std::collections::HashMap<String, i32> =
         std::collections::HashMap::new();
     let mut out = Vec::new();
@@ -1023,26 +1157,32 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
             continue;
         }
         let attrs = &event.attributes;
+        let swap_positions: Vec<(usize, &str)> = if event.event_type == "wasm" {
+            wasm_actions(attrs)
+                .filter_map(|(pos, action, contract, seg)| {
+                    (action == "swap" && seg.contains_key("sender")).then_some((pos, contract))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let mut fills = parse_limit_order_fills_from_wasm_attrs(attrs);
         for fill in &mut fills {
-            let inferred = per_pair_swap_seen
+            let prior_event_count = per_pair_swap_seen
                 .get(&fill.pair_address)
                 .copied()
                 .unwrap_or(0);
-            fill.swap_index = fill.swap_index_from_chain.unwrap_or(inferred);
+            let preceding_in_event = swap_positions
+                .iter()
+                .filter(|(pos, contract)| *pos < fill.action_pos && *contract == fill.pair_address)
+                .count() as i32;
+            fill.swap_index = fill
+                .swap_index_from_chain
+                .unwrap_or(prior_event_count + preceding_in_event);
         }
         out.append(&mut fills);
-
-        // Advance the per-pair ordinal for this event's swap, matching parse_swaps' detection.
-        if event.event_type == "wasm" && wasm_attr_last(attrs, "action") == Some("swap") {
-            if let (Some(contract), Some(_), Some(_), Some(_)) = (
-                wasm_contract_addr(attrs),
-                wasm_attr_last(attrs, "sender"),
-                wasm_attr_last(attrs, "offer_amount"),
-                wasm_attr_last(attrs, "return_amount"),
-            ) {
-                *per_pair_swap_seen.entry(contract.to_string()).or_insert(0) += 1;
-            }
+        for (_, contract) in swap_positions {
+            *per_pair_swap_seen.entry(contract.to_string()).or_insert(0) += 1;
         }
     }
     out
@@ -1126,116 +1266,121 @@ fn wasm_attr_values<'a>(attrs: &'a [Attribute], key: &str) -> Vec<&'a str> {
 /// CosmWasm batch/ladder placement emits **columnar** wasm attrs (all `action`s, then parallel
 /// `order_id` / `price` / … columns). Interleaved per-rung attrs are still supported (unit tests).
 fn parse_limit_order_placements_columnar(
+    contract: &str,
     attrs: &[Attribute],
 ) -> Option<Vec<ParsedLimitOrderPlacement>> {
-    let has_batch = attrs
-        .iter()
-        .any(|a| a.key == "action" && a.value == "place_limit_order_batch");
-    let place_count = attrs
+    if !has_columnar_actions(attrs, "place_limit_order") {
+        return None;
+    }
+    let keys = [
+        "order_id",
+        "limit_order_placed",
+        "side",
+        "owner",
+        "price",
+        "expires_at",
+        "maker_fee_amount",
+    ];
+    let columns: Vec<Vec<&str>> = keys.iter().map(|k| wasm_attr_values(attrs, k)).collect();
+    let n = attrs
         .iter()
         .filter(|a| a.key == "action" && a.value == "place_limit_order")
         .count();
-    if !has_batch && place_count <= 1 {
-        return None;
+    for (key, column) in keys.iter().zip(&columns) {
+        let valid_length = match *key {
+            "side" | "owner" => column.is_empty() || column.len() == 1 || column.len() == n,
+            _ => column.is_empty() || column.len() == n,
+        };
+        if !valid_length {
+            report_amount_rejection("place_limit_order", key, AmountError::Missing);
+            return Some(Vec::new());
+        }
     }
-    let contract = attrs
-        .iter()
-        .find(|a| is_wasm_contract_addr_key(a.key.as_str()))
-        .map(|a| a.value.as_str())?;
-
-    let mut order_ids: Vec<i64> = wasm_attr_values(attrs, "order_id")
-        .iter()
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    if order_ids.is_empty() {
-        order_ids = wasm_attr_values(attrs, "limit_order_placed")
-            .iter()
-            .filter_map(|s| s.parse().ok())
-            .collect();
-    }
-    if order_ids.is_empty() {
-        return None;
-    }
-
-    let sides: Vec<String> = wasm_attr_values(attrs, "side")
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect();
-    let owners: Vec<String> = wasm_attr_values(attrs, "owner")
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect();
-    let prices: Vec<BigDecimal> = wasm_attr_values(attrs, "price")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-    let expires_at_list: Vec<i64> = wasm_attr_values(attrs, "expires_at")
-        .iter()
-        .filter_map(|s| s.parse().ok())
-        .collect();
-    let maker_fees: Vec<BigDecimal> = wasm_attr_values(attrs, "maker_fee_amount")
-        .iter()
-        .filter_map(|s| BigDecimal::from_str(s).ok())
-        .collect();
-
-    let n = order_ids.len();
-    let mut out = Vec::with_capacity(n);
+    let mut out = Vec::new();
     for i in 0..n {
-        out.push(ParsedLimitOrderPlacement {
-            pair_address: contract.to_string(),
-            order_id: order_ids[i],
-            side: sides.get(i).cloned().or_else(|| sides.first().cloned()),
-            owner: owners.get(i).cloned().or_else(|| owners.first().cloned()),
-            price: prices.get(i).cloned(),
-            expires_at: expires_at_list.get(i).copied(),
-            maker_fee_amount: maker_fees.get(i).cloned(),
-        });
+        let mut seg = std::collections::HashMap::new();
+        for (key, column) in keys.iter().zip(&columns) {
+            let value = if matches!(*key, "side" | "owner") {
+                column.get(i).or_else(|| column.first())
+            } else {
+                column.get(i)
+            };
+            if let Some(value) = value {
+                seg.insert(*key, *value);
+            }
+        }
+        if let Some(p) = parse_limit_order_placement_segment(contract, &seg) {
+            out.push(p);
+        }
     }
     Some(out)
+}
+
+fn parse_limit_order_placement_segment(
+    contract: &str,
+    seg: &std::collections::HashMap<&str, &str>,
+) -> Option<ParsedLimitOrderPlacement> {
+    let order_id = seg
+        .get("order_id")
+        .or_else(|| seg.get("limit_order_placed"))?
+        .parse::<i64>()
+        .ok()?;
+    Some(ParsedLimitOrderPlacement {
+        pair_address: contract.to_string(),
+        order_id,
+        owner: seg.get("owner").map(|s| s.to_string()),
+        side: seg.get("side").map(|s| s.to_string()),
+        price: optional_price("place_limit_order", seg.get("price").copied()).ok()?,
+        expires_at: seg.get("expires_at").and_then(|s| s.parse().ok()),
+        maker_fee_amount: optional_amount(
+            "place_limit_order",
+            "maker_fee_amount",
+            seg.get("maker_fee_amount").copied(),
+        )
+        .ok()?,
+    })
 }
 
 fn parse_limit_order_placements_from_wasm_attrs(
     attrs: &[Attribute],
 ) -> Vec<ParsedLimitOrderPlacement> {
-    if let Some(columnar) = parse_limit_order_placements_columnar(attrs) {
-        return columnar;
-    }
-
     let mut out = Vec::new();
-    for (i, a) in attrs.iter().enumerate() {
-        if a.key != "action" || a.value != "place_limit_order" {
+    let mut i = 0;
+    while i < attrs.len() {
+        if attrs[i].key != "action" || attrs[i].value != "place_limit_order" {
+            i += 1;
             continue;
         }
         let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            i += 1;
             continue;
         };
-        let seg = wasm_kv_map_after_action(attrs, i);
-        let oid = seg
-            .get("order_id")
-            .and_then(|s| s.parse::<i64>().ok())
-            .or_else(|| {
-                seg.get("limit_order_placed")
-                    .and_then(|s| s.parse::<i64>().ok())
-            });
-        let Some(order_id) = oid else {
-            continue;
-        };
-        let owner = seg.get("owner").map(|x| x.to_string());
-        let side = seg.get("side").map(|x| x.to_string());
-        let price = seg.get("price").and_then(|x| BigDecimal::from_str(x).ok());
-        let expires_at = seg.get("expires_at").and_then(|x| x.parse::<i64>().ok());
-        let maker_fee_amount = seg
-            .get("maker_fee_amount")
-            .and_then(|x| BigDecimal::from_str(x).ok());
-        out.push(ParsedLimitOrderPlacement {
-            pair_address: contract.to_string(),
-            order_id,
-            owner,
-            side,
-            price,
-            expires_at,
-            maker_fee_amount,
-        });
+        let mut headers_end = i + 1;
+        while headers_end < attrs.len()
+            && attrs[headers_end].key == "action"
+            && attrs[headers_end].value == "place_limit_order"
+        {
+            headers_end += 1;
+        }
+        if headers_end > i + 1 {
+            // A columnar batch ends before another action or authenticated emitter. This
+            // prevents later swap fee columns or a foreign batch from contaminating rows.
+            let end = attrs[headers_end..]
+                .iter()
+                .position(|a| a.key == "action" || is_wasm_contract_addr_key(&a.key))
+                .map(|offset| headers_end + offset)
+                .unwrap_or(attrs.len());
+            if let Some(batch) = parse_limit_order_placements_columnar(contract, &attrs[i..end]) {
+                out.extend(batch);
+            }
+            i = end;
+        } else {
+            let seg = wasm_kv_map_after_action(attrs, i);
+            if let Some(event) = parse_limit_order_placement_segment(contract, &seg) {
+                out.push(event);
+            }
+            i += 1;
+        }
     }
     out
 }
@@ -1557,9 +1702,16 @@ struct ParsedLiquidityEvent {
     reserve_1: Option<BigDecimal>,
 }
 
+/// Derived optional reserves must fit the same raw storage domain before ledger mutation.
+fn post_reserves_fit(reserves: &Option<(BigDecimal, BigDecimal)>) -> bool {
+    let upper = pair_price_usd::ten_pow_i32(38);
+    reserves.as_ref().is_none_or(|(r0, r1)| {
+        r0 >= &BigDecimal::from(0) && r0 < &upper && r1 >= &BigDecimal::from(0) && r1 < &upper
+    })
+}
+
 fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
     let mut out = Vec::new();
-
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
     } else if let Some(evts) = &tx.events {
@@ -1567,59 +1719,84 @@ fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
     } else {
         Vec::new()
     };
-
-    for event in &events {
+    for event in events {
         if event.event_type != "wasm" {
             continue;
         }
-
-        let attrs = &event.attributes;
-
-        let (event_type, assets_key, lp_key) = match wasm_attr_last(attrs, "action") {
-            Some("provide_liquidity") => ("add", "assets", "share"),
-            Some("withdraw_liquidity") => ("remove", "refund_assets", "withdrawn_share"),
-            _ => continue,
-        };
-
-        let contract = wasm_contract_addr(attrs);
-        let provider = wasm_attr_last(attrs, "sender");
-        let (a0, a1) = parse_asset_amounts(wasm_attr_last(attrs, assets_key).unwrap_or(""));
-        let lp: BigDecimal = wasm_attr_last(attrs, lp_key)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or_default();
-
-        if let (Some(contract), Some(provider)) = (contract, provider) {
-            out.push(ParsedLiquidityEvent {
-                pair_address: contract.to_string(),
-                provider: provider.to_string(),
-                event_type: event_type.to_string(),
-                asset_0_amount: a0,
-                asset_1_amount: a1,
-                lp_amount: lp,
-                reserve_0: wasm_attr_last(attrs, "reserve_0").and_then(|s| s.parse().ok()),
-                reserve_1: wasm_attr_last(attrs, "reserve_1").and_then(|s| s.parse().ok()),
-            });
+        for (_, action, contract, seg) in wasm_actions(&event.attributes) {
+            let (event_type, assets_key, lp_key) = match action {
+                "provide_liquidity" => ("add", "assets", "share"),
+                "withdraw_liquidity" => ("remove", "refund_assets", "withdrawn_share"),
+                _ => continue,
+            };
+            let Some(provider) = seg.get("sender").copied() else {
+                continue;
+            };
+            let parsed = (|| {
+                let (a0, a1) = parse_asset_amounts(seg.get(assets_key).copied(), assets_key)?;
+                let lp = required_amount("liquidity", lp_key, seg.get(lp_key).copied())?;
+                Some(ParsedLiquidityEvent {
+                    pair_address: contract.to_string(),
+                    provider: provider.to_string(),
+                    event_type: event_type.to_string(),
+                    asset_0_amount: a0,
+                    asset_1_amount: a1,
+                    lp_amount: lp,
+                    reserve_0: optional_amount(
+                        "liquidity",
+                        "reserve_0",
+                        seg.get("reserve_0").copied(),
+                    )
+                    .ok()?,
+                    reserve_1: optional_amount(
+                        "liquidity",
+                        "reserve_1",
+                        seg.get("reserve_1").copied(),
+                    )
+                    .ok()?,
+                })
+            })();
+            if let Some(parsed) = parsed {
+                out.push(parsed);
+            }
         }
     }
-
     out
 }
 
 /// Parse the stringified assets attribute emitted by pair contracts.
 /// Format: `"<addr_or_denom> <amount>, <addr_or_denom> <amount>"`
-fn parse_asset_amounts(assets_str: &str) -> (BigDecimal, BigDecimal) {
-    let parts: Vec<&str> = assets_str.split(", ").collect();
-    let amount_0 = parts
-        .first()
-        .and_then(|p| p.rsplit_once(' '))
-        .and_then(|(_, amt)| amt.parse().ok())
-        .unwrap_or_default();
-    let amount_1 = parts
-        .get(1)
-        .and_then(|p| p.rsplit_once(' '))
-        .and_then(|(_, amt)| amt.parse().ok())
-        .unwrap_or_default();
-    (amount_0, amount_1)
+fn parse_asset_amounts(
+    assets: Option<&str>,
+    field: &'static str,
+) -> Option<(BigDecimal, BigDecimal)> {
+    let Some(assets) = assets else {
+        report_amount_rejection("liquidity", field, AmountError::Missing);
+        return None;
+    };
+    // Two raw 38-digit values plus chain identifiers fit this bounded representation.
+    // This bound is checked before splitting; no unbounded Vec allocation from attacker text.
+    if assets.len() > 512 {
+        report_amount_rejection("liquidity", field, AmountError::Overflow);
+        return None;
+    }
+    let mut parts = assets.split(", ");
+    let parsed = (|| {
+        let (asset0, raw0) = parts.next()?.split_once(' ')?;
+        let (asset1, raw1) = parts.next()?.split_once(' ')?;
+        if asset0.is_empty() || asset1.is_empty() || parts.next().is_some() {
+            return None;
+        }
+        Some((raw0, raw1))
+    })();
+    let Some((raw0, raw1)) = parsed else {
+        report_amount_rejection("liquidity", field, AmountError::Invalid);
+        return None;
+    };
+    Some((
+        required_amount("liquidity", field, Some(raw0))?,
+        required_amount("liquidity", field, Some(raw1))?,
+    ))
 }
 
 async fn process_liquidity_event(
@@ -1657,6 +1834,10 @@ async fn process_liquidity_event(
             None => None,
         }
     };
+    if !post_reserves_fit(&post_reserves) {
+        report_amount_rejection("liquidity", "derived_reserves", AmountError::Overflow);
+        return Ok(());
+    }
     let (post_r0, post_r1) = match &post_reserves {
         Some((a, b)) => (Some(a), Some(b)),
         None => (None, None),
@@ -1696,7 +1877,6 @@ struct ParsedHookEvent {
 
 fn parse_hook_events(tx: &TxResponse) -> Vec<ParsedHookEvent> {
     let mut hooks = Vec::new();
-
     let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
         logs.iter().flat_map(|l| l.events.iter()).collect()
     } else if let Some(evts) = &tx.events {
@@ -1704,38 +1884,38 @@ fn parse_hook_events(tx: &TxResponse) -> Vec<ParsedHookEvent> {
     } else {
         Vec::new()
     };
-
-    for event in &events {
+    for event in events {
         if event.event_type != "wasm" {
             continue;
         }
-
-        let attrs = &event.attributes;
-
-        let action = match wasm_attr_last(attrs, "action") {
-            Some(a) if a.starts_with("after_swap_") => a,
-            _ => continue,
-        };
-
-        let contract = wasm_contract_addr(attrs);
-
-        if let Some(contract) = contract {
+        for (_, action, contract, seg) in wasm_actions(&event.attributes) {
+            if !action.starts_with("after_swap_") {
+                continue;
+            }
+            let Ok(burn_amount) =
+                optional_amount("hook", "burn_amount", seg.get("burn_amount").copied())
+            else {
+                continue;
+            };
+            let Ok(tax_amount) =
+                optional_amount("hook", "tax_amount", seg.get("tax_amount").copied())
+            else {
+                continue;
+            };
             hooks.push(ParsedHookEvent {
                 hook_address: contract.to_string(),
                 action: action.to_string(),
-                amount: wasm_attr_last(attrs, "burn_amount")
-                    .or_else(|| wasm_attr_last(attrs, "tax_amount"))
-                    .and_then(|s| s.parse().ok()),
-                token: wasm_attr_last(attrs, "burn_token")
-                    .or_else(|| wasm_attr_last(attrs, "tax_token"))
-                    .or_else(|| wasm_attr_last(attrs, "lp_token"))
+                amount: burn_amount.or(tax_amount),
+                token: seg
+                    .get("burn_token")
+                    .or_else(|| seg.get("tax_token"))
+                    .or_else(|| seg.get("lp_token"))
                     .map(|s| s.to_string()),
-                skipped: wasm_attr_last(attrs, "skipped").map(|s| s.to_string()),
-                warning: wasm_attr_last(attrs, "warning").map(|s| s.to_string()),
+                skipped: seg.get("skipped").map(|s| s.to_string()),
+                warning: seg.get("warning").map(|s| s.to_string()),
             });
         }
     }
-
     hooks
 }
 
@@ -1743,6 +1923,579 @@ fn parse_hook_events(tx: &TxResponse) -> Vec<ParsedHookEvent> {
 mod tests {
     use super::*;
     use crate::lcd::{Attribute, Event, TxLog, TxResponse};
+
+    #[test]
+    fn issue1395_many_poison_actions_keep_ordinals_and_forward_emitter_scope() {
+        let mut attrs = vec![("_contract_address", "terra1first")];
+        for _ in 0..10_000 {
+            attrs.extend([("action", "swap"), ("sender", "terra1synthetic")]);
+        }
+        attrs.extend([
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "2"),
+            ("return_amount", "1"),
+            ("_contract_address", "terra1second"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "3"),
+            ("return_amount", "2"),
+        ]);
+        let swaps = parse_swaps(&wasm_tx(attrs));
+        assert_eq!(swaps.len(), 2);
+        assert_eq!(swaps[0].pair_address, "terra1first");
+        assert_eq!(swaps[0].swap_index, 10_000);
+        assert_eq!(swaps[1].pair_address, "terra1second");
+        assert_eq!(swaps[1].swap_index, 0);
+    }
+
+    /// Every raw economic family uses the same strict integer domain; absent optional
+    /// fields are preserved as NULL, never confused with malformed present values.
+    #[test]
+    fn issue1395_economic_amount_matrix() {
+        let max = "9".repeat(38);
+        let huge = "1".repeat(1_000_000);
+        let cases = [
+            Some("42"),
+            Some("0"),
+            Some(max.as_str()),
+            None,
+            Some("-1"),
+            Some(" 1"),
+            Some("1 "),
+            Some("1.5"),
+            Some("1e3"),
+            Some("bad"),
+            Some(""),
+            Some(huge.as_str()),
+        ];
+        let families = [
+            ("swap", "offer_amount", false),
+            ("swap", "return_amount", false),
+            ("swap", "commission_amount", true),
+            ("swap", "spread_amount", true),
+            ("swap", "pool_return_amount", true),
+            ("swap", "book_return_amount", true),
+            ("swap", "limit_book_offer_consumed", true),
+            ("swap", "reserve_0", true),
+            ("swap", "reserve_1", true),
+            ("provide_liquidity", "share", false),
+            ("withdraw_liquidity", "withdrawn_share", false),
+            ("provide_liquidity", "reserve_0", true),
+            ("limit_order_fill", "token0_amount", false),
+            ("limit_order_fill", "token1_amount", false),
+            ("limit_order_fill", "commission_amount", false),
+            ("place_limit_order", "maker_fee_amount", true),
+            ("limit_order_expired_parked", "remaining", false),
+            ("after_swap_burn", "burn_amount", true),
+            ("after_swap_tax", "tax_amount", true),
+        ];
+        for (action, field, optional) in families {
+            for value in cases {
+                let mut attrs = vec![
+                    ("_contract_address", "terra1syntheticpair"),
+                    ("action", action),
+                    ("sender", "terra1synthetictrader"),
+                    ("offer_amount", "10"),
+                    ("return_amount", "9"),
+                    ("order_id", "7"),
+                    ("maker", "terra1syntheticmaker"),
+                    ("side", "bid"),
+                    ("price", "1.000000000000000001"),
+                    ("token0_amount", "10"),
+                    ("token1_amount", "10"),
+                    ("commission_amount", "0"),
+                    ("assets", "uluna 10, uusd 10"),
+                    ("share", "10"),
+                    ("refund_assets", "uluna 10, uusd 10"),
+                    ("withdrawn_share", "10"),
+                    ("remaining", "10"),
+                ];
+                attrs.retain(|(key, _)| *key != field);
+                if let Some(value) = value {
+                    attrs.push((field, value));
+                }
+                let tx = wasm_tx(attrs);
+                let count = match action {
+                    "swap" => parse_swaps(&tx).len(),
+                    "provide_liquidity" | "withdraw_liquidity" => parse_liquidity_events(&tx).len(),
+                    "limit_order_fill" => parse_limit_order_fills(&tx).len(),
+                    "place_limit_order" => parse_limit_order_placements(&tx).len(),
+                    "limit_order_expired_parked" => parse_limit_order_expired_parked(&tx).len(),
+                    _ => parse_hook_events(&tx).len(),
+                };
+                let valid = value.is_some_and(|v| matches!(v, "42" | "0") || v == max)
+                    || (optional && value.is_none());
+                assert_eq!(
+                    count,
+                    usize::from(valid),
+                    "{action}.{field}: {}",
+                    value
+                        .map(|v| if v.len() > 100 { "<oversized>" } else { v })
+                        .unwrap_or("<missing>")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn issue1395_price_and_fee_metadata_matrix() {
+        for value in [
+            None,
+            Some("0"),
+            Some("1.000000000000000001"),
+            Some("99999999999999999999.999999999999999999"),
+            Some("-1"),
+            Some(" 1"),
+            Some("1e2"),
+            Some("100000000000000000000"),
+            Some("0.0000000000000000001"),
+        ] {
+            for action in ["limit_order_fill", "place_limit_order"] {
+                let mut attrs = vec![
+                    ("_contract_address", "terra1synthetic"),
+                    ("action", action),
+                    ("order_id", "1"),
+                    ("side", "bid"),
+                    ("maker", "terra1maker"),
+                    ("token0_amount", "1"),
+                    ("token1_amount", "1"),
+                    ("commission_amount", "0"),
+                ];
+                if let Some(value) = value {
+                    attrs.push(("price", value));
+                }
+                let valid = value.is_some_and(|v| {
+                    v == "0"
+                        || v == "1.000000000000000001"
+                        || v == "99999999999999999999.999999999999999999"
+                }) || (action == "place_limit_order" && value.is_none());
+                let tx = wasm_tx(attrs);
+                let count = if action == "limit_order_fill" {
+                    parse_limit_order_fills(&tx).len()
+                } else {
+                    parse_limit_order_placements(&tx).len()
+                };
+                assert_eq!(count, usize::from(valid), "{action}.{value:?}");
+            }
+        }
+        for value in ["bad", "-1", " 1", "1.5", "1e2", "10001"] {
+            let tx = wasm_tx(vec![
+                ("_contract_address", "terra1synthetic"),
+                ("action", "swap"),
+                ("sender", "terra1user"),
+                ("offer_amount", "1"),
+                ("return_amount", "1"),
+                ("effective_fee_bps", value),
+            ]);
+            assert!(parse_swaps(&tx).is_empty(), "invalid effective fee {value}");
+        }
+    }
+
+    #[test]
+    fn issue1395_liquidity_asset_matrix() {
+        for action in ["provide_liquidity", "withdraw_liquidity"] {
+            let (asset_field, lp_field) = if action == "provide_liquidity" {
+                ("assets", "share")
+            } else {
+                ("refund_assets", "withdrawn_share")
+            };
+            for asset_value in [
+                None,
+                Some(""),
+                Some("uluna -1, uusd 1"),
+                Some("uluna 1.5, uusd 1"),
+                Some("uluna 1e2, uusd 1"),
+                Some("uluna  1, uusd 1"),
+                Some("uluna 1, uusd 1, ux 1"),
+                Some("uluna 1"),
+                Some("uluna 1, uusd 0"),
+            ] {
+                let mut attrs = vec![
+                    ("_contract_address", "terra1pair"),
+                    ("action", action),
+                    ("sender", "terra1synthetic"),
+                    (lp_field, "0"),
+                ];
+                if let Some(value) = asset_value {
+                    attrs.push((asset_field, value));
+                }
+                assert_eq!(
+                    parse_liquidity_events(&wasm_tx(attrs)).len(),
+                    usize::from(asset_value == Some("uluna 1, uusd 0"))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn issue1395_rejected_swap_preserves_following_fill_and_swap_ordinals() {
+        let tx = wasm_tx_multi(vec![
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "swap"),
+                ("sender", "terra1synthetic"),
+                ("offer_amount", "bad"),
+                ("return_amount", "1"),
+            ],
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "limit_order_fill"),
+                ("order_id", "3"),
+                ("side", "bid"),
+                ("maker", "terra1maker"),
+                ("price", "1"),
+                ("token0_amount", "1"),
+                ("token1_amount", "1"),
+                ("commission_amount", "0"),
+                ("action", "swap"),
+                ("sender", "terra1synthetic"),
+                ("offer_amount", "2"),
+                ("return_amount", "2"),
+            ],
+        ]);
+        for _ in 0..3 {
+            let swaps = parse_swaps(&tx);
+            assert_eq!(swaps.len(), 1);
+            assert_eq!(swaps[0].swap_index, 1);
+            let fills = parse_limit_order_fills(&tx);
+            assert_eq!(fills.len(), 1);
+            assert_eq!(fills[0].swap_index, 1);
+        }
+    }
+
+    #[test]
+    fn issue1395_columnar_poison_does_not_shift_valid_sibling_amounts() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "limit_order_fill"),
+            ("action", "limit_order_fill"),
+            ("action", "limit_order_fill"),
+            ("order_id", "1"),
+            ("order_id", "2"),
+            ("order_id", "3"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1"),
+            ("price", "1"),
+            ("price", "1"),
+            ("token0_amount", "10"),
+            ("token0_amount", "bad"),
+            ("token0_amount", "30"),
+            ("token1_amount", "11"),
+            ("token1_amount", "22"),
+            ("token1_amount", "33"),
+            ("commission_amount", "1"),
+            ("commission_amount", "2"),
+            ("commission_amount", "3"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 2);
+        assert_eq!(fills[0].order_id, 1);
+        assert_eq!(fills[1].order_id, 3);
+        assert_eq!(fills[1].token0_amount, BigDecimal::from(30));
+        assert_eq!(fills[1].token1_amount, BigDecimal::from(33));
+        assert_eq!(fills[1].commission_amount, BigDecimal::from(3));
+
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "place_limit_order"),
+            ("action", "place_limit_order"),
+            ("action", "place_limit_order"),
+            ("order_id", "1"),
+            ("order_id", "2"),
+            ("order_id", "3"),
+            ("maker_fee_amount", "1"),
+            ("maker_fee_amount", "bad"),
+            ("maker_fee_amount", "3"),
+            ("price", "1.1"),
+            ("price", "2.2"),
+            ("price", "3.3"),
+        ]);
+        let places = parse_limit_order_placements(&tx);
+        assert_eq!(places.len(), 2);
+        assert_eq!(places[1].order_id, 3);
+        assert_eq!(places[1].maker_fee_amount, Some(BigDecimal::from(3)));
+        assert_eq!(places[1].price.as_ref().unwrap().to_string(), "3.3");
+    }
+
+    #[test]
+    fn issue1395_malformed_fill_preserves_flattened_valid_swap() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "1"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1"),
+            ("token0_amount", "bad"),
+            ("token1_amount", "1"),
+            ("commission_amount", "bad"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("commission_amount", "0"),
+        ]);
+        assert!(parse_limit_order_fills(&tx).is_empty());
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(swaps[0].commission_amount, Some(BigDecimal::from(0)));
+    }
+
+    #[test]
+    fn issue1395_rejection_preserves_authenticated_provenance() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1spoof"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+        ]);
+        assert!(parse_swaps(&tx).is_empty());
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1authenticated"),
+            ("contract_address", "terra1spoof"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+        ]);
+        assert_eq!(parse_swaps(&tx)[0].pair_address, "terra1authenticated");
+    }
+
+    #[test]
+    fn issue1395_flattened_amounts_never_inherit_from_previous_actions() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1previous"),
+            ("action", "provide_liquidity"),
+            ("sender", "terra1previoussender"),
+            ("assets", "uluna 1, uusd 1"),
+            ("share", "1"),
+            ("_contract_address", "terra1final"),
+            ("action", "provide_liquidity"),
+            ("sender", "terra1finalsender"),
+        ]);
+        let liquidity = parse_liquidity_events(&tx);
+        assert_eq!(liquidity.len(), 1);
+        assert_eq!(liquidity[0].pair_address, "terra1previous");
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1previous"),
+            ("action", "after_swap_burn"),
+            ("burn_amount", "bad"),
+            ("burn_token", "terra1previoustoken"),
+            ("_contract_address", "terra1final"),
+            ("action", "after_swap_tax"),
+            ("tax_amount", "2"),
+            ("tax_token", "terra1finaltoken"),
+        ]);
+        let hooks = parse_hook_events(&tx);
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0].hook_address, "terra1final");
+        assert_eq!(hooks[0].amount, Some(BigDecimal::from(2)));
+        assert_eq!(hooks[0].token.as_deref(), Some("terra1finaltoken"));
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1previous"),
+            ("action", "swap"),
+            ("sender", "terra1previoussender"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("_contract_address", "terra1final"),
+            ("action", "swap"),
+            ("offer_amount", "2"),
+            ("return_amount", "2"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(
+            swaps.len(),
+            1,
+            "missing sender rejects only the final action"
+        );
+        assert_eq!(swaps[0].pair_address, "terra1previous");
+    }
+
+    #[test]
+    fn issue1395_columnar_batch_ends_at_action_and_authenticated_emitter() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pairA"),
+            ("action", "limit_order_fill"),
+            ("action", "limit_order_fill"),
+            ("order_id", "1"),
+            ("order_id", "2"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1"),
+            ("price", "1"),
+            ("token0_amount", "10"),
+            ("token0_amount", "20"),
+            ("token1_amount", "11"),
+            ("token1_amount", "22"),
+            ("commission_amount", "1"),
+            ("commission_amount", "2"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "30"),
+            ("return_amount", "33"),
+            ("commission_amount", "3"),
+            ("_contract_address", "terra1pairB"),
+            ("action", "limit_order_fill"),
+            ("order_id", "3"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1"),
+            ("token0_amount", "30"),
+            ("token1_amount", "33"),
+            ("commission_amount", "4"),
+        ]);
+        let fills = parse_limit_order_fills(&tx);
+        assert_eq!(fills.len(), 3);
+        assert_eq!(fills[0].pair_address, "terra1pairA");
+        assert_eq!(fills[1].pair_address, "terra1pairA");
+        assert_eq!(fills[2].pair_address, "terra1pairB");
+        assert_eq!(fills[1].commission_amount, BigDecimal::from(2));
+        assert_eq!(fills[2].commission_amount, BigDecimal::from(4));
+
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pairA"),
+            ("action", "place_limit_order"),
+            ("action", "place_limit_order"),
+            ("order_id", "1"),
+            ("order_id", "2"),
+            ("price", "1.1"),
+            ("price", "2.2"),
+            ("maker_fee_amount", "1"),
+            ("maker_fee_amount", "2"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("price", "bad"),
+            ("_contract_address", "terra1pairB"),
+            ("action", "place_limit_order"),
+            ("order_id", "3"),
+            ("price", "3.3"),
+            ("maker_fee_amount", "3"),
+        ]);
+        let placements = parse_limit_order_placements(&tx);
+        assert_eq!(placements.len(), 3);
+        assert_eq!(placements[0].pair_address, "terra1pairA");
+        assert_eq!(placements[2].pair_address, "terra1pairB");
+        assert_eq!(placements[2].maker_fee_amount, Some(BigDecimal::from(3)));
+    }
+
+    #[test]
+    fn issue1395_same_family_valid_siblings_survive_malformed_later_actions() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "10"),
+            ("return_amount", "9"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "bad"),
+            ("return_amount", "9"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "30"),
+            ("return_amount", "27"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 2);
+        assert_eq!((swaps[0].swap_index, swaps[1].swap_index), (0, 2));
+        assert_eq!(swaps[0].offer_amount, BigDecimal::from(10));
+        assert_eq!(swaps[1].offer_amount, BigDecimal::from(30));
+
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "provide_liquidity"),
+            ("sender", "terra1synthetic"),
+            ("assets", "uluna 1, uusd 2"),
+            ("share", "3"),
+            ("action", "provide_liquidity"),
+            ("sender", "terra1synthetic"),
+            ("assets", "uluna bad, uusd 2"),
+            ("share", "4"),
+        ]);
+        let liquidity = parse_liquidity_events(&tx);
+        assert_eq!(liquidity.len(), 1);
+        assert_eq!(liquidity[0].lp_amount, BigDecimal::from(3));
+
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1synthetichook"),
+            ("action", "after_swap_burn"),
+            ("burn_amount", "5"),
+            ("action", "after_swap_burn"),
+            ("burn_amount", "bad"),
+        ]);
+        let hooks = parse_hook_events(&tx);
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0].amount, Some(BigDecimal::from(5)));
+    }
+
+    #[test]
+    fn issue1395_flattened_swaps_and_fills_share_emission_ordinals() {
+        let mut attrs = vec![("_contract_address", "terra1syntheticpair")];
+        for (id, raw_offer) in [("1", "10"), ("2", "bad"), ("3", "30")] {
+            attrs.extend([
+                ("action", "limit_order_fill"),
+                ("order_id", id),
+                ("side", "bid"),
+                ("maker", "terra1syntheticmaker"),
+                ("price", "1"),
+                ("token0_amount", "1"),
+                ("token1_amount", "1"),
+                ("commission_amount", "0"),
+                ("action", "swap"),
+                ("sender", "terra1synthetictrader"),
+                ("offer_amount", raw_offer),
+                ("return_amount", "9"),
+            ]);
+        }
+        let tx = wasm_tx(attrs);
+        for _ in 0..3 {
+            let swaps = parse_swaps(&tx);
+            assert_eq!(
+                swaps.iter().map(|s| s.swap_index).collect::<Vec<_>>(),
+                vec![0, 2]
+            );
+            let fills = parse_limit_order_fills(&tx);
+            assert_eq!(
+                fills
+                    .iter()
+                    .map(|f| (f.order_id, f.swap_index))
+                    .collect::<Vec<_>>(),
+                vec![(1, 0), (2, 1), (3, 2)]
+            );
+        }
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("_contract_address", "terra1differentpair"),
+            ("action", "swap"),
+            ("sender", "terra1synthetic"),
+            ("offer_amount", "1"),
+            ("return_amount", "1"),
+            ("_contract_address", "terra1syntheticpair"),
+            ("action", "limit_order_fill"),
+            ("order_id", "7"),
+            ("side", "bid"),
+            ("maker", "terra1maker"),
+            ("price", "1"),
+            ("token0_amount", "1"),
+            ("token1_amount", "1"),
+            ("commission_amount", "0"),
+            ("swap_index", "9"),
+        ]);
+        assert_eq!(
+            parse_limit_order_fills(&tx)[0].swap_index,
+            9,
+            "explicit chain index retains priority"
+        );
+    }
 
     fn wasm_tx(attrs: Vec<(&str, &str)>) -> TxResponse {
         let attributes: Vec<Attribute> = attrs
@@ -2044,7 +2797,7 @@ mod tests {
             ("price", "1.0"),
             ("token0_amount", "10"),
             ("token1_amount", "10"),
-            ("commission_amount", "0.1"),
+            ("commission_amount", "1"),
             ("action", "limit_order_fill"),
             ("order_id", "102"),
             ("side", "ask"),
@@ -2052,7 +2805,7 @@ mod tests {
             ("price", "1.1"),
             ("token0_amount", "20"),
             ("token1_amount", "22"),
-            ("commission_amount", "0.2"),
+            ("commission_amount", "2"),
             ("action", "limit_order_fill"),
             ("order_id", "103"),
             ("side", "bid"),
@@ -2060,7 +2813,7 @@ mod tests {
             ("price", "0.9"),
             ("token0_amount", "5"),
             ("token1_amount", "4"),
-            ("commission_amount", "0.05"),
+            ("commission_amount", "5"),
             ("action", "limit_order_fill"),
             ("order_id", "104"),
             ("side", "ask"),
@@ -2068,7 +2821,7 @@ mod tests {
             ("price", "1.2"),
             ("token0_amount", "8"),
             ("token1_amount", "9"),
-            ("commission_amount", "0.08"),
+            ("commission_amount", "8"),
             ("action", "limit_order_fill"),
             ("order_id", "105"),
             ("side", "bid"),
@@ -2076,7 +2829,7 @@ mod tests {
             ("price", "1.05"),
             ("token0_amount", "15"),
             ("token1_amount", "15"),
-            ("commission_amount", "0.15"),
+            ("commission_amount", "15"),
             ("action", "swap"),
             ("sender", "terra1taker"),
             ("offer_amount", "100"),
@@ -2092,7 +2845,7 @@ mod tests {
         assert_eq!(fills[0].order_id, 101);
         assert_eq!(fills[4].order_id, 105);
         assert_eq!(fills[0].maker, "terra1mk1");
-        assert_eq!(fills[4].commission_amount.to_string(), "0.15");
+        assert_eq!(fills[4].commission_amount.to_string(), "15");
         let swaps = parse_swaps(&tx);
         assert_eq!(swaps.len(), 1);
         assert_eq!(
@@ -2120,7 +2873,7 @@ mod tests {
                 ("price", "1.0"),
                 ("token0_amount", "10"),
                 ("token1_amount", "10"),
-                ("commission_amount", "0.1"),
+                ("commission_amount", "1"),
                 ("_contract_address", "terra1pair"),
                 ("action", "swap"),
                 ("sender", "terra1taker"),
@@ -2137,7 +2890,7 @@ mod tests {
                 ("price", "1.1"),
                 ("token0_amount", "5"),
                 ("token1_amount", "6"),
-                ("commission_amount", "0.05"),
+                ("commission_amount", "5"),
                 ("_contract_address", "terra1pair"),
                 ("action", "limit_order_fill"),
                 ("order_id", "22"),
@@ -2146,7 +2899,7 @@ mod tests {
                 ("price", "1.2"),
                 ("token0_amount", "7"),
                 ("token1_amount", "8"),
-                ("commission_amount", "0.07"),
+                ("commission_amount", "7"),
                 ("_contract_address", "terra1pair"),
                 ("action", "swap"),
                 ("sender", "terra1taker"),
@@ -2181,7 +2934,7 @@ mod tests {
             ("price", "1.0"),
             ("token0_amount", "10"),
             ("token1_amount", "10"),
-            ("commission_amount", "0.1"),
+            ("commission_amount", "1"),
             ("swap_index", "1"),
             ("action", "swap"),
             ("sender", "terra1taker"),
@@ -2236,7 +2989,7 @@ mod tests {
                 },
                 Attribute {
                     key: "commission_amount".into(),
-                    value: "0.01".into(),
+                    value: "1".into(),
                 },
             ]);
         }
@@ -2816,7 +3569,7 @@ mod tests {
 
     #[test]
     fn parse_asset_amounts_parses_pair() {
-        let (a0, a1) = parse_asset_amounts("uluna 1000, uusd 950");
+        let (a0, a1) = parse_asset_amounts(Some("uluna 1000, uusd 950"), "assets").unwrap();
         assert_eq!(a0, BigDecimal::from(1000));
         assert_eq!(a1, BigDecimal::from(950));
     }
@@ -2851,8 +3604,12 @@ mod tests {
     }
 
     #[test]
-    fn wasm_attr_last_finds_last_duplicate() {
+    fn wasm_action_map_finds_last_duplicate() {
         let attrs = vec![
+            Attribute {
+                key: "action".into(),
+                value: "synthetic".into(),
+            },
             Attribute {
                 key: "k".into(),
                 value: "first".into(),
@@ -2862,7 +3619,10 @@ mod tests {
                 value: "second".into(),
             },
         ];
-        assert_eq!(wasm_attr_last(&attrs, "k"), Some("second"));
+        assert_eq!(
+            wasm_kv_map_after_action(&attrs, 0).get("k").copied(),
+            Some("second")
+        );
     }
 
     /// Deterministic pseudo-fuzz: must never panic (denial-of-service via indexer parse path).
@@ -2876,7 +3636,7 @@ mod tests {
             let s: String = (0..len)
                 .map(|_| rng.gen_range(b'!'..=b'~') as char)
                 .collect();
-            let _ = parse_asset_amounts(&s);
+            let _ = parse_asset_amounts(Some(&s), "assets");
         }
     }
 

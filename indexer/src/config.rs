@@ -79,6 +79,8 @@ pub enum ConfigError {
         "RUN_MODE=prod requires LCD_URLS to list operator-controlled endpoints (not the built-in public defaults)"
     )]
     ProdRequiresCustomLcdUrls,
+    #[error("EXPECTED_CHAIN_ID must be a non-empty valid chain identifier")]
+    InvalidExpectedChainId,
     #[error("RUN_MODE=prod requires {0} to be non-empty")]
     ProdEmpty(&'static str),
     #[error("{0}")]
@@ -121,6 +123,8 @@ fn env_hub_addr(key: &str, default: &str) -> String {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub run_mode: RunMode,
+    /// Mandatory deployment identity; LocalTerra must explicitly select localterra.
+    pub expected_chain_id: String,
     pub database_url: String,
     pub lcd_urls: Vec<String>,
     pub factory_address: String,
@@ -240,6 +244,11 @@ impl CommunityTaxCatalogConfig {
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         dotenvy::dotenv().ok();
+        let expected_chain_id =
+            env::var("EXPECTED_CHAIN_ID").map_err(|_| ConfigError::Missing("EXPECTED_CHAIN_ID"))?;
+        if !crate::lcd::valid_chain_id(&expected_chain_id) {
+            return Err(ConfigError::InvalidExpectedChainId);
+        }
 
         let run_mode = RunMode::from_env();
 
@@ -266,10 +275,8 @@ impl Config {
             .collect();
 
         // GitLab #451 (SEC-I02 H14): FACTORY_ADDRESS must be non-empty in *every* RUN_MODE.
-        // An empty factory address makes `verify_factory_provenance` skip the provenance check
-        // (pair_discovery.rs), so any contract emitting swap events — including attacker-controlled
-        // clone pairs — would be indexed unverified. Prod already rejected empty below; enforce it
-        // unconditionally so staging/QA deployments cannot silently index unverified pairs.
+        // Pair discovery also fails closed for missing/invalid factory addresses (#1394).
+        // Reject empty configuration up front in staging/QA as well as production.
         if factory_address.trim().is_empty() {
             return Err(ConfigError::EmptyFactoryAddress);
         }
@@ -325,6 +332,7 @@ impl Config {
 
         Ok(Self {
             run_mode,
+            expected_chain_id,
             database_url,
             lcd_urls,
             factory_address,
@@ -511,6 +519,7 @@ mod tests {
     use serial_test::serial;
 
     fn clear_config_env() {
+        env::set_var("EXPECTED_CHAIN_ID", "columbus-5");
         for key in [
             "RUN_MODE",
             "LCD_URLS",
@@ -525,6 +534,33 @@ mod tests {
         ] {
             env::remove_var(key);
         }
+    }
+
+    #[test]
+    #[serial]
+    fn expected_chain_is_mandatory_and_rejects_malformed_values() {
+        clear_config_env();
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("FACTORY_ADDRESS", "terra1factory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        for invalid in ["", " ", "columbus-5\n", "x/y"] {
+            env::set_var("EXPECTED_CHAIN_ID", invalid);
+            assert!(matches!(
+                Config::from_env(),
+                Err(ConfigError::InvalidExpectedChainId)
+            ));
+        }
+        env::set_var("EXPECTED_CHAIN_ID", "localterra");
+        assert_eq!(Config::from_env().unwrap().expected_chain_id, "localterra");
+        // An explicit deployment selection is required even in dev; no production fallback.
+        env::remove_var("EXPECTED_CHAIN_ID");
+        if !std::path::Path::new(".env").exists() {
+            assert!(matches!(
+                Config::from_env(),
+                Err(ConfigError::Missing("EXPECTED_CHAIN_ID"))
+            ));
+        }
+        clear_config_env();
     }
 
     #[test]

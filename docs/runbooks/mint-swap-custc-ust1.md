@@ -42,7 +42,7 @@ Do **not** add CMM’s UST1. Do **not** count LP. Do **not** stop on cumulative 
 
 How long that takes depends on third-party window deposits, not on ~$200 of UST1 bought per tick.
 
-Pin `CUSTC_UST1_VFDUSD_USD` to skip Venus × CEX (USD per 1 human vFDUSD). Pin `CUSTC_UST1_USTC_USD` to skip the USTC oracle used for mint sizing.
+In `DRY_RUN=1` previews only, pin `CUSTC_UST1_VFDUSD_USD` to skip Venus × CEX (USD per 1 human vFDUSD), or `CUSTC_UST1_USTC_USD` to preview mint sizing. Live actions reject these overrides.
 
 Live default waits **3600s ±900s** between ticks (`CUSTC_UST1_LOOP=1`). Each amount and wait is independently drawn from operating-system randomness. The wait starts after the tick finishes, including failed ticks; it does not align to the clock. The first tick runs immediately. Dry-run is one tick unless `CUSTC_UST1_LOOP=1`.
 
@@ -94,11 +94,26 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 | `CUSTC_UST1_MAX_SPREAD` | Router `max_spread` (default `0.20`) |
 | `CUSTC_UST1_USTC_USD` | Skip indexer USTC oracle |
 | `CUSTC_UST1_VFDUSD_USD` | Skip Venus × FDUSD; USD per 1 human vFDUSD |
-| `CUSTC_UST1_FDUSD_USD` | Pin CEX FDUSD/USD |
-| `CUSTC_UST1_FDUSD_PER_VFDUSD` | Pin Venus redeem |
+| `CUSTC_UST1_FDUSD_USD` | Dry-run CEX FDUSD/USD override |
+| `CUSTC_UST1_FDUSD_PER_VFDUSD` | Dry-run Venus redeem override |
 | `CUSTC_UST1_YES=1` | Skip interactive confirm |
 | `CUSTC_UST1_STATE_FILE` | Swap telemetry JSON |
 | `TERRAD_HOST_GAS_ADJUSTMENT` | Default **1.6** for this script (hybrid hops) |
 | `TERRAD_HOST_NODE` | Buyback RPC override (default Hexxagon above) |
 | `TERRAD_HOST_TX_RETRIES` | Maximum attempts per mint-preparation command (default `6`) |
 | `TERRAD_HOST_TX_RETRY_DELAY_SEC` | Initial short-retry wait, increasing by 2 seconds (default `4`) |
+
+## Endpoint identity preflight (#1392)
+
+Apply the shared [chain-attestation policy](chain-attestation.md) before reads,
+dry-run planning and every transaction attempt. Failed or stale LCD/RPC identity
+cannot authorize a tick. Review [the verification checklist](../qa/issue-1392/README.md).
+
+## Oracle safety (#1391)
+
+Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks
+before transaction preparation abort degraded inputs or >1% movement from the
+plan. Manual numeric oracle overrides are **dry-run only**; they cannot fabricate
+healthy live observations. See [policy and agent checklist](../qa/issue-1391/README.md)
+and [agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md). Strategy seed ratios
+remain explicit strategy assumptions, not certified hub prices.

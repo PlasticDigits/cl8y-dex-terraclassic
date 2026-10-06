@@ -12,8 +12,8 @@ use sqlx::{FromRow, PgPool};
 use super::candle_builder;
 use super::hub_usd::{is_hub_custc, is_hub_ust1, is_hub_ustr, AssetRef, HubUsdConfig};
 use super::pair_price_usd::{
-    human_quote_per_base_from_reserves, is_pinned_usdt_cw20, mark_price_usd, quote_usd_kind,
-    usd_per_human_quote, HubQuoteUsd, QuoteUsdKind,
+    human_quote_per_base_from_reserves, is_pinned_usdt_cw20, mark_price_usd, usd_per_human_quote,
+    HubQuoteUsd, QuoteUsdKind,
 };
 
 #[derive(Debug, Clone, FromRow)]
@@ -44,6 +44,11 @@ fn quote_asset_ref(row: &MarkPairRow) -> AssetRef {
 
 /// Catalog quote for idle marks (C568-6): hub contract/denom, not symbol spoofs.
 fn mark_quote_kind(quote: &AssetRef, cfg: &HubUsdConfig) -> Option<QuoteUsdKind> {
+    if (quote.is_cw20 && (quote.denom.is_some() || quote.contract_address.is_none()))
+        || (!quote.is_cw20 && quote.contract_address.is_some())
+    {
+        return None;
+    }
     if is_hub_custc(quote, cfg) {
         return Some(QuoteUsdKind::Ustc);
     }
@@ -60,27 +65,17 @@ fn mark_quote_kind(quote: &AssetRef, cfg: &HubUsdConfig) -> Option<QuoteUsdKind>
     ) {
         return Some(QuoteUsdKind::Usdt);
     }
-    if quote.denom.as_deref() == Some("uluna") {
+    if (!quote.is_cw20
+        && quote.contract_address.is_none()
+        && quote.denom.as_deref() == Some("uluna"))
+        || (quote.is_cw20
+            && !cfg.clunc_address.is_empty()
+            && quote.denom.is_none()
+            && quote.contract_address.as_deref() == Some(cfg.clunc_address.as_str()))
+    {
         return Some(QuoteUsdKind::Lunc);
     }
-    if !quote.is_cw20 {
-        return None;
-    }
-    if quote
-        .contract_address
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .is_empty()
-    {
-        return None;
-    }
-    match quote_usd_kind(&quote.symbol, quote.denom.as_deref()) {
-        Some(QuoteUsdKind::Ustc | QuoteUsdKind::Lunc) => {
-            quote_usd_kind(&quote.symbol, quote.denom.as_deref())
-        }
-        Some(QuoteUsdKind::Peg1 | QuoteUsdKind::Ustr | QuoteUsdKind::Usdt) | None => None,
-    }
+    None
 }
 
 fn last_human_for_row(row: &MarkPairRow) -> Option<BigDecimal> {
@@ -229,6 +224,11 @@ mod tests {
             mark_quote_kind(&cw20("cLUNC", "terra1clunc"), &c),
             Some(QuoteUsdKind::Lunc)
         );
+        assert!(mark_quote_kind(&cw20("cUSTC", "terra1spoofcustc"), &c).is_none());
+        assert!(mark_quote_kind(&cw20("cLUNC", "terra1spoofclunc"), &c).is_none());
+        let mut mixed = cw20("cLUNC", "terra1clunc");
+        mixed.denom = Some("uluna".into());
+        assert!(mark_quote_kind(&mixed, &c).is_none());
         assert!(mark_quote_kind(&cw20("GEMX", "terra1gem"), &c).is_none());
     }
 }

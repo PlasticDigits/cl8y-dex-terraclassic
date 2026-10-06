@@ -28,6 +28,7 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/oracle-safety.sh"
 # shellcheck source=lib/custc-ust1-buyback-defaults.sh
 source "$SCRIPT_DIR/lib/custc-ust1-buyback-defaults.sh"
 # Use an independent Columbus-5 RPC for this buyback. Set before the shared
@@ -40,7 +41,7 @@ TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 # Hybrid solver hops can sim low vs execute; 1.6 matches this workload better than 1.4.
 TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-1.6}"
 
-LCD_URL="${CUSTC_UST1_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${CUSTC_UST1_LCD_URL%/}}"
 INDEXER="${CUSTC_UST1_INDEXER%/}"
 MATH_PY="$SCRIPT_DIR/lib/custc-ust1-buyback-math.py"
 HOOK_PY="$SCRIPT_DIR/lib/ust1-clunc-buyback-math.py"
@@ -192,37 +193,39 @@ is_minter() {
 
 fetch_ustc_usd() {
   if [[ -n "${CUSTC_UST1_USTC_USD:-}" ]]; then
-    printf '%s' "$CUSTC_UST1_USTC_USD"
-    return 0
+    oracle_safety_override "$CUSTC_UST1_USTC_USD"
+    return $?
   fi
-  curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-    "$CUSTC_UST1_INDEXER_USTC" | jq -er '.price_usd // empty'
+  oracle_safety_fetch "$CUSTC_UST1_INDEXER_USTC" "ustc"
 }
 
 # Prints: fdusd_usd \t venus_rate  (or dies). Pin CUSTC_UST1_VFDUSD_USD to skip both.
 fetch_vfdusd_marks() {
   local raw fdusd venus
   if [[ -n "${CUSTC_UST1_VFDUSD_USD:-}" ]]; then
-    # Direct USD per 1 human vFDUSD (already Venus × FDUSD). Venus=1 dummy for the CLI.
-    printf '%s\t%s' "$CUSTC_UST1_VFDUSD_USD" "1"
+    fdusd="$(oracle_safety_override "$CUSTC_UST1_VFDUSD_USD")" || return 1
+    printf '%s\t%s' "$fdusd" "1"
     return 0
   fi
-  raw="$(curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-    "$CUSTC_UST1_INDEXER_VFDUSD")" || die "vFDUSD oracle request failed"
-  fdusd="${CUSTC_UST1_FDUSD_USD:-}"
-  venus="${CUSTC_UST1_FDUSD_PER_VFDUSD:-}"
-  if [[ -z "$fdusd" ]]; then
-    fdusd="$(jq -er '.price_usd // empty' <<<"$raw")" || die "vFDUSD oracle missing price_usd"
+  raw="$(curl -fsS --connect-timeout 10 --max-time 20 "$CUSTC_UST1_INDEXER_VFDUSD")" || return 1
+  fdusd="$(python3 "$ORACLE_SAFETY_PY" quote vfdusd <<<"$raw")" || return 1
+  venus="$(jq -c '.venus' <<<"$raw" | python3 "$ORACLE_SAFETY_PY" venus)" || return 1
+  if [[ -n "${CUSTC_UST1_FDUSD_USD:-}" ]]; then
+    fdusd="$(oracle_safety_override "$CUSTC_UST1_FDUSD_USD")" || return 1
   fi
-  if [[ -z "$venus" ]]; then
-    venus="$(jq -er '.venus.fdusd_per_vfdusd // empty' <<<"$raw" 2>/dev/null || true)"
-  fi
-  if [[ -z "$venus" || "$venus" == "null" ]]; then
-    venus="$(curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-      "${INDEXER}/api/v1/oracle/price/vfdusd/venus" | jq -er '.fdusd_per_vfdusd // empty')" \
-      || die "Venus fdusd_per_vfdusd missing (do not assume 1 vFDUSD = 1 FDUSD)"
+  if [[ -n "${CUSTC_UST1_FDUSD_PER_VFDUSD:-}" ]]; then
+    venus="$(oracle_safety_override "$CUSTC_UST1_FDUSD_PER_VFDUSD")" || return 1
   fi
   printf '%s\t%s' "$fdusd" "$venus"
+}
+
+validate_financial_marks() {
+  local current marks
+  current="$(fetch_ustc_usd)" || return 1
+  oracle_safety_movement "$current" "$ustc_usd" || return 1
+  marks="$(fetch_vfdusd_marks)" || return 1
+  oracle_safety_movement "${marks%%$'\t'*}" "$fdusd_usd" || return 1
+  oracle_safety_movement "${marks#*$'\t'}" "$venus"
 }
 
 prompt_keyring_pass() {
@@ -240,6 +243,7 @@ prompt_keyring_pass() {
 }
 
 broadcast_admin() {
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1"
   shift
   local out tx_hash
@@ -259,6 +263,9 @@ broadcast_admin() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
+
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2
@@ -373,7 +380,7 @@ print_header() {
   echo "cUSTC → UST1 best-solver buyback"
   echo "=============================================="
   echo "Router:     $ROUTER"
-  echo "RPC:        $TERRAD_HOST_NODE"
+  echo "RPC:        configured endpoint"
   echo "Treasury:   $TREASURY"
   echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
   echo "Multisig:   $MSIG_KEY ($MSIG_ADDR)"
@@ -423,6 +430,7 @@ warn_wrap_solvency() {
 }
 
 one_tick() {
+  terrad_host_attest || return 1
   local ustc_usd fdusd_usd venus mint_raw have need quote est min_recv hops hook_json hook_b64 send_msg
   local before after delta hop_returns marks
   local state swapped_raw swapped_usd rounds
@@ -472,6 +480,8 @@ one_tick() {
   [[ "$min_recv" != "0" ]] || die "min_receive is 0 (quote too small for slippage $SLIP%)"
   echo "  min_receive=$min_recv (${SLIP}% floor of $est)"
 
+  TERRAD_HOST_IDENTITY_CONTRACTS+=" $(jq -r '[(.hops[]?.pair // empty), (.router_operations[]?.terra_swap.offer_asset_info.token.contract_addr // empty), (.router_operations[]?.terra_swap.ask_asset_info.token.contract_addr // empty)] | unique | join(" ")' <<<"$quote")"
+  terrad_host_attest || return 1
   echo "[hop-sim] pair hybrid_simulation for #334 book min_return"
   hop_returns="$(sim_hop_returns "$quote" "$mint_raw")"
   echo "  hop_returns=$hop_returns"
@@ -571,6 +581,10 @@ python3 "$MATH_PY" validate-randomization --usd "$MINT_USD" --percent "$AMOUNT_J
 
 print_header
 echo ""
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $CUSTC_UST1_FACTORY $ROUTER $UST1 $CUSTC $VFDUSD $TREASURY"
+terrad_host_attest || die "chain/protocol trust preflight failed"
+
 echo "[preflight] tokens + extra minter $MSIG_ADDR"
 DEC_CUSTC="$(token_decimals "$CUSTC")"
 DEC_UST1="$(token_decimals "$UST1")"

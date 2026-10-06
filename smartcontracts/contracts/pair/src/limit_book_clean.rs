@@ -1,6 +1,7 @@
-//! Permissionless limit book clean — park expired/dust orders (GitLab #263).
+//! Permissionless limit book clean — park expired, dust, or economically unfillable orders.
 
 use cosmwasm_std::{Event, Storage, Uint128};
+use dex_common::limit_placement::is_limit_order_fillable;
 use dex_common::pair::{
     clamp_max_clean_orders, clamp_max_clean_scan_steps, ExpiredLimitParkReason, LimitOrderSide,
     MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
@@ -141,7 +142,7 @@ pub fn clean_limit_book(
             resume_cursor = Some(oid);
             break;
         }
-        // GitLab #274: bound traversal. Count EVERY visited node (zero-remaining skips, healthy
+        // GitLab #274: bound traversal. Count EVERY visited node (healthy
         // fall-through, and parked alike); the first unvisited oid becomes the resume cursor.
         if steps >= step_cap {
             scan_capped = true;
@@ -153,18 +154,16 @@ pub fn clean_limit_book(
         let order = ORDERS.load(storage, oid)?;
         let next_ptr = order.next;
 
-        if order.remaining.is_zero() {
-            cur = next_ptr;
-            continue;
-        }
-
         let time_exp = is_time_expired(order.expires_at, now);
-        let force = !time_exp && is_force_dust(order.remaining, min_remaining);
+        let unfillable = !is_limit_order_fillable(&order.side, order.remaining, order.price);
+        let force = !time_exp && (unfillable || is_force_dust(order.remaining, min_remaining));
 
         if time_exp || force {
             // Set reason at the call site — do not re-derive from force/expires_at alone (#504).
             let reason = if time_exp {
                 ExpiredLimitParkReason::Expired
+            } else if unfillable {
+                ExpiredLimitParkReason::Unfillable
             } else {
                 ExpiredLimitParkReason::ForceCleaned
             };

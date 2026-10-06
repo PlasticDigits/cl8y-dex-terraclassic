@@ -22,8 +22,10 @@
 #
 # Never commit TERRAD_HOST_KEYRING_PASS.
 set -euo pipefail
+shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/oracle-safety.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/ust1-lp-rebalance-defaults.sh
 source "$SCRIPT_DIR/lib/ust1-lp-rebalance-defaults.sh"
@@ -32,7 +34,7 @@ source "$SCRIPT_DIR/lib/terrad-host.sh"
 
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
-LCD_URL="${UST1_LP_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${UST1_LP_LCD_URL%/}}"
 MATH_PY="$SCRIPT_DIR/lib/ust1-lp-rebalance-math.py"
 MSIG_KEY="${UST1_LP_MSIG_KEY}"
 SIGNER1="${UST1_LP_SIGNER1}"
@@ -165,11 +167,16 @@ asset_amount_for() {
 
 fetch_ustc_usd() {
   if [[ -n "${UST1_LP_USTC_USD:-}" ]]; then
-    printf '%s' "$UST1_LP_USTC_USD"
-    return 0
+    oracle_safety_override "$UST1_LP_USTC_USD"
+    return $?
   fi
-  curl -sS --connect-timeout 10 --max-time 20 "$UST1_LP_INDEXER_ORACLE" \
-    | jq -er '.price_usd // empty'
+  oracle_safety_fetch "$UST1_LP_INDEXER_ORACLE" "ustc"
+}
+
+validate_financial_marks() {
+  local current
+  current="$(fetch_ustc_usd)" || return 1
+  oracle_safety_movement "$current" "$USTC_USD"
 }
 
 prompt_keyring_pass() {
@@ -187,6 +194,7 @@ prompt_keyring_pass() {
 }
 
 broadcast_admin() {
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1"
   shift
   local out tx_hash
@@ -205,6 +213,9 @@ broadcast_admin() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
+
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2
@@ -471,6 +482,10 @@ python3 "$MATH_PY" --self-test
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
   command -v terrad >/dev/null || die "terrad required on PATH"
 fi
+
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $UST1_LP_FACTORY $UST1 $CUSTC $USTR $PAIR_CUSTC $PAIR_USTR $TREASURY"
+terrad_host_attest || die "chain/protocol trust preflight failed"
 
 USTC_USD="$(fetch_ustc_usd)" || die "oracle USTC/USD unavailable (set UST1_LP_USTC_USD)"
 [[ -n "$USTC_USD" ]] || die "empty USTC/USD"

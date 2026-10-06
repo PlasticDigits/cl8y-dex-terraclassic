@@ -4,6 +4,9 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, StdError, StdResult, Uint128};
 
 pub const FUNDING_VERSION: u16 = 1;
+/// Version of monotonic route IDs and single-use settlement slots (#1388).
+pub const SETTLEMENT_VERSION: u16 = 1;
+pub const MAX_SETTLEMENT_SLOTS: usize = 5;
 #[cw_serde]
 pub enum RouteTaxKind {
     Sell,
@@ -34,18 +37,33 @@ pub struct RouteTaxPreviewResponse {
     pub tax: Uint128,
     pub net: Uint128,
 }
+/// Read-only response projection; allow extra fields from the full router Config.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, schemars::JsonSchema)]
+pub struct RouterConfigResponse {
+    pub funding_version: u16,
+    #[serde(default)]
+    pub settlement_version: u16,
+    pub factory: Addr,
+    #[serde(default)]
+    pub last_route_id: u64,
+}
 #[cw_serde]
 pub enum RouterQueryMsg {
+    Config {},
     RouteTaxContext {},
 }
 #[cw_serde]
 pub struct RouteTransfer {
+    #[serde(default)]
+    pub slot: u32,
     pub token: Addr,
     pub recipient: Addr,
     pub amount: Uint128,
 }
 #[cw_serde]
 pub struct RouteTaxContextResponse {
+    #[serde(default)]
+    pub route_id: u64,
     pub funding_version: u16,
     pub trader: Addr,
     pub pair: Addr,
@@ -54,12 +72,22 @@ pub struct RouteTaxContextResponse {
     pub gross: Uint128,
     pub economic: Uint128,
     pub transfers: Vec<RouteTransfer>,
+    /// Exact residue of the payer's original authorized input debit (#1390).
+    /// Only this transfer back to `trader` restores owned funds above max_wallet;
+    /// purchased intermediate residue and final output must never populate it.
+    /// Missing fields from older routers confer no max-wallet exception.
+    #[serde(default)]
+    pub original_input_refund: Option<RouteTransfer>,
     /// Tokens already acquired and checked in this same authenticated route.
     pub acquired_tokens: Vec<Addr>,
 }
 #[cw_serde]
 pub enum TokenExecuteMsg {
-    RouteTransfer { recipient: String, amount: Uint128 },
+    RouteTransfer {
+        slot: u32,
+        recipient: String,
+        amount: Uint128,
+    },
 }
 
 /// Largest integer S with S + floor(S*bps/10000) <= G. A bounded binary search

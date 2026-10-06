@@ -2,27 +2,28 @@
 //! assumed monotonic. No executable response cache: every exact target gets fresh validation.
 
 use std::collections::{HashMap, HashSet};
+use std::net::IpAddr;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use axum::{Json, http::StatusCode};
-use bigdecimal::{ToPrimitive, num_bigint::BigUint};
+use axum::{http::StatusCode, Json};
+use bigdecimal::{num_bigint::BigUint, ToPrimitive};
 use serde_json::Value;
-use tokio::sync::Semaphore;
 
 use super::{
-    AppState, best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
+    best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
     hybrid_route_opt::QuoteTrader,
+    route_exact_output_admission::AdmissionController,
     route_exact_output_reference as reference, route_graph, route_paths,
     route_solver::{
         self, FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, SolveRouteParams,
     },
+    AppState,
 };
 
 type Error = (StatusCode, String);
 pub const TIME_BUDGET: Duration = Duration::from_secs(20);
 pub const VALIDATION_TIMEOUT: Duration = Duration::from_secs(3);
-pub const MAX_CONCURRENT_REQUESTS: usize = 4;
 pub const PATH_WORK_BUDGET: u64 = 100_000;
 pub const MAX_GRAPH_PAIRS: usize = 8192;
 pub const OPTIMALITY_SCOPE: &str = "minimum raw offer within the first 5 feasible fresh pool-only simple paths among 32 hop-count-ordered structural paths, at most 4 hops; indexed snapshot minimum, fresh router validation required; excludes hybrid books and unsupported legacy-tax hops; route-local v1 taxes sized per hop";
@@ -157,28 +158,17 @@ pub(crate) async fn solve(
     q: &SolveRouteParams,
     target: u128,
     trader: &QuoteTrader,
+    client: Option<IpAddr>,
 ) -> Result<Json<Value>, Error> {
-    static LIMIT: OnceLock<Semaphore> = OnceLock::new();
-    let _permit = LIMIT
-        .get_or_init(|| Semaphore::new(MAX_CONCURRENT_REQUESTS))
-        .try_acquire()
-        .map_err(|_| {
-            (
-                StatusCode::TOO_MANY_REQUESTS,
-                "Exact-output sizing is busy; retry shortly".into(),
-            )
-        })?;
-    tokio::time::timeout(TIME_BUDGET, solve_inner(state, q, target, trader))
+    static LIMIT: OnceLock<AdmissionController> = OnceLock::new();
+    LIMIT
+        .get_or_init(AdmissionController::default)
+        .run(client, TIME_BUDGET, solve_inner(state, q, target, trader))
         .await
-        .map_err(|_| {
-            (
-                StatusCode::GATEWAY_TIMEOUT,
-                "Exact-output sizing timed out; retry".into(),
-            )
-        })?
 }
 
-/// Router simulation is arithmetic only: enforce execution eligibility separately, fail closed.
+/// Router previews validate route trader identity and tax arithmetic, not stateful launch
+/// guards. Enforce pair/factory eligibility separately; execution still checks token guards.
 async fn path_eligible(state: &AppState, hops: &[RouteHop], trader: &QuoteTrader) -> bool {
     let Some(factory) = state.factory_address.as_deref() else {
         return false;
@@ -227,7 +217,9 @@ async fn solve_inner(
             "Exact-output sizing requires router forward validation".into(),
         ));
     }
-    let snap = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    let snap =
+        route_graph::get_route_graph_snapshot(&state.pool, &state.lcd.chain_cache_namespace())
+            .await?;
     let start = route_solver::resolve_id(&snap.addr_to_id, &q.token_in).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
@@ -343,6 +335,7 @@ async fn solve_inner(
     )
     .await?;
     let mut extreme_rejected = false;
+    let mut preview_rejection = None;
     let paths_considered = sized.len() as u32;
     sized.sort_by_key(|(amount, _, _, _)| *amount);
     for (amount, mirrored, hops, ops) in sized {
@@ -363,8 +356,13 @@ async fn solve_inner(
             route_solver::maybe_simulate(state, Some(&amount.to_string()), &ops, trader),
         )
         .await;
-        let Ok(Ok(Some(live))) = live else {
-            continue;
+        let live = match live {
+            Ok(Ok(Some(live))) => live,
+            Ok(Err(error)) if error.0 == StatusCode::UNPROCESSABLE_ENTITY => {
+                preview_rejection = Some(error);
+                continue;
+            }
+            _ => continue,
         };
         let Some(out) = live.parse::<u128>().ok() else {
             continue;
@@ -445,6 +443,9 @@ async fn solve_inner(
             StatusCode::UNPROCESSABLE_ENTITY,
             "Receive route rejected by >=99% symmetric fair-rate protection".into(),
         ));
+    }
+    if let Some(error) = preview_rejection {
+        return Err(error);
     }
     Err((
         StatusCode::SERVICE_UNAVAILABLE,
@@ -618,6 +619,42 @@ mod tests {
         assert!(!fidelity_passed(100, 200, 100));
         assert!(!fidelity_passed(1, 0, 100));
     }
+    #[test]
+    fn route_exact_output_rejects_repeated_capable_asset_before_reserve_sizing() {
+        let mut taxes = tax::TaxRankSnapshot {
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        taxes.by_addr.insert(
+            "a".into(),
+            tax::CataloguedTaxToken {
+                contract_address: "a".into(),
+                code_id: Some(11667),
+                data_hash: None,
+                buy_bps: 0,
+                sell_bps: 0,
+                exemption_directory: true,
+                route_funding_version: Some(1),
+            },
+        );
+        taxes.exempt_tokens.insert("a".into());
+        let hops = [
+            RouteHop {
+                pair: "p".into(),
+                offer_token: "a".into(),
+                ask_token: "b".into(),
+            },
+            RouteHop {
+                pair: "p".into(),
+                offer_token: "b".into(),
+                ask_token: "a".into(),
+            },
+        ];
+        let mirrors = HashMap::from([("p".into(), mirror(1_000_000, 1_000_000, 30))]);
+        assert!(size_path(&hops, &mirrors, 100, 0, &taxes, "a").is_none());
+        assert!(size_path(&hops[..1], &mirrors, 100, 0, &taxes, "a").is_some());
+    }
+
     #[test]
     fn route_exact_output_funded_buy_sell_boundaries_are_minimal() {
         let mut taxes = tax::TaxRankSnapshot {

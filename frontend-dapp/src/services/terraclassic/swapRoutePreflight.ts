@@ -1,4 +1,5 @@
 import { previewRouteTax } from './routeTaxFunding'
+import { assertRouteTaxPath } from './routeTaxPath'
 import { assetInfoLabel } from '@/types'
 import { getPair } from './factory'
 import { simulateHybridSwap, type QuoteTraderOptions } from './pair'
@@ -59,6 +60,7 @@ export async function preflightSwapRouteSpread(
   if (operations.length === 0) {
     return { worstSpreadPercent: '0.00', anyHopExceedsMaxSpread: false, anyHopMissingSlippageFloor: false }
   }
+  if (quoteTrader?.taxFundingVersion === 1) await assertRouteTaxPath(operations, quoteTrader.signal)
 
   let currentOffer = offerAmount
   let worstPctNum = 0n
@@ -170,6 +172,7 @@ export async function enrichSwapOperationsWithHopMinReturns(
   options?: { hybridRatioTemplate?: boolean }
 ): Promise<SwapOperation[]> {
   if (operations.length === 0) return operations
+  if (quoteTrader?.taxFundingVersion === 1) await assertRouteTaxPath(operations, quoteTrader.signal)
 
   let currentOffer = offerAmount
   const out: SwapOperation[] = []

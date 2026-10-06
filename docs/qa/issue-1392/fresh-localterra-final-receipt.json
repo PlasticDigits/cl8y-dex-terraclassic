@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-10-05T09:11:53.015284+00:00",
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "source_scope": "Final working-tree source verified by make verify-issue-1392",
+  "exit_code": 0,
+  "scope": "Read-only chain/freshness/common-block agreement; no preparation/signing/broadcast/deployment. Factory code identity included only for Columbus-5.",
+  "receipt": {
+    "expected_chain_id": "localterra",
+    "observed_chain_id": "localterra",
+    "height": 6655,
+    "block_hash": "13b13f53fa980a07b4934db30da58359fc588631a8ec03b875a8906a3f1a629b",
+    "identities": {},
+    "rpc_candidate_index": 0
+  },
+  "command": "python3 scripts/lib/chain-attestation.py --expected-chain localterra --lcd http://172.17.0.13:1317 --rpc http://172.17.0.13:26657"
+}

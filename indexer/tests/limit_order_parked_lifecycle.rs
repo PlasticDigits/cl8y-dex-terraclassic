@@ -112,6 +112,7 @@ async fn park_event_then_claim_updates_db_and_api_filters() {
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
+        "columbus-5",
     );
     let ustc = oracle::new_shared_price();
     let block_time = Utc::now();

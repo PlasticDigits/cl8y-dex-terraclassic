@@ -35,4 +35,13 @@ pub enum ContractError {
 
     #[error("Insufficient debt balance")]
     InsufficientBalance {},
+
+    #[error("Cannot migrate contract {contract}")]
+    InvalidMigrationContract { contract: String },
+
+    #[error("Unsupported migration source version {version}")]
+    InvalidMigrationVersion { version: String },
+
+    #[error("Invalid migration state: {reason}")]
+    InvalidMigrationState { reason: String },
 }

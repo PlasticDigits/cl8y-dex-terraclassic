@@ -134,9 +134,13 @@ async fn token_price_in_quote(
         return Some(1.0);
     }
 
+    state.lcd.require_verified_chain().await.ok()?;
     let discount_bps = resolve_discount_bps(state, quote_trader).await;
     let maker_key = cache_key_maker_fills(max_maker_fills);
-    let cache_key = format!("{token_addr}->{quote_addr}|d{discount_bps}|m{maker_key}");
+    let cache_key = format!(
+        "{}|{token_addr}->{quote_addr}|d{discount_bps}|m{maker_key}",
+        state.lcd.chain_cache_namespace()
+    );
     if let Some(price) = price_cache_get(&cache_key) {
         return Some(price);
     }
@@ -209,7 +213,10 @@ pub async fn enrich_route_slippage(
         }
     }
 
-    let Ok(snapshot) = route_graph::get_route_graph_snapshot(&state.pool).await else {
+    let Ok(snapshot) =
+        route_graph::get_route_graph_snapshot(&state.pool, &state.lcd.chain_cache_namespace())
+            .await
+    else {
         return;
     };
     let Some((quote_addr, quote_decimals)) = find_quote_token(&snapshot.assets) else {
