@@ -17,9 +17,11 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
+from urllib.parse import unquote, urlparse
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts/lib"))
 SPEC = importlib.util.spec_from_file_location(
     "route_tax_rollout", ROOT / "scripts/lib/route_tax_rollout.py"
 )
@@ -33,6 +35,9 @@ CLI_SPEC = importlib.util.spec_from_file_location(
 cli = importlib.util.module_from_spec(CLI_SPEC)
 sys.modules[CLI_SPEC.name] = cli
 CLI_SPEC.loader.exec_module(cli)
+PROBE_SPEC = importlib.util.spec_from_file_location("route_tax_probe", ROOT / "scripts/qa/probe-route-tax-1381.py")
+probe = importlib.util.module_from_spec(PROBE_SPEC)
+PROBE_SPEC.loader.exec_module(probe)
 
 GOV = "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7"
 DEPLOYER = "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
@@ -174,7 +179,7 @@ class FakeChain:
             return {"total_supply": self.supply[address]}
         if "route_tax_capability" in message:
             cfg = self.configs[address]
-            funded = self.version(address)["version"] == rollout.SPECS["token"][1]
+            funded = rollout.version_tuple(self.version(address)["version"]) >= (1, 2, 0)
             if not funded:
                 raise RuntimeError("unknown query route_tax_capability")
             return {"funding_version": 1, "router": cfg["router"],
@@ -268,7 +273,7 @@ class FakeChain:
     def _migrate(self, address, code_id):
         self.instances[address]["code_id"] = code_id
         if address == ROUTER:
-            self.configs[address]["funding_version"] = 1
+            self.configs[address].update(funding_version=1, settlement_version=1, last_route_id=0)
 
 
 class RolloutTest(unittest.TestCase):
@@ -398,7 +403,7 @@ class RolloutTest(unittest.TestCase):
         for code, role in ((20, "router"), (100, "token"), (101, "token")):
             self.chain.codes[code]["version"] = self.artifacts[role].version
             self.chain.codes[code]["sha256"] = self.artifacts[role].sha256
-        self.chain.configs[ROUTER]["funding_version"] = 1
+        self.chain.configs[ROUTER].update(funding_version=1, settlement_version=1, last_route_id=0)
         self.engine.execute()
         self.assertFalse(any(action["op"] in ("store", "migrate") for action in self.chain.actions))
         self.assertFalse(any("migrate_owned_contract" in action.get("msg", {}) for action in self.chain.actions))
@@ -536,6 +541,70 @@ class RolloutTest(unittest.TestCase):
         with self.assertRaises(rollout.RolloutError):
             self.engine.inventory()
 
+    def test_unpaired_launcher_inventory_router_mismatch_blocks_all_transactions(self):
+        unpaired = "synthetic-unpaired-token"
+        self.chain.instances[unpaired] = clone(self.chain.instances[ALPHA])
+        self.chain.configs[unpaired] = {**clone(self.chain.configs[ALPHA]), "router": FACTORY}
+        with self.assertRaisesRegex(rollout.RolloutError, "requires in-place migration"):
+            self.engine.execute()
+        self.assertEqual([], self.chain.actions)
+        self.assertFalse(self.journal.exists())
+
+    def test_binding_change_after_planning_blocks_migration_before_transactions(self):
+        self.engine.prepare()
+        self.chain.configs[ZERO_TAX]["router"] = FACTORY
+        with self.assertRaisesRegex(rollout.RolloutError, "Token settings changed"):
+            self.resume().execute()
+        self.assertEqual([], self.chain.actions)
+
+    def test_router_monotonic_counter_is_not_an_operator_setting(self):
+        self.engine.execute()
+        self.chain.configs[ROUTER]["last_route_id"] = 7
+        self.assertEqual("PASS", self.engine.verify()["contract_verification"])
+        self.chain.configs[ROUTER]["settlement_version"] = 0
+        with self.assertRaisesRegex(rollout.RolloutError, "settlement version"):
+            self.engine.verify()
+
+    def test_router_replacement_is_rejected_even_if_launcher_was_repointed(self):
+        replacement = "synthetic-new-router"
+        self.chain.instances[replacement] = clone(self.chain.instances[ROUTER])
+        self.chain.configs[replacement] = clone(self.chain.configs[ROUTER])
+        self.chain.configs[LAUNCHER]["router"] = replacement
+        engine = rollout.Rollout(self.chain, self.artifacts, {"router": replacement}, self.journal)
+        with self.assertRaisesRegex(rollout.RolloutError, "configured router mismatch"):
+            engine.execute()
+        self.assertEqual([], self.chain.actions)
+
+    def test_funded_capability_preflight_is_inventory_wide(self):
+        unpaired = "synthetic-unpaired-funded-token"
+        self.chain.instances[unpaired] = {"code_id": 102, "admin": GOV}
+        self.chain.codes[102] = {"contract": rollout.SPECS["token"][0], "version": "1.2.0",
+                                 "sha256": digest(b"legacy-funded-token")}
+        self.chain.configs[unpaired] = clone(self.chain.configs[ALPHA])
+        # Discovered under the launcher template even though it has no pool.
+        self.chain.configs[LAUNCHER]["token_code_id"] = 102
+        original = self.chain.smart
+
+        def malformed_capability(address, msg):
+            if address == unpaired and "route_tax_capability" in msg:
+                return {"funding_version": 1, "router": FACTORY}
+            return original(address, msg)
+
+        with patch.object(self.chain, "smart", side_effect=malformed_capability):
+            with self.assertRaisesRegex(rollout.RolloutError, "funding/router capability mismatch"):
+                self.engine.execute()
+        self.assertEqual([], self.chain.actions)
+
+    def test_same_version_fake_hash_fails_before_migration_and_on_resume(self):
+        self.chain.codes[20].update(version=self.artifacts["router"].version, sha256=self.artifacts["router"].sha256)
+        self.chain.configs[ROUTER].update(funding_version=1, settlement_version=1, last_route_id=0)
+        self.engine.prepare()
+        self.chain.codes[20]["sha256"] = "0" * 64
+        # A preserved CW2 label cannot establish immutable artifact identity.
+        with self.assertRaisesRegex(rollout.RolloutError, "reviewed|checksum|Same-version"):
+            self.resume().execute()
+        self.assertEqual([], self.chain.actions)
+
     def test_explicit_noncommunity_contract_is_rejected(self):
         engine = rollout.Rollout(self.chain, self.artifacts, {}, self.journal, explicit_tokens=[PLAIN])
         with self.assertRaises(rollout.RolloutError):
@@ -632,7 +701,7 @@ class RolloutTest(unittest.TestCase):
 
     def test_explicit_token_binding_and_admin_are_validated(self):
         self.chain.configs[ALPHA]["router"] = FACTORY
-        with self.assertRaisesRegex(rollout.RolloutError, "factory/router mismatch"):
+        with self.assertRaisesRegex(rollout.RolloutError, "configured router mismatch"):
             self.engine.inventory()
         self.chain.configs[ALPHA]["router"] = ROUTER
         self.chain.instances[ALPHA]["admin"] = DEPLOYER
@@ -1112,6 +1181,86 @@ class TransportTest(unittest.TestCase):
         self.assertIn("Another rollout process", errors.getvalue())
         self.assertFalse((self.folder / "manifest.json").exists())
         self.assertEqual([], fixture.chain.actions)
+
+
+class PublicProbeTest(unittest.TestCase):
+    """Exercise the actual public probe with synthetic LCD responses only."""
+
+    def setUp(self):
+        self.hashes = {20: "a" * 64, 100: "b" * 64}
+        self.token_router = ROUTER
+        self.cap_router = ROUTER
+        self.funding_version = 1
+
+    def response(self, request, timeout):
+        path = urlparse(request.full_url).path
+        if path.endswith("/blocks/latest"):
+            value = {"block": {"header": {"chain_id": "localterra", "height": "123", "time": "synthetic"}}}
+        elif "/smart/" in path:
+            address = path.split("/contract/", 1)[1].split("/", 1)[0]
+            msg = json.loads(base64.b64decode(unquote(path.split("/smart/", 1)[1])))
+            if address == ROUTER:
+                value = {"funding_version": self.funding_version, "factory": FACTORY}
+            elif "get_config" in msg:
+                value = {"factory": FACTORY, "router": self.token_router}
+            else:
+                value = {"funding_version": self.funding_version, "router": self.cap_router,
+                         "buy_bps": 100, "sell_bps": 100}
+            value = {"data": value}
+        elif "/contract/" in path:
+            address = path.rsplit("/", 1)[1]
+            value = {"contract_info": {"code_id": "20" if address == ROUTER else "100", "admin": GOV}}
+        else:
+            code = int(path.rsplit("/", 1)[1])
+            value = {"code_info": {"data_hash": self.hashes[code]}}
+        return io.BytesIO(json.dumps(value).encode())
+
+    def run_probe(self, *extra):
+        output = io.StringIO()
+        with patch.object(sys, "argv", ["probe", "--router", ROUTER, "--tokens", ALPHA, *extra]), \
+                patch.object(probe, "urlopen", side_effect=self.response), \
+                patch.object(sys, "stdout", output):
+            status = probe.main()
+        return status, json.loads(output.getvalue())
+
+    def reviewed_args(self):
+        return ["--expect-funded", "--expect-reviewed-artifacts", "--reviewed-code", "20=" + "a" * 64,
+                "--reviewed-code", "100=" + "b" * 64]
+
+    def test_actual_code_id_and_data_hash_required_for_artifact_acceptance(self):
+        status, result = self.run_probe(*self.reviewed_args())
+        self.assertEqual(0, status)
+        self.assertEqual("PASS", result["artifact_verification"])
+        self.hashes[100] = "c" * 64
+        status, result = self.run_probe(*self.reviewed_args())
+        self.assertEqual(1, status)
+        self.assertEqual("FAIL", result["artifact_verification"])
+        self.assertTrue(any("data hash differs" in error for error in result["errors"]))
+
+    def test_unreviewed_live_code_id_cannot_pass_with_matching_capability(self):
+        status, result = self.run_probe("--expect-reviewed-artifacts", "--reviewed-code", "20=" + "a" * 64)
+        self.assertEqual(1, status)
+        self.assertTrue(any("no reviewed artifact" in error for error in result["errors"]))
+
+    def test_capability_alone_does_not_establish_artifact_verification(self):
+        status, result = self.run_probe("--expect-funded")
+        self.assertEqual(0, status)
+        self.assertEqual("UNVERIFIED", result["artifact_verification"])
+
+    def test_config_binding_and_capability_both_reject_router_replacement(self):
+        for field in ("token_router", "cap_router"):
+            with self.subTest(field=field):
+                setattr(self, field, FACTORY)
+                status, result = self.run_probe("--expect-funded")
+                self.assertEqual(1, status)
+                self.assertTrue(any("router mismatch" in error or "capability mismatch" in error for error in result["errors"]))
+                setattr(self, field, ROUTER)
+
+    def test_boolean_funding_version_is_not_a_protocol_attestation(self):
+        self.funding_version = True
+        status, result = self.run_probe("--expect-funded")
+        self.assertEqual(1, status)
+        self.assertEqual("FAIL", result["status"])
 
 
 if __name__ == "__main__":

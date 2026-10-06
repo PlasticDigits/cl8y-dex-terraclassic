@@ -17,6 +17,8 @@
 //! (`uusd` / `uluna`). LCD may flatten wrap + swap + InstantWithdraw into one `wasm`
 //! stream — parse **each** `action` segment and scope by reserved `_contract_address`
 //! only (#285). `tax_amount` / `instant_withdraw` / `wrap_deposit` are not fees.
+//! Fee ordinals count every recognized pinned action, including zero and rejected
+//! actions, so rejecting a poisoned amount never shifts a later fee's replay key.
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -25,6 +27,7 @@ use crate::db::queries::assets::AssetRow;
 use crate::lcd::{Attribute, TxResponse};
 
 use super::economic_usd::{is_gem_address, is_gem_ticker, is_vfdusd_identity};
+use super::event_amount::{parse_raw_amount, report_amount_rejection};
 use super::pair_price_usd::{
     catalog_usd_per_human_identity, fits_numeric_38_18, humanize_raw_amount, HubQuoteUsd,
 };
@@ -183,12 +186,20 @@ fn wasm_kv_map_after_action(
     m
 }
 
-fn parse_positive_raw(s: &str) -> Option<BigDecimal> {
-    let n: BigDecimal = s.parse().ok()?;
-    if n > BigDecimal::from(0) {
-        Some(n)
-    } else {
-        None
+/// Valid zero means no treasury fee. Invalid or missing values reject the fee
+/// action and emit only bounded metadata, never event values or identities.
+fn positive_fee_amount(
+    value: Option<&str>,
+    source: FeeSource,
+    field: &'static str,
+) -> Option<BigDecimal> {
+    match parse_raw_amount(value) {
+        Ok(n) if n > BigDecimal::from(0) => Some(n),
+        Ok(_) => None,
+        Err(error) => {
+            report_amount_rejection(source.as_str(), field, error);
+            None
+        }
     }
 }
 
@@ -208,15 +219,18 @@ fn wrap_fee_token_from_seg(seg: &std::collections::HashMap<&str, &str>) -> Optio
 }
 
 /// Captured ustr-cmm amount key is `fee`. `fee_amount` is a #586 alias only.
-fn wrap_fee_amount_from_seg(seg: &std::collections::HashMap<&str, &str>) -> Option<BigDecimal> {
-    for key in ["fee", "fee_amount"] {
-        if let Some(v) = seg.get(key).copied() {
-            if let Some(n) = parse_positive_raw(v) {
-                return Some(n);
-            }
-        }
-    }
-    None
+fn wrap_fee_amount_from_seg(
+    seg: &std::collections::HashMap<&str, &str>,
+    source: FeeSource,
+) -> Option<BigDecimal> {
+    // The alias is used only when the preferred key is absent. A malformed or
+    // zero preferred fee must never be replaced by a positive alias (#1395).
+    let field = if seg.contains_key("fee") {
+        "fee"
+    } else {
+        "fee_amount"
+    };
+    positive_fee_amount(seg.get(field).copied(), source, field)
 }
 
 fn wrap_fee_source(action: &str) -> Option<FeeSource> {
@@ -247,10 +261,12 @@ fn parse_wrap_fees_from_attrs(
         if !wrap_mapper_matches(pinned, contract) {
             continue;
         }
+        let emission_ordinal = *ordinal;
+        *ordinal += 1;
         let seg = wasm_kv_map_after_action(attrs, i);
         // Fail closed: require an explicit treasury fee amount. Do not use `amount × bps`.
         // Do not count burn_tax / tax_amount / InstantWithdraw remainder / wrap_deposit amount.
-        let Some(amount_raw) = wrap_fee_amount_from_seg(&seg) else {
+        let Some(amount_raw) = wrap_fee_amount_from_seg(&seg, source) else {
             continue;
         };
         let Some(token) = wrap_fee_token_from_seg(&seg) else {
@@ -260,9 +276,8 @@ fn parse_wrap_fees_from_attrs(
             source,
             amount_raw,
             token,
-            ordinal: *ordinal,
+            ordinal: emission_ordinal,
         });
-        *ordinal += 1;
     }
     out
 }
@@ -395,10 +410,13 @@ pub fn parse_ust1_window_fees(tx: &TxResponse, pinned_window: &str) -> Vec<Parse
             if !pin_matches(pinned_window, contract) {
                 continue;
             }
+            let emission_ordinal = ordinal;
+            ordinal += 1;
             let seg = wasm_kv_after_action(&event.attributes, i);
             // Fail closed: require explicit treasury fee amount. Never × fee_bps.
             // Do not treat ust1_out / vfdusd_out / vfdusd_to_treasury / min_vfdusd_out as the fee.
-            let Some(amount_raw) = seg.get("fee_amount").copied().and_then(parse_positive_raw)
+            let Some(amount_raw) =
+                positive_fee_amount(seg.get("fee_amount").copied(), source, "fee_amount")
             else {
                 continue;
             };
@@ -409,9 +427,8 @@ pub fn parse_ust1_window_fees(tx: &TxResponse, pinned_window: &str) -> Vec<Parse
                 source,
                 amount_raw,
                 token,
-                ordinal,
+                ordinal: emission_ordinal,
             });
-            ordinal += 1;
         }
     }
     out
@@ -934,6 +951,187 @@ mod tests {
     const WINDOW: &str = "terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2";
     /// Hub UST1 CW20 — fee token identity when wasm emits it.
     const UST1: &str = "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
+
+    /// All fee actions share raw integer validation, including the legacy wrap
+    /// amount alias. Unrelated bps/output/tax fields do not rescue an invalid fee.
+    #[test]
+    fn treasury_fee_actions_reject_invalid_raw_amounts() {
+        let oversized = "9".repeat(4096);
+        let invalid = [
+            "",
+            "garbage",
+            "1.1",
+            "1.0",
+            "0.0",
+            "1e2",
+            "1E+2",
+            "1e9999999",
+            "1e-9999999",
+            "-1",
+            "-0",
+            "+1",
+            "+0",
+            " 1",
+            "1 ",
+            "1\n",
+            "\t1",
+            "١",
+            "１２",
+            "NaN",
+            "100000000000000000000000000000000000000",
+            "340282366920938463463374607431768211455",
+            &oversized,
+        ];
+        for (action, field, is_window) in [
+            ("notify_deposit", "fee", false),
+            ("wrap", "fee_amount", false),
+            ("unwrap", "fee", false),
+            ("unwrap", "fee_amount", false),
+            ("deposit", "fee_amount", true),
+            ("withdraw", "fee_amount", true),
+        ] {
+            for value in invalid {
+                let tx = tx_with_wasm(vec![
+                    attr("_contract_address", WINDOW),
+                    attr("action", action),
+                    attr(field, value),
+                    attr("fee_asset", UST1),
+                    attr("tax_amount", "100"),
+                    attr("fee_total_bps", "100"),
+                    attr("vfdusd_to_treasury", "100"),
+                ]);
+                let fees = if is_window {
+                    parse_ust1_window_fees(&tx, WINDOW)
+                } else {
+                    parse_wrap_fees(&tx, WINDOW)
+                };
+                assert!(fees.is_empty(), "action={action}, field={field}");
+            }
+        }
+    }
+
+    #[test]
+    fn treasury_fee_actions_accept_numeric_boundary_and_skip_zero_or_missing() {
+        let maximum = "9".repeat(38);
+        for action in ["notify_deposit", "wrap", "unwrap", "deposit", "withdraw"] {
+            for value in [
+                None,
+                Some("0"),
+                Some("000"),
+                Some("00001"),
+                Some(maximum.as_str()),
+            ] {
+                let mut attrs = vec![
+                    attr("_contract_address", WINDOW),
+                    attr("action", action),
+                    attr("fee_asset", UST1),
+                ];
+                if let Some(value) = value {
+                    attrs.push(attr("fee_amount", value));
+                }
+                let tx = tx_with_wasm(attrs);
+                let fees = if matches!(action, "deposit" | "withdraw") {
+                    parse_ust1_window_fees(&tx, WINDOW)
+                } else {
+                    parse_wrap_fees(&tx, WINDOW)
+                };
+                match value {
+                    Some("00001") => assert_eq!(fees[0].amount_raw, bd("1")),
+                    Some(value) if value == maximum => assert_eq!(fees[0].amount_raw, bd(value)),
+                    _ => assert!(fees.is_empty()),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn wrap_preferred_fee_never_falls_back_after_invalid_or_zero() {
+        for action in ["notify_deposit", "wrap", "unwrap"] {
+            for fee in ["bad", "-1", "1.0", "1e2", "", "0", "000"] {
+                let tx = tx_with_wasm(vec![
+                    attr("_contract_address", WINDOW),
+                    attr("action", action),
+                    attr("fee", fee),
+                    attr("fee_amount", "20"),
+                    attr("fee_asset", UST1),
+                ]);
+                assert!(parse_wrap_fees(&tx, WINDOW).is_empty());
+            }
+            let tx = tx_with_wasm(vec![
+                attr("_contract_address", WINDOW),
+                attr("action", action),
+                attr("fee", "10"),
+                attr("fee_amount", "bad"),
+                attr("fee_asset", UST1),
+            ]);
+            assert_eq!(parse_wrap_fees(&tx, WINDOW)[0].amount_raw, bd("10"));
+        }
+    }
+
+    #[test]
+    fn treasury_fee_poison_isolated_with_stable_ordinals_and_replay() {
+        for is_window in [false, true] {
+            let actions = if is_window {
+                ["deposit", "withdraw"]
+            } else {
+                ["notify_deposit", "unwrap"]
+            };
+            let mut attrs = Vec::new();
+            // Every pinned fee action reserves its ordinal, including invalid
+            // amounts and zero. Unpinned actions and transfers reserve none.
+            for (contract, action, amount) in [
+                (WINDOW, actions[0], "10"),
+                (WINDOW, actions[1], "-5"),
+                ("terra1attacker", actions[0], "30"),
+                (WINDOW, "transfer", "garbage"),
+                (WINDOW, actions[0], "0"),
+                (WINDOW, actions[1], "20"),
+            ] {
+                attrs.extend([
+                    attr("_contract_address", contract),
+                    attr("contract_address", WINDOW),
+                    attr("action", action),
+                    attr("fee_amount", amount),
+                    attr("fee_asset", UST1),
+                ]);
+            }
+            let mut tx = tx_with_wasm(attrs);
+            // LCD may expose both sources; authoritative logs must not duplicate
+            // rows by also parsing top-level events.
+            tx.events = Some(tx.logs.as_ref().unwrap()[0].events.clone());
+            let parse = |tx: &TxResponse| {
+                if is_window {
+                    parse_ust1_window_fees(tx, WINDOW)
+                } else {
+                    parse_wrap_fees(tx, WINDOW)
+                }
+            };
+            let expected = parse(&tx);
+            assert_eq!(expected.len(), 2);
+            assert_eq!(expected[0].amount_raw, bd("10"));
+            assert_eq!(expected[1].amount_raw, bd("20"));
+            assert_eq!(expected[0].ordinal, 0);
+            assert_eq!(expected[1].ordinal, 3);
+            assert_eq!(parse(&tx), expected);
+            let mut corrected = tx.clone();
+            for attr in &mut corrected.logs.as_mut().unwrap()[0].events[0].attributes {
+                if attr.key == "fee_amount" && attr.value == "-5" {
+                    attr.value = "5".into();
+                }
+            }
+            let corrected_fees = parse(&corrected);
+            assert_eq!(corrected_fees.len(), 3);
+            assert_eq!(corrected_fees[0], expected[0]);
+            assert_eq!(corrected_fees[1].ordinal, 1);
+            assert_eq!(corrected_fees[2], expected[1]);
+            tx.logs = None;
+            assert_eq!(parse(&tx), expected);
+            tx.events.as_mut().unwrap()[0].event_type = "wasm-wasm".into();
+            assert_eq!(parse(&tx), expected);
+            tx.events.as_mut().unwrap()[0].event_type = "transfer".into();
+            assert!(parse(&tx).is_empty());
+        }
+    }
 
     #[test]
     fn ust1_window_pin_rejects_garbage() {

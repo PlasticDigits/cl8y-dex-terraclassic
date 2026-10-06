@@ -123,6 +123,7 @@ for label_table in \
   "limit_order_fills:limit_order_fills" \
   "limit_order_placements:limit_order_placements" \
   "limit_order_cancellations:limit_order_cancellations" \
+  "protocol_fee_events:protocol_fee_events" \
   "hook_events:hook_events"; do
   label="${label_table%%:*}"
   table="${label_table##*:}"
@@ -157,6 +158,7 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
+DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_fills WHERE block_height >= ${HEIGHT};
@@ -196,6 +198,7 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
+DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_fills WHERE block_height >= ${HEIGHT};

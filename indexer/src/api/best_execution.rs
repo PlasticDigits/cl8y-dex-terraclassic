@@ -865,7 +865,7 @@ async fn run_concurrent_candidate_evaluations(
                     "skip route candidate: evaluation failed"
                 );
                 gateway_err_count = gateway_err_count.saturating_add(1);
-                if gateway_err.is_none() {
+                if gateway_err.is_none() || e.0 == StatusCode::UNPROCESSABLE_ENTITY {
                     gateway_err = Some(e);
                 }
                 if next_idx < eval_count {
@@ -906,7 +906,13 @@ async fn run_concurrent_candidate_evaluations(
         }
     }
 
-    if evals.is_empty() && gateway_err_count > 0 && gateway_err_count == eval_count as u32 {
+    if evals.is_empty()
+        && gateway_err_count > 0
+        && (gateway_err_count == eval_count as u32
+            || gateway_err
+                .as_ref()
+                .is_some_and(|e| e.0 == StatusCode::UNPROCESSABLE_ENTITY))
+    {
         return Err(gateway_err.expect("gateway_err_count > 0"));
     }
 

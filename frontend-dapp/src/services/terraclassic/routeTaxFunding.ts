@@ -3,6 +3,7 @@ import { ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
 import type { SwapOperation } from './router'
 import { assetInfoLabel } from '@/types'
 import { classifyCommunityTaxQueryError, parseCommunityTaxSellBps } from '@/utils/taxPreviewMaxSpend'
+import { assertRouteTaxPath } from './routeTaxPath'
 
 export const ROUTE_TAX_FUNDING_UNAVAILABLE =
   'Route tax funding could not be verified. Refresh the quote or choose another route. No transaction was resent.'
@@ -30,6 +31,7 @@ export async function assertRouteTaxFunding(operations: SwapOperation[], signal?
   } catch {
     throw new Error(ROUTE_TAX_FUNDING_UNAVAILABLE)
   }
+  await assertRouteTaxPath(operations, signal)
   if (version === 1) return version
   const tokens = [
     ...new Set(

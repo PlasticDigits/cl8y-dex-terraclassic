@@ -14,8 +14,8 @@ use crate::state::{
     PENDING_ESCROW_TOKEN1,
 };
 use dex_common::limit_placement::{
-    expand_limit_ladder, min_limit_place_remaining, validate_limit_order_price,
-    LimitOrderLadderSpec, LimitOrderPlacementItem,
+    expand_limit_ladder, min_limit_place_remaining, validate_limit_order_fillability,
+    validate_limit_order_price, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::LimitOrderSide;
 use dex_common::types::AssetInfo;
@@ -202,6 +202,9 @@ pub fn execute_place_limit_orders_batch(
                 actual: remaining_for_book.to_string(),
             });
         }
+
+        validate_limit_order_fillability(&side, remaining_for_book, plan.item.price)
+            .map_err(|_| ContractError::LimitOrderUnfillable {})?;
 
         let hint_after = plan.item.hint_after_order_id.or(last_placed_hint);
 

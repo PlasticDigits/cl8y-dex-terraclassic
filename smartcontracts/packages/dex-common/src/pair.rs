@@ -98,6 +98,11 @@ pub fn pool_only_hybrid_template() -> HybridSwapParams {
     }
 }
 
+/// Shared ceiling for full pair simulations in a declared-hybrid reverse query.
+/// Routers reserve this opaque maximum before making the nested smart query.
+/// Increasing it requires measured gas evidence and updating route budgets (#1389).
+pub const MAX_HYBRID_REVERSE_SIM_CALLS: u32 = 32;
+
 /// Opt-in greedy book-first swap ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)).
 ///
 /// Caller supplies only a maker cap and optional `book_start_hint` — **no** `pool_input` /
@@ -234,6 +239,8 @@ pub enum ExpiredLimitParkReason {
     ForceCleaned,
     /// Maker wallet trading-blacklisted during match walk (#468).
     Blacklisted,
+    /// Remaining escrow cannot support positive fill/payment under matching arithmetic (#1399).
+    Unfillable,
 }
 
 impl ExpiredLimitParkReason {
@@ -244,6 +251,7 @@ impl ExpiredLimitParkReason {
             Self::DustFilled => "dust_filled",
             Self::ForceCleaned => "force_cleaned",
             Self::Blacklisted => "blacklisted",
+            Self::Unfillable => "unfillable",
         }
     }
 
@@ -255,7 +263,7 @@ impl ExpiredLimitParkReason {
 
 /// Claimable refund for an order parked off the book (see `ClaimExpiredLimitOrder`).
 ///
-/// Naming keeps the historical `Expired*` prefix; rows may be dust-filled, force-cleaned, or
+/// Naming keeps the historical `Expired*` prefix; rows may be unfillable, dust-filled, force-cleaned, or
 /// blacklisted — use [`reason`](ExpiredLimitRefundResponse::reason), not the name alone (GitLab #504).
 #[cw_serde]
 pub struct ExpiredLimitRefundResponse {
@@ -445,7 +453,7 @@ pub enum ExecuteMsg {
     UpdateLimitOrderConfig {
         max_batch_rungs: u32,
     },
-    /// Permissionless: park time-expired and/or governance dust orders from the limit book
+    /// Permissionless: park expired, economically unfillable, or governance dust orders
     /// into `EXPIRED_LIMIT_CLAIMS` (no CW20 movement; makers claim later). Distinct from
     /// factory-only CW20 excess recovery [`Sweep`](ExecuteMsg::Sweep) (GitLab #263).
     /// **F6 / #1234:** also behind `gate_asset_code_ids` (no DLL writes during freeze;
@@ -753,10 +761,18 @@ mod expired_limit_park_reason_tests {
             "force_cleaned"
         );
         assert_eq!(ExpiredLimitParkReason::Blacklisted.as_attr(), "blacklisted");
+        assert_eq!(ExpiredLimitParkReason::Unfillable.as_attr(), "unfillable");
+        let wire = to_json_binary(&ExpiredLimitParkReason::Unfillable).unwrap();
+        assert_eq!(wire.as_slice(), br#""unfillable""#);
+        assert_eq!(
+            from_json::<ExpiredLimitParkReason>(wire).unwrap(),
+            ExpiredLimitParkReason::Unfillable
+        );
         assert!(!ExpiredLimitParkReason::Expired.is_force_expired());
         assert!(ExpiredLimitParkReason::DustFilled.is_force_expired());
         assert!(ExpiredLimitParkReason::ForceCleaned.is_force_expired());
         assert!(ExpiredLimitParkReason::Blacklisted.is_force_expired());
+        assert!(ExpiredLimitParkReason::Unfillable.is_force_expired());
     }
 
     #[test]

@@ -9729,3 +9729,347 @@ fn issue1376_router_reverse_large_target_fixture() {
         );
     }
 }
+
+/// #1399: public CW20 entrypoints reject economic clogs atomically after maker fees.
+mod issue_1399_unfillable_placement {
+    use super::*;
+
+    fn send(
+        app: &mut App,
+        env: &TestEnv,
+        side: LimitOrderSide,
+        orders: Vec<LimitOrderPlacementItem>,
+    ) -> Result<AppResponse, String> {
+        let token = if side == LimitOrderSide::Ask {
+            &env.token_a
+        } else {
+            &env.token_b
+        };
+        let amount = orders.iter().map(|o| o.amount).sum();
+        app.execute_contract(
+            env.user.clone(),
+            token.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount,
+                msg: to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch { side, orders }).unwrap(),
+            },
+            &[],
+        )
+        .map_err(|e| e.root_cause().to_string())
+    }
+
+    fn rung(price: Decimal, amount: u128) -> LimitOrderPlacementItem {
+        LimitOrderPlacementItem {
+            price,
+            amount: Uint128::new(amount),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        }
+    }
+
+    #[test]
+    fn both_sides_mixed_decimals_reject_below_accept_exact_and_above() {
+        for (d0, d1, side, price, minimum) in [
+            (
+                6,
+                6,
+                LimitOrderSide::Ask,
+                dex_common::pair::MIN_LIMIT_PRICE,
+                1_000_000_000,
+            ),
+            (
+                6,
+                6,
+                LimitOrderSide::Bid,
+                Decimal::from_ratio(1000u128, 1u128),
+                1000,
+            ),
+            (
+                6,
+                18,
+                LimitOrderSide::Bid,
+                Decimal::from_ratio(1_000_000_000_000u128, 1u128),
+                1_000_000_000_000,
+            ),
+            (
+                18,
+                6,
+                LimitOrderSide::Ask,
+                Decimal::from_ratio(1u128, 1_000_000_000_000u128),
+                1_000_000_000_000,
+            ),
+        ] {
+            let mut app = App::default();
+            let env = setup_env_with_fee_and_decimals(&mut app, 0, d0, d1);
+            let token = if side == LimitOrderSide::Ask {
+                &env.token_a
+            } else {
+                &env.token_b
+            };
+            let before = query_cw20_balance(&app, token, &env.user);
+            assert!(
+                send(&mut app, &env, side.clone(), vec![rung(price, minimum - 1)])
+                    .unwrap_err()
+                    .contains("positive fill")
+            );
+            assert_eq!(query_cw20_balance(&app, token, &env.user), before);
+            assert!(query_book_head(&app, &env.pair, side.clone()).is_none());
+            for amount in [minimum, minimum + 1] {
+                let result = send(&mut app, &env, side.clone(), vec![rung(price, amount)]).unwrap();
+                let id = parse_limit_order_placed(&result.events);
+                assert_eq!(
+                    query_limit(&app, &env.pair, id).remaining,
+                    Uint128::new(amount)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn maker_fee_cannot_turn_boundary_into_unfillable_order() {
+        for (side, price) in [
+            (LimitOrderSide::Ask, Decimal::from_ratio(1u128, 1000u128)),
+            (LimitOrderSide::Bid, Decimal::from_ratio(1000u128, 1u128)),
+        ] {
+            let mut app = App::default();
+            let env = setup_full_env(&mut app); // maker fee 15 bps
+            assert!(send(&mut app, &env, side.clone(), vec![rung(price, 1000)])
+                .unwrap_err()
+                .contains("positive fill"));
+            let result = send(&mut app, &env, side, vec![rung(price, 1001)]).unwrap();
+            assert_eq!(
+                query_limit(&app, &env.pair, parse_limit_order_placed(&result.events)).remaining,
+                Uint128::new(1000)
+            );
+        }
+    }
+
+    #[test]
+    fn batch_ladder_and_reprice_clogs_roll_back_without_escrow_or_fifo_changes() {
+        for (side, bad_price) in [
+            (LimitOrderSide::Ask, dex_common::pair::MIN_LIMIT_PRICE),
+            (LimitOrderSide::Bid, Decimal::from_ratio(1000u128, 1u128)),
+        ] {
+            let mut app = App::default();
+            let env = setup_full_env(&mut app);
+            let token = if side == LimitOrderSide::Ask {
+                &env.token_a
+            } else {
+                &env.token_b
+            };
+            let before = query_cw20_balance(&app, token, &env.user);
+            assert!(send(
+                &mut app,
+                &env,
+                side.clone(),
+                vec![rung(Decimal::one(), 10), rung(bad_price, 10)]
+            )
+            .is_err());
+            assert_eq!(query_cw20_balance(&app, token, &env.user), before);
+            assert!(query_book_head(&app, &env.pair, side.clone()).is_none());
+            assert_eq!(
+                query_status(&app, &env.pair, 1).status,
+                OrderStatus::Unknown
+            );
+            let ladder = LimitOrderLadderSpec {
+                side: side.clone(),
+                start_price: bad_price,
+                end_price: bad_price,
+                count: 3,
+                total_amount: Uint128::new(30),
+                distribution: LimitLadderDistribution::Equal,
+                max_adjust_steps: 32,
+                expires_at: None,
+                hint_after_order_id: None,
+            };
+            let err = app
+                .execute_contract(
+                    env.user.clone(),
+                    token.clone(),
+                    &cw20::Cw20ExecuteMsg::Send {
+                        contract: env.pair.to_string(),
+                        amount: ladder.total_amount,
+                        msg: to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder })
+                            .unwrap(),
+                    },
+                    &[],
+                )
+                .unwrap_err();
+            assert!(err.root_cause().to_string().contains("positive fill"));
+            assert_eq!(query_cw20_balance(&app, token, &env.user), before);
+            let result = send(
+                &mut app,
+                &env,
+                side.clone(),
+                vec![rung(Decimal::one(), 100)],
+            )
+            .unwrap();
+            let id = parse_limit_order_placed(&result.events);
+            let old = query_limit(&app, &env.pair, id);
+            let err = app
+                .execute_contract(
+                    env.user.clone(),
+                    env.pair.clone(),
+                    &ExecuteMsg::UpdateLimitOrderPrice {
+                        order_id: id,
+                        price: bad_price,
+                        hint_after_order_id: None,
+                        max_adjust_steps: 32,
+                    },
+                    &[],
+                )
+                .unwrap_err();
+            assert!(err.root_cause().to_string().contains("positive fill"));
+            assert_eq!(query_limit(&app, &env.pair, id), old);
+            assert_eq!(query_book_head(&app, &env.pair, side), Some(id));
+            app.execute_contract(
+                env.user.clone(),
+                env.pair.clone(),
+                &ExecuteMsg::CancelLimitOrder { order_id: id },
+                &[],
+            )
+            .unwrap();
+            assert_eq!(query_cw20_balance(&app, token, &env.user), before);
+        }
+    }
+
+    #[test]
+    fn unfillable_post_fill_claim_owner_guards_escrow_and_double_refund() {
+        for (side, price) in [
+            (LimitOrderSide::Ask, Decimal::from_ratio(1u128, 1000u128)),
+            (LimitOrderSide::Bid, Decimal::from_ratio(1000u128, 1u128)),
+        ] {
+            let mut app = App::default();
+            let env = setup_full_env(&mut app);
+            provide_liquidity(
+                &mut app,
+                &env,
+                &env.user,
+                Uint128::new(1_000_000),
+                Uint128::new(1_000_000),
+            );
+            let token = if side == LimitOrderSide::Ask {
+                &env.token_a
+            } else {
+                &env.token_b
+            };
+            let escrow_key = if side == LimitOrderSide::Ask {
+                b"escrow_t0"
+            } else {
+                b"escrow_t1"
+            };
+            let escrow = |app: &App| -> Uint128 {
+                cosmwasm_std::from_json(
+                    app.wrap()
+                        .query_wasm_raw(env.pair.clone(), escrow_key.as_slice())
+                        .unwrap()
+                        .unwrap(),
+                )
+                .unwrap()
+            };
+            let placed = send(&mut app, &env, side.clone(), vec![rung(price, 2002)]).unwrap();
+            let id = parse_limit_order_placed(&placed.events);
+            assert_eq!(escrow(&app), Uint128::new(1999));
+            let taker = Addr::unchecked("synthetic_1399_taker");
+            let offer_token = if side == LimitOrderSide::Ask {
+                &env.token_b
+            } else {
+                &env.token_a
+            };
+            transfer_tokens(&mut app, offer_token, &env.user, &taker, Uint128::one());
+            let result = if side == LimitOrderSide::Ask {
+                hybrid_swap_b_to_a(
+                    &mut app,
+                    &env,
+                    &taker,
+                    Uint128::one(),
+                    1,
+                    Some(Uint128::one()),
+                )
+            } else {
+                hybrid_swap_a_to_b(
+                    &mut app,
+                    &env,
+                    &taker,
+                    Uint128::one(),
+                    1,
+                    Some(Uint128::one()),
+                )
+            };
+            assert!(result.events.iter().any(|e| e
+                .attributes
+                .iter()
+                .any(|a| a.key == "reason" && a.value == "unfillable")));
+            let row: Option<ExpiredLimitRefundResponse> = app
+                .wrap()
+                .query_wasm_smart(
+                    env.pair.clone(),
+                    &QueryMsg::ExpiredLimitRefund { order_id: id },
+                )
+                .unwrap();
+            let row = row.unwrap();
+            assert_eq!(row.remaining, Uint128::new(999));
+            assert_eq!(row.reason, Some(ExpiredLimitParkReason::Unfillable));
+            assert_eq!(
+                query_status(&app, &env.pair, id).status,
+                OrderStatus::ParkedRefund
+            );
+            assert_eq!(escrow(&app), row.remaining);
+            let before = query_cw20_balance(&app, token, &env.user);
+            for message in [
+                ExecuteMsg::ClaimExpiredLimitOrder { order_id: id },
+                ExecuteMsg::CancelLimitOrder { order_id: id },
+            ] {
+                assert!(app
+                    .execute_contract(taker.clone(), env.pair.clone(), &message, &[])
+                    .is_err());
+            }
+            assert!(app
+                .execute_contract(
+                    env.user.clone(),
+                    env.pair.clone(),
+                    &ExecuteMsg::CancelLimitOrder { order_id: id },
+                    &[]
+                )
+                .is_err());
+            app.execute_contract(
+                env.user.clone(),
+                env.pair.clone(),
+                &ExecuteMsg::ClaimExpiredLimitOrder { order_id: id },
+                &[],
+            )
+            .unwrap();
+            assert_eq!(
+                query_cw20_balance(&app, token, &env.user),
+                before + row.remaining
+            );
+            assert_eq!(escrow(&app), Uint128::zero());
+            assert!(app
+                .execute_contract(
+                    env.user.clone(),
+                    env.pair.clone(),
+                    &ExecuteMsg::ClaimExpiredLimitOrder { order_id: id },
+                    &[]
+                )
+                .is_err());
+            assert_eq!(
+                query_cw20_balance(&app, token, &env.user),
+                before + row.remaining
+            );
+        }
+    }
+
+    #[test]
+    fn six_eighteen_rejects_price_with_unrepresentable_reciprocal() {
+        let mut app = App::default();
+        let env = setup_env_with_asset_decimals(&mut app, 6, 18);
+        for side in [LimitOrderSide::Ask, LimitOrderSide::Bid] {
+            let price = Decimal::from_ratio(1_000_000_000_000_000_001u128, 1u128);
+            assert!(send(&mut app, &env, side, vec![rung(price, 10)])
+                .unwrap_err()
+                .contains("positive fill"));
+        }
+    }
+}

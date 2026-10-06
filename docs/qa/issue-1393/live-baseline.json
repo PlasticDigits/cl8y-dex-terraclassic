@@ -1,0 +1,55 @@
+{
+  "utc": "2026-10-05T06:34:39.517684+00:00",
+  "scope": "Read-only Columbus-5 baseline contract custody, code identity and aggregate debt reconciliation. No production changes; not deployed acceptance. Contract addresses and key material omitted.",
+  "endpoint": "https://terra-classic-lcd.publicnode.com",
+  "custody": {
+    "type": "/cosmos.crypto.multisig.LegacyAminoPubKey",
+    "threshold": 2,
+    "key_count": 3
+  },
+  "contracts": {
+    "issuer": {
+      "code_id": "11709",
+      "code_hash": "8352ED355BFB469595A7394FDA96DC2337C34E7A815BA7BE4D75B28CF09B1503",
+      "cw2": {
+        "contract": "bridge-debt",
+        "version": "1.0.0"
+      },
+      "admin_role": "governance multisig"
+    },
+    "receipt": {
+      "code_id": "11708",
+      "code_hash": "5FCEEE991E24224A79EDCBF70E3BE5EDB801626F0CF28539779C34E2AC909D03",
+      "cw2": {
+        "contract": "bridge-debt-token",
+        "version": "1.0.0"
+      },
+      "admin_role": "governance multisig"
+    },
+    "underlying": {
+      "code_id": "10184",
+      "code_hash": "C77FFCDB0039041FBD071C76EFB547232314CE8CCF219C3BF5B7FABD4CF7D4A4",
+      "cw2": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      },
+      "admin_role": "governance multisig"
+    }
+  },
+  "checks": {
+    "issuer_owner_is_contract_admin": true,
+    "receipt_supply_equals_outstanding": true,
+    "receipt_minter_is_issuer": true,
+    "underlying_primary_role": "governance multisig",
+    "underlying_additional_roles": [
+      "issuer",
+      "bridge"
+    ],
+    "new_market_pins_deployed": false,
+    "receipt_debtor_balance_equals_supply_and_outstanding": true,
+    "receipt_additional_minters_empty": true,
+    "registered_market_count": 1
+  },
+  "completed_utc": "2026-10-05T06:48:30.926543+00:00",
+  "consistency": "Independent latest-state read-only queries; not pinned to one block height."
+}

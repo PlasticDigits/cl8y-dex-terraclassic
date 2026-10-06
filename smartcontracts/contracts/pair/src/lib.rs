@@ -77,6 +77,14 @@
 //!   **R1376-P3:** reverse, forward and execute share Uint256 fee products and
 //!   the same floor commission. Pair cw2 1.19.0 changes no storage layout.
 //!   See `docs/qa/issue-1376/README.md` and `skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`.
+//!   **R1389-P1:** declared-book reverse proposes offers using checked pool/split
+//!   inverses and Uint256 interpolation; every bound is forward simulated, success
+//!   retains adjacent insufficient/sufficient bounds, and all work stays within 32
+//!   full simulations. Exhaustion remains an error, including wide active-book
+//!   ranges that cannot establish the minimum within the finite budget.
+//!   **R1389-P2:** Observe rejects horizons before the Unix epoch with a stable
+//!   error before subtraction. Pair cw2 1.20.0 changes no storage layout.
+//!   See `docs/qa/issue-1389/README.md` and `skills/AGENTS_REVERSE_QUERY_BUDGET.md`.
 //!
 //! ## Auth model
 //!

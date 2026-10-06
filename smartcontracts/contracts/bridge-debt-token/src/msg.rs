@@ -61,4 +61,6 @@ pub struct MintersResponse {
 }
 
 #[cw_serde]
+/// Lossless code replacement from bridge-debt-token 1.0.0 or 1.1.0.
+/// Identity and receipt accounting must already satisfy all invariants.
 pub struct MigrateMsg {}

@@ -3,10 +3,17 @@
 import argparse
 import base64
 import json
+import re
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from route_tax_rollout_checks import funded_capability_error, reviewed_code_error, router_binding_error
 
 
 def main():
@@ -18,7 +25,22 @@ def main():
     parser.add_argument("--trader", help="Synthetic address only; do not use reporter identities")
     parser.add_argument("--gross", default="1010000")
     parser.add_argument("--expect-funded", action="store_true")
+    parser.add_argument("--reviewed-code", action="append", default=[], metavar="CODE_ID=SHA256",
+                        help="Reviewed actual code identity; repeat for all router/token code IDs")
+    parser.add_argument("--expect-reviewed-artifacts", action="store_true",
+                        help="Fail unless every live router/token code ID matches its reviewed hash")
     args = parser.parse_args()
+    reviewed_codes = {}
+    for item in args.reviewed_code:
+        if not re.fullmatch(r"[1-9][0-9]*=[0-9a-fA-F]{64}", item):
+            parser.error("Reviewed code must be CODE_ID=SHA256")
+        code_id, sha256 = item.split("=", 1)
+        code_id, sha256 = int(code_id), sha256.lower()
+        if code_id in reviewed_codes and reviewed_codes[code_id] != sha256:
+            parser.error("Conflicting hashes for reviewed code ID")
+        reviewed_codes[code_id] = sha256
+    if args.expect_reviewed_artifacts and not reviewed_codes:
+        parser.error("Supply reviewed code IDs/hashes for artifact verification")
     if len(args.tokens) > 16 or not args.gross.isascii() or not args.gross.isdecimal() or len(args.gross) > 39:
         parser.error("Maximum 16 tokens and a Uint128 gross budget")
     if int(args.gross) > 2**128 - 1:
@@ -50,16 +72,31 @@ def main():
         evidence["block"] = {key: header[key] for key in ("chain_id", "height", "time")}
         evidence["router_inventory"] = inventory(args.router)
         evidence["router_config"] = smart(args.router, {"config": {}})
-        if evidence["router_config"].get("funding_version") != 1:
-            errors.append("Router does not advertise funding version 1")
+        error = funded_capability_error(evidence["router_config"])
+        if error:
+            errors.append(error)
+        if reviewed_codes:
+            error = reviewed_code_error(evidence["router_inventory"]["code_id"],
+                                        evidence["router_inventory"]["data_hash"], reviewed_codes)
+            if error:
+                errors.append(error + ": " + args.router)
         for address in dict.fromkeys(args.tokens):
             record = {"contract": address, **inventory(address)}
             evidence["tokens"].append(record)
+            if reviewed_codes:
+                error = reviewed_code_error(record["code_id"], record["data_hash"], reviewed_codes)
+                if error:
+                    errors.append(error + ": " + address)
             try:
+                record["config"] = smart(address, {"get_config": {}})
+                error = router_binding_error(record["config"], args.router)
+                if error:
+                    errors.append(error + ": " + address)
                 record["capability"] = smart(address, {"route_tax_capability": {}})
                 cap = record["capability"]
-                if cap.get("funding_version") != 1 or cap.get("router") != args.router:
-                    errors.append("Token funding/router capability mismatch: " + address)
+                error = funded_capability_error(cap, args.router)
+                if error:
+                    errors.append(error + ": " + address)
                 if args.pair:
                     record["preview"] = smart(address, {"route_tax_preview": {
                         "kind": "sell", "amount": args.gross, "trader": args.trader, "pair": args.pair}})
@@ -72,11 +109,12 @@ def main():
                 errors.append("Token capability unavailable: " + address)
     except (HTTPError, URLError, TimeoutError, KeyError, ValueError) as error:
         errors.append(type(error).__name__ + ": public probe unavailable")
+    evidence["artifact_verification"] = "PASS" if reviewed_codes and not errors else "FAIL" if reviewed_codes else "UNVERIFIED"
     evidence["limitations"] = ["Read-only probes do not establish execution success or immutable-code trust configuration"]
     evidence["errors"] = errors
     evidence["status"] = "FAIL" if errors else "PASS"
     print(json.dumps(evidence, indent=2))
-    return 1 if args.expect_funded and errors else 0
+    return 1 if (args.expect_funded or args.expect_reviewed_artifacts) and errors else 0
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 //! Batch / ladder limit order placement types and ladder expansion (GitLab #206, #1219).
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Decimal, StdError, Uint128};
+use cosmwasm_std::{Decimal, StdError, Uint128, Uint256};
 
 use crate::pair::LimitOrderSide;
 
@@ -93,6 +93,53 @@ pub fn validate_limit_order_price(
     Ok(())
 }
 
+/// Whether the whole remaining escrow can support a positive fill and payment (#1399).
+///
+/// Prices are raw token1/token0 ratios; asset decimals already enter price-band validation.
+/// Mirror the walker's truncated Decimal reciprocal, not an exact rational division. This
+/// predicate is independent of a particular taker's budget: a dust taker cannot evict a
+/// healthy maker. Wide ask notional arithmetic preserves large orders that can fill in parts.
+/// Bid capacity must fit Uint128 because the walker computes it before capping by the taker.
+pub fn is_limit_order_fillable(side: &LimitOrderSide, remaining: Uint128, price: Decimal) -> bool {
+    if remaining.is_zero() || price.is_zero() {
+        return false;
+    }
+    let Ok(inverse) = Decimal::one().checked_div(price) else {
+        return false;
+    };
+    if inverse.is_zero() {
+        return false;
+    }
+    match side {
+        LimitOrderSide::Ask => {
+            Uint256::from(remaining) * Uint256::from(price.atomics())
+                >= Uint256::from(Decimal::one().atomics())
+        }
+        LimitOrderSide::Bid => {
+            let Ok(capacity) = remaining.checked_mul_floor(inverse) else {
+                return false;
+            };
+            let Ok(payment) = capacity.checked_mul_floor(price) else {
+                return false;
+            };
+            !capacity.is_zero() && !payment.is_zero() && payment <= remaining
+        }
+    }
+}
+
+/// Placement and repricing use the same economic predicate as legacy cleanup.
+pub fn validate_limit_order_fillability(
+    side: &LimitOrderSide,
+    remaining: Uint128,
+    price: Decimal,
+) -> Result<(), &'static str> {
+    if is_limit_order_fillable(side, remaining, price) {
+        Ok(())
+    } else {
+        Err("limit order remaining cannot support a positive fill and payment")
+    }
+}
+
 #[cw_serde]
 pub struct LimitOrderPlacementItem {
     pub price: Decimal,
@@ -179,6 +226,10 @@ pub fn expand_limit_ladder(
         return Err(StdError::generic_err(format!(
             "limit order amount too small: remaining {too_small} is below minimum {min}"
         )));
+    }
+    for (price, amount) in prices.iter().zip(&amounts) {
+        validate_limit_order_fillability(&spec.side, *amount, *price)
+            .map_err(StdError::generic_err)?;
     }
     let boundary_idx =
         ladder_boundary_rung_index(&spec.side, spec.start_price, spec.end_price, count);
@@ -287,6 +338,119 @@ fn ladder_amounts_equal(total: Uint128, count: u32) -> Result<Vec<Uint128>, StdE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn issue_1399_fillability_decimal_boundaries_both_sides() {
+        // Raw human price one: all supported 6/6, 6/18 and 18/6 scales.
+        for (d0, d1, raw) in [
+            (6, 6, Decimal::from_ratio(2u128, 1u128)),
+            (6, 18, Decimal::from_ratio(1_000_000_000_000u128, 1u128)),
+            (18, 6, Decimal::from_ratio(1u128, 1_000_000_000_000u128)),
+        ] {
+            validate_limit_order_price(raw, d0, d1).unwrap();
+            for side in [LimitOrderSide::Ask, LimitOrderSide::Bid] {
+                let minimum = match side {
+                    LimitOrderSide::Ask => {
+                        if d0 > d1 {
+                            1_000_000_000_000
+                        } else {
+                            1
+                        }
+                    }
+                    LimitOrderSide::Bid => {
+                        if d1 > d0 {
+                            1_000_000_000_000
+                        } else if d0 == d1 {
+                            2
+                        } else {
+                            1
+                        }
+                    }
+                };
+                assert!(!is_limit_order_fillable(
+                    &side,
+                    Uint128::new(minimum - 1),
+                    raw
+                ));
+                assert!(is_limit_order_fillable(&side, Uint128::new(minimum), raw));
+                assert!(is_limit_order_fillable(
+                    &side,
+                    Uint128::new(minimum + 1),
+                    raw
+                ));
+            }
+        }
+        let p = MIN_LIMIT_PRICE;
+        assert!(!is_limit_order_fillable(
+            &LimitOrderSide::Ask,
+            Uint128::new(999_999_999),
+            p
+        ));
+        assert!(is_limit_order_fillable(
+            &LimitOrderSide::Ask,
+            Uint128::new(1_000_000_000),
+            p
+        ));
+        assert!(is_limit_order_fillable(
+            &LimitOrderSide::Bid,
+            Uint128::new(10),
+            p
+        ));
+    }
+
+    #[test]
+    fn issue_1399_fillability_checked_overflow_and_reciprocal_rounding() {
+        assert!(!is_limit_order_fillable(
+            &LimitOrderSide::Bid,
+            Uint128::MAX,
+            MIN_LIMIT_PRICE
+        ));
+        // A wide notional ask remains usable by a small partial taker.
+        assert!(is_limit_order_fillable(
+            &LimitOrderSide::Ask,
+            Uint128::MAX,
+            MAX_LIMIT_PRICE
+        ));
+        let p = Decimal::from_ratio(3u128, 1u128);
+        assert!(!is_limit_order_fillable(
+            &LimitOrderSide::Bid,
+            Uint128::new(3),
+            p
+        ));
+        assert!(is_limit_order_fillable(
+            &LimitOrderSide::Bid,
+            Uint128::new(4),
+            p
+        ));
+        let inverse_zero = Decimal::from_ratio(1_000_000_000_000_000_001u128, 1u128);
+        for side in [LimitOrderSide::Ask, LimitOrderSide::Bid] {
+            assert!(!is_limit_order_fillable(&side, Uint128::MAX, inverse_zero));
+            assert!(!is_limit_order_fillable(
+                &side,
+                Uint128::one(),
+                Decimal::zero()
+            ));
+        }
+    }
+
+    #[test]
+    fn issue_1399_ladder_rejects_each_unfillable_rung() {
+        let mut spec = ladder_spec(3, 30);
+        spec.side = LimitOrderSide::Ask;
+        spec.start_price = MIN_LIMIT_PRICE;
+        spec.end_price = MIN_LIMIT_PRICE;
+        assert!(expand_limit_ladder(&spec, 20, 6, 6)
+            .unwrap_err()
+            .to_string()
+            .contains("positive fill"));
+        spec.total_amount = Uint128::new(3_000_000_000);
+        assert!(expand_limit_ladder(&spec, 20, 6, 6).is_ok());
+        spec.side = LimitOrderSide::Bid;
+        spec.start_price = Decimal::from_ratio(1_000u128, 1u128);
+        spec.end_price = spec.start_price;
+        spec.total_amount = Uint128::new(30);
+        assert!(expand_limit_ladder(&spec, 20, 6, 6).is_err());
+    }
 
     fn ladder_spec(count: u32, total: u128) -> LimitOrderLadderSpec {
         LimitOrderLadderSpec {

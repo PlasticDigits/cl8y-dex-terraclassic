@@ -26,7 +26,7 @@ const FACTORY_VERSION: &str = "1.11.0";
 const FACTORY_PRIOR_VERSION: &str = "1.8.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.19.0";
+const PAIR_VERSION: &str = "1.20.0";
 const PAIR_PRIOR_VERSION: &str = "1.16.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
@@ -735,7 +735,7 @@ fn issue1376_pair_118_to_119_migration_preserves_state() {
         get_contract_version(&*app.contract_storage(&env.pair))
             .unwrap()
             .version,
-        "1.19.0"
+        "1.20.0"
     );
     assert_eq!(snapshot_pair(&app, &env), before);
     // The existing cw2 guard rejects downgrades (equal-version migrations are idempotent).

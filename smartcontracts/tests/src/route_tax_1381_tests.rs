@@ -25,6 +25,26 @@ fn fixture_manager(
     burn: bool,
     router_manager: bool,
 ) -> Fixture {
+    fixture_features(
+        first_tax,
+        two_tax,
+        final_tax,
+        cooldown,
+        burn,
+        router_manager,
+        true,
+    )
+}
+
+fn fixture_features(
+    first_tax: bool,
+    two_tax: bool,
+    final_tax: bool,
+    cooldown: u64,
+    burn: bool,
+    router_manager: bool,
+    guards_enabled: bool,
+) -> Fixture {
     let mut app = App::default();
     let env = setup_full_env(&mut app);
     let trader = Addr::unchecked("synthetic_trader");
@@ -71,11 +91,13 @@ fn fixture_manager(
                     ust1: env.token_b.to_string(),
                     cmm_treasury: env.treasury.to_string(),
                     features: [
-                        if cooldown > 0 {
+                        if guards_enabled {
                             Some(tax::Sku::LaunchGuards)
                         } else {
                             None
                         },
+                        Some(tax::Sku::VariableRates),
+                        Some(tax::Sku::ExemptionDirectory),
                         if burn {
                             Some(tax::Sku::SplitRouter)
                         } else {
@@ -98,15 +120,11 @@ fn fixture_manager(
                     },
                     autolp: None,
                     launcher: None,
-                    launch_guards: if cooldown > 0 {
-                        Some(tax::LaunchGuardsConfig {
-                            max_wallet: None,
-                            cooldown_blocks: cooldown,
-                            trading_enabled: true,
-                        })
-                    } else {
-                        None
-                    },
+                    launch_guards: guards_enabled.then_some(tax::LaunchGuardsConfig {
+                        max_wallet: None,
+                        cooldown_blocks: cooldown,
+                        trading_enabled: true,
+                    }),
                     initial_exempt: None,
                 },
                 &[],
@@ -263,6 +281,26 @@ fn execute(
     ops: Vec<router::SwapOperation>,
     min: Uint128,
 ) -> Result<(), String> {
+    execute_to(f, gross, ops, min, None)
+}
+
+fn execute_to(
+    f: &mut Fixture,
+    gross: u128,
+    ops: Vec<router::SwapOperation>,
+    min: Uint128,
+    to: Option<String>,
+) -> Result<(), String> {
+    execute_to_response(f, gross, ops, min, to).map(|_| ())
+}
+
+fn execute_to_response(
+    f: &mut Fixture,
+    gross: u128,
+    ops: Vec<router::SwapOperation>,
+    min: Uint128,
+    to: Option<String>,
+) -> Result<cw_multi_test::AppResponse, String> {
     f.app
         .execute_contract(
             f.trader.clone(),
@@ -275,7 +313,7 @@ fn execute(
                     operations: ops,
                     max_spread: Decimal::percent(50),
                     minimum_receive: Some(min),
-                    to: None,
+                    to,
                     deadline: None,
                     unwrap_output: None,
                 })
@@ -283,7 +321,6 @@ fn execute(
             },
             &[],
         )
-        .map(|_| ())
         .map_err(|e| e.root_cause().to_string())
 }
 
@@ -540,6 +577,7 @@ fn issue1381_authenticated_context_legacy_rejection_and_route_cooldown() {
             f.trader.clone(),
             t.clone(),
             &tax::ExecuteMsg::RouteTransfer {
+                slot: 0,
                 recipient: f.trader.to_string(),
                 amount: Uint128::one()
             },
@@ -755,4 +793,45 @@ fn issue1381_exemptions_bind_only_the_trader_for_each_route_token() {
             "no unrelated intermediate wallet debit even when balances exist"
         );
     }
+}
+
+// Reuse the real-route fixture for the guard regressions without duplicating
+// contract deployment and pool setup.
+#[path = "route_tax_1390_tests.rs"]
+mod issue1390;
+
+#[test]
+fn issue1388_canonical_nonce_is_monotonic_and_failed_route_rolls_back() {
+    let mut f = fixture(true, true, true, 0, false);
+    let ops = operations(&f, false, false, 100_000);
+    let config = |f: &Fixture| -> router::ConfigResponse {
+        f.app
+            .wrap()
+            .query_wasm_smart(&f.env.router, &router::QueryMsg::Config {})
+            .unwrap()
+    };
+    assert_eq!(config(&f).last_route_id, 0);
+    assert_eq!(config(&f).settlement_version, route_tax::SETTLEMENT_VERSION);
+    for expected in 1..=2 {
+        let q = quote(&f, 100_000, ops.clone());
+        execute(&mut f, 100_000, ops.clone(), q).unwrap();
+        assert_eq!(config(&f).last_route_id, expected);
+    }
+    let before = f
+        .assets
+        .iter()
+        .map(|token| query_cw20_balance(&f.app, token, &f.trader))
+        .collect::<Vec<_>>();
+    assert!(execute(&mut f, 100_000, ops.clone(), Uint128::MAX).is_err());
+    assert_eq!(config(&f).last_route_id, 2);
+    assert_eq!(
+        before,
+        f.assets
+            .iter()
+            .map(|token| query_cw20_balance(&f.app, token, &f.trader))
+            .collect::<Vec<_>>()
+    );
+    let q = quote(&f, 100_000, ops.clone());
+    execute(&mut f, 100_000, ops, q).unwrap();
+    assert_eq!(config(&f).last_route_id, 3);
 }

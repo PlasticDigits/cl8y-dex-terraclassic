@@ -1,0 +1,324 @@
+{
+  "status": "PASS",
+  "chain": "localterra",
+  "utc": "2026-10-05T07:56:58.655373+00:00",
+  "toolchain": {
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "wasm-opt": "wasm-opt version 116 (version_116)"
+  },
+  "build": {
+    "rustc": "rustc 1.81.0 (eeb90cda1 2024-09-04)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+    "wasm_opt": "wasm-opt version 116 (version_116)",
+    "rustflags": "-C target-feature=-reference-types,-multivalue,-bulk-memory -C link-arg=--allow-undefined",
+    "optimizer_flags": "-Oz --signext-lowering"
+  },
+  "artifacts": {
+    "bridge_debt": {
+      "code_id": 7,
+      "sha256": "02e3705e86544c04e583c15802b69b800082222642a9a840a09ba56847d25cc2"
+    },
+    "bridge_debt_token": {
+      "code_id": 8,
+      "sha256": "d570c2f2a3863946c6d0627c24850875fb26d7878c8887ca3b744336d60607b7"
+    },
+    "cw20_mintable": {
+      "code_id": 9,
+      "sha256": "c12f344035f8520699905e8f86cf3bff6e2ba0b90c8303fec5d3bb9bfe788f84"
+    }
+  },
+  "rotation_receipt_code_id": 10,
+  "issuer": "terra18csycs4vm6varkp00apuqlsm7v4twg8jsljk8wfdd7cghr7g4rtsvwsp2n",
+  "markets": [
+    {
+      "market": {
+        "underlying": "terra1xqkp8x4gqwjnhemtemc5dqhwll6w6rrgpywvhka7sh8vz8swul9srktra6",
+        "debt_token": "terra1808lz8dp2c39vhm9gnemt7zzj95nvrmjepxp7v3w4skzrlyzcmns4kawpp",
+        "debtor": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+        "decimals": 6,
+        "outstanding": "0",
+        "debt_code_id": 10,
+        "underlying_code_id": 9,
+        "pins": {
+          "debt_code_id": 10,
+          "underlying_code_id": 9,
+          "multi_minter": true,
+          "minter": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+          "minter_cap": null,
+          "additional_minters": [
+            "terra18csycs4vm6varkp00apuqlsm7v4twg8jsljk8wfdd7cghr7g4rtsvwsp2n"
+          ]
+        },
+        "limits": {
+          "max_per_issue": "1000",
+          "max_outstanding": "2000",
+          "epoch_seconds": 86400,
+          "max_per_epoch": "2000"
+        },
+        "paused": true,
+        "epoch": 20731,
+        "epoch_issued": "1500",
+        "pending_upgrade": null
+      },
+      "underlying": {
+        "name": "Synthetic BDONE",
+        "symbol": "BDONE",
+        "decimals": 6,
+        "total_supply": "0"
+      },
+      "debt": {
+        "name": "BDONE-Bridge-Debt",
+        "symbol": "BDONE-Bridge-Debt",
+        "decimals": 6,
+        "total_supply": "0"
+      },
+      "debtor": 0,
+      "recipient": 0,
+      "issuer_underlying": 0
+    },
+    {
+      "market": {
+        "underlying": "terra1cr9cyjmw2dmwmy76lzrruepldhxvlg09pxkn5c53wl2en993uk2s6xthqm",
+        "debt_token": "terra1r8raaqul4j05qtn0t05603mgquxfl8e9p7kcf7smwzcv2hc5rrlqwchsjr",
+        "debtor": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+        "decimals": 6,
+        "outstanding": "0",
+        "debt_code_id": 10,
+        "underlying_code_id": 9,
+        "pins": {
+          "debt_code_id": 10,
+          "underlying_code_id": 9,
+          "multi_minter": true,
+          "minter": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+          "minter_cap": null,
+          "additional_minters": [
+            "terra18csycs4vm6varkp00apuqlsm7v4twg8jsljk8wfdd7cghr7g4rtsvwsp2n"
+          ]
+        },
+        "limits": {
+          "max_per_issue": "1000",
+          "max_outstanding": "2000",
+          "epoch_seconds": 86400,
+          "max_per_epoch": "2000"
+        },
+        "paused": false,
+        "epoch": 20731,
+        "epoch_issued": "500",
+        "pending_upgrade": null
+      },
+      "underlying": {
+        "name": "Synthetic BDTWO",
+        "symbol": "BDTWO",
+        "decimals": 6,
+        "total_supply": "0"
+      },
+      "debt": {
+        "name": "BDTWO-Bridge-Debt",
+        "symbol": "BDTWO-Bridge-Debt",
+        "decimals": 6,
+        "total_supply": "0"
+      },
+      "debtor": 0,
+      "recipient": 0,
+      "issuer_underlying": 0
+    }
+  ],
+  "checks": [
+    "disabled issue rollback",
+    "finite caps",
+    "unauthorized issue rollback",
+    "receipt minter immutable",
+    "default rotation and second market",
+    "approved code migration preserves supply",
+    "paused repay and quota preservation"
+  ],
+  "receipts": [
+    {
+      "txhash": "285680AF84E3CC9ED2DDC5A5A0631C467A447A073257E0256580410C4A558BDF",
+      "height": "12427",
+      "code": 0,
+      "gas_used": "178301"
+    },
+    {
+      "txhash": "89FD81B96D1FB65BCF0CE638A425BCD35D74943C54CDA0EA2C4896588E2A1D43",
+      "height": "12470",
+      "code": 0,
+      "gas_used": "2356557"
+    },
+    {
+      "txhash": "2610C325221C90123D847B00A600A3182F1023CFA5D96EE7AC6D157BB4E981C0",
+      "height": "12485",
+      "code": 0,
+      "gas_used": "1387125"
+    },
+    {
+      "txhash": "5F454B9E254FA84E25CD982BBCF780B2192B47F74B71461C1E1CBCF58A51D9A3",
+      "height": "12516",
+      "code": 0,
+      "gas_used": "2189859"
+    },
+    {
+      "txhash": "5B3DB06AA18BECF030A1016483CC7BA3ACA6F1AC3ED34F34E56D930B7E6C9E2E",
+      "height": "12529",
+      "code": 0,
+      "gas_used": "173456"
+    },
+    {
+      "txhash": "47D46D408D66B204835D6BFB9CF3959C10260E8C725690477CDE994A06AE9A3B",
+      "height": "12531",
+      "code": 0,
+      "gas_used": "131217"
+    },
+    {
+      "txhash": "81AD42521FA836667DE947977274C41CB1299AF0209F50F8BA2A96E61B8C1A00",
+      "height": "12541",
+      "code": 0,
+      "gas_used": "129914"
+    },
+    {
+      "txhash": "903D4B31B48D0E1B0A6E078FBC8D2EB9E85A8C3582F8A927DFAF8FCE16A4AE24",
+      "height": "12547",
+      "code": 0,
+      "gas_used": "179163"
+    },
+    {
+      "txhash": "1DC030F3DD6466972E19990B7276B9C5336839FC25520E3C3415F8500DF859FF",
+      "height": "12551",
+      "code": 0,
+      "gas_used": "131307"
+    },
+    {
+      "txhash": "D12D4CE731977575358281A240D00A70089B825B2B96F12FDA51CF933A4C73CA",
+      "height": "12553",
+      "code": 0,
+      "gas_used": "188335"
+    },
+    {
+      "txhash": "FAC150A4EB6D7887BC4DE40C03A6FC20A86D0CB2C870C38C65631B26E6ED44D0",
+      "height": "12555",
+      "code": 0,
+      "gas_used": "690571"
+    },
+    {
+      "txhash": "DD4C89401B4CAA02499D8A38D10D6ED6E31FEF4F776AD0134D2973AD827B667E",
+      "height": "12592",
+      "code": 5,
+      "gas_used": "724167"
+    },
+    {
+      "txhash": "CB7E01F4F75133618FDC89468A5FFD67F95731E9746255614DB8457342E430FF",
+      "height": "12629",
+      "code": 0,
+      "gas_used": "155234"
+    },
+    {
+      "txhash": "01D1C53D692A2A11E1A509E1FA1425C19EFBB5928DB45C95DBA84FF97C9DA761",
+      "height": "12640",
+      "code": 0,
+      "gas_used": "914496"
+    },
+    {
+      "txhash": "665402D7A674731A9A092CA11056CC7A3772CD6AA1D56DE1A9F890163D0ED14F",
+      "height": "12663",
+      "code": 5,
+      "gas_used": "724620"
+    },
+    {
+      "txhash": "D06BE1FD696212455414D6412E7D15DE9B41F25A5B11849EFCC651953DFDFAD7",
+      "height": "12665",
+      "code": 5,
+      "gas_used": "139537"
+    },
+    {
+      "txhash": "50758E5FE072863CF962F1E3F098CF2086002D08CB45EEE3E82E08FF6F818630",
+      "height": "12674",
+      "code": 5,
+      "gas_used": "124295"
+    },
+    {
+      "txhash": "5B131BDC1A940CC98F2F0DE13B9F6FC191730BC7438F291CFC3A26013296D51C",
+      "height": "12707",
+      "code": 0,
+      "gas_used": "1387125"
+    },
+    {
+      "txhash": "53237251C956DDF68218F070C3D8F2AD72AF999440EE11738B46D986090887F3",
+      "height": "12751",
+      "code": 0,
+      "gas_used": "131249"
+    },
+    {
+      "txhash": "A1C76D4DF0F11CBEDBACA423EDBFBCA73FA996BA5A9A40CA37E86C67D1E38AC3",
+      "height": "12754",
+      "code": 0,
+      "gas_used": "179163"
+    },
+    {
+      "txhash": "725291F258E7AB54FFDF867611DF59450BAD02D24DA420802F8B5289724A5762",
+      "height": "12766",
+      "code": 0,
+      "gas_used": "131307"
+    },
+    {
+      "txhash": "8D3CBE109D1658E12869B5315DCECB3D1A0E9A83F54001E9AC2E607F50B37CC2",
+      "height": "12775",
+      "code": 0,
+      "gas_used": "188335"
+    },
+    {
+      "txhash": "194D1CBEC6B35410580BD86166F9AF4128BF71F7D1F1011CDBA3340E3F4F28D4",
+      "height": "12778",
+      "code": 0,
+      "gas_used": "690604"
+    },
+    {
+      "txhash": "B4041CF45291FE4443D0027960B1AB31301C48E0BA804FEA4F904F55F17353D9",
+      "height": "12780",
+      "code": 0,
+      "gas_used": "155271"
+    },
+    {
+      "txhash": "4441752EE55B979EFDDEDD0E6D04EF09A79251482700B788F1E971DD6354159F",
+      "height": "12783",
+      "code": 0,
+      "gas_used": "914655"
+    },
+    {
+      "txhash": "2DBB43210EE6F3CAC743C2E9897755964C59EBFB20EC2FC7E7AB050CAC7A8A8A",
+      "height": "12794",
+      "code": 0,
+      "gas_used": "914326"
+    },
+    {
+      "txhash": "4388AC8A205259F71D9E44472C7D6492CB97ACEBA57490C54288952D3ABD1402",
+      "height": "12813",
+      "code": 0,
+      "gas_used": "818647"
+    },
+    {
+      "txhash": "30B05CB46DFEF522AA914BCA2002E97BEF67F8D1DCC7951736E65FB8D98BDD28",
+      "height": "12839",
+      "code": 0,
+      "gas_used": "913435"
+    },
+    {
+      "txhash": "B1C651F3F1B84ADC6765AA37B99FFD2919A4A424FF125F3E735236547138F7E1",
+      "height": "12850",
+      "code": 0,
+      "gas_used": "155733"
+    },
+    {
+      "txhash": "2A1D9948000E74FF798BD979E0B31BBE275F37E272DD15A7C3AB4CFCC76AB58E",
+      "height": "12914",
+      "code": 0,
+      "gas_used": "985264"
+    },
+    {
+      "txhash": "21DC232EA39E1CE14807AF64C8A8BDD71E4DF1D257CB508B163E3B58E1D2ACBA",
+      "height": "12916",
+      "code": 0,
+      "gas_used": "985175"
+    }
+  ]
+}

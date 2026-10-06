@@ -1,0 +1,14 @@
+{
+  "synthetic_only": true,
+  "reviewed_reference": "../issue-1381/localterra-evidence.json",
+  "artifacts": [
+    {
+      "artifact": "cl8y_dex_router.wasm",
+      "sha256": "be8a2572e205085fc6b1aca1be56acb72edcc640efa1ca50955d16d95c240c35"
+    },
+    {
+      "artifact": "cl8y_community_tax_token.wasm",
+      "sha256": "45d1ccfbae79d2e8d17f3c63d47831e8e47e854ed37217d31a307ec55f8603f6"
+    }
+  ]
+}
