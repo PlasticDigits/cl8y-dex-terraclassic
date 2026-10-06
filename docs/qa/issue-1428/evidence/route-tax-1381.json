@@ -1,0 +1,937 @@
+{
+  "utc": "2026-10-06T07:21:10.320988+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "owner_key": "issue1381-1791271238126118024",
+  "sink_key": "issue1381-1791271238898486177",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 7,
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 8,
+      "sha256": "e2fd993e21bdd7208a1f3592a78325c659023bbbb65cce7763328f15eddd6515"
+    },
+    "cl8y_dex_router": {
+      "code_id": 9,
+      "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+    },
+    "cw20_mintable": {
+      "code_id": 10,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 11,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    }
+  },
+  "factory": "terra1msyushf6d76u9wupuvm6jdvc0x4trmv5w5kxr0hyt7n9npp233usm73ysn",
+  "router": "terra19zfal0q0nnaxj95mkdnnjyyz3jn3x46a0xdppj67t4ehe8wkt64s7rrzdu",
+  "tokens": {
+    "CL8Y": "terra1nzft0f2g3pcx3yuxj0yympueyne3f6mrz3jsfwap777j2lmphlvq86fxty",
+    "UST1": "terra13vg9te3p4znkws04l6j497p33ef4yrgctdw0myyvefc8dnx4ce8s2y7mq4",
+    "USTR": "terra1zqg9ucv8m38lzds8hcxkzmdty4x8l73afs5vp94q964k9c5gaqpqzt50q9",
+    "ALPHA": "terra1nkxfnchghtwx73p9fe9keepaerpykagydq00etp09qxk8n048mcsss00tv",
+    "BETA": "terra1enrur4t6kyyfgmh84e88muzej4m3zcvje999trctck0e7zr7ktjqmdj326"
+  },
+  "decimals": {
+    "CL8Y": 18,
+    "ALPHA": 6,
+    "BETA": 6,
+    "UST1": 6,
+    "USTR": 18
+  },
+  "pairs": {
+    "CL8Y/ALPHA": "terra12eu6c7f67l8gdl2lt0hz0dgdh24dhune6wjgy5t0es3tpfzhc3ysjwrnwv",
+    "ALPHA/UST1": "terra14kajny4tg2yav6a3wtzywwl2zwpdnnl8e5tmvahk3ulnt7w2gfxszrqvwm",
+    "UST1/USTR": "terra1q8s8d7ahlxp8w5k9ygrsukzzzj0k5ajs9ntxxaflc8j0r5y3t0wsglhj82",
+    "ALPHA/BETA": "terra1tq22yqsgl8y4ds930m0gha2yjkgju8rh8f2a0suv60vpwx8hqy2q99x823",
+    "BETA/USTR": "terra1lky964kvrd9smt5xswfa0ugst8hq3ejferxc4h26ptfuafg27zjsg4zlys"
+  },
+  "checks": [
+    {
+      "name": "zero intermediates",
+      "status": "PASS",
+      "quote": {
+        "amount": "946429267575517734"
+      },
+      "reverse": {
+        "amount": "1009999020096990300"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 946429267575517734,
+          "router": 0,
+          "sink": 2847831296616402,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 57863,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "c68ac93cac7b68ba76ed6e0095568df835b7ca8f15a62407fc6740af63279257",
+      "gas_used": "4428503"
+    },
+    {
+      "name": "multi tax intermediates",
+      "status": "PASS",
+      "quote": {
+        "amount": "894890444760655030"
+      },
+      "reverse": {
+        "amount": "1009999060288001788"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2847831296616402,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 57863,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 894890444760655030,
+          "router": 0,
+          "sink": 5540580879647460,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 115726,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "4577a33f8fedb00404445cd89ed0cdc1c6210839c8f83e6f215896ecdf95cb78",
+      "gas_used": "4550801"
+    },
+    {
+      "name": "owned dust and existing balances",
+      "status": "PASS",
+      "quote": {
+        "amount": "946421488752678839"
+      },
+      "reverse": {
+        "amount": "1009999100473034445"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 5540580879647460,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 115726,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 5712,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 946421488752678839,
+          "router": 0,
+          "sink": 8388388769575279,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 173589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "48cc6365aec1225dad1b1bdc43624c3c646ad8cca52a988532ade4085c28a2e0",
+      "gas_used": "4434458"
+    },
+    {
+      "name": "taxed initial gross",
+      "status": "PASS",
+      "quote": {
+        "amount": "994000246661929123"
+      },
+      "reverse": {
+        "amount": "1010000"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 5712,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 8388388769575279,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 1010000,
+          "router": 1234567,
+          "sink": 173589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 994000246661929123,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 183589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "9c957001103858a01fe4e258c276bb0ae4d6040ad5b414e2397e78a802b79176",
+      "gas_used": "3088784"
+    },
+    {
+      "name": "taxed final buy",
+      "status": "PASS",
+      "quote": {
+        "amount": "961650"
+      },
+      "reverse": {
+        "amount": "1009999140652088252"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 183589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 961650,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "ba8c7340dd327e6b44003ba3fba9c33fa5f753d3dba66a2754412b3cd16b0ef7",
+      "gas_used": "1890739"
+    },
+    {
+      "name": "minimum return rollback",
+      "status": "PASS",
+      "quote": {
+        "amount": "894880862313485362"
+      },
+      "reverse": {
+        "amount": "1009999180825163192"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "67ba1ce121a657fcc1f08785d3f6c6f4ade6f1bf0d60855d0205665402341d0c",
+      "gas_used": "4172286"
+    }
+  ],
+  "legacy_codes": {
+    "cl8y_dex_router": {
+      "code_id": 12,
+      "sha256": "0c58a6c907393a695a3331da15e6f162a7e1ef615658f3fa221fbae494d1934c"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 11,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    }
+  },
+  "migration_checks": [
+    {
+      "contract": "router",
+      "status": "PASS",
+      "factory_preserved": true,
+      "prior_funding_version": 1,
+      "settlement_version": 1
+    },
+    {
+      "contract": "ALPHA",
+      "status": "PASS",
+      "balances_config_preserved": true
+    },
+    {
+      "contract": "BETA",
+      "status": "PASS",
+      "balances_config_preserved": true
+    },
+    {
+      "contract": "pair pins",
+      "status": "PASS",
+      "pool_state_preserved": true
+    }
+  ],
+  "status": "PASS",
+  "receipts": [
+    {
+      "txhash": "cbaad89a2d18d3339842e044f203bec11f5c3c9a0c8f69ede27bed5fce89a755",
+      "height": "5616",
+      "code": 0,
+      "gas_used": "178341"
+    },
+    {
+      "txhash": "bd3f064504719716cfa63a0ba2d0e6e2ad23e8a31cccbe404463b9f70f352378",
+      "height": "5620",
+      "code": 0,
+      "gas_used": "191368"
+    },
+    {
+      "txhash": "728ff8ed326d6587ef6dc254cbc569e638f94416b422968b6095f115ecdaac3e",
+      "height": "5622",
+      "code": 0,
+      "gas_used": "2786446"
+    },
+    {
+      "txhash": "0cd1c55390690e480ea02e03b16f311e39f64768d9d9ec793d4930653d87bce1",
+      "height": "5630",
+      "code": 0,
+      "gas_used": "4965556"
+    },
+    {
+      "txhash": "83928a19e36493a2ab03468f357dec86ffea65a8d27b74ddce71c87ff236070e",
+      "height": "5639",
+      "code": 0,
+      "gas_used": "2811889"
+    },
+    {
+      "txhash": "eaf3eadd0699fa4e8a8257a58127b9b7724eb333be1747e8561a016f2a5a0f9d",
+      "height": "5647",
+      "code": 0,
+      "gas_used": "2219074"
+    },
+    {
+      "txhash": "f06fd8a8a242e60c0b4009e09519f4b5a53ff5a2c1d5ba5fa7a812c2c385cbff",
+      "height": "5649",
+      "code": 0,
+      "gas_used": "4357253"
+    },
+    {
+      "txhash": "5752ac452a193f6b0345b9804e513c544e2696048c57496470250812324c7e7d",
+      "height": "5652",
+      "code": 0,
+      "gas_used": "2808915"
+    },
+    {
+      "txhash": "ad80d12fe77034c8808ff2ab660636cf6cf04b0506f0de4581b22320f27816ed",
+      "height": "5656",
+      "code": 0,
+      "gas_used": "202299"
+    },
+    {
+      "txhash": "b0f50f2e743ea4c642ba0f9d5d95fd150f7872d34bbee5595a93963ef61449a2",
+      "height": "5659",
+      "code": 0,
+      "gas_used": "173623"
+    },
+    {
+      "txhash": "26d4d527ae16c742ff8d8f87e9d98c4af1caec247b0a40170526a5123e5c5d10",
+      "height": "5661",
+      "code": 0,
+      "gas_used": "143122"
+    },
+    {
+      "txhash": "b5b3c252e44c52106635da1280351189cf176140792e87ee7f11957dee93e32e",
+      "height": "5665",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "8df751e8114706b823d8f93a865e1fc7580c3aae36c70c3600a9ede519d951a2",
+      "height": "5668",
+      "code": 0,
+      "gas_used": "188122"
+    },
+    {
+      "txhash": "a0eac38697d5c593148ddf115720a2d6f8540683562d400e3d3d35de1ce3fef0",
+      "height": "5671",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "2c636fe2d3c7506b17256f074e886d4062f418506d0378599d18e758039a515c",
+      "height": "5673",
+      "code": 0,
+      "gas_used": "258423"
+    },
+    {
+      "txhash": "55840dd560c5146bfaa50038c71f884e33fdab00a5e65f1b3bdf7dfff99c1c44",
+      "height": "5676",
+      "code": 0,
+      "gas_used": "258243"
+    },
+    {
+      "txhash": "82ef65ee8ba963b454afc23fd3d704a3a62dd36b9ee42785465eeb8fc9240028",
+      "height": "5678",
+      "code": 0,
+      "gas_used": "969103"
+    },
+    {
+      "txhash": "8757736f2caee32331a03d3cbd1d702daeb7798d405d15f2b70fb9f1105dcf60",
+      "height": "5681",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "b7771333cb83e3f8aff3a5001bc7c7aa7f6c2010bb9dede18767f07f1a107f82",
+      "height": "5683",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "520f84d600f0d0de58046a3d4a9f2983d2493aed7ca46f2dcbc3d325935ed9f9",
+      "height": "5685",
+      "code": 0,
+      "gas_used": "944930"
+    },
+    {
+      "txhash": "c03644a26ca07c0df23d35b72d193b94e7b77d9e482ef82dce85d10f3f6ba24e",
+      "height": "5692",
+      "code": 0,
+      "gas_used": "969618"
+    },
+    {
+      "txhash": "e8ca6e451a3ac1d3b02b521546cd8bac757323ae03a424ce17de1d59dbc9812e",
+      "height": "5695",
+      "code": 0,
+      "gas_used": "144725"
+    },
+    {
+      "txhash": "95a4d2dc0e06d12b436b8bcbdf02a88932967b7277ab4f1af92c6d7a4ddc6c26",
+      "height": "5697",
+      "code": 0,
+      "gas_used": "144722"
+    },
+    {
+      "txhash": "296ad81d2d2222116f80577936ce99a2ae873fc8e8b3e2946a7224dfc1f41871",
+      "height": "5699",
+      "code": 0,
+      "gas_used": "942351"
+    },
+    {
+      "txhash": "b9549d07728838c81fd209797457c42ae7def9534e20665976be5b7b67303132",
+      "height": "5701",
+      "code": 0,
+      "gas_used": "755000"
+    },
+    {
+      "txhash": "30c199c2d3324dd49b087a698b3336a4aea422b74aab455149c19b9d45e3ed95",
+      "height": "5704",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "6948602d4b5df3ea2062261f9bfbd32b59eb021dfb78da657a8a215462b992b1",
+      "height": "5711",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "a945294a2e85805f6daa70ce548673078e446f85f0f96fac69e5197f1c827a93",
+      "height": "5713",
+      "code": 0,
+      "gas_used": "932270"
+    },
+    {
+      "txhash": "aa088a5a51c71965257c4f2048efc1138ca9c575f748d9924b477b3556be56d5",
+      "height": "5715",
+      "code": 0,
+      "gas_used": "1182970"
+    },
+    {
+      "txhash": "8ad361da55bc9fdb0872be5a3915a78402201dba694be827686a1092de2287e5",
+      "height": "5718",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "d2f61e5f89d8c91593bd697aadd8f1f60c5f81707353c29cf1be52dac75dc0cf",
+      "height": "5720",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "a14d305e2ee62132efcee411f1a7bccca48c66ec44c53c6d6d1fb7b35b87f8bf",
+      "height": "5722",
+      "code": 0,
+      "gas_used": "954817"
+    },
+    {
+      "txhash": "f5ad56eaf38e9085fdbee9c3ea1ffed77747a436a1d3ff369efd07ce5b4bcf81",
+      "height": "5724",
+      "code": 0,
+      "gas_used": "968925"
+    },
+    {
+      "txhash": "a262f419b029db8dfa50b1192260dc8835dfa73ae6fc3eb71229bc50de3e2f2f",
+      "height": "5732",
+      "code": 0,
+      "gas_used": "144722"
+    },
+    {
+      "txhash": "09174605fc62ad2f700fbc1b4da34ef6efe05312de3cf7b70a7ba48f3577a3d0",
+      "height": "5734",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "80e48174466e4eb3a64e995a5d810ffb6827788f2ac181c08386bac62ef19ace",
+      "height": "5736",
+      "code": 0,
+      "gas_used": "944780"
+    },
+    {
+      "txhash": "981b49475aca1de2460c2c76444e2533b2421bfd3335d2d2723189e7ddb32152",
+      "height": "5744",
+      "code": 0,
+      "gas_used": "144020"
+    },
+    {
+      "txhash": "e8536bf251ef62aedb20c55c8933bc1adfd4d74f3d3a73337baaf58924ae384e",
+      "height": "5749",
+      "code": 0,
+      "gas_used": "143975"
+    },
+    {
+      "txhash": "af9374594055afe561ced426c0ec18475172afa919716c1ce903d291d5ce0d45",
+      "height": "5753",
+      "code": 0,
+      "gas_used": "336789"
+    },
+    {
+      "txhash": "d3b7dd146a27fd7b05025128c5b6614bfb1592a3c2eb348508e433a9c6021835",
+      "height": "5756",
+      "code": 0,
+      "gas_used": "336858"
+    },
+    {
+      "txhash": "a57f50621f7d081d9f30e9d319a22bdc13054149de1e93879ea63f44788f1c45",
+      "height": "5759",
+      "code": 0,
+      "gas_used": "336783"
+    },
+    {
+      "txhash": "896614edb4e20a3b1039a85fb8614909a9d22040d0a85d159953a6b3891eead8",
+      "height": "5767",
+      "code": 0,
+      "gas_used": "336789"
+    },
+    {
+      "txhash": "4c7a98497c4d2287bfb0b54f7ec85304d03020f376edd2f89d355323095ea2b9",
+      "height": "5770",
+      "code": 0,
+      "gas_used": "336783"
+    },
+    {
+      "txhash": "c03c45b4349f04dc016bda35542abd3bf747fafd8443647a29935e259d7938ef",
+      "height": "5777",
+      "code": 0,
+      "gas_used": "178256"
+    },
+    {
+      "txhash": "193cc79f6dd82244dcbcf485bbfc4b02361aaeff58f787fa5c67048a26d7c38f",
+      "height": "5779",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "c68ac93cac7b68ba76ed6e0095568df835b7ca8f15a62407fc6740af63279257",
+      "height": "5802",
+      "code": 0,
+      "gas_used": "4428503"
+    },
+    {
+      "txhash": "7d57c98847334b01d52c24b09118727355b49542acb330cf2d1be8cae8938ee3",
+      "height": "5825",
+      "code": 0,
+      "gas_used": "178319"
+    },
+    {
+      "txhash": "8dc21d5042b27cc84221db126fd7e57c801ce9336db24b83440031f7c90acd54",
+      "height": "5827",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "4577a33f8fedb00404445cd89ed0cdc1c6210839c8f83e6f215896ecdf95cb78",
+      "height": "5850",
+      "code": 0,
+      "gas_used": "4550801"
+    },
+    {
+      "txhash": "cc222c0f34704335b253d488575fbf0b6d4eda0e97a23aa4d98d3c673751a986",
+      "height": "5872",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "4c72a7affe37a7e9978b096be8c81a870038d33906d742d62bdada13220615fd",
+      "height": "5874",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "ee9267cb5811b4fe60f41be5a525d3a3578634e0af1bdd63d64a6462ef4309ed",
+      "height": "5876",
+      "code": 0,
+      "gas_used": "149661"
+    },
+    {
+      "txhash": "7d9f3780aadb3c09f92631c5bf6423d9e5c590a4bebc40848637743d3d887316",
+      "height": "5878",
+      "code": 0,
+      "gas_used": "150777"
+    },
+    {
+      "txhash": "c3bbefcb79a2ca05758d17f62ff182634c931a651fb27f677cd6b883f6ed9d82",
+      "height": "5880",
+      "code": 0,
+      "gas_used": "137170"
+    },
+    {
+      "txhash": "6ee69ed9262c0a1f48592e1d8de4197d315f1d638f8e2a07ed2358931b66c71a",
+      "height": "5882",
+      "code": 0,
+      "gas_used": "138089"
+    },
+    {
+      "txhash": "48cc6365aec1225dad1b1bdc43624c3c646ad8cca52a988532ade4085c28a2e0",
+      "height": "5905",
+      "code": 0,
+      "gas_used": "4434458"
+    },
+    {
+      "txhash": "1ccfb4b8c9d835da58a67941e22d0d160b469090ef0bf59b809007c48fcac02f",
+      "height": "5928",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "bf75c7f07e7a841e2ae579be8347f042beda61f90955173aa42a094a3fc43305",
+      "height": "5930",
+      "code": 0,
+      "gas_used": "149661"
+    },
+    {
+      "txhash": "9c957001103858a01fe4e258c276bb0ae4d6040ad5b414e2397e78a802b79176",
+      "height": "5959",
+      "code": 0,
+      "gas_used": "3088784"
+    },
+    {
+      "txhash": "1d8616be787de1cfd3bb41b00d5fcd6a014ae365f20f758d32c8669f77d1baaa",
+      "height": "5981",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "2c0b1674fcf813d51cb5a879eff4bfc18738182a1851a57cee685baa77330664",
+      "height": "5983",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "ba8c7340dd327e6b44003ba3fba9c33fa5f753d3dba66a2754412b3cd16b0ef7",
+      "height": "6006",
+      "code": 0,
+      "gas_used": "1890739"
+    },
+    {
+      "txhash": "5d3807819e5cd3f9e34e51bca7045150701f0f28fcef28c446ebeb3c2dca4e56",
+      "height": "6029",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "b959aa05ce6c5872ce7fe2c899cfb414f921ebd05c2025286b678b6f1985abe2",
+      "height": "6031",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "67ba1ce121a657fcc1f08785d3f6c6f4ade6f1bf0d60855d0205665402341d0c",
+      "height": "6054",
+      "code": 5,
+      "gas_used": "4172286"
+    }
+  ]
+}

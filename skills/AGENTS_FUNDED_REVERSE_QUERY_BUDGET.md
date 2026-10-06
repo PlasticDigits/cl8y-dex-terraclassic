@@ -37,7 +37,7 @@ and [RTROLL1381](AGENTS_ROUTE_TAX_ROLLOUT.md).
    Receive intent; never auto-retry, fan out endpoints, resend, raise limits or
    silently substitute a weaker trade. Solver DB sizing still needs its own fresh
    router forward preflight; it is a separately tested path, not reverse proof.
-7. **FRQ1422-7 — rollout truth.** The current coordinated targets are router
+7. **FRQ1422-7 — rollout truth.** The integrated #1422 baseline targets are router
    **1.4.0**, pair **1.21.0**, token **1.3.0**, factory **1.12.0**. Reconcile
    [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and
    [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386) with reviewed
@@ -51,3 +51,5 @@ and [RTROLL1381](AGENTS_ROUTE_TAX_ROLLOUT.md).
    when all executed checks pass. Leave skipped criteria unverified. An executed
    failure remains **FAIL** until repaired and retested. A frozen expected failure
    is regression-reproduction evidence, never final-artifact acceptance.
+
+Router 1.5.0 adds [bounded greedy reverse admission #1428](AGENTS_GREEDY_REVERSE_SUPPORT.md); use `VERIFY_ISSUE_1422_ROUTER_VERSION=1.5.0` to recheck final artifacts. Existing rollout plans require separate reviewed hashes and production evidence.

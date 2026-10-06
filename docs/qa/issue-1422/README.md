@@ -82,6 +82,8 @@ indexer deterministic provider-error and exact-output checks, relevant receive
 client tests, source checks and the 3M harness. `VERIFY_ISSUE_1422_CONTAINER`,
 `VERIFY_ISSUE_1422_NODE_HOME`, `VERIFY_ISSUE_1422_PROBE`,
 `VERIFY_ISSUE_1422_CODE_CACHE` and `VERIFY_ISSUE_1422_EVIDENCE` customize paths.
+`VERIFY_ISSUE_1422_ROUTER_VERSION` defaults to the integrated 1.4.0 baseline; set
+it to 1.5.0 when rechecking the [#1428 support policy](../issue-1428/README.md).
 Leave the evidence variable unset to preserve separate first/retest files.
 
 ## Agent acceptance checklist
@@ -125,7 +127,7 @@ does not complete the skipped acceptance criterion.
 Recorded standalone implementation evidence: [RESULTS.md](RESULTS.md).
 The integrated release keeps #1398 net execution floors and uses router 1.4.0,
 pair 1.21.0 and factory 1.12.0; its new artifacts require separate acceptance.
-The remaining populated four-hop greedy support task is [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
+The populated four-hop greedy support policy is [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
 
 ## Verify the public build receipt
 

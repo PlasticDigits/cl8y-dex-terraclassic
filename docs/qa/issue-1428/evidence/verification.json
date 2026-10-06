@@ -1,0 +1,79 @@
+{
+  "utc": "2026-10-06T07:27:51.065907+00:00",
+  "base_revision": "e7b54989c21fc411141c4c6c3af553c03dea1bdd",
+  "source_snapshot": "build-provenance.json",
+  "final_commands": [
+    {
+      "command": "make verify-issue-1381",
+      "exit_code": 0,
+      "pass": 13,
+      "fail": 0,
+      "skip": 2,
+      "status": "PASS WITH EXPLICIT SKIPS",
+      "log": "logs/verify-1381.log.gz",
+      "uncompressed_log_sha256": "79bbf87cccb3d7b0d17f8037649a6c33ff0236ebbdf859c482d2a66a1027a1b0"
+    },
+    {
+      "command": "make verify-issue-1389",
+      "exit_code": 0,
+      "pass": 8,
+      "fail": 0,
+      "skip": 1,
+      "status": "PASS WITH EXPLICIT SKIPS",
+      "log": "logs/verify-1389.log.gz",
+      "uncompressed_log_sha256": "ec9281a82b5cb51ced91733d5b653988783be2f19303927f7857caeec446a8f7"
+    },
+    {
+      "command": "make verify-issue-1390",
+      "exit_code": 0,
+      "pass": 15,
+      "fail": 0,
+      "skip": 1,
+      "status": "PASS WITH EXPLICIT SKIPS",
+      "log": "logs/verify-1390.log.gz",
+      "uncompressed_log_sha256": "9a8e15388007c868aa3deb71f490783cc08aa3aadb88f195b5d55e31069084f7"
+    },
+    {
+      "command": "make verify-issue-1398",
+      "exit_code": 0,
+      "pass": 7,
+      "fail": 0,
+      "skip": 0,
+      "status": "PASS",
+      "log": "logs/verify-1398.log.gz",
+      "uncompressed_log_sha256": "b0a8f70b2892b8e5d8b399bea1960c6504ab2a0060cff1358387afd1996691d3"
+    },
+    {
+      "command": "make verify-issue-1422",
+      "exit_code": 0,
+      "pass": 10,
+      "fail": 0,
+      "skip": 1,
+      "status": "PASS WITH EXPLICIT SKIPS",
+      "log": "logs/verify-1422.log.gz",
+      "uncompressed_log_sha256": "b3dcd338d39d36b8346124b89be525f50078dd6cbe19a796f319594487b91915"
+    },
+    {
+      "command": "make verify-issue-1428",
+      "exit_code": 0,
+      "pass": 9,
+      "fail": 0,
+      "skip": 0,
+      "status": "PASS",
+      "log": "logs/verify-1428.log.gz",
+      "uncompressed_log_sha256": "53fc57e2cf469c89bdf7cde3acecdec274654c8b272944800cb959a9cd24a046"
+    }
+  ],
+  "notes": [
+    "Final source scope passed all executed acceptance assertions; unrelated/historical/native/production skips remain explicit.",
+    "Earlier failed/aborted attempts are disclosed in RESULTS; frozen expected failures and exploratory limitations are not final supported quotes.",
+    "To read any command log: gzip -cd docs/qa/issue-1428/evidence/logs/<name>.log.gz. No credentials are included."
+  ],
+  "publication_checks": {
+    "gitleaks_public_evidence": "PASS with repository configuration",
+    "gitleaks_staged_changes": "PASS with repository configuration",
+    "findings": "Initial broad working-folder scan matched public SHA256 identifiers and random uppercase transaction hashes only; public receipt arrays and equivalent lowercase transaction identifiers avoid false positives without rule exemptions.",
+    "independent_review": "../review.md",
+    "independent_review_sha256": "35702e513d65067a8902d48029216779aabea44152aac992408829cc2c4ea0f4"
+  }
+}

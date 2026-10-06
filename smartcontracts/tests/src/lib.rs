@@ -11454,9 +11454,19 @@ mod additional_fuzz_tests {
             provide_liquidity(&mut app, &env, &env.user,
                 Uint128::new(init_a), Uint128::new(init_b));
 
-            // Second deposit with custom slippage tolerance
-            let add_b = add_a * init_b / init_a; // proportional
-            if add_b == 0 { return Ok(()); }
+            // Use whole units of the reduced reserve ratio. Flooring only the
+            // second asset changes the ratio and can legitimately fail at zero
+            // tolerance; this property promises an exactly proportional deposit.
+            let (mut gcd, mut remainder) = (init_a, init_b);
+            while remainder != 0 {
+                (gcd, remainder) = (remainder, gcd % remainder);
+            }
+            let unit_a = init_a / gcd;
+            let unit_b = init_b / gcd;
+            let units = (add_a / unit_a).max(1);
+            let add_a = units * unit_a;
+            let add_b = units * unit_b;
+            prop_assert_eq!(add_a * init_b, add_b * init_a);
 
             let tolerance = cosmwasm_std::Decimal::from_ratio(tolerance_bps, 10000u128);
 

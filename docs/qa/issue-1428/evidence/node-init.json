@@ -1,0 +1,9 @@
+{
+  "scope": "Dedicated synthetic book matrix only, unchanged historical 15M query envelope; not a production provider change",
+  "base_script": "docker/init-chain.sh",
+  "base_sha256": "e8b3a0aa85751bffc6dea1026461577b3d15c851a5253f30cfb9b34c276308e5",
+  "fixture_init_sha256": "83dbfcbf87b607ea180ce300d1ce96f0f39049065c57933170750bc1e0d27371",
+  "change": "Immediately after APP_TOML assignment, replace query_gas_limit = 3000000 with query_gas_limit = 15000000 before node boot",
+  "wasm_query_gas_limit": 15000000,
+  "funded_fixture_query_gas_limit": 3000000
+}

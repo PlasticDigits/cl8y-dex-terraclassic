@@ -7,10 +7,10 @@ atomic AutoLP provision. Read invariants **NE1398-1–NE1398-10** in
 [the integrator contract](../../integrators.md#net-execution-floors-and-hook-pricing-1398).
 
 Implementation versions are pair **1.21.0**, factory **1.12.0**, router
-**1.4.0** and community-tax AutoLP **1.1.0**. Source tests exercise these versions; deployment acceptance
+**1.5.0** and community-tax AutoLP **1.1.0**. Source tests exercise these versions; deployment acceptance
 must verify the actually deployed code IDs and versions separately. Router
-1.3.0 → 1.4.0 migration preserves route funding/settlement version 1 and existing
-configuration/nonce state; the existing historical route-tax rollout plan still
+1.4.0 → 1.5.0 migration preserves route funding/settlement version 1 and existing
+configuration/nonce state; [#1428](../issue-1428/README.md) adds bounded greedy reverse admission; the existing historical route-tax rollout plan still
 targets its explicit 1.3.0 artifact and is not a deployment plan for this PR.
 
 ## Reproduce verification
