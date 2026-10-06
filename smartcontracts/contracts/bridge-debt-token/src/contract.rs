@@ -8,10 +8,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdResult, Uint128,
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use cw20::{BalanceResponse, MinterResponse, TokenInfoResponse};
+use semver::Version;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -221,8 +222,68 @@ fn query_debtor(deps: Deps) -> StdResult<DebtorResponse> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let source = get_contract_version(deps.storage)?;
+    if source.contract != CONTRACT_NAME {
+        return Err(ContractError::InvalidMigrationContract {
+            contract: source.contract,
+        });
+    }
+    let source_version =
+        Version::parse(&source.version).map_err(|_| ContractError::InvalidMigrationVersion {
+            version: source.version.clone(),
+        })?;
+    // Only these releases share the receipt storage layout. Same-version
+    // migration is deliberately supported for a lossless code replacement.
+    if source_version != Version::new(1, 0, 0) && source_version != Version::new(1, 1, 0) {
+        return Err(ContractError::InvalidMigrationVersion {
+            version: source.version,
+        });
+    }
+    validate_migration_state(deps.as_ref())?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    Ok(Response::new().add_attribute("action", "migrate"))
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("from_version", source.version)
+        .add_attribute("to_version", CONTRACT_VERSION))
+}
+
+/// Reject broken receipts instead of repairing accounting or changing identity.
+/// All validation precedes the only write, the cw2 version update.
+fn validate_migration_state(deps: Deps) -> Result<(), ContractError> {
+    let token = TOKEN_INFO.load(deps.storage)?;
+    let debtor = DEBTOR.load(deps.storage)?;
+    validate_name(&token.name)?;
+    validate_symbol(&token.symbol)?;
+    deps.api.addr_validate(debtor.as_str())?;
+    deps.api.addr_validate(token.mint.minter.as_str())?;
+    if token.decimals > 18 {
+        return Err(ContractError::InvalidDecimals {});
+    }
+    if token.mint.minter == debtor {
+        return Err(ContractError::MinterIsDebtor {});
+    }
+    if token.mint.cap.is_some_and(|cap| cap < token.total_supply) {
+        return Err(ContractError::CannotExceedCap {});
+    }
+    let balance = BALANCES
+        .may_load(deps.storage, &debtor)?
+        .unwrap_or_default();
+    if balance != token.total_supply {
+        return Err(ContractError::InvalidMigrationState {
+            reason: "debtor balance must equal total supply".to_string(),
+        });
+    }
+    // Receipts can have only the debtor's balance entry; even zero-valued
+    // foreign entries indicate a state layout we do not support.
+    for entry in BALANCES.range(deps.storage, None, None, Order::Ascending) {
+        let (address, _) = entry?;
+        if address != debtor {
+            return Err(ContractError::InvalidMigrationState {
+                reason: "receipt balances must belong only to the debtor".to_string(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn reject_funds(info: &MessageInfo) -> Result<(), ContractError> {
@@ -255,244 +316,5 @@ fn validate_symbol(symbol: &str) -> Result<(), ContractError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{from_json, Coin};
-
-    const MINTER: &str = "terra1owner000000000000000000000000000000000";
-    const DEBTOR_ADDR: &str = "terra1cmm00000000000000000000000000000000000";
-    const OTHER: &str = "terra1user00000000000000000000000000000000";
-
-    fn setup(deps: DepsMut, cap: Option<Uint128>) {
-        instantiate(
-            deps,
-            mock_env(),
-            mock_info("creator", &[]),
-            InstantiateMsg {
-                name: "USDT-Bridge-Debt".to_string(),
-                symbol: "USDT-Bridge-Debt".to_string(),
-                decimals: 18,
-                minter: MINTER.to_string(),
-                debtor: DEBTOR_ADDR.to_string(),
-                cap,
-            },
-        )
-        .unwrap();
-    }
-
-    fn mint(
-        deps: DepsMut,
-        sender: &str,
-        recipient: &str,
-        amount: u128,
-    ) -> Result<Response, ContractError> {
-        execute(
-            deps,
-            mock_env(),
-            mock_info(sender, &[]),
-            ExecuteMsg::Mint {
-                recipient: recipient.to_string(),
-                amount: Uint128::new(amount),
-            },
-        )
-    }
-
-    #[test]
-    fn usdt_bridge_debt_symbol_is_accepted() {
-        assert_eq!("USDT-Bridge-Debt".len(), 16);
-        let mut deps = mock_dependencies();
-        setup(deps.as_mut(), None);
-
-        let info: TokenInfoResponse =
-            from_json(query(deps.as_ref(), mock_env(), QueryMsg::TokenInfo {}).unwrap()).unwrap();
-        assert_eq!(info.name, "USDT-Bridge-Debt");
-        assert_eq!(info.symbol, "USDT-Bridge-Debt");
-        assert_eq!(info.decimals, 18);
-        assert_eq!(info.total_supply, Uint128::zero());
-
-        let debtor: DebtorResponse =
-            from_json(query(deps.as_ref(), mock_env(), QueryMsg::Debtor {}).unwrap()).unwrap();
-        assert_eq!(debtor.debtor, DEBTOR_ADDR);
-
-        let minters: MintersResponse =
-            from_json(query(deps.as_ref(), mock_env(), QueryMsg::Minters {}).unwrap()).unwrap();
-        assert!(minters.minters.is_empty());
-    }
-
-    #[test]
-    fn rejects_symbol_that_does_not_fit_the_pattern() {
-        let mut deps = mock_dependencies();
-        let err = instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("creator", &[]),
-            InstantiateMsg {
-                name: "USDT-Bridge-Debt".to_string(),
-                symbol: "USDT-Bridge-Debt-TOO-LONG-FOR-A-TICKER".to_string(),
-                decimals: 18,
-                minter: MINTER.to_string(),
-                debtor: DEBTOR_ADDR.to_string(),
-                cap: None,
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::InvalidSymbol {});
-    }
-
-    #[test]
-    fn mint_goes_only_to_the_debtor() {
-        let mut deps = mock_dependencies();
-        setup(deps.as_mut(), None);
-
-        let amount = 10_000_000_000_000_000_000_000u128;
-        mint(deps.as_mut(), MINTER, DEBTOR_ADDR, amount).unwrap();
-
-        let balance: BalanceResponse = from_json(
-            query(
-                deps.as_ref(),
-                mock_env(),
-                QueryMsg::Balance {
-                    address: DEBTOR_ADDR.to_string(),
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(balance.balance, Uint128::new(amount));
-
-        let err = mint(deps.as_mut(), MINTER, OTHER, 1).unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
-
-        let err = mint(deps.as_mut(), OTHER, DEBTOR_ADDR, 1).unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
-    }
-
-    #[test]
-    fn holder_cannot_transfer_or_burn() {
-        let mut deps = mock_dependencies();
-        setup(deps.as_mut(), None);
-        mint(deps.as_mut(), MINTER, DEBTOR_ADDR, 5).unwrap();
-
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(DEBTOR_ADDR, &[]),
-            ExecuteMsg::Transfer {
-                recipient: OTHER.to_string(),
-                amount: Uint128::new(1),
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::NotTransferable {});
-
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(DEBTOR_ADDR, &[]),
-            ExecuteMsg::Burn {
-                amount: Uint128::new(1),
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::NotTransferable {});
-
-        let balance: BalanceResponse = from_json(
-            query(
-                deps.as_ref(),
-                mock_env(),
-                QueryMsg::Balance {
-                    address: DEBTOR_ADDR.to_string(),
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(balance.balance, Uint128::new(5));
-    }
-
-    #[test]
-    fn minter_burns_only_the_debtor_balance() {
-        let mut deps = mock_dependencies();
-        setup(deps.as_mut(), None);
-        mint(deps.as_mut(), MINTER, DEBTOR_ADDR, 5).unwrap();
-
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(MINTER, &[]),
-            ExecuteMsg::BurnFrom {
-                owner: OTHER.to_string(),
-                amount: Uint128::new(1),
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
-
-        execute(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(MINTER, &[]),
-            ExecuteMsg::BurnFrom {
-                owner: DEBTOR_ADDR.to_string(),
-                amount: Uint128::new(5),
-            },
-        )
-        .unwrap();
-
-        let info: TokenInfoResponse =
-            from_json(query(deps.as_ref(), mock_env(), QueryMsg::TokenInfo {}).unwrap()).unwrap();
-        assert_eq!(info.total_supply, Uint128::zero());
-    }
-
-    #[test]
-    fn cap_and_zero_amount_are_enforced() {
-        let mut deps = mock_dependencies();
-        setup(deps.as_mut(), Some(Uint128::new(10)));
-        let err = mint(deps.as_mut(), MINTER, DEBTOR_ADDR, 11).unwrap_err();
-        assert_eq!(err, ContractError::CannotExceedCap {});
-
-        let err = mint(deps.as_mut(), MINTER, DEBTOR_ADDR, 0).unwrap_err();
-        assert_eq!(err, ContractError::ZeroAmount {});
-    }
-
-    #[test]
-    fn minter_cannot_be_the_debtor() {
-        let mut deps = mock_dependencies();
-        let err = instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("creator", &[]),
-            InstantiateMsg {
-                name: "USDT-Bridge-Debt".to_string(),
-                symbol: "USDT-Bridge-Debt".to_string(),
-                decimals: 18,
-                minter: DEBTOR_ADDR.to_string(),
-                debtor: DEBTOR_ADDR.to_string(),
-                cap: None,
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::MinterIsDebtor {});
-    }
-
-    #[test]
-    fn rejects_native_funds() {
-        let mut deps = mock_dependencies();
-        let err = instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("creator", &[Coin::new(1u128, "uluna")]),
-            InstantiateMsg {
-                name: "USDT-Bridge-Debt".to_string(),
-                symbol: "USDT-Bridge-Debt".to_string(),
-                decimals: 18,
-                minter: MINTER.to_string(),
-                debtor: DEBTOR_ADDR.to_string(),
-                cap: None,
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::UnexpectedFunds {});
-    }
-}
+#[path = "tests.rs"]
+mod tests;

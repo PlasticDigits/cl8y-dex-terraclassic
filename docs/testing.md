@@ -1,5 +1,12 @@
 # Testing
 
+Bridge-Debt [#1393](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1393):
+`make verify-issue-1393` runs focused tests and optimized standalone LocalTerra
+fixtures twice, plus full contracts, touched-crate static checks and deployment
+script regressions. [Build instructions, criteria and explicit skip policy](qa/issue-1393/README.md),
+[BD1393 invariants](../skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md),
+[operator messages](runbooks/deploy-usdt-ust1-lp.md).
+
 Pair discovery rejection isolation and bounded admission
 [#1394](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1394):
 `make verify-issue-1394` repeats focused discovery tests at default/high
