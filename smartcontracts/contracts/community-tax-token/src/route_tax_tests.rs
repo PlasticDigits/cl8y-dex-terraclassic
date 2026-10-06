@@ -72,6 +72,23 @@ fn issue1390_old_context_without_owned_refund_keeps_max_wallet_cap() {
     });
     let err = execute_route_transfer(
         deps.as_mut(),
+        env.clone(),
+        mock_info("router", &[]),
+        0,
+        payer.to_string(),
+        Uint128::one(),
+    )
+    .unwrap_err();
+    assert!(matches!(err, ContractError::RouteTaxContext {}));
+    // Once the mandatory single-use nonce is present, missing refund metadata
+    // still cannot confer the max-wallet exception.
+    let mut settlement_ctx = ctx;
+    settlement_ctx.route_id = 1;
+    let settlement_json = cosmwasm_std::to_json_binary(&settlement_ctx).unwrap();
+    deps.querier
+        .update_wasm(move |_| SystemResult::Ok(ContractResult::Ok(settlement_json.clone())));
+    let err = execute_route_transfer(
+        deps.as_mut(),
         env,
         mock_info("router", &[]),
         0,
