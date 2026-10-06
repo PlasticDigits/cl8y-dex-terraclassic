@@ -61,3 +61,7 @@ Manual (required — Playwright cannot drive Keplr chrome): Android Keplr in-app
 See [layout scroll invariants](AGENTS_FRONTEND_SCROLL_INVARIANTS.md) for the
 bundled picker/header/ticket/chart regression, `make verify-issue-1316`, and
 agent verification instructions with explicit unavailable-check reporting.
+
+## Selector lifecycle (#1400)
+
+Cancel deferred focus-leave timers before rescheduling and on unmount; do not access a disposed document after navigation/test cleanup. Regression: PairSearchSelect.test.tsx. See [CI1400 instructions](AGENTS_FORGEJO_FUNCTIONAL_CI.md) and [verification](../docs/qa/issue-1400/README.md).

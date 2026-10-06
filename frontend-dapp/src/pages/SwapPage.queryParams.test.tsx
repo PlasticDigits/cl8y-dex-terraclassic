@@ -302,8 +302,11 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       const to = direction === 'wrap' ? UST1 : 'uluna'
       renderWithSearch(`/?from=${from}&to=${to}&exactField=output&exactAmount=1.5`)
       await waitForSwapReady()
-      await waitFor(() =>
-        expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', from, to, expect.any(Array), undefined)
+      // Quote startup includes the production debounce and async token discovery;
+      // a cold, bounded CI worker can exceed waitFor's default one-second window.
+      await waitFor(
+        () => expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', from, to, expect.any(Array), undefined),
+        { timeout: 5_000 }
       )
       await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
       expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')

@@ -1,6 +1,16 @@
 # Supply-chain security (GitLab #380)
 
-Hosted **GitLab CI** runs lightweight SCA, mandatory gitleaks, and DinD with TLS. Local equivalents map to Makefile targets below.
+**Forgejo is the source of truth.** The required Woodpecker context defines
+functional contract/frontend/indexer/Postgres checks for every PR, including
+docs-only changes. Its separately deployed signed, exclusive configuration
+extension keeps policy outside PR control. Hosted enforcement requires live
+extension/settings/status receipts; see [#1400 checklist](qa/issue-1400/README.md)
+and [verification scope](qa/issue-1400/verification.md).
+
+GitLab retains SCA, gitleaks and DinD TLS as a secondary workflow. All build/CI
+images use reviewed [manifest digests](../scripts/ci/image-pins.json), and both
+workflows use fresh executable state with **no shared caches**. GitLab QA publication, including manual web triggers, requires the protected default branch. Local equivalents
+map to Makefile targets below.
 
 **Parent remediation:** [#376 — Full security report](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) (H-06, M-11, M-13, L-12).
 
@@ -19,7 +29,7 @@ Hosted **GitLab CI** runs lightweight SCA, mandatory gitleaks, and DinD with TLS
 - Security jobs are **not** `allow_failure: true`.
 - `gitleaks` is **mandatory** on default-branch pipelines (M-13). Uses **`--no-git`** (current tree only) so pre-#118 historical commits do not fail the pipeline; new violations in tracked files still fail.
 - Audit jobs run **unconditionally** on default branch; MRs are change-gated to keep overhead low (H-06).
-- **Pipeline budget:** security stage targets **&lt; 5 minutes** added median duration (cargo-audit install cached; gitleaks image pull amortized).
+- **Pipeline budget:** required Woodpecker commands have explicit timeouts (5/35/25/25/25 minutes) and two build workers. Set repository timeout to 120 minutes; cold failures remain failures. Exact-version cargo-audit installs are fresh, never restored executables.
 
 ### DinD TLS (M-11)
 
@@ -69,6 +79,31 @@ Config: [`.gitleaks.toml`](../.gitleaks.toml) — extends defaults plus `bip39-l
 Agent playbook: [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md).
 
 Attack/abuse checks: `make verify-gitleaks` runs a **fixture** that must trip the custom rule (see `scripts/ci/gitleaks-fixture/`) and **force-tracked `node_modules/`** dummy PATs (nested and root-level) that must fail the CI scan path.
+
+## Release inputs and provenance (#1400)
+
+[CI1400-1–CI1400-10](../skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md) govern executable
+trust boundaries. [`.dockerignore`](../.dockerignore) excludes host compiled
+outputs and secrets. Optimizer builds use read-only source plus fresh named
+volumes over both `/code/target` and the actual `/target`; registry and executable
+volumes are deleted after success/failure. The runtime indexer remains nonroot.
+Locked dependencies and immutable image manifests identify the reviewed inputs.
+
+[`build-indexer-release.sh`](../scripts/ci/build-indexer-release.sh) builds with
+an empty target. [`build-provenance.py`](../scripts/ci/build-provenance.py) records
+source commit/dirty state and source hashes, lockfile, image/compiler versions,
+and exact outputs; optimizer emits `artifacts/build-provenance.json` and
+`wasm-checksums.txt`. Verify source/lock/output hashes and compare an independent
+cold rebuild before promotion. These unsigned receipts are evidence of inputs
+and bytes; they do not authenticate a builder or establish deployment acceptance.
+Record live code IDs and chain/version separately in the [deploy trace](templates/deploy-trace.md).
+
+Critical LocalTerra signing/funding/rollback follows the explicit daily 03:00 UTC
+and pre-release policy in [the checklist](qa/issue-1400/README.md). A maintaining
+agent owns provisioning, red/missing receipts, repair and reruns. The bounded
+[`functional-localterra.sh`](../scripts/ci/functional-localterra.sh) runs the named
+subset with synthetic wallets; there is no claim that all existing browser
+specs run on hosted CI. Schedule installation/execution needs its own receipt.
 
 ## Cross-links
 

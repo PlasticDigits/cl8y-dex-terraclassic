@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${GITLEAKS_SCAN_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2}"
+GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2@sha256:b5918eb91b8d2473cec722f066abb4352e4ffdc4ec9f4283ec143aba9ec9ebc4}"
 CONFIG="${GITLEAKS_CONFIG:-${ROOT}/.gitleaks.toml}"
 
 # gitleaks useDefault inherits a global path allowlist for node_modules/ that cannot be

@@ -7,7 +7,8 @@ stages:
   - build
 
 variables:
-  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+  CARGO_HOME: /tmp/cl8y-ci-cargo-${CI_JOB_ID}
+  CARGO_TARGET_DIR: /tmp/cl8y-ci-target-${CI_JOB_ID}
   # -A dead_code: binary target has many intentional stubs (LCD types, sqlx rows); #325 never got a green run before #370.
   RUSTFLAGS: "-D warnings -A dead_code"
   # DinD TLS (GitLab #380 / M-11): encrypted Docker API on 2376; certs under /certs (docker:24-dind default).
@@ -15,8 +16,14 @@ variables:
   DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_VERIFY: 1
   DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  # Registry manifest digests are recorded in scripts/ci/image-pins.json (#1400).
+  # No shared executable/registry cache is read or written by any CI job.
   # Pinned supply-chain scanner image (M-13).
-  GITLEAKS_IMAGE: "ghcr.io/gitleaks/gitleaks:v8.24.2"
+  GITLEAKS_IMAGE: "ghcr.io/gitleaks/gitleaks:v8.24.2@sha256:b5918eb91b8d2473cec722f066abb4352e4ffdc4ec9f4283ec143aba9ec9ebc4"
+
+# Cold job containers prevent MR-produced executables from reaching trusted jobs.
+default:
+  cache: []
 
 # --- Security stage (#380) ---
 
@@ -44,7 +51,7 @@ gitleaks:
 lint-indexer-log-secrets:
   extends: .security-rules-default-branch
   stage: security
-  image: alpine:3.24
+  image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -61,7 +68,7 @@ lint-indexer-log-secrets:
 cargo-audit-smartcontracts:
   extends: .security-rules-default-branch
   stage: security
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -70,19 +77,14 @@ cargo-audit-smartcontracts:
         - smartcontracts/.cargo/audit.toml
         - .gitlab-ci.yml
   before_script:
-    - test -x "${CARGO_HOME}/bin/cargo-audit" || cargo install cargo-audit --locked
+    - cargo install cargo-audit --version 0.22.2 --locked
   script:
     - cd smartcontracts && cargo audit --deny warnings
-  cache:
-    key: cargo-audit-smartcontracts
-    paths:
-      - .cargo/bin/
-      - .cargo/registry/
 
 cargo-audit-indexer:
   extends: .security-rules-default-branch
   stage: security
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -91,19 +93,14 @@ cargo-audit-indexer:
         - indexer/.cargo/audit.toml
         - .gitlab-ci.yml
   before_script:
-    - test -x "${CARGO_HOME}/bin/cargo-audit" || cargo install cargo-audit --locked
+    - cargo install cargo-audit --version 0.22.2 --locked
   script:
     - cd indexer && cargo audit --deny warnings
-  cache:
-    key: cargo-audit-indexer
-    paths:
-      - .cargo/bin/
-      - .cargo/registry/
 
 npm-audit-frontend:
   extends: .security-rules-default-branch
   stage: security
-  image: node:24-bookworm
+  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -133,7 +130,7 @@ npm-audit-frontend:
 test-contracts:
   extends: .test-rules-default-branch
   stage: test
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   variables:
     RUSTFLAGS: "-A dead_code"
   rules:
@@ -144,17 +141,12 @@ test-contracts:
         - .gitlab-ci.yml
   script:
     # Equivalent to `make test-contracts`.
-    - cd smartcontracts && cargo test
-  cache:
-    key: test-contracts
-    paths:
-      - .cargo/registry/
-      - smartcontracts/target/
+    - cd smartcontracts && cargo test --locked
 
 test-indexer-lib:
   extends: .test-rules-default-branch
   stage: test
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   variables:
     RUSTFLAGS: "-A dead_code"
   rules:
@@ -167,17 +159,12 @@ test-indexer-lib:
     - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
   script:
     # --lib = unit tests only, no Postgres. The Postgres-backed integration suite is Phase 2.
-    - cd indexer && cargo test --lib
-  cache:
-    key: test-indexer-lib
-    paths:
-      - .cargo/registry/
-      - indexer/target/
+    - cd indexer && cargo test --locked --lib
 
 test-frontend:
   extends: .test-rules-default-branch
   stage: test
-  image: node:24-bookworm
+  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
   rules:
     - !reference [.test-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -199,7 +186,7 @@ test-frontend:
 test-frontend-build:
   extends: .test-rules-default-branch
   stage: test
-  image: node:24-bookworm
+  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
   variables:
     VITE_WC_PROJECT_ID: "ci-build-typecheck"
   rules:
@@ -224,9 +211,9 @@ test-frontend-build:
 test-indexer-integration:
   extends: .test-rules-default-branch
   stage: test
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   services:
-    - name: postgres:16
+    - name: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
       alias: postgres
   variables:
     RUSTFLAGS: "-A dead_code"
@@ -248,30 +235,25 @@ test-indexer-integration:
   script:
     # Equivalent to `make test-indexer-integration` (the postgres service replaces
     # setup-indexer-postgres). Serial; the harness migrates the empty DB on first connect.
-    - cd indexer && cargo test --tests -j 1 -- --test-threads=1
-  cache:
-    key: test-indexer-integration
-    paths:
-      - .cargo/registry/
-      - indexer/target/
+    - cd indexer && cargo test --locked --tests -j 1 -- --test-threads=1
 
 # --- Build stage (#325) ---
 
 qa-wasm-artifacts:
   stage: build
-  image: docker:24
+  image: docker:24@sha256:9b17a9f25adf17b88d0a013b4f00160754adf4b07ccbe9986664a49886c2c98e
   services:
-    - name: docker:24-dind
+    - name: docker:24-dind@sha256:9b17a9f25adf17b88d0a013b4f00160754adf4b07ccbe9986664a49886c2c98e
       alias: docker
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"
       changes:
         - smartcontracts/**/*
         - scripts/deploy-dex-local.sh
         - .gitlab-ci.yml
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"
   before_script:
-    - apk add --no-cache bash curl make git jq
+    - apk add --no-cache bash curl make git jq python3 coreutils
     - |
       for i in $(seq 1 60); do
         if docker info >/dev/null 2>&1; then
@@ -294,25 +276,27 @@ qa-wasm-artifacts:
     paths:
       - smartcontracts/artifacts/cl8y_dex_*.wasm
       - smartcontracts/wasm-checksums.txt
+      - smartcontracts/artifacts/build-provenance.json
 
 qa-indexer-binary:
   stage: build
   # base64ct 1.8+ needs edition 2024 (Rust 1.85+); align with AGENTS.md 1.96+ local toolchain.
-  image: rust:1.96-bookworm
+  image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"
       changes:
         - indexer/**/*
         - .gitlab-ci.yml
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config curl
+    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config curl python3
   script:
-    - cd indexer && cargo build --release
-    - chmod +x ../scripts/qa/publish-qa-ci-artifacts.sh
-    - cd .. && PUBLISH_QA_WASM=0 ./scripts/qa/publish-qa-ci-artifacts.sh
+    - bash scripts/ci/build-indexer-release.sh
+    - chmod +x scripts/qa/publish-qa-ci-artifacts.sh
+    - PUBLISH_QA_WASM=0 ./scripts/qa/publish-qa-ci-artifacts.sh
   artifacts:
     when: always
     expire_in: 7 days
     paths:
       - indexer/target/release/cl8y-dex-indexer
+      - indexer/target/release/build-provenance.json

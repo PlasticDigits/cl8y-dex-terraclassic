@@ -1,0 +1,17 @@
+# Build only source and lockfiles, never host executables/caches or credentials.
+.git
+**/target
+**/node_modules
+**/dist
+**/artifacts
+**/.cargo/registry
+**/.cargo/git
+**/.cargo/bin
+**/.env
+**/.env.*
+**/*.pem
+!scripts/ci/trusted-policy/woodpecker-public.pem
+**/*.key
+**/__pycache__
+.ci-evidence
+.ci-functional

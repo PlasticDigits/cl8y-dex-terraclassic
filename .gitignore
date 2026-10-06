@@ -53,6 +53,11 @@ deployments/mainnet-soft-launch/*.env.example
 scripts/bots/run/
 
 __pycache__/
+/.ci-functional/
+/.ci-evidence/
+/smartcontracts/artifacts/toolchain.txt
+/smartcontracts/artifacts/build-provenance.json
+/smartcontracts/wasm-checksums.txt
 screenshots/
 
 # Git worktrees (local agent checkouts)
@@ -67,5 +72,8 @@ cw20-codeid-audits/codeids/*/layer-a-lcd.json
 cw20-codeid-audits/codeids/*/layer-b-lt.json
 
 # help
+
+/smartcontracts/artifacts/*-fixture-provenance.json
+
 # Issue1393 compiler/runtime metadata is captured in redacted QA receipts.
 /smartcontracts/artifacts/issue1393-*.json

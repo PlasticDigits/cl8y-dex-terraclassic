@@ -5,7 +5,12 @@ Source of truth is [git.cl8y.com/code/cl8y-dex-terraclassic](https://git.cl8y.co
 Do **not** use `force_merge`. Founder-required; no community autoland.
 
 Enablement of real Woodpecker posts is [#1247](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1247).
-Pipeline YAML: [`.woodpecker.yaml`](../../.woodpecker.yaml) (gitleaks-only until a follow-up ports cargo/frontend/indexer jobs).
+Reviewed workflow: [`.woodpecker.yaml`](../../.woodpecker.yaml) (gitleaks,
+contracts, frontend lint/unit/build, indexer library and isolated Postgres subset).
+Enforced policy must use the signed **exclusive** configuration extension from
+an exact reviewed commit; never trust PR YAML for its own required checks.
+[#1400](../qa/issue-1400/README.md) documents rollout/readback and deliberate-red
+PR checks; [verification](../qa/issue-1400/verification.md) records actual scope.
 
 ## Merge recipe
 
@@ -14,7 +19,10 @@ Pipeline YAML: [`.woodpecker.yaml`](../../.woodpecker.yaml) (gitleaks-only until
    approve your own PR. Dismiss that self-request in the PR UI (or equivalent API)
    so the required-review rule is not a deadlock. Do not weaken branch protection.
 2. **Status.** Wait for Woodpecker to post `ci/woodpecker/pr/woodpecker` on the
-   head SHA (PR event). Admins must not drop that required context.
+   head SHA (PR event). Inspect all mandatory step logs and trusted policy settings;
+   missing/skipped functional work is incomplete. Admins must not drop the context.
+   Local implementation PASS with recorded unavailable checks does not substitute
+   for a genuine hosted success status.
 3. **Merge.** Use a normal merge (`fj pr merge` / Forgejo **Merge**). Never
    `force_merge: true`. `#1239` was marked merged while the head was not an
    ancestor of `origin/main`; reland was `#1242`.

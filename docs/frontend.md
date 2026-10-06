@@ -2602,6 +2602,10 @@ original liquidity time, independently of volume polling.
 See [QA and agent verification](qa/issue-1380/README.md), [Q1380 invariants](indexer-invariants.md#protocol-liquidity-quality-1380),
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 
+## Selector async lifecycle (#1400)
+
+Pair search cancels deferred blur/focus checks before rescheduling and on unmount. This prevents callbacks from reading a disposed document after navigation or test cleanup. Quote-start tests use a finite five-second wait for the production debounce and asynchronous token discovery while preserving exact funding/service assertions. These regressions are part of the [CI1400 review checklist](qa/issue-1400/README.md) and [agent protocol](../skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md).
+
 ### Route validation errors (#1390)
 
 Solver HTTP 422 is a semantic route rejection. Swap, wrap-enter Swap, Trade and
