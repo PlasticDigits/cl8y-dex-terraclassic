@@ -1,5 +1,7 @@
 # Verification receipt: #1428
 
+
+Implementation: [PR #1432](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1432).
 Issue: [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
 Invariants and repeatable agent procedure: [README.md](README.md),
 [GR1428](../../../skills/AGENTS_GREEDY_REVERSE_SUPPORT.md).

@@ -1,5 +1,7 @@
 # Issue #1428: populated greedy reverse support
 
+
+Implementation: [PR #1432](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1432).
 Issue: [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
 Policy: [GR1428-1–GR1428-8](../../../skills/AGENTS_GREEDY_REVERSE_SUPPORT.md),
 [solver](../../route-solver.md#greedy-reverse-support-1428),

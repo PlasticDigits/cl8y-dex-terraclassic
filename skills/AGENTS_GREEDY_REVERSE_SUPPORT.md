@@ -1,5 +1,7 @@
 # Agent protocol: bounded greedy reverse support (#1428)
 
+
+Implementation: [PR #1432](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1432).
 Apply to router greedy reverse admission, active-book quote failures, provider
 budget claims or rollout. Issue: [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
 Implementation: [router guard](../smartcontracts/contracts/router/src/reverse_query.rs),
