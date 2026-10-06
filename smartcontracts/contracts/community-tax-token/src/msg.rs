@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, HexBinary, Uint128};
 use cw20::{Cw20Coin, Cw20ReceiveMsg, Expiration};
 use cw20_base::msg::InstantiateMarketingInfo;
 
@@ -161,8 +161,15 @@ pub struct MintInit {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Live wasm admin or configured factory governance; null revokes route authority.
+    RotateRouter {
+        router: Option<String>,
+        expected_code_id: Option<u64>,
+        expected_checksum: Option<HexBinary>,
+    },
     /// Authenticated settlement/refund of already taxed route proceeds.
     RouteTransfer {
+        slot: u32,
         recipient: String,
         amount: Uint128,
     },

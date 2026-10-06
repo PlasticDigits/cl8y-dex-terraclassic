@@ -1923,6 +1923,11 @@ verify-issue-1395:
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
 
+# Forgejo #1388 — router trust lifecycle, artifact identity and settlement replay.
+.PHONY: verify-issue-1388
+verify-issue-1388:
+	bash scripts/qa/verify-issue-1388.sh
+
 .PHONY: verify-issue-1394
 verify-issue-1394:
 	bash scripts/verify-issue-1394.sh

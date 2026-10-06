@@ -134,9 +134,11 @@ pub fn transfer(
     token: &Addr,
     recipient: &Addr,
     amount: Uint128,
+    slot: u32,
 ) -> StdResult<CosmosMsg> {
     let msg = if capability(deps, token)?.is_some() {
         to_json_binary(&route_tax::TokenExecuteMsg::RouteTransfer {
+            slot,
             recipient: recipient.to_string(),
             amount,
         })?

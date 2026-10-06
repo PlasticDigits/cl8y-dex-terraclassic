@@ -648,4 +648,6 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 
 - [skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md](skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md) — reserve coverage cannot become false zero/low complete TVL (#1380), Q1380-1–Q1380-9; `make verify-issue-1380`; [review, repair and agent skip policy](docs/qa/issue-1380/README.md).
 
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](docs/runbooks/router-trust-1388.md); `make verify-issue-1388`.
+
 - [Reverse-query availability #1389](skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](docs/qa/issue-1389/README.md).
