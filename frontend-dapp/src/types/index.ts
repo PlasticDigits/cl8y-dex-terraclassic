@@ -455,6 +455,10 @@ export interface IndexerOverview {
   pairs_added_30d?: number
   active_pairs_24h?: number
   unique_traders_24h?: number
+  /** #1391 current hub confidence metadata; spots are permanently advisory. */
+  hub_oracle_grade?: boolean
+  hub_price_policy?: string
+  hub_price_quality?: IndexerHubPriceEntry[]
   /** DEX hub USD (#556). Additive; null when unresolved. */
   custc_price_usd?: string | null
   ust1_price_usd?: string | null
@@ -684,13 +688,26 @@ export interface IndexerOracleTickerCatalogResponse {
 }
 
 export interface IndexerOracleSourcePrice {
+  accepted?: boolean
   source: string
   price_usd: string
   fetched_at: string
 }
 
+/** #1391 certified CEX quote metadata. Optional only for older API deployments. */
+export interface IndexerOracleQuality {
+  quality?: 'fresh' | 'degraded' | 'stale' | 'unavailable'
+  as_of?: string | null
+  age_seconds?: number | null
+  max_age_seconds?: number
+  source_count?: number
+  quorum?: number
+  source_policy?: string
+  accepted_sources?: string[]
+}
+
 /** `GET /api/v1/oracle/price/{ticker}` */
-export interface IndexerOraclePriceResponse {
+export interface IndexerOraclePriceResponse extends IndexerOracleQuality {
   /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
   /** CEX quote asset. Path `vfdusd` is FDUSD, not Terra CW20 vFDUSD (#580). */
@@ -705,6 +722,9 @@ export interface IndexerOraclePriceResponse {
 
 /** Venus Core Pool vFDUSD redeem: human FDUSD per 1 human vFDUSD (not USD). */
 export interface IndexerOracleVenusVfdusd {
+  quality?: string
+  as_of?: string | null
+  max_age_seconds?: number
   fdusd_per_vfdusd: string | null
   source: string
   fetched_at: string | null
@@ -713,6 +733,9 @@ export interface IndexerOracleVenusVfdusd {
 
 /** `GET /api/v1/oracle/history/{ticker}` */
 export interface IndexerOracleHistoryEntry {
+  certified?: boolean
+  source_count?: number
+  source_policy?: string | null
   price_usd: string
   fetched_at: string
 }
@@ -727,6 +750,15 @@ export interface IndexerOracleHistoryResponse {
 }
 
 export interface IndexerHubPriceEntry {
+  /** All hub prices are advisory; bounded_spot does not mean independent fair value. */
+  quality?: string
+  oracle_grade?: boolean
+  policy?: string
+  as_of?: string | null
+  max_age_seconds?: number
+  priced_leg_depth_usd?: string | null
+  divergence_pct?: string | null
+  reference_at?: string | null
   ticker: string
   asset_id?: number | null
   price_usd: string | null

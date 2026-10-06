@@ -37,3 +37,13 @@ CLUNC_LP_BURN_ONLY=1 CLUNC_LP_YES=1 ./scripts/mint-clunc-custc-lp.sh
 - [`AGENTS_REBALANCE_ORACLE_MINT_SWAP_BURN.md`](./AGENTS_REBALANCE_ORACLE_MINT_SWAP_BURN.md) — oracle peg only (no LP), then leftover burn
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — UST1 extra-minter mint + leftover burn
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+## #1391 price-health invariants
+
+Use [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md) for all financial
+price reads. Require fresh allowlisted CEX quorum and timestamps no older than
+300 seconds before planning and every transaction preparation. Recompute after
+more than 1% price movement. `CLUNC_LP_SKIP_CROSS_CHECK=1` affects the extra live
+probe only; it never bypasses the indexer or canonical hub consistency checks.
+Prove failure suppression with `python3 scripts/qa/test-oracle-lp-consumers.py`;
+the test mocks all signing/preparation and sends no transaction.

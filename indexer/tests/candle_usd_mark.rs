@@ -7,7 +7,8 @@ use axum_test::TestServer;
 use bigdecimal::BigDecimal;
 use chrono::{Duration, Utc};
 use cl8y_dex_indexer::config::{
-    DEFAULT_HUB_CUSTC_ADDRESS, DEFAULT_HUB_UST1_ADDRESS, DEFAULT_HUB_USTR_ADDRESS,
+    DEFAULT_HUB_CLUNC_ADDRESS, DEFAULT_HUB_CUSTC_ADDRESS, DEFAULT_HUB_UST1_ADDRESS,
+    DEFAULT_HUB_USTR_ADDRESS,
 };
 use cl8y_dex_indexer::db::queries::{candles, hub_prices, usd_as_of};
 use cl8y_dex_indexer::indexer::candle_builder;
@@ -97,6 +98,48 @@ async fn seed_hub_trio(pool: &sqlx::PgPool) -> HubTrio {
         ust1_custc_pair,
         ust1_custc_addr,
         ust1_ustr_pair,
+    }
+}
+
+// A healthy mark fixture supplies certified observations and distinct reserve
+// samples with an advanced synthetic observation clock; it never disables containment.
+async fn confirmed_hub_fixture(pool: &sqlx::PgPool, lunc: bool) {
+    use cl8y_dex_indexer::{db::queries::oracle, indexer::oracle::OracleTicker};
+    oracle::record_observation(
+        pool,
+        OracleTicker::Ustc,
+        Some(&bd("0.005")),
+        &["kucoin".into(), "mexc".into()],
+        "fresh",
+    )
+    .await
+    .unwrap();
+    if lunc {
+        oracle::record_observation(
+            pool,
+            OracleTicker::Lunc,
+            Some(&bd("0.00005")),
+            &["kucoin".into(), "mexc".into()],
+            "fresh",
+        )
+        .await
+        .unwrap();
+    }
+    let lunc_price = lunc.then(|| bd("0.00005"));
+    for _ in 0..3 {
+        sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()")
+            .execute(pool)
+            .await
+            .unwrap();
+        hub_prices::refresh_hub_prices(pool, &hub_cfg(), Some(&bd("0.005")), lunc_price.as_ref())
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE hub_price_references SET pending_since=pending_since-INTERVAL '61 seconds', last_observed_at=last_observed_at-INTERVAL '61 seconds', reference_at=reference_at-INTERVAL '61 seconds'",
+        )
+        .execute(pool)
+        .await
+        .unwrap();
     }
 }
 
@@ -285,8 +328,8 @@ async fn idle_ustc_tick_writes_mark_bars() {
     let hub = HubQuoteUsd {
         ust1: Some(bd("1")),
         ustr: Some(bd("0.01")),
-            ..Default::default()
-        };
+        ..Default::default()
+    };
 
     let n =
         candle_mark::apply_idle_usd_marks(&pool, &hub_cfg(), now, Some(&bd("0.005")), None, &hub)
@@ -311,7 +354,11 @@ async fn idle_ustc_tick_writes_mark_bars() {
     assert_eq!(c0.volume_quote, bd("0"));
     let human = c0.close_human.as_ref().unwrap();
     assert!((f64_bd(human) - 200.0).abs() < 1e-6, "human {human}");
-    assert!((f64_bd(usd_ref(&c0.close)) - 1.0).abs() < 1e-6, "usd {}", usd_ref(&c0.close));
+    assert!(
+        (f64_bd(usd_ref(&c0.close)) - 1.0).abs() < 1e-6,
+        "usd {}",
+        usd_ref(&c0.close)
+    );
     assert!((invert(usd_ref(&c0.close), human) - 0.005).abs() < 1e-9);
 
     candle_mark::apply_idle_usd_marks(&pool, &hub_cfg(), now, Some(&bd("0.0045")), None, &hub)
@@ -331,7 +378,11 @@ async fn idle_ustc_tick_writes_mark_bars() {
     let c1 = &rows[0];
     assert_eq!(c1.trade_count, 0);
     let human = c1.close_human.as_ref().unwrap();
-    assert!((f64_bd(usd_ref(&c1.close)) - 0.9).abs() < 1e-6, "usd {}", usd_ref(&c1.close));
+    assert!(
+        (f64_bd(usd_ref(&c1.close)) - 0.9).abs() < 1e-6,
+        "usd {}",
+        usd_ref(&c1.close)
+    );
     assert!((invert(usd_ref(&c1.close), human) - 0.0045).abs() < 1e-9);
     assert!(usd_ref(&c1.open) <= usd_ref(&c1.close) || usd_ref(&c1.high) >= usd_ref(&c1.low));
     assert!(usd_ref(&c1.high) >= usd_ref(&c1.low));
@@ -343,7 +394,7 @@ async fn idle_ustr_and_lunc_marks() {
     let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
 
-    let clunc = insert_cw20(&pool, "terra1clunc568", "cLUNC", "cLUNC", 6).await;
+    let clunc = insert_cw20(&pool, DEFAULT_HUB_CLUNC_ADDRESS, "cLUNC", "cLUNC", 6).await;
     let gem = insert_cw20(&pool, "terra1gem568", "GEM", "GEMX", 6).await;
     let lunc_pair = insert_pair(&pool, "terra1gemclunc568", gem, clunc).await;
     sqlx::query(
@@ -355,9 +406,7 @@ async fn idle_ustr_and_lunc_marks() {
     .await
     .unwrap();
 
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg(), Some(&bd("0.005")), Some(&bd("0.00005")))
-        .await
-        .expect("refresh");
+    confirmed_hub_fixture(&pool, true).await;
 
     let ustr_rows = candles::get_candles(
         &pool,
@@ -632,11 +681,11 @@ async fn get_candles_includes_mark_bars() {
 async fn repair_restores_as_of_ustc_oracle() {
     let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
-    let t0 = Utc::now() - Duration::hours(2);
-    let open_time = candle_builder::truncate_to_interval(t0, "1h");
+    let open_time = candle_builder::truncate_to_interval(Utc::now() - Duration::hours(2), "1h");
+    let t0 = open_time + Duration::minutes(1);
     sqlx::query(
-        "INSERT INTO oracle_prices (ticker, price_usd, source, fetched_at)
-         VALUES ('ustc', 0.005, 'average', $1)",
+        "INSERT INTO oracle_prices (ticker, price_usd, source, fetched_at, accepted_sources)
+         VALUES ('ustc', 0.005, 'average', $1, ARRAY['kucoin','mexc'])",
     )
     .bind(open_time - Duration::minutes(1))
     .execute(&pool)
@@ -707,7 +756,7 @@ async fn repair_restores_as_of_ustc_oracle() {
 async fn clunc_ust1_factory_usd_still_tracks_human() {
     let pool = isolated_db().await;
     let _trio = seed_hub_trio(&pool).await;
-    let clunc = insert_cw20(&pool, "terra1cluncust1568", "cLUNC", "cLUNC", 6).await;
+    let clunc = insert_cw20(&pool, DEFAULT_HUB_CLUNC_ADDRESS, "cLUNC", "cLUNC", 6).await;
     let ust1: i32 = sqlx::query_scalar("SELECT id FROM assets WHERE contract_address = $1")
         .bind(DEFAULT_HUB_UST1_ADDRESS)
         .fetch_one(&pool)
@@ -723,9 +772,7 @@ async fn clunc_ust1_factory_usd_still_tracks_human() {
     .await
     .unwrap();
 
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg(), Some(&bd("0.005")), None)
-        .await
-        .expect("refresh");
+    confirmed_hub_fixture(&pool, false).await;
     let hub = cl8y_dex_indexer::db::queries::hub_prices::load_quote_usd(&pool)
         .await
         .expect("hub");
@@ -763,4 +810,123 @@ async fn clunc_ust1_factory_usd_still_tracks_human() {
         implied_ust1 > 0.5 && implied_ust1 < 1.5,
         "implied UST1 USD {implied_ust1}"
     );
+}
+
+/// #1391 historical repair cannot turn stale/uncertified rows or symbol spoofs
+/// into a historical USD price. Certification is relative to the event time.
+#[serial]
+#[tokio::test]
+async fn repair_rejects_stale_uncertified_and_spoofed_oracle_quotes() {
+    let pool = isolated_db().await;
+    let trio = seed_hub_trio(&pool).await;
+    let at = Utc::now() - Duration::hours(2);
+    insert_swap(
+        &pool,
+        trio.ust1_custc_pair,
+        13910,
+        at,
+        "tx1391historical",
+        trio.ust1,
+        trio.custc,
+        &bd("200"),
+        None,
+    )
+    .await;
+    sqlx::query(
+        "INSERT INTO oracle_prices(ticker,price_usd,source,fetched_at,accepted_sources)
+        VALUES('ustc',0.005,'average',$1,ARRAY['kucoin','mexc'])",
+    )
+    .bind(at - Duration::seconds(301))
+    .execute(&pool)
+    .await
+    .unwrap();
+    usd_as_of::repair_ustc_lunc_swap_price_usd(&pool)
+        .await
+        .unwrap();
+    let value: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT price_usd FROM swap_events WHERE tx_hash='tx1391historical'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(value.is_none(), "expired historical quote was reused");
+    sqlx::query(
+        "INSERT INTO oracle_prices(ticker,price_usd,source,fetched_at)
+        VALUES('ustc',0.005,'average',$1)",
+    )
+    .bind(at - Duration::seconds(1))
+    .execute(&pool)
+    .await
+    .unwrap();
+    usd_as_of::repair_ustc_lunc_swap_price_usd(&pool)
+        .await
+        .unwrap();
+    let value: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT price_usd FROM swap_events WHERE tx_hash='tx1391historical'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(value.is_none(), "legacy uncertified average was promoted");
+    sqlx::query(
+        "INSERT INTO oracle_prices(ticker,price_usd,source,fetched_at,accepted_sources)
+        VALUES('ustc',0.005,'average',$1,ARRAY['kucoin','mexc'])",
+    )
+    .bind(at - Duration::seconds(1))
+    .execute(&pool)
+    .await
+    .unwrap();
+    usd_as_of::repair_ustc_lunc_swap_price_usd(&pool)
+        .await
+        .unwrap();
+    let value: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT price_usd FROM swap_events WHERE tx_hash='tx1391historical'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(value, Some(bd("1")));
+    let fake = insert_cw20(&pool, "terra1syntheticspoof1391", "cUSTC", "cUSTC", 6).await;
+    let pair = insert_pair(&pool, "terra1syntheticpair1391", trio.ust1, fake).await;
+    insert_swap(
+        &pool,
+        pair,
+        13911,
+        at,
+        "tx1391spoof",
+        trio.ust1,
+        fake,
+        &bd("200"),
+        None,
+    )
+    .await;
+    usd_as_of::repair_ustc_lunc_swap_price_usd(&pool)
+        .await
+        .unwrap();
+    let value: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT price_usd FROM swap_events WHERE tx_hash='tx1391spoof'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        value.is_none(),
+        "renamed ticker spoof obtained canonical quote"
+    );
+    for is_cw20 in [true, false] {
+        sqlx::query("UPDATE assets SET denom='uusd',is_cw20=$2 WHERE id=$1")
+            .bind(fake)
+            .bind(is_cw20)
+            .execute(&pool)
+            .await
+            .unwrap();
+        usd_as_of::repair_ustc_lunc_swap_price_usd(&pool)
+            .await
+            .unwrap();
+        let value: Option<BigDecimal> =
+            sqlx::query_scalar("SELECT price_usd FROM swap_events WHERE tx_hash='tx1391spoof'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(
+            value.is_none(),
+            "mixed CW20/native flags bypassed exact identity"
+        );
+    }
 }

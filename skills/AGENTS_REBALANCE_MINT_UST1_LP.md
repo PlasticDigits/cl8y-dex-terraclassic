@@ -41,3 +41,8 @@ UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — ingest uses hub_prices for UST1/USTR
 - [`AGENTS_ROTATE_FEE_TREASURY.md`](./AGENTS_ROTATE_FEE_TREASURY.md) — CMM fee sink (not LP)
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

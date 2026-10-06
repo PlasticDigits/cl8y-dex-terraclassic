@@ -162,8 +162,13 @@ pub async fn refresh_daily_assets(
         .fetch_one(pool)
         .await?;
 
-        let price: Option<BigDecimal> = sqlx::query_scalar(
-            "SELECT price_usd FROM hub_prices WHERE ticker = $1 AND price_usd > 0",
+        let price: Option<(BigDecimal, DateTime<Utc>)> = sqlx::query_as(
+            "SELECT price_usd, as_of FROM hub_prices WHERE ticker = $1 AND price_usd > 0
+             AND quality IN ('bounded_spot','external_quorum')
+             AND as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()
+             AND EXISTS (SELECT 1 FROM oracle_state os WHERE os.ticker = 'ustc'
+                 AND os.quality = 'fresh' AND cardinality(os.accepted_sources) >= 2
+                 AND os.as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW())",
         )
         .bind(*ticker)
         .fetch_optional(pool)
@@ -173,8 +178,8 @@ pub async fn refresh_daily_assets(
             r#"
             INSERT INTO defillama_daily_assets
                 (utc_day, ticker, volume_usd, trade_count, unpriced_trade_count,
-                 fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL)
+                 fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw, price_as_of)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10)
             "#,
         )
         .bind(utc_day)
@@ -185,7 +190,8 @@ pub async fn refresh_daily_assets(
         .bind(fees.amount_usd.unwrap_or_else(|| BigDecimal::from(0)))
         .bind(fees.event_count)
         .bind(fees.unpriced_count)
-        .bind(price)
+        .bind(price.as_ref().map(|p|p.0.clone()))
+        .bind(price.map(|p|p.1))
         .execute(pool)
         .await?;
     }

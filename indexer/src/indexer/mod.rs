@@ -11,6 +11,7 @@ pub mod economic_usd;
 pub mod event_amount;
 pub mod fee_discount_registry_health;
 pub mod gt_event_reserves;
+pub mod hub_guard;
 pub mod hub_usd;
 pub mod listing_exclude;
 pub mod oracle;

@@ -34,6 +34,8 @@ pub struct EconomicMark {
     pub source_pair_id: i32,
     pub source_pair_address: String,
     pub tvl_usd: BigDecimal,
+    pub as_of: DateTime<Utc>,
+    pub anchor_ticker: String,
 }
 
 fn addr_eq(a: &str, b: &str) -> bool {
@@ -170,6 +172,8 @@ struct Candidate {
     pair_address: String,
     price_usd: BigDecimal,
     tvl_usd: BigDecimal,
+    as_of: DateTime<Utc>,
+    anchor_ticker: String,
     asset_id: i32,
 }
 
@@ -198,8 +202,20 @@ pub fn resolve_economic_marks(
             continue;
         }
         let orientations = [
-            (&pair.asset_0, &pair.asset_1, &pair.reserve_0, &pair.reserve_1, true),
-            (&pair.asset_1, &pair.asset_0, &pair.reserve_1, &pair.reserve_0, false),
+            (
+                &pair.asset_0,
+                &pair.asset_1,
+                &pair.reserve_0,
+                &pair.reserve_1,
+                true,
+            ),
+            (
+                &pair.asset_1,
+                &pair.asset_0,
+                &pair.reserve_1,
+                &pair.reserve_0,
+                false,
+            ),
         ];
         for (token, other, r_token, r_other, token_is_0) in orientations {
             if !is_economic_fee_token(token, cfg) {
@@ -231,6 +247,27 @@ pub fn resolve_economic_marks(
                 pair_address: pair.pair_address.clone(),
                 price_usd: token_usd,
                 tvl_usd: tvl,
+                anchor_ticker: if is_hub_custc(other, cfg) {
+                    "custc"
+                } else if is_hub_clunc(other, cfg) {
+                    "lunc"
+                } else if is_hub_ust1(other, cfg) {
+                    "ust1"
+                } else {
+                    "ustr"
+                }
+                .into(),
+                as_of: [
+                    (&snap.custc, is_hub_custc(other, cfg)),
+                    (&snap.lunc, is_hub_clunc(other, cfg)),
+                    (&snap.ust1, is_hub_ust1(other, cfg)),
+                    (&snap.ustr, is_hub_ustr(other, cfg)),
+                ]
+                .into_iter()
+                .find(|(_, matches)| *matches)
+                .and_then(|(mark, _)| mark.as_ref().and_then(|m| m.as_of))
+                .map(|at| at.min(pair.snapshot_at))
+                .unwrap_or(pair.snapshot_at),
                 asset_id: token.id,
             });
         }
@@ -246,6 +283,8 @@ pub fn resolve_economic_marks(
                 source_pair_id: best.pair_id,
                 source_pair_address: best.pair_address,
                 tvl_usd: best.tvl_usd,
+                as_of: best.as_of,
+                anchor_ticker: best.anchor_ticker,
             });
         }
     }
@@ -347,6 +386,8 @@ mod tests {
             source_pair_id: None,
             source_pair_address: None,
             tvl_usd: None,
+            priced_leg_depth_usd: None,
+            as_of: None,
         });
         snap
     }
@@ -365,7 +406,12 @@ mod tests {
         let c = cfg();
         let cl8y = cw20(4, "CL8Y-cb", 6, crate::config::DEFAULT_HUB_CL8Y_ADDRESS);
         assert!(is_economic_fee_token(&cl8y, &c));
-        let other = cw20(5, "NEON", 6, "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        let other = cw20(
+            5,
+            "NEON",
+            6,
+            "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
         assert!(is_economic_fee_token(&other, &c));
     }
 
@@ -374,7 +420,12 @@ mod tests {
         let c = cfg();
         let ember = cw20(8, "UST1", 6, COLUMBUS5_GEM_ADDRESSES[0]);
         assert!(!is_economic_fee_token(&ember, &c));
-        let local_gem = cw20(9, "EMBER", 6, "terra1localemberxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        let local_gem = cw20(
+            9,
+            "EMBER",
+            6,
+            "terra1localemberxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
         assert!(!is_economic_fee_token(&local_gem, &c));
     }
 
@@ -383,7 +434,12 @@ mod tests {
         let c = cfg();
         let v = cw20(3, "vFDUSD", 6, DEFAULT_VFDUSD_ADDRESS);
         assert!(!is_economic_fee_token(&v, &c));
-        let fd = cw20(3, "FDUSD", 6, "terra1fdusdxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        let fd = cw20(
+            3,
+            "FDUSD",
+            6,
+            "terra1fdusdxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
         assert!(!is_economic_fee_token(&fd, &c));
         assert!(is_vfdusd_identity("VFDUSD", None));
     }
@@ -453,7 +509,12 @@ mod tests {
         let now = Utc::now();
         let c = cfg();
         let cl8y = cw20(4, "CL8Y", 6, crate::config::DEFAULT_HUB_CL8Y_ADDRESS);
-        let onyx = cw20(8, "NEON", 6, "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        let onyx = cw20(
+            8,
+            "NEON",
+            6,
+            "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
         let only = pair(
             50,
             "terra1circ",
@@ -484,15 +545,7 @@ mod tests {
             "10000000000",
             old,
         );
-        let empty = pair(
-            52,
-            "terra1emptycl8y",
-            ust1,
-            cl8y,
-            "0",
-            "10000000000",
-            now,
-        );
+        let empty = pair(52, "terra1emptycl8y", ust1, cl8y, "0", "10000000000", now);
         let snap = snap_with_hub(now, &[stale.clone(), empty.clone()]);
         let marks = resolve_economic_marks(now, &c, &[stale, empty], &snap);
         assert!(marks.is_empty());
@@ -502,7 +555,12 @@ mod tests {
     fn other_listed_economic_not_cl8y_only() {
         let now = Utc::now();
         let c = cfg();
-        let neon = cw20(5, "NEON", 6, "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        let neon = cw20(
+            5,
+            "NEON",
+            6,
+            "terra1listedeconomicxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
         let ust1 = cw20(1, "UST1", 6, "terra1ust1");
         let p = pair(
             60,

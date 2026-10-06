@@ -28,6 +28,11 @@ async fn insert_oracle(pool: &sqlx::PgPool, ticker: &str, price: &BigDecimal) {
     .execute(pool)
     .await
     .expect("oracle");
+    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of,observed_at)
+       VALUES($1,$2,'fresh',ARRAY['mexc','kucoin'],NOW(),NOW()) ON CONFLICT(ticker)
+       DO UPDATE SET price_usd=EXCLUDED.price_usd,quality='fresh',accepted_sources=EXCLUDED.accepted_sources,
+         as_of=NOW(),observed_at=NOW()")
+       .bind(ticker).bind(price).execute(pool).await.unwrap();
 }
 
 #[serial]
@@ -61,8 +66,8 @@ async fn i1_ust1_ustr_volume_usd_and_overview_sum() {
     .unwrap();
 
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
-         VALUES ('ustr', $1, 0.01, NOW())",
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at,as_of,quality)
+         VALUES ('ustr', $1, 0.01, NOW(),NOW(),'bounded_spot')",
     )
     .bind(ustr)
     .execute(&pool)
@@ -343,8 +348,8 @@ async fn raw_18_decimal_volume_does_not_overflow_global_stats() {
 
     insert_oracle(&pool, "ustc", &bd("0.004878")).await;
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
-         VALUES ('ustr', $1, 0.01, NOW())",
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at,as_of,quality)
+         VALUES ('ustr', $1, 0.01, NOW(),NOW(),'bounded_spot')",
     )
     .bind(ustr)
     .execute(&pool)

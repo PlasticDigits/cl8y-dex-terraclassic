@@ -77,3 +77,12 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 | `UST1_LP_ADMIN_KEY` / `UST1_LP_ADMIN_ADDR` | Hot wallet |
 | `ORACLE_RB_SWAP_MAX_SPREAD` | Pool swap `max_spread` (default `0.20`) |
 | `ORACLE_RB_SWAP_GAS` | Gas limit on the atomic multi-msg swap tx (default `3000000`) |
+
+## Oracle safety (#1391)
+
+Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks
+before transaction preparation abort degraded inputs or >1% movement from the
+plan. Manual numeric oracle overrides are **dry-run only**; they cannot fabricate
+healthy live observations. See [policy and agent checklist](../qa/issue-1391/README.md)
+and [agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md). Strategy seed ratios
+remain explicit strategy assumptions, not certified hub prices.

@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal, getcontext
 from typing import Any
 
+from oracle_safety import validate_quote
+
 getcontext().prec = 80
 
 # Live LUNC is ~5e-5. Far outside this band is a ticker/oracle mixup.
@@ -43,51 +45,20 @@ def human_from_raw(raw: int, decimals: int) -> Decimal:
 
 
 def parse_oracle(payload: dict[str, Any], max_age_sec: int) -> dict[str, Any]:
-    errors: list[str] = []
-    if payload.get("ticker") != "lunc":
-        errors.append(f"indexer ticker {payload.get('ticker')!r} != 'lunc'")
-    px = payload.get("price_usd")
-    if px in (None, ""):
-        errors.append("indexer lunc price_usd empty")
-        return {"ok": False, "errors": errors}
-
     try:
-        lunc_usd = _d(px)
-    except Exception as exc:
-        return {"ok": False, "errors": [f"bad price_usd {px!r}: {exc}"]}
-
-    if lunc_usd <= 0:
-        errors.append(f"LUNC/USD {lunc_usd} is not positive")
-    elif lunc_usd < LUNC_USD_MIN or lunc_usd > LUNC_USD_MAX:
-        errors.append(
-            f"LUNC/USD {lunc_usd} outside sanity band [{LUNC_USD_MIN}, {LUNC_USD_MAX}]"
-        )
-
-    avg_at = None
-    for src in payload.get("sources") or []:
-        if src.get("source") == "average":
-            avg_at = src.get("fetched_at")
-            break
-    age_sec: float | None = None
-    if avg_at:
-        raw_ts = str(avg_at).replace("Z", "+00:00")
-        try:
-            dt = datetime.fromisoformat(raw_ts)
-        except ValueError:
-            errors.append(f"unparseable fetched_at {avg_at!r}")
-        else:
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            age_sec = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds()
-            if age_sec > max_age_sec:
-                errors.append(f"indexer lunc average is {int(age_sec)}s old (max {max_age_sec})")
-
+        lunc_usd = validate_quote(payload, "lunc", max_age_seconds=max_age_sec)
+        if lunc_usd < LUNC_USD_MIN or lunc_usd > LUNC_USD_MAX:
+            raise ValueError(f"LUNC/USD {lunc_usd} outside sanity band")
+    except (ValueError, TypeError, KeyError) as exc:
+        return {"ok": False, "errors": [str(exc)]}
+    as_of = payload["as_of"]
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(as_of.replace("Z", "+00:00"))).total_seconds()
     return {
-        "ok": not errors,
+        "ok": True,
         "lunc_usd": str(lunc_usd),
-        "fetched_at": avg_at,
-        "age_sec": None if age_sec is None else int(age_sec),
-        "errors": errors,
+        "fetched_at": as_of,
+        "age_sec": int(age),
+        "errors": [],
     }
 
 
@@ -202,21 +173,8 @@ def self_test() -> None:
     bad_px = size({"usd_each": "1000", "lunc_usd": "1", "usdt_usd": "1"})
     assert bad_px["ok"] is False
 
-    oracle = parse_oracle(
-        {
-            "ticker": "lunc",
-            "price_usd": str(px),
-            "sources": [
-                {
-                    "source": "average",
-                    "price_usd": str(px),
-                    "fetched_at": datetime.now(timezone.utc).isoformat(),
-                }
-            ],
-        },
-        1800,
-    )
-    assert oracle["ok"] is True, oracle
+    # A numeric legacy quote cannot satisfy the source-health contract.
+    assert parse_oracle({"ticker": "lunc", "price_usd": str(px)}, 300)["ok"] is False
     assert not price_moved(px, px, "0.01")
     assert price_moved(px, px * Decimal("1.02"), "0.01")
     print("clunc-usdt-lp-math self-test OK")

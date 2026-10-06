@@ -431,10 +431,10 @@ pub async fn backfill_swap_volume_usd(pool: &PgPool) -> Result<u64, sqlx::Error>
     let res = sqlx::query(
         r#"
 WITH latest_oracle AS (
-    SELECT DISTINCT ON (ticker) ticker, price_usd
-    FROM oracle_prices
-    WHERE source = 'average'
-    ORDER BY ticker, fetched_at DESC
+    SELECT ticker, price_usd FROM oracle_state
+    WHERE quality = 'fresh' AND cardinality(accepted_sources) >= 2
+      AND price_usd BETWEEN 0.000000000001 AND 1000000
+      AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()
 ),
 ustc AS (
     SELECT price_usd FROM latest_oracle WHERE ticker = 'ustc'
@@ -451,16 +451,17 @@ catalog AS (
             WHEN a.denom = 'uluna' THEN (SELECT price_usd FROM lunc)
             WHEN NOT a.is_cw20 AND a.denom IS NOT NULL AND a.denom NOT IN ('uusd', 'uluna') THEN NULL
             WHEN hp.price_usd IS NOT NULL AND hp.price_usd > 0 THEN hp.price_usd
-            WHEN UPPER(a.symbol) IN ('USTC', 'CUSTC')
-                 AND (a.denom = 'uusd' OR a.contract_address IS NOT NULL)
+            WHEN a.is_cw20 AND a.denom IS NULL AND a.contract_address = $1
                 THEN (SELECT price_usd FROM ustc)
-            WHEN UPPER(a.symbol) IN ('LUNC', 'CLUNC')
-                 AND (a.denom = 'uluna' OR a.contract_address IS NOT NULL)
+            WHEN a.is_cw20 AND a.denom IS NULL AND a.contract_address = $2
                 THEN (SELECT price_usd FROM lunc)
             ELSE NULL
         END AS usd_per_human
     FROM assets a
     LEFT JOIN hub_prices hp ON hp.asset_id = a.id
+      AND hp.quality IN ('bounded_spot', 'external_quorum')
+      AND hp.as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()
+      AND EXISTS (SELECT 1 FROM latest_oracle WHERE ticker = CASE WHEN hp.ticker = 'lunc' THEN 'lunc' ELSE 'ustc' END)
 ),
 priced AS (
     SELECT
@@ -497,6 +498,8 @@ FROM priced pr
 WHERE se.id = pr.id
 "#,
     )
+    .bind(std::env::var("HUB_CUSTC_ADDRESS").unwrap_or_else(|_| crate::config::DEFAULT_HUB_CUSTC_ADDRESS.into()))
+    .bind(std::env::var("HUB_CLUNC_ADDRESS").unwrap_or_else(|_| crate::config::DEFAULT_HUB_CLUNC_ADDRESS.into()))
     .execute(pool)
     .await?;
     super::traders::refresh_trader_total_volume_usd(pool).await?;
