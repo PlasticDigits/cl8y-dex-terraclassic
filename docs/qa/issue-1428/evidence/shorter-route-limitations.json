@@ -1,0 +1,1026 @@
+{
+  "scope": "Exploratory integrated router1.4.0 limitations; not final acceptance or production evidence",
+  "baseline_fixture": "book-matrix-before-fix.json",
+  "node": {
+    "container": "cl8y-dex-issue1428-matrix",
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "terrad_version": {
+      "build_tags": "netgo ledger,",
+      "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+      "cosmos_sdk_version": "v0.53.6",
+      "go": "go version go1.24.13 linux/amd64",
+      "name": "terra",
+      "version": "4.0.1"
+    },
+    "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+    "wasm_query_gas_limit": 15000000
+  },
+  "router_version": {
+    "contract": "cl8y-dex-router",
+    "version": "1.4.0"
+  },
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "onchain_sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "e2fd993e21bdd7208a1f3592a78325c659023bbbb65cce7763328f15eddd6515",
+      "onchain_sha256": "e2fd993e21bdd7208a1f3592a78325c659023bbbb65cce7763328f15eddd6515"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "0c58a6c907393a695a3331da15e6f162a7e1ef615658f3fa221fbae494d1934c",
+      "onchain_sha256": "0c58a6c907393a695a3331da15e6f162a7e1ef615658f3fa221fbae494d1934c"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "checks": [
+    {
+      "backwards": false,
+      "hops": 1,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15039539: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": false,
+      "hops": 2,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15030070: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": false,
+      "hops": 3,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15039492: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": true,
+      "hops": 1,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15008250: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": true,
+      "hops": 2,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15000437: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": true,
+      "hops": 3,
+      "status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15008407: out of gas: unknown request\n",
+      "scope": "100 human units",
+      "max_maker_fills": 100,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "backwards": false,
+      "hops": 1,
+      "response": {
+        "amount": "991587"
+      },
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "backwards": false,
+      "hops": 2,
+      "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": false,
+      "hops": 3,
+      "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": true,
+      "hops": 1,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15004879: out of gas: unknown request\n",
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": true,
+      "hops": 2,
+      "error": "Error: rpc error: code = Unknown desc = Error calling the VM: Error executing Wasm: Wasmer runtime error: RuntimeError: Ran out of gas during contract execution: wasmvm error: unknown request\n",
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": true,
+      "hops": 3,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15005038: out of gas: unknown request\n",
+      "scope": "1 human unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": false,
+      "hops": 1,
+      "response": {
+        "amount": "1"
+      },
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "backwards": false,
+      "hops": 2,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15013562: out of gas: unknown request\n",
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": false,
+      "hops": 3,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15000690: out of gas: unknown request\n",
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra13yf2vxas6m58wetjt8g2w5wv0u0hj6vqfyjv68qkswrddjvkms8qe22wlu"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": true,
+      "hops": 1,
+      "response": {
+        "amount": "1"
+      },
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "backwards": true,
+      "hops": 2,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15000812: out of gas: unknown request\n",
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    },
+    {
+      "backwards": true,
+      "hops": 3,
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15040572: out of gas: unknown request\n",
+      "scope": "1 raw unit",
+      "max_maker_fills": 8,
+      "contract": "terra1xakvezxsqzlz3t5u534n6ql07clvzvwx640hd6qy9heua6wvccmsx4ynhp",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "1",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra146ypndztcmmrmyxef7e20cul82gh43vjnw4uacwdvg5sp9kva7sqc9mjav"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra19vh4hxgjpx5cyvu3gxcp30twwvaqyjkmtf93e4qamxlz2pf733mq03zjks"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1r4x3lvn20vpls2ammp4ch5z08nge6h77p43ktl04efptgqxgl0qscwvhwm"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 8
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "status": "FAIL"
+    }
+  ],
+  "probe_scope": "No probe receipts collected in exploratory requests; no measured gas claim"
+}

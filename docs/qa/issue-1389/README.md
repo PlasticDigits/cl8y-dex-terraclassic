@@ -41,12 +41,20 @@ RUSTFLAGS='-C link-arg=--allow-undefined -C target-cpu=mvp' cargo +1.81.0 build 
   --manifest-path scripts/qa/fixtures/reverse-query-probe/Cargo.toml \
   --release --target wasm32-unknown-unknown --locked
 python3 scripts/qa/localterra-reverse-1389.py \
+  --container cl8y-dex-issue1428-matrix --router-version 1.5.0 \
+  --expect-four-hop-greedy-rejection \
   --code-cache /tmp/issue1389-code-cache.json \
   --evidence-file /tmp/issue1389-gas-first.json
 python3 scripts/qa/localterra-reverse-1389.py \
+  --container cl8y-dex-issue1428-matrix --router-version 1.5.0 \
+  --expect-four-hop-greedy-rejection \
   --code-cache /tmp/issue1389-code-cache.json \
   --evidence-file /tmp/issue1389-gas-retest.json
 ```
+
+For current artifacts, provision the dedicated pinned 15M node described in
+[#1428 QA](../issue-1428/README.md) before these commands; do not raise a shared
+provider limit. #1428 supersedes the earlier four-hop greedy support claim.
 
 Each run funds a unique LocalTerra test signer, avoiding shared-account nonce
 contention after bootstrap. Only a rejected bootstrap sequence mismatch may be
@@ -65,7 +73,7 @@ production gas recommendation. Keep its fixture Wasm out of release artifacts.
 - [ ] **AC2:** Run declared reverse tests for large empty/exhausted/active books, both orientations and integer plateaus. Supported successes must be sufficient, with insufficient predecessor where minimum is claimed. Impossible or unprovable targets must terminate with stable errors within 32 calls. Record the support limits; universal book feasibility is not promised.
 - [ ] **AC3:** Run exact-output admission tests and real API tests: one noisy socket peer plus distinct peers, shared endpoint capacity, header spoofing, mapped IPv6, missing metadata, cancellation/timeout/error recovery and bounded retained state. Observe invalid horizons must error without panic. Review proxy/NAT deployment restriction.
 - [ ] **AC4:** Run receive-state/service tests while disconnected and after previously executable connected quotes. Budget/429/504 errors preserve Receive, clear Pay and block cached operations/signing. Confirm no deterministic retry/fallback or wallet resend, and unchanged fair-reference, spread/minimum, tax, pause and balance protections.
-- [ ] **Gas:** Run the isolated harness twice on final optimized pair/router artifacts; record hashes, versions, receipt gas and scope. Four-hop empty/full capped-book cases may succeed sufficiently or intentionally return budget errors. Do not claim the synthetic samples cover every 500-scan book shape.
+- [ ] **Gas:** Run the isolated harness twice on final optimized pair/router artifacts; record hashes, versions, receipt gas and scope. Four-hop pool cases must remain sufficient. Any four-hop reverse containing greedy (empty or populated) now returns `GREEDY_REVERSE_ROUTE_UNSUPPORTED` before external queries; shorter admitted routes retain sufficiency/budget checks. Do not claim the synthetic samples cover every 500-scan book shape.
 - [ ] **Regression:** Run both verifiers, contract workspace and lint/types; read docs and agent crosslinks. Record all PASS/FAIL/SKIP and any pre-existing unrelated failures honestly.
 - [ ] **Production:** Separately verify deployed revisions, pair inventory/factory pointer, migrations and proxy peer configuration before claiming production acceptance. Skip with explicit reason when no deployment is performed.
 
@@ -84,3 +92,5 @@ executed failures remain FAIL; later gas cases were not reached. Work-count
 bounds and successful empty-book samples cannot establish populated-book
 feasibility. Preserve the raw receipts, do not increase ceilings or accept a
 failed assertion as a skip, and leave that support envelope unverified.
+
+The router 1.5.0 support policy and integrated 1.4.0 reproduction are documented in [#1428](../issue-1428/README.md). Historical failures above remain FAIL; bounded deterministic admission supersedes the unsupported four-hop greedy shape.

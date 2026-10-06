@@ -56,6 +56,7 @@ chain() {
     --container "${VERIFY_ISSUE_1422_CONTAINER:-cl8y-dex-issue1422-localterra}" \
     --node-home "${VERIFY_ISSUE_1422_NODE_HOME:-/home/terra/.terra}" \
     --artifacts "${VERIFY_ISSUE_1422_ARTIFACTS:-smartcontracts/artifacts}" \
+    --router-version "${VERIFY_ISSUE_1422_ROUTER_VERSION:-1.4.0}" \
     --probe "${VERIFY_ISSUE_1422_PROBE:-scripts/qa/fixtures/reverse-query-probe/target/wasm32-unknown-unknown/release/reverse_query_probe.wasm}" \
     --code-cache "${VERIFY_ISSUE_1422_CODE_CACHE:-/tmp/dex-1422-codes.json}" \
     --evidence-file "$evidence" "${args[@]}"

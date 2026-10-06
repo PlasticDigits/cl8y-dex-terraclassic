@@ -1,0 +1,14 @@
+{
+  "scope": "Independent test-only query probe and frozen mintable fixture dependency; not release contracts",
+  "compiler": "rustc1.81.0",
+  "command": "CARGO_TARGET_DIR=/dev/shm/dex1428-probe-target RUSTFLAGS='-C link-arg=--allow-undefined -C target-cpu=mvp' cargo +1.81.0 build --locked --manifest-path scripts/qa/fixtures/reverse-query-probe/Cargo.toml --release --target wasm32-unknown-unknown",
+  "inputs_and_outputs": {
+    "scripts/qa/fixtures/reverse-query-probe/Cargo.toml": "e41502362e0e60bd4d7319cb955ab6bd62e5c0306fa55430110f02dea8eb7490",
+    "scripts/qa/fixtures/reverse-query-probe/Cargo.lock": "0565e44250cc0e2f2cd45bf334f4c6eca336f4fa3a8d7c17f1652f1ad98d73bd",
+    "scripts/qa/fixtures/reverse-query-probe/src/lib.rs": "bd68a022a3a13e377351f79c8727a7e24d886c0d8ad5c752c9eee3bf50a40097",
+    "scripts/qa/fixtures/reverse-query-probe/target/wasm32-unknown-unknown/release/reverse_query_probe.wasm": "38967ab66441e3b2fbdf330233f39b5797ab38d57ba9bce643457fa9ac69762f",
+    "smartcontracts/artifacts/cw20_mintable.wasm": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+  },
+  "baseline_probe_sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d",
+  "note": "Probe binaries embed Cargo registry source paths; fresh build has a distinct hash. Record each fixture probe code hash; never compare wrapper gas as an exact LCD meter reading."
+}

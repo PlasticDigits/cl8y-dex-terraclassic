@@ -36,6 +36,15 @@ Run `make verify-issue-1422`; [agent checklist and explicit skip policy](docs/qa
 Work-count limits do not establish a provider gas envelope; actual 3M smart-query
 success and overhead-scoped probe receipts remain distinct from production rollout.
 
+## Greedy reverse support
+
+For router greedy reverse admission or populated-book provider failures, follow
+[skills/AGENTS_GREEDY_REVERSE_SUPPORT.md](skills/AGENTS_GREEDY_REVERSE_SUPPORT.md)
+(**GR1428-1–GR1428-8**, [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428)).
+Run `make verify-issue-1428`; use the [agent checklist and explicit skip policy](docs/qa/issue-1428/README.md).
+Greedy reverse has at most three total hops; provider gas evidence remains separate
+from simulation counts and production rollout.
+
 ## Current route-tax protocol
 
 For routed community-tax swaps, use

@@ -1,0 +1,2806 @@
+{
+  "utc": "2026-10-06T07:20:12.480737+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "gas_scope": "probe transaction including transaction/wrapper overhead; actual smart-query outcomes separately recorded",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "onchain_sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "e2fd993e21bdd7208a1f3592a78325c659023bbbb65cce7763328f15eddd6515",
+      "onchain_sha256": "e2fd993e21bdd7208a1f3592a78325c659023bbbb65cce7763328f15eddd6515"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "0c58a6c907393a695a3331da15e6f162a7e1ef615658f3fa221fbae494d1934c",
+      "onchain_sha256": "0c58a6c907393a695a3331da15e6f162a7e1ef615658f3fa221fbae494d1934c"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "probe_code": {
+    "code_id": 6,
+    "sha256": "38967ab66441e3b2fbdf330233f39b5797ab38d57ba9bce643457fa9ac69762f",
+    "onchain_sha256": "38967ab66441e3b2fbdf330233f39b5797ab38d57ba9bce643457fa9ac69762f"
+  },
+  "factory": "terra1xq7yffwchsu2ldw3lukgzcncryva7wt35gv9cr59wt6ts2ktknwq88zlwn",
+  "router": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+  "pairs": [
+    "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+    "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+    "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+    "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7"
+  ],
+  "pair_versions": {
+    "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.21.0"
+    },
+    "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.21.0"
+    },
+    "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.21.0"
+    },
+    "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.21.0"
+    }
+  },
+  "router_version": {
+    "contract": "cl8y-dex-router",
+    "version": "1.4.0"
+  },
+  "expected_router_version": "1.4.0",
+  "tokens": [
+    "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq",
+    "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd",
+    "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f",
+    "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee",
+    "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+  ],
+  "decimals": [
+    6,
+    18,
+    6,
+    18,
+    6
+  ],
+  "checks": [
+    {
+      "label": "empty pool 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 933653,
+        "height": "7329",
+        "txhash": "2a57c626e54a97441bb16e2649912690ab3936c20120bdcf0e9c3a12fab36b4b",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 933653,
+      "height": "7329",
+      "txhash": "2a57c626e54a97441bb16e2649912690ab3936c20120bdcf0e9c3a12fab36b4b",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "101249860"
+      },
+      "probe": {
+        "gas_used": 2381740,
+        "height": "7333",
+        "txhash": "fe0def87edcbeaf2cb4253fc7ef18bd1450d676301f227bd736331258ba83e1f",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 2381740,
+      "height": "7333",
+      "txhash": "fe0def87edcbeaf2cb4253fc7ef18bd1450d676301f227bd736331258ba83e1f",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 1086053,
+        "height": "7337",
+        "txhash": "a4a990ff18b4813416ca7a43df11c21a12ff8383e70a78dc6dc062c20cd86015",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 1086053,
+      "height": "7337",
+      "txhash": "a4a990ff18b4813416ca7a43df11c21a12ff8383e70a78dc6dc062c20cd86015",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "101249860"
+      },
+      "probe": {
+        "gas_used": 2990942,
+        "height": "7341",
+        "txhash": "5a5801d3ad5da589cba7271330f2c0870a56f377abcdc68aad32e8ee6d5feab8",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 2990942,
+      "height": "7341",
+      "txhash": "5a5801d3ad5da589cba7271330f2c0870a56f377abcdc68aad32e8ee6d5feab8",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 947283,
+        "height": "7350",
+        "txhash": "29777ee01c428e9e931af8fc7122129712ec9e13abf90082d3d5ae673431e80b",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 947283,
+      "height": "7350",
+      "txhash": "29777ee01c428e9e931af8fc7122129712ec9e13abf90082d3d5ae673431e80b",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100622926"
+      },
+      "probe": {
+        "gas_used": 1443444,
+        "height": "7355",
+        "txhash": "c7394d30240157ea79cd3e7d4becde621d81f6c6924a1dec674bf6b69d2bc02e",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 1443444,
+      "height": "7355",
+      "txhash": "c7394d30240157ea79cd3e7d4becde621d81f6c6924a1dec674bf6b69d2bc02e",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+      "probe": {
+        "gas_used": 1371679,
+        "height": "7361",
+        "txhash": "55a0d346aa953c96994ba8ed8772cd5971f7d3dd8f85eb7b36c760407345454d",
+        "query_status": "error",
+        "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed",
+        "code": 0
+      },
+      "gas_used": 1371679,
+      "height": "7361",
+      "txhash": "55a0d346aa953c96994ba8ed8772cd5971f7d3dd8f85eb7b36c760407345454d",
+      "query_status": "error",
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 933652,
+        "height": "7369",
+        "txhash": "4d7797fc7246c268be099b6371b7b8da53a7dd7acfc5e99b1cbda3a8df405f41",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 933652,
+      "height": "7369",
+      "txhash": "4d7797fc7246c268be099b6371b7b8da53a7dd7acfc5e99b1cbda3a8df405f41",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "101249860"
+      },
+      "probe": {
+        "gas_used": 2381733,
+        "height": "7373",
+        "txhash": "1b740c5975b196d7f15dacfd5c4fc30ef167b4bdad6a955360ef0ce913dfcff9",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 2381733,
+      "height": "7373",
+      "txhash": "1b740c5975b196d7f15dacfd5c4fc30ef167b4bdad6a955360ef0ce913dfcff9",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 1086042,
+        "height": "7377",
+        "txhash": "bf88d1a5c1d9e1a7eb9cfa9b666eb749b0c274f1cd6c75a29ea8de6b95339192",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 1086042,
+      "height": "7377",
+      "txhash": "bf88d1a5c1d9e1a7eb9cfa9b666eb749b0c274f1cd6c75a29ea8de6b95339192",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "101249860"
+      },
+      "probe": {
+        "gas_used": 2990895,
+        "height": "7380",
+        "txhash": "34605e854c8c150de5ce659296e32ce8705b2a288d2c09faea9d95d3332d53a0",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 2990895,
+      "height": "7380",
+      "txhash": "34605e854c8c150de5ce659296e32ce8705b2a288d2c09faea9d95d3332d53a0",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100310964"
+      },
+      "probe": {
+        "gas_used": 947272,
+        "height": "7384",
+        "txhash": "d11f3ada50f4a28d250b33a88f798fc5c20f8e018890ee0ae88897c1b54cf59d",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 947272,
+      "height": "7384",
+      "txhash": "d11f3ada50f4a28d250b33a88f798fc5c20f8e018890ee0ae88897c1b54cf59d",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100622926"
+      },
+      "probe": {
+        "gas_used": 1443421,
+        "height": "7389",
+        "txhash": "151c4370bd8f03df26afee6e15ab078f41354e56dd2c5d90541364071af1d4c3",
+        "query_status": "ok",
+        "error": null,
+        "code": 0
+      },
+      "gas_used": 1443421,
+      "height": "7389",
+      "txhash": "151c4370bd8f03df26afee6e15ab078f41354e56dd2c5d90541364071af1d4c3",
+      "query_status": "ok",
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "1",
+                  "book_input": "1",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+      "probe": {
+        "gas_used": 1371664,
+        "height": "7395",
+        "txhash": "92412794d68791b1041b7ca3e623ddc7585bf95b5fdba542a45221ac64e3d3d3",
+        "query_status": "error",
+        "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed",
+        "code": 0
+      },
+      "gas_used": 1371664,
+      "height": "7395",
+      "txhash": "92412794d68791b1041b7ca3e623ddc7585bf95b5fdba542a45221ac64e3d3d3",
+      "query_status": "error",
+      "status": "PASS"
+    },
+    {
+      "label": "full greedy four-hop provider gas failure reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15030236: out of gas: unknown request\n",
+      "probe": {
+        "gas_used": 12019418,
+        "height": "7430",
+        "txhash": "0384f3e181db81ec5efa9a8f56f61f17614bb9ca34bcf633a3bf990ab171ac9e",
+        "query_status": "transaction_error",
+        "error": "out of gas in location: wasm contract; gasWanted: 12000000, gasUsed: 12019418: out of gas",
+        "code": 11
+      },
+      "gas_used": 12019418,
+      "height": "7430",
+      "txhash": "0384f3e181db81ec5efa9a8f56f61f17614bb9ca34bcf633a3bf990ab171ac9e",
+      "query_status": "transaction_error",
+      "status": "FAIL",
+      "baseline_regression": "REPRODUCED"
+    },
+    {
+      "label": "full greedy four-hop provider gas failure reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "query": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "100000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15000280: out of gas: unknown request\n",
+      "probe": {
+        "gas_used": 12000095,
+        "height": "7433",
+        "txhash": "cdc0b27e3a94c1eaafab92e096f186c318082e82fa999dda0b1aaa251d7cf3c8",
+        "query_status": "transaction_error",
+        "error": "out of gas in location: wasm contract; gasWanted: 12000000, gasUsed: 12000095: out of gas",
+        "code": 11
+      },
+      "gas_used": 12000095,
+      "height": "7433",
+      "txhash": "cdc0b27e3a94c1eaafab92e096f186c318082e82fa999dda0b1aaa251d7cf3c8",
+      "query_status": "transaction_error",
+      "status": "FAIL",
+      "baseline_regression": "REPRODUCED"
+    },
+    {
+      "label": "invalid Observe horizon",
+      "contract": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+      "query": {
+        "observe": {
+          "seconds_ago": [
+            4294967295
+          ]
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = Generic error: Oracle: seconds_ago exceeds block timestamp: query wasm contract failed: unknown request\n",
+      "probe": {
+        "gas_used": 193283,
+        "height": "7438",
+        "txhash": "2337457e13418c00960287bf975fd9e58001ef770b758666fa35aa5fe60ca059",
+        "query_status": "error",
+        "error": "Generic error: Oracle: seconds_ago exceeds block timestamp: query wasm contract failed",
+        "code": 0
+      },
+      "gas_used": 193283,
+      "height": "7438",
+      "txhash": "2337457e13418c00960287bf975fd9e58001ef770b758666fa35aa5fe60ca059",
+      "query_status": "error",
+      "status": "PASS"
+    }
+  ],
+  "forward_validations": [
+    {
+      "label": "empty pool 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty pool 4 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "101249860",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "101249860",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty greedy 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty greedy 4 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "101249860",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "101249860",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty declared 1 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50155482",
+                  "book_input": "50155482",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty declared 2 hops reverse=False",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "100622926",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100622926",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50311463",
+                  "book_input": "50311463",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50155481819664365567",
+                  "book_input": "50155481819664365567",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty pool 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty pool 4 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "101249860",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "101249860",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty greedy 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty greedy 4 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "101249860",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "101249860",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+                  }
+                },
+                "hybrid": null,
+                "greedy": {
+                  "max_maker_fills": 100
+                },
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty declared 1 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000000000000000",
+      "reverse_offer": "100310964",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100310964",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50155482",
+                  "book_input": "50155482",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000011598836510"
+      },
+      "target_covered": true
+    },
+    {
+      "label": "empty declared 2 hops reverse=True",
+      "contract": "terra1dzkx6xwtzrnn3n2wwyax85zjcdvvvqfye752nd5dxpe8sdrz6aes5d02lr",
+      "original_target": "100000000",
+      "reverse_offer": "100622926",
+      "query": {
+        "simulate_swap_operations": {
+          "offer_amount": "100622926",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50311463",
+                  "book_input": "50311463",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+                  }
+                },
+                "hybrid": {
+                  "pool_input": "50155481819664365567",
+                  "book_input": "50155481819664365567",
+                  "max_maker_fills": 100
+                },
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ]
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "100000000"
+      },
+      "target_covered": true
+    }
+  ],
+  "book_setup": [
+    {
+      "pair": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+      "side": "ask",
+      "price": "990000000000.00",
+      "orders": 20,
+      "order_amount": "10000000",
+      "contract": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq",
+      "message": {
+        "send": {
+          "contract": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+          "amount": "200000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJhc2siLCAib3JkZXJzIjogW3sicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9XX19"
+        }
+      },
+      "txhash": "492404750dc46459158c98c1db79d726f2116d532326e0487993f6ce856ddda5",
+      "height": "7398"
+    },
+    {
+      "pair": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+      "side": "bid",
+      "price": "1010000000000.00",
+      "orders": 20,
+      "order_amount": "10000000000000000000",
+      "contract": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd",
+      "message": {
+        "send": {
+          "contract": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+          "amount": "200000000000000000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJiaWQiLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "486d276e57a95cdddde3a01cc7b34a592493352bb96666b181b9ed72aac693a1",
+      "height": "7405"
+    },
+    {
+      "pair": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+      "side": "ask",
+      "price": "0.00000000000099",
+      "orders": 20,
+      "order_amount": "10000000000000000000",
+      "contract": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd",
+      "message": {
+        "send": {
+          "contract": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+          "amount": "200000000000000000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJhc2siLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "a86334124657104fbdc09d0576e2cc0e99687c8eaabdf13738dea12ed59eddbc",
+      "height": "7410"
+    },
+    {
+      "pair": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+      "side": "bid",
+      "price": "0.00000000000101",
+      "orders": 20,
+      "order_amount": "10000000",
+      "contract": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f",
+      "message": {
+        "send": {
+          "contract": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+          "amount": "200000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJiaWQiLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "11e923c6f5145eed5198d5b21ad814bef2947c8e2794d3f597472ffe4c27b537",
+      "height": "7412"
+    },
+    {
+      "pair": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+      "side": "ask",
+      "price": "990000000000.00",
+      "orders": 20,
+      "order_amount": "10000000",
+      "contract": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f",
+      "message": {
+        "send": {
+          "contract": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+          "amount": "200000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJhc2siLCAib3JkZXJzIjogW3sicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9LCB7InByaWNlIjogIjk5MDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiOTkwMDAwMDAwMDAwLjAwIiwgImFtb3VudCI6ICIxMDAwMDAwMCIsICJtYXhfYWRqdXN0X3N0ZXBzIjogMjU2fSwgeyJwcmljZSI6ICI5OTAwMDAwMDAwMDAuMDAiLCAiYW1vdW50IjogIjEwMDAwMDAwIiwgIm1heF9hZGp1c3Rfc3RlcHMiOiAyNTZ9XX19"
+        }
+      },
+      "txhash": "13cb6f3c1709621cfcf2bfe0680abc91e48f9c130c0d8cd437b142d265c859e8",
+      "height": "7417"
+    },
+    {
+      "pair": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+      "side": "bid",
+      "price": "1010000000000.00",
+      "orders": 20,
+      "order_amount": "10000000000000000000",
+      "contract": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee",
+      "message": {
+        "send": {
+          "contract": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+          "amount": "200000000000000000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJiaWQiLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMTAxMDAwMDAwMDAwMC4wMCIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "b1fc4c704732706d51064746811bb08c4af9cd00b47906cf5ffeaa979a928a56",
+      "height": "7419"
+    },
+    {
+      "pair": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+      "side": "ask",
+      "price": "0.00000000000099",
+      "orders": 20,
+      "order_amount": "10000000000000000000",
+      "contract": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee",
+      "message": {
+        "send": {
+          "contract": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+          "amount": "200000000000000000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJhc2siLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDA5OSIsICJhbW91bnQiOiAiMTAwMDAwMDAwMDAwMDAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "1c5ced9a2e73a9aabd90d095aeeaf9b216c003d75de7c14c8bd1b99fd80e8d79",
+      "height": "7423"
+    },
+    {
+      "pair": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+      "side": "bid",
+      "price": "0.00000000000101",
+      "orders": 20,
+      "order_amount": "10000000",
+      "contract": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5",
+      "message": {
+        "send": {
+          "contract": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+          "amount": "200000000",
+          "msg": "eyJwbGFjZV9saW1pdF9vcmRlcl9iYXRjaCI6IHsic2lkZSI6ICJiaWQiLCAib3JkZXJzIjogW3sicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn0sIHsicHJpY2UiOiAiMC4wMDAwMDAwMDAwMDEwMSIsICJhbW91bnQiOiAiMTAwMDAwMDAiLCAibWF4X2FkanVzdF9zdGVwcyI6IDI1Nn1dfX0="
+        }
+      },
+      "txhash": "67287551a60ac339d654e9f93286de18ec997c3b4eb651a4c409d54eea8b016f",
+      "height": "7425"
+    }
+  ],
+  "maker_walks": [
+    {
+      "pair": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+      "direction": 0,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq"
+              }
+            },
+            "amount": "100000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100848500000000000000",
+        "spread_amount": "0",
+        "commission_amount": "151500000000000000",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151500000000000000",
+        "book_return_amount": "100848500000000000000",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "100000000",
+        "greedy_stop": "filled"
+      }
+    },
+    {
+      "pair": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+      "direction": 1,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+              }
+            },
+            "amount": "100000000000000000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100858591",
+        "spread_amount": "0",
+        "commission_amount": "151510",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151510",
+        "book_return_amount": "100858591",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "99999999990000000000",
+        "greedy_stop": "remainder_to_pool"
+      }
+    },
+    {
+      "pair": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+      "direction": 0,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1rpxf55u22q2tly9y8rgdrjgx9p52sus7jugaevj3hdt0z7sgvkcst4krtd"
+              }
+            },
+            "amount": "100000000000000000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100848495",
+        "spread_amount": "0",
+        "commission_amount": "151495",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151495",
+        "book_return_amount": "100848495",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "100000000000000000000",
+        "greedy_stop": "filled"
+      }
+    },
+    {
+      "pair": "terra16thd29zyr9s002df8rpuj4avv05cu9pf928y98m9yvmr5wgssnlq3j5qey",
+      "direction": 1,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+              }
+            },
+            "amount": "100000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100858586855585858586",
+        "spread_amount": "1",
+        "commission_amount": "151515154515151514",
+        "pool_commission_amount": "2999999999",
+        "book_commission_amount": "151515151515151515",
+        "book_return_amount": "100858585858585858586",
+        "pool_return_amount": "997000000000",
+        "limit_book_offer_consumed": "99999999",
+        "greedy_stop": "remainder_to_pool"
+      }
+    },
+    {
+      "pair": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+      "direction": 0,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1hs95lgvuy0p6jn4v7js5x8plfdqw867lsuh5xv6d2ua20jprkgespuqu4f"
+              }
+            },
+            "amount": "100000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100848500000000000000",
+        "spread_amount": "0",
+        "commission_amount": "151500000000000000",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151500000000000000",
+        "book_return_amount": "100848500000000000000",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "100000000",
+        "greedy_stop": "filled"
+      }
+    },
+    {
+      "pair": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+      "direction": 1,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+              }
+            },
+            "amount": "100000000000000000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100858591",
+        "spread_amount": "0",
+        "commission_amount": "151510",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151510",
+        "book_return_amount": "100858591",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "99999999990000000000",
+        "greedy_stop": "remainder_to_pool"
+      }
+    },
+    {
+      "pair": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+      "direction": 0,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1gl8js9zn7h9u2h37fx7qg8xy65jrk9t4zpa6s7j5hdlanud2uwxsckp6ee"
+              }
+            },
+            "amount": "100000000000000000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100848495",
+        "spread_amount": "0",
+        "commission_amount": "151495",
+        "pool_commission_amount": "0",
+        "book_commission_amount": "151495",
+        "book_return_amount": "100848495",
+        "pool_return_amount": "0",
+        "limit_book_offer_consumed": "100000000000000000000",
+        "greedy_stop": "filled"
+      }
+    },
+    {
+      "pair": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+      "direction": 1,
+      "query": {
+        "hybrid_simulation": {
+          "offer_asset": {
+            "info": {
+              "token": {
+                "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+              }
+            },
+            "amount": "100000000"
+          },
+          "greedy": {
+            "max_maker_fills": 100
+          }
+        }
+      },
+      "response": {
+        "return_amount": "100858586855585858586",
+        "spread_amount": "1",
+        "commission_amount": "151515154515151514",
+        "pool_commission_amount": "2999999999",
+        "book_commission_amount": "151515151515151515",
+        "book_return_amount": "100858585858585858586",
+        "pool_return_amount": "997000000000",
+        "limit_book_offer_consumed": "99999999",
+        "greedy_stop": "remainder_to_pool"
+      }
+    }
+  ],
+  "status": "FAIL",
+  "node": {
+    "container": "cl8y-dex-issue1428-matrix",
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "terrad_version": {
+      "build_tags": "netgo ledger,",
+      "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+      "cosmos_sdk_version": "v0.53.6",
+      "go": "go version go1.24.13 linux/amd64",
+      "name": "terra",
+      "version": "4.0.1"
+    },
+    "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+    "wasm_query_gas_limit": 15000000
+  },
+  "issue": 1428,
+  "expectation": "frozen populated gas failure",
+  "receipts": [
+    {
+      "txhash": "76118b43edbbcbd74526949ab6c689f39c615434525fc7c27c771223de83a192",
+      "height": "7223",
+      "code": 0,
+      "gas_used": "178374"
+    },
+    {
+      "txhash": "e8373dfb69acfc32dc7ec84661cece8b37dcea878a5b0992efb2887b974fe5c8",
+      "height": "7229",
+      "code": 0,
+      "gas_used": "1063975"
+    },
+    {
+      "txhash": "3fed8140dd7158c33a9fa9a05689b1f082089d3932650adbf52f956b6a725169",
+      "height": "7233",
+      "code": 0,
+      "gas_used": "178157"
+    },
+    {
+      "txhash": "d2d7d0a25c4918ad8f5a688d82a08f90351d9c56e9838dc7c6526d4dfc279632",
+      "height": "7236",
+      "code": 0,
+      "gas_used": "193798"
+    },
+    {
+      "txhash": "7b300c2c55e8a693995c50f28bdf3d382814c70e598e0ef166d836df4a00bb6b",
+      "height": "7238",
+      "code": 0,
+      "gas_used": "173590"
+    },
+    {
+      "txhash": "7fb21b914d05abdcf94a5e16777b037b4a47095263e5ba371a732866236328e5",
+      "height": "7241",
+      "code": 0,
+      "gas_used": "160686"
+    },
+    {
+      "txhash": "8f14c14cc40858639959f8ec958c6f2ba7c1e06e1cdac574b064e09b34d9a74c",
+      "height": "7244",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "7d3df2ba2a96bb397332e279b25b6e8f9ef9bc53e0e142e3a2f3324e413ae1be",
+      "height": "7247",
+      "code": 0,
+      "gas_used": "189839"
+    },
+    {
+      "txhash": "c6f1e1ffbb1d1b087d72b6db0de4edf684a9ea0251affdc9ed03f07360c79aa7",
+      "height": "7250",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "96f95477f39daaa554cabe59a23386bd7adbfe4f4c985809d905e4933e37a839",
+      "height": "7258",
+      "code": 0,
+      "gas_used": "189839"
+    },
+    {
+      "txhash": "edefd3189e3c097cf7afc96ba40ec8df9d6b64753ae1fe63275fba99a89398da",
+      "height": "7261",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "910c4a89a3527ba7aebfc72545c28bba9215dd671df855115f0ce04ca7af1c60",
+      "height": "7263",
+      "code": 0,
+      "gas_used": "754499"
+    },
+    {
+      "txhash": "4cb2efe750e1dbb509b55b3b2ec7ee79d1ffc9f86c7fb52915aedd2ee5deb3d0",
+      "height": "7271",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "9cbf0afbb7238b77b9a8364c9eaf1c9b4b58098671f86087e435f554431774ce",
+      "height": "7273",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "1f2f5109575d89400a835e7a366a51af1f91799d2fdb8d38d4a5bef531b84d91",
+      "height": "7275",
+      "code": 0,
+      "gas_used": "931628"
+    },
+    {
+      "txhash": "bd53cb34e9aa6894e8dfa23b91680db66b87d9b52a9949ffa9ab9d3a7e89097a",
+      "height": "7277",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "d93dca27d6b2cc679b718fb68bbb0134b7a6a7eb7b6b0fdda7f7e09bc4dec605",
+      "height": "7285",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "b9c37ec38ec5e459a287d44a8afcf4aed16c4ae282fc6e146eca9c95fad4fe2e",
+      "height": "7287",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "13668cdc454a03e1d041391e7ad30598865ad7828fabe0779efd2090d98362e7",
+      "height": "7289",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "a98c90f92d61ddf0b8d9fa9277de928d86a5a64cf8fa4ba6cb73ac2aa9b7ae2d",
+      "height": "7291",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "36d979c5907bca3d39ffa6e1ee90685a0fc3837a02ff003f91f742f21779bb52",
+      "height": "7294",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "cf0f5ada64f7d5d5cf981800f939ad6a638d4315c0c717b35132736385d3a3e2",
+      "height": "7301",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "c12eb350a8f021e6f4db0f39d0a6f504c701ac71c4ed0aa742943fe5c07b8546",
+      "height": "7303",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "ba92aee35078f95af3f5c3a5c20f66668ae042da07b30a2afecf627a4ee96da5",
+      "height": "7305",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "b614449c87e6c99edc0db30583bb7beafb919fffc040dee512f138b43531fbb2",
+      "height": "7308",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "0e83e13e24e4a800b8b8673d8f3f8e7663d4643acaaa67c0658566eeb9042037",
+      "height": "7310",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "195f94845a828cb153e702c72df66b996e0a71f8376a19de2cc5739f7705bd46",
+      "height": "7317",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "2a57c626e54a97441bb16e2649912690ab3936c20120bdcf0e9c3a12fab36b4b",
+      "height": "7329",
+      "code": 0,
+      "gas_used": "933653",
+      "raw_log": ""
+    },
+    {
+      "txhash": "fe0def87edcbeaf2cb4253fc7ef18bd1450d676301f227bd736331258ba83e1f",
+      "height": "7333",
+      "code": 0,
+      "gas_used": "2381740",
+      "raw_log": ""
+    },
+    {
+      "txhash": "a4a990ff18b4813416ca7a43df11c21a12ff8383e70a78dc6dc062c20cd86015",
+      "height": "7337",
+      "code": 0,
+      "gas_used": "1086053",
+      "raw_log": ""
+    },
+    {
+      "txhash": "5a5801d3ad5da589cba7271330f2c0870a56f377abcdc68aad32e8ee6d5feab8",
+      "height": "7341",
+      "code": 0,
+      "gas_used": "2990942",
+      "raw_log": ""
+    },
+    {
+      "txhash": "29777ee01c428e9e931af8fc7122129712ec9e13abf90082d3d5ae673431e80b",
+      "height": "7350",
+      "code": 0,
+      "gas_used": "947283",
+      "raw_log": ""
+    },
+    {
+      "txhash": "c7394d30240157ea79cd3e7d4becde621d81f6c6924a1dec674bf6b69d2bc02e",
+      "height": "7355",
+      "code": 0,
+      "gas_used": "1443444",
+      "raw_log": ""
+    },
+    {
+      "txhash": "55a0d346aa953c96994ba8ed8772cd5971f7d3dd8f85eb7b36c760407345454d",
+      "height": "7361",
+      "code": 0,
+      "gas_used": "1371679",
+      "raw_log": ""
+    },
+    {
+      "txhash": "4d7797fc7246c268be099b6371b7b8da53a7dd7acfc5e99b1cbda3a8df405f41",
+      "height": "7369",
+      "code": 0,
+      "gas_used": "933652",
+      "raw_log": ""
+    },
+    {
+      "txhash": "1b740c5975b196d7f15dacfd5c4fc30ef167b4bdad6a955360ef0ce913dfcff9",
+      "height": "7373",
+      "code": 0,
+      "gas_used": "2381733",
+      "raw_log": ""
+    },
+    {
+      "txhash": "bf88d1a5c1d9e1a7eb9cfa9b666eb749b0c274f1cd6c75a29ea8de6b95339192",
+      "height": "7377",
+      "code": 0,
+      "gas_used": "1086042",
+      "raw_log": ""
+    },
+    {
+      "txhash": "34605e854c8c150de5ce659296e32ce8705b2a288d2c09faea9d95d3332d53a0",
+      "height": "7380",
+      "code": 0,
+      "gas_used": "2990895",
+      "raw_log": ""
+    },
+    {
+      "txhash": "d11f3ada50f4a28d250b33a88f798fc5c20f8e018890ee0ae88897c1b54cf59d",
+      "height": "7384",
+      "code": 0,
+      "gas_used": "947272",
+      "raw_log": ""
+    },
+    {
+      "txhash": "151c4370bd8f03df26afee6e15ab078f41354e56dd2c5d90541364071af1d4c3",
+      "height": "7389",
+      "code": 0,
+      "gas_used": "1443421",
+      "raw_log": ""
+    },
+    {
+      "txhash": "92412794d68791b1041b7ca3e623ddc7585bf95b5fdba542a45221ac64e3d3d3",
+      "height": "7395",
+      "code": 0,
+      "gas_used": "1371664",
+      "raw_log": ""
+    },
+    {
+      "txhash": "492404750dc46459158c98c1db79d726f2116d532326e0487993f6ce856ddda5",
+      "height": "7398",
+      "code": 0,
+      "gas_used": "1059822"
+    },
+    {
+      "txhash": "486d276e57a95cdddde3a01cc7b34a592493352bb96666b181b9ed72aac693a1",
+      "height": "7405",
+      "code": 0,
+      "gas_used": "1083943"
+    },
+    {
+      "txhash": "a86334124657104fbdc09d0576e2cc0e99687c8eaabdf13738dea12ed59eddbc",
+      "height": "7410",
+      "code": 0,
+      "gas_used": "1087033"
+    },
+    {
+      "txhash": "11e923c6f5145eed5198d5b21ad814bef2947c8e2794d3f597472ffe4c27b537",
+      "height": "7412",
+      "code": 0,
+      "gas_used": "1066636"
+    },
+    {
+      "txhash": "13cb6f3c1709621cfcf2bfe0680abc91e48f9c130c0d8cd437b142d265c859e8",
+      "height": "7417",
+      "code": 0,
+      "gas_used": "1059851"
+    },
+    {
+      "txhash": "b1fc4c704732706d51064746811bb08c4af9cd00b47906cf5ffeaa979a928a56",
+      "height": "7419",
+      "code": 0,
+      "gas_used": "1083943"
+    },
+    {
+      "txhash": "1c5ced9a2e73a9aabd90d095aeeaf9b216c003d75de7c14c8bd1b99fd80e8d79",
+      "height": "7423",
+      "code": 0,
+      "gas_used": "1087033"
+    },
+    {
+      "txhash": "67287551a60ac339d654e9f93286de18ec997c3b4eb651a4c409d54eea8b016f",
+      "height": "7425",
+      "code": 0,
+      "gas_used": "1066636"
+    },
+    {
+      "txhash": "0384f3e181db81ec5efa9a8f56f61f17614bb9ca34bcf633a3bf990ab171ac9e",
+      "height": "7430",
+      "code": 11,
+      "gas_used": "12019418",
+      "raw_log": "out of gas in location: wasm contract; gasWanted: 12000000, gasUsed: 12019418: out of gas"
+    },
+    {
+      "txhash": "cdc0b27e3a94c1eaafab92e096f186c318082e82fa999dda0b1aaa251d7cf3c8",
+      "height": "7433",
+      "code": 11,
+      "gas_used": "12000095",
+      "raw_log": "out of gas in location: wasm contract; gasWanted: 12000000, gasUsed: 12000095: out of gas"
+    },
+    {
+      "txhash": "029ae7678f27e5908d92b4007f364533de37955a1dcf0cc0f0a31df5ad2445d7",
+      "height": "7435",
+      "code": 0,
+      "gas_used": "616268"
+    },
+    {
+      "txhash": "2337457e13418c00960287bf975fd9e58001ef770b758666fa35aa5fe60ca059",
+      "height": "7438",
+      "code": 0,
+      "gas_used": "193283",
+      "raw_log": ""
+    }
+  ],
+  "oracle_seed": {
+    "contract": "terra1cduudfszcm9slm8qxlaqvnpzg2u0hkus94fe3pwt9x446dtw6eeqs3aacq",
+    "message": {
+      "send": {
+        "contract": "terra1y7cy7cyz3m5ak20u0ten8cahp55k48pcgrwmwzq7rpxfv0qlh6cs8eh987",
+        "amount": "1000000",
+        "msg": "eyJzd2FwIjogeyJtaW5fcmV0dXJuIjogIjEifX0="
+      }
+    },
+    "txhash": "029ae7678f27e5908d92b4007f364533de37955a1dcf0cc0f0a31df5ad2445d7",
+    "height": "7435"
+  },
+  "baseline_regression": "REPRODUCED"
+}

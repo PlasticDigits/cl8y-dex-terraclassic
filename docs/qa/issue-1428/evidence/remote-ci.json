@@ -1,0 +1,30 @@
+{
+  "state": "FAIL",
+  "scope": "Remote Woodpecker secret-scan gate; separate from completed local verification",
+  "pipeline": 332,
+  "url": "https://ci.cl8y.com/repos/7/pipeline/332/1",
+  "commit": "206571d3088f55d5b9a03150e2897d6b4df52af5",
+  "failed_step": "gitleaks",
+  "exit_code": 1,
+  "findings": [
+    {
+      "path": "scripts/lib/oracle_safety.py",
+      "line": 11,
+      "rule": "generic-api-key",
+      "classification": "Unchanged public Venus vFDUSD address; bytes identical to origin/main"
+    },
+    {
+      "path": "scripts/qa/test-oracle-lp-consumers.py",
+      "line": 100,
+      "rule": "generic-api-key",
+      "classification": "Unchanged public Venus vFDUSD address; bytes identical to origin/main"
+    },
+    {
+      "path": "scripts/qa/test-custc-ust1-buyback-failures.py",
+      "line": 74,
+      "rule": "generic-api-key",
+      "classification": "Unchanged public Venus vFDUSD address; bytes identical to origin/main"
+    }
+  ],
+  "note": "Hosted trusted policy flags this public address although the repository configuration allows it. Contracts/frontend/indexer jobs were skipped after this gate failed. No runtime safeguards or secret-scan rules were relaxed; CI remains FAIL and is not claimed as PASS or an unavailable skipped check. Separate trusted-policy reconciliation is a relevant followup."
+}

@@ -344,7 +344,7 @@ Issue [#1389](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1389),
 | Invariant | Contract |
 | --- | --- |
 | **RQ1389-1** Shared request budget | Router reverse reserves at most **33 pair simulations per hop** and **96 per request**, including one fresh forward simulation per hop, for up to four hops. Denial occurs before a nested call. Failed attempts consume cost. |
-| **RQ1389-2** Opaque nested work | A declared reverse with nonzero book input reserves the pair's full **32** internal forward-call ceiling; Pool reverse and greedy pool seeds cost one only for raw cw2 identities `cl8y-dex-pair` exactly `1.19.0`/`1.20.0`/`1.21.0` (explicit #1398 review); legacy, missing, malformed, failed or unknown identity reserves 32. Future versions receive no inferred discount. Counting outer smart queries alone understates declared work. Three/four declared book hops can be denied even when each pair search would finish early; four cheap pool/greedy hops remain supported. |
+| **RQ1389-2** Opaque nested work | A declared reverse with nonzero book input reserves the pair's full **32** internal forward-call ceiling; Pool reverse and greedy pool seeds cost one only for raw cw2 identities `cl8y-dex-pair` exactly `1.19.0`/`1.20.0`/`1.21.0` (explicit #1398 review); legacy, missing, malformed, failed or unknown identity reserves 32. Future versions receive no inferred discount. Counting outer smart queries alone understates declared work. Three/four declared book hops can be denied even when each pair search would finish early; four pool hops remain supported; routes containing greedy are limited to three total reverse hops by [GR1428](../skills/AGENTS_GREEDY_REVERSE_SUPPORT.md). |
 | **RQ1389-3** Cache and safe probes | Greedy repeated offers reuse request-local output. Checked pool inverse seeds and declared interpolation propose probes only. Pair declared search retains its 32-call ceiling and cached sufficient result; a claimed minimum requires an adjacent insufficient offer. No seed fallback can evade accounting. |
 | **RQ1389-4** Protected sufficiency | The final fresh forward route must cover the original target using the same trader/sender, tax flow and declared ratio template. Seed/rounding failure, `REVERSE_QUERY_BUDGET_EXCEEDED`, `REVERSE_TARGET_INFEASIBLE` and `REVERSE_FORWARD_INSUFFICIENT` produce errors rather than executable guesses. Query errors keep the existing JSON ABI and expose stable discriminators in their error strings. |
 | **RQ1389-5** Fair admission | Both exact-output GET endpoints share four global slots and one active request per socket-peer IP, with no waiting queue. IPv4-mapped IPv6 is normalized. Forwarded headers and trader/sender never supply the key. Missing peer metadata shares one conservative bucket. Proxies/NAT share the socket peer's bucket; trusted proxy identity requires a separate vetted policy. |
@@ -444,3 +444,40 @@ API inputs. Amount-less responses are structural only. Executable amount quotes
 use the same capable-token eligibility policy.
 
 Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.
+
+## Greedy reverse support (#1428)
+
+Router **1.5.0** rejects any `ReverseSimulateSwapOperations` route with a greedy
+hop and more than **three total operations**. It returns
+`GREEDY_REVERSE_ROUTE_UNSUPPORTED` before capability discovery, factory/pair
+queries, or simulations. This includes mixed modes and empty books: admitting an
+empty four-hop route would make support depend on mutable maker arrivals. A
+four-hop pool-only reverse remains available. Forward simulation and execution
+keep the four-hop cap and all existing funding, hook-floor and slippage checks.
+
+Admitted greedy routes still use the 33-per-hop/96-per-request simulation ceilings,
+100 maker-fill and 500 scan-step ceilings, exact reviewed pair accounting, original
+trader and gross funding semantics, and a fresh complete forward sufficiency
+check. Admission is a bounded support policy, not a promise that all shorter books
+fit every provider. Budget exhaustion, provider gas errors and net hook inverse
+limitations remain explicit quote errors. Preserve Receive intent and clear stale
+Pay/operations; never retry automatically or return a pool fallback executable
+quote after this rejection. Indexer DB sizing remains a separate path with fresh
+router forward preflight.
+
+The [isolated matrix and agent checklist](qa/issue-1428/README.md) reproduce the
+integrated router 1.4.0 / pair 1.21.0 failure at the existing **15M** book-matrix
+limit and retest this admission policy. This is separate from the unchanged **3M**
+funded pool fixtures in #1422. Probe receipts include transaction/wrapper overhead;
+actual smart-query errors and successes are recorded separately. Work counts are
+not gas measurements and local results do not establish production acceptance.
+[GR1428-1–GR1428-8](../skills/AGENTS_GREEDY_REVERSE_SUPPORT.md) govern this policy.
+Production rollout remains [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384),
+[#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386) and
+[#1421](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1421).
+
+The scoped populated successes use explicit one-hop requests with maker cap 8
+and one raw ask unit in both directions, plus one human ask unit forward.
+Additional mixed-decimal one-to-three-hop requests still exhibit work-budget or
+provider-gas failures; see the limitation receipts in [#1428 results](qa/issue-1428/RESULTS.md).
+No automatic substitution converts those failures into executable quotes.

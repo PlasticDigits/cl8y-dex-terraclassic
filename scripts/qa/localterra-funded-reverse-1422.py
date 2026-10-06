@@ -73,7 +73,7 @@ class QueryEvidence:
             evidence["contract_versions"][label] = json.loads(base64.b64decode(raw["data"]))
         if not self.baseline:
             assert evidence["contract_versions"]["router"] == {
-                "contract": "cl8y-dex-router", "version": "1.4.0"}, "Expected reviewed router release"
+                "contract": "cl8y-dex-router", "version": self.args.router_version}, "Expected reviewed router release"
             for label in evidence["pairs"]:
                 assert evidence["contract_versions"][label] == {
                     "contract": "cl8y-dex-pair", "version": "1.21.0"}, "Expected reviewed pair release"
@@ -158,6 +158,7 @@ def main():
     parser.add_argument("--node-home", default="/home/terra/.terra")
     parser.add_argument("--artifacts", required=True, type=Path)
     parser.add_argument("--baseline-artifacts", type=Path)
+    parser.add_argument("--router-version", default="1.4.0", help="Expected router cw2 identity")
     parser.add_argument("--probe", required=True, type=Path)
     parser.add_argument("--code-cache", type=Path)
     parser.add_argument("--evidence-file", required=True, type=Path)

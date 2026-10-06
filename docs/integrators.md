@@ -189,9 +189,9 @@ These are **execution** semantics; all quoting uses `HybridSimulation` / `Hybrid
 
 ## Net execution floors and hook pricing (#1398)
 
-This source protocol is pair **1.21.0**, factory **1.12.0**, router **1.4.0**
+This source protocol is pair **1.21.0**, factory **1.12.0**, router **1.5.0**
 and community-tax AutoLP **1.1.0**. Confirm deployed versions before relying on the changed quote
-and signing semantics. Router 1.3.0 → 1.4.0 migration preserves configuration,
+and signing semantics. Router 1.4.0 → 1.5.0 migration preserves configuration,
 nonce and route funding/settlement version 1. Historical route-tax rollout plans
 explicitly targeting 1.3.0 must not be reused as this PR's artifact plan.
 
@@ -380,3 +380,18 @@ Canonical: [twap-oracle.md](./twap-oracle.md), invariants **O1231** and **O1322*
 - [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) — hybrid routing and quoting scope.
 - [ADR 0002](./adr/0002-global-best-execution-route-solver.md) — global best execution (#209).
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — consolidated vs leg vs fill volumes (#216).
+
+### Greedy reverse route admission (#1428)
+
+Router 1.5.0 supports reverse requests containing `greedy` only for routes with
+at most three total hops. Four-hop requests, including mixed pool/greedy and
+empty-book paths, return `GREEDY_REVERSE_ROUTE_UNSUPPORTED` before external
+queries. Pool-only reverse and forward execution retain four hops. Handle this
+as a deterministic quote error: preserve Receive intent, invalidate executable
+Pay and operations, and await a user/state change without automatic retry or a
+weaker fallback quote. Shorter admitted routes retain budgets and fresh net
+forward sufficiency; they have no universal provider gas guarantee.
+
+See [support policy](route-solver.md#greedy-reverse-support-1428),
+[agent invariants](../skills/AGENTS_GREEDY_REVERSE_SUPPORT.md) and
+[reproduction/review checklist](qa/issue-1428/README.md).
