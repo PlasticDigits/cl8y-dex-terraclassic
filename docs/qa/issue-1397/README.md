@@ -56,16 +56,15 @@ budget. This does not reserve separate Postgres capacity for all indexer work.
 The SQLx migration
 [`20261006133000_evidence_daily_ordered_indexes.sql`](../../../indexer/migrations/20261006133000_evidence_daily_ordered_indexes.sql)
 adds six indexes keyed by UTC day and each source's pagination order; the fee
-index includes only wrap/unwrap sources. SQLx applies it during indexer startup.
-Rebuild/restart the indexer to deploy schema 2 and apply the migration. No
+index includes only wrap/unwrap sources. The separate SQLx `migrate` process applies it before indexer startup (#1396).
+Apply it with the scoped migrator credential, then rebuild/restart the indexer to deploy schema 2. No
 smart-contract migration is involved.
 
-These are ordinary `CREATE INDEX` operations, not concurrent builds. On the first
-startup with this migration they scan existing ledger tables, allocate index
+These are ordinary `CREATE INDEX` operations, not concurrent builds. When applying this migration they scan existing ledger tables, allocate index
 storage and hold locks that block ledger writes until the migration transaction
-completes. Large ledgers therefore require startup time and storage planning;
+completes. Large ledgers therefore require migration time and storage planning;
 request-level export SQL budgets do not constrain migration work. Account for
-other writers before restarting and preserve the existing database backup/recovery
+other writers before migrating and preserve the existing database backup/recovery
 procedure. Local synthetic test success does not establish production build time,
 lock duration, capacity or a deployed revision. Deployment remains separately
 recorded acceptance.

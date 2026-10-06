@@ -114,7 +114,32 @@ pub fn preview(
     trader: Option<String>,
     router: Option<&Addr>,
 ) -> StdResult<RouteTaxPreviewResponse> {
-    if let Some(c) = capability(deps, token)? {
+    let capability = capability(deps, token)?;
+    preview_with_capability(
+        deps,
+        token,
+        pair,
+        amount,
+        kind,
+        trader,
+        router,
+        capability.as_ref(),
+    )
+}
+
+/// Capability is immutable during a query; amount-dependent previews remain fresh.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn preview_with_capability(
+    deps: Deps,
+    token: &Addr,
+    pair: &Addr,
+    amount: Uint128,
+    kind: RouteTaxKind,
+    trader: Option<String>,
+    router: Option<&Addr>,
+    capability: Option<&RouteTaxCapabilityResponse>,
+) -> StdResult<RouteTaxPreviewResponse> {
+    if let Some(c) = capability {
         if router.is_some_and(|r| c.router.as_ref() != Some(r)) {
             return Err(StdError::generic_err(
                 "token does not trust this route-local router",
@@ -222,7 +247,14 @@ pub fn reverse_buy(
         trader,
         Some(router),
     )?;
-    let denom = Uint128::new(10_000).checked_sub(p.tax)?;
+    reverse_buy_amount(net, &p)
+}
+
+pub(crate) fn reverse_buy_amount(
+    net: Uint128,
+    preview: &RouteTaxPreviewResponse,
+) -> StdResult<Uint128> {
+    let denom = Uint128::new(10_000).checked_sub(preview.tax)?;
     if denom.is_zero() {
         return Err(StdError::generic_err("buy tax leaves zero output"));
     }
@@ -233,28 +265,13 @@ pub fn reverse_buy(
         .checked_add(Uint128::one())
         .map_err(Into::into)
 }
-pub fn reverse_sell(
-    deps: Deps,
-    token: &Addr,
-    pair: &Addr,
+
+pub(crate) fn reverse_sell_amount(
     economic: Uint128,
-    trader: Option<String>,
-    router: &Addr,
+    preview: &RouteTaxPreviewResponse,
 ) -> StdResult<Uint128> {
-    let Some(c) = capability(deps, token)? else {
-        return Ok(economic);
-    };
-    let p = preview(
-        deps,
-        token,
-        pair,
-        Uint128::new(10_000 + u128::from(c.sell_bps)),
-        RouteTaxKind::Sell,
-        trader,
-        Some(router),
-    )?;
     economic
-        .checked_add(economic.multiply_ratio(p.tax, Uint128::new(10_000)))
+        .checked_add(economic.multiply_ratio(preview.tax, Uint128::new(10_000)))
         .map_err(Into::into)
 }
 

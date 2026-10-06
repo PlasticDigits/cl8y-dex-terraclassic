@@ -1,0 +1,490 @@
+{
+  "utc": "2026-10-06T04:46:29.661419+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "owner_key": "issue1381-1791261969168483381",
+  "sink_key": "issue1381-1791261969903387090",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da",
+      "onchain_sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c",
+      "onchain_sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "311293710bc5d9ce9aea5e14b842a555e39876334f453aea2df85b384f43c3d4",
+      "onchain_sha256": "311293710bc5d9ce9aea5e14b842a555e39876334f453aea2df85b384f43c3d4"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 5,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341",
+      "onchain_sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    }
+  },
+  "factory": "terra17s8kkfm5lf8lacz704f4fjmfxzuvyqd8cksakrlhnrass4yacvxqf3hz20",
+  "router": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+  "tokens": {
+    "CL8Y": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5",
+    "UST1": "terra1w4t2qpwvhyhz0g2mwgqjzgsw63dcy5hkfch0tgr8xj9qjcsauq8qmswzpq",
+    "USTR": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg",
+    "ALPHA": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx",
+    "BETA": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+  },
+  "decimals": {
+    "CL8Y": 18,
+    "ALPHA": 6,
+    "BETA": 6,
+    "UST1": 6,
+    "USTR": 18
+  },
+  "pairs": {
+    "CL8Y/ALPHA": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+    "ALPHA/UST1": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+    "UST1/USTR": "terra1uu7ggnkl4knssngtsqlnjtyy20xkln9343c7qrv6j2fj8luqr50qagzhus",
+    "ALPHA/BETA": "terra1t8r3w25qzpucwxw9e3s5fwqjkvn8uw3jvgvgukpzm9afehy7fmesv5wk4m",
+    "BETA/USTR": "terra19cxgvr0dne98yu0js67tr6v2xt57q53h7fcde3qtvgathhnqt7rqmhhqtk"
+  },
+  "checks": [],
+  "legacy_codes": {},
+  "migration_checks": [],
+  "status": "FAIL",
+  "receipts": [
+    {
+      "txhash": "2FF4109C658D58963FF3344965AEA65DD08DE77A3C5830C5A0F3CB669FEDD616",
+      "height": "5835",
+      "code": 0,
+      "gas_used": "178440"
+    },
+    {
+      "txhash": "2DA2573E57DF5A18DE92B7AE7E02DF69488037B46981BA7AF1AD0CFD0C699E8A",
+      "height": "5838",
+      "code": 0,
+      "gas_used": "191467"
+    },
+    {
+      "txhash": "651F8A72DFDB464B3EB9D91381C3B772F8FCEE44123B05CADEB68ED0FF062D1A",
+      "height": "5846",
+      "code": 0,
+      "gas_used": "197970"
+    },
+    {
+      "txhash": "5A10648DC00213141113D18DCA22BC083BD9E5F60B7F1A649DCB1BFDFD9B3F9E",
+      "height": "5849",
+      "code": 0,
+      "gas_used": "173623"
+    },
+    {
+      "txhash": "B591060A1BF894DDD6C48B875EDCE81940CA763412F5346D102F9E387FA63AE9",
+      "height": "5851",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "66E9ECC9AD069DCB34452ACB6E05F3FCF5A27E2B9BF9DB473A5A7818288431E0",
+      "height": "5854",
+      "code": 0,
+      "gas_used": "188122"
+    },
+    {
+      "txhash": "CCFCDE75D69E0658E980CD10F9569DB093E28EBF6A0B1BD0E4835B7A8F956C78",
+      "height": "5857",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "A40D8FB446F0BB844CFC6B2185F89316ACDBF513ECEE7FF5883E0B39CC0F5503",
+      "height": "5860",
+      "code": 0,
+      "gas_used": "258423"
+    },
+    {
+      "txhash": "70AE6EB6CA3289E64DBEE45567AB80A9BF31AA9E87D92E10C23170DE720DE760",
+      "height": "5863",
+      "code": 0,
+      "gas_used": "258243"
+    },
+    {
+      "txhash": "00B4783669C91D4FCC1DD6275D1D1E65537DB00B6963FACDFEC7CE37D500EF56",
+      "height": "5865",
+      "code": 0,
+      "gas_used": "969006"
+    },
+    {
+      "txhash": "226F8B7D0E5ABA0F3347AA5B949022C6575B699CD41D44CB9550A0D8DBB1B921",
+      "height": "5873",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "0C49E85634832D18E419FE1317684ECC47C7065920017A57DD6858469BFF13C7",
+      "height": "5875",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "8411B3B093AB606AE3DC153F551434D9AB289AA961C539956708D23973F826A9",
+      "height": "5877",
+      "code": 0,
+      "gas_used": "944923"
+    },
+    {
+      "txhash": "FA329949672AF179861916538D97649AF3A71215716C34D25D3BE7B954F86FD2",
+      "height": "5878",
+      "code": 0,
+      "gas_used": "968948"
+    },
+    {
+      "txhash": "BFE239BDEEF9C5DDFBCC1381C30A619DF31D1232845DE36BAC1BB9C758115ECE",
+      "height": "5881",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "1552777ABFBE170A6F493D0AAC49C7E87223DBE9A67724D557BCEA253F7E14DD",
+      "height": "5883",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "5A2884144F26090BDD742FEC857631A963411EEAAE5A0DC61CF5C812E2156ED5",
+      "height": "5885",
+      "code": 0,
+      "gas_used": "942296"
+    },
+    {
+      "txhash": "21FDDB6390D4D4B2B3B2510D95D077F95011A4FFF7FF927BDA2F6C0154B28E0A",
+      "height": "5887",
+      "code": 0,
+      "gas_used": "754903"
+    },
+    {
+      "txhash": "9F296C87AB20DDE2D4E965B5301299D728497560E587DD60C00D3A45DCFB8886",
+      "height": "5895",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "1ECA9D86A6E0B05AEE3C858F65A38FB45C6DB1AF8D5C6D2C067697F4B6D4554F",
+      "height": "5897",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "2FA8229902808305B2B5288B0CEBDB2D9DF662994A4A43FE2C1CF9E5B14DF2DD",
+      "height": "5899",
+      "code": 0,
+      "gas_used": "932262"
+    },
+    {
+      "txhash": "C712FD5A937DEEDA7B5B2FA00E4080999FC525C106E14F5967251616D53610F9",
+      "height": "5906",
+      "code": 0,
+      "gas_used": "1182873"
+    },
+    {
+      "txhash": "F0E1420A65BE1C8A51C7E732C1007AF1E31B79ADD3E88D008E0D83E99E5E1B36",
+      "height": "5909",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "9C2800830D41A96E243A8F94AD7C47D0B50CC0B4F5C8C01287E34D46BA2C042F",
+      "height": "5911",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "1C25287418398972AB559C6704126EC5C01B6BEEE4286C6E1936FB7F94269909",
+      "height": "5913",
+      "code": 0,
+      "gas_used": "954810"
+    },
+    {
+      "txhash": "154105D79002C1CE6B3FB78CBA49AAD9B0F5AE3864F408D5C1EF3A9D3A6F4179",
+      "height": "5920",
+      "code": 0,
+      "gas_used": "968828"
+    },
+    {
+      "txhash": "C0D26AD9691BDB419A124186DD99E5577484DC070CF313193ED27740723871B7",
+      "height": "5923",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "A7BFE17E3EECAF73F50EB80B65378E1347D1ADCD1613046CD514BE9A7E8B3D84",
+      "height": "5925",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "A94DBF366D04ED79B192335606C00FDEE75E6AC5F0D755D4C3E6802AE10BD9E7",
+      "height": "5932",
+      "code": 0,
+      "gas_used": "944772"
+    },
+    {
+      "txhash": "40CB5ACBD0556812F2394753DAFF6D7CFC838715FD20CB5C29CB82E44F7551E8",
+      "height": "5956",
+      "code": 0,
+      "gas_used": "160719"
+    },
+    {
+      "txhash": "3636A53CCA64DEDB1BE303FB54D8B204626A29256C61D46A62F7B4142FC848F6",
+      "height": "5959",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "011B674773107C1088E21AD93577060F00D814C8B1AF4D3DAFBBD840AAF1E730",
+      "height": "5961",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "EC34CDEB233C56B73A5FBB8F8FB17A4CEA5327A9EE98A74D73D4F4B24AA458C9",
+      "height": "5982",
+      "code": 0,
+      "gas_used": "1721128"
+    },
+    {
+      "txhash": "50D4B2A707F345E858AF410E47B06DED78D1527B7953B09C120964AA9B2483BD",
+      "height": "5990",
+      "code": 0,
+      "gas_used": "3386934"
+    }
+  ],
+  "node": {
+    "container": "cl8y-dex-issue1422-memory-ready",
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "terrad_version": {
+      "build_tags": "netgo ledger,",
+      "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+      "cosmos_sdk_version": "v0.53.6",
+      "go": "go version go1.24.13 linux/amd64",
+      "name": "terra",
+      "version": "4.0.1"
+    },
+    "wasm_query_gas_limit": 3000000,
+    "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d"
+  },
+  "gas_scope": "probe transaction including transaction and wrapper overhead; actual smart-query success separately recorded",
+  "contract_versions": {
+    "router": {
+      "contract": "cl8y-dex-router",
+      "version": "1.3.0"
+    },
+    "factory": {
+      "contract": "cl8y-dex-factory",
+      "version": "1.11.0"
+    },
+    "CL8Y/ALPHA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/UST1": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "UST1/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/BETA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "BETA/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "CL8Y": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "UST1": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "USTR": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "ALPHA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    },
+    "BETA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    }
+  },
+  "probe_code": {
+    "code_id": 6,
+    "sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d",
+    "onchain_sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+  },
+  "query_checks": [
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "forward",
+      "contract": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg",
+          "sender": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894892438757075466"
+      },
+      "probe": {
+        "txhash": "EC34CDEB233C56B73A5FBB8F8FB17A4CEA5327A9EE98A74D73D4F4B24AA458C9",
+        "height": "5982",
+        "gas_used": 1721128,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "reverse",
+      "contract": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "894892438757075466",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg",
+          "sender": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg"
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3050913: out of gas: unknown request\n",
+      "probe": {
+        "txhash": "50D4B2A707F345E858AF410E47B06DED78D1527B7953B09C120964AA9B2483BD",
+        "height": "5990",
+        "gas_used": 3386934,
+        "query_status": "ok"
+      }
+    }
+  ],
+  "failure": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3050913: out of gas: unknown request\n",
+  "baseline_regression": "REPRODUCED"
+}

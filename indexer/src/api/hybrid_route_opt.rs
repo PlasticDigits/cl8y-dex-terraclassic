@@ -759,6 +759,17 @@ mod tests {
     use bigdecimal::BigDecimal;
     use chrono::Utc;
 
+    #[test]
+    fn provider_gas_limit_is_not_an_infrastructure_fallback() {
+        let error = crate::lcd::LcdError::QueryGasLimitExceeded(
+            "out of gas; gasWanted: 3000000, gasUsed: 3043317".into(),
+        );
+        assert!(!is_infra_lcd_error(&error));
+        assert!(is_infra_lcd_error(
+            &crate::lcd::LcdError::AllEndpointsFailed("gateway unavailable".into(),)
+        ));
+    }
+
     fn bd(s: &str) -> BigDecimal {
         s.parse().unwrap()
     }

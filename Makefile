@@ -1971,6 +1971,10 @@ verify-issue-1388:
 verify-issue-1394:
 	bash scripts/verify-issue-1394.sh
 
+.PHONY: verify-issue-1422
+verify-issue-1422:
+	bash scripts/qa/verify-issue-1422.sh
+
 # #1396: role separation, QA mutation barriers and worktree DB isolation.
 .PHONY: verify-issue-1396 indexer-migrate
 verify-issue-1396:

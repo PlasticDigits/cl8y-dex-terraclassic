@@ -34,10 +34,10 @@ the verifier fail, including in this alternate mode.
 2. Provision Node 24 dependencies and an isolated Postgres test database (see [local Postgres](../../../skills/AGENTS_LOCAL_POSTGRES_DEV.md)). Run `make verify-issue-1389` and `make verify-issue-1376`. The new verifier runs contracts, API/DB and frontend checks twice. Record skip reason variables only for actual unavailability: `VERIFY_ISSUE_1389_SKIP_CONTRACTS_REASON`, `..._INDEXER_REASON`, `..._FRONTEND_REASON`, `..._CHAIN_REASON`.
 3. Run `make test-contracts`, `make lint-contracts`, `make lint-frontend`, frontend `tsc -b`, and affected admission/API lint. Inspect fixture assertions instead of assuming a test name proves the entire matrix. Use mocks for abuse/load; never stress public LCD.
 4. For chain gas, run `make has-localterra`; provision `make setup-cloud-localterra` when needed. Build final optimized artifacts using `make build-optimized`. Build the independent **test-only** query-probe with the command below, then run the isolated harness twice. Do not replace shared pools/contracts or reset shared volumes. `--code-cache` reuses only checksum-verified stores, and each run creates new synthetic pools/books.
-5. Attach actual evidence and dispositions to the PR. Pair cw2 1.20.0/router 1.3.0 require migration for direct-LCD production protection. Production inventory/rollout is separate from this task; no public stress, real wallet activity, or production migration is part of the synthetic verifier.
+5. Attach actual evidence and dispositions to the PR. Pair cw2 1.20.0/router 1.3.1 require migration for direct-LCD production protection. Production inventory/rollout is separate from this task; no public stress, real wallet activity, or production migration is part of the synthetic verifier.
 
 ```bash
-RUSTFLAGS='-C link-arg=--allow-undefined -C target-cpu=mvp' cargo build \
+RUSTFLAGS='-C link-arg=--allow-undefined -C target-cpu=mvp' cargo +1.81.0 build \
   --manifest-path scripts/qa/fixtures/reverse-query-probe/Cargo.toml \
   --release --target wasm32-unknown-unknown --locked
 python3 scripts/qa/localterra-reverse-1389.py \
@@ -68,3 +68,19 @@ production gas recommendation. Keep its fixture Wasm out of release artifacts.
 - [ ] **Gas:** Run the isolated harness twice on final optimized pair/router artifacts; record hashes, versions, receipt gas and scope. Four-hop empty/full capped-book cases may succeed sufficiently or intentionally return budget errors. Do not claim the synthetic samples cover every 500-scan book shape.
 - [ ] **Regression:** Run both verifiers, contract workspace and lint/types; read docs and agent crosslinks. Record all PASS/FAIL/SKIP and any pre-existing unrelated failures honestly.
 - [ ] **Production:** Separately verify deployed revisions, pair inventory/factory pointer, migrations and proxy peer configuration before claiming production acceptance. Skip with explicit reason when no deployment is performed.
+
+Funded tax-route provider gas compatibility is additionally covered by
+[#1422](../issue-1422/README.md) and [FRQ1422](../../../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md).
+Its unmodified 3M funded fixture is separate from these broader synthetic book
+measurements and from production acceptance.
+
+## Current gas-matrix limitation (#1422)
+
+[The funded regression results](../issue-1422/RESULTS.md) qualify the six
+pool-route fixtures at the actual 3M SDK53 limit on router 1.3.1. The separate
+prior full-book four-hop greedy matrix fails at a finite 15M provider limit on
+both router 1.3.0 and 1.3.1 before its expected work-budget discriminator. These
+executed failures remain FAIL; later gas cases were not reached. Work-count
+bounds and successful empty-book samples cannot establish populated-book
+feasibility. Preserve the raw receipts, do not increase ceilings or accept a
+failed assertion as a skip, and leave that support envelope unverified.

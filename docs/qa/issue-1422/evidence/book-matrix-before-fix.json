@@ -1,0 +1,597 @@
+{
+  "utc": "2026-10-06T04:56:45.817027+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "gas_scope": "transaction including test-wrapper overhead",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c"
+    },
+    "cl8y_dex_router": {
+      "code_id": 6,
+      "sha256": "311293710bc5d9ce9aea5e14b842a555e39876334f453aea2df85b384f43c3d4"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "probe_code": {
+    "code_id": 5,
+    "sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+  },
+  "factory": "terra14vjqp6cq9mr90wzmqxsa5erx70h4xy5eep0jynjqmlstupngtghqlmg2h2",
+  "router": "terra1z0vhf55k8lhdp4tk3pjtpnkwyf75quwkzuld5l6eyphjjth0s62sdkfwl3",
+  "pairs": [
+    "terra1hz2lvf367zjmlwe65lgskhuxjntyl08z7yutsunzc8wha4f66mvs27a8s3",
+    "terra1ywpctek72gsccmr8gjgaamzs8vhh7ju3sjtvwk82daafavw5u0esekkkzu",
+    "terra1tufuqv8ndkp3c7tpllegln8ttu0l2q3myl3lz8hsn88maqyssmks6pvt7j",
+    "terra1pgfaxvnkusz9kdx8wc7tjv3p948c6cr6ug6wvht7k7vvk3czzgwq8097aw"
+  ],
+  "pair_versions": {
+    "terra1hz2lvf367zjmlwe65lgskhuxjntyl08z7yutsunzc8wha4f66mvs27a8s3": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra1ywpctek72gsccmr8gjgaamzs8vhh7ju3sjtvwk82daafavw5u0esekkkzu": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra1tufuqv8ndkp3c7tpllegln8ttu0l2q3myl3lz8hsn88maqyssmks6pvt7j": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra1pgfaxvnkusz9kdx8wc7tjv3p948c6cr6ug6wvht7k7vvk3czzgwq8097aw": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    }
+  },
+  "router_version": {
+    "contract": "cl8y-dex-router",
+    "version": "1.3.0"
+  },
+  "expected_router_version": "1.3.0",
+  "tokens": [
+    "terra1v8lkqws3gd6npr0rdk9ch54amh9guas86r4u62jq27hee88lryfsfczvc5",
+    "terra1nfktgkcdysf38rx6wcycfwz5yhuw6cq9el970p845sj9nm5c99sqydan3x",
+    "terra1uvqk5vj9vn4gjemrp0myz4ku49aaemulgaqw7pfe0nuvfwp3gukq4rz3fj",
+    "terra1vc4ltgpv8qkqkvgvup6hvpp49lkaswrmvzf0fausrnvchjr9z8dqa7swk6",
+    "terra17a6uvlrd7xyw3t4j2nrgy4kz0v3w8pwasweleqffvptxk6wjs6pqc3rvlc"
+  ],
+  "decimals": [
+    6,
+    18,
+    6,
+    18,
+    6
+  ],
+  "checks": [
+    {
+      "label": "empty pool 1 hops reverse=False",
+      "gas_used": 1517393,
+      "height": "1333",
+      "txhash": "26028469821CB920D0378D3E853663E4C613590B5FB603B7FDFE14F1898966D4",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=False",
+      "gas_used": 5491563,
+      "height": "1337",
+      "txhash": "2CAB012F3AA83232BDF7929F601EFBC73125B314747B643947BC49F73540D008",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=False",
+      "gas_used": 1662985,
+      "height": "1346",
+      "txhash": "F26C2A9EAE982732688CE7C44F504AA7D77DB904576739F3A6CB484B2EF5C2F8",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=False",
+      "gas_used": 6073495,
+      "height": "1350",
+      "txhash": "9995C5143F4AE2067E59AA9B18DBAC667B903BF9EEA316368F0A270ECCBE2E0F",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=False",
+      "gas_used": 1531002,
+      "height": "1355",
+      "txhash": "843877FF0E6EF2A70201515245BF1168101A7A2CAF7FB284D20CC36D79C6C6F5",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=False",
+      "gas_used": 2869226,
+      "height": "1365",
+      "txhash": "D34D5E49EA813AB5B34C14D43FC32C7D2BCD2095A68CB48AA60818D902221E09",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=False",
+      "gas_used": 1888685,
+      "height": "1371",
+      "txhash": "32A4FC3B4D817ED8CB117C3768D3A0A5561A82D1D4568426FD41BA321DC193A9",
+      "query_status": "error",
+      "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed",
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 1 hops reverse=True",
+      "gas_used": 1517394,
+      "height": "1373",
+      "txhash": "C3793D7B30EB32425215E74DE07A6EBF59ABDA9E8CE104D983F90D5930DE4086",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=True",
+      "gas_used": 5491568,
+      "height": "1382",
+      "txhash": "79455EE77FD8974711B262D03F85B54FE330F594595E4EE95B71488C73CF3B8F",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=True",
+      "gas_used": 1662979,
+      "height": "1386",
+      "txhash": "4618566DBD5E3E60370DAF8581DE94C4D60EC7B6EF751EA9506EAE563F5A0622",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=True",
+      "gas_used": 6073480,
+      "height": "1390",
+      "txhash": "964D73FB769EBC9FAB22D9F737902AF03ECDF6D36B42C9E87807BA0FF3BB0875",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=True",
+      "gas_used": 1530993,
+      "height": "1394",
+      "txhash": "7F7D331F4BB65895300056FE48B807AB52DAE0CFBC0D5CBCEE8067B68AAAEEFD",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=True",
+      "gas_used": 2869206,
+      "height": "1399",
+      "txhash": "B2AB43D8017C0CB6A3E956E58929F7194F05E3FB75C90E9245C45338FB9D4969",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=True",
+      "gas_used": 1888669,
+      "height": "1410",
+      "txhash": "98FD993247D403A4B2A4C1357C7E41480D8957E8ADBFC2927F427A0DD20D8DEB",
+      "query_status": "error",
+      "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed"
+    }
+  ],
+  "status": "FAIL",
+  "receipts": [
+    {
+      "txhash": "EC2D4CCD914557B615A7FCB38BFFD576940598BB3B492A39638946C042781436",
+      "height": "1231",
+      "code": 0,
+      "gas_used": "178374"
+    },
+    {
+      "txhash": "BD6B4C9D0DD90539807B566414A013039D1A873CDEB54E655BF0AF4C39517466",
+      "height": "1236",
+      "code": 0,
+      "gas_used": "2785822"
+    },
+    {
+      "txhash": "DE3AE72E52EA81DD1855F4A5EFEE90372E4FDD9222F50537ABA034466064397B",
+      "height": "1247",
+      "code": 0,
+      "gas_used": "178157"
+    },
+    {
+      "txhash": "539FCF2806918100F62D6817C2155D256D53DBFBB945E1579DB7304001DD9B74",
+      "height": "1250",
+      "code": 0,
+      "gas_used": "193798"
+    },
+    {
+      "txhash": "6BE7B116A61A67F8E2ED05D4A9CAF0F0F4D7D539B06039B644AF44180CE65FC7",
+      "height": "1253",
+      "code": 0,
+      "gas_used": "173590"
+    },
+    {
+      "txhash": "C1247F3EC5E511B158539343F3EEB04D95490AE696FE363D6FD73ABD0F711686",
+      "height": "1261",
+      "code": 0,
+      "gas_used": "160686"
+    },
+    {
+      "txhash": "E9F2306A2A3ACD0A7B4BBA58CF3976159F84CD13A5A70965E18D9EF19AE8C224",
+      "height": "1264",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "8BAD5E2A190D9A3F98C211C5D9B39B963353AD10DAA00FE76492001DDA88036E",
+      "height": "1267",
+      "code": 0,
+      "gas_used": "189839"
+    },
+    {
+      "txhash": "E8DB477F74BEA47A1AFEAE5A39BDB31D083CE4D1545079C20D10730BE0A7778C",
+      "height": "1275",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "60ECCBC6C48DA27A8E2D72313CB85DC0BBA9865977BBC4FC29B90E2AA3A3E26E",
+      "height": "1278",
+      "code": 0,
+      "gas_used": "189839"
+    },
+    {
+      "txhash": "DF63B620CBCC5B75B903978A785167A0B3DDA428C123A9B1C5D54FD35BF1978D",
+      "height": "1281",
+      "code": 0,
+      "gas_used": "188561"
+    },
+    {
+      "txhash": "1AC33D70DE5836D7DF84FAB4546B4F943D71B610B6B5ADE189052A158522AC43",
+      "height": "1283",
+      "code": 0,
+      "gas_used": "754499"
+    },
+    {
+      "txhash": "519174F37A71702EF6AD9BFCB4367D8311FBC061BE60DF8BDCABC7CBBC851694",
+      "height": "1286",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "4567395DD17BBFA5417AEB5CF735CD850E152394D5410F0981C2359091149083",
+      "height": "1288",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "26E5DC510E8DB16D74DA3E213CA3A9DA8B59959F671271D56ADBE209116F25FC",
+      "height": "1290",
+      "code": 0,
+      "gas_used": "931628"
+    },
+    {
+      "txhash": "055D12EBC63F549BBFC1A6AE27AD33DFF44E0B65A3310D4F32C3685FA9F7397D",
+      "height": "1297",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "404F4E3324EA913A9918750E6708798BA4437339C8C59F25285DB2B305087392",
+      "height": "1300",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "73F39A29C1E73A08A9B8A72607511B58D2D66EEE08FC51491C428BB9C2706DCA",
+      "height": "1307",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "E902435735559E7AE612EB78684633C9B35F8599D745A8FEA0C147E1BE99C198",
+      "height": "1309",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "A52AFE16514C02D624E1EC2C0177BDF3890339AA115E18B2490352E5C6148FE0",
+      "height": "1311",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "5EF94388F8DAFA196AEC20B71F26F1208FDB5E1C6B75A1B4ED1859114B620CA8",
+      "height": "1314",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "ED925F8387F74972A9D9D53560313B952BB7311EC56D08A39982D0A6251AD916",
+      "height": "1316",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "49BA4A426A730459F428CEC18BDD231CA142B19740DB7C5BFC33A476DA5FB5F7",
+      "height": "1318",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "13CFDDF04F16277893D87870243F784C133A159217C489E7155DEF3D9DFDD868",
+      "height": "1320",
+      "code": 0,
+      "gas_used": "754515"
+    },
+    {
+      "txhash": "1FBF5D4A469BF524B359E51E63C58B72D08E087E546C99C44E414F14D3CD1C8D",
+      "height": "1323",
+      "code": 0,
+      "gas_used": "145515"
+    },
+    {
+      "txhash": "47D5C0F3D03C4A42F25E7ACFE4E2E57B23CA83B4CC1D54007B244E1F3C19CD75",
+      "height": "1325",
+      "code": 0,
+      "gas_used": "144641"
+    },
+    {
+      "txhash": "F758C7A4EF05D8C14C22C5D0059F441643CA08085CA44F879AF0DA53EEAC61BB",
+      "height": "1327",
+      "code": 0,
+      "gas_used": "931625"
+    },
+    {
+      "txhash": "26028469821CB920D0378D3E853663E4C613590B5FB603B7FDFE14F1898966D4",
+      "height": "1333",
+      "code": 0,
+      "gas_used": "1517393"
+    },
+    {
+      "txhash": "2CAB012F3AA83232BDF7929F601EFBC73125B314747B643947BC49F73540D008",
+      "height": "1337",
+      "code": 0,
+      "gas_used": "5491563"
+    },
+    {
+      "txhash": "F26C2A9EAE982732688CE7C44F504AA7D77DB904576739F3A6CB484B2EF5C2F8",
+      "height": "1346",
+      "code": 0,
+      "gas_used": "1662985"
+    },
+    {
+      "txhash": "9995C5143F4AE2067E59AA9B18DBAC667B903BF9EEA316368F0A270ECCBE2E0F",
+      "height": "1350",
+      "code": 0,
+      "gas_used": "6073495"
+    },
+    {
+      "txhash": "843877FF0E6EF2A70201515245BF1168101A7A2CAF7FB284D20CC36D79C6C6F5",
+      "height": "1355",
+      "code": 0,
+      "gas_used": "1531002"
+    },
+    {
+      "txhash": "D34D5E49EA813AB5B34C14D43FC32C7D2BCD2095A68CB48AA60818D902221E09",
+      "height": "1365",
+      "code": 0,
+      "gas_used": "2869226"
+    },
+    {
+      "txhash": "32A4FC3B4D817ED8CB117C3768D3A0A5561A82D1D4568426FD41BA321DC193A9",
+      "height": "1371",
+      "code": 0,
+      "gas_used": "1888685"
+    },
+    {
+      "txhash": "C3793D7B30EB32425215E74DE07A6EBF59ABDA9E8CE104D983F90D5930DE4086",
+      "height": "1373",
+      "code": 0,
+      "gas_used": "1517394"
+    },
+    {
+      "txhash": "79455EE77FD8974711B262D03F85B54FE330F594595E4EE95B71488C73CF3B8F",
+      "height": "1382",
+      "code": 0,
+      "gas_used": "5491568"
+    },
+    {
+      "txhash": "4618566DBD5E3E60370DAF8581DE94C4D60EC7B6EF751EA9506EAE563F5A0622",
+      "height": "1386",
+      "code": 0,
+      "gas_used": "1662979"
+    },
+    {
+      "txhash": "964D73FB769EBC9FAB22D9F737902AF03ECDF6D36B42C9E87807BA0FF3BB0875",
+      "height": "1390",
+      "code": 0,
+      "gas_used": "6073480"
+    },
+    {
+      "txhash": "7F7D331F4BB65895300056FE48B807AB52DAE0CFBC0D5CBCEE8067B68AAAEEFD",
+      "height": "1394",
+      "code": 0,
+      "gas_used": "1530993"
+    },
+    {
+      "txhash": "B2AB43D8017C0CB6A3E956E58929F7194F05E3FB75C90E9245C45338FB9D4969",
+      "height": "1399",
+      "code": 0,
+      "gas_used": "2869206"
+    },
+    {
+      "txhash": "98FD993247D403A4B2A4C1357C7E41480D8957E8ADBFC2927F427A0DD20D8DEB",
+      "height": "1410",
+      "code": 0,
+      "gas_used": "1888669"
+    }
+  ],
+  "node": {
+    "scope": "prior #1389 synthetic reverse matrix only; not 3M funded-provider evidence",
+    "query_gas_limit": 15000000,
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "status": {
+      "jsonrpc": "2.0",
+      "id": -1,
+      "result": {
+        "node_info": {
+          "protocol_version": {
+            "p2p": "8",
+            "block": "11",
+            "app": "0"
+          },
+          "id": "651521afc47d94be8f16cbd045bde535f9ab492c",
+          "listen_addr": "tcp://0.0.0.0:26656",
+          "network": "localterra",
+          "version": "0.38.19",
+          "channels": "40202122233038606100",
+          "moniker": "localterra",
+          "other": {
+            "tx_index": "on",
+            "rpc_address": "tcp://0.0.0.0:26657"
+          }
+        },
+        "sync_info": {
+          "latest_block_hash": "D9D9D48A2C60B5882051CAF32460601120CD8BF52C55AC8F33C4F5C29DAAB8C3",
+          "latest_app_hash": "3CA0F95D3DCAD64DAAAFB2D7304ABD375776A540E565C11848017451BB15816E",
+          "latest_block_height": "40",
+          "latest_block_time": "2026-10-06T04:52:24.12002432Z",
+          "earliest_block_hash": "178369464F8C6CB3CC2B77AADB2AA7D958A5D0A9456798833DFC5A72C96397A0",
+          "earliest_app_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+          "earliest_block_height": "1",
+          "earliest_block_time": "2026-10-06T04:52:14.934748454Z",
+          "catching_up": false
+        },
+        "validator_info": {
+          "address": "F4A84D61E1701E6740E0553C7315ED5612EF755A",
+          "pub_key": {
+            "type": "tendermint/PubKeyEd25519",
+            "value": "ytJBKP65auY5BouvnZkWynddskEOkqcF3Js+6QqveEs="
+          },
+          "voting_power": "10"
+        }
+      }
+    },
+    "terrad_version": {
+      "build_tags": "netgo ledger,",
+      "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+      "cosmos_sdk_version": "v0.53.6",
+      "go": "go version go1.24.13 linux/amd64",
+      "name": "terra",
+      "version": "4.0.1"
+    },
+    "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d"
+  },
+  "failure": "out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15046065: out of gas: unknown request",
+  "failed_smart_query": {
+    "label": "full greedy four-hop reverse=False",
+    "contract": "terra1z0vhf55k8lhdp4tk3pjtpnkwyf75quwkzuld5l6eyphjjth0s62sdkfwl3",
+    "message": {
+      "reverse_simulate_swap_operations": {
+        "ask_amount": "100000000",
+        "operations": [
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1v8lkqws3gd6npr0rdk9ch54amh9guas86r4u62jq27hee88lryfsfczvc5"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1nfktgkcdysf38rx6wcycfwz5yhuw6cq9el970p845sj9nm5c99sqydan3x"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1nfktgkcdysf38rx6wcycfwz5yhuw6cq9el970p845sj9nm5c99sqydan3x"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1uvqk5vj9vn4gjemrp0myz4ku49aaemulgaqw7pfe0nuvfwp3gukq4rz3fj"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1uvqk5vj9vn4gjemrp0myz4ku49aaemulgaqw7pfe0nuvfwp3gukq4rz3fj"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1vc4ltgpv8qkqkvgvup6hvpp49lkaswrmvzf0fausrnvchjr9z8dqa7swk6"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1vc4ltgpv8qkqkvgvup6hvpp49lkaswrmvzf0fausrnvchjr9z8dqa7swk6"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra17a6uvlrd7xyw3t4j2nrgy4kz0v3w8pwasweleqffvptxk6wjs6pqc3rvlc"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          }
+        ]
+      }
+    },
+    "error": "out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15046065: out of gas: unknown request",
+    "expected": "REVERSE_QUERY_BUDGET_EXCEEDED",
+    "status": "FAIL"
+  }
+}

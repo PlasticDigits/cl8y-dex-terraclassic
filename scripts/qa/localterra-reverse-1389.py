@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--container", default="cl8y-dex-terraclassic-localterra-1")
     parser.add_argument("--artifacts", type=Path, default=Path(__file__).resolve().parents[2] / "smartcontracts/artifacts")
     parser.add_argument("--probe", type=Path, default=Path(__file__).with_name("fixtures") / "reverse-query-probe/target/wasm32-unknown-unknown/release/reverse_query_probe.wasm")
+    parser.add_argument("--router-version", default="1.4.0", help="Expected reviewed router cw2 version (historical comparison only)")
     parser.add_argument("--code-cache", type=Path)
     parser.add_argument("--evidence-file", required=True, type=Path)
     args = parser.parse_args()
@@ -47,8 +48,9 @@ def main():
     codes = {name: chain.store(args.artifacts / (name + ".wasm")) for name in (
         "cl8y_dex_factory", "cl8y_dex_pair", "cl8y_dex_router", "cw20_mintable")}
     probe_code = chain.store(args.probe)
+    _, treasury = chain.fresh_trader()
     factory = chain.instantiate(codes["cl8y_dex_factory"]["code_id"], {
-        "governance": owner, "treasury": chain.address("test2"), "default_fee_bps": 30,
+        "governance": owner, "treasury": treasury, "default_fee_bps": 30,
         "pair_code_id": codes["cl8y_dex_pair"]["code_id"],
         "lp_token_code_id": codes["cw20_mintable"]["code_id"],
         "whitelisted_code_ids": [codes["cw20_mintable"]["code_id"]],
@@ -82,11 +84,12 @@ def main():
     router_version = version(router)
     assert all(value == {"contract": "cl8y-dex-pair", "version": "1.21.0"}
                for value in pair_versions.values()), pair_versions
-    assert router_version["version"] == "1.4.0", router_version
+    assert router_version == {"contract": "cl8y-dex-router", "version": args.router_version}, router_version
     evidence = {"utc": datetime.now(timezone.utc).isoformat(), "chain_id": "localterra",
         "synthetic_only": True, "gas_scope": "transaction including test-wrapper overhead",
         "codes": codes, "probe_code": probe_code, "factory": factory, "router": router,
         "pairs": pairs, "pair_versions": pair_versions, "router_version": router_version,
+        "expected_router_version": args.router_version,
         "tokens": tokens, "decimals": decimals, "checks": checks, "status": "PARTIAL"}
 
     def save():

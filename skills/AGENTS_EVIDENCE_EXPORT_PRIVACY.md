@@ -38,8 +38,8 @@ accounting history; its actor-hash and global-limiter-only guidance is obsolete.
 ## Migration behavior
 
 The [ordered-index migration](../indexer/migrations/20261006133000_evidence_daily_ordered_indexes.sql)
-is applied by SQLx at startup. Its six ordinary index builds scan existing ledger
+is applied by the separate SQLx `migrate` process before server startup (#1396). Its six ordinary index builds scan existing ledger
 tables, consume storage and block ledger writes until the migration transaction
 finishes. Export request timeouts do not apply to migration work. Document
-startup/lock/storage behavior and record deployed-version acceptance separately;
+migration/lock/storage behavior and record deployed-version acceptance separately;
 see [the QA deployment scope](../docs/qa/issue-1397/README.md#database-migration-and-deployment-scope).

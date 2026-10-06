@@ -780,6 +780,13 @@ Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENT
 
 - [Reverse-query availability #1389](../skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](qa/issue-1389/README.md).
 
+Run `make verify-issue-1422` for funded reverse quotes at the pinned SDK53 node's
+unchanged 3M smart-query limit, query gas receipts, funding/guard regressions and
+deterministic client failures. Follow the [reproduction and agent checklist](qa/issue-1422/README.md)
+and [FRQ1422 invariants](../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md).
+Unavailable checks may remain explicit skips with overall PASS with explicit skips;
+executed failures remain FAIL, and local query success does not establish deployment.
+
 ## Event amount integrity (#1395)
 
 Run `make verify-issue-1395` against an isolated Postgres database configured in

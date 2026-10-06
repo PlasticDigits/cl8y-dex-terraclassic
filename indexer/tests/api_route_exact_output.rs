@@ -763,3 +763,58 @@ async fn route_exact_output_protocol_exempt_guard_rejection_is_observable() {
         assert!(!response.text().contains("required_amount_in"));
     }
 }
+
+/// #1422: fresh provider validation cannot be bypassed by mirrors or a prior quote.
+#[serial]
+#[tokio::test]
+async fn route_exact_output_provider_gas_limit_rejects_prior_executable_quote() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_with_mirror(&pool).await;
+    let (r0, r1) = (1_000_000_000u128, 1_000_000_000u128);
+    reserves(&pool, "terra1pairrouteabc", r0, r1, 30).await;
+    let mock = forward_tax_mock(
+        vec![(seed.token_a.clone(), seed.token_b.clone(), r0, r1, 30)],
+        false,
+        std::collections::HashMap::new(),
+        false,
+    )
+    .await;
+    let server = TestServer::new(
+        common::build_test_app_with_price_and_config(pool, None, config(&mock)).await,
+    );
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_out=1000000",
+        seed.token_a, seed.token_b,
+    );
+    server.get(&url).await.assert_status_ok();
+    Mock::given(method("GET"))
+        .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
+        .and(|request: &Request| lcd_mock::smart_query_from_request(request)
+            .get("simulate_swap_operations").is_some())
+        .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+            "message": "out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317 http://private-lcd terra1private",
+        })))
+        .with_priority(1)
+        .expect(2)
+        .mount(&mock)
+        .await;
+    for endpoint in ["solve", "solve/best"] {
+        let response = server
+            .get(&url.replace("/solve?", &format!("/{endpoint}?")))
+            .await;
+        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        let message = response.text();
+        assert!(message.contains("router_query_gas_limit_exceeded"));
+        for forbidden in [
+            "required_amount_in",
+            "router_operations",
+            "http://",
+            "terra1private",
+        ] {
+            assert!(
+                !message.contains(forbidden),
+                "unexpected {forbidden}: {message}"
+            );
+        }
+    }
+}

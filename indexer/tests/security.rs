@@ -29,6 +29,26 @@ fn without_qa_credentials<T>(read: impl FnOnce() -> T) -> T {
             .map(|key| (key, std::env::var_os(key)))
             .collect(),
     );
+    // Config::from_env loads .env before checking privileged credentials.
+    // Exercise these synthetic configurations independently of checkout files.
+    struct RestoreDirectory(std::path::PathBuf, std::path::PathBuf);
+    impl Drop for RestoreDirectory {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).expect("restore test working directory");
+            std::fs::remove_file(self.1.join(".env")).expect("remove isolated dotenv file");
+            std::fs::remove_dir(&self.1).expect("remove isolated config directory");
+        }
+    }
+    let original = std::env::current_dir().expect("test working directory");
+    let isolated = std::env::temp_dir().join(format!(
+        "dex1396-config-{}-{:016x}",
+        std::process::id(),
+        rand::random::<u64>()
+    ));
+    std::fs::create_dir(&isolated).expect("create isolated config directory");
+    std::fs::write(isolated.join(".env"), "").expect("block ancestor dotenv discovery");
+    let _directory = RestoreDirectory(original, isolated.clone());
+    std::env::set_current_dir(isolated).expect("isolate config dotenv loading");
     for key in keys {
         std::env::remove_var(key);
     }
@@ -38,10 +58,10 @@ fn without_qa_credentials<T>(read: impl FnOnce() -> T) -> T {
 use std::env;
 use std::net::SocketAddr;
 
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::{HeaderValue, StatusCode, header};
 use axum_test::TestServer;
 use cl8y_dex_indexer::api::LCD_UPSTREAM_GATEWAY_MSG;
-use cl8y_dex_indexer::config::{Config, RunMode, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS};
+use cl8y_dex_indexer::config::{Config, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS, RunMode};
 use serde_json::Value;
 use serial_test::serial;
 use wiremock::matchers::{method, path_regex};
@@ -462,10 +482,7 @@ async fn pair_candles_negative_and_zero_limit_clamp_to_one() {
     let server = TestServer::new(app);
     assert_negative_or_zero_limit_clamps_to_one(
         &server,
-        &format!(
-            "/api/v1/pairs/{}/candles?interval=1h",
-            seed.pair_address
-        ),
+        &format!("/api/v1/pairs/{}/candles?interval=1h", seed.pair_address),
     )
     .await;
 }
@@ -603,8 +620,7 @@ async fn prod_lcd_heavy_rate_limit_enforced_when_env_zero() {
     let prod_config = without_qa_credentials(Config::from_env).expect("prod config from env");
     assert_eq!(prod_config.run_mode, RunMode::Prod);
     assert_eq!(
-        prod_config.rate_limit_lcd_heavy_rps,
-        DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS,
+        prod_config.rate_limit_lcd_heavy_rps, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS,
         "prod must clamp LCD-heavy limit when env is 0"
     );
 
@@ -629,9 +645,7 @@ async fn prod_lcd_heavy_rate_limit_enforced_when_env_zero() {
         if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
             saw_429 = true;
             assert!(
-                resp.headers()
-                    .get(header::RETRY_AFTER)
-                    .is_some(),
+                resp.headers().get(header::RETRY_AFTER).is_some(),
                 "429 should include Retry-After header"
             );
             break;
@@ -683,7 +697,8 @@ async fn prod_lcd_heavy_rate_limit_enforced_when_config_clamped() {
     config.rate_limit_rps = 0;
     config.rate_limit_lcd_heavy_rps = 0;
     // Integration tests skip Config::from_env; mirror prod clamp (#363) before build_router.
-    if config.run_mode == cl8y_dex_indexer::config::RunMode::Prod && config.rate_limit_lcd_heavy_rps == 0
+    if config.run_mode == cl8y_dex_indexer::config::RunMode::Prod
+        && config.rate_limit_lcd_heavy_rps == 0
     {
         config.rate_limit_lcd_heavy_rps = 10;
     }
@@ -929,10 +944,7 @@ async fn route_solve_post_oversized_body_returns_413() {
         "pad": pad,
     });
 
-    let resp = server
-        .post("/api/v1/route/solve")
-        .json(&body)
-        .await;
+    let resp = server.post("/api/v1/route/solve").json(&body).await;
     assert_eq!(resp.status_code(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 

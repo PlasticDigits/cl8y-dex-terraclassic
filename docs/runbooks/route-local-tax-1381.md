@@ -129,11 +129,11 @@ sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
 `deployment.env` contains public application pins/registries for the handoff,
 not secret credentials. This PR's source review does not run any production mode.
 
-The rollout retains official contract addresses. It targets router and community
-tax tokens **1.3.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
+The rollout retains official contract addresses. It targets router **1.4.0**, community
+tax tokens **1.3.0**, factory **1.12.0**, pair **1.21.0**, and launcher **1.0.0**.
 Production factory 1.10.0 has a different stored hash from the repository artifact;
-this PR changes only factory CW2 metadata relative to repository code, to 1.11.0,
-to permit its reviewed upgrade. Review the exact deployed artifact hash rather
+The integrated factory 1.12.0 release also includes bounded hook admission
+(#1398); its version permits the reviewed upgrade. Review the exact deployed artifact hash rather
 than inferring wasm equivalence from a shared version label. The
 [read-only baseline and release targets](../qa/issue-1381-rollout/README.md#release-targets-and-read-only-baseline)
 record the observed code IDs; re-probe them before a new production plan.
@@ -256,3 +256,27 @@ Router/token 1.3.0 trust recovery and single-use settlement: follow the
 [router trust runbook](router-trust-1388.md) and
 [agent checklist](../qa/issue-1388/README.md). Immediate rollout must preserve the
 router address and reject every inventoried stored binding mismatch before mutation.
+
+## Funded reverse provider gas validation (#1422)
+
+Router **1.4.0** reuses immutable query-local capability/pair lookup metadata;
+all amount-specific previews and fresh final sufficiency validation remain real
+queries. Pair **1.21.0** remains the reviewed bounded-reverse target. These targets
+supersede old router 1.3.0/pair 1.19.0 rollout plans in
+[#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and
+[#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).
+Run [the six funded 3M fixtures](../qa/issue-1422/README.md) and
+`make verify-issue-1422`, preserving actual smart responses/errors, optimized
+code checksums, cw2, node image/config and query-probe receipts. Wrapper receipt
+gas includes transaction overhead and is not the smart-query meter reading.
+
+Before production rollout acceptance, probe the actual selected provider
+read-only for matching deployed hashes/capabilities and funded forward/reverse
+quotes at its documented real limit. Record provider, limit, route/state and
+responses; no source simulation-count bound or larger-limit local test proves
+availability there. Include the DB exact-output client's fresh forward preflight
+and direct router reverse as separate quote paths. Deterministic gas failures
+retain Receive intent and invalidate executable quotes; no endpoint fanout,
+automatic retry, weaker signing protection or tax waiver is permitted. Keep
+unavailable production acceptance explicitly unverified while source review may
+PASS with explicit skips under [FRQ1422](../../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md).

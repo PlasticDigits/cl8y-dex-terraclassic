@@ -18,6 +18,15 @@ Repeated capable assets are rejected; only authenticated original-input residue
 returned to its payer may skip the wallet cap. Run `make verify-issue-1390`;
 [agent checklist and explicit skip policy](docs/qa/issue-1390/README.md).
 
+## Funded reverse-query provider budget
+
+For funded reverse sizing, provider gas failures, receive quoting or rollout,
+follow [skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md](skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md)
+(**FRQ1422-1–FRQ1422-8**, [#1422](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1422)).
+Run `make verify-issue-1422`; [agent checklist and explicit skip policy](docs/qa/issue-1422/README.md).
+Work-count limits do not establish a provider gas envelope; actual 3M smart-query
+success and overhead-scoped probe receipts remain distinct from production rollout.
+
 ## Current route-tax protocol
 
 For routed community-tax swaps, use

@@ -26,10 +26,10 @@ Canonical references: [operator runbook](../docs/runbooks/route-local-tax-1381.m
    official community-tax token such as KENA is still an affected instance; its
    current rates cannot establish that its code is compatible. Reject unexpected
    factory/router bindings or administrators rather than guessing a dispatcher.
-4. **RTROLL1381-4 — version-aware upgrades.** Router/token funding targets are
-   1.3.0; this rollout targets factory 1.11.0 and pair 1.19.0. The factory CW2
-   metadata increase is required because live 1.10.0 and the repository's 1.10.0
-   artifact have different hashes; it adds no factory behavior in this PR.
+4. **RTROLL1381-4 — version-aware upgrades.** Funding targets are
+   router 1.4.0 and token 1.3.0; this rollout targets factory 1.12.0 and pair 1.21.0. The factory CW2
+   release includes bounded hook admission (#1398); live 1.10.0 also has a
+   different hash from the historical repository 1.10.0 artifact.
    Upgrade prerequisite factory/pair code when behind the reviewed target.
    Do not force a same-version migration with a different hash; contracts reject
    non-increasing versions. Report the mismatch for a properly versioned release.
@@ -92,3 +92,12 @@ inventing production receipts or making unavailable work a PR hold.
 Router replacement, revocation and single-use settlement follow
 [RTTRUST1388-1–RTTRUST1388-10](AGENTS_ROUTER_TRUST_LIFECYCLE.md)
 and the [recovery runbook](../docs/runbooks/router-trust-1388.md).
+
+Funded reverse compatibility follows [FRQ1422](AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md)
+and the [3M evidence checklist](../docs/qa/issue-1422/README.md). The current
+pair 1.21.0/router 1.4.0 targets supersede old pair 1.19.0/router 1.3.0 rollout
+instructions in #1384/#1386. Before acceptance record actual provider limits and
+successful read-only funded forward/reverse quotes with matching reviewed hashes.
+Source work budgets and larger-limit test nodes cannot establish that envelope.
+A deterministic provider gas error leaves that provider/route unverified; do not
+waive tax/signing guards, fan out or raise limits to conceal it.
