@@ -1,0 +1,224 @@
+{
+  "source_commit": "02baafe326a9238a46c3c565256bffbcf830eba6",
+  "source_tree_matches_isolated_test_tree_except_artifact_manifest": true,
+  "contracts": {
+    "passed": 944,
+    "failed": 0,
+    "ignored": 0,
+    "strict_all_target_clippy": "PASS"
+  },
+  "indexer": {
+    "passed": 858,
+    "suites": {
+      "library": {
+        "passed": 555,
+        "ignored": 1,
+        "log": "indexer-final-tests.log"
+      },
+      "api_evidence_daily": {
+        "passed": 11,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_gt": {
+        "passed": 16,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_health": {
+        "passed": 9,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_hub_prices": {
+        "passed": 7,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_limit_book_lcd_mock": {
+        "passed": 2,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_oracle": {
+        "passed": 23,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_route_exact_output": {
+        "passed": 13,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_route_solve": {
+        "passed": 29,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_route_solve_db_hybrid": {
+        "passed": 9,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "api_route_tax_funding1381": {
+        "passed": 9,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "book_snapshot_loop": {
+        "passed": 6,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "candle_human_usd": {
+        "passed": 2,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "candle_usd_mark": {
+        "passed": 11,
+        "ignored": 0,
+        "log": "indexer-final-tests.log"
+      },
+      "indexer_defillama": {
+        "passed": 10,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_event_amount_integrity": {
+        "passed": 9,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_ingestion_hardening": {
+        "passed": 11,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_pair_discovery": {
+        "passed": 9,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_pair_volume_usd": {
+        "passed": 6,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_protocol_fees": {
+        "passed": 26,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_protocol_liquidity": {
+        "passed": 29,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_protocol_liquidity_series": {
+        "passed": 7,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_protocol_volume": {
+        "passed": 19,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "indexer_trader_rolling_numeric": {
+        "passed": 14,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "limit_fill_swap_linkage": {
+        "passed": 2,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "limit_order_parked_lifecycle": {
+        "passed": 1,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "position_tracker_18dec": {
+        "passed": 5,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "swap_price_human_usd": {
+        "passed": 2,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      },
+      "volume_usd_catalog": {
+        "passed": 6,
+        "ignored": 0,
+        "log": "indexer-remaining-tests.log"
+      }
+    },
+    "failed_remaining": 0,
+    "benchmark_ignored_by_broad_suite": "Executed and passed in verify-issue-1394"
+  },
+  "frontend": {
+    "passed": 3093,
+    "files": 353,
+    "lint_errors": 0,
+    "existing_lint_warnings": 5,
+    "production_build": "PASS"
+  },
+  "verifiers": {
+    "1381": {
+      "pass": 13,
+      "fail": 0,
+      "skip": 2
+    },
+    "1393": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    },
+    "1394": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    "1395": "PASS: full library twice, integrity DB twice and related persistence/recovery suites"
+  },
+  "native_build": {
+    "source_commit": "3d33ab43bd10e2e0b71e6c740cf9e6d48cd20ecc",
+    "source_dirty": false,
+    "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+    "source_sha256": "38918b1108b41a4b92e9e195f5c6bd6b36f5877a94400273eb690bc5057916f8",
+    "lockfile": {
+      "path": "smartcontracts/Cargo.lock",
+      "sha256": "5400925fb95ef23a16acf1d657d73a477aea03c80f933eb65a741243734c2537"
+    },
+    "toolchain": "rustc 1.81.0 (eeb90cda1 2024-09-04)\ncargo 1.81.0 (2dbb1af80 2024-08-20)\nwasm-opt version 116"
+  },
+  "chain": {
+    "network": "localterra",
+    "funding_checks": 6,
+    "invoice_checks": 2,
+    "guard_checks": 16,
+    "query_gas_limit": 15000000,
+    "production_changed": false
+  },
+  "known_failure": {
+    "default_query_gas_limit": 3000000,
+    "observed_reverse_gas_used": 3043317,
+    "issue": "https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1422"
+  },
+  "skip_scopes": [
+    "No existing public LocalTerra wrap-stack environment; native wrap/unwrap not run.",
+    "Production signing, broadcast, migration and deployment not run; tracked in 1384/1385/1386/1421.",
+    "Hosted CI skipped by explicit instruction; no fake statuses posted."
+  ],
+  "fixture_cw20_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+  "cleanup": {
+    "own_temporary_branches_deleted": 9,
+    "merged_renovate_branches_deleted": 2,
+    "missing_worktree_records_pruned": 2,
+    "initial_stashes": 0,
+    "other_worker_branches_and_worktrees_preserved": true
+  }
+}

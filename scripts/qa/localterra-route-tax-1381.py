@@ -27,6 +27,14 @@ class LocalTerra:
         self.stored_codes = json.loads(code_cache.read_text()) if code_cache and code_cache.exists() else {}
 
     @property
+    def tx_key(self):
+        return self.default_key
+
+    @tx_key.setter
+    def tx_key(self, key):
+        self.default_key = key
+
+    @property
     def owner_key(self):
         return self.default_key
 

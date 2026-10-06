@@ -768,8 +768,19 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
     assert_eq!(tier5_b["hops"], tier5_a["hops"]);
 
     let requests_after_second = mock.received_requests().await.expect("request log");
-    let mut cache_hit_requests: Vec<_> = requests_after_second[requests_after_first.len()..]
+    let delta = &requests_after_second[requests_after_first.len()..];
+    let node_info_path = "/cosmos/base/tendermint/v1beta1/node_info";
+    let identity_probes = delta
         .iter()
+        .filter(|r| r.url.path() == node_info_path)
+        .count();
+    assert!(
+        (3..=11).contains(&identity_probes),
+        "cache hits re-attest each candidate with bounded chain work"
+    );
+    let mut cache_hit_requests: Vec<_> = delta
+        .iter()
+        .filter(|r| r.url.path() != node_info_path)
         .map(|request| {
             (
                 request.method.to_string(),
@@ -914,7 +925,13 @@ async fn route_solve_excludes_code_id_frozen_pair() {
 
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let prev = snapshot_frozen_pair_addresses();
+    struct RestoreFrozenPairs(HashSet<String>);
+    impl Drop for RestoreFrozenPairs {
+        fn drop(&mut self) {
+            replace_frozen_pair_addresses(std::mem::take(&mut self.0));
+        }
+    }
+    let _restore = RestoreFrozenPairs(snapshot_frozen_pair_addresses());
     replace_frozen_pair_addresses(HashSet::from(["terra1pairrouteabc".to_string()]));
 
     let app = common::build_test_app(pool).await;
@@ -925,6 +942,4 @@ async fn route_solve_excludes_code_id_frozen_pair() {
     );
     let resp = server.get(&url).await;
     resp.assert_status_not_found();
-
-    replace_frozen_pair_addresses(prev);
 }

@@ -38,6 +38,27 @@ class RetryTests(unittest.TestCase):
         self.assertIn("synthetic-owner", chain.calls[0])
         sleep.assert_called_once()
 
+    def test_guard_owner_alias_selects_the_funded_signer(self):
+        chain = self.chain([{"code": 0, "txhash": "synthetic"}])
+        chain.owner_key = "guard-fixture-owner"
+        chain.query = lambda *parts: {"code": 0, "txhash": "synthetic", "height": "1", "gas_used": "1"}
+        chain.tx("wasm", "execute")
+        self.assertEqual(chain.default_key, "guard-fixture-owner")
+        self.assertIn("guard-fixture-owner", chain.calls[0])
+        chain.tx_key = "reverse-fixture-owner"
+        chain.command = lambda *parts, stdin=None: chain.calls.append(parts) or json.dumps({"code": 0, "txhash": "synthetic"})
+        chain.tx("wasm", "execute")
+        self.assertEqual(chain.owner_key, "reverse-fixture-owner")
+        self.assertIn("reverse-fixture-owner", chain.calls[1])
+
+    @patch.object(funding.time, "sleep")
+    def test_non_sequence_code_with_sequence_text_is_not_retried(self, sleep):
+        chain = self.chain([{"code": 5, "raw_log": "account sequence mismatch"}])
+        with self.assertRaisesRegex(RuntimeError, "account sequence mismatch"):
+            chain.tx("wasm", "execute")
+        self.assertEqual(len(chain.calls), 1)
+        sleep.assert_not_called()
+
     @patch.object(funding.time, "sleep")
     def test_accepted_transaction_with_unknown_inclusion_is_never_resent(self, sleep):
         chain = self.chain([{"code": 0, "txhash": "synthetic"}])

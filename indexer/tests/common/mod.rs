@@ -1042,7 +1042,12 @@ pub async fn seed_route_solve_4hop(pool: &PgPool) -> RouteSolveSeed {
 }
 
 pub async fn build_test_app(pool: PgPool) -> Router {
-    build_test_app_with_price_and_config(pool, None, test_config()).await
+    let mock = lcd_mock::start_ordinary_code_mock().await;
+    let mut config = test_config();
+    config.lcd_urls = vec![mock.uri()];
+    build_test_app_with_price_and_config(pool, None, config)
+        .await
+        .layer(axum::Extension(std::sync::Arc::new(mock)))
 }
 
 pub async fn build_test_app_with_price(

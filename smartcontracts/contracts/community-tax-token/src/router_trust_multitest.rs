@@ -78,6 +78,7 @@ fn recovery_router() -> Box<dyn Contract<Empty>> {
             gross: amount,
             economic: amount,
             acquired_tokens: vec![],
+            original_input_refund: None,
             transfers: slots
                 .iter()
                 .map(|slot| dex_common::route_tax::RouteTransfer {

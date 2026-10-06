@@ -766,6 +766,7 @@ async fn reorg_guard_and_cursor_replay_preserve_valid_ordinals_and_fee_dedup() {
         .await
         .unwrap();
     server.reset().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let canonical = [tx(
         "replacement1395",
         vec![

@@ -40,9 +40,9 @@ format_changed() {
     [[ ! -f "$candidate" ]] || files+=("$candidate")
   done
   printf 'Rustfmt command:'
-  printf ' %q' rustfmt --edition 2021 --config skip_children=true --check "${files[@]}"
+  printf ' %q' rustfmt --edition 2024 --config skip_children=true --check "${files[@]}"
   printf '\n'
-  rustfmt --edition 2021 --config skip_children=true --check "${files[@]}"
+  rustfmt --edition 2024 --config skip_children=true --check "${files[@]}"
 }
 run 'changed Rust formatting' format_changed
 run 'discovery cache and admission tests' cargo_indexer test --lib pair_discovery
