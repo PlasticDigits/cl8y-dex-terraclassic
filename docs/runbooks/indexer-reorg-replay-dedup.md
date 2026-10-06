@@ -10,6 +10,10 @@ Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 - **Automatic reorg detection:** before each new height, the poller re-fetches the hash at the last committed height; mismatch **halts** the indexer (no silent skip).
 - **Operator alert on halt:** structured `tracing` event `indexer_reorg_halt` (target `indexer_reorg_halt`), stderr prefix `INDEXER_REORG_HALT`, plus optional webhook — see [Alerting](#alerting-on-reorg-halt).
 - **Block processing errors** do **not** advance the cursor; retries use `BLOCK_PROCESS_MAX_RETRIES` / `BLOCK_PROCESS_RETRY_BACKOFF_MS`; persistent failures are recorded in **`indexer_failed_blocks`**.
+- **Malformed economic amounts (#1395)** are rejected per action before accounting;
+  valid siblings still ingest and deterministic poison input does not trigger block
+  retries. See [A1395](../indexer-invariants.md#exact-event-amounts-1395) and the
+  [agent checklist](../qa/issue-1395/README.md).
 
 ## Dedup and replay
 
@@ -69,6 +73,10 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
    ```
 
    - Sets `last_indexed_height` to `H - 1`, clears `last_indexed_block_hash`, truncates `indexer_failed_blocks`.
+   - Derived cleanup includes `protocol_fee_events` from the fork height. Replay
+     re-ingests canonical fees using their original source/pair/ordinal keys.
+     Non-height-keyed positions and rollups still need their existing rebuild or
+     snapshot recovery; deleting ledgers alone is not full accounting restoration.
    - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs. That also drops persisted `/gt/events` post-event reserves ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); replay re-ingests them. Cursor-only rewind must **not** leave future-height reserves on rolled-back rows — use `--cleanup-derived` when canonical txs changed, then `cl8y-dex-indexer backfill-gt-event-reserves` if NULL columns remain.
 
 4. **Restart** the indexer; confirm `last_indexed_height` advances and API pair/candle data matches LCD tip within normal lag.

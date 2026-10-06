@@ -4,7 +4,7 @@
 //! Pool-only requests reuse the minimum offer and need one forward validation;
 //! declared-book requests retain the 32-call full-simulation budget.
 
-use cosmwasm_std::{StdError, StdResult, Uint128, Uint256};
+use cosmwasm_std::{Decimal, StdError, StdResult, Uint128, Uint256};
 
 use dex_common::pair::{HybridSimulationResponse, HybridSwapParams};
 
@@ -30,7 +30,7 @@ fn narrow_u128(value: Uint256, ctx: &str) -> StdResult<Uint128> {
 }
 
 /// Hard cap on full `simulate_hybrid_swap_with_fee` calls per reverse query.
-pub const MAX_HYBRID_REVERSE_SIM_CALLS: u32 = 32;
+pub const MAX_HYBRID_REVERSE_SIM_CALLS: u32 = dex_common::pair::MAX_HYBRID_REVERSE_SIM_CALLS;
 
 /// Pool leg net output (ask token) for a given pool input, matching forward sim rounding.
 pub fn pool_net_output_for_input(
@@ -106,16 +106,84 @@ pub fn min_pool_input_for_net_output(
     Ok(required_reserve.checked_sub(input_reserve)?)
 }
 
-/// Search a declared hybrid template while retaining the established 32-call budget.
-/// Cache the sufficient upper response so success does not need an unbudgeted final
-/// call; use difference midpoints and clamp growth before raw-unit addition overflow.
-/// A budget error is explicit and never returned as a successful sufficient quote.
+/// Pool snapshot used only to propose search probes. Every accepted bound still
+/// comes from the full forward hybrid simulation, including book rounding/caps.
+#[derive(Clone, Copy)]
+pub struct ReversePoolSnapshot {
+    pub input_reserve: Uint128,
+    pub output_reserve: Uint128,
+    pub effective_fee_bps: u16,
+    /// Optional first maker output/offer rate; a probe hint, never a trusted bound.
+    pub book_output_rate: Option<Decimal>,
+}
+
+impl ReversePoolSnapshot {
+    fn candidate(
+        self,
+        target: Uint128,
+        offer: Uint128,
+        hybrid: &HybridSwapParams,
+        sim: &HybridSimulationResponse,
+    ) -> Option<Uint128> {
+        let pool_target = target.saturating_sub(sim.book_return_amount);
+        let needed = min_pool_input_for_net_output(
+            self.input_reserve,
+            self.output_reserve,
+            self.effective_fee_bps,
+            pool_target,
+        )
+        .ok()?;
+        if needed.is_zero() && hybrid.pool_input.is_zero() {
+            // A fully book-funded output plateau must use the maker-rate probe;
+            // freezing consumed input would suggest the same offer repeatedly.
+            return None;
+        }
+        let total = hybrid.pool_input.checked_add(hybrid.book_input).ok()?;
+        let allocated_book = narrow_u128(
+            u256(offer).checked_mul(u256(hybrid.book_input)).ok()? / u256(total),
+            "allocated book",
+        )
+        .ok()?;
+        if sim.limit_book_offer_consumed == allocated_book
+            && !hybrid.pool_input.is_zero()
+            && !needed.is_zero()
+        {
+            // Fully consumed declared leg: pool input is ceil(total*pool/sum).
+            // Invert that ceiling exactly, including coarse 18->6 output plateaus.
+            narrow_u128(
+                u256(needed - Uint128::one())
+                    .checked_mul(u256(total))
+                    .ok()?
+                    / u256(hybrid.pool_input)
+                    + Uint256::one(),
+                "declared pool inverse",
+            )
+            .ok()
+        } else {
+            needed.checked_add(sim.limit_book_offer_consumed).ok()
+        }
+    }
+}
+
+/// Search a declared hybrid template within 32 full simulations. Pool inversion
+/// proposes the exact offer when the observed book is empty or exhausted; secant
+/// probes accelerate large active-book ranges without Uint128 products. Neither
+/// is trusted as a bound until forward simulated. Success requires sufficient
+/// `hi` and an adjacent insufficient `lo`; all successful responses are cached.
 pub fn bounded_hybrid_reverse_search(
     seed: Uint128,
     max_offer: Uint128,
     target: Uint128,
+    pool: ReversePoolSnapshot,
+    hybrid: &HybridSwapParams,
     mut simulate: impl FnMut(Uint128) -> StdResult<HybridSimulationResponse>,
 ) -> StdResult<(Uint128, HybridSimulationResponse)> {
+    let template_total = hybrid.pool_input.checked_add(hybrid.book_input)?;
+    if template_total.is_zero() {
+        return Err(StdError::generic_err(
+            "hybrid template sum must be positive",
+        ));
+    }
     let mut calls = 0;
     let mut run = |offer| {
         if calls >= MAX_HYBRID_REVERSE_SIM_CALLS {
@@ -126,11 +194,17 @@ pub fn bounded_hybrid_reverse_search(
         calls += 1;
         simulate(offer)
     };
+    if target.is_zero() {
+        let sim = run(Uint128::zero())?;
+        return Ok((Uint128::zero(), sim));
+    }
     if max_offer.is_zero() {
         return Err(StdError::generic_err(
             "hybrid target infeasible: offer range exhausted",
         ));
     }
+    let mut lo = Uint128::zero();
+    let mut lower_output = Uint128::zero();
     let mut hi = seed.max(Uint128::one()).min(max_offer);
     let mut sufficient = loop {
         let sim = run(hi)?;
@@ -142,20 +216,80 @@ pub fn bounded_hybrid_reverse_search(
                 "hybrid target infeasible: offer range exhausted",
             ));
         }
-        hi = hi
-            .checked_mul(Uint128::new(2))
-            .unwrap_or(max_offer)
+        lo = hi;
+        lower_output = sim.return_amount;
+        // A checked pool candidate avoids long expansion for empty/exhausted
+        // books. Otherwise double, clamped before reserve/offer overflow.
+        hi = pool
+            .candidate(target, hi, hybrid, &sim)
+            .filter(|candidate| *candidate > hi)
+            .unwrap_or_else(|| hi.checked_mul(Uint128::new(2)).unwrap_or(max_offer))
             .min(max_offer);
     };
-    let mut lo = Uint128::one();
-    while lo < hi {
-        let mid = lo.checked_add(hi.checked_sub(lo)? / Uint128::new(2))?;
-        let sim = run(mid)?;
+    while hi.checked_sub(lo)? > Uint128::one() {
+        let width = hi.checked_sub(lo)?;
+        let allocated_book = narrow_u128(
+            u256(hi).checked_mul(u256(hybrid.book_input))? / u256(template_total),
+            "reverse book allocation",
+        )?;
+        // Pool correction is exact on an exhausted book and useful inside an
+        // output plateau. On a fully active book use interpolation first: freezing
+        // its output during pool inversion otherwise converges too slowly.
+        let use_pool_candidate = sufficient.book_return_amount.is_zero()
+            || sufficient.limit_book_offer_consumed < allocated_book
+            || sufficient.return_amount == target;
+        let candidate = use_pool_candidate
+            .then(|| pool.candidate(target, hi, hybrid, &sufficient))
+            .flatten();
+        let book_candidate = pool.book_output_rate.and_then(|rate| {
+            if rate.is_zero() || hybrid.book_input.is_zero() {
+                return None;
+            }
+            let gross = sufficient
+                .book_return_amount
+                .checked_add(sufficient.book_commission_amount)
+                .ok()?;
+            let book_needed = ceil_div_u256(
+                u256(gross)
+                    .checked_mul(Uint256::from(Decimal::one().atomics()))
+                    .ok()?,
+                Uint256::from(rate.atomics()),
+            );
+            narrow_u128(
+                ceil_div_u256(
+                    book_needed
+                        .checked_mul(u256(hybrid.pool_input.checked_add(hybrid.book_input).ok()?))
+                        .ok()?,
+                    u256(hybrid.book_input),
+                ),
+                "book plateau probe",
+            )
+            .ok()
+        });
+        let candidate = candidate
+            .filter(|c| *c > lo)
+            .or(book_candidate.filter(|_| sufficient.return_amount == target));
+        let probe = if let Some(candidate) = candidate.filter(|c| *c > lo && *c < hi) {
+            candidate
+        } else if candidate == Some(hi) {
+            // Exact inversion for a stable book: prove its immediate predecessor.
+            hi.checked_sub(Uint128::one())?
+        } else {
+            let output_width = sufficient.return_amount.checked_sub(lower_output)?;
+            let delta = narrow_u128(
+                u256(width).checked_mul(u256(target.checked_sub(lower_output)?))?
+                    / u256(output_width),
+                "hybrid interpolation",
+            )?;
+            lo.checked_add(delta.max(Uint128::one()).min(width - Uint128::one()))?
+        };
+        let sim = run(probe)?;
         if sim.return_amount >= target {
-            hi = mid;
+            hi = probe;
             sufficient = sim;
         } else {
-            lo = mid.checked_add(Uint128::one())?;
+            lo = probe;
+            lower_output = sim.return_amount;
         }
     }
     Ok((hi, sufficient))
@@ -386,6 +520,15 @@ mod issue_1376_tests {
         }
     }
 
+    fn test_pool() -> ReversePoolSnapshot {
+        ReversePoolSnapshot {
+            input_reserve: Uint128::one(),
+            output_reserve: Uint128::new(2),
+            effective_fee_bps: 0,
+            book_output_rate: None,
+        }
+    }
+
     fn response(amount: Uint128) -> HybridSimulationResponse {
         HybridSimulationResponse {
             return_amount: amount,
@@ -403,12 +546,18 @@ mod issue_1376_tests {
     #[test]
     fn issue1376_hybrid_budget_and_overflow_safe_brackets() {
         let mut calls = 0;
-        let err =
-            bounded_hybrid_reverse_search(Uint128::MAX, Uint128::MAX, Uint128::MAX, |offer| {
+        let err = bounded_hybrid_reverse_search(
+            Uint128::MAX,
+            Uint128::MAX,
+            Uint128::MAX,
+            test_pool(),
+            &dex_common::pair::pool_only_hybrid_template(),
+            |_| {
                 calls += 1;
-                Ok(response(offer))
-            })
-            .unwrap_err();
+                Ok(response(Uint128::MAX))
+            },
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("iteration cap"));
         assert_eq!(calls, MAX_HYBRID_REVERSE_SIM_CALLS);
         let mut calls = 0;
@@ -416,6 +565,8 @@ mod issue_1376_tests {
             Uint128::MAX - Uint128::one(),
             Uint128::MAX,
             Uint128::one(),
+            test_pool(),
+            &dex_common::pair::pool_only_hybrid_template(),
             |_| {
                 calls += 1;
                 Ok(response(Uint128::zero()))
@@ -433,6 +584,8 @@ mod issue_1376_tests {
             Uint128::new(1 << 30),
             Uint128::MAX,
             Uint128::new(1 << 30),
+            test_pool(),
+            &dex_common::pair::pool_only_hybrid_template(),
             |offer| {
                 calls += 1;
                 Ok(response(offer))
@@ -441,6 +594,165 @@ mod issue_1376_tests {
         .unwrap();
         assert_eq!(offer, Uint128::new(1 << 30));
         assert_eq!(sim.return_amount, offer);
-        assert_eq!(calls, 31); // initial validation + 30 bisections, no final replay.
+        assert_eq!(calls, 2); // seed and its predecessor through interpolation.
+    }
+}
+
+#[cfg(test)]
+mod issue_1389_tests {
+    use super::*;
+
+    #[test]
+    fn issue1389_pure_book_coarse_output_plateau_uses_price_probe() {
+        let pool = ReversePoolSnapshot {
+            input_reserve: Uint128::new(2_000_000_000_000_000_000_000),
+            output_reserve: Uint128::new(2_000_000_000),
+            effective_fee_bps: 0,
+            book_output_rate: Some(Decimal::from_ratio(1u128, 1_000_000_000_000u128)),
+        };
+        let template = HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::one(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let minimum = Uint128::new(1_000_000_000_000_000_000);
+        let mut calls = 0;
+        let (offer, sim) = bounded_hybrid_reverse_search(
+            minimum + Uint128::new(500_000_000_000),
+            Uint128::MAX,
+            Uint128::new(1_000_000),
+            pool,
+            &template,
+            |offer| {
+                calls += 1;
+                let amount = offer / Uint128::new(1_000_000_000_000);
+                Ok(HybridSimulationResponse {
+                    return_amount: amount,
+                    book_return_amount: amount,
+                    pool_return_amount: Uint128::zero(),
+                    spread_amount: Uint128::zero(),
+                    commission_amount: Uint128::zero(),
+                    pool_commission_amount: Uint128::zero(),
+                    book_commission_amount: Uint128::zero(),
+                    limit_book_offer_consumed: offer,
+                    greedy_stop: None,
+                })
+            },
+        )
+        .unwrap();
+        assert_eq!(offer, minimum);
+        assert_eq!(sim.return_amount, Uint128::new(1_000_000));
+        assert_eq!(calls, 3);
+    }
+
+    /// A mixed 6/18-decimal pool and book at spot. Capacity=0 is an empty/stale
+    /// book; finite capacity models maker/scan exhaustion and unused input goes
+    /// to the pool. Both directions use exactly the same integer forward math.
+    fn forward(
+        pool: ReversePoolSnapshot,
+        capacity: Uint128,
+        offer: Uint128,
+    ) -> HybridSimulationResponse {
+        let consumed = (offer / Uint128::new(2)).min(capacity);
+        let book_gross = narrow_u128(
+            u256(consumed) * Uint256::from(pool.book_output_rate.unwrap().atomics())
+                / Uint256::from(Decimal::one().atomics()),
+            "test book",
+        )
+        .unwrap();
+        let book_fee = pool_commission(book_gross, pool.effective_fee_bps).unwrap();
+        let book_net = book_gross - book_fee;
+        let pool_net = pool_net_output_for_input(
+            offer - consumed,
+            pool.input_reserve,
+            pool.output_reserve,
+            pool.effective_fee_bps,
+        )
+        .unwrap();
+        HybridSimulationResponse {
+            return_amount: book_net + pool_net,
+            spread_amount: Uint128::zero(),
+            commission_amount: book_fee,
+            pool_commission_amount: Uint128::zero(),
+            book_commission_amount: book_fee,
+            book_return_amount: book_net,
+            pool_return_amount: pool_net,
+            limit_book_offer_consumed: consumed,
+            greedy_stop: None,
+        }
+    }
+
+    #[test]
+    fn issue1389_large_declared_targets_both_orientations_within_32_calls() {
+        let small = Uint128::new(297_665_983_808);
+        let large = Uint128::new(2_498_115_414_904_458_263_864);
+        for (input, output, target) in [
+            (small, large, Uint128::new(100_000_000_000_000_000_000)),
+            (large, small, Uint128::new(100_000_000)),
+            (large, small, small / Uint128::new(2)),
+        ] {
+            let pool = ReversePoolSnapshot {
+                input_reserve: input,
+                output_reserve: output,
+                effective_fee_bps: 180,
+                book_output_rate: Decimal::checked_from_ratio(output, input).ok(),
+            };
+            for capacity in [Uint128::zero(), input / Uint128::new(1000), input] {
+                let seed = min_pool_input_for_net_output(input, output, 180, target).unwrap()
+                    * Uint128::new(2);
+                let mut calls = 0;
+                let (offer, sim) = bounded_hybrid_reverse_search(
+                    seed,
+                    Uint128::MAX - input,
+                    target,
+                    pool,
+                    &HybridSwapParams {
+                        pool_input: Uint128::one(),
+                        book_input: Uint128::one(),
+                        max_maker_fills: 8,
+                        book_start_hint: None,
+                    },
+                    |offer| {
+                        calls += 1;
+                        Ok(forward(pool, capacity, offer))
+                    },
+                )
+                .unwrap_or_else(|err| {
+                    panic!("input={input}, target={target}, capacity={capacity}: {err}")
+                });
+                assert!(calls <= MAX_HYBRID_REVERSE_SIM_CALLS);
+                assert!(sim.return_amount >= target);
+                assert!(forward(pool, capacity, offer - Uint128::one()).return_amount < target);
+                if capacity.is_zero() {
+                    assert!(calls <= 3, "empty book should use exact pool inversion");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn issue1389_nested_failure_stops_immediately() {
+        let pool = ReversePoolSnapshot {
+            input_reserve: Uint128::new(100),
+            output_reserve: Uint128::new(100),
+            effective_fee_bps: 30,
+            book_output_rate: None,
+        };
+        let mut calls = 0;
+        let err = bounded_hybrid_reverse_search(
+            Uint128::one(),
+            Uint128::MAX,
+            Uint128::one(),
+            pool,
+            &dex_common::pair::pool_only_hybrid_template(),
+            |_| {
+                calls += 1;
+                Err(StdError::generic_err("synthetic nested failure"))
+            },
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("synthetic nested failure"));
+        assert_eq!(calls, 1);
     }
 }

@@ -165,3 +165,5 @@ When adding a new execute path or economic rule:
 4. Run `cargo test` in `smartcontracts/` and, for coverage, see [testing.md](./testing.md) (Rust / LLVM coverage).
 
 **E1376 / pair 1.19.0:** pool-only reverse validates the exact minimum integer offer; fees use Uint256 products before checked narrowing. Hybrid requests retain the 32 full-simulation cap, safe brackets and cached sufficient responses. Exhaustion remains a typed error, not a minimal-offer claim. No storage schema change; every existing pair requires migration to use the new query code. [Verification and migration inventory](qa/issue-1376/README.md), [agent playbook](../skills/AGENTS_SWAP_EXACT_OUTPUT.md).
+
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.

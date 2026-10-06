@@ -135,7 +135,7 @@ fn book_walk_step(scan_steps: &mut u32) -> bool {
 
 /// Resolve `book_start_hint` for a match walk: accept only when the order exists on `expected_side`;
 /// otherwise fall back to the book head (GitLab #272).
-fn resolve_match_start_hint(
+pub(crate) fn resolve_match_start_hint(
     storage: &dyn Storage,
     book_start_hint: Option<u64>,
     expected_side: LimitOrderSide,

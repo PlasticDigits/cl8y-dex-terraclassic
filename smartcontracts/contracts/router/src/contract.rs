@@ -11,7 +11,7 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
-use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
+use crate::state::{allocate_route_id, SwapState, FACTORY, LAST_ROUTE_ID, SWAP_STATE, WRAP_MAPPER};
 use dex_common::max_spread::{self, CheckMaxSpreadError};
 use dex_common::pair;
 use dex_common::types::Asset;
@@ -22,6 +22,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SWAP_REPLY_ID: u64 = 1;
 const SETTLEMENT_REPLY_ID: u64 = 2;
 const MAX_HOPS: usize = 4;
+const _: () = assert!(MAX_HOPS < dex_common::route_tax::MAX_SETTLEMENT_SLOTS);
 
 pub fn instantiate(
     deps: DepsMut,
@@ -314,12 +315,15 @@ fn execute_swap_operations(
         vec![]
     } else {
         vec![dex_common::route_tax::RouteTransfer {
+            slot: 0,
             token: input_token.clone(),
             recipient: sender.clone(),
             amount: residue,
         }]
     };
+    let route_id = allocate_route_id(deps.storage)?;
     let tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        route_id,
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         trader: sender.clone(),
         pair: pair_addr.clone(),
@@ -511,6 +515,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             .tax_context
             .transfers
             .push(dex_common::route_tax::RouteTransfer {
+                slot: state.refunds.len() as u32,
                 token: state.output_token.clone(),
                 recipient: state.recipient.clone(),
                 amount: hop_output,
@@ -519,7 +524,9 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         let refund_messages = state
             .refunds
             .iter()
-            .map(|r| crate::route_tax::transfer(deps.as_ref(), &r.token, &r.recipient, r.amount))
+            .map(|r| {
+                crate::route_tax::transfer(deps.as_ref(), &r.token, &r.recipient, r.amount, r.slot)
+            })
             .collect::<StdResult<Vec<_>>>()?;
         let output_msg = if let Some(mapper) = wrap_mapper_addr {
             let unwrap_hook = wrap_mapper::Cw20HookMsg::Unwrap {
@@ -541,6 +548,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 &state.output_token,
                 &state.recipient,
                 hop_output,
+                state.refunds.len() as u32,
             )?
         };
 
@@ -576,12 +584,14 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let residue = hop_output.checked_sub(funded.economic.checked_add(funded.tax)?)?;
     if !residue.is_zero() {
         state.refunds.push(dex_common::route_tax::RouteTransfer {
+            slot: state.refunds.len() as u32,
             token: current_token.clone(),
             recipient: state.sender.clone(),
             amount: residue,
         });
     }
     state.tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        route_id: state.tax_context.route_id,
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         trader: state.sender.clone(),
         pair: pair_addr.clone(),
@@ -689,6 +699,8 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let factory = FACTORY.load(deps.storage)?;
     let wrap_mapper = WRAP_MAPPER.may_load(deps.storage)?;
     Ok(ConfigResponse {
+        settlement_version: dex_common::route_tax::SETTLEMENT_VERSION,
+        last_route_id: LAST_ROUTE_ID.may_load(deps.storage)?.unwrap_or_default(),
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         factory,
         wrap_mapper,
@@ -787,6 +799,28 @@ fn query_simulate_swap_operations(
     trader: Option<String>,
     sender: Option<String>,
 ) -> StdResult<SimulateSwapOperationsResponse> {
+    simulate_swap_operations(
+        deps,
+        router,
+        offer_amount,
+        operations,
+        trader,
+        sender,
+        false,
+    )
+}
+
+/// Reverse responses use hybrid ratio templates rather than executable splits.
+/// Scale those templates to the actual funded amount for fresh sufficiency only.
+fn simulate_swap_operations(
+    deps: Deps,
+    router: &Addr,
+    offer_amount: Uint128,
+    operations: Vec<SwapOperation>,
+    trader: Option<String>,
+    sender: Option<String>,
+    reverse_templates: bool,
+) -> StdResult<SimulateSwapOperationsResponse> {
     if operations.is_empty() {
         return Err(cosmwasm_std::StdError::generic_err(
             "Operations must not be empty",
@@ -843,8 +877,27 @@ fn query_simulate_swap_operations(
                     Some(router),
                 )?;
                 current_amount = funded.economic;
-                let funded_hybrid =
-                    crate::route_tax::funded_hybrid(hybrid.clone(), gross, current_amount)?;
+                let funded_hybrid = if reverse_templates {
+                    hybrid
+                        .as_ref()
+                        .map(|h| {
+                            let total = h.pool_input.checked_add(h.book_input)?;
+                            if total.is_zero() {
+                                return Err(cosmwasm_std::StdError::generic_err(
+                                    "hybrid template sum must be positive",
+                                ));
+                            }
+                            let mut funded = h.clone();
+                            funded.book_input = current_amount
+                                .checked_multiply_ratio(h.book_input, total)
+                                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+                            funded.pool_input = current_amount.checked_sub(funded.book_input)?;
+                            Ok(funded)
+                        })
+                        .transpose()?
+                } else {
+                    crate::route_tax::funded_hybrid(hybrid.clone(), gross, current_amount)?
+                };
                 let (sim_hybrid, sim_greedy) = match (&funded_hybrid, greedy) {
                     (_, Some(g)) => {
                         if g.max_maker_fills == 0 {
@@ -927,8 +980,14 @@ fn query_reverse_simulate_swap_operations(
 
     let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = ask_amount;
+    let mut budget = crate::reverse_query::ReverseQueryBudget::default();
+    // Reserve the fresh forward route's one full pair simulation per hop before
+    // any search. Reserved cost is consumed even if a subsequent query fails.
+    for hop in 0..operations.len() {
+        budget.charge(hop, 1)?;
+    }
 
-    for op in operations.iter().rev() {
+    for (hop, op) in operations.iter().enumerate().rev() {
         match op {
             SwapOperation::NativeSwap { .. } => {
                 return Err(cosmwasm_std::StdError::generic_err(
@@ -963,15 +1022,25 @@ fn query_reverse_simulate_swap_operations(
                         "cannot set both hybrid and greedy on a hop",
                     ));
                 }
+                let pool_reverse_cost = crate::reverse_query::pool_reverse_cost(
+                    deps,
+                    &pair_response.pair.contract_addr,
+                );
                 if let Some(greedy) = greedy {
                     let economic = crate::route_tax::reverse_greedy_offer(
                         deps,
-                        &pair_response.pair.contract_addr,
-                        offer_asset_info,
-                        current_amount,
-                        greedy,
-                        trader.clone(),
-                        sender.clone(),
+                        crate::route_tax::GreedyReverseRequest {
+                            pair_addr: &pair_response.pair.contract_addr,
+                            offer_info: offer_asset_info,
+                            ask_info: ask_asset_info,
+                            target: current_amount,
+                            seed_cost: pool_reverse_cost,
+                            greedy,
+                            trader: trader.clone(),
+                            sender: sender.clone(),
+                        },
+                        &mut budget,
+                        hop,
                     )?;
                     current_amount = crate::route_tax::reverse_sell(
                         deps,
@@ -987,6 +1056,16 @@ fn query_reverse_simulate_swap_operations(
                     None => pair::pool_only_hybrid_template(),
                     Some(h) => h.clone(),
                 };
+                // Pair reverse is opaque here: reserve its complete documented
+                // maximum, not merely this outer smart-query call.
+                budget.charge(
+                    hop,
+                    if hybrid_params.book_input.is_zero() {
+                        pool_reverse_cost
+                    } else {
+                        crate::reverse_query::MAX_PAIR_HYBRID_REVERSE_SIMULATIONS
+                    },
+                )?;
                 let sim: pair::HybridReverseSimulationResponse = deps.querier.query_wasm_smart(
                     pair_response.pair.contract_addr.to_string(),
                     &pair::QueryMsg::HybridReverseSimulation {
@@ -1012,6 +1091,20 @@ fn query_reverse_simulate_swap_operations(
         }
     }
 
+    let forward = simulate_swap_operations(
+        deps,
+        router,
+        current_amount,
+        operations,
+        trader,
+        sender,
+        true,
+    )?;
+    if forward.amount < ask_amount {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "REVERSE_FORWARD_INSUFFICIENT",
+        ));
+    }
     Ok(SimulateSwapOperationsResponse {
         amount: current_amount,
     })
@@ -1028,4 +1121,300 @@ pub fn migrate(
     Ok(Response::new()
         .add_attribute("action", "migrate")
         .add_attribute("version", CONTRACT_VERSION))
+}
+
+#[cfg(test)]
+mod issue1389_tests {
+    use super::*;
+    use cosmwasm_std::{
+        from_json, testing::mock_dependencies, ContractResult, SystemResult, WasmQuery,
+    };
+    use std::{cell::Cell, rc::Rc};
+
+    use dex_common::types::AssetInfo;
+
+    fn token(name: &str) -> AssetInfo {
+        AssetInfo::Token {
+            contract_addr: name.to_string(),
+        }
+    }
+    fn operations(hops: usize, mode: u8, reverse: bool) -> Vec<SwapOperation> {
+        (0..hops)
+            .map(|hop| {
+                let mode = if mode <= 2 {
+                    mode
+                } else {
+                    ((u32::from(mode) - 3) / 3u32.pow(hop as u32) % 3) as u8
+                };
+                let (offer, ask) = if reverse {
+                    (format!("token{}", hop + 1), format!("token{hop}"))
+                } else {
+                    (format!("token{hop}"), format!("token{}", hop + 1))
+                };
+                SwapOperation::TerraSwap {
+                    offer_asset_info: token(&offer),
+                    ask_asset_info: token(&ask),
+                    hybrid: (mode == 2).then(|| pair::HybridSwapParams {
+                        pool_input: Uint128::one(),
+                        book_input: Uint128::one(),
+                        max_maker_fills: 8,
+                        book_start_hint: Some(999),
+                    }),
+                    greedy: (mode == 1).then(|| pair::greedy_swap_params(8, Some(999))),
+                    min_return: Some(Uint128::one()),
+                }
+            })
+            .collect()
+    }
+    fn response(amount: Uint128) -> pair::HybridSimulationResponse {
+        pair::HybridSimulationResponse {
+            return_amount: amount,
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            pool_commission_amount: Uint128::zero(),
+            book_commission_amount: Uint128::zero(),
+            book_return_amount: Uint128::zero(),
+            pool_return_amount: amount,
+            limit_book_offer_consumed: Uint128::zero(),
+            greedy_stop: None,
+        }
+    }
+    fn run_version(
+        version: &str,
+        hops: usize,
+        mode: u8,
+        target: Uint128,
+        backwards: bool,
+        impossible: bool,
+    ) -> (StdResult<SimulateSwapOperationsResponse>, u32, u32) {
+        let mut deps = mock_dependencies();
+        FACTORY
+            .save(deps.as_mut().storage, &Addr::unchecked("factory"))
+            .unwrap();
+        let queries = Rc::new(Cell::new(0));
+        let work = Rc::new(Cell::new(0));
+        let (count, cost) = (queries.clone(), work.clone());
+        let version = version.to_string();
+        deps.querier.update_wasm(move |query| {
+            if let WasmQuery::Raw { contract_addr, key } = query {
+                assert_eq!(contract_addr, "pair");
+                assert_eq!(key.as_slice(), b"contract_info");
+                let bytes = match version.as_str() {
+                    "missing" => cosmwasm_std::Binary::default(),
+                    "malformed" => cosmwasm_std::Binary::from(b"not-json".as_slice()),
+                    _ => to_json_binary(&cw2::ContractVersion {
+                        contract: "cl8y-dex-pair".into(),
+                        version: version.clone(),
+                    })
+                    .unwrap(),
+                };
+                return SystemResult::Ok(ContractResult::Ok(bytes));
+            }
+            let WasmQuery::Smart { contract_addr, msg } = query else {
+                panic!("unexpected query")
+            };
+            let result = if contract_addr == "factory" {
+                let dex_common::factory::QueryMsg::Pair { asset_infos } = from_json(msg).unwrap()
+                else {
+                    panic!("unexpected factory query")
+                };
+                to_json_binary(&dex_common::factory::PairResponse {
+                    pair: dex_common::types::PairInfo {
+                        asset_infos,
+                        contract_addr: Addr::unchecked("pair"),
+                        liquidity_token: Addr::unchecked("lp"),
+                    },
+                })
+            } else if contract_addr == "pair" {
+                count.set(count.get() + 1);
+                match from_json::<pair::QueryMsg>(msg).unwrap() {
+                    pair::QueryMsg::HybridReverseSimulation {
+                        ask_asset,
+                        hybrid,
+                        trader,
+                        sender,
+                        ..
+                    } => {
+                        assert_eq!(trader.as_deref(), Some("trader"));
+                        assert_eq!(sender.as_deref(), Some("sender"));
+                        cost.set(
+                            cost.get()
+                                + if hybrid.book_input.is_zero()
+                                    && matches!(version.as_str(), "1.19.0" | "1.20.0")
+                                {
+                                    1
+                                } else {
+                                    32
+                                },
+                        );
+                        to_json_binary(&pair::HybridReverseSimulationResponse {
+                            offer_amount: ask_asset.amount,
+                            spread_amount: Uint128::zero(),
+                            commission_amount: Uint128::zero(),
+                            pool_commission_amount: Uint128::zero(),
+                            book_commission_amount: Uint128::zero(),
+                            book_return_amount: Uint128::zero(),
+                            pool_return_amount: ask_asset.amount,
+                        })
+                    }
+                    pair::QueryMsg::HybridSimulation {
+                        offer_asset,
+                        trader,
+                        sender,
+                        hybrid,
+                        ..
+                    } => {
+                        assert_eq!(trader.as_deref(), Some("trader"));
+                        assert_eq!(sender.as_deref(), Some("sender"));
+                        if let Some(h) = hybrid {
+                            assert_eq!(h.pool_input + h.book_input, offer_asset.amount);
+                        }
+                        cost.set(cost.get() + 1);
+                        to_json_binary(&response(if impossible {
+                            Uint128::zero()
+                        } else {
+                            offer_asset.amount
+                        }))
+                    }
+                    _ => panic!("unexpected pair query"),
+                }
+            } else {
+                match from_json::<dex_common::route_tax::TokenQueryMsg>(msg).unwrap() {
+                    dex_common::route_tax::TokenQueryMsg::RouteTaxCapability {} => {
+                        to_json_binary(&dex_common::route_tax::RouteTaxCapabilityResponse {
+                            funding_version: 1,
+                            router: Some(Addr::unchecked("router")),
+                            buy_bps: 0,
+                            sell_bps: 0,
+                        })
+                    }
+                    dex_common::route_tax::TokenQueryMsg::RouteTaxPreview { amount, .. } => {
+                        to_json_binary(&dex_common::route_tax::RouteTaxPreviewResponse {
+                            funding_version: 1,
+                            gross: amount,
+                            economic: amount,
+                            tax: Uint128::zero(),
+                            net: amount,
+                        })
+                    }
+                }
+            };
+            SystemResult::Ok(ContractResult::Ok(result.unwrap()))
+        });
+        let result = query_reverse_simulate_swap_operations(
+            deps.as_ref(),
+            &Addr::unchecked("router"),
+            target,
+            operations(hops, mode, backwards),
+            Some("trader".into()),
+            Some("sender".into()),
+        );
+        (result, queries.get(), work.get())
+    }
+
+    fn run(
+        hops: usize,
+        mode: u8,
+        target: Uint128,
+        backwards: bool,
+        impossible: bool,
+    ) -> (StdResult<SimulateSwapOperationsResponse>, u32, u32) {
+        run_version("1.20.0", hops, mode, target, backwards, impossible)
+    }
+
+    #[test]
+    fn issue1389_legacy_missing_malformed_and_future_pair_versions_reserve_maximum() {
+        for version in ["1.18.0", "missing", "malformed", "1.21.0"] {
+            let (result, calls, work) =
+                run_version(version, 4, 0, Uint128::new(1_000_000), false, false);
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("REVERSE_QUERY_BUDGET_EXCEEDED"));
+            assert_eq!((calls, work), (2, 64));
+            let (result, calls, work) =
+                run_version(version, 1, 1, Uint128::new(1_000_000), false, false);
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("REVERSE_QUERY_BUDGET_EXCEEDED"));
+            assert_eq!((calls, work), (1, 32)); // seed permitted, forward denied
+        }
+        let (result, calls, work) =
+            run_version("1.19.0", 4, 0, Uint128::new(1_000_000), false, false);
+        assert!(result.is_ok());
+        assert_eq!((calls, work), (8, 8));
+    }
+
+    #[test]
+    fn issue1389_counts_every_pool_and_greedy_hop_and_fresh_validation() {
+        for backwards in [false, true] {
+            for target in [
+                Uint128::zero(),
+                Uint128::one(),
+                Uint128::new(1_000_000),
+                Uint128::new(100_000_000_000_000_000_000),
+                Uint128::MAX,
+            ] {
+                let (result, calls, work) = run(4, 0, target, backwards, false);
+                assert_eq!(result.unwrap().amount, target);
+                assert_eq!((calls, work), (8, 8));
+                let (result, calls, work) = run(4, 1, target, backwards, false);
+                assert_eq!(result.unwrap().amount, target);
+                let expected = if target.is_zero() {
+                    4
+                } else if target == Uint128::one() {
+                    12
+                } else {
+                    16
+                };
+                assert_eq!((calls, work), (expected, expected));
+            }
+        }
+    }
+
+    #[test]
+    fn issue1389_declared_hops_reserve_pair_internal_ceiling() {
+        let (result, calls, work) = run(2, 2, Uint128::new(1_000_000), false, false);
+        assert!(result.is_ok());
+        assert_eq!((calls, work), (4, 66));
+        let (result, calls, work) = run(4, 2, Uint128::new(1_000_000), false, false);
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("REVERSE_QUERY_BUDGET_EXCEEDED"));
+        assert_eq!((calls, work), (2, 64));
+    }
+
+    #[test]
+    fn issue1389_all_four_hop_mode_combinations_obey_request_ceiling() {
+        for mode in 3..84 {
+            let (result, calls, work) = run(4, mode, Uint128::new(1_000_000), false, false);
+            assert!(work <= crate::reverse_query::MAX_REVERSE_SIMULATIONS_PER_REQUEST);
+            assert!(calls <= work);
+            match result {
+                Ok(quote) => assert_eq!(quote.amount, Uint128::new(1_000_000)),
+                Err(error) => assert!(error.to_string().contains("REVERSE_QUERY_BUDGET_EXCEEDED")),
+            }
+        }
+    }
+
+    #[test]
+    fn issue1389_bad_hops_and_failed_fresh_sufficiency_fail_closed() {
+        let (result, calls, _) = run(5, 0, Uint128::one(), false, false);
+        assert!(result.unwrap_err().to_string().contains("Too many hops"));
+        assert_eq!(calls, 0);
+        let (result, calls, _) = run(1, 0, Uint128::one(), false, true);
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("REVERSE_FORWARD_INSUFFICIENT"));
+        assert_eq!(calls, 2);
+        let (result, calls, _) = run(1, 1, Uint128::MAX, false, true);
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("REVERSE_TARGET_INFEASIBLE"));
+        assert_eq!(calls, 2);
+    }
 }

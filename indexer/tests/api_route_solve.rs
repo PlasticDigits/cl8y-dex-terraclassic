@@ -739,26 +739,62 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
         seed.token_a, seed.token_c
     );
 
-    server
+    let first_response = server
         .get(&format!("{base_url}&sender={TIER5_SENDER_A}"))
-        .await
-        .assert_status_ok();
-    let lcd_calls_after_first = mock
+        .await;
+    first_response.assert_status_ok();
+    let tier5_a: Value = first_response.json();
+    assert_eq!(tier5_a["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    let requests_after_first = mock
         .received_requests()
         .await
-        .expect("mock server should expose request log")
-        .len();
+        .expect("mock server should expose request log");
+    assert!(
+        requests_after_first.iter().any(|request| {
+            lcd_mock::smart_query_from_request(request)
+                .get("simulate_swap_operations")
+                .is_some()
+        }),
+        "the initial quote must perform an LCD router simulation"
+    );
 
-    let tier5_b: Value = server
+    let second_response = server
         .get(&format!("{base_url}&sender={TIER5_SENDER_B}"))
-        .await
-        .json();
+        .await;
+    second_response.assert_status_ok();
+    let tier5_b: Value = second_response.json();
     assert_eq!(tier5_b["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    assert_eq!(tier5_b["router_operations"], tier5_a["router_operations"]);
+    assert_eq!(tier5_b["hops"], tier5_a["hops"]);
 
-    let lcd_calls_after_second = mock.received_requests().await.expect("request log").len();
+    let requests_after_second = mock.received_requests().await.expect("request log");
+    let mut cache_hit_requests: Vec<_> = requests_after_second[requests_after_first.len()..]
+        .iter()
+        .map(|request| {
+            (
+                request.method.to_string(),
+                request.url.path().to_string(),
+                request.url.query().map(str::to_owned),
+            )
+        })
+        .collect();
+    cache_hit_requests.sort();
+    let mut expected_identity_reads: Vec<_> = [&seed.token_a, &seed.token_b, &seed.token_c]
+        .into_iter()
+        .map(|token| {
+            (
+                "GET".to_string(),
+                format!("/cosmwasm/wasm/v1/contract/{token}"),
+                None,
+            )
+        })
+        .collect();
+    expected_identity_reads.sort();
     assert_eq!(
-        lcd_calls_after_first, lcd_calls_after_second,
-        "same-tier senders should share hybrid GET cache (no extra LCD sim calls)"
+        cache_hit_requests, expected_identity_reads,
+        "same-tier GET must reuse the quote and smart-query verdicts while checking each \
+         candidate's live code identity exactly once (#1388); no extra simulation, \
+         capability or pool queries are permitted"
     );
 }
 

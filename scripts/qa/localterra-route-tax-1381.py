@@ -15,12 +15,14 @@ from pathlib import Path
 
 
 class LocalTerra:
-    def __init__(self, container, code_cache=None):
+    def __init__(self, container, code_cache=None, tx_key="test1"):
         self.container = container
+        self.tx_key = tx_key
         status = json.loads(self.command("curl", "-sf", "http://127.0.0.1:26657/status"))
         if status["result"]["node_info"]["network"] != "localterra":
             raise RuntimeError("Refusing every chain except localterra")
         self.receipts = []
+        self.default_key = tx_key
         self.code_cache = code_cache
         self.stored_codes = json.loads(code_cache.read_text()) if code_cache and code_cache.exists() else {}
 
@@ -41,12 +43,20 @@ class LocalTerra:
     def address(self, key):
         return self.command("terrad", "keys", "show", key, "-a", "--keyring-backend", "test").strip()
 
-    def tx(self, *parts, key="test1", expect_failure=False):
-        response = json.loads(self.command("terrad", "tx", *parts, "--from", key,
-            "--keyring-backend", "test", "--chain-id", "localterra", "--gas", "12000000",
-            "--fees", "500000000uluna", "--node", "http://127.0.0.1:26657",
-            "--broadcast-mode", "sync", "-y", "--output", "json"))
-        return self.wait(response, expect_failure)
+    def tx(self, *parts, key=None, expect_failure=False):
+        # Only an explicit CheckTx sequence rejection is safe to rebuild/retry.
+        # Accepted or uncertain transactions always go to inclusion reconciliation.
+        key = key or self.default_key
+        for attempt in range(8):
+            response = json.loads(self.command("terrad", "tx", *parts, "--from", key,
+                "--keyring-backend", "test", "--chain-id", "localterra", "--gas", "12000000",
+                "--fees", "500000000uluna", "--node", "http://127.0.0.1:26657",
+                "--broadcast-mode", "sync", "-y", "--output", "json"))
+            if (response.get("code", 0) and
+                    "account sequence mismatch" in response.get("raw_log", "") and attempt < 7):
+                time.sleep(0.25 * (attempt + 1))
+                continue
+            return self.wait(response, expect_failure)
 
     def wait(self, response, expect_failure=False):
         if response.get("code", 0):
@@ -102,7 +112,7 @@ class LocalTerra:
 
     def instantiate(self, code, message, label):
         receipt = self.tx("wasm", "instantiate", str(code), json.dumps(message),
-                          "--label", label, "--admin", self.address("test1"))
+                          "--label", label, "--admin", self.address(self.default_key))
         return self.event(receipt, "instantiate", "_contract_address")
 
     def store(self, artifact):
@@ -129,11 +139,11 @@ class LocalTerra:
     def balance(self, token, address):
         return int(self.smart(token, {"balance": {"address": address}})["balance"])
 
-    def fresh_trader(self):
+    def fresh_trader(self, funding="10000000000uluna"):
         key = "issue1381-" + str(time.time_ns())
         self.command("terrad", "keys", "add", key, "--keyring-backend", "test", "--output", "json")
         address = self.address(key)
-        self.tx("bank", "send", "test1", address, "10000000000uluna")
+        self.tx("bank", "send", self.default_key, address, funding)
         return key, address
 
 
@@ -153,12 +163,14 @@ def main():
     parser.add_argument("--artifacts", type=Path,
                         default=Path(__file__).resolve().parents[2] / "smartcontracts/artifacts")
     parser.add_argument("--legacy-artifacts", type=Path,
-                        help="Optional reviewed pre-v1 router/token wasm for actual migration checks")
+                        help="Optional reviewed earlier router/token wasm for actual migration checks")
     parser.add_argument("--code-cache", type=Path, help="Reuse checksum-verified test-chain stores on retest")
     parser.add_argument("--evidence-file", required=True, type=Path)
     args = parser.parse_args()
     chain = LocalTerra(args.container, args.code_cache)
-    owner, sink = chain.address("test1"), chain.address("test2")
+    # A dedicated synthetic owner prevents sequence collisions with other agent fleets.
+    chain.default_key, owner = chain.fresh_trader("200000000000uluna")
+    sink_key, sink = chain.fresh_trader()
     codes = {name: chain.store(args.artifacts / (name + ".wasm")) for name in (
         "cl8y_dex_factory", "cl8y_dex_pair", "cl8y_dex_router", "cw20_mintable", "cl8y_community_tax_token")}
     legacy_codes = {}
@@ -176,11 +188,15 @@ def main():
                                {"factory": factory}, "issue1381-router")
     migration_checks = []
     if legacy_codes:
-        assert chain.smart(router, {"config": {}}).get("funding_version") != 1
+        original_config = chain.smart(router, {"config": {}})
+        assert original_config.get("funding_version") in (None, 0, 1)
         chain.tx("wasm", "migrate", router, str(code("cl8y_dex_router")), "{}")
         migrated_config = chain.smart(router, {"config": {}})
         assert migrated_config["funding_version"] == 1 and migrated_config["factory"] == factory
-        migration_checks.append({"contract": "router", "status": "PASS", "factory_preserved": True})
+        assert migrated_config.get("settlement_version") == 1
+        migration_checks.append({"contract": "router", "status": "PASS", "factory_preserved": True,
+                                 "prior_funding_version": original_config.get("funding_version"),
+                                 "settlement_version": migrated_config["settlement_version"]})
     tokens = {}
     decimals = {"CL8Y": 18, "ALPHA": 6, "BETA": 6, "UST1": 6, "USTR": 18}
     for name in ("CL8Y", "UST1", "USTR"):
@@ -225,7 +241,7 @@ def main():
             assert chain.smart(pair, {"pool": {}}) == before
         migration_checks.append({"contract": "pair pins", "status": "PASS", "pool_state_preserved": True})
     evidence = {"utc": datetime.now(timezone.utc).isoformat(), "chain_id": "localterra",
-                "synthetic_only": True, "codes": codes, "factory": factory, "router": router,
+                "synthetic_only": True, "owner_key": chain.default_key, "sink_key": sink_key, "codes": codes, "factory": factory, "router": router,
                 "tokens": tokens, "decimals": decimals, "pairs": pairs, "checks": [], "legacy_codes": legacy_codes,
                 "migration_checks": migration_checks, "status": "PARTIAL"}
     config = chain.smart(router, {"config": {}})

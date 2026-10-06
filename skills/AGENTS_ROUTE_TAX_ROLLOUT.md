@@ -27,7 +27,7 @@ Canonical references: [operator runbook](../docs/runbooks/route-local-tax-1381.m
    current rates cannot establish that its code is compatible. Reject unexpected
    factory/router bindings or administrators rather than guessing a dispatcher.
 4. **RTROLL1381-4 — version-aware upgrades.** Router/token funding targets are
-   1.2.0; this rollout targets factory 1.11.0 and pair 1.19.0. The factory CW2
+   1.3.0; this rollout targets factory 1.11.0 and pair 1.19.0. The factory CW2
    metadata increase is required because live 1.10.0 and the repository's 1.10.0
    artifact have different hashes; it adds no factory behavior in this PR.
    Upgrade prerequisite factory/pair code when behind the reviewed target.
@@ -88,3 +88,7 @@ multisig signing or physical-wallet work belongs in a
 cl8y-pm inbox card under repository AGENTS.md: one action, at most five numbered
 taps, and the DEX issue URL. Record the concrete skip in the review report without
 inventing production receipts or making unavailable work a PR hold.
+
+Router replacement, revocation and single-use settlement follow
+[RTTRUST1388-1–RTTRUST1388-10](AGENTS_ROUTER_TRUST_LIFECYCLE.md)
+and the [recovery runbook](../docs/runbooks/router-trust-1388.md).
