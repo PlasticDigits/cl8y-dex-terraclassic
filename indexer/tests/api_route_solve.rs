@@ -768,8 +768,19 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
     assert_eq!(tier5_b["hops"], tier5_a["hops"]);
 
     let requests_after_second = mock.received_requests().await.expect("request log");
-    let mut cache_hit_requests: Vec<_> = requests_after_second[requests_after_first.len()..]
+    let delta = &requests_after_second[requests_after_first.len()..];
+    let node_info_path = "/cosmos/base/tendermint/v1beta1/node_info";
+    let identity_probes = delta
         .iter()
+        .filter(|r| r.url.path() == node_info_path)
+        .count();
+    assert!(
+        (3..=11).contains(&identity_probes),
+        "cache hits re-attest each candidate with bounded chain work"
+    );
+    let mut cache_hit_requests: Vec<_> = delta
+        .iter()
+        .filter(|r| r.url.path() != node_info_path)
         .map(|request| {
             (
                 request.method.to_string(),
