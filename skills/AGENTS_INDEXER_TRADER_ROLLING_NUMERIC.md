@@ -1,4 +1,4 @@
-# Agent playbook: trader rolling raw volume NUMERIC(38, 0) (GitLab #1277)
+# Agent playbook: trader rolling raw volume NUMERIC(58, 0) (GitLab #1277)
 
 Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `total_volume`, `refresh_rolling_volumes`, `upsert_trader`, or the volume aggregator loop.
 
@@ -12,14 +12,17 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 
 `volume_aggregator` logged **Failed to refresh rolling trader volumes** whenever a sender’s trailing-window `SUM(swap_events.offer_amount)` could not fit **`NUMERIC(38, 18)`** (`|x| < 10^20`, ~100 human 18-dec CW20). Pair/global raw rollups were widened to **`NUMERIC(38, 0)`** in `20260817120000_*` (#548). Trader rolling columns were renamed from `volume_*_usd` in `20260310000002_*` and never widened. `#577` decay kept `LEAST(…, POWER(10,38)-1)`, which does **not** fit `(38, 18)`. One overflowing sender failed the whole rolling `UPDATE` (single tx), so every other trader’s 24h/7d/30d froze and idle zero-out never ran.
 
+Current precision and exact sums extend #1277 through [#1395](../docs/qa/issue-1395/README.md)
+and [A1395](../docs/indexer-invariants.md#exact-event-amounts-1395).
+
 ## Invariants (R1277-1–R1277-8)
 
 | ID | Rule |
 |----|------|
-| **R1277-1** | `traders.volume_24h` / `volume_7d` / `volume_30d` / `total_volume` are **`NUMERIC(38, 0)`** raw `offer_amount` integers. Do not store rolling volume as `(38, 18)` or `(78, 18)`. |
-| **R1277-2** | Keep `LEAST(SUM(…), POWER(10::numeric, 38) - 1)` on rolling sums **after** the destination is `(38, 0)`. **Forbidden:** clamp rolling raw volume to the USD cap `10^20 - 10^-18` (truncates honest 18-dec volume — issue **A3**). |
+| **R1277-1** | `traders.volume_24h` / `volume_7d` / `volume_30d` / `total_volume` are **`NUMERIC(58, 0)`** raw `offer_amount` integers (#1395). Do not store rolling volume as `(38, 18)` or `(78, 18)`. |
+| **R1277-2** | Keep exact raw sums in `(58,0)` without saturation (#1395 supersedes the historical 38-digit cap). **Forbidden:** clamp rolling raw volume to the USD cap `10^20 - 10^-18` (truncates honest 18-dec volume — issue **A3**). |
 | **R1277-3** | Idle 30d+ traders still zero **rolling** columns only (#577 **D2**). Never zero or rewrite `total_volume` / `total_volume_usd` / `total_trades`. |
-| **R1277-4** | `upsert_trader` caps additive lifetime raw at `10^38-1` (INSERT and `ON CONFLICT`). A single 18-dec `10^21` swap must not overflow ingest. |
+| **R1277-4** | `upsert_trader` preserves additive lifetime raw exactly within `(58,0)` (INSERT and `ON CONFLICT`); no raw cap. A single 18-dec `10^21` swap must not overflow ingest. |
 | **R1277-5** | `total_volume_usd` remains `NUMERIC(38, 18)` with the existing `10^20` USD cap. Unpriced stays NULL. Rolling refresh must not smash USD. |
 | **R1277-6** | Unscoped rolling JSON uses **`bd_plain_string`** (no `1e+19`). Pair-scoped leaderboard GET `SUM(offer_amount)` is out of scope for stored columns (issue **A9**). |
 | **R1277-7** | Token / pair / global refresh in `refresh_all_volume_windows` still run when trader refresh would previously have been the only failure. After this fix, trader refresh must not be that failure. |
@@ -35,17 +38,20 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 - **Don’t** clamp ingest timestamps with `Utc::now()` (same as #577 **A1** / this **A8**).
 - **Don’t** switch rolling volume to `NUMERIC(78, 18)` (#676 is inventory/P&L).
 
+Run `make verify-issue-1395` as well as the #1277 regressions.
+
 ## Canonical code
 
 | File | Role |
 |------|------|
+| [`20261005064000_event_remaining_precision.sql`](../indexer/migrations/20261005064000_event_remaining_precision.sql) | Current exact raw aggregate precision (#1395) |
 | [`20260921120000_traders_rolling_volume_numeric_38_0.sql`](../indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql) | Widen raw columns |
 | [`20260921130000_traders_lifetime_heal_from_swaps.sql`](../indexer/migrations/20260921130000_traders_lifetime_heal_from_swaps.sql) | One-shot lifetime heal from `swap_events` |
-| [`traders.rs`](../indexer/src/db/queries/traders.rs) | `refresh_rolling_volumes` + `upsert_trader` cap + `heal_trader_lifetime_from_swaps` |
+| [`traders.rs`](../indexer/src/db/queries/traders.rs) | `refresh_rolling_volumes` + `upsert_trader` exact sum + `heal_trader_lifetime_from_swaps` |
 | [`poller.rs`](../indexer/src/indexer/poller.rs) | Mismatch-gated heal **before** `refresh_all_volume_windows` (**D5**) |
 | [`volume_aggregator.rs`](../indexer/src/indexer/volume_aggregator.rs) | Isolated fail log (`rolling trader volumes`) |
 | [`api/traders.rs`](../indexer/src/api/traders.rs) | `bd_plain_string` on raw volume JSON |
-| [`indexer_trader_rolling_numeric.rs`](../indexer/tests/indexer_trader_rolling_numeric.rs) | `10^21` refresh + decay + upsert cap + leaderboard |
+| [`indexer_trader_rolling_numeric.rs`](../indexer/tests/indexer_trader_rolling_numeric.rs) | `10^21` refresh + decay + exact upsert + leaderboard |
 
 ## Regression
 
