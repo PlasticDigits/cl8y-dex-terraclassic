@@ -34,7 +34,7 @@ cw-multi-test = "1.2.0"
 thiserror = "1.0.4"
 schemars = "0.8.15"
 serde = { version = "1.0.188", default-features = false, features = ["derive"] }
-base64ct = "=1.7.3"
+base64ct = "=1.8.3"
 dex-common = { path = "packages/dex-common" }
 
 # External packages
