@@ -5,7 +5,9 @@
 //! - `total_cost_base` / `realized_pnl` — raw **base** (`asset_0`)
 //! - `avg_entry_price` — raw base / raw quote (not human, not USD)
 //!
-//! Columns are **`NUMERIC(78, 18)`**. `NUMERIC(38, 18)` overflows at `|x| ≥ 10^20`
+//! Position/price/cost columns are **`NUMERIC(78, 18)`**; raw realized P&L is
+//! **`NUMERIC(114,18)`** (#1395), covering products of bounded raw quantities.
+//! `NUMERIC(38, 18)` overflows at `|x| ≥ 10^20`
 //! (~100 human 18-decimal tokens). Swap ingest writes `swap_events` first; a
 //! rejected position upsert left `/trades` ahead of `/positions` until rebuild.
 //!

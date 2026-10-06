@@ -314,13 +314,48 @@ Discount context follows the existing trader/sender policy. Final buy-tax invers
 
 Responses add `required_amount_in`, `target_amount_out`, `sizing_mode="pool_only_exact_output"`, `snapshot_age_ms`, and `snapshot_block_height` to the existing route response. They include operations, quote kind, solver version `pool_exact_output_v1`, fidelity and `optimality_scope`. A fresh router forward query must cover the requested net target and pass the configured mirror/LCD drift tolerance. Stale or infeasible snapshots never produce a topology-only success for receive sizing.
 
-There is no executable exact-output response cache, so targets and contexts cannot collide through amount buckets. Work is bounded to four concurrent requests, a 20-second total budget, at most five router validations (three seconds each), up to 20 pair pause probes and five factory blacklist probes (one second each), plus shared fee/exemption context resolution. Graphs are capped at 8,192 pairs. Sizing and the two fair-reference searches each allow at most 100,000 DFS edge visits (300,000 total). Reserve-only preload is bounded to 128 sizing pairs plus up to 256 reference pairs (384 total); it does not load unused resting books. Snapshot age is checked again before validation. Cancellation drops the request future and semaphore permit; discovery work is separately bounded. HTTP 404 indicates no path, 422 an infeasible/stale/unsupported target or nonwaivable ≥99% fair-rate rejection, 429 busy capacity, 503 missing router validation or required fair reference, and 504 timeout. Applications must show finite errors and offer manual retry; do not repeatedly call the expensive offer-in solver to approximate exact-output.
+There is no executable exact-output response cache, so targets and contexts cannot collide through amount buckets. Work is bounded to four concurrent requests with one active request per socket-peer IP (shared across both GET endpoints), a 20-second total budget, at most five router validations (three seconds each), up to 20 pair pause probes and five factory blacklist probes (one second each), plus shared fee/exemption context resolution. Graphs are capped at 8,192 pairs. Sizing and the two fair-reference searches each allow at most 100,000 DFS edge visits (300,000 total). Reserve-only preload is bounded to 128 sizing pairs plus up to 256 reference pairs (384 total); it does not load unused resting books. Snapshot age is checked again before validation. Cancellation drops the request future and semaphore permit; discovery work is separately bounded. HTTP 404 indicates no path, 422 an infeasible/stale/unsupported target or nonwaivable ≥99% fair-rate rejection, 429 busy capacity, 503 missing router validation or required fair reference, and 504 timeout. Applications must show finite errors and offer manual retry; do not repeatedly call the expensive offer-in solver to approximate exact-output.
 
 The fair-reference engine in [`route_exact_output_reference.rs`](../indexer/src/api/route_exact_output_reference.rs) prices one whole input/output token against the preferred wrapped USTC/LUNC quote asset using the same bounded pool-only path scope and fee context. If no standard quote asset exists, the input token is the local reference. A present but ambiguous or unreachable standard quote fails closed. Strict tax catalog loading includes reference intermediaries; unsupported taxed middle hops are excluded. Reference-only paths are advisory fresh reserve arithmetic with metadata/gem/freeze filters; they receive no additional live pause/blacklist probes. Actual execution candidates still receive those live guards. This is a bounded pool reference, not unrestricted hybrid-book valuation.
 
 `spot_amount_out` and `slippage_percent` are mandatory positive-reference fields on successful exact-output responses. Cross-rate products, decimal scaling, rounding and symmetric deviation use checked integer arithmetic. Server selection rejects ≥99% deviation and may try an alternate; lower deviations preserve the existing 5/30 consent and Expert behavior. The frontend requires the reference, recomputes deviation against fresh wallet output and rechecks spread/slippage at mutation entry. Missing/stale/unrepresentable references never silently remove these protections.
 
 Execution remains an offer-in transaction protected by existing spread and minimum-receive semantics. A successful sizing quote is not a guarantee against changes between quote and inclusion. Review [E1376 invariants](frontend.md#solver-receive-sizing), [agent protocol](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), and [the verification/migration checklist](qa/issue-1376/README.md).
+
+## Reverse-query availability (#1389)
+
+Issue [#1389](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1389),
+[agent protocol](../skills/AGENTS_REVERSE_QUERY_BUDGET.md),
+[review and gas evidence](qa/issue-1389/README.md).
+
+| Invariant | Contract |
+| --- | --- |
+| **RQ1389-1** Shared request budget | Router reverse reserves at most **33 pair simulations per hop** and **96 per request**, including one fresh forward simulation per hop, for up to four hops. Denial occurs before a nested call. Failed attempts consume cost. |
+| **RQ1389-2** Opaque nested work | A declared reverse with nonzero book input reserves the pair's full **32** internal forward-call ceiling; Pool reverse and greedy pool seeds cost one only for raw cw2 identities `cl8y-dex-pair` exactly `1.19.0`/`1.20.0`; legacy, missing, malformed, failed or unknown identity reserves 32. Future versions receive no inferred discount. Counting outer smart queries alone understates declared work. Three/four declared book hops can be denied even when each pair search would finish early; four cheap pool/greedy hops remain supported. |
+| **RQ1389-3** Cache and safe probes | Greedy repeated offers reuse request-local output. Checked pool inverse seeds and declared interpolation propose probes only. Pair declared search retains its 32-call ceiling and cached sufficient result; a claimed minimum requires an adjacent insufficient offer. No seed fallback can evade accounting. |
+| **RQ1389-4** Protected sufficiency | The final fresh forward route must cover the original target using the same trader/sender, tax flow and declared ratio template. Seed/rounding failure, `REVERSE_QUERY_BUDGET_EXCEEDED`, `REVERSE_TARGET_INFEASIBLE` and `REVERSE_FORWARD_INSUFFICIENT` produce errors rather than executable guesses. Query errors keep the existing JSON ABI and expose stable discriminators in their error strings. |
+| **RQ1389-5** Fair admission | Both exact-output GET endpoints share four global slots and one active request per socket-peer IP, with no waiting queue. IPv4-mapped IPv6 is normalized. Forwarded headers and trader/sender never supply the key. Missing peer metadata shares one conservative bucket. Proxies/NAT share the socket peer's bucket; trusted proxy identity requires a separate vetted policy. |
+| **RQ1389-6** Cleanup and metrics | Admission state contains at most four active client keys and retains none when idle. RAII releases on cancellation, error or the existing 20-second timeout. Aggregate `exact_output_capacity` tracing counters cover admission, client/global rejection, completion, failure, timeout, cancellation and active count without client labels. |
+| **RQ1389-7** Observe and intent | Observe uses checked block-time subtraction and rejects invalid horizons without panic. Receive quote errors preserve typed intent, invalidate executable Pay/operations, stop deterministic automatic retries and do not resend or weaken signing protection. |
+| **RQ1389-8** Evidence scope | Count simulations using synthetic fixtures; measure gas only on isolated LocalTerra. Executed failures remain FAIL, unavailable checks remain SKIP and overall implementation review may PASS with explicit skips. Test success never proves production migration/deployment. |
+
+The limits bound nested pair simulation work rather than promising a gas ceiling
+for arbitrary state. Each hybrid walk retains **100 maker fills** and **500 scan
+steps**. Factory lookups are bounded to two per hop, plus one raw pair cw2 identity read; route-tax capability/preview
+work has no search loop (at most 20 token queries per ordinary-token hop including
+raw cw2 fallback, or nine for route-funded tax tokens). Pair-local storage and
+discount/book checks still consume gas. Conservative opaque reservations and
+large active-book integer plateaus may reject otherwise feasible quotes; never
+raise caps or auto-submit a weaker trade to avoid this error. Greedy targets that
+the pool seed cannot represent remain unsupported even if book-only liquidity
+might cover them. Use manual retry after context/state changes.
+
+Pair cw2 **1.20.0** and router cw2 **1.3.0** identify this query repair. Storage
+and execute messages are unchanged. Existing deployments need the matching
+artifacts migrated and the factory pair-code pointer updated before these
+direct-LCD bounds apply. This PR supplies implementation and test evidence;
+production pair rollout remains separately tracked by
+[#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).
 
 ## Funded trading capability and quote identity (#1381)
 

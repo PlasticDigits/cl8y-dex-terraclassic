@@ -27,8 +27,8 @@ use crate::orderbook;
 use crate::state::{
     LimitOrderConfig, OracleState, PairInfoState, ASSET_CODE_IDS, DISCOUNT_REGISTRY,
     EXPIRED_LIMIT_CLAIMS, FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG, LIMIT_ORDER_CONFIG, OBSERVATIONS,
-    ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1,
-    RESERVES, TOTAL_LP_SUPPLY,
+    ORACLE_STATE, ORDERS, ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0,
+    PENDING_ESCROW_TOKEN1, RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -50,8 +50,9 @@ const CONTRACT_NAME: &str = "cl8y-dex-pair";
 /// Columbus-5 listed pairs are already cw2 1.16.0 (greedy #712 / store 11639).
 /// 1.17.0 was #1227/#1230/#1231 (#1246). 1.18.0 is the Uint256 TWAP cumulative
 /// (#1224 / #1322). 1.19.0 fixes integer pool reverse sizing (#1376),
-/// with no storage rewrite. The cw2 guard rejects migration from a newer version.
-const CONTRACT_VERSION: &str = "1.19.0";
+/// with no storage rewrite. 1.20.0 improves declared reverse probe selection and
+/// checks Observe horizons (#1389). The cw2 guard rejects newer versions.
+const CONTRACT_VERSION: &str = "1.20.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -423,7 +424,11 @@ fn oracle_observe_single(
     reserve_a: Uint128,
     reserve_b: Uint128,
 ) -> Result<(Uint256, Uint256), ContractError> {
-    let target = block_time - seconds_ago as u64;
+    let target = block_time
+        .checked_sub(u64::from(seconds_ago))
+        .ok_or_else(|| ContractError::Oracle {
+            reason: "seconds_ago exceeds block timestamp".into(),
+        })?;
 
     if seconds_ago == 0 || target >= latest_obs.timestamp {
         if target == latest_obs.timestamp {
@@ -2765,7 +2770,7 @@ fn query_hybrid_reverse_simulation(
 ) -> StdResult<HybridReverseSimulationResponse> {
     use crate::hybrid_reverse::{
         bounded_hybrid_reverse_search, min_pool_input_for_net_output,
-        seed_upper_offer_from_pool_math,
+        seed_upper_offer_from_pool_math, ReversePoolSnapshot,
     };
 
     let pair_info = PAIR_INFO.load(deps.storage)?;
@@ -2851,6 +2856,34 @@ fn query_hybrid_reverse_simulation(
         }
         (offer, sim)
     } else {
+        // The first maker price is only a probe hint for coarse output plateaus.
+        // Stale, blocked or later-maker prices may be unsuitable; forward validation
+        // still decides every bound and the same 32-call cap applies.
+        let offer_is_token0 = offer_info.equal(&pair_info.asset_infos[0]);
+        let side = if offer_is_token0 {
+            LimitOrderSide::Bid
+        } else {
+            LimitOrderSide::Ask
+        };
+        let book_output_rate =
+            orderbook::resolve_match_start_hint(deps.storage, hybrid.book_start_hint, side)?
+                .and_then(|id| ORDERS.may_load(deps.storage, id).ok().flatten())
+                .and_then(|order| {
+                    if order.side
+                        != if offer_is_token0 {
+                            LimitOrderSide::Bid
+                        } else {
+                            LimitOrderSide::Ask
+                        }
+                    {
+                        return None;
+                    }
+                    if offer_is_token0 {
+                        Some(order.price)
+                    } else {
+                        Decimal::one().checked_div(order.price).ok()
+                    }
+                });
         let seed = seed_upper_offer_from_pool_math(
             &hybrid,
             input_reserve,
@@ -2863,6 +2896,13 @@ fn query_hybrid_reverse_simulation(
             seed,
             Uint128::MAX.checked_sub(input_reserve)?,
             ask_target,
+            ReversePoolSnapshot {
+                input_reserve,
+                output_reserve,
+                effective_fee_bps,
+                book_output_rate,
+            },
+            &hybrid,
             run_sim,
         )?
     };
@@ -3840,16 +3880,29 @@ mod oracle_u256_tests {
 #[cfg(test)]
 mod reverse_issue1376_tests {
     use super::*;
+    use crate::state::{HEAD_ASK, HEAD_BID};
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
 
     /// Query the real pair implementation without mocking its reserve math. The same
     /// JSON query/response is used by router reverse and invoice reverse consumers.
     #[test]
-    fn issue1376_pool_reverse_real_query_both_orientations() {
+    fn issue1376_issue1389_pool_and_declared_reverse_real_query_both_orientations() {
         let small = Uint128::new(297_665_983_808);
         let large = Uint128::new(2_498_115_414_904_458_263_864);
         for reversed in [false, true] {
             let mut deps = mock_dependencies();
+            deps.querier.update_wasm(|_| {
+                cosmwasm_std::SystemResult::Ok(cosmwasm_std::ContractResult::Ok(
+                    to_json_binary(&dex_common::blacklist::BlacklistCheckResponse {
+                        blocked: false,
+                        wallet_blacklisted: false,
+                        blacklisted_tokens: vec![],
+                        pair_blacklisted: false,
+                        blacklisted_pairs: vec![],
+                    })
+                    .unwrap(),
+                ))
+            });
             let small_token = AssetInfo::Token {
                 contract_addr: "custc".into(),
             };
@@ -3950,7 +4003,234 @@ mod reverse_issue1376_tests {
                     reverse.pool_return_amount,
                     forward(reverse.offer_amount).return_amount
                 );
+                // #1389: an explicitly allocated but empty book must not make
+                // these same large feasible targets exhaust the 32-call budget.
+                let declared = HybridSwapParams {
+                    pool_input: Uint128::one(),
+                    book_input: Uint128::one(),
+                    max_maker_fills: 8,
+                    book_start_hint: None,
+                };
+                let hybrid_reverse = query_hybrid_reverse_simulation(
+                    deps.as_ref(),
+                    &mock_env(),
+                    Asset {
+                        info: if offer_info.equal(&large_token) {
+                            small_token.clone()
+                        } else {
+                            large_token.clone()
+                        },
+                        amount: Uint128::new(target),
+                    },
+                    declared.clone(),
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+                assert_eq!(hybrid_reverse.offer_amount, reverse.offer_amount);
+                let hybrid_forward = |amount| {
+                    query_hybrid_simulation(
+                        deps.as_ref(),
+                        &mock_env(),
+                        Asset {
+                            info: offer_info.clone(),
+                            amount,
+                        },
+                        Some(scale_hybrid_template(&declared, amount).unwrap()),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .unwrap()
+                };
+                assert!(
+                    hybrid_forward(hybrid_reverse.offer_amount).return_amount
+                        >= Uint128::new(target)
+                );
+                assert!(
+                    hybrid_forward(hybrid_reverse.offer_amount - Uint128::one()).return_amount
+                        < Uint128::new(target)
+                );
+                // Exercise the actual matcher with active, exhausted, stale, and
+                // maker-capped books in both asset orderings and swap directions.
+                let pair = PAIR_INFO.load(deps.as_ref().storage).unwrap();
+                let bid_side = offer_info.equal(&pair.asset_infos[0]);
+                let (a, b) = RESERVES.load(deps.as_ref().storage).unwrap();
+                let price = Decimal::checked_from_ratio(b, a).unwrap();
+                let ask_reserve = if offer_info.equal(&small_token) {
+                    large
+                } else {
+                    small
+                };
+                for (capacity, expired, cap) in [
+                    (ask_reserve, false, 8),
+                    (ask_reserve / Uint128::new(1000), false, 1),
+                    (ask_reserve, true, 8),
+                ] {
+                    HEAD_BID
+                        .save(
+                            deps.as_mut().storage,
+                            &if bid_side { Some(1) } else { None },
+                        )
+                        .unwrap();
+                    HEAD_ASK
+                        .save(
+                            deps.as_mut().storage,
+                            &if bid_side { None } else { Some(1) },
+                        )
+                        .unwrap();
+                    for (id, remaining) in [(1, capacity), (2, ask_reserve)] {
+                        ORDERS
+                            .save(
+                                deps.as_mut().storage,
+                                id,
+                                &crate::state::LimitOrder {
+                                    owner: Addr::unchecked("synthetic-maker"),
+                                    price,
+                                    remaining,
+                                    side: if bid_side {
+                                        LimitOrderSide::Bid
+                                    } else {
+                                        LimitOrderSide::Ask
+                                    },
+                                    expires_at: expired
+                                        .then_some(mock_env().block.time.seconds() - 1),
+                                    prev: if id == 1 { None } else { Some(1) },
+                                    next: if id == 1 { Some(2) } else { None },
+                                },
+                            )
+                            .unwrap();
+                    }
+                    let declared = HybridSwapParams {
+                        max_maker_fills: cap,
+                        ..declared.clone()
+                    };
+                    ORDERS
+                        .save(
+                            deps.as_mut().storage,
+                            3,
+                            &crate::state::LimitOrder {
+                                owner: Addr::unchecked("synthetic-other-side"),
+                                price,
+                                remaining: ask_reserve,
+                                side: if bid_side {
+                                    LimitOrderSide::Ask
+                                } else {
+                                    LimitOrderSide::Bid
+                                },
+                                expires_at: None,
+                                prev: None,
+                                next: None,
+                            },
+                        )
+                        .unwrap();
+                    for hint in [None, Some(999), Some(3)] {
+                        let declared = HybridSwapParams {
+                            book_start_hint: hint,
+                            ..declared.clone()
+                        };
+                        let ask_info = if offer_info.equal(&large_token) {
+                            small_token.clone()
+                        } else {
+                            large_token.clone()
+                        };
+                        let reverse = query_hybrid_reverse_simulation(deps.as_ref(), &mock_env(), Asset { info: ask_info, amount: Uint128::new(target) }, declared.clone(), None, None, None).unwrap_or_else(|err| panic!("real declared: reversed={reversed}, bid={bid_side}, target={target}, capacity={capacity}, expired={expired}: {err}"));
+                        let forward = |amount| {
+                            query_hybrid_simulation(
+                                deps.as_ref(),
+                                &mock_env(),
+                                Asset {
+                                    info: offer_info.clone(),
+                                    amount,
+                                },
+                                Some(scale_hybrid_template(&declared, amount).unwrap()),
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
+                            .unwrap()
+                        };
+                        assert!(
+                            forward(reverse.offer_amount).return_amount >= Uint128::new(target)
+                        );
+                        assert!(
+                            forward(reverse.offer_amount - Uint128::one()).return_amount
+                                < Uint128::new(target)
+                        );
+                        if expired {
+                            assert_eq!(reverse.book_return_amount, Uint128::zero());
+                        }
+                    }
+                }
+                HEAD_BID.save(deps.as_mut().storage, &None).unwrap();
+                HEAD_ASK.save(deps.as_mut().storage, &None).unwrap();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod observe_issue1389_tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+
+    #[test]
+    fn issue1389_observe_invalid_horizon_returns_error_without_panic() {
+        let mut deps = mock_dependencies();
+        ORACLE_STATE
+            .save(
+                deps.as_mut().storage,
+                &OracleState {
+                    cardinality: 1,
+                    index: 0,
+                    cardinality_initialized: 1,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                deps.as_mut().storage,
+                0,
+                &Observation {
+                    timestamp: 0,
+                    price_a_cumulative: Uint256::zero(),
+                    price_b_cumulative: Uint256::zero(),
+                },
+            )
+            .unwrap();
+        RESERVES
+            .save(deps.as_mut().storage, &(Uint128::one(), Uint128::one()))
+            .unwrap();
+        let mut env = mock_env();
+        env.block.time = cosmwasm_std::Timestamp::from_seconds(100);
+        for seconds_ago in [101, u32::MAX] {
+            let err = query(
+                deps.as_ref(),
+                env.clone(),
+                QueryMsg::Observe {
+                    seconds_ago: vec![0, seconds_ago],
+                },
+            )
+            .unwrap_err();
+            assert!(err
+                .to_string()
+                .contains("seconds_ago exceeds block timestamp"));
+        }
+        let result: ObserveResponse = cosmwasm_std::from_json(
+            query(
+                deps.as_ref(),
+                env,
+                QueryMsg::Observe {
+                    seconds_ago: vec![100, 0],
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result.price_a_cumulatives[0], Uint256::zero());
+        assert!(result.price_a_cumulatives[1] > Uint256::zero());
     }
 }

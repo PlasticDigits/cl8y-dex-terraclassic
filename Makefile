@@ -1438,6 +1438,11 @@ verify-issue-713:
 verify-issue-1376:
 	bash scripts/qa/verify-issue-1376.sh
 
+# Forgejo #1389 — bounded reverse work and fair exact-output capacity.
+.PHONY: verify-issue-1389
+verify-issue-1389:
+	bash scripts/qa/verify-issue-1389.sh
+
 # Forgejo #1381 — versioned gross-budget tax funding, regressions and retest.
 .PHONY: verify-issue-1381
 verify-issue-1381:
@@ -1911,6 +1916,10 @@ front:
 	cd frontend-dapp && bash -c '. "$$HOME/.nvm/nvm.sh" && nvm use && VITE_NETWORK=local npm run dev -- --host'
 
 .PHONY: verify-issue-1380
+.PHONY: verify-issue-1395
+verify-issue-1395:
+	bash scripts/qa/verify-issue-1395.sh
+
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
 
@@ -1918,3 +1927,7 @@ verify-issue-1380:
 .PHONY: verify-issue-1388
 verify-issue-1388:
 	bash scripts/qa/verify-issue-1388.sh
+
+.PHONY: verify-issue-1394
+verify-issue-1394:
+	bash scripts/verify-issue-1394.sh

@@ -15,13 +15,14 @@ from pathlib import Path
 
 
 class LocalTerra:
-    def __init__(self, container, code_cache=None):
+    def __init__(self, container, code_cache=None, tx_key="test1"):
         self.container = container
+        self.tx_key = tx_key
         status = json.loads(self.command("curl", "-sf", "http://127.0.0.1:26657/status"))
         if status["result"]["node_info"]["network"] != "localterra":
             raise RuntimeError("Refusing every chain except localterra")
         self.receipts = []
-        self.default_key = "test1"
+        self.default_key = tx_key
         self.code_cache = code_cache
         self.stored_codes = json.loads(code_cache.read_text()) if code_cache and code_cache.exists() else {}
 
