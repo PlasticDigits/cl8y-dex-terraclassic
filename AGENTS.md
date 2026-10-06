@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Net execution floors and bounded hooks
+
+For pair/router slippage, hook settlement, quotes, hook admission/recovery or
+community-tax AutoLP behavior, follow
+[skills/AGENTS_NET_EXECUTION_FLOORS.md](skills/AGENTS_NET_EXECUTION_FLOORS.md)
+(**NE1398-1–NE1398-10**, [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398)).
+Hooked swaps require a positive post-hook `min_return`; existing market-spread
+metrics remain separate. Run `make verify-issue-1398`; use the
+[agent checklist and explicit skip policy](docs/qa/issue-1398/README.md).
+
 ## Route launch guards and owned refunds
 
 Follow [skills/AGENTS_ROUTE_LAUNCH_GUARDS.md](skills/AGENTS_ROUTE_LAUNCH_GUARDS.md)
@@ -40,6 +50,18 @@ Run `make verify-issue-1399`; follow the
 [agent checklist and explicit skip policy](docs/qa/issue-1399/README.md).
 Unavailable checks may be SKIP with overall PASS WITH SKIPS; executed failures
 remain FAIL, and source checks do not establish production deployment.
+
+## Evidence export privacy and resource budgets
+
+For evidence schema, pagination, query budgets, middleware or sharing, use
+[skills/AGENTS_EVIDENCE_EXPORT_PRIVACY.md](skills/AGENTS_EVIDENCE_EXPORT_PRIVACY.md)
+(**E1397-1–E1397-10**, [#1397](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1397)).
+Run `make verify-issue-1397`; follow the
+[agent checklist and explicit skip policy](docs/qa/issue-1397/README.md).
+Schema 2 omits actor identifiers/digests but retains public-chain transaction
+linkage; it does not provide anonymity. Historical #1205 hash guidance is superseded.
+Unavailable checks may be explicit SKIP with overall PASS WITH SKIPS; executed
+failures remain FAIL and local verification does not establish deployment.
 
 For economic event ingestion, use
 [skills/AGENTS_INDEXER_EVENT_AMOUNTS.md](skills/AGENTS_INDEXER_EVENT_AMOUNTS.md)
@@ -338,7 +360,8 @@ make verify-issue-655                    # #655 /pool v2 LP USD column + pair_li
 make verify-issue-692                    # #692 /pool Vol column + pair-list 24h volume in USD
 make verify-issue-586                    # #586 /protocol treasury fees 24h/7d/30d + source/token mix
 make verify-issue-1269                   # #1269 persist every multihop AMM hop in protocol_fee_events
-make verify-issue-1205                   # #1205 redacted UTC-day evidence JSON (swap/wrap/limit/LP)
+make verify-issue-1205                   # #1205 accounting regressions; #1397 supersedes privacy/cursors
+make verify-issue-1397                   # schema-2 evidence privacy, query budgets and recovery
 make verify-issue-1213                   # #1213 fee-ledger home (docs; ingest is #1209/#1210/#1211)
 make verify-issue-1204                   # #1204 indexer HTTP pack (OpenAPI paths + curls)
 make verify-issue-683                    # #683 /protocol fee USD for CL8Y + factory-listed economic tokens
@@ -565,7 +588,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_DEFILLAMA.md](skills/AGENTS_DEFILLAMA.md) — DeFiLlama TVL/volume/fees listing + UTC-day indexer API (**L631-1–L631-11**, **L687-1–L687-8**, [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) / closed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687); upstream [#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987), ops record [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688)); `make verify-issue-631` · `make verify-issue-687`
 - [skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md](skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md) — wrap/unwrap protocol-fee ingest from captured mapper `notify_deposit` / `unwrap` `fee` (**I613-1–I613-8**, [#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)); `make verify-issue-613`
 - [skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md](skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) — persist every multihop AMM hop in `protocol_fee_events` (**F1269-1–F1269-8**, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)); `make verify-issue-1269`
-- [skills/AGENTS_INDEXER_EVIDENCE_DAILY.md](skills/AGENTS_INDEXER_EVIDENCE_DAILY.md) — redacted UTC-day `GET /api/v1/evidence/daily` (**E1205-1–E1205-8**, [#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205)); `make verify-issue-1205`
+- [skills/AGENTS_EVIDENCE_EXPORT_PRIVACY.md](skills/AGENTS_EVIDENCE_EXPORT_PRIVACY.md) — schema-2 public-chain-linked `GET /api/v1/evidence/daily` (**E1397-1–E1397-10**, [#1397](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1397)); `make verify-issue-1397`. [#1205 accounting history](skills/AGENTS_INDEXER_EVIDENCE_DAILY.md) remains relevant; actor-hash guidance is superseded.
 - [skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md](skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home is this indexer (**L1213-1–L1213-8**, open #1210 child invariants **L1210-1–L1210-8** and [QA record](docs/qa/issue-1210/README.md), [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); ingest children [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) / [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) / [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211); do not implement parsers on the epic or in marketing; `make verify-issue-1213`
 - [skills/AGENTS_INDEXER_HTTP_PACK.md](skills/AGENTS_INDEXER_HTTP_PACK.md) — indexer HTTP pack for swaps, pools, fees, burns, and volume windows (**I1204-1–I1204-8**, [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)); `make verify-issue-1204`
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`

@@ -25,7 +25,7 @@ use dex_common::types::{pair_key, AssetInfo, PairInfo};
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
 // A distinct release permits the reviewed artifact rollout from production
 // 1.10.0; same-version migrations are intentionally rejected by cw2.
-const CONTRACT_VERSION: &str = "1.11.0";
+const CONTRACT_VERSION: &str = "1.12.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -562,10 +562,14 @@ fn execute_set_pair_hooks(
     let pair_addr = deps.api.addr_validate(&pair)?;
     assert_pair_in_registry(&deps, &pair_addr)?;
 
+    let validated_hooks = dex_common::hook::validate_pair_hooks(deps.api, &hooks)?;
     let wasm_msg = WasmMsg::Execute {
         contract_addr: pair_addr.to_string(),
         msg: to_json_binary(&dex_common::pair::ExecuteMsg::UpdateHooks {
-            hooks: hooks.clone(),
+            hooks: validated_hooks
+                .into_iter()
+                .map(|hook| hook.to_string())
+                .collect(),
         })?,
         funds: vec![],
     };
@@ -1657,3 +1661,7 @@ mod pair_addr_registry_tests {
         .expect("registered pair clean-config should succeed");
     }
 }
+
+#[cfg(test)]
+#[path = "hook_bounds_tests.rs"]
+mod hook_bounds_tests;

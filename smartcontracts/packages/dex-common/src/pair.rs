@@ -387,6 +387,9 @@ pub enum ExecuteMsg {
     UpdateTreasury {
         treasury: String,
     },
+    /// Replace the full hook policy list. Factory only.
+    /// At most [`crate::hook::MAX_PAIR_HOOKS`] unique validated addresses.
+    /// Legacy invalid lists require explicit replacement; no implicit trimming.
     UpdateHooks {
         hooks: Vec<String>,
     },
@@ -716,6 +719,7 @@ pub struct AssetCodeIdsResponse {
 
 #[cw_serde]
 pub struct HybridSimulationResponse {
+    /// Settled ask output after protocol commissions and supported hook deductions (#1398).
     pub return_amount: Uint128,
     pub spread_amount: Uint128,
     /// Total protocol commission in the ask asset (pool + book taker fees). Same basis as
@@ -725,7 +729,9 @@ pub struct HybridSimulationResponse {
     pub pool_commission_amount: Uint128,
     /// Book taker commission total (ask asset); zero when `book_input = 0`.
     pub book_commission_amount: Uint128,
+    /// Book leg after protocol taker fees, before ask-token hook deductions.
     pub book_return_amount: Uint128,
+    /// Pool leg after protocol commission, before ask-token hook deductions.
     pub pool_return_amount: Uint128,
     /// Offer-side amount matched on the book (same attr as execute `limit_book_offer_consumed`).
     pub limit_book_offer_consumed: Uint128,
@@ -743,7 +749,9 @@ pub struct HybridReverseSimulationResponse {
     pub commission_amount: Uint128,
     pub pool_commission_amount: Uint128,
     pub book_commission_amount: Uint128,
+    /// Book leg after protocol taker fees, before ask-token hook deductions.
     pub book_return_amount: Uint128,
+    /// Pool leg after protocol commission, before ask-token hook deductions.
     pub pool_return_amount: Uint128,
 }
 

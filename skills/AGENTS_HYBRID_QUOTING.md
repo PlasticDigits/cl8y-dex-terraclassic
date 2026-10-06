@@ -1,5 +1,15 @@
 # Agent skill: Hybrid quoting (L8 / GitLab #190)
 
+## Current hook pricing (#1398)
+
+Follow [NE1398-1–NE1398-10](./AGENTS_NET_EXECUTION_FLOORS.md).
+Forward `return_amount` is post-hook ask output; leg amounts remain pre-hook.
+Unknown or unqueryable hook config fails pricing, and reverse pricing explicitly
+rejects matching nonzero tax/burn deductions. Quotes do not establish LP-burn
+callback solvency. Every hooked execute requires positive `min_return`, including
+router hops. Run `make verify-issue-1398` and use the
+[QA checklist](../docs/qa/issue-1398/README.md).
+
 ## Current funding-version rule (#1381)
 
 Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)

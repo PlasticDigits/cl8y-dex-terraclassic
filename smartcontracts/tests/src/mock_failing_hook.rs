@@ -39,8 +39,12 @@ pub fn execute(
     }
 }
 
-pub fn query(_deps: Deps, _env: Env, _msg: Empty) -> StdResult<Binary> {
-    Ok(Binary::default())
+pub fn query(deps: Deps, _env: Env, _msg: cl8y_dex_burn_hook::msg::QueryMsg) -> StdResult<Binary> {
+    cosmwasm_std::to_json_binary(&cl8y_dex_burn_hook::msg::ConfigResponse {
+        burn_token: deps.api.addr_validate(&ALLOWED_PAIR.load(deps.storage)?)?,
+        burn_percentage_bps: 0,
+        admin: cosmwasm_std::Addr::unchecked("admin"),
+    })
 }
 
 pub fn mock_failing_hook_contract() -> Box<dyn Contract<Empty>> {

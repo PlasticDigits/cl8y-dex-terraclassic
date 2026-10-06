@@ -6,49 +6,37 @@
 //! return to the receiver.
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, CosmosMsg, Deps, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{Addr, CosmosMsg, Deps, StdError, StdResult, Uint128, Uint256, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 
-/// Tax-hook `GetConfig` response shape (subset used for settlement).
+/// Supported hook configuration shapes. Query once, and reject partial or ambiguous
+/// responses rather than treating an unavailable fee as zero (#1398).
 #[cw_serde]
-pub struct TaxHookConfigView {
-    pub recipient: Addr,
-    pub tax_percentage_bps: u16,
-    pub tax_token: Addr,
+#[derive(Default)]
+struct HookConfigResponse {
+    #[serde(default)]
+    admin: Option<Addr>,
+    #[serde(default)]
+    recipient: Option<Addr>,
+    #[serde(default)]
+    tax_percentage_bps: Option<u16>,
+    #[serde(default)]
+    tax_token: Option<Addr>,
+    #[serde(default)]
+    burn_token: Option<Addr>,
+    #[serde(default)]
+    burn_percentage_bps: Option<u16>,
+    #[serde(default)]
+    target_pair: Option<Addr>,
+    #[serde(default)]
+    lp_token: Option<Addr>,
+    #[serde(default)]
+    percentage_bps: Option<u16>,
 }
 
-/// Burn-hook `GetConfig` response shape (subset used for settlement).
 #[cw_serde]
-pub struct BurnHookConfigView {
-    pub burn_token: Addr,
-    pub burn_percentage_bps: u16,
-}
-
-#[cw_serde]
-enum TaxHookQueryMsg {
-    #[serde(rename = "get_config")]
+enum HookQueryMsg {
     GetConfig {},
-}
-
-#[cw_serde]
-enum BurnHookQueryMsg {
-    #[serde(rename = "get_config")]
-    GetConfig {},
-}
-
-#[cw_serde]
-struct TaxHookConfigResponse {
-    recipient: Addr,
-    tax_percentage_bps: u16,
-    tax_token: Addr,
-    admin: Addr,
-}
-
-#[cw_serde]
-struct BurnHookConfigResponse {
-    burn_token: Addr,
-    burn_percentage_bps: u16,
-    admin: Addr,
 }
 
 /// Fee slice computed from swap output and hook bps.
@@ -67,82 +55,103 @@ pub enum HookFeeKind {
 }
 
 pub fn bps_of_amount(amount: Uint128, bps: u16) -> StdResult<Uint128> {
-    Ok(amount
-        .checked_mul(Uint128::from(bps as u128))?
-        .checked_div(Uint128::new(10_000))?)
-}
-
-pub fn try_tax_hook_config(deps: Deps, hook: &Addr) -> StdResult<Option<TaxHookConfigView>> {
-    let resp: TaxHookConfigResponse = match deps
-        .querier
-        .query_wasm_smart(hook, &TaxHookQueryMsg::GetConfig {})
-    {
-        Ok(r) => r,
-        Err(_) => return Ok(None),
-    };
-    Ok(Some(TaxHookConfigView {
-        recipient: resp.recipient,
-        tax_percentage_bps: resp.tax_percentage_bps,
-        tax_token: resp.tax_token,
-    }))
-}
-
-pub fn try_burn_hook_config(deps: Deps, hook: &Addr) -> StdResult<Option<BurnHookConfigView>> {
-    let resp: BurnHookConfigResponse = match deps
-        .querier
-        .query_wasm_smart(hook, &BurnHookQueryMsg::GetConfig {})
-    {
-        Ok(r) => r,
-        Err(_) => return Ok(None),
-    };
-    Ok(Some(BurnHookConfigView {
-        burn_token: resp.burn_token,
-        burn_percentage_bps: resp.burn_percentage_bps,
-    }))
+    if bps > 10_000 {
+        return Err(StdError::generic_err(
+            "unsupported hook pricing: bps exceeds 10000",
+        ));
+    }
+    Ok(Uint128::try_from(
+        Uint256::from(amount) * Uint256::from(bps as u128) / Uint256::from(10_000u128),
+    )?)
 }
 
 /// Collect tax/burn deductions for registered hooks matching `ask_token`.
+/// LP-burn hooks do not deduct the ask asset. Other hook pricing is unsupported;
+/// governance must install an explicit supported pricing interface before use.
 pub fn collect_fee_hook_deductions(
     deps: Deps,
     hooks: &[Addr],
     ask_token: &str,
     total_return: Uint128,
 ) -> StdResult<Vec<HookFeeDeduction>> {
+    crate::hook::validate_stored_hooks(hooks)?;
     let ask = deps.api.addr_validate(ask_token)?;
     let mut out = Vec::new();
+    let mut total_bps = 0u32;
 
     for hook in hooks {
-        if let Some(cfg) = try_tax_hook_config(deps, hook)? {
-            if cfg.tax_token == ask {
-                let amount = bps_of_amount(total_return, cfg.tax_percentage_bps)?;
-                if !amount.is_zero() {
-                    out.push(HookFeeDeduction {
-                        hook: hook.clone(),
-                        token: cfg.tax_token,
-                        amount,
-                        kind: HookFeeKind::Tax {
-                            recipient: cfg.recipient,
-                        },
-                    });
-                }
+        let cfg: HookConfigResponse = deps
+            .querier
+            .query_wasm_smart(hook, &HookQueryMsg::GetConfig {})
+            .map_err(|_| {
+                StdError::generic_err(format!(
+                    "unsupported hook pricing: {hook} GetConfig unavailable"
+                ))
+            })?;
+        let tax =
+            cfg.recipient.is_some() || cfg.tax_percentage_bps.is_some() || cfg.tax_token.is_some();
+        let burn = cfg.burn_token.is_some() || cfg.burn_percentage_bps.is_some();
+        let lp =
+            cfg.target_pair.is_some() || cfg.lp_token.is_some() || cfg.percentage_bps.is_some();
+        let unsupported =
+            || StdError::generic_err(format!("unsupported hook pricing: {hook} config"));
+        let (token, bps, kind) = match (tax, burn, lp) {
+            (true, false, false) => (
+                deps.api
+                    .addr_validate(cfg.tax_token.ok_or_else(unsupported)?.as_str())?,
+                cfg.tax_percentage_bps.ok_or_else(unsupported)?,
+                HookFeeKind::Tax {
+                    recipient: deps
+                        .api
+                        .addr_validate(cfg.recipient.ok_or_else(unsupported)?.as_str())?,
+                },
+            ),
+            (false, true, false) => (
+                deps.api
+                    .addr_validate(cfg.burn_token.ok_or_else(unsupported)?.as_str())?,
+                cfg.burn_percentage_bps.ok_or_else(unsupported)?,
+                HookFeeKind::Burn,
+            ),
+            (false, false, true) => {
+                deps.api
+                    .addr_validate(cfg.target_pair.ok_or_else(unsupported)?.as_str())?;
+                deps.api
+                    .addr_validate(cfg.lp_token.ok_or_else(unsupported)?.as_str())?;
+                bps_of_amount(Uint128::zero(), cfg.percentage_bps.ok_or_else(unsupported)?)?;
+                continue;
             }
-        }
-        if let Some(cfg) = try_burn_hook_config(deps, hook)? {
-            if cfg.burn_token == ask {
-                let amount = bps_of_amount(total_return, cfg.burn_percentage_bps)?;
-                if !amount.is_zero() {
-                    out.push(HookFeeDeduction {
-                        hook: hook.clone(),
-                        token: cfg.burn_token,
-                        amount,
-                        kind: HookFeeKind::Burn,
-                    });
-                }
+            _ => return Err(unsupported()),
+        };
+        let amount = bps_of_amount(total_return, bps)?;
+        if token == ask {
+            total_bps += u32::from(bps);
+            if total_bps > 10_000 {
+                return Err(StdError::generic_err(
+                    "hook deductions exceed output: total bps exceeds 10000",
+                ));
+            }
+            if !amount.is_zero() {
+                out.push(HookFeeDeduction {
+                    hook: hook.clone(),
+                    token,
+                    amount,
+                    kind,
+                });
             }
         }
     }
-
     Ok(out)
+}
+
+/// Apply precisely the same integer fee deductions in quote and settlement.
+pub fn net_return_after_hooks(
+    total_return: Uint128,
+    deductions: &[HookFeeDeduction],
+) -> StdResult<Uint128> {
+    let total = deductions
+        .iter()
+        .try_fold(Uint128::zero(), |acc, d| acc.checked_add(d.amount))?;
+    Ok(total_return.checked_sub(total)?)
 }
 
 /// Build CW20 settlement transfers for fee hooks (tax → recipient, burn → hook).
@@ -183,3 +192,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "issue_1398_pricing_tests.rs"]
+mod issue_1398_pricing_tests;
