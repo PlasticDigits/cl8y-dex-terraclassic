@@ -63,6 +63,8 @@ Retest after fixes. Save revision, UTC time, test counts and source evidence sco
   manager for explicit same-pair `UpdateConfig`. Current launcher uses a human
   manager. Unchanged token settings are a no-op; record token-owned legacy proxy
   recovery separately instead of claiming a human can impersonate that contract.
+  Token **1.4.0** adds that explicit manager-only proxy; follow
+  [#1429 inventory/recovery/readback](../issue-1429/README.md) separately.
 - [x] Run the source verifier, resolve executed failures and complete its focused
   retest. Inspect public regression coverage for pause, blacklist, frozen code-id,
   route funding and transaction rollback in the full contract workspace.

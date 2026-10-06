@@ -208,6 +208,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::RefreshAutolpPolicy { expected_policy } => {
+            crate::autolp_recovery::refresh(deps, env, info, expected_policy)
+        }
         ExecuteMsg::RotateRouter {
             router,
             expected_code_id,

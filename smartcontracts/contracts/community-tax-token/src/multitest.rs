@@ -1,6 +1,9 @@
 //! Multi-test coverage for GitLab #592 (T592-1–T592-13), #607 (R607), #608 (H608-1–H608-8),
 //! and #1228 (A-allow SendFrom allowance).
 
+#[path = "autolp_recovery_multitest.rs"]
+mod autolp_recovery_tests;
+
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
     Uint128,
