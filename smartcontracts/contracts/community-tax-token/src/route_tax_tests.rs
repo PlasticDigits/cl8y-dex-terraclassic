@@ -74,6 +74,7 @@ fn issue1390_old_context_without_owned_refund_keeps_max_wallet_cap() {
         deps.as_mut(),
         env,
         mock_info("router", &[]),
+        0,
         payer.to_string(),
         Uint128::one(),
     )
