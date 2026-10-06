@@ -113,6 +113,8 @@ pub fn simulate_swap_operations_undiscounted(
 #[cw_serde]
 pub struct ConfigResponse {
     pub funding_version: u16,
+    pub settlement_version: u16,
+    pub last_route_id: u64,
     pub factory: Addr,
     pub wrap_mapper: Option<Addr>,
 }

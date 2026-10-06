@@ -18,8 +18,13 @@ contracts() {
 }
 indexer() {
   local target="${INDEXER_CARGO_TARGET_DIR:-$PWD/indexer/target}"
-  env CARGO_TARGET_DIR="$target" cargo test --manifest-path indexer/Cargo.toml --lib -- --test-threads=1 || return 1
-  (cd indexer && env CARGO_TARGET_DIR="$target" cargo test \
+  # Keep indexer memory/write volume independent of contract compiler profiles.
+  local debug="${INDEXER_CARGO_TEST_DEBUG:-${CARGO_PROFILE_TEST_DEBUG:-2}}"
+  local incremental="${INDEXER_CARGO_INCREMENTAL:-${CARGO_INCREMENTAL:-1}}"
+  env CARGO_PROFILE_DEV_DEBUG="$debug" CARGO_PROFILE_TEST_DEBUG="$debug" \
+    CARGO_INCREMENTAL="$incremental" CARGO_TARGET_DIR="$target" cargo test --manifest-path indexer/Cargo.toml --lib -- --test-threads=1 || return 1
+  (cd indexer && env CARGO_PROFILE_DEV_DEBUG="$debug" CARGO_PROFILE_TEST_DEBUG="$debug" \
+    CARGO_INCREMENTAL="$incremental" CARGO_TARGET_DIR="$target" cargo test \
     --test api_route_solve --test api_route_solve_db_hybrid \
     --test api_route_exact_output --test api_route_tax_funding1381 \
     -- --test-threads=1) || return 1
@@ -52,7 +57,7 @@ chain_execution() {
   if [[ -n "${VERIFY_ISSUE_1381_LEGACY_ARTIFACTS:-}" ]]; then
     args+=(--legacy-artifacts "$VERIFY_ISSUE_1381_LEGACY_ARTIFACTS")
   fi
-  python3 scripts/qa/localterra-route-tax-1381.py "${args[@]}" \
+  python3 scripts/qa/localterra-route-tax-1381.py --isolated-owner "${args[@]}" \
     --container "$container" \
     --artifacts "${VERIFY_ISSUE_1381_ARTIFACTS:-smartcontracts/artifacts}" \
     --code-cache "${VERIFY_ISSUE_1381_CODE_CACHE:-/tmp/dex-1381-localterra-codes.json}" \

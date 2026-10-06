@@ -1,0 +1,22 @@
+[package]
+name = "reverse-query-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Independent, test-only VM fixture; never part of release artifacts.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cosmwasm-std = "1.5.11"
+cosmwasm-schema = "1.5.11"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+overflow-checks = true

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verification for GitLab #1277: NUMERIC(38, 0) trader rolling + lifetime raw volume.
+# Verification for GitLab #1277: NUMERIC(58, 0) exact raw sums (#1395 extends #1277).
 #
 # Requires: make setup-indexer-postgres (Postgres + indexer/.env; no wasm deploy).
 set -euo pipefail
@@ -27,7 +27,7 @@ run_step() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  GitLab #1277 — trader rolling raw volume NUMERIC(38, 0)"
+echo "  GitLab #1277 — trader rolling raw volume NUMERIC(58, 0)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "docs: invariants + skill + AGENTS + sibling crosslinks" \
@@ -40,20 +40,21 @@ run_step "docs: invariants + skill + AGENTS + sibling crosslinks" \
     grep -q "AGENTS_INDEXER_TRADER_ROLLING_NUMERIC" AGENTS.md
     grep -q "verify-issue-1277" AGENTS.md
     grep -q "verify-issue-1277" Makefile
-    grep -q "NUMERIC(38, 0)" skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md
+    grep -q "NUMERIC(58, 0)" skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md
     grep -q "AGENTS_INDEXER_TRADER_ROLLING_NUMERIC" skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md
     grep -q "AGENTS_INDEXER_TRADER_ROLLING_NUMERIC" skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md
     grep -q "20260921120000_traders_rolling_volume_numeric_38_0" skills/AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md
   '
 
-run_step "code: widen + integer LEAST cap; USD cap untouched" \
+run_step "code: exact widened raw sums; USD policy unchanged" \
   bash -c '
     set -euo pipefail
     grep -q "ALTER COLUMN volume_24h TYPE NUMERIC(38, 0)" indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql
     grep -q "ALTER COLUMN total_volume TYPE NUMERIC(38, 0)" indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql
     grep -q "total_volume_usd stays P522-Q" indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql
-    grep -q "LEAST(\$2::numeric, POWER(10::numeric, 38) - 1)" indexer/src/db/queries/traders.rs
-    grep -q "LEAST(traders.total_volume + \$2, POWER(10::numeric, 38) - 1)" indexer/src/db/queries/traders.rs
+    grep -Fq "ALTER COLUMN total_volume TYPE NUMERIC(58,0)" indexer/migrations/20261005064000_event_remaining_precision.sql
+    grep -Fq "total_volume = traders.total_volume + \$2" indexer/src/db/queries/traders.rs
+    ! grep -Fq "POWER(10::numeric, 38)" indexer/src/db/queries/traders.rs
     grep -q "POWER(10::numeric, 20) - POWER(10::numeric, -18)" indexer/src/db/queries/traders.rs
     grep -q "volume_24h: bd_plain_string" indexer/src/api/traders.rs
     grep -q "Failed to refresh {label}" indexer/src/indexer/volume_aggregator.rs
@@ -96,7 +97,7 @@ upsert_dotenv_var "$REPO_ROOT/indexer/.env" TEST_DATABASE_URL "$TEST_DB_1277"
 upsert_dotenv_var "$REPO_ROOT/indexer/.env" TEST_DB_LOCK_FILE "$TEST_DB_LOCK_FILE"
 export TEST_DATABASE_URL="$TEST_DB_1277"
 
-run_step "indexer integration: 10^21 rolling + upsert cap + leaderboard" \
+run_step "indexer integration: 10^21 rolling + exact upsert + leaderboard" \
   bash -c 'cd indexer && cargo test -j 1 --test indexer_trader_rolling_numeric -- --test-threads=1 --quiet'
 
 run_step "indexer integration: #577 decay still green" \

@@ -266,10 +266,8 @@ impl Config {
             .collect();
 
         // GitLab #451 (SEC-I02 H14): FACTORY_ADDRESS must be non-empty in *every* RUN_MODE.
-        // An empty factory address makes `verify_factory_provenance` skip the provenance check
-        // (pair_discovery.rs), so any contract emitting swap events — including attacker-controlled
-        // clone pairs — would be indexed unverified. Prod already rejected empty below; enforce it
-        // unconditionally so staging/QA deployments cannot silently index unverified pairs.
+        // Pair discovery also fails closed for missing/invalid factory addresses (#1394).
+        // Reject empty configuration up front in staging/QA as well as production.
         if factory_address.trim().is_empty() {
             return Err(ConfigError::EmptyFactoryAddress);
         }

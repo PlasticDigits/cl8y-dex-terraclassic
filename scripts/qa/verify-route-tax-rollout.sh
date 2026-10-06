@@ -4,7 +4,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 bash -n scripts/upgrade-1381-route-tax.sh
 python3 -m py_compile scripts/lib/route_tax_rollout.py scripts/lib/route_tax_rollout_cli.py \
-  scripts/qa/localterra-route-tax-rollout.py scripts/qa/test-route-tax-rollout.py
+  scripts/qa/localterra-route-tax-rollout.py scripts/qa/test-route-tax-rollout.py \
+  scripts/lib/route_tax_rollout_checks.py scripts/qa/probe-route-tax-1381.py
 bash scripts/upgrade-1381-route-tax.sh --help >/dev/null
 for pass in first retest; do
   printf '\n[%s behavioral rollout checks]\n' "$pass"

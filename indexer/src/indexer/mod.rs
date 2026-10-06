@@ -8,6 +8,7 @@ pub mod candle_mark;
 pub mod community_tokens;
 pub mod defillama;
 pub mod economic_usd;
+pub mod event_amount;
 pub mod fee_discount_registry_health;
 pub mod gt_event_reserves;
 pub mod hub_usd;

@@ -130,7 +130,7 @@ sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
 not secret credentials. This PR's source review does not run any production mode.
 
 The rollout retains official contract addresses. It targets router and community
-tax tokens **1.2.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
+tax tokens **1.3.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
 Production factory 1.10.0 has a different stored hash from the repository artifact;
 this PR changes only factory CW2 metadata relative to repository code, to 1.11.0,
 to permit its reviewed upgrade. Review the exact deployed artifact hash rather
@@ -235,3 +235,24 @@ storage compatibility can reject a previously stored wasm. Follow
 [SEC-H05 rollback limitations](wasm-admin-migration.md#rollback-and-limitations-sec-h05),
 keep the partial fleet contained and prepare a reviewed forward repair when a
 downgrade is unsupported.
+
+## Launch-guard refinement (#1390)
+
+Router and community-tax-token **1.3.0** retain funding version **1** and introduce
+[LG1390](../../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md). Update both contracts in the
+coordinated migration inventory above, refresh factory whitelist/pair code-id
+pins and capability caches, then verify actual code hashes and cw2 versions.
+The router rejects repeated capable assets and publishes an optional authenticated
+original-input refund label. The token uses that label only to restore the
+payer's original integer residue above a lowered cap; old contexts without it
+retain cap enforcement. Acquired output, intermediate residue and other
+recipients remain capped. Public Sell/Buy previews reject protocol-exempt traders.
+
+Follow [the agent review and test-chain checklist](../qa/issue-1390/README.md).
+An implementation PR or local receipt does not establish production deployment;
+record unavailable live work as an explicit skip.
+
+Router/token 1.3.0 trust recovery and single-use settlement: follow the
+[router trust runbook](router-trust-1388.md) and
+[agent checklist](../qa/issue-1388/README.md). Immediate rollout must preserve the
+router address and reject every inventoried stored binding mismatch before mutation.

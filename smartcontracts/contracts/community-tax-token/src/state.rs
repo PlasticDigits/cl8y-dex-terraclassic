@@ -105,7 +105,9 @@ pub const LAUNCH_GUARDS: Item<LaunchGuards> = Item::new("lg");
 
 /// Factory-verified listed pairs (protocol-exempt; cannot be removed).
 pub const LISTED_PAIRS: Map<&Addr, bool> = Map::new("pairs");
-/// Extra protocol addresses (router, autolp, factory) — cannot be removed.
+/// Protocol roles (router, AutoLP, factory) cannot be removed by the manager.
+/// Authenticated wasm-admin/factory-governance rotation removes only obsolete router roles, preserving
+/// every overlapping current protocol role (#1388).
 pub const PROTOCOL_EXEMPT: Map<&Addr, bool> = Map::new("pex");
 /// Manager directory (ExemptionDirectory SKU).
 pub const MANAGER_EXEMPT: Map<&Addr, bool> = Map::new("mex");
