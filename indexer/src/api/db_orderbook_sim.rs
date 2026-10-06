@@ -3,7 +3,7 @@
 //! Prices pool + resting-book legs from `pair_reserves` and `resting_limit_orders` using the same
 //! math as on-chain `query_hybrid_simulation` / `orderbook::simulate_match_*`.
 
-use bigdecimal::BigDecimal;
+use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -13,7 +13,10 @@ use crate::db::queries::{pair_reserves, pairs, resting_orders};
 use crate::hybrid_limits::MAX_MAKER_FILLS_HARD_CAP;
 
 /// Book walk scan-step cap (matches pair contract).
-const MAX_SCAN_STEPS: u32 = 256;
+const MAX_SCAN_STEPS: u32 = 500;
+
+/// CosmWasm `Decimal` atomics: raw token1 per token0, irrespective of asset decimals.
+const DECIMAL_SCALE: u128 = 1_000_000_000_000_000_000;
 
 /// Production tier `discount_bps` by `traders.tier_id` (see `docs/reference/fee-discount-tiers.md`).
 pub(crate) fn tier_discount_bps(tier_id: i16) -> u16 {
@@ -61,20 +64,58 @@ pub fn pool_reserves_unusable(reserve_0: u128, reserve_1: u128) -> bool {
     reserve_0 == 0 || reserve_1 == 0
 }
 
-fn mul_floor_u128(a: u128, price: &BigDecimal) -> Option<u128> {
-    if price <= &BigDecimal::from(0u32) {
-        return None;
-    }
-    let prod = BigDecimal::from(a) * price;
-    prod.with_scale(0).to_string().parse().ok()
+/// Reject fractional/out-of-range escrow instead of truncating corrupt mirror rows.
+fn exact_u128(value: &BigDecimal) -> Option<u128> {
+    let amount = parse_u128(value)?;
+    (value == &BigDecimal::from(amount)).then_some(amount)
 }
 
-fn div_floor_u128(a: u128, price: &BigDecimal) -> Option<u128> {
-    if price <= &BigDecimal::from(0u32) {
+/// Decode exactly the 18-place, Uint128-backed price accepted by the pair contract.
+fn price_atomics(price: &BigDecimal) -> Option<u128> {
+    let atomics = exact_u128(&(price * BigDecimal::from(DECIMAL_SCALE)))?;
+    (atomics > 0).then_some(atomics)
+}
+
+fn mul_floor_atomics(amount: u128, atomics: u128) -> Option<u128> {
+    let product = BigInt::from(amount) * BigInt::from(atomics);
+    (product / BigInt::from(DECIMAL_SCALE))
+        .to_string()
+        .parse()
+        .ok()
+}
+
+fn inverse_atomics(atomics: u128) -> Option<u128> {
+    if atomics == 0 {
         return None;
     }
-    let q = BigDecimal::from(a) / price;
-    q.with_scale(0).to_string().parse().ok()
+    let inverse = (BigInt::from(DECIMAL_SCALE) * BigInt::from(DECIMAL_SCALE)
+        / BigInt::from(atomics))
+    .to_string()
+    .parse::<u128>()
+    .ok()?;
+    (inverse > 0).then_some(inverse)
+}
+
+/// #1399: counterpart of `dex_common::limit_placement::is_limit_order_fillable`.
+/// Use the same truncated Decimal inverse as execute/sim, rather than BigDecimal division.
+/// Full ask notional may exceed Uint128 while a payable partial fill remains possible.
+fn economic_order_terms(order: &resting_orders::RestingOrderRow) -> Option<(u128, u128, u128)> {
+    let remaining = exact_u128(&order.remaining)?;
+    if remaining == 0 {
+        return None;
+    }
+    let price = price_atomics(&order.price)?;
+    let inverse = inverse_atomics(price)?;
+    let fillable = match order.side.as_str() {
+        "bid" => {
+            let capacity = mul_floor_atomics(remaining, inverse)?;
+            let cost = mul_floor_atomics(capacity, price)?;
+            capacity > 0 && cost > 0 && cost <= remaining
+        }
+        "ask" => BigInt::from(remaining) * BigInt::from(price) >= BigInt::from(DECIMAL_SCALE),
+        _ => false,
+    };
+    fillable.then_some((remaining, price, inverse))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,13 +190,15 @@ pub fn is_snapshot_stale(at: DateTime<Utc>, max_staleness_ms: u64) -> bool {
 }
 
 /// Load mirrored reserves + resting book for one hop pair contract.
+/// Retain every row for scan-cap parity; expiry is checked at quote time rather than load time.
+/// `_now_secs` is kept for caller compatibility with the earlier filtering API.
 pub async fn load_hop_mirror(
     pool: &PgPool,
     _pair_address: &str,
     asset_addrs: &HashMap<i32, String>,
     pair_row: &pairs::PairRow,
     max_staleness_ms: u64,
-    now_secs: u64,
+    _now_secs: u64,
 ) -> Result<HopMirror, DbSimError> {
     let asset_0_addr = asset_addrs
         .get(&pair_row.asset_0_id)
@@ -195,9 +238,8 @@ pub async fn load_hop_mirror(
     let asks = resting_orders::get_pair_resting_book(&mut *tx, pair_row.id, "ask").await?;
     tx.commit().await?;
 
-    let bids = filter_live_orders(bids, now_secs);
-    let asks = filter_live_orders(asks, now_secs);
-
+    // Keep expired, zero and economically unfillable rows in DLL order. Contract walks
+    // count these against MAX_SCAN_STEPS; pre-filtering would quote unreachable makers.
     Ok(HopMirror {
         pair_id: pair_row.id,
         asset_0_addr,
@@ -213,14 +255,10 @@ pub async fn load_hop_mirror(
     })
 }
 
-fn filter_live_orders(
-    rows: Vec<resting_orders::RestingOrderRow>,
-    now_secs: u64,
-) -> Vec<resting_orders::RestingOrderRow> {
-    rows.into_iter()
-        .filter(|o| o.expires_at.map(|e| now_secs < e as u64).unwrap_or(true))
-        .filter(|o| parse_u128(&o.remaining).unwrap_or(0) > 0)
-        .collect()
+fn order_is_expired(order: &resting_orders::RestingOrderRow, now_secs: u64) -> bool {
+    order
+        .expires_at
+        .is_some_and(|expiry| expiry <= 0 || now_secs >= expiry as u64)
 }
 
 /// Expected matcher side for a taker offering `offer_token` on this pair mirror.
@@ -244,16 +282,39 @@ pub fn first_live_book_start_hint(mirror: &HopMirror, offer_token: &str) -> Opti
     } else {
         &mirror.asks
     };
+    let now_secs = Utc::now().timestamp().max(0) as u64;
     orders
         .iter()
-        .find(|o| o.side == expected_side && parse_u128(&o.remaining).unwrap_or(0) > 0)
+        .find(|o| {
+            o.side == expected_side
+                && !order_is_expired(o, now_secs)
+                && parse_u128(&o.remaining).unwrap_or(0) > 0
+        })
         .map(|o| o.order_id as u64)
 }
 
 /// Fresh mirror with at least one fillable resting order on the taker match side (GitLab #493).
 /// Used to short-circuit the 17-point hybrid grid when the book cannot improve on pool-only.
 pub fn mirror_has_fillable_book(mirror: &HopMirror, offer_token: &str) -> bool {
-    first_live_book_start_hint(mirror, offer_token).is_some()
+    if mirror.freshness != MirrorFreshness::Fresh {
+        return false;
+    }
+    let side = match_side_for_offer(mirror, offer_token);
+    let orders = if side == "bid" {
+        &mirror.bids
+    } else {
+        &mirror.asks
+    };
+    let Some(hint) = first_live_book_start_hint(mirror, offer_token) else {
+        return false;
+    };
+    let orders = book_orders_from_hint(orders, Some(hint), side);
+    let now_secs = Utc::now().timestamp().max(0) as u64;
+    orders.iter().take(MAX_SCAN_STEPS as usize).any(|order| {
+        order.side == side
+            && !order_is_expired(order, now_secs)
+            && economic_order_terms(order).is_some()
+    })
 }
 
 /// Slice book walk order list from a validated same-side hint, else from head (contract parity).
@@ -264,7 +325,9 @@ fn book_orders_from_hint<'a>(
 ) -> &'a [resting_orders::RestingOrderRow] {
     if let Some(hint) = book_start_hint {
         if let Some(pos) = orders.iter().position(|o| {
-            o.order_id as u64 == hint && o.side == expected_side && parse_u128(&o.remaining).unwrap_or(0) > 0
+            o.order_id as u64 == hint
+                && o.side == expected_side
+                && parse_u128(&o.remaining).unwrap_or(0) > 0
         }) {
             return &orders[pos..];
         }
@@ -292,6 +355,7 @@ fn simulate_match_bids(
     let mut token1_out = 0u128;
     let mut makers_used = 0u32;
     let mut scan_steps = 0u32;
+    let now_secs = Utc::now().timestamp().max(0) as u64;
 
     for order in orders {
         if !book_walk_step(&mut scan_steps) {
@@ -300,29 +364,26 @@ fn simulate_match_bids(
         if makers_used >= cap || token0_left == 0 {
             break;
         }
-        if order.side != "bid" {
+        if order.side != "bid" || order_is_expired(order, now_secs) {
             continue;
         }
-        let price = &order.price;
-        if price <= &BigDecimal::from(0u32) {
+        let Some((remaining, price, inverse)) = economic_order_terms(order) else {
             continue;
-        }
-        let remaining = parse_u128(&order.remaining).ok_or(DbSimError::InvalidNumeric)?;
-        if remaining == 0 {
+        };
+        let Some(max_fill_from_bid) = mul_floor_atomics(remaining, inverse) else {
             continue;
-        }
-        let max_fill_from_bid = div_floor_u128(remaining, price).unwrap_or(0);
+        };
         let mut fill = token0_left.min(max_fill_from_bid);
         if fill == 0 {
             continue;
         }
-        let mut cost = mul_floor_u128(fill, price).unwrap_or(0);
+        let mut cost = mul_floor_atomics(fill, price).unwrap_or(0);
         while fill > 0 && cost > remaining {
             fill = fill.saturating_sub(1);
             if fill == 0 {
                 break;
             }
-            cost = mul_floor_u128(fill, price).unwrap_or(0);
+            cost = mul_floor_atomics(fill, price).unwrap_or(0);
         }
         if fill == 0 {
             continue;
@@ -331,10 +392,15 @@ fn simulate_match_bids(
             continue;
         }
         makers_used += 1;
-        let commission = cost.saturating_mul(taker_bps as u128) / 10_000;
+        let commission = cost
+            .checked_mul(taker_bps as u128)
+            .ok_or(DbSimError::InvalidNumeric)?
+            / 10_000;
         let net = cost.saturating_sub(commission);
         token0_left = token0_left.saturating_sub(fill);
-        token1_out = token1_out.saturating_add(net);
+        token1_out = token1_out
+            .checked_add(net)
+            .ok_or(DbSimError::InvalidNumeric)?;
     }
 
     Ok(BookSimResult {
@@ -357,6 +423,7 @@ fn simulate_match_asks(
     let mut token0_out = 0u128;
     let mut makers_used = 0u32;
     let mut scan_steps = 0u32;
+    let now_secs = Utc::now().timestamp().max(0) as u64;
 
     for order in orders {
         if !book_walk_step(&mut scan_steps) {
@@ -365,29 +432,26 @@ fn simulate_match_asks(
         if makers_used >= cap || token1_left == 0 {
             break;
         }
-        if order.side != "ask" {
+        if order.side != "ask" || order_is_expired(order, now_secs) {
             continue;
         }
-        let price = &order.price;
-        if price <= &BigDecimal::from(0u32) {
+        let Some((remaining, price, inverse)) = economic_order_terms(order) else {
             continue;
-        }
-        let remaining = parse_u128(&order.remaining).ok_or(DbSimError::InvalidNumeric)?;
-        if remaining == 0 {
+        };
+        let Some(max_fill_from_budget) = mul_floor_atomics(token1_left, inverse) else {
             continue;
-        }
-        let max_fill_from_budget = div_floor_u128(token1_left, price).unwrap_or(0);
+        };
         let mut fill_t0 = remaining.min(max_fill_from_budget);
         if fill_t0 == 0 {
             continue;
         }
-        let mut cost = mul_floor_u128(fill_t0, price).unwrap_or(0);
+        let mut cost = mul_floor_atomics(fill_t0, price).unwrap_or(0);
         while fill_t0 > 0 && cost > token1_left {
             fill_t0 = fill_t0.saturating_sub(1);
             if fill_t0 == 0 {
                 break;
             }
-            cost = mul_floor_u128(fill_t0, price).unwrap_or(0);
+            cost = mul_floor_atomics(fill_t0, price).unwrap_or(0);
         }
         if fill_t0 == 0 {
             continue;
@@ -396,10 +460,15 @@ fn simulate_match_asks(
             continue;
         }
         makers_used += 1;
-        let commission = fill_t0.saturating_mul(taker_bps as u128) / 10_000;
+        let commission = fill_t0
+            .checked_mul(taker_bps as u128)
+            .ok_or(DbSimError::InvalidNumeric)?
+            / 10_000;
         let net = fill_t0.saturating_sub(commission);
         token1_left = token1_left.saturating_sub(cost);
-        token0_out = token0_out.saturating_add(net);
+        token0_out = token0_out
+            .checked_add(net)
+            .ok_or(DbSimError::InvalidNumeric)?;
     }
 
     Ok(BookSimResult {
@@ -520,7 +589,11 @@ fn simulate_pool_leg(
 }
 
 /// `ceil((in * out) / new_in)` when `in * out` does not fit in `u128`.
-fn ceil_div_wide(input_reserve: u128, output_reserve: u128, new_in: u128) -> Result<u128, DbSimError> {
+fn ceil_div_wide(
+    input_reserve: u128,
+    output_reserve: u128,
+    new_in: u128,
+) -> Result<u128, DbSimError> {
     if new_in == 0 {
         return Err(DbSimError::InvalidNumeric);
     }
@@ -669,22 +742,51 @@ pub async fn preload_pool_mirrors_for_pairs(
 ) -> Result<HashMap<String, HopMirror>, sqlx::Error> {
     let mut out = HashMap::new();
     for addr in pair_addresses {
-        let Some(pair) = pairs::get_pair_by_address(pool, addr).await? else { continue; };
-        let Some(reserves) = pair_reserves::get_pair_reserves(pool, pair.id).await? else { continue; };
-        let (Some(reserve_0), Some(reserve_1)) = (parse_u128(&reserves.reserve_0), parse_u128(&reserves.reserve_1)) else { continue; };
-        let (Some(asset_0_addr), Some(asset_1_addr)) = (id_to_addr.get(&pair.asset_0_id), id_to_addr.get(&pair.asset_1_id)) else { continue; };
+        let Some(pair) = pairs::get_pair_by_address(pool, addr).await? else {
+            continue;
+        };
+        let Some(reserves) = pair_reserves::get_pair_reserves(pool, pair.id).await? else {
+            continue;
+        };
+        let (Some(reserve_0), Some(reserve_1)) = (
+            parse_u128(&reserves.reserve_0),
+            parse_u128(&reserves.reserve_1),
+        ) else {
+            continue;
+        };
+        let (Some(asset_0_addr), Some(asset_1_addr)) = (
+            id_to_addr.get(&pair.asset_0_id),
+            id_to_addr.get(&pair.asset_1_id),
+        ) else {
+            continue;
+        };
         // Both reserves, fee, height and timestamp are one atomic snapshot row.
         let freshness = if pool_reserves_unusable(reserve_0, reserve_1) {
             MirrorFreshness::EmptyPool
         } else if is_snapshot_stale(reserves.snapshot_at, max_staleness_ms) {
             MirrorFreshness::Stale
-        } else { MirrorFreshness::Fresh };
-        if !(0..=10_000).contains(&reserves.fee_bps) { continue; }
-        out.insert(addr.clone(), HopMirror {
-            pair_id: pair.id, asset_0_addr: asset_0_addr.clone(), asset_1_addr: asset_1_addr.clone(),
-            reserve_0, reserve_1, fee_bps: reserves.fee_bps as u16, block_height: reserves.block_height,
-            snapshot_at: reserves.snapshot_at, freshness, bids: vec![], asks: vec![],
-        });
+        } else {
+            MirrorFreshness::Fresh
+        };
+        if !(0..=10_000).contains(&reserves.fee_bps) {
+            continue;
+        }
+        out.insert(
+            addr.clone(),
+            HopMirror {
+                pair_id: pair.id,
+                asset_0_addr: asset_0_addr.clone(),
+                asset_1_addr: asset_1_addr.clone(),
+                reserve_0,
+                reserve_1,
+                fee_bps: reserves.fee_bps as u16,
+                block_height: reserves.block_height,
+                snapshot_at: reserves.snapshot_at,
+                freshness,
+                bids: vec![],
+                asks: vec![],
+            },
+        );
     }
     Ok(out)
 }
@@ -756,6 +858,182 @@ mod tests {
     }
 
     #[test]
+    fn economic_fillability_decimal_boundaries_match_shared_predicate() {
+        // Raw prices representing supported 6/6, 6/18 and 18/6 combinations.
+        for (price, minimum_token0, minimum_token1) in [
+            ("0.000000000001", 1_000_000_000_000u128, 1u128),
+            ("1", 1, 1),
+            ("0.000000000000000001", 1_000_000_000_000_000_000, 1),
+            ("1000000000000", 1, 1_000_000_000_000),
+        ] {
+            let below = resting(1, "ask", price, &(minimum_token0 - 1).to_string());
+            let exact = resting(2, "ask", price, &minimum_token0.to_string());
+            let above = resting(3, "ask", price, &(minimum_token0 + 1).to_string());
+            assert!(economic_order_terms(&below).is_none(), "price={price}");
+            assert!(economic_order_terms(&exact).is_some(), "price={price}");
+            assert!(economic_order_terms(&above).is_some(), "price={price}");
+            let sim = simulate_match_asks(&[exact], minimum_token1, 1, 0, None).unwrap();
+            assert_eq!(sim.return_net, minimum_token0);
+            assert_eq!(sim.offer_consumed, minimum_token1);
+
+            // The opposite side uses the same raw price and payment threshold.
+            let below = resting(4, "bid", price, &(minimum_token1 - 1).to_string());
+            let bid = resting(5, "bid", price, &minimum_token1.to_string());
+            let above = resting(6, "bid", price, &(minimum_token1 + 1).to_string());
+            assert!(economic_order_terms(&below).is_none());
+            assert!(economic_order_terms(&bid).is_some());
+            assert!(economic_order_terms(&above).is_some());
+            let sim = simulate_match_bids(&[bid], minimum_token0, 1, 0, None).unwrap();
+            assert_eq!(sim.return_net, minimum_token1);
+            assert_eq!(sim.offer_consumed, minimum_token0);
+        }
+        // Bid capacity must produce a positive cost, including the inverse's truncation.
+        for (price, below, exact, above) in [("2", "1", "2", "3"), ("3", "3", "4", "5")] {
+            assert!(economic_order_terms(&resting(1, "bid", price, below)).is_none());
+            assert!(economic_order_terms(&resting(2, "bid", price, exact)).is_some());
+            assert!(economic_order_terms(&resting(3, "bid", price, above)).is_some());
+        }
+    }
+
+    #[test]
+    fn decimal_inverse_truncation_matches_contract_not_exact_division() {
+        // Decimal(1)/Decimal(3) truncates to 0.333333333333333333. A budget of 3
+        // buys floor(3 * inverse)=0, whereas arbitrary-precision direct division buys 1.
+        let ask = resting(1, "ask", "3", "100");
+        let below = simulate_match_asks(&[ask.clone()], 3, 1, 0, None).unwrap();
+        assert_eq!(below.return_net, 0);
+        assert_eq!(below.offer_consumed, 0);
+        let payable = simulate_match_asks(&[ask], 4, 1, 0, None).unwrap();
+        assert_eq!(payable.return_net, 1);
+        assert_eq!(payable.offer_consumed, 3);
+    }
+
+    #[test]
+    fn economic_fillability_checked_overflow_and_corrupt_rows() {
+        let huge = u128::MAX.to_string();
+        // A huge ask still supports partial fills; full notional need not fit Uint128.
+        let ask = resting(1, "ask", "2", &huge);
+        assert!(economic_order_terms(&ask).is_some());
+        let sim = simulate_match_asks(&[ask], 4, 1, 0, None).unwrap();
+        assert_eq!(sim.return_net, 2);
+        assert_eq!(sim.offer_consumed, 4);
+        // The bid walker computes full remaining / price before the taker min: overflow
+        // of that capacity is unfillable, and must not create a saturated quote.
+        assert!(economic_order_terms(&resting(2, "bid", "0.5", &huge)).is_none());
+        for side in ["bid", "ask"] {
+            for (price, remaining) in [
+                ("0", "100"),
+                ("-1", "100"),
+                ("0.0000000000000000001", "100"), // Below Decimal precision.
+                ("340282366920938463464", "100"), // Price atomics overflow.
+                ("1000000000000000001", "100"),   // Inverse truncates to zero.
+                ("1", "340282366920938463463374607431768211456"),
+                ("1", "1.5"),
+                ("1", "-1"),
+            ] {
+                assert!(
+                    economic_order_terms(&resting(3, side, price, remaining)).is_none(),
+                    "side={side} price={price} remaining={remaining}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_prefix_consumes_scan_cap_but_not_maker_cap_on_both_sides() {
+        assert_eq!(MAX_SCAN_STEPS, 500); // dex_common::pair::MAX_SCAN_STEPS.
+        for side in ["bid", "ask"] {
+            let bad_price = if side == "bid" { "2" } else { "0.000000000001" };
+            let mut orders: Vec<_> = (0..MAX_SCAN_STEPS + 1)
+                .map(|id| resting(id as i64 + 1, side, bad_price, "1"))
+                .collect();
+            orders.push(resting(MAX_SCAN_STEPS as i64 + 2, side, "1", "100"));
+            let simulate = |orders: &[resting_orders::RestingOrderRow], hint| {
+                if side == "bid" {
+                    simulate_match_bids(orders, 10, 1, 0, hint).unwrap()
+                } else {
+                    simulate_match_asks(orders, 10, 1, 0, hint).unwrap()
+                }
+            };
+            assert_eq!(simulate(&orders, None).return_net, 0);
+            // Cleanup makes progress without removing the scan ceiling; two removals
+            // make the valid maker reachable at step 500 of the next snapshot.
+            assert_eq!(simulate(&orders[1..], None).return_net, 0);
+            assert_eq!(simulate(&orders[2..], None).return_net, 10);
+            // Hints retain their same-side/nonzero-remaining semantics, including invalid
+            // anchors: the first bad anchor does not remove the scan ceiling.
+            assert_eq!(simulate(&orders, Some(1)).return_net, 0);
+            assert_eq!(
+                simulate(&orders, Some(MAX_SCAN_STEPS as u64 + 2)).return_net,
+                10
+            );
+        }
+    }
+
+    #[test]
+    fn expired_and_zero_prefix_rows_keep_scan_positions() {
+        for side in ["bid", "ask"] {
+            let mut orders: Vec<_> = (0..MAX_SCAN_STEPS)
+                .map(|id| {
+                    let mut order = resting(
+                        id as i64 + 1,
+                        side,
+                        "1",
+                        if id % 2 == 0 { "0" } else { "100" },
+                    );
+                    if id % 2 != 0 {
+                        order.expires_at = Some(1);
+                    }
+                    order
+                })
+                .collect();
+            orders.push(resting(MAX_SCAN_STEPS as i64 + 1, side, "1", "100"));
+            let sim = if side == "bid" {
+                simulate_match_bids(&orders, 10, 1, 0, None)
+            } else {
+                simulate_match_asks(&orders, 10, 1, 0, None)
+            }
+            .unwrap();
+            assert_eq!(sim.return_net, 0);
+            assert_eq!(sim.offer_consumed, 0);
+        }
+    }
+
+    #[test]
+    fn invalid_rows_do_not_consume_makers_or_allow_zero_payout() {
+        for side in ["bid", "ask"] {
+            let rows = [resting(1, side, "1", "1.5"), resting(2, side, "1", "100")];
+            let sim = if side == "bid" {
+                simulate_match_bids(&rows, 10, 1, 0, None)
+            } else {
+                simulate_match_asks(&rows, 10, 1, 0, None)
+            }
+            .unwrap();
+            assert_eq!(sim.return_net, 10);
+            assert_eq!(sim.offer_consumed, 10);
+        }
+        // Globally fillable bid with an insufficient taker budget stays unfilled.
+        let bid = resting(1, "bid", "0.000000000001", "1000");
+        assert!(economic_order_terms(&bid).is_some());
+        let sim = simulate_match_bids(&[bid], 1, 1, 0, None).unwrap();
+        assert_eq!(sim.return_net, 0);
+        assert_eq!(sim.offer_consumed, 0);
+    }
+
+    #[test]
+    fn fillable_book_probe_ignores_economically_unfillable_rows() {
+        let mirror = HopMirror {
+            bids: vec![resting(1, "bid", "2", "1")],
+            asks: vec![resting(2, "ask", "0.000000000001", "100")],
+            ..mirror_with_book(vec![])
+        };
+        assert!(!mirror_has_fillable_book(&mirror, "terra1token0"));
+        assert!(!mirror_has_fillable_book(&mirror, "terra1token1"));
+        // A generated anchor is still a live same-side order, matching contract hint rules.
+        assert_eq!(first_live_book_start_hint(&mirror, "terra1token0"), Some(1));
+    }
+
+    #[test]
     fn pool_only_positive_output() {
         let m = mirror_with_book(vec![]);
         let out = simulate_pool_only_from_mirror(&m, "terra1token0", 100_000, 0).unwrap();
@@ -765,14 +1043,12 @@ mod tests {
     #[test]
     fn bid_book_adds_return() {
         let m = mirror_with_book(vec![resting(1, "bid", "2", "1000")]);
-        let pool_only = simulate_hybrid_from_mirror(
-            &m, "terra1token0", 100_000, 100_000, 0, 8, 0, None,
-        )
-        .unwrap();
-        let hybrid = simulate_hybrid_from_mirror(
-            &m, "terra1token0", 100_000, 50_000, 50_000, 8, 0, None,
-        )
-        .unwrap();
+        let pool_only =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 100_000, 0, 8, 0, None)
+                .unwrap();
+        let hybrid =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 50_000, 50_000, 8, 0, None)
+                .unwrap();
         assert!(hybrid >= pool_only);
     }
 
@@ -783,14 +1059,8 @@ mod tests {
             asks: vec![resting(20, "ask", "3", "1000")],
             ..mirror_with_book(vec![])
         };
-        assert_eq!(
-            first_live_book_start_hint(&m, "terra1token0"),
-            Some(10)
-        );
-        assert_eq!(
-            first_live_book_start_hint(&m, "terra1token1"),
-            Some(20)
-        );
+        assert_eq!(first_live_book_start_hint(&m, "terra1token0"), Some(10));
+        assert_eq!(first_live_book_start_hint(&m, "terra1token1"), Some(20));
     }
 
     #[test]
@@ -820,14 +1090,12 @@ mod tests {
             resting(1, "bid", "1", "100"),
             resting(2, "bid", "2", "10000"),
         ]);
-        let head_only = simulate_hybrid_from_mirror(
-            &m, "terra1token0", 100_000, 0, 100_000, 8, 0, None,
-        )
-        .unwrap();
-        let from_hint = simulate_hybrid_from_mirror(
-            &m, "terra1token0", 100_000, 0, 100_000, 8, 0, Some(2),
-        )
-        .unwrap();
+        let head_only =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 0, 100_000, 8, 0, None)
+                .unwrap();
+        let from_hint =
+            simulate_hybrid_from_mirror(&m, "terra1token0", 100_000, 0, 100_000, 8, 0, Some(2))
+                .unwrap();
         assert!(from_hint > head_only);
     }
 
@@ -847,8 +1115,7 @@ mod tests {
             freshness: MirrorFreshness::EmptyPool,
             ..mirror_with_book(vec![])
         };
-        let out =
-            simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 0).unwrap_err();
+        let out = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 0).unwrap_err();
         assert!(matches!(out, DbSimError::InsufficientLiquidity));
     }
 
@@ -887,7 +1154,10 @@ mod tests {
         )
         .unwrap();
         assert!(out > 900_000, "expected ~1 human UST1 (1e6 raw), got {out}");
-        assert!(out < 1_100_000, "must not treat 10^18 offer as 18-dec UST1 out, got {out}");
+        assert!(
+            out < 1_100_000,
+            "must not treat 10^18 offer as 18-dec UST1 out, got {out}"
+        );
     }
 
     #[test]
@@ -906,7 +1176,10 @@ mod tests {
             0,
         )
         .unwrap();
-        assert!(out > 9 * 10u128.pow(17), "expected ~1 human USDT (1e18 raw), got {out}");
+        assert!(
+            out > 9 * 10u128.pow(17),
+            "expected ~1 human USDT (1e18 raw), got {out}"
+        );
         assert!(out < 11 * 10u128.pow(17));
     }
 

@@ -31,6 +31,13 @@
 //! Dust or extreme resting prices can make `checked_mul_floor` overflow on `1/price` or `fill × price`.
 //! Placement rejects out-of-band **human-scale** prices (#529); legacy rows skip instead of aborting
 //! the whole swap. Execution still uses raw token1-units/token0-units.
+//!
+//! ## Economically unfillable legacy rows (#1399)
+//!
+//! A whole-order predicate shared with placement and cleanup rejects rows unable to support
+//! both positive legs. Execute parks them under the shared expiry/blacklist budget; simulation
+//! skips them under the same scan limit. Permissionless cleanup also removes them with zero
+//! governance dust thresholds. Parking preserves pending escrow for the maker claim path.
 
 use std::collections::BTreeMap;
 
@@ -38,6 +45,7 @@ use cosmwasm_std::{
     Addr, CosmosMsg, Decimal, Event, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
+use dex_common::limit_placement::is_limit_order_fillable;
 use dex_common::pair::{
     ExpiredLimitParkReason, LimitOrderResponse, LimitOrderSide, OrderStatus, OrderStatusResponse,
 };
@@ -70,11 +78,11 @@ pub fn should_flush_dust(remaining: Uint128) -> bool {
 
 enum PostFillOutcome {
     Unlinked,
-    FlushedDust { event: Event },
+    ParkedRemainder { event: Event },
     PartialSaved,
 }
 
-/// Unlink, park dust, or save partial after a successful fill.
+/// Unlink, park dust or an economically unreachable remainder, or save a partial fill.
 fn finalize_order_after_fill(
     storage: &mut dyn Storage,
     oid: u64,
@@ -85,24 +93,32 @@ fn finalize_order_after_fill(
         unlink_order(storage, oid)?;
         return Ok(PostFillOutcome::Unlinked);
     }
-    if should_flush_dust(order.remaining) {
+    if should_flush_dust(order.remaining)
+        || !is_limit_order_fillable(&order.side, order.remaining, order.price)
+    {
         ORDERS.save(storage, oid, order)?;
         let event = park_limit_order_for_clean(
             storage,
             oid,
             pair_contract,
-            ExpiredLimitParkReason::DustFilled,
+            if should_flush_dust(order.remaining) {
+                ExpiredLimitParkReason::DustFilled
+            } else {
+                ExpiredLimitParkReason::Unfillable
+            },
             None,
         )?;
-        return Ok(PostFillOutcome::FlushedDust { event });
+        return Ok(PostFillOutcome::ParkedRemainder { event });
     }
     ORDERS.save(storage, oid, order)?;
     Ok(PostFillOutcome::PartialSaved)
 }
 
 #[inline]
-fn apply_sim_dust_flush(order: &mut LimitOrder) {
-    if should_flush_dust(order.remaining) {
+fn apply_sim_remainder_park(order: &mut LimitOrder) {
+    if should_flush_dust(order.remaining)
+        || !is_limit_order_fillable(&order.side, order.remaining, order.price)
+    {
         order.remaining = Uint128::zero();
     }
 }
@@ -164,9 +180,9 @@ pub struct BookMatchResult {
     pub offer_consumed: Uint128,
     /// Distinct maker orders filled (excluding expired parks).
     pub makers_used: u32,
-    /// Expired orders parked into `EXPIRED_LIMIT_CLAIMS` during this walk.
+    /// Expired, blacklisted, or economically unfillable rows parked during this walk.
     pub expired_parks: u32,
-    /// Expired orders left on book because [`MAX_EXPIRED_PARKS_PER_SWAP`] was reached.
+    /// Eligible rows left on book because [`MAX_EXPIRED_PARKS_PER_SWAP`] was reached.
     pub expired_parks_skipped: u32,
     /// Book walk stopped because [`MAX_SCAN_STEPS`] was reached before `max_maker_fills` or list end.
     pub scan_steps_capped: bool,
@@ -1470,6 +1486,36 @@ fn skip_blacklisted_maker_order(
     Ok(true)
 }
 
+/// Park economically unreachable legacy rows under the shared expiry/blacklist park cap.
+/// The predicate uses the whole maker remainder; a small taker budget must never park a
+/// healthy maker order. Parking keeps pending escrow unchanged until the maker claims.
+fn skip_unfillable_maker_order(
+    storage: &mut dyn Storage,
+    oid: u64,
+    order: &LimitOrder,
+    pair_contract: &str,
+    expired_parks: &mut u32,
+    expired_parks_skipped: &mut u32,
+    fill_events: &mut Vec<Event>,
+) -> Result<bool, ContractError> {
+    if is_limit_order_fillable(&order.side, order.remaining, order.price) {
+        return Ok(false);
+    }
+    if *expired_parks < MAX_EXPIRED_PARKS_PER_SWAP {
+        fill_events.push(park_limit_order_for_clean(
+            storage,
+            oid,
+            pair_contract,
+            ExpiredLimitParkReason::Unfillable,
+            None,
+        )?);
+        *expired_parks += 1;
+    } else {
+        *expired_parks_skipped += 1;
+    }
+    Ok(true)
+}
+
 /// Match bids while taker sells token0 for token1. `token0_budget` is filled from the taker.
 #[allow(clippy::too_many_arguments)]
 pub fn match_bids(
@@ -1548,7 +1594,15 @@ pub fn match_bids(
             continue;
         }
 
-        if order.remaining.is_zero() {
+        if skip_unfillable_maker_order(
+            storage,
+            oid,
+            &order,
+            pair_contract,
+            &mut expired_parks,
+            &mut expired_parks_skipped,
+            &mut fill_events,
+        )? {
             cur = next_ptr;
             continue;
         }
@@ -1655,7 +1709,7 @@ pub fn match_bids(
 
         match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
             PostFillOutcome::Unlinked => {}
-            PostFillOutcome::FlushedDust { event, .. } => {
+            PostFillOutcome::ParkedRemainder { event, .. } => {
                 fill_events.push(event);
             }
             PostFillOutcome::PartialSaved => {}
@@ -1765,7 +1819,15 @@ pub fn match_asks(
             continue;
         }
 
-        if order.remaining.is_zero() {
+        if skip_unfillable_maker_order(
+            storage,
+            oid,
+            &order,
+            pair_contract,
+            &mut expired_parks,
+            &mut expired_parks_skipped,
+            &mut fill_events,
+        )? {
             cur = next_ptr;
             continue;
         }
@@ -1873,7 +1935,7 @@ pub fn match_asks(
 
         match finalize_order_after_fill(storage, oid, &order, pair_contract)? {
             PostFillOutcome::Unlinked => {}
-            PostFillOutcome::FlushedDust { event, .. } => {
+            PostFillOutcome::ParkedRemainder { event, .. } => {
                 fill_events.push(event);
             }
             PostFillOutcome::PartialSaved => {}
@@ -1950,7 +2012,7 @@ pub fn simulate_match_bids(
             cur = next_ptr;
             continue;
         }
-        if order.remaining.is_zero() {
+        if !is_limit_order_fillable(&order.side, order.remaining, order.price) {
             cur = next_ptr;
             continue;
         }
@@ -2026,7 +2088,7 @@ pub fn simulate_match_bids(
         let net_to_taker = cost.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(cost)?;
-        apply_sim_dust_flush(&mut order);
+        apply_sim_remainder_park(&mut order);
         token0_left = token0_left.checked_sub(fill)?;
         token1_out_total = token1_out_total.checked_add(net_to_taker)?;
         cur = order.next;
@@ -2093,7 +2155,7 @@ pub fn simulate_match_asks(
             cur = next_ptr;
             continue;
         }
-        if order.remaining.is_zero() {
+        if !is_limit_order_fillable(&order.side, order.remaining, order.price) {
             cur = next_ptr;
             continue;
         }
@@ -2170,7 +2232,7 @@ pub fn simulate_match_asks(
         let net_to_taker = fill_t0.checked_sub(commission)?;
         commission_total = commission_total.checked_add(commission)?;
         order.remaining = order.remaining.checked_sub(fill_t0)?;
-        apply_sim_dust_flush(&mut order);
+        apply_sim_remainder_park(&mut order);
         token1_left = token1_left.checked_sub(cost)?;
         token0_out_total = token0_out_total.checked_add(net_to_taker)?;
         cur = order.next;
@@ -3240,11 +3302,10 @@ mod limit_price_band_tests {
             !result.return_net.is_zero(),
             "taker must receive token0 from valid ask"
         );
-        assert_eq!(
-            ORDERS.load(storage, 1).unwrap().remaining,
-            Uint128::one(),
-            "dust ask must be skipped, not filled"
-        );
+        assert!(ORDERS.may_load(storage, 1).unwrap().is_none());
+        let refund = EXPIRED_LIMIT_CLAIMS.load(storage, 1).unwrap();
+        assert_eq!(refund.remaining, Uint128::one());
+        assert_eq!(refund.reason, Some(ExpiredLimitParkReason::Unfillable));
         let remaining_2 = ORDERS
             .may_load(storage, 2)
             .unwrap()
@@ -4581,5 +4642,255 @@ mod order_status_tests {
         assert_eq!(st.status, OrderStatus::Active);
         assert_eq!(st.owner.as_ref(), Some(&owner));
         assert_eq!(st.side, Some(LimitOrderSide::Bid));
+    }
+}
+
+/// #1399: legacy rows must leave the book through bounded, escrow-preserving cleanup.
+#[cfg(test)]
+mod economic_fillability_tests {
+    use super::*;
+    use crate::limit_book_clean::{clean_limit_book, load_limit_clean_config};
+    use cosmwasm_std::testing::mock_dependencies;
+
+    fn seed_chain(storage: &mut dyn Storage, side: LimitOrderSide, rows: &[(Decimal, Uint128)]) {
+        let mut escrow = Uint128::zero();
+        for (index, (price, remaining)) in rows.iter().enumerate() {
+            let id = index as u64 + 1;
+            ORDERS
+                .save(
+                    storage,
+                    id,
+                    &LimitOrder {
+                        owner: Addr::unchecked(format!("maker{id}")),
+                        side: side.clone(),
+                        price: *price,
+                        remaining: *remaining,
+                        expires_at: None,
+                        prev: (id > 1).then_some(id - 1),
+                        next: (index + 1 < rows.len()).then_some(id + 1),
+                    },
+                )
+                .unwrap();
+            escrow += *remaining;
+        }
+        match side {
+            LimitOrderSide::Ask => {
+                HEAD_ASK.save(storage, &Some(1)).unwrap();
+                PENDING_ESCROW_TOKEN0.save(storage, &escrow).unwrap();
+            }
+            LimitOrderSide::Bid => {
+                HEAD_BID.save(storage, &Some(1)).unwrap();
+                PENDING_ESCROW_TOKEN1.save(storage, &escrow).unwrap();
+            }
+        }
+    }
+
+    fn simulate(
+        storage: &dyn Storage,
+        side: &LimitOrderSide,
+        budget: Uint128,
+    ) -> BookSimulateResult {
+        match side {
+            LimitOrderSide::Bid => simulate_match_bids(storage, 1, budget, 8, None, 0, None, None),
+            LimitOrderSide::Ask => simulate_match_asks(storage, 1, budget, 8, None, 0, None, None),
+        }
+        .unwrap()
+    }
+
+    fn execute(
+        storage: &mut dyn Storage,
+        side: &LimitOrderSide,
+        budget: Uint128,
+    ) -> BookMatchResult {
+        let receiver = Addr::unchecked("receiver");
+        let treasury = Addr::unchecked("treasury");
+        match side {
+            LimitOrderSide::Bid => match_bids(
+                storage, 1, budget, 8, None, "pair", "t0", "t1", &receiver, &treasury, 0, None,
+                None,
+            ),
+            LimitOrderSide::Ask => match_asks(
+                storage, 1, budget, 8, None, "pair", "t0", "t1", &receiver, &treasury, 0, None,
+                None,
+            ),
+        }
+        .unwrap()
+    }
+
+    fn escrow(storage: &dyn Storage, side: &LimitOrderSide) -> Uint128 {
+        match side {
+            LimitOrderSide::Ask => PENDING_ESCROW_TOKEN0.load(storage),
+            LimitOrderSide::Bid => PENDING_ESCROW_TOKEN1.load(storage),
+        }
+        .unwrap()
+    }
+
+    fn assert_parity(sim: &BookSimulateResult, exec: &BookMatchResult) {
+        assert_eq!(sim.return_net, exec.return_net);
+        assert_eq!(sim.offer_consumed, exec.offer_consumed);
+        assert_eq!(sim.makers_used, exec.makers_used);
+        assert_eq!(sim.commission_total, exec.commission_total);
+        assert_eq!(sim.scan_steps_capped, exec.scan_steps_capped);
+        assert_eq!(sim.greedy_stop, exec.greedy_stop);
+    }
+
+    #[test]
+    fn economic_long_prefix_both_sides_recovers_with_zero_clean_thresholds() {
+        for side in [LimitOrderSide::Bid, LimitOrderSide::Ask] {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let bad_price = match side {
+                LimitOrderSide::Ask => Decimal::from_ratio(1u128, 1_000u128),
+                LimitOrderSide::Bid => Decimal::from_ratio(1_000u128, 1u128),
+            };
+            let prefix = MAX_SCAN_STEPS + 7;
+            let mut rows = vec![(bad_price, Uint128::new(10)); prefix as usize];
+            // Equal-price healthy tail makes preservation of maker FIFO observable.
+            rows.extend([(Decimal::one(), Uint128::new(1_000)); 2]);
+            seed_chain(storage, side.clone(), &rows);
+            let initial_escrow = escrow(storage, &side);
+            assert_eq!(
+                load_limit_clean_config(storage).unwrap(),
+                (Uint128::zero(), Uint128::zero())
+            );
+            let sim = simulate(storage, &side, Uint128::new(1_000));
+            let exec = execute(storage, &side, Uint128::new(1_000));
+            assert_parity(&sim, &exec);
+            assert!(exec.scan_steps_capped);
+            assert_eq!(exec.makers_used, 0);
+            assert_eq!(exec.expired_parks, MAX_EXPIRED_PARKS_PER_SWAP);
+            assert_eq!(
+                exec.expired_parks_skipped,
+                MAX_SCAN_STEPS - MAX_EXPIRED_PARKS_PER_SWAP
+            );
+            assert_eq!(escrow(storage, &side), initial_escrow);
+
+            let by_park_cap =
+                clean_limit_book(storage, 1, side.clone(), 2, 20, None, "pair").unwrap();
+            assert_eq!(by_park_cap.cleaned_count, 2);
+            assert!(by_park_cap.cap_hit);
+            assert!(!by_park_cap.scan_capped);
+            let mut cursor = by_park_cap.resume_cursor;
+            let by_scan_cap =
+                clean_limit_book(storage, 1, side.clone(), 100, 17, cursor, "pair").unwrap();
+            assert_eq!(by_scan_cap.cleaned_count, 17);
+            assert!(by_scan_cap.scan_capped);
+            assert!(!by_scan_cap.cap_hit);
+            cursor = by_scan_cap.resume_cursor;
+            let mut cleaned = MAX_EXPIRED_PARKS_PER_SWAP + 2 + 17;
+            while let Some(start) = cursor {
+                let result =
+                    clean_limit_book(storage, 1, side.clone(), 100, 0, Some(start), "pair")
+                        .unwrap();
+                assert!(result.cleaned_count <= 100);
+                assert_eq!(result.time_expired_count, 0);
+                assert_eq!(result.force_expired_count, result.cleaned_count);
+                cleaned += result.cleaned_count;
+                cursor = result.resume_cursor;
+            }
+            assert_eq!(cleaned, prefix);
+            assert_eq!(escrow(storage, &side), initial_escrow);
+            assert_eq!(
+                query_head(storage, side.clone()).unwrap(),
+                Some(prefix as u64 + 1)
+            );
+            assert_eq!(
+                EXPIRED_LIMIT_CLAIMS
+                    .range(storage, None, None, cosmwasm_std::Order::Ascending)
+                    .count(),
+                prefix as usize
+            );
+            for id in 1..=prefix as u64 {
+                let refund = EXPIRED_LIMIT_CLAIMS.load(storage, id).unwrap();
+                assert_eq!(refund.remaining, Uint128::new(10));
+                assert_eq!(refund.reason, Some(ExpiredLimitParkReason::Unfillable));
+            }
+            let sim = simulate(storage, &side, Uint128::new(1_000));
+            let exec = execute(storage, &side, Uint128::new(1_000));
+            assert_parity(&sim, &exec);
+            assert_eq!(exec.makers_used, 1);
+            assert_eq!(exec.return_net, Uint128::new(1_000));
+            assert!(ORDERS
+                .may_load(storage, prefix as u64 + 1)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                query_head(storage, side.clone()).unwrap(),
+                Some(prefix as u64 + 2)
+            );
+            assert_eq!(escrow(storage, &side), initial_escrow - Uint128::new(1_000));
+        }
+    }
+
+    #[test]
+    fn economic_small_taker_budget_never_parks_a_fillable_order() {
+        for side in [LimitOrderSide::Bid, LimitOrderSide::Ask] {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let price = match side {
+                LimitOrderSide::Bid => Decimal::from_ratio(1u128, 1_000u128),
+                LimitOrderSide::Ask => Decimal::from_ratio(1_000u128, 1u128),
+            };
+            seed_chain(storage, side.clone(), &[(price, Uint128::new(100))]);
+            let sim = simulate(storage, &side, Uint128::new(10));
+            let exec = execute(storage, &side, Uint128::new(10));
+            assert_parity(&sim, &exec);
+            assert_eq!(exec.makers_used, 0);
+            assert_eq!(exec.expired_parks, 0);
+            assert_eq!(
+                ORDERS.load(storage, 1).unwrap().remaining,
+                Uint128::new(100)
+            );
+            let clean = clean_limit_book(storage, 1, side.clone(), 100, 0, None, "pair").unwrap();
+            assert_eq!(clean.cleaned_count, 0);
+            assert_eq!(escrow(storage, &side), Uint128::new(100));
+        }
+    }
+
+    #[test]
+    fn economic_post_fill_tail_above_fixed_dust_floor_parks_with_parity() {
+        for side in [LimitOrderSide::Bid, LimitOrderSide::Ask] {
+            let mut deps = mock_dependencies();
+            let storage = deps.as_mut().storage;
+            let price = match side {
+                LimitOrderSide::Ask => Decimal::from_ratio(1u128, 1_000u128),
+                LimitOrderSide::Bid => Decimal::from_ratio(1_000u128, 1u128),
+            };
+            seed_chain(storage, side.clone(), &[(price, Uint128::new(1_500))]);
+            let sim = simulate(storage, &side, Uint128::one());
+            let exec = execute(storage, &side, Uint128::one());
+            assert_parity(&sim, &exec);
+            assert_eq!(exec.makers_used, 1);
+            assert_eq!(
+                exec.expired_parks, 0,
+                "post-fill parks retain existing dust-flush accounting"
+            );
+            assert_eq!(exec.return_net, Uint128::new(1_000));
+            assert!(ORDERS.may_load(storage, 1).unwrap().is_none());
+            let refund = EXPIRED_LIMIT_CLAIMS.load(storage, 1).unwrap();
+            assert_eq!(refund.remaining, Uint128::new(500));
+            assert_eq!(refund.reason, Some(ExpiredLimitParkReason::Unfillable));
+            assert_eq!(escrow(storage, &side), refund.remaining);
+        }
+    }
+
+    #[test]
+    fn economic_zero_remaining_row_and_zero_price_are_cleanable() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        seed_chain(
+            storage,
+            LimitOrderSide::Bid,
+            &[
+                (Decimal::one(), Uint128::zero()),
+                (Decimal::zero(), Uint128::new(100)),
+            ],
+        );
+        let sim = simulate(storage, &LimitOrderSide::Bid, Uint128::new(100));
+        let exec = execute(storage, &LimitOrderSide::Bid, Uint128::new(100));
+        assert_parity(&sim, &exec);
+        assert_eq!(exec.expired_parks, 2);
+        assert_eq!(escrow(storage, &LimitOrderSide::Bid), Uint128::new(100));
+        assert_eq!(query_head(storage, LimitOrderSide::Bid).unwrap(), None);
     }
 }

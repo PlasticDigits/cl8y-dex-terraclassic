@@ -1923,6 +1923,11 @@ verify-issue-1395:
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
 
+# #1399 economic fillability, bounded legacy eviction, parity and retest.
+.PHONY: verify-issue-1399
+verify-issue-1399:
+	bash scripts/verify-issue-1399.sh
+
 # Forgejo #1388 — router trust lifecycle, artifact identity and settlement replay.
 .PHONY: verify-issue-1388
 verify-issue-1388:

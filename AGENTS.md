@@ -19,6 +19,16 @@ operator actions. Script verification does not establish production deployment.
 
 Guidance for AI coding agents working in this repository.
 
+## Unfillable limit-order liveness
+
+For limit placement/reprice/ladder, matching, cleaning or indexer book simulation,
+use [skills/AGENTS_UNFILLABLE_LIMIT_ORDERS.md](skills/AGENTS_UNFILLABLE_LIMIT_ORDERS.md)
+(**UF1399-1–UF1399-10**, [#1399](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1399)).
+Run `make verify-issue-1399`; follow the
+[agent checklist and explicit skip policy](docs/qa/issue-1399/README.md).
+Unavailable checks may be SKIP with overall PASS WITH SKIPS; executed failures
+remain FAIL, and source checks do not establish production deployment.
+
 For economic event ingestion, use
 [skills/AGENTS_INDEXER_EVENT_AMOUNTS.md](skills/AGENTS_INDEXER_EVENT_AMOUNTS.md)
 (**A1395-1–A1395-8**, [#1395](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1395)).
