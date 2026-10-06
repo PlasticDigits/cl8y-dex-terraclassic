@@ -1,4 +1,4 @@
-//! GitLab #1277 — trader rolling / lifetime raw volume is NUMERIC(38, 0).
+//! #1277 / #1395 — trader rolling and lifetime raw sums use NUMERIC(58, 0).
 //!
 //! Decay tests in `indexer_volume_window_decay.rs` use 6-dec seeds that never hit
 //! `10^20`. Catalog overflow in `volume_usd_catalog.rs` covers global/pair only.
@@ -26,10 +26,6 @@ fn zero() -> BigDecimal {
 /// 1000 human 18-dec tokens. Overflows `NUMERIC(38, 18)` (`|x| < 10^20`).
 fn offer_1e21() -> BigDecimal {
     bd("1000000000000000000000")
-}
-
-fn cap_1e38_minus_1() -> BigDecimal {
-    bd("99999999999999999999999999999999999999")
 }
 
 async fn column_typmod(pool: &PgPool, column: &str) -> String {
@@ -152,16 +148,16 @@ async fn trader_rolling(
     )
 }
 
-/// R6 / schema: raw columns are (38, 0); USD stays (38, 18).
+/// R6 / schema: #1395 widens raw aggregate columns to (58, 0); USD stays (38, 18).
 #[serial]
 #[tokio::test]
-async fn traders_raw_volume_columns_are_numeric_38_0() {
+async fn traders_raw_volume_columns_are_numeric_58_0() {
     let pool = common::setup_pool().await;
     for col in ["volume_24h", "volume_7d", "volume_30d", "total_volume"] {
         assert_eq!(
             column_typmod(&pool, col).await,
-            "numeric(38,0)",
-            "{col} must be NUMERIC(38, 0) (#1277)"
+            "numeric(58,0)",
+            "{col} must be NUMERIC(58, 0) (#1395)"
         );
     }
     assert_eq!(
@@ -303,37 +299,34 @@ async fn upsert_trader_1e21_then_refresh_does_not_overflow() {
     assert!(usd.is_none());
 }
 
-/// A1: additive lifetime raw caps at 10^38-1 (no wrap / panic).
+/// A1 / #1395: two supported 38-digit offers accumulate exactly beyond one event's range.
 #[serial]
 #[tokio::test]
-async fn upsert_trader_caps_lifetime_raw_at_1e38_minus_1() {
+async fn upsert_trader_preserves_lifetime_sum_of_maximum_raw_offers() {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
-    let over = bd("100000000000000000000000000000000000000"); // 10^38
-    traders::upsert_trader(&pool, "terra1r1277cap", &over, None)
+    let maximum = bd("99999999999999999999999999999999999999");
+    traders::upsert_trader(&pool, "terra1r1277exact", &maximum, None)
         .await
-        .expect("A1 insert cap");
-    let row = traders::get_trader(&pool, "terra1r1277cap")
-        .await
-        .expect("get")
-        .expect("row");
-    assert_eq!(
-        row.total_volume.normalized(),
-        cap_1e38_minus_1().normalized()
-    );
-
-    traders::upsert_trader(&pool, "terra1r1277cap", &over, None)
-        .await
-        .expect("A1 update cap");
-    let row = traders::get_trader(&pool, "terra1r1277cap")
+        .expect("A1 insert exact maximum");
+    let row = traders::get_trader(&pool, "terra1r1277exact")
         .await
         .expect("get")
         .expect("row");
-    assert_eq!(
-        row.total_volume.normalized(),
-        cap_1e38_minus_1().normalized()
+    assert_eq!(row.total_volume, maximum);
+    traders::upsert_trader(&pool, "terra1r1277exact", &maximum, None)
+        .await
+        .expect("A1 update exact cumulative sum");
+    let row = traders::get_trader(&pool, "terra1r1277exact")
+        .await
+        .expect("get")
+        .expect("row");
+    assert_eq!(row.total_volume, &maximum * BigDecimal::from(2));
+    assert_eq!(row.total_trades, 2);
+    assert!(
+        row.total_volume_usd.is_none(),
+        "raw widening must not invent a USD value"
     );
-    assert!(row.total_volume >= zero(), "A1 must not wrap negative");
 }
 
 /// I7 / A7: leaderboard sort=volume_24h ranks the 18-dec sender; JSON is plain digits.

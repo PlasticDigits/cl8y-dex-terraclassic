@@ -746,3 +746,11 @@ browser and 569/689/655/664/1263 regressions. See [agent checklist and explicit 
 policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-liquidity-quality-1380)
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
 Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.
+## Event amount integrity (#1395)
+
+Run `make verify-issue-1395` against an isolated Postgres database configured in
+`indexer/.env`. It exercises strict parser boundaries, bounded diagnostics,
+partial malformed blocks, retry/replay accounting, exact 38-digit quantities,
+multihop fee identities, recovery and daily evidence. See the
+[agent checklist and unavailable-check skip policy](qa/issue-1395/README.md) and
+[third-party agent playbook](../skills/AGENTS_INDEXER_EVENT_AMOUNTS.md).

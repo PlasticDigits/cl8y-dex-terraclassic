@@ -28,9 +28,9 @@ pub struct TraderRow {
 
 /// Insert or bump a trader on swap ingest.
 ///
-/// Raw `total_volume` is `NUMERIC(38, 0)` (`LEAST` at `10^38-1`, GitLab #1277).
-/// USD stays `NUMERIC(38, 18)` with the `10^20` cap (#553). Do not reuse the USD
-/// cap on raw offer sums (that truncates ~100 human 18-dec tokens).
+/// Raw `total_volume` is an exact sum in `NUMERIC(58, 0)` (#1395), wide enough
+/// for 38-digit source amounts across the supported bigint row-count domain.
+/// USD retains its `NUMERIC(38, 18)` cap (#553). Never clip raw offer sums.
 pub async fn upsert_trader(
     pool: &PgPool,
     address: &str,
@@ -43,10 +43,10 @@ pub async fn upsert_trader(
     };
     let row = sqlx::query_scalar::<_, bool>(
         "INSERT INTO traders (address, total_trades, total_volume, total_volume_usd, first_trade_at, last_trade_at)
-         VALUES ($1, 1, LEAST($2::numeric, POWER(10::numeric, 38) - 1), $3, NOW(), NOW())
+         VALUES ($1, 1, $2, $3, NOW(), NOW())
          ON CONFLICT (address)
            DO UPDATE SET total_trades = traders.total_trades + 1,
-                        total_volume = LEAST(traders.total_volume + $2, POWER(10::numeric, 38) - 1),
+                        total_volume = traders.total_volume + $2,
                         total_volume_usd = CASE
                           WHEN $3::numeric IS NULL THEN traders.total_volume_usd
                           ELSE LEAST(
@@ -263,8 +263,8 @@ pub async fn update_trader_tier(
 
 /// Recompute `traders.volume_24h` / `7d` / `30d` from in-window `offer_amount`.
 ///
-/// Destinations are `NUMERIC(38, 0)` (GitLab #1277). `LEAST(..., 10^38-1)` matches
-/// sibling pair/global raw rollups (#548). Do not clamp to the USD `10^20` cap.
+/// Destinations are `NUMERIC(58, 0)` (#1395). Preserve the exact source sum,
+/// including aggregates larger than a single 38-digit raw token amount.
 /// Idle 30d+ senders zero **rolling** columns only (#577 **D2**).
 pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let now = Utc::now();
@@ -282,9 +282,9 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
          FROM (
            SELECT
              sender,
-             LEAST(SUM(CASE WHEN block_timestamp >= $1 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_24h,
-             LEAST(SUM(CASE WHEN block_timestamp >= $2 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_7d,
-             LEAST(SUM(CASE WHEN block_timestamp >= $3 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_30d
+             SUM(CASE WHEN block_timestamp >= $1 THEN offer_amount ELSE 0 END) AS vol_24h,
+             SUM(CASE WHEN block_timestamp >= $2 THEN offer_amount ELSE 0 END) AS vol_7d,
+             SUM(CASE WHEN block_timestamp >= $3 THEN offer_amount ELSE 0 END) AS vol_30d
            FROM swap_events
            WHERE block_timestamp >= $3
            GROUP BY sender
@@ -343,13 +343,14 @@ pub async fn refresh_trader_total_volume_usd(pool: &PgPool) -> Result<(), sqlx::
     Ok(())
 }
 
-// Keep in sync with `20260921130000_traders_lifetime_heal_from_swaps.sql`.
+// Supersedes the historical capped heal in
+// `20260921130000_traders_lifetime_heal_from_swaps.sql` after #1395 storage widening.
 const SQL_HEAL_TRADER_INSERT: &str =
     "INSERT INTO traders (address, total_trades, total_volume, first_trade_at, last_trade_at)
      SELECT
        se.sender,
        COUNT(*)::bigint,
-       LEAST(SUM(se.offer_amount), POWER(10::numeric, 38) - 1),
+       SUM(se.offer_amount),
        MIN(se.block_timestamp),
        MAX(se.block_timestamp)
      FROM swap_events se
@@ -379,7 +380,7 @@ const SQL_HEAL_TRADER_UPDATE_LIFETIME: &str = "UPDATE traders t
        SELECT
          sender,
          COUNT(*)::bigint AS cnt,
-         LEAST(SUM(offer_amount), POWER(10::numeric, 38) - 1) AS vol,
+         SUM(offer_amount) AS vol,
          MIN(block_timestamp) AS first_ts,
          MAX(block_timestamp) AS last_ts
        FROM swap_events
@@ -419,7 +420,7 @@ const SQL_TRADER_LIFETIME_DIVERGES: &str = "SELECT EXISTS (
        FROM (
          SELECT sender,
                 COUNT(*)::bigint AS cnt,
-                LEAST(SUM(offer_amount), POWER(10::numeric, 38) - 1) AS vol
+                SUM(offer_amount) AS vol
          FROM swap_events
          GROUP BY sender
        ) s
