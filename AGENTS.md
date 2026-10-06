@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Token-owned AutoLP policy recovery
+
+For legacy sister inventory or manager-mediated LP-policy recovery, follow
+[LP1429-1–LP1429-8](skills/AGENTS_AUTOLP_POLICY_RECOVERY.md)
+([#1429](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1429)).
+Use the actual stored manager; exact positive reserve/share approval is explicit,
+and unchanged settings remain a no-op. Run `make verify-issue-1429`; follow the
+[agent checklist and explicit skip policy](docs/qa/issue-1429/README.md).
+
 ## Net execution floors and bounded hooks
 
 For pair/router slippage, hook settlement, quotes, hook admission/recovery or

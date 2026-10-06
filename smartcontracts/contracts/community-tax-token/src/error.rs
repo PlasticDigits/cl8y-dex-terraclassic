@@ -15,6 +15,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("AutoLP policy recovery requires the bound token-owned sister and exact nonzero live economics")]
+    InvalidAutolpPolicy {},
+
     #[error("Fee required: exact {required} UST1")]
     FeeRequired { required: String },
 

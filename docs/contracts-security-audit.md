@@ -1,5 +1,14 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
+## Token-owned AutoLP recovery (#1429)
+
+[LP1429-1–LP1429-8](../skills/AGENTS_AUTOLP_POLICY_RECOVERY.md) require the token
+manager, immutable bound sister/factory identity, exact positive reserve/share
+approval and same-pair forwarding. Permissionless skim and identical paid settings
+never refresh policy. The existing sister lock, factory checks, swap/provide floors
+and atomic rollback remain enforced. `make verify-issue-1429`; follow the
+[inventory, migration/readback and agent skip checklist](qa/issue-1429/README.md).
+
 ## Bridge-Debt market pins (#1393)
 
 [BD1393-1–BD1393-10](../skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md) specify independent

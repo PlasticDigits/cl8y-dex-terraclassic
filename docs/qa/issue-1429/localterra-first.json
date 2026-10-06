@@ -1,0 +1,317 @@
+{
+  "schema": 1,
+  "utc": "2026-10-06T07:13:27.219452+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "container": "cl8y-dex-issue1429-autolp",
+  "codes": {
+    "cw20_mintable": {
+      "code_id": 1,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_dex_factory": {
+      "code_id": 2,
+      "sha256": "d8eb07bee496f7b6fe30cbb01a343ddc99348065ec3c53e1713db073bbfda786",
+      "onchain_sha256": "d8eb07bee496f7b6fe30cbb01a343ddc99348065ec3c53e1713db073bbfda786"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 3,
+      "sha256": "8a5c6f77553d8c80d54e22a1dea3067d8c2675baf5215f71b4dbcf37694bdce0",
+      "onchain_sha256": "8a5c6f77553d8c80d54e22a1dea3067d8c2675baf5215f71b4dbcf37694bdce0"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 4,
+      "sha256": "1e56567c803be3ea68152f395d42ab85f45c6440e08bf6369c85788fd9c2a3bf",
+      "onchain_sha256": "1e56567c803be3ea68152f395d42ab85f45c6440e08bf6369c85788fd9c2a3bf"
+    },
+    "cl8y_community_tax_autolp": {
+      "code_id": 5,
+      "sha256": "480f061ce4d362cf852a72c553f6e597efd5d651ac2b4e22ecc63685be6138e7",
+      "onchain_sha256": "480f061ce4d362cf852a72c553f6e597efd5d651ac2b4e22ecc63685be6138e7"
+    },
+    "legacy_token": {
+      "code_id": 6,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341",
+      "onchain_sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    },
+    "legacy_autolp": {
+      "code_id": 7,
+      "sha256": "a5e56f61fcca59232e37dca283f2e300731b999e60c6813d274fd8a5cee95934",
+      "onchain_sha256": "a5e56f61fcca59232e37dca283f2e300731b999e60c6813d274fd8a5cee95934"
+    }
+  },
+  "token": "terra1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqfnlz0z",
+  "sister": "terra1utjx3594tlvfw4375esgu72wa4sdgf0q7x4ye27husf5kvuzp5rss7662g",
+  "factory": "terra1aakfpghcanxtc45gpqlx8j3rq0zcpyf49qmhm9mdjrfx036h4z5sxdcxm3",
+  "pair": "terra1fzm6gzyccl8jvdv3qq6hp9vs6ylaruervs4m06c7k0ntzn2f8faqq6skea",
+  "manager": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+  "checks": [
+    {
+      "name": "legacy policy query unsupported",
+      "status": "PASS"
+    },
+    {
+      "name": "migration preserves actual token manager and missing policy",
+      "status": "PASS",
+      "config": {
+        "token": "terra1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqfnlz0z",
+        "manager": "terra1mf6ptkssddfmxvhdx0ech0k03ktp6kf9yk59renau2gvht3nq2gqfnlz0z",
+        "factory": "terra1aakfpghcanxtc45gpqlx8j3rq0zcpyf49qmhm9mdjrfx036h4z5sxdcxm3",
+        "router": null,
+        "pair": "terra1fzm6gzyccl8jvdv3qq6hp9vs6ylaruervs4m06c7k0ntzn2f8faqq6skea",
+        "quote_token": "terra1yyca08xqdgvjz0psg56z67ejh9xms6l436u8y58m82npdqqhmmtqzjqhh0",
+        "threshold": "1000",
+        "lp_recipient": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+        "skim_max_spread": "0.01",
+        "skim_min_return": null,
+        "skimming": false
+      }
+    },
+    {
+      "name": "canonical factory refreshes pair asset pins after token migration",
+      "status": "PASS",
+      "transaction": "38217B65C9FC85A82A4BDC8A51C22342555C348F278BF46157C2952B2934AB79"
+    },
+    {
+      "name": "unchanged invoice remains no-op and cannot initialize policy",
+      "status": "PASS",
+      "transaction": "8D1B91CF950DDA7AD342E6935C5476862FC516F71B0284F2DCE544AB4E601CEF",
+      "expected_error": "Settings batch is empty or identical to on-chain state",
+      "raw_log": "failed to execute message; message index: 0: Settings batch is empty or identical to on-chain state: execute wasm contract failed",
+      "snapshot_unchanged": true
+    },
+    {
+      "name": "foreign proxy refresh rejected atomically",
+      "status": "PASS",
+      "transaction": "1AC31B4876B0BF924267F0A5CDC3EF269763D2D99DCAED6D49AFDD4A57FBD862",
+      "expected_error": "Unauthorized",
+      "raw_log": "failed to execute message; message index: 0: Unauthorized: execute wasm contract failed",
+      "snapshot_unchanged": true
+    },
+    {
+      "name": "human cannot impersonate sister manager",
+      "status": "PASS",
+      "transaction": "1D883AA5AB7E7A1B3913C349BA0A4D7EAB213CE2AEFB7AFDDD4D226E56607A23",
+      "expected_error": "Unauthorized",
+      "raw_log": "failed to execute message; message index: 0: Unauthorized: execute wasm contract failed",
+      "snapshot_unchanged": true
+    },
+    {
+      "name": "unapproved reserve snapshot rejected",
+      "status": "PASS",
+      "transaction": "19290089310223F4EE980B0FB02275F6B9BD8D16BA7AB8A14F0F7F35514C5BC7",
+      "expected_error": "AutoLP policy recovery requires the bound token-owned sister and exact nonzero live economics",
+      "raw_log": "failed to execute message; message index: 0: AutoLP policy recovery requires the bound token-owned sister and exact nonzero live economics: execute wasm contract failed",
+      "snapshot_unchanged": true
+    },
+    {
+      "name": "manager token-mediated refresh captures exact approved anchor",
+      "status": "PASS",
+      "policy": {
+        "pair": "terra1fzm6gzyccl8jvdv3qq6hp9vs6ylaruervs4m06c7k0ntzn2f8faqq6skea",
+        "quote": "terra1yyca08xqdgvjz0psg56z67ejh9xms6l436u8y58m82npdqqhmmtqzjqhh0",
+        "lp_token": "terra1wl59k23zngj34l7d42y9yltask7rjlnxgccawc7ltrknp6n52fps4umj85",
+        "tax_reserve": "1000000000000",
+        "quote_reserve": "1000000000000",
+        "total_share": "1000000000000"
+      }
+    },
+    {
+      "name": "permissionless skim mints positive LP without refreshing policy",
+      "status": "PASS",
+      "minted_lp": "498500"
+    },
+    {
+      "name": "failed swap reply rolls back reserves balances lock and policy",
+      "status": "PASS",
+      "transaction": "BCF978F38FD0E4F3A0F9D463E4A97DCDBA81631620F0DE77BCEEDFFA4BE11424",
+      "expected_error": "Min return assertion",
+      "raw_log": "failed to execute message; message index: 0: Min return assertion: expected at least 999999999999999999999999, received 498500: execute wasm contract failed",
+      "snapshot_unchanged": true
+    }
+  ],
+  "status": "PASS",
+  "legacy_versions": {
+    "token": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    },
+    "autolp": {
+      "contract": "crates.io:cl8y-community-tax-autolp",
+      "version": "1.0.0"
+    }
+  },
+  "legacy_token_provenance": {
+    "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+    "cache_policy": "fresh-executable-target",
+    "lockfile": {
+      "path": "smartcontracts/Cargo.lock",
+      "sha256": "ecc98e436bae40d01d8c3adec569abe6a99195bcc71604c101adffbfd4b1c12c"
+    },
+    "schema": "cl8y-build-provenance-v1",
+    "source_commit": "79720f17f59997b2172d0787725ed3ddc11299f0",
+    "source_directory": "smartcontracts",
+    "source_dirty": false,
+    "source_sha256": "6ef05d17a392cbb533f75303daba83ceb75e95a22142d434602e83cb3ee0fc8b",
+    "toolchain": "rustc 1.81.0 (eeb90cda1 2024-09-04)\ncargo 1.81.0 (2dbb1af80 2024-08-20)\nwasm-opt version 116"
+  },
+  "legacy_autolp_provenance": {
+    "kind": "historical production bytecode used only in synthetic LocalTerra",
+    "endpoint": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11633",
+    "code_id": 11633,
+    "registry_sha256": "a5e56f61fcca59232e37dca283f2e300731b999e60c6813d274fd8a5cee95934",
+    "receipt_sha256": "a5e56f61fcca59232e37dca283f2e300731b999e60c6813d274fd8a5cee95934"
+  },
+  "receipts": [
+    {
+      "txhash": "DDBAD7A870E655490EFB0DEAC0A2942D32EB096D7A2169F3D7C989DA4A3144CA",
+      "height": "598",
+      "code": 0,
+      "gas_used": "178268"
+    },
+    {
+      "txhash": "9B04945FE70D221EEDC3576BE1280BD6A4BB7FCD245902C82128F3221B3D9B9E",
+      "height": "613",
+      "code": 0,
+      "gas_used": "184158"
+    },
+    {
+      "txhash": "34D9A32D30D3221D020788E9D24E2C500EE9F559CE8FCED6F443E7A075B95EF8",
+      "height": "621",
+      "code": 0,
+      "gas_used": "202071"
+    },
+    {
+      "txhash": "05CBFB6DC1423DE4E2577ADE8DD52F3E654EA1E05DB9BBC884CF651117D61427",
+      "height": "627",
+      "code": 0,
+      "gas_used": "251823"
+    },
+    {
+      "txhash": "8683F9F7E22C9857F541E48C6FBD3A908F64C2AA83B55ED3D3C73F64B05D4AA7",
+      "height": "631",
+      "code": 0,
+      "gas_used": "968033"
+    },
+    {
+      "txhash": "2416475DAE6D3D527290E3B579D88E6D7CC7CFFB2613DBFF5CB085827033F38A",
+      "height": "640",
+      "code": 0,
+      "gas_used": "411111"
+    },
+    {
+      "txhash": "CECF326EFBC0EEDA12014BFB2A2FE996C801CAC9FBCD555492DE7CBC4E98B6FB",
+      "height": "643",
+      "code": 0,
+      "gas_used": "155035"
+    },
+    {
+      "txhash": "AE69D7FB88246FFA81B3C196E40C1C4255442F2FD66D5641B13D0DE8F3778ECE",
+      "height": "645",
+      "code": 0,
+      "gas_used": "144652"
+    },
+    {
+      "txhash": "9DEEBADD0C6A22AE421F91700298829C4D6FAADC36A547711E341E18C5812F8C",
+      "height": "646",
+      "code": 0,
+      "gas_used": "144631"
+    },
+    {
+      "txhash": "502964E7B701307DD7E041B7D6CF315CFCEA69FAEA2543A7B21750A7B458EEEC",
+      "height": "649",
+      "code": 0,
+      "gas_used": "941687"
+    },
+    {
+      "txhash": "E665039724FFBF4F08E5BAA993AD457E07C1F85920B72C4A32A433FEF59478B4",
+      "height": "655",
+      "code": 0,
+      "gas_used": "149511"
+    },
+    {
+      "txhash": "249ADFDA90801F1E8E971E8B34CBAD0C6119BC5771B4B8B7AFF45B569427E893",
+      "height": "658",
+      "code": 0,
+      "gas_used": "148104"
+    },
+    {
+      "txhash": "38217B65C9FC85A82A4BDC8A51C22342555C348F278BF46157C2952B2934AB79",
+      "height": "667",
+      "code": 0,
+      "gas_used": "336698"
+    },
+    {
+      "txhash": "8D1B91CF950DDA7AD342E6935C5476862FC516F71B0284F2DCE544AB4E601CEF",
+      "height": "681",
+      "code": 5,
+      "gas_used": "283525"
+    },
+    {
+      "txhash": "1AC31B4876B0BF924267F0A5CDC3EF269763D2D99DCAED6D49AFDD4A57FBD862",
+      "height": "731",
+      "code": 5,
+      "gas_used": "143245"
+    },
+    {
+      "txhash": "1D883AA5AB7E7A1B3913C349BA0A4D7EAB213CE2AEFB7AFDDD4D226E56607A23",
+      "height": "754",
+      "code": 5,
+      "gas_used": "128161"
+    },
+    {
+      "txhash": "19290089310223F4EE980B0FB02275F6B9BD8D16BA7AB8A14F0F7F35514C5BC7",
+      "height": "799",
+      "code": 5,
+      "gas_used": "402627"
+    },
+    {
+      "txhash": "298DAB0C5AD7F13E5DDEDB4F2566D84E25D901395BE725E5AA83604739A7EB27",
+      "height": "835",
+      "code": 0,
+      "gas_used": "840594"
+    },
+    {
+      "txhash": "B3693BFA7076DEA4AD24E44BE6802F4D79FDECE0D7513F5938BA0A40211A4687",
+      "height": "837",
+      "code": 0,
+      "gas_used": "150831"
+    },
+    {
+      "txhash": "43CACC59841938DBE5FD5E4F2A68A7339F6D77EBB61ACCC5B4F2CF04FD335901",
+      "height": "840",
+      "code": 0,
+      "gas_used": "1971955"
+    },
+    {
+      "txhash": "D94929D24718637D2C134E503A85CD8017821A3C2C54A6C1D4E7A31E644A5E73",
+      "height": "850",
+      "code": 0,
+      "gas_used": "471007"
+    },
+    {
+      "txhash": "66C302A7DCF7F7762DD7425EAA14341F6348DD5994C0C05E2DA1C84790B11C42",
+      "height": "857",
+      "code": 0,
+      "gas_used": "150857"
+    },
+    {
+      "txhash": "BCF978F38FD0E4F3A0F9D463E4A97DCDBA81631620F0DE77BCEEDFFA4BE11424",
+      "height": "881",
+      "code": 5,
+      "gas_used": "826440"
+    }
+  ],
+  "migrated_versions": {
+    "token": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.4.0"
+    },
+    "autolp": {
+      "contract": "crates.io:cl8y-community-tax-autolp",
+      "version": "1.1.0"
+    }
+  },
+  "completed_at_utc": "2026-10-06T07:15:11.196400+00:00"
+}

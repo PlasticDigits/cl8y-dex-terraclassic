@@ -409,6 +409,16 @@ In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-toke
 
 ### Invoices
 
+**Token-owned AutoLP recovery (#1429):** token **1.4.0** adds the nonpayable
+manager-only `refresh_autolp_policy { expected_policy }` maintenance execute.
+Only its bound sister, identifying this token as token and manager with the same
+factory/pair/quote, may receive an explicit same-pair `UpdateConfig`. The caller
+approves exact positive raw tax/quote reserves, LP identity and total shares;
+changed live values fail closed. Migrate older sisters to reviewed AutoLP **1.1.0**
+first and read back the exact policy afterward. Unchanged paid settings remain a
+no-op. See [LP1429 invariants](../skills/AGENTS_AUTOLP_POLICY_RECOVERY.md) and
+[inventory, message example and agent checklist](qa/issue-1429/README.md).
+
 Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) routes any token off-chain). Official post-create SKU unlock: manager → launcher → token ([#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606), **T606-1–T606-8**). Playbook: [`skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](../skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md).
 
 - Token `EnableFeature { sku }` — not MintControl (instantiate-only). Payer is the **manager** or **this token's** `origin.launcher` (`GetLauncherOrigin`). Arbitrary contracts stay `Unauthorized`. `UpdateSettings` stays manager-only.

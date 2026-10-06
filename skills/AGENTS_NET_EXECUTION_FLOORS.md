@@ -21,6 +21,12 @@ reverse quotes, hook admission/recovery, or community-tax AutoLP settlement. It 
 
 ## Agent review
 
+For a legacy token-owned AutoLP sister, token **1.4.0** adds an explicit
+manager-authorized same-pair refresh with exact reserve/share approval. Follow
+[LP1429 recovery](AGENTS_AUTOLP_POLICY_RECOVERY.md) and its
+[separate inventory/migration/readback checklist](../docs/qa/issue-1429/README.md);
+unchanged settings remain a no-op and skim never refreshes policy.
+
 1. Read the [QA checklist](../docs/qa/issue-1398/README.md) and
    [integrator contract](../docs/integrators.md#net-execution-floors-and-hook-pricing-1398).
 2. Run `make verify-issue-1398`. Review direct/hybrid/router net floors, hook

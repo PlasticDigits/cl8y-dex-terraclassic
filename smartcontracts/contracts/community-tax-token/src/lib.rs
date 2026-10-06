@@ -52,6 +52,7 @@
 //! Pair/router swap math is **not** in this crate.
 
 pub mod adopt;
+pub mod autolp_recovery;
 pub mod contract;
 pub mod error;
 pub mod identity;

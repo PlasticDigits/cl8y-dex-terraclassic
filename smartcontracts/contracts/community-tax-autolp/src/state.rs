@@ -24,15 +24,7 @@ pub const SKIMMING: Item<bool> = Item::new("skim");
 
 /// Manager-approved reserves/share identity, refreshed only by explicitly binding a pair.
 /// Keeping this outside Config preserves old Config decoding; missing legacy policy fails closed.
-#[cw_serde]
-pub struct LpPolicy {
-    pub pair: Addr,
-    pub quote: Addr,
-    pub lp_token: Addr,
-    pub tax_reserve: Uint128,
-    pub quote_reserve: Uint128,
-    pub total_share: Uint128,
-}
+pub use dex_common::autolp::LpPolicy;
 
 #[cw_serde]
 pub struct PendingSkim {
