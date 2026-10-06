@@ -1917,3 +1917,7 @@ verify-issue-1395:
 
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
+
+.PHONY: verify-issue-1394
+verify-issue-1394:
+	bash scripts/verify-issue-1394.sh

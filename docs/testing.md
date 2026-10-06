@@ -1,5 +1,19 @@
 # Testing
 
+Pair discovery rejection isolation and bounded admission
+[#1394](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1394):
+`make verify-issue-1394` repeats focused discovery tests at default/high
+parallelism, runs the full library, bounded-cache benchmark and Postgres discovery
+test/retest. See [agent acceptance checklist](qa/issue-1394/README.md) and
+[PD1394-1–PD1394-10](../skills/AGENTS_PAIR_DISCOVERY_CACHE.md). Complete runnable
+checks first; unavailable checks may yield **PASS with explicit skips**, but
+executed failures remain FAIL and skipped criteria stay unverified. Synthetic
+tests do not establish production deployment or flood acceptance. Getter tests
+cover admission waiting and later retry after legacy transient soft skips; direct
+discovery preserves typed transient errors/counters without negative caching.
+The failed event may still be omitted under the unchanged ingestion policy;
+admission pressure must not introduce an additional event drop.
+
 Route-local tax funding [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381):
 `make verify-issue-1381` runs protocol/accounting, trading discovery/API and
 frontend gross-budget checks twice, then static checks and isolated LocalTerra
