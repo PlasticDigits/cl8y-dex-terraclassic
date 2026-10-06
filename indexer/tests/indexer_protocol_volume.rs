@@ -85,7 +85,10 @@ async fn volume_change_matches_flow_change_pct() {
     let stats = volume::get_global_stats(&pool).await.expect("stats");
     let expected = flow_change_pct(Some(&bd("150")), Some(&bd("100")));
     assert_eq!(stats.volume_change_24h_pct, expected);
-    assert_eq!(stats.volume_change_24h_pct.as_ref().map(|p| p.normalized()), Some(bd("50").normalized()));
+    assert_eq!(
+        stats.volume_change_24h_pct.as_ref().map(|p| p.normalized()),
+        Some(bd("50").normalized())
+    );
 }
 
 #[serial]
@@ -279,7 +282,10 @@ async fn volume_change_decay_updates_on_refresh_not_get() {
     volume::refresh_global_stats(&pool).await.expect("refresh");
     let before = volume::get_global_stats(&pool).await.expect("stats");
     assert_eq!(
-        before.volume_change_24h_pct.as_ref().map(|p| p.normalized()),
+        before
+            .volume_change_24h_pct
+            .as_ref()
+            .map(|p| p.normalized()),
         Some(bd("100").normalized())
     );
 
@@ -295,7 +301,10 @@ async fn volume_change_decay_updates_on_refresh_not_get() {
     volume::refresh_global_stats(&pool).await.expect("refresh");
     let after = volume::get_global_stats(&pool).await.expect("stats");
     assert_eq!(after.total_trades_24h, 0);
-    assert!(after.volume_change_24h_pct.is_none() || after.volume_change_24h_pct != before.volume_change_24h_pct);
+    assert!(
+        after.volume_change_24h_pct.is_none()
+            || after.volume_change_24h_pct != before.volume_change_24h_pct
+    );
 }
 
 #[serial]
@@ -355,7 +364,9 @@ async fn daily_days_allowlist_and_series_shape() {
     )
     .await;
 
-    daily_q::refresh_protocol_daily(&pool).await.expect("refresh daily");
+    daily_q::refresh_protocol_daily(&pool)
+        .await
+        .expect("refresh daily");
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
 
@@ -367,7 +378,10 @@ async fn daily_days_allowlist_and_series_shape() {
     assert_eq!(body7["methodology"], "protocol_catalog");
     let series7 = body7["series"].as_array().expect("series");
     assert_eq!(series7.len(), 7);
-    assert_eq!(series7.last().unwrap()["utc_day"], today.date_naive().to_string());
+    assert_eq!(
+        series7.last().unwrap()["utc_day"],
+        today.date_naive().to_string()
+    );
     let today_usd = bd(series7.last().unwrap()["volume_usd"].as_str().unwrap());
     assert_eq!(today_usd, bd("30"));
     let yest = series7[series7.len() - 2]["volume_usd"].as_str().unwrap();
@@ -413,7 +427,9 @@ async fn daily_idle_zero_unpriced_null_and_cache() {
     )
     .await;
 
-    daily_q::refresh_protocol_daily(&pool).await.expect("refresh");
+    daily_q::refresh_protocol_daily(&pool)
+        .await
+        .expect("refresh");
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
     let first = server.get("/api/v1/protocol/volume/daily?days=7").await;
@@ -421,7 +437,10 @@ async fn daily_idle_zero_unpriced_null_and_cache() {
     let body: Value = first.json();
     let series = body["series"].as_array().unwrap();
     let yest = &series[series.len() - 2];
-    assert!(yest["volume_usd"].is_null(), "activity+unpriced must be null, not $0");
+    assert!(
+        yest["volume_usd"].is_null(),
+        "activity+unpriced must be null, not $0"
+    );
     assert!(yest["trade_count"].as_i64().unwrap() > 0);
     let idle = &series[0];
     assert_eq!(idle["volume_usd"], "0");
@@ -437,7 +456,9 @@ async fn daily_idle_zero_unpriced_null_and_cache() {
         Some("99"),
     )
     .await;
-    daily_q::refresh_protocol_daily(&pool).await.expect("refresh");
+    daily_q::refresh_protocol_daily(&pool)
+        .await
+        .expect("refresh");
     let second = server.get("/api/v1/protocol/volume/daily?days=7").await;
     let body2: Value = second.json();
     assert_eq!(body, body2, "60s cache must ignore mid-TTL refresh");
@@ -458,7 +479,11 @@ async fn daily_get_explain_does_not_scan_swap_events() {
     .fetch_all(&pool)
     .await
     .expect("explain");
-    let plan = rows.into_iter().map(|(line,)| line).collect::<Vec<_>>().join("\n");
+    let plan = rows
+        .into_iter()
+        .map(|(line,)| line)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(!plan.contains("swap_events"), "{plan}");
     assert!(plan.contains("protocol_daily_volume"), "{plan}");
 }
@@ -480,11 +505,18 @@ async fn daily_includes_all_pairs_not_llama_exclusions() {
         Some("12"),
     )
     .await;
-    daily_q::refresh_protocol_daily(&pool).await.expect("refresh");
+    daily_q::refresh_protocol_daily(&pool)
+        .await
+        .expect("refresh");
     let today = utc_day_start(Utc::now()).date_naive();
-    let rows = daily_q::get_daily_rows(&pool, today, today).await.expect("rows");
+    let rows = daily_q::get_daily_rows(&pool, today, today)
+        .await
+        .expect("rows");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].volume_usd.as_ref().map(|v| v.normalized()), Some(bd("12").normalized()));
+    assert_eq!(
+        rows[0].volume_usd.as_ref().map(|v| v.normalized()),
+        Some(bd("12").normalized())
+    );
 }
 
 #[serial]
@@ -501,14 +533,15 @@ async fn daily_prune_drops_rows_older_than_retain_window() {
     .execute(&pool)
     .await
     .unwrap();
-    daily_q::refresh_protocol_daily(&pool).await.expect("refresh");
-    let leftover: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM protocol_daily_volume WHERE utc_day = $1",
-    )
-    .bind(old.date_naive())
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    daily_q::refresh_protocol_daily(&pool)
+        .await
+        .expect("refresh");
+    let leftover: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM protocol_daily_volume WHERE utc_day = $1")
+            .bind(old.date_naive())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(leftover, 0);
 }
 
@@ -532,7 +565,9 @@ async fn volume_aggregator_refreshes_daily_and_change() {
     let stats = volume::get_global_stats(&pool).await.expect("stats");
     assert!(stats.volume_change_24h_pct.is_none());
     let today = utc_day_start(Utc::now()).date_naive();
-    let rows = daily_q::get_daily_rows(&pool, today, today).await.expect("rows");
+    let rows = daily_q::get_daily_rows(&pool, today, today)
+        .await
+        .expect("rows");
     assert_eq!(rows[0].trade_count, 1);
     let now_hour = daily_q::utc_hour_start(Utc::now());
     let hourly = daily_q::get_hourly_rows(&pool, now_hour - Duration::hours(2), now_hour)
@@ -584,8 +619,14 @@ async fn grain_limit_allowlist_and_series_shape() {
     assert!(body.get("days").is_none());
     let series = body["series"].as_array().expect("series");
     assert_eq!(series.len(), 14);
-    assert_eq!(series.last().unwrap()["utc_day"], today.date_naive().to_string());
-    assert_eq!(bd(series.last().unwrap()["volume_usd"].as_str().unwrap()), bd("40"));
+    assert_eq!(
+        series.last().unwrap()["utc_day"],
+        today.date_naive().to_string()
+    );
+    assert_eq!(
+        bd(series.last().unwrap()["volume_usd"].as_str().unwrap()),
+        bd("40")
+    );
 
     let hourly = server
         .get("/api/v1/protocol/volume/daily?grain=hourly&limit=24")
@@ -594,7 +635,10 @@ async fn grain_limit_allowlist_and_series_shape() {
     let hbody: Value = hourly.json();
     assert_eq!(hbody["grain"], "hourly");
     assert_eq!(hbody["series"].as_array().unwrap().len(), 24);
-    assert!(hbody["series"].as_array().unwrap()[0]["utc_hour"].as_str().unwrap().contains('T'));
+    assert!(hbody["series"].as_array().unwrap()[0]["utc_hour"]
+        .as_str()
+        .unwrap()
+        .contains('T'));
 
     let monthly = server
         .get("/api/v1/protocol/volume/daily?grain=monthly&limit=6")
@@ -654,7 +698,9 @@ async fn grain_idle_unpriced_and_cache_ignores_extra_query() {
         None,
     )
     .await;
-    daily_q::refresh_protocol_hourly(&pool).await.expect("hourly");
+    daily_q::refresh_protocol_hourly(&pool)
+        .await
+        .expect("hourly");
 
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
@@ -666,7 +712,10 @@ async fn grain_idle_unpriced_and_cache_ignores_extra_query() {
     let series = body["series"].as_array().unwrap();
     assert_eq!(series.len(), 12);
     let prev = &series[series.len() - 2];
-    assert!(prev["volume_usd"].is_null(), "activity+unpriced must be null");
+    assert!(
+        prev["volume_usd"].is_null(),
+        "activity+unpriced must be null"
+    );
     assert!(prev["trade_count"].as_i64().unwrap() > 0);
     let idle = &series[0];
     assert_eq!(idle["volume_usd"], "0");
@@ -682,7 +731,9 @@ async fn grain_idle_unpriced_and_cache_ignores_extra_query() {
         Some("77"),
     )
     .await;
-    daily_q::refresh_protocol_hourly(&pool).await.expect("refresh");
+    daily_q::refresh_protocol_hourly(&pool)
+        .await
+        .expect("refresh");
     let second = server
         .get("/api/v1/protocol/volume/daily?grain=hourly&limit=12&foo=bust")
         .await;
@@ -733,19 +784,32 @@ async fn hourly_bucket_is_hour_half_open_and_monthly_is_calendar() {
         Some("9"),
     )
     .await;
-    daily_q::refresh_protocol_hourly(&pool).await.expect("hourly");
+    daily_q::refresh_protocol_hourly(&pool)
+        .await
+        .expect("hourly");
     let rows = daily_q::get_hourly_rows(&pool, hour, hour + Duration::hours(1))
         .await
         .expect("rows");
-    let start_row = rows.iter().find(|r| r.utc_hour == hour).expect("start hour");
-    assert_eq!(start_row.volume_usd.as_ref().map(|v| v.normalized()), Some(bd("5").normalized()));
+    let start_row = rows
+        .iter()
+        .find(|r| r.utc_hour == hour)
+        .expect("start hour");
+    assert_eq!(
+        start_row.volume_usd.as_ref().map(|v| v.normalized()),
+        Some(bd("5").normalized())
+    );
     let next = rows
         .iter()
         .find(|r| r.utc_hour == hour + Duration::hours(1))
         .expect("next hour");
-    assert_eq!(next.volume_usd.as_ref().map(|v| v.normalized()), Some(bd("9").normalized()));
+    assert_eq!(
+        next.volume_usd.as_ref().map(|v| v.normalized()),
+        Some(bd("9").normalized())
+    );
 
-    daily_q::refresh_protocol_monthly(&pool).await.expect("monthly");
+    daily_q::refresh_protocol_monthly(&pool)
+        .await
+        .expect("monthly");
     let this_month = daily_q::utc_month_start(Utc::now());
     let months = daily_q::get_monthly_rows(&pool, this_month, this_month)
         .await
@@ -771,13 +835,14 @@ async fn hourly_prune_drops_rows_older_than_retain_window() {
     .execute(&pool)
     .await
     .unwrap();
-    daily_q::refresh_protocol_hourly(&pool).await.expect("refresh");
-    let leftover: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM protocol_hourly_volume WHERE utc_hour = $1",
-    )
-    .bind(old)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    daily_q::refresh_protocol_hourly(&pool)
+        .await
+        .expect("refresh");
+    let leftover: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM protocol_hourly_volume WHERE utc_hour = $1")
+            .bind(old)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(leftover, 0);
 }

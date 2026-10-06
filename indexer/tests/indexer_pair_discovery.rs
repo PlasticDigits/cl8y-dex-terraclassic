@@ -3,18 +3,18 @@
 
 mod common;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine;
 use bech32::ToBase32;
 use cl8y_dex_indexer::db::queries::pairs;
 use cl8y_dex_indexer::indexer::pair_discovery::{
-    DiscoverPairError, discover_new_pair, get_or_discover_pair, is_rejected_pair_error,
+    discover_new_pair, get_or_discover_pair, is_rejected_pair_error, DiscoverPairError,
 };
 use cl8y_dex_indexer::lcd::{LcdClient, LcdError};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use serial_test::serial;
 use sqlx::PgPool;
 use wiremock::matchers::{method, path_regex};
@@ -214,12 +214,10 @@ async fn new_client_retries_changed_endpoint_without_inheriting_old_rejection() 
     })
     .await;
     let old_client = client(&server);
-    assert!(
-        get_or_discover_pair(&pool, &old_client, &factory, &pair)
-            .await
-            .unwrap()
-            .is_none()
-    );
+    assert!(get_or_discover_pair(&pool, &old_client, &factory, &pair)
+        .await
+        .unwrap()
+        .is_none());
     reject.store(false, Ordering::SeqCst);
     assert!(
         get_or_discover_pair(&pool, &old_client.clone(), &factory, &pair)
@@ -264,12 +262,10 @@ async fn repeated_foreign_pair_has_no_database_writes_or_repeat_lcd_queries() {
     assert!(is_rejected_pair_error(&*cached));
     assert!(cached.to_string().contains("recently rejected"));
     assert!(format!("{cached:?}").contains("Unlisted"));
-    assert!(
-        get_or_discover_pair(&pool, &lcd, &factory, &pair)
-            .await
-            .unwrap()
-            .is_none()
-    );
+    assert!(get_or_discover_pair(&pool, &lcd, &factory, &pair)
+        .await
+        .unwrap()
+        .is_none());
     assert_no_writes(&pool).await;
     assert_eq!(smart_requests(&server).await, 2);
 }
@@ -473,12 +469,10 @@ async fn getter_transient_failure_soft_skips_and_direct_discovery_preserves_erro
     })
     .await;
     let lcd = client(&server);
-    assert!(
-        get_or_discover_pair(&pool, &lcd, &factory, &pair)
-            .await
-            .expect("foreign/transient discovery must not halt block indexing")
-            .is_none()
-    );
+    assert!(get_or_discover_pair(&pool, &lcd, &factory, &pair)
+        .await
+        .expect("foreign/transient discovery must not halt block indexing")
+        .is_none());
     assert_eq!(lcd.pair_discovery_counters().transient_failures, 1);
     assert_no_writes(&pool).await;
     assert_eq!(smart_requests(&server).await, 1);

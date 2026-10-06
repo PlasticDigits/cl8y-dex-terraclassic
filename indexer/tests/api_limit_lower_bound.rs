@@ -72,7 +72,11 @@ async fn pair_trades_negative_and_zero_limit_clamp_not_500() {
     let seed = common::seed_db(&pool).await;
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
-    assert_limit_low_ok(&server, &format!("/api/v1/pairs/{}/trades", seed.pair_address)).await;
+    assert_limit_low_ok(
+        &server,
+        &format!("/api/v1/pairs/{}/trades", seed.pair_address),
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -192,7 +196,10 @@ async fn trader_limit_cancellations_negative_and_zero_limit_clamp_not_500() {
     let server = TestServer::new(app);
     assert_limit_low_ok(
         &server,
-        &format!("/api/v1/traders/{}/limit-cancellations", seed.trader_address),
+        &format!(
+            "/api/v1/traders/{}/limit-cancellations",
+            seed.trader_address
+        ),
     )
     .await;
 }

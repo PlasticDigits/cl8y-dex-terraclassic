@@ -1,19 +1,17 @@
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react'
 import { RetryError } from '@/components/ui'
+import { ProtocolDetails } from './ProtocolDetails'
 import { formatProtocolUsd } from '@/utils/formatProtocolStats'
 import { liquidityQualityForValue, liquidityQualityLabel, validLiquidityUsd } from '@/utils/protocolLiquidityQuality'
 import {
-  PROTOCOL_FEES_DAILY_LABEL,
   PROTOCOL_FEES_DAILY_TITLE,
   PROTOCOL_FEES_EMPTY,
-  PROTOCOL_LIQUIDITY_DAILY_LABEL,
   PROTOCOL_LIQUIDITY_DAILY_TITLE,
   PROTOCOL_LIQUIDITY_EMPTY,
   PROTOCOL_UTC_METRIC_FEES_LABEL,
   PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
   PROTOCOL_UTC_METRIC_VOLUME_LABEL,
-  PROTOCOL_VOLUME_DAILY_LABEL,
   PROTOCOL_VOLUME_DAILY_TITLE,
   PROTOCOL_VOLUME_EMPTY,
   PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
@@ -24,7 +22,9 @@ import {
 import {
   formatPeriodAxisLabel,
   limitFromPlotWidth,
-  maxPricedUsd,
+  maxPlotUsd,
+  historicalLiquidityEstimateUsd,
+  plotPointValueUsd,
   pointPeriod,
   pointValueUsd,
   PROTOCOL_UTC_METRICS,
@@ -50,12 +50,6 @@ const METRIC_TAB_LABEL: Record<ProtocolUtcMetric, string> = {
   volume: PROTOCOL_UTC_METRIC_VOLUME_LABEL,
   liquidity: PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
   fees: PROTOCOL_UTC_METRIC_FEES_LABEL,
-}
-
-const METRIC_CHART_LABEL: Record<ProtocolUtcMetric, string> = {
-  volume: PROTOCOL_VOLUME_DAILY_LABEL,
-  liquidity: PROTOCOL_LIQUIDITY_DAILY_LABEL,
-  fees: PROTOCOL_FEES_DAILY_LABEL,
 }
 
 const METRIC_CHART_TITLE: Record<ProtocolUtcMetric, string> = {
@@ -85,6 +79,7 @@ function chartAria(metric: ProtocolUtcMetric, grain: ProtocolVolumeGrain): strin
 
 export function ProtocolVolumeDailyChart() {
   useNumberDisplayMode()
+  const hatchId = `protocol-estimate-${useId().replace(/:/g, '')}`
   const [metric, setMetric] = useState<ProtocolUtcMetric>('volume')
   const [grain, setGrain] = useState<ProtocolVolumeGrain>('daily')
   const [limit, setLimit] = useState(() => PROTOCOL_VOLUME_GRAIN_MIN.daily)
@@ -131,16 +126,17 @@ export function ProtocolVolumeDailyChart() {
 
   const query = useProtocolUtcSeriesQuery(metric, grain, limit)
   const series = useMemo((): ProtocolVolumeSeriesPoint[] => query.data?.series ?? [], [query.data?.series])
-  const peak = useMemo(() => maxPricedUsd(series, metric), [series, metric])
+  const peak = useMemo(() => maxPlotUsd(series, metric), [series, metric])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
   const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, plotW), [series.length, grain, plotW])
   const unavailable = query.isError && isProtocolVolumeSeriesUnavailable(query.error)
   const volumeMissing = metric === 'volume' && unavailable
   const siblingMissing = metric !== 'volume' && unavailable
-  const allNull = series.length > 0 && series.every((p) => pointValueUsd(p, metric) == null)
+  const allNull = series.length > 0 && series.every((p) => plotPointValueUsd(p, metric) == null)
   const empty = !query.isLoading && (series.length === 0 || (allNull && metric !== 'liquidity'))
   const pointDescription = (point: ProtocolVolumeSeriesPoint) => {
     if (metric !== 'liquidity') return ''
+    if (historicalLiquidityEstimateUsd(point) != null) return 'Historical estimate'
     const quality = liquidityQualityForValue(point.quality, validLiquidityUsd(point.liquidity_usd))
     const partial = quality === 'partial' ? validLiquidityUsd(point.liquidity_usd) : null
     const label =
@@ -155,9 +151,9 @@ export function ProtocolVolumeDailyChart() {
       ? {
           period: pointPeriod(series[active], grain),
           usd:
-            pointValueUsd(series[active], metric) == null
+            plotPointValueUsd(series[active], metric) == null
               ? '—'
-              : formatProtocolUsd(pointValueUsd(series[active], metric)),
+              : `${metric === 'liquidity' && historicalLiquidityEstimateUsd(series[active]) != null ? '≈ ' : ''}${formatProtocolUsd(plotPointValueUsd(series[active], metric))}`,
           quality: pointDescription(series[active]),
         }
       : null
@@ -173,13 +169,6 @@ export function ProtocolVolumeDailyChart() {
       data-protocol-utc-series-chart=""
     >
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-        <h3
-          className="text-xs font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--ink-dim)' }}
-          title={METRIC_CHART_TITLE[metric]}
-        >
-          {METRIC_CHART_LABEL[metric]}
-        </h3>
         <div className="flex flex-wrap gap-2 justify-end">
           <div className="flex gap-1" role="tablist" aria-label="UTC chart metric">
             {PROTOCOL_UTC_METRICS.map((m) => (
@@ -219,22 +208,14 @@ export function ProtocolVolumeDailyChart() {
               </button>
             ))}
           </div>
+          {metric === 'liquidity' && (
+            <ProtocolDetails
+              label="Chart details"
+              detail="Hatched bars are historical estimates. Gaps mean unavailable data."
+            />
+          )}
         </div>
       </div>
-      <p className="text-[10px] mb-2" style={{ color: 'var(--ink-dim)' }} title={METRIC_CHART_TITLE[metric]}>
-        {PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}
-      </p>
-      {metric === 'liquidity' && (
-        <p
-          id="protocol-liquidity-quality-help"
-          className="text-xs mb-2"
-          style={{ color: 'var(--ink-dim)' }}
-          data-testid="protocol-liquidity-quality-help"
-        >
-          Dashed gaps mean unknown, partial, or stale liquidity, not zero. Tap or focus a period for quality and
-          observation time.
-        </p>
-      )}
       {query.isError && !unavailable && (
         <RetryError message={`Failed to load ${metric}`} onRetry={() => void query.refetch()} />
       )}
@@ -254,9 +235,14 @@ export function ProtocolVolumeDailyChart() {
             className="block w-full h-32"
             role="img"
             aria-label={chartAria(metric, grain)}
-            aria-describedby={metric === 'liquidity' ? 'protocol-liquidity-quality-help' : undefined}
             data-testid="protocol-volume-daily-bars"
           >
+            <defs>
+              <pattern id={hatchId} width="5" height="5" patternUnits="userSpaceOnUse">
+                <rect width="5" height="5" fill="var(--ink-dim)" fillOpacity="0.12" />
+                <path d="M-1 1L1-1M0 5L5 0M4 6L6 4" stroke="var(--ink-dim)" strokeOpacity="0.6" />
+              </pattern>
+            </defs>
             <g data-testid="protocol-volume-chart-yaxis">
               {ticks.map((t, i) => {
                 const y = PAD_T + PLOT_H - (peak > 0 ? (t / peak) * PLOT_H : 0)
@@ -272,7 +258,8 @@ export function ProtocolVolumeDailyChart() {
               })}
             </g>
             {series.map((p, i) => {
-              const raw = pointValueUsd(p, metric)
+              const estimate = metric === 'liquidity' && historicalLiquidityEstimateUsd(p) != null
+              const raw = plotPointValueUsd(p, metric)
               const n = raw == null ? null : Number(raw)
               const priced = n != null && Number.isFinite(n)
               const h = priced && peak > 0 ? Math.max((n / peak) * PLOT_H, n > 0 ? 2 : 0) : 0
@@ -280,7 +267,7 @@ export function ProtocolVolumeDailyChart() {
               const x = PAD_L + i * slot
               const w = Math.max(slot * 0.82, 2)
               const period = pointPeriod(p, grain)
-              const usd = priced ? formatProtocolUsd(raw) : '—'
+              const usd = priced ? `${estimate ? '≈ ' : ''}${formatProtocolUsd(raw)}` : '—'
               const gap = metric === 'liquidity' && !priced
               const barLabel = `${period} ${usd}${metric === 'liquidity' ? ` · ${pointDescription(p)}` : ''}`
               return (
@@ -296,9 +283,10 @@ export function ProtocolVolumeDailyChart() {
                   aria-label={barLabel}
                   aria-describedby={active === i ? 'protocol-volume-chart-tooltip' : undefined}
                   data-testid={`protocol-volume-bar-${i}`}
-                  fill={priced ? 'var(--accent)' : 'transparent'}
-                  stroke={raw == null ? 'var(--ink-dim)' : active === i ? 'var(--ink)' : 'none'}
-                  strokeDasharray={gap ? '3 3' : undefined}
+                  fill={estimate ? `url(#${hatchId})` : priced ? 'var(--accent)' : 'transparent'}
+                  data-historical-estimate={estimate ? 'true' : undefined}
+                  stroke={estimate || raw == null ? 'var(--ink-dim)' : active === i ? 'var(--ink)' : 'none'}
+                  strokeDasharray={gap ? '3 3' : estimate ? '2 2' : undefined}
                   data-quality={
                     metric === 'liquidity'
                       ? (liquidityQualityForValue(p.quality, validLiquidityUsd(p.liquidity_usd)) ?? 'unknown')

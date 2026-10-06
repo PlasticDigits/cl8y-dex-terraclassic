@@ -1,6 +1,7 @@
 import { Skeleton } from './Skeleton'
 import { protocolPctToneFromDisplay } from '@/utils/formatProtocolStats'
 import { composeStatAriaLabel } from '@/utils/trailingWindowCopy'
+import type { ReactNode } from 'react'
 
 export interface StatDelta {
   value: string
@@ -13,6 +14,8 @@ export type StatBoxVariant = 'card' | 'flat'
 
 export interface StatBoxProps {
   label: string
+  /** Optional compact control beside the label; details remain on request. */
+  labelAccessory?: ReactNode
   value: string
   loading?: boolean
   color?: string
@@ -61,6 +64,7 @@ function resolvedDeltas(props: StatBoxDeltaProps): StatDelta[] {
 
 export function StatBox({
   label,
+  labelAccessory,
   value,
   loading,
   color,
@@ -90,13 +94,14 @@ export function StatBox({
       <p
         className={
           preserveLabelCase
-            ? 'text-[10px] tracking-wider font-medium mb-1'
-            : 'text-[10px] uppercase tracking-wider font-medium mb-1'
+            ? 'text-[10px] tracking-wider font-medium mb-1 flex items-center gap-1'
+            : 'text-[10px] uppercase tracking-wider font-medium mb-1 flex items-center gap-1'
         }
         style={{ color: 'var(--ink-dim)' }}
         title={title}
       >
         {label}
+        {labelAccessory}
       </p>
       {loading ? (
         <Skeleton height="1.25rem" width="60%" />

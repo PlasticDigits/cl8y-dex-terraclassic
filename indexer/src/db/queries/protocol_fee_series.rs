@@ -10,7 +10,8 @@ use sqlx::{FromRow, PgPool};
 
 use crate::db::queries::protocol_volume::{
     utc_hour_start, utc_month_start, DAILY_LOOKBACK_DAYS, HOURLY_LOOKBACK_HOURS,
-    HOURLY_PRUNE_AFTER_HOURS, MONTHLY_LOOKBACK_MONTHS, MONTHLY_PRUNE_AFTER_MONTHS, PRUNE_AFTER_DAYS,
+    HOURLY_PRUNE_AFTER_HOURS, MONTHLY_LOOKBACK_MONTHS, MONTHLY_PRUNE_AFTER_MONTHS,
+    PRUNE_AFTER_DAYS,
 };
 use crate::indexer::defillama::utc_day_start;
 use crate::indexer::pair_price_usd::fits_numeric_38_18;

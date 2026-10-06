@@ -1288,6 +1288,203 @@ async fn q1380_overview_cache_hit_qualifies_liquidity_age_independently() {
 
 #[serial]
 #[tokio::test]
+async fn q1380_overview_cached_stats_follow_new_liquidity_generations_without_smoothing() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    reset_overview_cache();
+    let server = TestServer::new(common::build_test_app(pool.clone()).await);
+    let ttl = protocol_tvl::max_staleness_from_env().as_secs();
+    let old_as_of = Utc::now() - Duration::seconds(ttl.saturating_sub(1) as i64);
+    let initial = quality_rollup("fresh", Some(bd("100")), old_as_of, 1);
+    let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+        .await
+        .unwrap();
+    liquidity_snapshots::publish_liquidity_refresh(&mut tx, &initial, &[], Utc::now())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    sqlx::query("UPDATE global_stats_24h SET total_volume=10,total_trades=1,total_fees_24h_usd=7,fee_event_count_24h=1 WHERE id=1")
+        .execute(&pool).await.unwrap();
+    let before_response = server.get("/api/v1/overview").await;
+    before_response.assert_status_ok();
+    let before: Value = before_response.json();
+    assert_eq!(before["liquidity_quality"], "fresh");
+
+    let mut next = quality_rollup("fresh", Some(bd("80")), Utc::now(), 2);
+    next.priced_pair_count = 3;
+    next.unpriced_pair_count = 0;
+    next.quality.coverage_identity = "coverage-v2".into();
+    next.quality.reasons = serde_json::json!({"complete":3});
+    next.liquidity_change_24h_pct = Some(bd("-20"));
+    next.liquidity_change_30d_pct = Some(bd("60"));
+    next.total_liquidity_usd_24h_ago = Some(bd("100"));
+    next.total_liquidity_usd_30d_ago = Some(bd("50"));
+    let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+        .await
+        .unwrap();
+    liquidity_snapshots::publish_liquidity_refresh(&mut tx, &next, &[], Utc::now())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    sqlx::query("UPDATE global_stats_24h SET total_volume=999,total_fees_24h_usd=999 WHERE id=1")
+        .execute(&pool)
+        .await
+        .unwrap();
+    // Expire the original liquidity observation while the expensive stats cache
+    // remains well inside its 60s lifetime. The committed new generation is fresh.
+    tokio::time::sleep(std::time::Duration::from_millis(2100)).await;
+    let response = server.get("/api/v1/overview").await;
+    response.assert_status_ok();
+    let fresh: Value = response.json();
+    assert_eq!(fresh["liquidity_quality"], "fresh");
+    assert_eq!(fresh["liquidity_generation"], 2);
+    assert_eq!(bd(fresh["total_liquidity_usd"].as_str().unwrap()), bd("80"));
+    assert_eq!(
+        chrono::DateTime::parse_from_rfc3339(fresh["liquidity_as_of"].as_str().unwrap())
+            .unwrap()
+            .timestamp_micros(),
+        next.quality.as_of.unwrap().timestamp_micros()
+    );
+    assert_eq!(fresh["liquidity_coverage_identity"], "coverage-v2");
+    assert_eq!(
+        fresh["liquidity_reasons"],
+        serde_json::json!({"complete":3})
+    );
+    assert_eq!(fresh["priced_pair_count"], 3);
+    assert_eq!(fresh["unpriced_pair_count"], 0);
+    assert_eq!(
+        bd(fresh["liquidity_change_24h_pct"].as_str().unwrap()),
+        bd("-20")
+    );
+    assert_eq!(
+        bd(fresh["total_liquidity_usd_30d_ago"].as_str().unwrap()),
+        bd("50")
+    );
+    assert_eq!(fresh["total_volume_24h"], before["total_volume_24h"]);
+    assert_eq!(fresh["total_fees_24h_usd"], before["total_fees_24h_usd"]);
+
+    for (generation, status, total, unpriced) in [
+        (3, "unavailable", None, 3),
+        (4, "partial", Some(bd("40")), 1),
+        (5, "fresh", Some(bd("60")), 0),
+    ] {
+        let mut publication = quality_rollup(status, total.clone(), Utc::now(), generation);
+        publication.priced_pair_count = if status == "unavailable" { 0 } else { 2 };
+        publication.unpriced_pair_count = unpriced;
+        publication.quality.coverage_identity = format!("coverage-{generation}");
+        publication.quality.reasons = serde_json::json!({"attempt":generation});
+        publication.liquidity_change_24h_pct = Some(bd("25"));
+        let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+            .await
+            .unwrap();
+        liquidity_snapshots::publish_liquidity_refresh(&mut tx, &publication, &[], Utc::now())
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+        let response = server.get("/api/v1/overview").await;
+        response.assert_status_ok();
+        let body: Value = response.json();
+        assert_eq!(body["liquidity_generation"], generation);
+        assert_eq!(body["liquidity_quality"], status);
+        assert_eq!(
+            body["liquidity_coverage_identity"],
+            format!("coverage-{generation}")
+        );
+        assert_eq!(
+            body["liquidity_reasons"],
+            serde_json::json!({"attempt":generation})
+        );
+        assert_eq!(body["unpriced_pair_count"], unpriced);
+        assert_eq!(
+            chrono::DateTime::parse_from_rfc3339(body["liquidity_as_of"].as_str().unwrap())
+                .unwrap()
+                .timestamp_micros(),
+            publication.quality.as_of.unwrap().timestamp_micros()
+        );
+        if let Some(total) = total {
+            assert_eq!(bd(body["total_liquidity_usd"].as_str().unwrap()), total);
+        } else {
+            assert!(body["total_liquidity_usd"].is_null());
+        }
+        assert_eq!(
+            body["liquidity_change_24h_pct"].is_null(),
+            status != "fresh"
+        );
+        assert_eq!(body["total_volume_24h"], before["total_volume_24h"]);
+        assert_eq!(body["total_fees_24h_usd"], before["total_fees_24h_usd"]);
+    }
+    reset_overview_cache();
+}
+
+#[serial]
+#[tokio::test]
+async fn q1380_overview_cached_liquidity_rejects_older_publication() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    reset_overview_cache();
+    let server = TestServer::new(common::build_test_app(pool.clone()).await);
+    let good = quality_rollup("fresh", Some(bd("70")), Utc::now(), 10);
+    let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+        .await
+        .unwrap();
+    liquidity_snapshots::publish_liquidity_refresh(&mut tx, &good, &[], Utc::now())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    let current: Value = server.get("/api/v1/overview").await.json();
+    let older = quality_rollup("fresh", Some(bd("999")), Utc::now(), 9);
+    let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+        .await
+        .unwrap();
+    assert!(
+        liquidity_snapshots::publish_liquidity_refresh(&mut tx, &older, &[], Utc::now())
+            .await
+            .is_err()
+    );
+    tx.rollback().await.unwrap();
+    // Emulate a delayed lower-generation row observation in this owned QA DB.
+    // The protected publisher above cannot produce this regression itself.
+    sqlx::query("UPDATE global_stats_24h SET liquidity_generation=9,total_liquidity_usd=999,liquidity_as_of=NOW() WHERE id=1")
+        .execute(&pool).await.unwrap();
+    let cached: Value = server.get("/api/v1/overview").await.json();
+    assert_eq!(cached["liquidity_generation"], 10);
+    assert_eq!(
+        cached["total_liquidity_usd"],
+        current["total_liquidity_usd"]
+    );
+    assert_eq!(cached["liquidity_as_of"], current["liquidity_as_of"]);
+    reset_overview_cache();
+}
+
+#[serial]
+#[tokio::test]
+async fn q1380_overview_cached_liquidity_missing_row_does_not_serve_last_good() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    reset_overview_cache();
+    let good = quality_rollup("fresh", Some(bd("70")), Utc::now(), 1);
+    let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
+        .await
+        .unwrap();
+    liquidity_snapshots::publish_liquidity_refresh(&mut tx, &good, &[], Utc::now())
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    let server = TestServer::new(common::build_test_app(pool.clone()).await);
+    server.get("/api/v1/overview").await.assert_status_ok();
+    sqlx::query("DELETE FROM global_stats_24h WHERE id=1")
+        .execute(&pool)
+        .await
+        .unwrap();
+    server
+        .get("/api/v1/overview")
+        .await
+        .assert_status_internal_server_error();
+    reset_overview_cache();
+}
+
+#[serial]
+#[tokio::test]
 async fn q1380_failures_after_source_and_each_grain_rollback_entire_publication() {
     let pool = setup_pool().await;
     clean_db(&pool).await;

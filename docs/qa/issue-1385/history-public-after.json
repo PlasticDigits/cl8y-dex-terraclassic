@@ -1,0 +1,62 @@
+{
+  "observed_at_utc": "2026-10-06T11:58:33.823987+00:00",
+  "health": {
+    "status": "ok",
+    "git_sha": "fab88dbbccb514657d786e3034e12c99423026eb",
+    "chain_identity": {
+      "expected_chain_id": "columbus-5",
+      "cache_namespace": "columbus-5:client:1",
+      "endpoints": [
+        {
+          "endpoint_index": 0,
+          "observed_chain_id": null,
+          "verified": false,
+          "last_error": "Chain identity rejected: endpoint[0] node_info unavailable (429 Too Many Requests)",
+          "checked_at": "2026-10-06T11:58:06.804759128+00:00"
+        },
+        {
+          "endpoint_index": 1,
+          "observed_chain_id": "columbus-5",
+          "verified": false,
+          "last_error": null,
+          "checked_at": "2026-10-06T11:58:07.153901567+00:00"
+        },
+        {
+          "endpoint_index": 2,
+          "observed_chain_id": "columbus-5",
+          "verified": true,
+          "last_error": null,
+          "checked_at": "2026-10-06T11:58:32.360539298+00:00"
+        }
+      ]
+    }
+  },
+  "url": "https://indexer.dex.cl8y.com/api/v1/protocol/liquidity/daily?grain=hourly&limit=168",
+  "target_hours": [
+    {
+      "utc_hour": "2026-10-02T05",
+      "liquidity_usd": null,
+      "priced_pair_count": 2,
+      "quality": "unknown",
+      "as_of": "2026-10-02T05:56:49.225814+00:00",
+      "coverage_identity": "",
+      "generation": 0,
+      "reasons": {
+        "historical_coverage_unreconciled": 1
+      }
+    },
+    {
+      "utc_hour": "2026-10-04T02",
+      "liquidity_usd": null,
+      "priced_pair_count": 0,
+      "quality": "unknown",
+      "as_of": "2026-10-04T02:58:55.013459+00:00",
+      "coverage_identity": "",
+      "generation": 0,
+      "reasons": {
+        "historical_coverage_unreconciled": 1
+      }
+    }
+  ],
+  "status": "PASS"
+}

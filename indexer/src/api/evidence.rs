@@ -1,10 +1,10 @@
 //! Version 2 public-chain-linked UTC-day evidence (#1397). No actor identifiers.
 
-use axum::Json;
 use axum::extract::{Query, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use base64::Engine;
 use chrono::{NaiveDate, TimeZone, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -14,8 +14,8 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 use utoipa::{IntoParams, ToSchema};
 
-use super::AppState;
 use super::pairs::bd_plain_string;
+use super::AppState;
 use crate::db::queries::evidence_daily::{EvidenceRawRow, EvidenceSortKey, EvidenceSurfaceSet};
 
 const CURSOR_PREFIX: &str = "e2.";
@@ -497,16 +497,16 @@ mod tests {
     /// PostgreSQL's shorter statement/lock budgets and avoids a three-second sleep.
     #[tokio::test(start_paused = true)]
     async fn evidence_daily_middleware_deadline_and_cancelled_caller() {
-        use super::{REQUEST_TIMEOUT, admit_export};
+        use super::{admit_export, REQUEST_TIMEOUT};
         use axum::{
-            Router,
-            body::{Body, to_bytes},
+            body::{to_bytes, Body},
             http::Request,
             middleware,
             routing::get,
+            Router,
         };
         use std::sync::Arc;
-        use tokio::sync::{Semaphore, mpsc};
+        use tokio::sync::{mpsc, Semaphore};
         use tower::ServiceExt;
 
         let admission = Arc::new(Semaphore::new(2));

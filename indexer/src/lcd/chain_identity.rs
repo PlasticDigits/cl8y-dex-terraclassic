@@ -1,6 +1,6 @@
 //! #1392: each upstream attests the configured network before returning chain data.
 //! No cached handshake is trusted: URL rotation and recovery require a fresh read.
-use super::{LcdClient, LcdError, bounded_response_text};
+use super::{bounded_response_text, LcdClient, LcdError};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -379,12 +379,10 @@ mod tests {
             )
             .mount(&source)
             .await;
-        assert!(
-            client(&source, "columbus-5")
-                .get::<serde_json::Value>("/data")
-                .await
-                .is_err()
-        );
+        assert!(client(&source, "columbus-5")
+            .get::<serde_json::Value>("/data")
+            .await
+            .is_err());
         assert_eq!(data_hits(&destination).await, 0);
     }
 
@@ -433,11 +431,10 @@ mod contract_boundary_tests {
             .mount(&server)
             .await;
         let lcd = LcdClient::new(vec![server.uri()], 500, 0, "columbus-5");
-        assert!(
-            lcd.query_contract::<serde_json::Value>("terra1same", &json!({"get_config":{}}))
-                .await
-                .is_err()
-        );
+        assert!(lcd
+            .query_contract::<serde_json::Value>("terra1same", &json!({"get_config":{}}))
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -506,12 +503,10 @@ mod block_identity_tests {
         let health = lcd.chain_identity_health().await;
         assert!(!health.endpoints[0].verified);
         assert!(health.endpoints[1].verified);
-        assert!(
-            validate_block_chain(
-                r#"{"block":{"header":{"chain_id":"columbus-5","time":"2020-01-01T00:00:00Z"}}}"#,
-                "columbus-5"
-            )
-            .is_ok()
-        );
+        assert!(validate_block_chain(
+            r#"{"block":{"header":{"chain_id":"columbus-5","time":"2020-01-01T00:00:00Z"}}}"#,
+            "columbus-5"
+        )
+        .is_ok());
     }
 }

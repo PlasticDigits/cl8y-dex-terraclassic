@@ -359,7 +359,7 @@ def parser():
     p.add_argument("--max-gas", type=int, default=20_000_000)
     p.add_argument("--max-total-fee-uluna", type=int, default=DEFAULTS["max_total_fee_uluna"])
     p.add_argument("--rebroadcast-pending", action="store_true")
-    for role in ("cmm", "launcher"):
+    for role in ("cmm", "launcher", "autolp"):
         p.add_argument("--" + role + "-wasm", type=Path)
         p.add_argument("--" + role + "-sha256")
     return p
@@ -380,7 +380,7 @@ def main(argv=None):
                 checksums[fields[1].lstrip("*")] = fields[0].lower()
         artifacts = {role: Artifact.load(role, args.artifacts / SPECS[role][2], checksums.get(SPECS[role][2]))
                      for role in ("factory", "pair", "router", "token")}
-        for role in ("cmm", "launcher"):
+        for role in ("cmm", "launcher", "autolp"):
             path = getattr(args, role + "_wasm")
             if path:
                 artifacts[role] = Artifact.load(role, path, getattr(args, role + "_sha256"))
@@ -420,6 +420,8 @@ def main(argv=None):
                 f"COMMUNITY_TAX_CODE_ID={code}", f"COMMUNITY_TAX_OPTION2_CODE_IDS={code}",
                 f"VITE_COMMUNITY_TAX_CODE_ID={code}", f"ROUTER_ADDRESS={args.router}",
                 f"VITE_ROUTER_ADDRESS={args.router}"]) + "\n"
+            if "autolp" in artifacts:
+                handoff += f"COMMUNITY_AUTOLP_CODE_ID={state['codes']['autolp']}\n"
             handoff_path = Path(args.state_dir, "deployment.env")
             fd = os.open(handoff_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             os.fchmod(fd, 0o600)

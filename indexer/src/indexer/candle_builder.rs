@@ -101,7 +101,14 @@ pub(crate) async fn update_candles_for_swap_conn(
     for &interval in INTERVALS {
         let open_time = truncate_to_interval(timestamp, interval);
         let existing = get_candle_at_conn(conn, pair_id, interval, open_time).await?;
-        let merged = merge_swap_into_candle(existing.as_ref(), usd_price, usd_leg, human, offer_amount, return_amount);
+        let merged = merge_swap_into_candle(
+            existing.as_ref(),
+            usd_price,
+            usd_leg,
+            human,
+            offer_amount,
+            return_amount,
+        );
         candles::upsert_candle(
             conn,
             pair_id,
@@ -211,12 +218,7 @@ fn merge_swap_into_candle(
         Some(stored) if stored == new_leg => {
             let (open, high, low, close) = match (&candle.open, &candle.high, &candle.low) {
                 (Some(o), Some(h), Some(l)) => merge_candle_ohlc(price, o, h, l),
-                _ => (
-                    price.clone(),
-                    price.clone(),
-                    price.clone(),
-                    price.clone(),
-                ),
+                _ => (price.clone(), price.clone(), price.clone(), price.clone()),
             };
             MergedCandle {
                 open: Some(open),

@@ -15,7 +15,15 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
   leaving populated rows is still unknown inventory without completion provenance. Missing supported inputs do.
 - Do not turn omitted-all into current zero. Canonical total is nullable; partial
   numeric totals must disclose lower-bound quality. Zero requires validated current
-  reserves or fresh complete empty-factory enumeration. No smoothing/last-good peg.
+  reserves or fresh complete empty-factory enumeration. No server smoothing/last-good peg. The frontend retains the last qualified
+  complete public total as display-only history, following the explicit 2026-10-06
+  user instruction; do not erase it at TTL expiry or during an outage.
+- Frontend retention preserves original as-of and stores only value, qualified
+  quality and time, scoped to expected chain/factory/indexer. Reject malformed,
+  future or contradictory cached records. New qualified decreases and zero replace
+  older totals; partial never overwrites a complete total. Suppress 24h delta when
+  current quality is unqualified. Explain last verified time only in optional info;
+  never relabel retained data fresh or feed it into server baselines/history.
 - Lock before input reads and use atomic generation publication. Do not separately
   write headline, stamps, history or grains. Reject older publications. Preserve
   original as-of and qualify cached responses; unrelated volume work is no heartbeat.
@@ -28,6 +36,10 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
 - Repair only fixed documented public UTC windows, preserving original source and
   derived rows. Historical provenance absent means unknown, never today's value.
   Legacy values are unqualified, and a skip is not reconstructed chain evidence.
+  A strictly positive preserved legacy amount may be a separate
+  `reported_liquidity_usd` historical estimate only with unknown quality and
+  solely `legacy_unqualified: 1`. Keep canonical totals null; repaired,
+  unreconciled, zero and missing values remain gaps. Estimates never feed deltas.
 - Reserve work is bounded: ≤8 jobs, 4s pair deadline, 2s height probe, ≤1000 orders
   per side, no overlapping cadence cycles. Failed jobs retain old amounts and time.
   Oversized contract bodies must not poison LCD-wide health.

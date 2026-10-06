@@ -16,7 +16,10 @@ fn assert_numeric_timestamp_ms(body: &Value) {
         .as_i64()
         .or_else(|| body["timestamp"].as_u64().map(|u| u as i64))
         .expect("CG orderbook timestamp must be JSON number");
-    assert!(ts > 1_700_000_000_000, "CG timestamp should be Unix ms: {ts}");
+    assert!(
+        ts > 1_700_000_000_000,
+        "CG timestamp should be Unix ms: {ts}"
+    );
 }
 
 fn cmc_orderbook_entry(body: &Value) -> &Value {
@@ -31,7 +34,10 @@ fn assert_numeric_timestamp_s(body: &Value) {
         .as_i64()
         .or_else(|| body["timestamp"].as_u64().map(|u| u as i64))
         .expect("CMC orderbook timestamp must be JSON number");
-    assert!(ts > 1_700_000_000, "CMC timestamp should be Unix seconds: {ts}");
+    assert!(
+        ts > 1_700_000_000,
+        "CMC timestamp should be Unix seconds: {ts}"
+    );
     assert!(
         ts < 1_700_000_000_000,
         "CMC orderbook must not use millisecond magnitude: {ts}"
@@ -114,8 +120,16 @@ async fn cg_orderbook_negative_and_zero_depth_not_500() {
         );
         if resp.status_code().is_success() {
             let body: Value = resp.json();
-            assert_eq!(body["bids"].as_array().unwrap().len(), 1, "depth={depth} bids");
-            assert_eq!(body["asks"].as_array().unwrap().len(), 1, "depth={depth} asks");
+            assert_eq!(
+                body["bids"].as_array().unwrap().len(),
+                1,
+                "depth={depth} bids"
+            );
+            assert_eq!(
+                body["asks"].as_array().unwrap().len(),
+                1,
+                "depth={depth} asks"
+            );
         }
     }
 }
@@ -144,8 +158,16 @@ async fn cmc_orderbook_negative_and_zero_depth_not_500() {
         if resp.status_code().is_success() {
             let body: Value = resp.json();
             let ob = cmc_orderbook_entry(&body);
-            assert_eq!(ob["bids"].as_array().unwrap().len(), 1, "depth={depth} bids");
-            assert_eq!(ob["asks"].as_array().unwrap().len(), 1, "depth={depth} asks");
+            assert_eq!(
+                ob["bids"].as_array().unwrap().len(),
+                1,
+                "depth={depth} bids"
+            );
+            assert_eq!(
+                ob["asks"].as_array().unwrap().len(),
+                1,
+                "depth={depth} asks"
+            );
         }
     }
 }

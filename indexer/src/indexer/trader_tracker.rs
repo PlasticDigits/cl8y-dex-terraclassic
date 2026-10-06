@@ -153,8 +153,8 @@ pub fn parse_fee_discount_registry_events(
             if !FEE_DISCOUNT_REGISTRY_ACTIONS.contains(&attr.value.as_str()) {
                 continue;
             }
-            let Some(contract) = wasm_contract_addr_before(attrs, i)
-                .or_else(|| wasm_contract_addr(attrs))
+            let Some(contract) =
+                wasm_contract_addr_before(attrs, i).or_else(|| wasm_contract_addr(attrs))
             else {
                 continue;
             };
@@ -238,10 +238,7 @@ pub(crate) fn parse_registration_lcd(val: &serde_json::Value) -> (i16, String, b
         return (0, "None".to_string(), false);
     }
 
-    let tier_id = val
-        .get("tier_id")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as i16;
+    let tier_id = val.get("tier_id").and_then(|v| v.as_u64()).unwrap_or(0) as i16;
 
     let tier_name = val
         .get("tier_name")
@@ -322,7 +319,9 @@ fn segment_wallet(attrs: &[Attribute], action_pos: usize) -> Option<String> {
 }
 
 fn segment_tier_id(attrs: &[Attribute], action_pos: usize) -> Option<i16> {
-    let raw = segment_kv_map_after_action(attrs, action_pos).get("tier_id").copied()?;
+    let raw = segment_kv_map_after_action(attrs, action_pos)
+        .get("tier_id")
+        .copied()?;
     let parsed = raw.parse::<i16>().ok()?;
     if parsed < 0 || parsed > 255 {
         return None;
@@ -442,6 +441,9 @@ mod tests {
             (5, "Tier 5".to_string(), true)
         );
         let unreg = serde_json::json!({ "registered": false });
-        assert_eq!(parse_registration_lcd(&unreg), (0, "None".to_string(), false));
+        assert_eq!(
+            parse_registration_lcd(&unreg),
+            (0, "None".to_string(), false)
+        );
     }
 }

@@ -2,7 +2,7 @@ mod common;
 
 use axum_test::TestServer;
 use common::lcd_mock;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use serial_test::serial;
 
 /// Retail GET Policy A (#1280): hop 0 may carry a declared split; hops 1+ are pool-only.

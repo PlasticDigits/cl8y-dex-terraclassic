@@ -95,7 +95,10 @@ fn reject_disallowed(q: &ProtocolTopPairsQuery) -> Result<(), (StatusCode, Strin
 }
 
 /// Trailing 30d USD ÷ current v2 LP USD. Missing / ≤0 / overflow TVL → `None` (never Inf).
-pub fn compute_volume_per_tvl(volume: &BigDecimal, liquidity: Option<&BigDecimal>) -> Option<String> {
+pub fn compute_volume_per_tvl(
+    volume: &BigDecimal,
+    liquidity: Option<&BigDecimal>,
+) -> Option<String> {
     let tvl = liquidity?;
     let zero = BigDecimal::from(0);
     let cap = overflow_cap();

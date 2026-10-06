@@ -94,6 +94,7 @@ export type ProtocolVolumeSeriesPoint = {
   utc_month?: string | null
   volume_usd?: string | null
   liquidity_usd?: string | null
+  reported_liquidity_usd?: string | null
   fees_usd?: string | null
   trade_count?: number
   priced_pair_count?: number
@@ -115,6 +116,32 @@ export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: Protocol
   }
   if (metric === 'fees') return point.fees_usd ?? null
   return point.volume_usd ?? null
+}
+
+/** Preserve original legacy observations as estimates, never qualified totals or baselines. */
+export function historicalLiquidityEstimateUsd(point: ProtocolVolumeSeriesPoint): string | null {
+  const raw = validLiquidityUsd(point.reported_liquidity_usd)
+  if (
+    point.quality !== 'unknown' ||
+    point.liquidity_usd != null ||
+    point.reasons?.legacy_unqualified !== 1 ||
+    Object.keys(point.reasons).length !== 1 ||
+    raw == null ||
+    Number(raw) <= 0
+  )
+    return null
+  return raw
+}
+
+export function plotPointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric): string | null {
+  return pointValueUsd(point, metric) ?? (metric === 'liquidity' ? historicalLiquidityEstimateUsd(point) : null)
+}
+
+export function maxPlotUsd(points: ProtocolVolumeSeriesPoint[], metric: ProtocolUtcMetric): number {
+  return points.reduce((maximum, point) => {
+    const value = Number(plotPointValueUsd(point, metric) ?? 0)
+    return Number.isFinite(value) && value > maximum ? value : maximum
+  }, 0)
 }
 
 export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVolumeGrain): string {

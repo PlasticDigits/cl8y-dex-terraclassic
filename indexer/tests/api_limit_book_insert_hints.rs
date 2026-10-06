@@ -180,7 +180,9 @@ fn tiered_ask_book_above_band_tail_responder(
     }
 }
 
-fn deep_flat_bid_chain(total: u64) -> impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static {
+fn deep_flat_bid_chain(
+    total: u64,
+) -> impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static {
     move |req: &Request| {
         let q = smart_query_from_request(req);
         let data = if q.get("order_book_head").is_some() {
@@ -274,105 +276,108 @@ fn hint_to_predecessor(item: &LimitBookInsertHintItem) -> Option<u64> {
 async fn insert_hints_and_price_window_http() {
     // Single test: scenarios share Postgres seed state (same pattern as api_limit_book_lcd_mock).
     {
-    let mock = mount_smart_mock(tiered_bid_book_responder()).await;
-    let mut cfg = common::test_config();
-    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
-    let pool = common::setup_pool().await;
-    let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
-    let server = TestServer::new(app);
+        let mock = mount_smart_mock(tiered_bid_book_responder()).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
 
-    let url = format!(
-        "/api/v1/pairs/{}/limit-book/insert-hints?side=bid&prices=2.1,1.6,1.5,0.9",
-        seed.pair_address
-    );
-    let resp = server.get(&url).await;
-    resp.assert_status_ok();
-    let body: Value = resp.json();
-    let hints = body["hints"].as_array().unwrap();
-    assert_eq!(hints.len(), 4);
-    assert_eq!(hints[0]["predecessor_order_id"], Value::Null);
-    assert_eq!(hints[0]["reason"], "head");
-    assert!(hints[0]["resolved"].as_bool().unwrap());
-    assert_eq!(hints[1]["predecessor_order_id"], 1);
-    assert_eq!(hints[2]["predecessor_order_id"], 3);
-    assert_eq!(hints[3]["predecessor_order_id"], 4);
+        let url = format!(
+            "/api/v1/pairs/{}/limit-book/insert-hints?side=bid&prices=2.1,1.6,1.5,0.9",
+            seed.pair_address
+        );
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let body: Value = resp.json();
+        let hints = body["hints"].as_array().unwrap();
+        assert_eq!(hints.len(), 4);
+        assert_eq!(hints[0]["predecessor_order_id"], Value::Null);
+        assert_eq!(hints[0]["reason"], "head");
+        assert!(hints[0]["resolved"].as_bool().unwrap());
+        assert_eq!(hints[1]["predecessor_order_id"], 1);
+        assert_eq!(hints[2]["predecessor_order_id"], 3);
+        assert_eq!(hints[3]["predecessor_order_id"], 4);
     }
     {
-    let mock = mount_smart_mock(tiered_ask_book_responder()).await;
-    let mut cfg = common::test_config();
-    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
-    let pool = common::setup_pool().await;
-    let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
-    let server = TestServer::new(app);
+        let mock = mount_smart_mock(tiered_ask_book_responder()).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
 
-    let url = format!(
-        "/api/v1/pairs/{}/limit-book/insert-hints?side=ask&prices=0.9,1.1,1.2,1.6",
-        seed.pair_address
-    );
-    let resp = server.get(&url).await;
-    resp.assert_status_ok();
-    let body: Value = resp.json();
-    let hints = body["hints"].as_array().unwrap();
-    assert_eq!(hints[0]["predecessor_order_id"], Value::Null);
-    assert_eq!(hints[0]["reason"], "head");
-    assert_eq!(hints[1]["predecessor_order_id"], 10);
-    assert_eq!(hints[2]["predecessor_order_id"], 12);
-    assert_eq!(hints[3]["predecessor_order_id"], 13);
+        let url = format!(
+            "/api/v1/pairs/{}/limit-book/insert-hints?side=ask&prices=0.9,1.1,1.2,1.6",
+            seed.pair_address
+        );
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let body: Value = resp.json();
+        let hints = body["hints"].as_array().unwrap();
+        assert_eq!(hints[0]["predecessor_order_id"], Value::Null);
+        assert_eq!(hints[0]["reason"], "head");
+        assert_eq!(hints[1]["predecessor_order_id"], 10);
+        assert_eq!(hints[2]["predecessor_order_id"], 12);
+        assert_eq!(hints[3]["predecessor_order_id"], 13);
     }
     {
-    let mock = mount_smart_mock(tiered_bid_book_responder()).await;
-    let mut cfg = common::test_config();
-    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
-    let pool = common::setup_pool().await;
-    let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
-    let server = TestServer::new(app);
-    let prices = (0..101).map(|i| i.to_string()).collect::<Vec<_>>().join(",");
-    let url = format!(
-        "/api/v1/pairs/{}/limit-book/insert-hints?side=bid&prices={prices}",
-        seed.pair_address
-    );
-    let resp = server.get(&url).await;
-    assert_eq!(resp.status_code(), 400);
+        let mock = mount_smart_mock(tiered_bid_book_responder()).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
+        let prices = (0..101)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        let url = format!(
+            "/api/v1/pairs/{}/limit-book/insert-hints?side=bid&prices={prices}",
+            seed.pair_address
+        );
+        let resp = server.get(&url).await;
+        assert_eq!(resp.status_code(), 400);
     }
     {
-    let mock = mount_smart_mock(tiered_bid_book_responder()).await;
-    let mut cfg = common::test_config();
-    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
-    let pool = common::setup_pool().await;
-    let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
-    let server = TestServer::new(app);
+        let mock = mount_smart_mock(tiered_bid_book_responder()).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
 
-    let url = format!(
-        "/api/v1/pairs/{}/limit-book?side=bid&price_from=1.5&price_to=1.0&limit=10",
-        seed.pair_address
-    );
-    let resp = server.get(&url).await;
-    resp.assert_status_ok();
-    let body: Value = resp.json();
-    let orders = body["orders"].as_array().unwrap();
-    assert_eq!(orders.len(), 3);
-    assert_eq!(orders[0]["order_id"], 2);
-    assert_eq!(orders[2]["order_id"], 4);
-    assert!(!body["has_more"].as_bool().unwrap());
+        let url = format!(
+            "/api/v1/pairs/{}/limit-book?side=bid&price_from=1.5&price_to=1.0&limit=10",
+            seed.pair_address
+        );
+        let resp = server.get(&url).await;
+        resp.assert_status_ok();
+        let body: Value = resp.json();
+        let orders = body["orders"].as_array().unwrap();
+        assert_eq!(orders.len(), 3);
+        assert_eq!(orders[0]["order_id"], 2);
+        assert_eq!(orders[2]["order_id"], 4);
+        assert!(!body["has_more"].as_bool().unwrap());
     }
     {
-    let mock = mount_smart_mock(tiered_bid_book_responder()).await;
-    let mut cfg = common::test_config();
-    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
-    let pool = common::setup_pool().await;
-    let seed = common::seed_db(&pool).await;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
-    let server = TestServer::new(app);
-    let url = format!(
-        "/api/v1/pairs/{}/limit-book?side=bid&price_from=1.5",
-        seed.pair_address
-    );
-    let resp = server.get(&url).await;
-    assert_eq!(resp.status_code(), 400);
+        let mock = mount_smart_mock(tiered_bid_book_responder()).await;
+        let mut cfg = common::test_config();
+        cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let server = TestServer::new(app);
+        let url = format!(
+            "/api/v1/pairs/{}/limit-book?side=bid&price_from=1.5",
+            seed.pair_address
+        );
+        let resp = server.get(&url).await;
+        assert_eq!(resp.status_code(), 400);
     }
 }
 
@@ -641,14 +646,9 @@ async fn insert_hints_budget_exhausted_pagination_gap() {
         cfg.lcd_cooldown_ms,
         "columbus-5",
     );
-    let result = resolve_limit_insert_hints(
-        &lcd,
-        "terra1pair",
-        "bid",
-        &["0.5".to_string()],
-    )
-    .await
-    .unwrap();
+    let result = resolve_limit_insert_hints(&lcd, "terra1pair", "bid", &["0.5".to_string()])
+        .await
+        .unwrap();
     assert!(result.budget_exhausted);
     let h = &result.hints[0];
     assert!(!h.resolved);

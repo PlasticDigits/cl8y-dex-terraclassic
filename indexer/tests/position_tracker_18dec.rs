@@ -18,12 +18,7 @@ fn raw_80_tokens_18dec() -> BigDecimal {
     BigDecimal::from_str("80000000000000000000").unwrap()
 }
 
-async fn insert_cw20(
-    pool: &sqlx::PgPool,
-    addr: &str,
-    symbol: &str,
-    decimals: i16,
-) -> i32 {
+async fn insert_cw20(pool: &sqlx::PgPool, addr: &str, symbol: &str, decimals: i16) -> i32 {
     sqlx::query_scalar(
         "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
          VALUES ($1, true, $2, $2, $3)
@@ -165,10 +160,7 @@ async fn cl8y_custc_100_base_cost_persists_and_counts() {
     .fetch_one(&pool)
     .await
     .expect("cost");
-    assert_eq!(
-        BigDecimal::from_str(&cost).unwrap(),
-        raw_100_tokens_18dec()
-    );
+    assert_eq!(BigDecimal::from_str(&cost).unwrap(), raw_100_tokens_18dec());
     assert_eq!(position_trade_count(&pool, trader, pair_id).await, Some(1));
 }
 
@@ -251,10 +243,7 @@ async fn mixed_decimal_pairs_trade_count_matches_every_swap() {
         "280000000000000000000"
     );
     assert!(
-        !p618["net_position_quote"]
-            .as_str()
-            .unwrap()
-            .contains('e'),
+        !p618["net_position_quote"].as_str().unwrap().contains('e'),
         "plain integer string, not scientific notation"
     );
 

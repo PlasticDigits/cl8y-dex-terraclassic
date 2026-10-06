@@ -210,7 +210,12 @@ fn ohlc_strings(
     low: &BigDecimal,
     close: &BigDecimal,
 ) -> (String, String, String, String) {
-    (bd_string(open), bd_string(high), bd_string(low), bd_string(close))
+    (
+        bd_string(open),
+        bd_string(high),
+        bd_string(low),
+        bd_string(close),
+    )
 }
 
 pub fn project_candle_api(row: &CandleRow) -> CandleApiFields {

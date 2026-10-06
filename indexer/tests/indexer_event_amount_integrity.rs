@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use cl8y_dex_indexer::db::queries::state;
 use cl8y_dex_indexer::indexer::{block_indexer, oracle, parser::process_block_txs};
 use cl8y_dex_indexer::lcd::{LcdClient, TxResponse};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use serial_test::serial;
 use sqlx::PgPool;
 use wiremock::matchers::{method, path, path_regex, query_param};

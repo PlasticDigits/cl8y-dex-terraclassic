@@ -1,0 +1,10 @@
+[
+  {
+    "filename": "bridge_debt.wasm",
+    "sha256": "e09e240412c629c35cea72f262381a5f5fda51c50d5557c9ad30c40ef2fc96b9"
+  },
+  {
+    "filename": "bridge_debt_token.wasm",
+    "sha256": "cf7e121f0c0c89280b1d7ed0db113579b4634551f7be56ae4075f0b001d01b6a"
+  }
+]

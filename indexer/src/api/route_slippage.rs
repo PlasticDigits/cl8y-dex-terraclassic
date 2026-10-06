@@ -58,7 +58,11 @@ fn price_cache_set(key: &str, price: f64) {
 
 /// Symmetric slippage vs a reference output: `100 × (1 − min(actual, expected) / max(actual, expected))`.
 pub fn symmetric_slippage_percent(actual_out: f64, expected_out: f64) -> f64 {
-    if !actual_out.is_finite() || !expected_out.is_finite() || actual_out <= 0.0 || expected_out <= 0.0 {
+    if !actual_out.is_finite()
+        || !expected_out.is_finite()
+        || actual_out <= 0.0
+        || expected_out <= 0.0
+    {
         return 0.0;
     }
     let (lo, hi) = if actual_out < expected_out {

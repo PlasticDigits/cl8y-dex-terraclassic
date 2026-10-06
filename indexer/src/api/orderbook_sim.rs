@@ -169,10 +169,7 @@ fn simulate_bid_level(
     if net_quote == 0 {
         return None;
     }
-    Some([
-        format_price(net_quote, dx),
-        format_amount(dx),
-    ])
+    Some([format_price(net_quote, dx), format_amount(dx)])
 }
 
 fn simulate_ask_level(
@@ -196,10 +193,7 @@ fn simulate_ask_level(
     if net_base == 0 {
         return None;
     }
-    Some([
-        format_price(quote_cost, net_base),
-        format_amount(dx),
-    ])
+    Some([format_price(quote_cost, net_base), format_amount(dx)])
 }
 
 async fn fee_bps_from_db(pool: &PgPool, pair_addr: &str) -> Option<u16> {
@@ -215,10 +209,7 @@ async fn fee_bps_from_db(pool: &PgPool, pair_addr: &str) -> Option<u16> {
 
 async fn resolve_fee_bps_lcd(lcd: &LcdClient, pair_addr: &str) -> Option<u16> {
     match lcd
-        .query_contract::<FeeConfigResponse>(
-            pair_addr,
-            &serde_json::json!({"get_fee_config": {}}),
-        )
+        .query_contract::<FeeConfigResponse>(pair_addr, &serde_json::json!({"get_fee_config": {}}))
         .await
     {
         Ok(resp) => Some(resp.fee_config.fee_bps),
@@ -379,8 +370,7 @@ pub async fn simulate_orderbook_cached(
         }
     }
 
-    let (data, book_suffix) =
-        build_orderbook_data(pool, lcd, pair_addr, requested_depth).await?;
+    let (data, book_suffix) = build_orderbook_data(pool, lcd, pair_addr, requested_depth).await?;
     let key = format!("{prefix}{book_suffix}");
     let mut guard = cache.inner.write().await;
     guard.insert(key, (data.clone(), now + ORDERBOOK_CACHE_TTL));
@@ -446,34 +436,18 @@ mod tests {
     #[test]
     fn bid_prices_decrease_with_size() {
         let book = walk_amm_book(10_000_000_000, 5_000_000_000_000_000, 20, 30);
-        let prices: Vec<f64> = book
-            .bids
-            .iter()
-            .map(|l| l[0].parse().unwrap())
-            .collect();
+        let prices: Vec<f64> = book.bids.iter().map(|l| l[0].parse().unwrap()).collect();
         for w in prices.windows(2) {
-            assert!(
-                w[0] > w[1],
-                "bid prices should decrease: {:?}",
-                prices
-            );
+            assert!(w[0] > w[1], "bid prices should decrease: {:?}", prices);
         }
     }
 
     #[test]
     fn ask_prices_increase_with_size() {
         let book = walk_amm_book(10_000_000_000, 5_000_000_000_000_000, 20, 30);
-        let prices: Vec<f64> = book
-            .asks
-            .iter()
-            .map(|l| l[0].parse().unwrap())
-            .collect();
+        let prices: Vec<f64> = book.asks.iter().map(|l| l[0].parse().unwrap()).collect();
         for w in prices.windows(2) {
-            assert!(
-                w[0] < w[1],
-                "ask prices should increase: {:?}",
-                prices
-            );
+            assert!(w[0] < w[1], "ask prices should increase: {:?}", prices);
         }
     }
 

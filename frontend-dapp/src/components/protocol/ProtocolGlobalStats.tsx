@@ -1,6 +1,11 @@
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useState } from 'react'
-import { overviewLiquidityDisplay } from '@/utils/protocolLiquidityQuality'
+import {
+  overviewLiquidityDisplay,
+  readLiquiditySnapshot,
+  retainQualifiedLiquidity,
+  writeLiquiditySnapshot,
+} from '@/utils/protocolLiquidityQuality'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, type StatDelta } from '@/components/ui'
 import { formatProtocolCount, formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -20,6 +25,7 @@ import {
 } from '@/utils/trailingWindowCopy'
 import type { IndexerOverview } from '@/types'
 import { ProtocolVolumeDailyChart } from './ProtocolVolumeDailyChart'
+import { ProtocolDetails } from './ProtocolDetails'
 
 interface ProtocolGlobalStatsProps {
   overviewQuery: UseQueryResult<IndexerOverview>
@@ -98,48 +104,67 @@ const STATS: Array<{
   },
 ]
 
-export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
-  useNumberDisplayMode()
-  const overview = overviewQuery.data
-  const loading = overviewQuery.isLoading
+function ProtocolLiquidityStat({
+  overview,
+  loading,
+  failed,
+}: {
+  overview: IndexerOverview | undefined
+  loading: boolean
+  failed: boolean
+}) {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [])
-  const liquidity = overviewLiquidityDisplay(overview, now)
+  const [retained, setRetained] = useState(() => readLiquiditySnapshot())
+  const latest = failed ? retained : retainQualifiedLiquidity(retained, overview, now)
+  useEffect(() => {
+    if (latest !== retained && latest != null) {
+      setRetained(latest)
+      writeLiquiditySnapshot(latest)
+    }
+  }, [latest, retained])
+  const liquidity = overviewLiquidityDisplay(failed ? undefined : overview, now, latest)
+  const delta = formatProtocolPct(liquidity.comparable ? overview?.liquidity_change_24h_pct : null)
+  return (
+    <StatBox
+      variant="flat"
+      label="Total liquidity"
+      labelAccessory={<ProtocolDetails detail={liquidity.hint} />}
+      value={liquidity.value}
+      valueAriaLabel={
+        liquidity.value === '—'
+          ? 'Total liquidity unavailable'
+          : `Total liquidity ${liquidity.quality === 'partial' ? 'lower bound ' : ''}${liquidity.value}`
+      }
+      loading={loading && overview == null && latest == null}
+      deltas={
+        delta === '—'
+          ? undefined
+          : [{ value: delta, label: '24h', testId: 'protocol-stat-liquidity-24h', title: TRAILING_LIQUIDITY_24H_TITLE }]
+      }
+    />
+  )
+}
+
+export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
+  useNumberDisplayMode()
+  const overview = overviewQuery.data
+  const loading = overviewQuery.isLoading && overview == null
 
   return (
     <div className="shell-panel" data-testid="protocol-global-stats">
       <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
         Global stats
       </h2>
-      <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        USD volume and pool TVL use the same USTC / LUNC / hub reference catalog. Liquidity is AMM reserves only (not
-        book depth). 24h liquidity is vs indexer snapshots, not on-chain genesis. TVL moves with LP, swaps, and
-        reference prices.
-      </p>
       {overviewQuery.isError && (
         <RetryError message="Failed to load global stats" onRetry={() => void overviewQuery.refetch()} />
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         <div data-testid="protocol-stat-liquidity" className="min-w-0 overflow-hidden">
-          <StatBox
-            variant="flat"
-            label="Total liquidity"
-            value={liquidity.value}
-            valueAriaLabel={`Total liquidity ${liquidity.value}. ${liquidity.hint}`}
-            loading={loading}
-            hint={liquidity.hint}
-            deltas={[
-              {
-                value: formatProtocolPct(liquidity.comparable ? overview?.liquidity_change_24h_pct : null),
-                label: '24h',
-                testId: 'protocol-stat-liquidity-24h',
-                title: TRAILING_LIQUIDITY_24H_TITLE,
-              },
-            ]}
-          />
+          <ProtocolLiquidityStat overview={overview} loading={loading} failed={overviewQuery.isError} />
         </div>
         {STATS.map((stat) => (
           <div key={stat.testId} data-testid={stat.testId} className="min-w-0 overflow-hidden">

@@ -74,12 +74,14 @@ async function assertChipGroupedWithHeadline(page: Page, tile: Locator, chip: Lo
 async function assertProtocolDeltaGeometry(page: Page) {
   await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible({ timeout: 15_000 })
   const liq = page.getByTestId('protocol-stat-liquidity')
-  await assertChipGroupedWithHeadline(
-    page,
-    liq,
-    liq.getByTestId('protocol-stat-liquidity-24h'),
-    page.getByTestId('protocol-stat-volume-24h')
-  )
+  const liquidityDelta = liq.getByTestId('protocol-stat-liquidity-24h')
+  if (await liquidityDelta.count()) {
+    await expect(liquidityDelta).toContainText('%')
+    await expect(liquidityDelta).not.toContainText('—')
+    await assertChipGroupedWithHeadline(page, liq, liquidityDelta, page.getByTestId('protocol-stat-volume-24h'))
+  } else {
+    await expect(liq).not.toContainText('—24h')
+  }
   await expect(liq.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
   await expect(liq).not.toContainText('30d')
 
@@ -204,7 +206,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
       await expect(page.getByTestId('protocol-stat-fees-24h-chg')).toBeVisible()
     }
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
+    await expect(page.getByTestId('protocol-stat-liquidity')).not.toContainText('—24h')
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     await expect(page.getByTestId('protocol-stat-volume-24h')).toBeVisible()
     const dailyChart = page.getByTestId('protocol-volume-daily-chart')
@@ -226,6 +228,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByRole('heading', { name: /^USTC \/ USD$/ })).toBeVisible()
     await expect(page.getByRole('heading', { name: /^cUSTC \/ USD$/ })).toHaveCount(0)
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()
+    await page.getByText('Contracts', { exact: true }).click()
 
     let factory: string | null = null
     try {
@@ -289,7 +292,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible()
-    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
+    await expect(page.getByTestId('protocol-stat-liquidity')).not.toContainText('—24h')
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     const phoneFees = page.getByTestId('protocol-fee-stats')
     if (await phoneFees.count()) {
@@ -302,6 +305,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByTestId('protocol-dex-hub-lunc')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()
+    await page.getByText('Contracts', { exact: true }).click()
   })
 })
 
@@ -346,7 +350,7 @@ test.describe('Protocol leftovers (GitLab #677)', () => {
     await expect(chart).toContainText(/UTC hour/)
     await assertVolumeXAxisDensity(page, 'hourly')
     await page.getByTestId('protocol-volume-grain-monthly').click()
-    await expect(chart).toContainText(/UTC calendar month/)
+    await expect(page.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     await assertVolumeXAxisDensity(page, 'monthly')
   })
 })
@@ -370,7 +374,7 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
     await expect(page.getByTestId('protocol-volume-grain-daily')).toBeVisible()
     await expect(page.getByTestId('protocol-volume-grain-monthly')).toBeVisible()
     await page.getByTestId('protocol-utc-metric-liquidity').click()
-    await expect(chart).toContainText(/UTC calendar/)
+    await expect(chart.getByRole('tab', { selected: true })).toHaveCount(2)
     const yAxis = page.getByTestId('protocol-volume-chart-yaxis')
     if (await yAxis.count()) {
       await expect(yAxis).toContainText('$')
@@ -381,7 +385,7 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
       }
     }
     await page.getByTestId('protocol-utc-metric-fees').click()
-    await expect(chart).toContainText(/UTC calendar/)
+    await expect(chart.getByRole('tab', { selected: true })).toHaveCount(2)
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     const fees = page.getByTestId('protocol-fee-stats')
     const feeCount = await fees.count()
@@ -403,7 +407,7 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
     await page.goto('/protocol')
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('protocol-stat-liquidity')).not.toContainText('—24h')
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     const chart = page.getByTestId('protocol-volume-daily-chart')
     if (!(await chart.count())) return
@@ -433,7 +437,7 @@ test.describe('Protocol Monthly phone axis (GitLab #703)', () => {
     if (!(await chart.count())) return
     await expect(chart).toBeVisible()
     await page.getByTestId('protocol-volume-grain-monthly').click()
-    await expect(chart).toContainText(/UTC calendar month/)
+    await expect(page.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     const plot = page.getByTestId('protocol-volume-daily-bars')
     if (await plot.count()) {
       await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible({
@@ -457,14 +461,14 @@ test.describe('Protocol Monthly phone axis (GitLab #703)', () => {
       }
       const volBars = await page.locator('[data-testid^="protocol-volume-bar-"]').count()
       await page.getByTestId('protocol-utc-metric-liquidity').click()
-      await expect(chart).toContainText(/UTC calendar/)
+      await expect(chart.getByRole('tab', { selected: true })).toHaveCount(2)
       if (await page.getByTestId('protocol-volume-daily-bars').count()) {
         await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible()
         expect(await page.locator('[data-testid^="protocol-volume-bar-"]').count()).toBe(volBars)
         await assertMonthlyXaxisNoOverlap(page, 12)
       }
       await page.getByTestId('protocol-utc-metric-fees').click()
-      await expect(chart).toContainText(/UTC calendar/)
+      await expect(chart.getByRole('tab', { selected: true })).toHaveCount(2)
       if (await page.getByTestId('protocol-volume-daily-bars').count()) {
         await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible()
         await assertMonthlyXaxisNoOverlap(page, 12)
@@ -480,7 +484,7 @@ test.describe('Protocol Monthly phone axis (GitLab #703)', () => {
     const chart = page.getByTestId('protocol-volume-daily-chart')
     if (!(await chart.count())) return
     await page.getByTestId('protocol-volume-grain-monthly').click()
-    await expect(chart).toContainText(/UTC calendar month/)
+    await expect(page.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     if (await page.getByTestId('protocol-volume-daily-bars').count()) {
       await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible({
         timeout: 15_000,

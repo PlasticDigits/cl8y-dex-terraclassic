@@ -108,15 +108,16 @@ async fn oriented_two_sided_swaps_high_low_are_not_reciprocals() {
         .expect("insert oriented swap");
     }
 
-    let stats = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(
-        &pool, pair_id,
-    )
-    .await
-    .expect("24h stats");
+    let stats = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(&pool, pair_id)
+        .await
+        .expect("24h stats");
 
     let high = stats.high.as_ref().expect("high");
     let low = stats.low.as_ref().expect("low");
-    assert_eq!(high, low, "high and low must match when both trades share quote-per-base price");
+    assert_eq!(
+        high, low,
+        "high and low must match when both trades share quote-per-base price"
+    );
     assert_eq!(high, &forward.price);
     assert!(
         low > &BigDecimal::from(1),
@@ -193,11 +194,10 @@ async fn oriented_volume_aggregation_sums_base_and_quote_legs() {
     .await
     .expect("rev swap");
 
-    let stats = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(
-        &pool, seed.pair_id,
-    )
-    .await
-    .expect("stats");
+    let stats =
+        cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(&pool, seed.pair_id)
+            .await
+            .expect("stats");
 
     // seed_db inserts five base->quote swaps of 1000 base each, plus two more above.
     assert_eq!(stats.volume_base, BigDecimal::from(5200));

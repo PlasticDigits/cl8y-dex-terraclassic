@@ -68,14 +68,14 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::Router;
-use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
+use axum::Router;
 use serde::Serialize;
 use sqlx::PgPool;
-use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
+use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -142,11 +142,11 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use compliance::{MAX_BLACKLIST_PAIRS, MAX_BLACKLIST_TOKENS};
 #[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
-pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
+pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use gt::{GT_EVENT_ROW_CAP_MSG, MAX_EVENT_BLOCK_SPAN, MAX_GT_EVENT_ROWS};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
-pub use route_solver::{DISCOUNT_BPS_CACHE_TTL, reset_discount_bps_cache};
+pub use route_solver::{reset_discount_bps_cache, DISCOUNT_BPS_CACHE_TTL};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
@@ -624,7 +624,9 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let evidence_router = Router::new()
         .route("/api/v1/evidence/daily", get(evidence::get_evidence_daily))
         .route_layer(axum::middleware::from_fn_with_state(
-            std::sync::Arc::new(tokio::sync::Semaphore::new(evidence::MAX_CONCURRENT_EXPORTS)),
+            std::sync::Arc::new(tokio::sync::Semaphore::new(
+                evidence::MAX_CONCURRENT_EXPORTS,
+            )),
             evidence::admit_export,
         ));
 
@@ -787,7 +789,8 @@ async fn require_quote_chain(
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             "No endpoint attests the expected chain",
-        ).into_response();
+        )
+            .into_response();
     }
     next.run(request).await
 }
@@ -1019,13 +1022,11 @@ mod openapi_pack_tests {
     fn openapi_route_exact_output_documents_target_response_and_failures() {
         let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
         let get = &value["paths"]["/api/v1/route/solve"]["get"];
-        assert!(
-            get["parameters"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|p| p["name"] == "amount_out")
-        );
+        assert!(get["parameters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["name"] == "amount_out"));
         for status in ["422", "429", "503", "504"] {
             assert!(!get["responses"][status].is_null());
         }

@@ -487,7 +487,8 @@ pub fn candle_usd_subject(
     let quote_kind = catalog_kind_for_leg(quote, prints);
     match (base_kind, quote_kind) {
         (_, Some(qk)) => {
-            let Some(quote_usd) = usd_per_human_quote(qk, prints.ustc_usd, prints.lunc_usd, prints.hub)
+            let Some(quote_usd) =
+                usd_per_human_quote(qk, prints.ustc_usd, prints.lunc_usd, prints.hub)
             else {
                 return CandleUsdSubject::Skip;
             };
@@ -500,7 +501,8 @@ pub fn candle_usd_subject(
             }
         }
         (Some(bk), None) => {
-            let Some(base_usd) = usd_per_human_quote(bk, prints.ustc_usd, prints.lunc_usd, prints.hub)
+            let Some(base_usd) =
+                usd_per_human_quote(bk, prints.ustc_usd, prints.lunc_usd, prints.hub)
             else {
                 return CandleUsdSubject::Skip;
             };
@@ -1278,10 +1280,14 @@ mod tests {
             } => same_usd(&usd, "1"),
             other => panic!("expected asset_1 USD, got {other:?}"),
         }
-        assert!(
-            price_usd_for_human_quote_per_base(&alpha, &bd("0.5"), None, None, Some(prints.hub.unwrap()))
-                .is_none()
-        );
+        assert!(price_usd_for_human_quote_per_base(
+            &alpha,
+            &bd("0.5"),
+            None,
+            None,
+            Some(prints.hub.unwrap())
+        )
+        .is_none());
     }
 
     #[test]

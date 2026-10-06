@@ -1,0 +1,150 @@
+{
+  "scope": "dedicated LocalTerra synthetic LP; no production wallets or DB",
+  "container": "cl8y-dex-ops1385-liquidity",
+  "factory": "terra1w27ekqvvtzfanfxnkw4jx2f8gdfeqwd3drkee3e64xat6phwjg0swvcfsx",
+  "pair": "terra1vhjnzk9ly03dugffvzfcwgry4dgc8x0sv0nqqtfxj3ajn7rn5ghqfw8pdf",
+  "lp_token": "terra1dk9c86h7gmvuaq89cv72cjhq4c97r2wgl5gyfruv6shquwspalgqs8vwcg",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 7,
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 8,
+      "sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+    },
+    "cw20_mintable": {
+      "code_id": 9,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "tokens": {
+    "CLUNC": "terra1plr28ztj64a47a32lw7tdae8vluzm2lm7nqk364r4ws50rgwyzgsu4rsm8",
+    "CUSTC": "terra1gurgpv8savnfw66lckwzn4zk7fp394lpe667dhu7aw48u40lj6jsln7pjn"
+  },
+  "receipts": [
+    {
+      "txhash": "C6112BCBD8AE0AEA045BE4EE001799F0C2622830F7A1206B6238870CC97AEDD0",
+      "height": "857",
+      "code": 0,
+      "gas_used": "2786410"
+    },
+    {
+      "txhash": "B2F485134C1366E4B2E9CC9E767FD185C698BA5DCFC1D7DF0DA314A17A500CFB",
+      "height": "860",
+      "code": 0,
+      "gas_used": "4965403"
+    },
+    {
+      "txhash": "73B2FEC05D727ACEC062B53EBEB23568B0CBEEF1B52B33FC5443A10E2EAAC478",
+      "height": "867",
+      "code": 0,
+      "gas_used": "2219038"
+    },
+    {
+      "txhash": "E9270D24B766FA2B7EB297DBD1C361EA36D2DF9052CEABE5965FE22721984310",
+      "height": "874",
+      "code": 0,
+      "gas_used": "179885"
+    },
+    {
+      "txhash": "75D5276999F279DEF0AC7642B662E36DF140C8764A78EFACBAE430D2D13F7E0E",
+      "height": "881",
+      "code": 0,
+      "gas_used": "167502"
+    },
+    {
+      "txhash": "D8ACC774806C670987E2E57E91374FC8DA58ACA757D223507378214A8E37889E",
+      "height": "884",
+      "code": 0,
+      "gas_used": "198155"
+    },
+    {
+      "txhash": "15C9FF4C3CF2886AD1800ADAC34C06F66DAEF7B6140DE81AB73054E5E1BA8FD5",
+      "height": "886",
+      "code": 0,
+      "gas_used": "185010"
+    },
+    {
+      "txhash": "84F3CBF222AB06D8B424FC8FB48957FEA8EA462EE602962274A95545BD7776AA",
+      "height": "889",
+      "code": 0,
+      "gas_used": "194197"
+    },
+    {
+      "txhash": "B159BC12EBEA4B36391A203A65A0DAA1FA1C7A961881ADAC81D350D97667C385",
+      "height": "891",
+      "code": 0,
+      "gas_used": "755127"
+    },
+    {
+      "txhash": "90580C685A37C48D373C848AD1267576774AFA710EE8E96EEC091EBE449B0D6C",
+      "height": "899",
+      "code": 0,
+      "gas_used": "144459"
+    },
+    {
+      "txhash": "BBAAE931B4B8352CCCD389EE0134D0C5381479A278EDFA002E2C33E0AB38F858",
+      "height": "901",
+      "code": 0,
+      "gas_used": "144459"
+    },
+    {
+      "txhash": "A2EB9D653F903BA7492B2D72C20ADCED1D2D2F6135AF2B960FD449DF1DF045D8",
+      "height": "903",
+      "code": 0,
+      "gas_used": "928837"
+    }
+  ],
+  "before": {
+    "assets": [
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1plr28ztj64a47a32lw7tdae8vluzm2lm7nqk364r4ws50rgwyzgsu4rsm8"
+          }
+        },
+        "amount": "1000000000"
+      },
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1gurgpv8savnfw66lckwzn4zk7fp394lpe667dhu7aw48u40lj6jsln7pjn"
+          }
+        },
+        "amount": "1000000000"
+      }
+    ],
+    "total_share": "1000000000"
+  },
+  "withdrawal_amount": "899999100",
+  "withdrawal_receipts": [
+    {
+      "txhash": "2CCB779BF4EA28A03FE8508486D487E8C41F21E5792C0864670345B2098632D2",
+      "height": "1135",
+      "code": 0,
+      "gas_used": "681803"
+    }
+  ],
+  "after_withdrawal": {
+    "assets": [
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1plr28ztj64a47a32lw7tdae8vluzm2lm7nqk364r4ws50rgwyzgsu4rsm8"
+          }
+        },
+        "amount": "100000900"
+      },
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1gurgpv8savnfw66lckwzn4zk7fp394lpe667dhu7aw48u40lj6jsln7pjn"
+          }
+        },
+        "amount": "100000900"
+      }
+    ],
+    "total_share": "100000900"
+  }
+}

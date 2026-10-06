@@ -96,22 +96,8 @@ mod tests {
     #[test]
     fn mixed_decimals_6_vs_18_scales_ustr_print() {
         // UST1 (6) → USTR (18): raw 9297047794755092035 / 116624
-        let forward = orient_swap_leg(
-            1,
-            1,
-            &bd("116624"),
-            &bd("9297047794755092035"),
-            6,
-            18,
-        );
-        let reverse = orient_swap_leg(
-            1,
-            2,
-            &bd("9297047794755092035"),
-            &bd("116624"),
-            6,
-            18,
-        );
+        let forward = orient_swap_leg(1, 1, &bd("116624"), &bd("9297047794755092035"), 6, 18);
+        let reverse = orient_swap_leg(1, 2, &bd("9297047794755092035"), &bd("116624"), 6, 18);
         assert_eq!(forward.price, reverse.price);
         let human = forward.price.to_string().parse::<f64>().unwrap();
         assert!(

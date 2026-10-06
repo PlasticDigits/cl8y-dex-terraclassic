@@ -1,0 +1,10 @@
+{
+  "action": "backup",
+  "result": {
+    "database": "postgres",
+    "bytes": 52422246,
+    "sha256": "9a0ad0127ad847807d0879bb5828d0432d1642610f1b47307240b398ae8b6150",
+    "observed_at_utc": "2026-10-06T11:38:04.690884+00:00",
+    "structurally_valid": true
+  }
+}

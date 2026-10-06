@@ -18,7 +18,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Top pairs (30d)** (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+cLUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. || **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% **and** fee totals come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
+| **P550-5** | 7d/30d/active-pair/unique-trader and fee totals come from the `global_stats_24h` rollup + 60s cache. Liquidity / Δ% independently read that single materialized row on every response so its shorter observation TTL cannot expire behind the stats cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
 | **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
@@ -259,3 +259,13 @@ quality/as-of/generation must follow [Q1380](../docs/indexer-invariants.md#proto
 Do not render partial or unknown history as a complete liquidity point, or restore
 an unqualified delta. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
 and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verify-issue-1380`.
+
+
+### Last verified liquidity display (2026-10-06 user direction)
+
+Retain the last qualified complete public amount through TTL expiry and temporary
+outages, including route remounts/reloads using validated storage scoped to chain,
+factory and indexer. Keep original observation time in optional info, suppress the
+24h delta when current data is unqualified, and replace retained totals with new
+qualified decreases or zero. Partial totals never overwrite complete totals.
+Server canonical quality and historical baseline rules remain unchanged.

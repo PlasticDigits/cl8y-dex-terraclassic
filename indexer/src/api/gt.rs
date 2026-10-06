@@ -28,9 +28,9 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, state};
+use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 pub use crate::indexer::listing_exclude::is_excluded_cw20;
 use crate::indexer::listing_exclude::listing_excluded_cw20_binds;
-use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 
 pub const DEX_KEY: &str = "cl8y";
 pub const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;

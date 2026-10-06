@@ -2590,15 +2590,32 @@ Route-funded v1 static gas fallback uses **600,000 + 1,700,000 × hop count** (2
 [#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380) makes
 `IndexerOverview.total_liquidity_usd` nullable and adds independent quality/as-of,
 coverage identity, generation, bounded reasons and max-age fields. The headline
-shows an em dash with an explanation for unknown/unavailable/stale, `≥` for a
-partial lower bound, and true zero only for qualified current observations.
+retains the last successfully qualified complete total through expiry, partial or
+unavailable responses, background refetches and request failures. Only its public
+value, original as-of and qualified quality are stored locally, scoped to expected
+chain, factory and indexer. No overview/wallet data is saved. A new qualified total,
+including a genuine decrease or zero, replaces the previous total. Partial never
+overwrites a retained complete total; without a complete total, `≥` may show a
+current partial lower bound and unknown/unavailable remain an em dash.
 Only fresh/verified-empty current quality can show the existing 24h delta;
 backend baseline coverage must also match. Legacy positive values are labeled
-coverage unknown and legacy zero cannot prove emptiness. Liquidity chart
-partial/unknown samples are accessible explained gaps; verified known zero is
-preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
-focus and mobile tap expose quality/as-of. Cached fresh data expires using its
-original liquidity time, independently of volume polling.
+coverage unknown and legacy zero cannot prove emptiness. The chart may draw a
+strictly positive preserved `reported_liquidity_usd` separately as a subdued
+“Historical estimate” only for unknown rows whose sole reason is
+`legacy_unqualified: 1`. Canonical `liquidity_usd` remains null; repaired or
+unreconciled holes and zero/missing legacy amounts remain gaps. Estimates never
+supply a current headline or comparable delta; verified known zero is preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
+focus and mobile tap expose optional details. Retained amounts disclose “Last
+verified total. Updated …” only in the info control; no expired/stale status is
+shown on the tile. Expiry suppresses the 24h delta using original liquidity time,
+independently of volume polling, without removing the last known correct amount.
+This display-only retention follows the explicit 2026-10-06 user instruction and
+supersedes previous frontend expiry-display guidance. The server rereads the
+complete authoritative liquidity publication from one bounded row on every
+overview response, while expensive volume, fee and census fields remain cached
+for 60 seconds. New outage/degraded generations replace the server canonical amount
+without smoothing or resetting its observation timestamp; they do not erase the
+frontend last verified display snapshot.
 See [QA and agent verification](qa/issue-1380/README.md), [Q1380 invariants](indexer-invariants.md#protocol-liquidity-quality-1380),
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 

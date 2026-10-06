@@ -18,7 +18,10 @@ use super::orderbook_sim::OrderbookData;
 #[must_use]
 pub fn limit_order_to_level(side: &str, price: &str, remaining: &str) -> Option<[String; 2]> {
     let rem = remaining.parse::<u128>().ok().filter(|&v| v > 0)?;
-    let price_bd = price.parse::<BigDecimal>().ok().filter(|p| p > &BigDecimal::from(0u32))?;
+    let price_bd = price
+        .parse::<BigDecimal>()
+        .ok()
+        .filter(|p| p > &BigDecimal::from(0u32))?;
 
     let qty = if side.eq_ignore_ascii_case("bid") {
         let rem_bd = BigDecimal::from(rem);
@@ -151,11 +154,7 @@ mod tests {
             "synthetic limit bid should appear: {:?}",
             book.bids
         );
-        let prices: Vec<f64> = book
-            .bids
-            .iter()
-            .map(|l| l[0].parse().unwrap())
-            .collect();
+        let prices: Vec<f64> = book.bids.iter().map(|l| l[0].parse().unwrap()).collect();
         for w in prices.windows(2) {
             assert!(w[0] >= w[1], "bids must be non-increasing: {prices:?}");
         }

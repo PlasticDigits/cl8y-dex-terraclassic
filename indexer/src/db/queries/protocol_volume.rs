@@ -4,7 +4,7 @@
 //! UST1-window swaps. Not `defillama_daily_stats`. GET reads these tables only.
 
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Datelike, Duration, Months, NaiveDate, Timelike, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, Months, NaiveDate, TimeZone, Timelike, Utc};
 use sqlx::{FromRow, PgPool};
 
 use crate::indexer::defillama::utc_day_start;
@@ -464,7 +464,10 @@ mod tests {
     fn parse_grain_allowlist() {
         assert_eq!(parse_volume_grain(Some("hourly")), Ok(VolumeGrain::Hourly));
         assert_eq!(parse_volume_grain(Some("daily")), Ok(VolumeGrain::Daily));
-        assert_eq!(parse_volume_grain(Some("monthly")), Ok(VolumeGrain::Monthly));
+        assert_eq!(
+            parse_volume_grain(Some("monthly")),
+            Ok(VolumeGrain::Monthly)
+        );
         assert_eq!(parse_volume_grain(Some(" daily ")), Ok(VolumeGrain::Daily));
         assert_eq!(parse_volume_grain(Some("week")), Err(()));
         assert_eq!(parse_volume_grain(Some("daily;")), Err(()));
@@ -478,18 +481,36 @@ mod tests {
     fn parse_limit_allowlist() {
         assert_eq!(parse_volume_limit(Some("14"), VolumeGrain::Daily), Ok(14));
         assert_eq!(parse_volume_limit(Some("90"), VolumeGrain::Daily), Ok(90));
-        assert_eq!(parse_volume_limit(Some("168"), VolumeGrain::Hourly), Ok(168));
+        assert_eq!(
+            parse_volume_limit(Some("168"), VolumeGrain::Hourly),
+            Ok(168)
+        );
         assert_eq!(parse_volume_limit(Some("24"), VolumeGrain::Monthly), Ok(24));
         assert_eq!(parse_volume_limit(Some("91"), VolumeGrain::Daily), Err(()));
-        assert_eq!(parse_volume_limit(Some("169"), VolumeGrain::Hourly), Err(()));
-        assert_eq!(parse_volume_limit(Some("25"), VolumeGrain::Monthly), Err(()));
+        assert_eq!(
+            parse_volume_limit(Some("169"), VolumeGrain::Hourly),
+            Err(())
+        );
+        assert_eq!(
+            parse_volume_limit(Some("25"), VolumeGrain::Monthly),
+            Err(())
+        );
         assert_eq!(parse_volume_limit(Some("0"), VolumeGrain::Daily), Err(()));
         assert_eq!(parse_volume_limit(Some("-1"), VolumeGrain::Daily), Err(()));
-        assert_eq!(parse_volume_limit(Some("999999"), VolumeGrain::Daily), Err(()));
-        assert_eq!(parse_volume_limit(Some("1e308"), VolumeGrain::Daily), Err(()));
+        assert_eq!(
+            parse_volume_limit(Some("999999"), VolumeGrain::Daily),
+            Err(())
+        );
+        assert_eq!(
+            parse_volume_limit(Some("1e308"), VolumeGrain::Daily),
+            Err(())
+        );
         assert_eq!(parse_volume_limit(Some(""), VolumeGrain::Daily), Err(()));
         assert_eq!(parse_volume_limit(None, VolumeGrain::Daily), Err(()));
         assert_eq!(parse_volume_limit(Some("14;"), VolumeGrain::Daily), Err(()));
-        assert_eq!(parse_volume_limit(Some("14' OR 1=1"), VolumeGrain::Daily), Err(()));
+        assert_eq!(
+            parse_volume_limit(Some("14' OR 1=1"), VolumeGrain::Daily),
+            Err(())
+        );
     }
 }

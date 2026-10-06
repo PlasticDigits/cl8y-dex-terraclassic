@@ -215,6 +215,7 @@ function mockOracle(ticker: string, price: string) {
 
 describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   beforeEach(() => {
+    localStorage.clear()
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue(feesOk)
     vi.mocked(indexerClient.getProtocolTopPairs).mockResolvedValue(topPairsOk)
@@ -366,7 +367,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(vol24).getByText(PROTOCOL_VOLUME_24H_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
     expect(within(vol7d).getByText(PROTOCOL_VOLUME_7D_LABEL)).toHaveAttribute('title', TRAILING_7D_VOLUME_TITLE)
     expect(within(vol30d).getByText(PROTOCOL_VOLUME_30D_LABEL)).toHaveAttribute('title', TRAILING_30D_VOLUME_TITLE)
-    expect(stats).toHaveTextContent(/USD volume and pool TVL use the same USTC \/ LUNC \/ hub reference catalog/i)
+    expect(stats).not.toHaveTextContent(/USD volume and pool TVL use the same USTC \/ LUNC \/ hub reference catalog/i)
     expect(vol24.textContent).not.toMatch(/resets at 00:00|always-on/i)
     expect(stats.textContent).not.toMatch(/VITE_INDEXER_URL|https?:\/\//i)
     expect(within(vol24).getByTestId('protocol-stat-volume-24h-chg')).toHaveTextContent('%')
@@ -544,7 +545,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByText('NaN')).not.toBeInTheDocument()
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
     expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent(/—/)
-    expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
+    expect(screen.queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-fee-stats')).not.toBeInTheDocument()
   })
@@ -565,7 +566,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const liq = await screen.findByTestId('protocol-stat-liquidity')
     await waitFor(() => expect(liq).toHaveTextContent(/\$0/))
-    expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
+    expect(screen.queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
@@ -583,7 +584,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       renderWithProviders(<ProtocolPage />, { route: '/protocol' })
       const liquidity = await screen.findByTestId('protocol-stat-liquidity')
       await waitFor(() => expect(liquidity).toHaveTextContent(quality === 'partial' ? '≥ $' : '—'))
-      expect(within(liquidity).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('—')
+      expect(within(liquidity).queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
       expect(liquidity).not.toHaveTextContent('-100%')
       expect(liquidity).not.toHaveTextContent('$0')
       expect(screen.getByTestId('protocol-stat-volume-24h')).toHaveTextContent('$')
@@ -601,7 +602,8 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     })
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const liquidity = await screen.findByTestId('protocol-stat-liquidity')
-    await waitFor(() => expect(liquidity).toHaveTextContent('liquidity unknown'))
+    await userEvent.click(screen.getByRole('button', { name: 'Liquidity details' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Pool data is temporarily unavailable.')
     expect(liquidity).not.toHaveTextContent('$0')
     expect(liquidity).not.toHaveTextContent('-100%')
   })
@@ -653,6 +655,59 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(legacyPositive).not.toHaveAttribute('aria-label', expect.stringContaining('$218'))
   })
 
+  it('keeps protocol copy compact and restores only labeled legacy estimates alongside real gaps', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
+      grain: 'daily',
+      limit: 4,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: [
+        {
+          utc_day: '2026-10-01',
+          liquidity_usd: null,
+          reported_liquidity_usd: '250000',
+          quality: 'unknown',
+          reasons: { legacy_unqualified: 1 },
+        },
+        {
+          utc_day: '2026-10-02',
+          liquidity_usd: null,
+          quality: 'unknown',
+          reasons: { historical_coverage_unreconciled: 1 },
+        },
+        {
+          utc_day: '2026-10-03',
+          liquidity_usd: null,
+          reported_liquidity_usd: '0',
+          quality: 'unknown',
+          reasons: { legacy_unqualified: 1 },
+        },
+        { utc_day: '2026-10-04', liquidity_usd: '249000', quality: 'fresh' },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-stat-liquidity')
+    expect(screen.queryByText(/TVL moves with LP/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/not swap settlement, TWAP/)).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    const estimate = await screen.findByTestId('protocol-volume-bar-0')
+    expect(estimate).toHaveAttribute('data-historical-estimate', 'true')
+    expect(estimate).toHaveAttribute('data-quality', 'unknown')
+    expect(Number(estimate.getAttribute('height'))).toBeGreaterThan(0)
+    expect(estimate).toHaveAttribute('aria-label', expect.stringContaining('≈ $250K'))
+    await user.click(estimate)
+    expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Historical estimate')
+    for (const index of [1, 2]) {
+      expect(screen.getByTestId(`protocol-volume-bar-${index}`)).toHaveAttribute('stroke-dasharray', '3 3')
+      expect(screen.getByTestId(`protocol-volume-bar-${index}`)).not.toHaveAttribute('data-historical-estimate')
+    }
+    expect(screen.getByTestId('protocol-volume-bar-3')).toHaveAttribute('fill', 'var(--accent)')
+    expect(screen.queryByText('UTC liquidity')).not.toBeInTheDocument()
+    expect(screen.queryByText('UTC calendar day')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Dashed gaps mean/)).not.toBeInTheDocument()
+  })
+
   it('keeps volume and fee 30d tiles while liquidity stays 24h-only (GitLab #677)', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const liq = await screen.findByTestId('protocol-stat-liquidity')
@@ -675,7 +730,8 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(hub).getByTestId('protocol-dex-hub-lunc-usd').textContent).not.toMatch(/T$/)
     expect(within(hub).getByTestId('protocol-dex-hub-ust1-usd')).toHaveTextContent('$')
     expect(within(hub).getByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('$')
-    expect(hub).toHaveTextContent(/DEX reference — not CEX, not settlement/i)
+    expect(hub).toHaveTextContent('DEX reference prices')
+    expect(hub).not.toHaveTextContent('not settlement')
     expect(within(hub).getByTestId('protocol-dex-hub-custc-token')).toBeInTheDocument()
     expect(within(hub).getByTestId('protocol-dex-hub-lunc-token')).toBeInTheDocument()
     expect(within(hub).queryByTestId('protocol-dex-hub-custc-source')).not.toBeInTheDocument()
@@ -712,7 +768,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(hub).queryByText('LUNC / USD', { exact: true })).not.toBeInTheDocument()
     expect(within(hub).getByText('UST1 / USD')).not.toHaveClass('uppercase')
     expect(within(hub).getByText('USTR / USD')).not.toHaveClass('uppercase')
-    expect(within(hub).getByRole('heading', { name: /DEX hub prices/i })).toHaveClass('uppercase')
+    expect(within(hub).getByRole('heading', { name: /DEX reference prices/i })).toHaveClass('uppercase')
 
     const oracle = screen.getByTestId('protocol-oracle')
     const ustcHeading = within(oracle).getByRole('heading', { name: 'USTC / USD' })
@@ -742,7 +798,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const venus = await screen.findByTestId('protocol-oracle-vfdusd-venus')
     expect(within(venus).getByRole('heading', { name: '1 vFDUSD Price' })).not.toHaveClass('uppercase')
     expect(within(venus).getByText('1 vFDUSD Price', { selector: 'p' })).not.toHaveClass('uppercase')
-    expect(oracle).toHaveTextContent(/CEX FDUSD reference and Venus redeem rate — not settlement/)
+    expect(oracle).not.toHaveTextContent(/CEX FDUSD reference and Venus redeem rate — not settlement/)
   })
 
   it('null hub prices render em-dash, not $0 or $1', async () => {
@@ -941,7 +997,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     })
     expect(within(stats).getByTestId('protocol-stat-volume-24h-chg')).toHaveTextContent('+')
     expect(await screen.findByTestId('protocol-volume-daily-chart')).toBeInTheDocument()
-    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar day/)
+    expect(screen.getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('protocol-volume-chart-yaxis')).toBeInTheDocument()
     const xAxis = screen.getByTestId('protocol-volume-chart-xaxis')
     expect(screen.getByTestId('protocol-volume-daily-bars')).toHaveClass('w-full')
@@ -957,12 +1013,12 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(indexerClient.getProtocolLiquiditySeries).not.toHaveBeenCalled()
     expect(indexerClient.getProtocolFeesSeries).not.toHaveBeenCalled()
     expect(screen.getByTestId('protocol-utc-metric-volume')).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC volume/)
+    expect(screen.getByTestId('protocol-utc-metric-volume')).toHaveAttribute('aria-selected', 'true')
     await user.click(screen.getByTestId('protocol-volume-grain-hourly'))
     await waitFor(() => {
       expect(indexerClient.getProtocolVolumeSeries).toHaveBeenCalledWith('hourly', expect.any(Number))
     })
-    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC hour/)
+    expect(screen.getByTestId('protocol-volume-grain-hourly')).toHaveAttribute('aria-selected', 'true')
     await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
     await waitFor(() => {
       expect(indexerClient.getProtocolVolumeSeries).toHaveBeenCalledWith('monthly', expect.any(Number))
@@ -1029,7 +1085,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await screen.findByTestId('protocol-volume-daily-chart')
     await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
     await waitFor(() => {
-      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+      expect(screen.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     })
     const chart = screen.getByTestId('protocol-volume-daily-chart')
     expect(chart.querySelector('script')).toBeNull()
@@ -1063,7 +1119,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await screen.findByTestId('protocol-volume-chart-xaxis')
     await user.click(screen.getByTestId('protocol-volume-grain-hourly'))
     await waitFor(() => {
-      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC hour/)
+      expect(screen.getByTestId('protocol-volume-grain-hourly')).toHaveAttribute('aria-selected', 'true')
     })
     const hourlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
     const hourlyLabels = hourlyAxis.querySelectorAll('text')
@@ -1071,7 +1127,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(hourlyLabels.length).toBeLessThanOrEqual(12)
     await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
     await waitFor(() => {
-      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+      expect(screen.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     })
     const monthlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
     const monthlyLabels = monthlyAxis.querySelectorAll('text')
@@ -1121,7 +1177,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await screen.findByTestId('protocol-volume-chart-xaxis')
     await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
     await waitFor(() => {
-      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+      expect(screen.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     })
     const monthlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
     expect(monthlyAxis).toHaveTextContent('26-01')
@@ -1191,15 +1247,14 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await waitFor(() => {
       expect(indexerClient.getProtocolLiquiditySeries).toHaveBeenCalledWith('daily', expect.any(Number))
     })
-    expect(chart).toHaveTextContent(/UTC liquidity/)
-    expect(chart).toHaveTextContent(/UTC calendar day/)
-    expect(screen.getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('protocol-utc-metric-liquidity')).toHaveAttribute('aria-selected', 'true')
+    expect(within(chart).getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     await user.click(screen.getByTestId('protocol-utc-metric-fees'))
     await waitFor(() => {
       expect(indexerClient.getProtocolFeesSeries).toHaveBeenCalledWith('daily', expect.any(Number))
     })
-    expect(chart).toHaveTextContent(/UTC fees/)
+    expect(screen.getByTestId('protocol-utc-metric-fees')).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByTestId('protocol-fee-stats')).toBeInTheDocument()
   })
@@ -1216,7 +1271,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await waitFor(() => {
       expect(indexerClient.getProtocolFeesSeries).toHaveBeenCalledWith('hourly', expect.any(Number))
     })
-    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC hour/)
+    expect(screen.getByTestId('protocol-volume-grain-hourly')).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
   })
 
@@ -1238,7 +1293,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const gap = await screen.findByTestId('protocol-volume-bar-0')
     expect(gap).toHaveAttribute('stroke-dasharray', '3 3')
     expect(gap).toHaveAttribute('aria-label', expect.stringContaining('Unknown liquidity'))
-    expect(screen.getByTestId('protocol-liquidity-quality-help')).toHaveTextContent('not zero')
+    expect(screen.queryByTestId('protocol-liquidity-quality-help')).not.toBeInTheDocument()
   })
 
   it('hides the liquidity plot on 404 but keeps Volume (GitLab #689)', async () => {
@@ -1288,7 +1343,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const panel = await screen.findByTestId('protocol-top-pairs')
     expect(await screen.findByTestId('protocol-top-pair-row-0')).toBeInTheDocument()
     expect(panel).toHaveTextContent('Top pairs (30d)')
-    expect(panel).toHaveTextContent('Trailing 30-day volume vs current pool USD.')
+    expect(panel).not.toHaveTextContent('Trailing 30-day volume vs current pool USD.')
     expect(panel).toHaveTextContent('30d vol')
     expect(panel).toHaveTextContent('v2 LP')
     expect(panel).toHaveTextContent('Vol/LP')

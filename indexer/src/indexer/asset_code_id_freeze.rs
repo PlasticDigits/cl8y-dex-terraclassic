@@ -67,10 +67,7 @@ pub fn is_pair_code_id_frozen(pair_address: &str) -> bool {
 }
 
 pub fn snapshot_frozen_pair_addresses() -> HashSet<String> {
-    freeze_set()
-        .lock()
-        .map(|g| g.clone())
-        .unwrap_or_default()
+    freeze_set().lock().map(|g| g.clone()).unwrap_or_default()
 }
 
 /// Replace the freeze set (integration tests + probe loop retain).
@@ -130,7 +127,10 @@ async fn probe_one_pair(
     };
 
     let pins = match lcd
-        .query_contract::<AssetCodeIdsLcd>(pair_addr, &serde_json::json!({ "get_asset_code_ids": {} }))
+        .query_contract::<AssetCodeIdsLcd>(
+            pair_addr,
+            &serde_json::json!({ "get_asset_code_ids": {} }),
+        )
         .await
     {
         Ok(r) => r.code_ids,
@@ -292,9 +292,7 @@ mod tests {
 
     #[test]
     fn pre_f6_reject_classifier() {
-        let err = LcdError::ContractQueryRejected(
-            "unknown variant `get_asset_code_ids`".into(),
-        );
+        let err = LcdError::ContractQueryRejected("unknown variant `get_asset_code_ids`".into());
         assert!(is_pre_f6_query_reject(&err));
         let err = LcdError::ContractQueryRejected(
             "Asset CW20 code_id pins are missing; migrate the pair contract".into(),

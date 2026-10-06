@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "chain": "localterra",
+  "dedicated_revision": "fab88dbbccb514657d786e3034e12c99423026eb",
+  "deploy_stamp": "# Written by scripts/deploy-dex-local.sh \u2014 sourced by scripts/qa/verify-deploy.sh (GitLab #203)\ngit_sha=fab88dbb\ndeployed_at=2026-10-06T11:26:08Z\nfactory_address=terra1y8tagmy897u5z4lx4dv36sy84rhyhqqgwcghxuj7pqjnzlxkgj3shrujy3\npair_address=terra1wthmp2ekfpu9e9cdrta5cz7rukt6gjptpf2jauwfvhp2k6p6kwxq3atppq\ncommunity_tax_code_id=18\ncommunity_tax_token=terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d\ncommunity_tax_pair=terra1l7f5pgw0m5p9twjuhe76jd3f64qje9qcjcmvya30j427hjmxyfaqhe4rst\n",
+  "runtime_native_sha256": "6ff89efb9c9edd3d93808455032c569c763b5a5fd733e7e8b3d9a061d4d97212",
+  "native_disk_bytes_match_running_process": true,
+  "critical_runs": [
+    {
+      "utc": "2026-10-06T11:52:34.692475+00:00",
+      "status": "PASS",
+      "browser": {
+        "expected": 4,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "utc": "2026-10-06T12:02:43.643619+00:00",
+      "status": "PASS",
+      "browser": {
+        "expected": 4,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "utc": "2026-10-06T13:00:08.641435+00:00",
+      "status": "PASS",
+      "browser": {
+        "expected": 4,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 0
+      },
+      "runtime_native_sha256": "6ff89efb9c9edd3d93808455032c569c763b5a5fd733e7e8b3d9a061d4d97212",
+      "source_alignment": "final backend bytes and then-current frontend dirty source; Git HEAD remains earlier fab88 snapshot"
+    }
+  ],
+  "native_wrap_fixture": "locked source cold-built treasury and wrap mapper; deployed wallet seed",
+  "public_chain_settings": {
+    "FACTORY_ADDRESS": "terra1y8tagmy897u5z4lx4dv36sy84rhyhqqgwcghxuj7pqjnzlxkgj3shrujy3",
+    "ROUTER_ADDRESS": "terra1lxp2mwpskymsm4aptq2l3pxlcflqg0qer3e3pnhkuql20phejmdq5028u7",
+    "LCD_URLS": "http://localhost:1317",
+    "EXPECTED_CHAIN_ID": "localterra"
+  },
+  "daily_utc": "03:00",
+  "timer_enabled": "enabled",
+  "linger": "yes",
+  "earlier_host_native_sha256": "afd2c7f2749651b9b019c0d7533071b3c3cc7a6a24d2274e76af34377ebc8b53"
+}

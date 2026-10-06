@@ -297,13 +297,23 @@ async fn poller_advisory_lock_is_exclusive() {
         "second session must not take a held poller lock"
     );
 
-    drop(first);
-    assert!(
-        state::try_acquire_poller_lock(&mut second)
-            .await
-            .expect("lock after drop"),
-        "lock must release when the holding session closes"
-    );
+    first.close().await.expect("close holding session");
+    // A graceful client close does not acknowledge PostgreSQL backend teardown.
+    // Wait for that independent session to observe the close, retaining a hard
+    // bound so a leaked lock still fails rather than becoming a skipped check.
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            if state::try_acquire_poller_lock(&mut second)
+                .await
+                .expect("lock after close")
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("lock must release when the holding session closes");
 }
 
 #[tokio::test]

@@ -94,22 +94,32 @@ pub(crate) fn find_paths_top_k_instrumented(
     max_hops: usize,
     max_paths: usize,
 ) -> (Vec<Vec<PathHop>>, u64) {
-    let (paths, expansions, _) = find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, u64::MAX);
+    let (paths, expansions, _) =
+        find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, u64::MAX);
     (paths, expansions)
 }
 
 /// Exact-output callers cap edge visits so a cancelled spawn_blocking task has bounded work.
 pub(crate) fn find_paths_top_k_with_work_budget(
-    start: i32, goal: i32, pair_rows: &[db_pairs::PairRow], max_hops: usize,
-    max_paths: usize, max_work: u64,
+    start: i32,
+    goal: i32,
+    pair_rows: &[db_pairs::PairRow],
+    max_hops: usize,
+    max_paths: usize,
+    max_work: u64,
 ) -> (Vec<Vec<PathHop>>, bool) {
-    let (paths, _, truncated) = find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, max_work);
+    let (paths, _, truncated) =
+        find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, max_work);
     (paths, truncated)
 }
 
 fn find_paths_bounded(
-    start: i32, goal: i32, pair_rows: &[db_pairs::PairRow], max_hops: usize,
-    max_paths: usize, max_work: u64,
+    start: i32,
+    goal: i32,
+    pair_rows: &[db_pairs::PairRow],
+    max_hops: usize,
+    max_paths: usize,
+    max_work: u64,
 ) -> (Vec<Vec<PathHop>>, u64, bool) {
     if start == goal {
         return (vec![vec![]], 0, false);
@@ -151,7 +161,9 @@ fn find_paths_bounded(
         expansions: &mut u64,
         work_left: &mut u64,
     ) {
-        if *work_left == 0 { return; }
+        if *work_left == 0 {
+            return;
+        }
         *expansions += 1;
         if found.len() >= max_paths {
             return;
@@ -165,7 +177,9 @@ fn find_paths_bounded(
         // Edges left after stepping to a neighbour, for a route of exactly `depth` edges.
         let remaining = depth - path.len() - 1;
         for (v, pair) in adj.get(&u).into_iter().flatten() {
-            if *work_left == 0 { return; }
+            if *work_left == 0 {
+                return;
+            }
             *work_left -= 1;
             if *v == goal {
                 // The goal is valid only as the final edge of this depth; reaching it earlier is a
@@ -559,6 +573,9 @@ mod tests {
         let goal = 9999;
         let (paths, expansions) = find_paths_top_k_instrumented(0, goal, &pairs, 4, 5);
         assert!(paths.is_empty());
-        assert_eq!(expansions, 0, "unreachable goal must not enumerate at 4 hops");
+        assert_eq!(
+            expansions, 0,
+            "unreachable goal must not enumerate at 4 hops"
+        );
     }
 }

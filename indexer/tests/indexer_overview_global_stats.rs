@@ -480,9 +480,7 @@ async fn global_stats_decreases_when_seed_swaps_age_past_24h() {
     let pool = setup_pool().await;
     let seed = seed_db(&pool).await;
 
-    volume::refresh_global_stats(&pool)
-        .await
-        .expect("refresh");
+    volume::refresh_global_stats(&pool).await.expect("refresh");
     let before = volume::get_global_stats(&pool).await.expect("before");
     assert_eq!(before.total_trades_24h, 5);
 

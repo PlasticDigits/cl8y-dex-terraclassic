@@ -29,10 +29,11 @@ struct FeeSeriesCacheKey {
     limit: i32,
 }
 
-fn fee_series_cache()
--> &'static Mutex<HashMap<FeeSeriesCacheKey, (ProtocolFeeSeriesResponse, Instant)>> {
-    static CACHE: OnceLock<Mutex<HashMap<FeeSeriesCacheKey, (ProtocolFeeSeriesResponse, Instant)>>> =
-        OnceLock::new();
+fn fee_series_cache(
+) -> &'static Mutex<HashMap<FeeSeriesCacheKey, (ProtocolFeeSeriesResponse, Instant)>> {
+    static CACHE: OnceLock<
+        Mutex<HashMap<FeeSeriesCacheKey, (ProtocolFeeSeriesResponse, Instant)>>,
+    > = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 

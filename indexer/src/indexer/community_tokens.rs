@@ -176,10 +176,7 @@ pub async fn ingest_event(
             .await?;
         }
         "migrate-adopt" => {
-            let addr = ev
-                .community_token
-                .as_deref()
-                .unwrap_or(ev.emitter.as_str());
+            let addr = ev.community_token.as_deref().unwrap_or(ev.emitter.as_str());
             // Do not write launcher_tx — origin is GetMigrateOrigin + CMM admin.
             db::upsert_from_migrate(pool, addr, txhash, height).await?;
             db::insert_event(
@@ -363,7 +360,11 @@ pub async fn refresh_one(pool: &sqlx::PgPool, lcd: &LcdClient, config: &Config, 
         pool,
         addr,
         code_id as i64,
-        if admin.is_empty() { None } else { Some(admin.as_str()) },
+        if admin.is_empty() {
+            None
+        } else {
+            Some(admin.as_str())
+        },
         cfg.as_ref().and_then(|c| c.manager.as_deref()),
         cfg.as_ref().and_then(|c| c.treasury.as_deref()),
         cfg.as_ref().and_then(|c| c.buy_bps.map(|v| v as i16)),
@@ -372,7 +373,9 @@ pub async fn refresh_one(pool: &sqlx::PgPool, lcd: &LcdClient, config: &Config, 
         &features,
         token_info.as_ref().and_then(|t| t.name.as_deref()),
         token_info.as_ref().and_then(|t| t.symbol.as_deref()),
-        token_info.as_ref().and_then(|t| t.decimals.map(|d| i16::from(d))),
+        token_info
+            .as_ref()
+            .and_then(|t| t.decimals.map(|d| i16::from(d))),
         attested,
     )
     .await

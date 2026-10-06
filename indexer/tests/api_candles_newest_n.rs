@@ -78,7 +78,10 @@ async fn default_15m_returns_newest_200_chronological() {
     resp.assert_status_ok();
     let body: Vec<Value> = resp.json();
     assert_eq!(body.len(), 200);
-    let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+    let times: Vec<_> = body
+        .iter()
+        .map(|r| parse_open_time(&r["open_time"]))
+        .collect();
     assert_strictly_increasing(&times);
     let oldest_seed = newest - Duration::minutes(15 * 399);
     assert!(
@@ -94,11 +97,18 @@ async fn default_15m_returns_newest_200_chronological() {
         resp.assert_status_ok();
         let body: Vec<Value> = resp.json();
         assert_eq!(body.len(), 200, "{iv} default limit");
-        let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+        let times: Vec<_> = body
+            .iter()
+            .map(|r| parse_open_time(&r["open_time"]))
+            .collect();
         assert_strictly_increasing(&times);
         let oldest_seed = newest - Duration::minutes(i64::from(step) * i64::from(n - 1));
         assert!(times[0] > oldest_seed, "{iv} first bar is oldest-N");
-        assert_eq!(times.last().copied(), Some(newest), "{iv} last must be newest");
+        assert_eq!(
+            times.last().copied(),
+            Some(newest),
+            "{iv} last must be newest"
+        );
     }
 }
 
@@ -128,9 +138,16 @@ async fn coarse_intervals_still_return_newest_not_oldest() {
         resp.assert_status_ok();
         let body: Vec<Value> = resp.json();
         assert_eq!(body.len(), expect_len, "{iv} row count");
-        let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+        let times: Vec<_> = body
+            .iter()
+            .map(|r| parse_open_time(&r["open_time"]))
+            .collect();
         assert_strictly_increasing(&times);
-        assert_eq!(times.last().copied(), Some(newest), "{iv} last must be newest");
+        assert_eq!(
+            times.last().copied(),
+            Some(newest),
+            "{iv} last must be newest"
+        );
     }
 }
 
@@ -158,7 +175,10 @@ async fn limit_10_is_newest_10_ascending() {
     resp.assert_status_ok();
     let body: Vec<Value> = resp.json();
     assert_eq!(body.len(), 10);
-    let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+    let times: Vec<_> = body
+        .iter()
+        .map(|r| parse_open_time(&r["open_time"]))
+        .collect();
     assert_strictly_increasing(&times);
     assert_eq!(times[0], newest - Duration::minutes(15 * 9));
     assert_eq!(times[9], newest);
@@ -234,7 +254,10 @@ async fn explicit_from_to_newest_n_stays_inside_window() {
     resp.assert_status_ok();
     let body: Vec<Value> = resp.json();
     assert_eq!(body.len(), 10);
-    let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+    let times: Vec<_> = body
+        .iter()
+        .map(|r| parse_open_time(&r["open_time"]))
+        .collect();
     assert_strictly_increasing(&times);
     assert_eq!(times.last().copied(), Some(slice_newest));
     assert!(

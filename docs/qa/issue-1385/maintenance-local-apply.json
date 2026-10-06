@@ -1,0 +1,21 @@
+{
+  "scope": "fresh dedicated local Postgres16 restored only from synthetic disposable QA fixture",
+  "result": {
+    "transition": {
+      "transition": "PASS",
+      "objects_transferred": 64
+    },
+    "migrate": {
+      "migrate": "PASS"
+    },
+    "verify": {
+      "runtime_acl": "PASS",
+      "migration_history_preserved": true,
+      "schema_version": "20261006133000",
+      "migrations": 61,
+      "actual_permission_denials": 4
+    },
+    "documented_history": "UNAVAILABLE in this fixture",
+    "status": "PASS_WITH_SKIPS"
+  }
+}

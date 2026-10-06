@@ -10,9 +10,16 @@ const HEX40: &str = "0123456789abcdef0123456789abcdef01234567";
 const HEX7: &str = "abcdef0";
 
 fn legacy_health_fields(mut body: Value) -> Value {
-    let identity = body.as_object_mut().unwrap().remove("chain_identity").expect("chain health metadata");
+    let identity = body
+        .as_object_mut()
+        .unwrap()
+        .remove("chain_identity")
+        .expect("chain health metadata");
     assert_eq!(identity["expected_chain_id"], "columbus-5");
-    assert!(identity["cache_namespace"].as_str().unwrap().starts_with("columbus-5:"));
+    assert!(identity["cache_namespace"]
+        .as_str()
+        .unwrap()
+        .starts_with("columbus-5:"));
     body
 }
 
@@ -70,7 +77,10 @@ async fn health_ok_only_when_commit_env_unset() {
 
     let resp = server.get("/health").await;
     resp.assert_status_ok();
-    assert_eq!(legacy_health_fields(resp.json::<Value>()), serde_json::json!({ "status": "ok" }));
+    assert_eq!(
+        legacy_health_fields(resp.json::<Value>()),
+        serde_json::json!({ "status": "ok" })
+    );
 }
 
 #[serial]
@@ -204,13 +214,14 @@ async fn health_has_no_inventory_or_auth_requirement() {
     }
 }
 
-
 /// #1392: cheap liveness returns unverified metadata without depending on LCD or Postgres.
 #[serial]
 #[tokio::test]
 async fn health_reports_explicit_local_identity_without_upstream_io() {
     let mock = wiremock::MockServer::start().await;
-    let pool = sqlx::postgres::PgPoolOptions::new().connect_lazy("postgres://localhost/unused").unwrap();
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://localhost/unused")
+        .unwrap();
     let mut config = common::test_config();
     config.lcd_urls = vec![mock.uri()];
     config.expected_chain_id = "localterra".into();
@@ -229,20 +240,35 @@ async fn health_reports_explicit_local_identity_without_upstream_io() {
 #[tokio::test]
 async fn wrong_chain_quotes_fail_closed_before_db_and_health_exposes_quarantine() {
     let mock = wiremock::MockServer::start().await;
-    wiremock::Mock::given(wiremock::matchers::path("/cosmos/base/tendermint/v1beta1/node_info"))
-        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+    wiremock::Mock::given(wiremock::matchers::path(
+        "/cosmos/base/tendermint/v1beta1/node_info",
+    ))
+    .respond_with(
+        wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "default_node_info":{"network":"localterra"}
-        }))).mount(&mock).await;
-    let pool = sqlx::postgres::PgPoolOptions::new().connect_lazy("postgres://localhost/unused").unwrap();
+        })),
+    )
+    .mount(&mock)
+    .await;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://localhost/unused")
+        .unwrap();
     let mut config = common::test_config();
     config.lcd_urls = vec![mock.uri()];
     let app = common::build_test_app_with_price_and_config(pool, None, config).await;
     let server = TestServer::new(app);
-    server.get("/api/v1/route/solve").await.assert_status_service_unavailable();
+    server
+        .get("/api/v1/route/solve")
+        .await
+        .assert_status_service_unavailable();
     let body: Value = server.get("/health").await.json();
     let endpoint = &body["chain_identity"]["endpoints"][0];
     assert_eq!(endpoint["observed_chain_id"], "localterra");
     assert_eq!(endpoint["verified"], false);
     assert!(endpoint["checked_at"].is_string());
-    assert_eq!(mock.received_requests().await.unwrap().len(), 1, "health must not reprobe quarantined providers");
+    assert_eq!(
+        mock.received_requests().await.unwrap().len(),
+        1,
+        "health must not reprobe quarantined providers"
+    );
 }

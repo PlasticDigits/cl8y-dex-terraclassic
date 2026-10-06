@@ -85,6 +85,10 @@ async fn hooks_negative_and_zero_limit_clamp_to_one_not_500() {
         let resp = server.get(q).await;
         resp.assert_status_ok();
         let body: Vec<Value> = resp.json();
-        assert!(body.len() <= 1, "{q} must clamp limit to 1, got {}", body.len());
+        assert!(
+            body.len() <= 1,
+            "{q} must clamp limit to 1, got {}",
+            body.len()
+        );
     }
 }

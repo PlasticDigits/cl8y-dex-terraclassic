@@ -450,11 +450,9 @@ async fn heal_inserts_missing_trader_from_swaps_then_refresh_ok() {
         .await
         .expect("drop trader");
 
-    assert!(
-        traders::heal_trader_lifetime_from_swaps(&pool)
-            .await
-            .expect("heal")
-    );
+    assert!(traders::heal_trader_lifetime_from_swaps(&pool)
+        .await
+        .expect("heal"));
     let row = traders::get_trader(&pool, &seed.sender)
         .await
         .expect("get")
@@ -488,11 +486,9 @@ async fn heal_zeros_leftover_lifetime_ghost_not_registered_zero() {
     .await
     .expect("registered zero");
 
-    assert!(
-        traders::trader_lifetime_diverges_from_swaps(&pool)
-            .await
-            .expect("gate with ghost")
-    );
+    assert!(traders::trader_lifetime_diverges_from_swaps(&pool)
+        .await
+        .expect("gate with ghost"));
 
     traders::heal_trader_lifetime_from_swaps(&pool)
         .await
@@ -529,9 +525,7 @@ async fn registered_zero_lifetime_does_not_trip_heal_gate() {
     .execute(&pool)
     .await
     .expect("registered zero");
-    assert!(
-        !traders::trader_lifetime_diverges_from_swaps(&pool)
-            .await
-            .expect("gate")
-    );
+    assert!(!traders::trader_lifetime_diverges_from_swaps(&pool)
+        .await
+        .expect("gate"));
 }
