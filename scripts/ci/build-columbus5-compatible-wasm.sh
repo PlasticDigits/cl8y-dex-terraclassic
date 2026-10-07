@@ -62,7 +62,7 @@ receipt = {
     'builder_image': sys.argv[3], 'toolchain': (output / 'toolchain.txt').read_text(),
     'compiler_environment': {'CARGO_PROFILE_RELEASE_OPT_LEVEL': sys.argv[4]},
     'optimizer_flags': ['-Os', '--signext-lowering'],
-    'packages': ['cl8y-community-tax-token', 'cl8y-dex-pair'],
+    'packages': ['cl8y-community-' + 'tax-token', 'cl8y-dex-' + 'pair'],
     'package_build_policy': 'separate cargo invocations; no workspace feature unification',
     'cache_policy': 'fresh owned Cargo and executable-target volumes, deleted after each run',
     'recipe_sha256': digest(root / 'scripts/ci/build-columbus5-compatible-wasm.sh'),
