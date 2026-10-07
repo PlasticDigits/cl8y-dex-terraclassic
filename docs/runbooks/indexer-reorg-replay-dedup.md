@@ -156,3 +156,16 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 - [Incident template](../templates/incident-dex-indexer.md) — escalation when indexer and chain diverge.
 - [Indexer invariants — C1–C3](../indexer-invariants.md#indexing-invariants)
 - [Operator secrets](../operator-secrets.md) — log collectors, webhook URLs.
+
+### Native listing custody source correction
+
+The pinned mapper's historical `Config.treasury` identifies the native custodian;
+production mapper balances are zero. Both source and predecessor Config replies
+must carry exact height headers and agree on canonical treasury identity.
+Height is also a URL cache key because public proxies may ignore header-only
+cache variation. Treasury gross wrap inflow / net unwrap outflow reconcile
+postevent custody; principal remains fee-exclusive. New nullable
+`custody_address` columns deliberately leave legacy observations unproven.
+Replay builds authenticated source identities; newest unknown/rotated backing
+suppresses older snapshots and cross-source prints. No native funds are sent to
+the mapper as a listing workaround. See [LV1437](../../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md).

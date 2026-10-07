@@ -1,6 +1,8 @@
 //! CG/GT-only principal projection. No writes to economic pair, volume or fee tables.
 use std::collections::HashMap;
 
+use base64::Engine;
+use bech32::FromBase32;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -18,7 +20,8 @@ pub struct ParsedPrincipal {
     pub native_denom: String,
     pub direction: &'static str,
     pub principal_raw: BigDecimal,
-    /// Actual custody change includes unwrap's fee, while the projected trade does not.
+    /// Actual treasury bank movement: gross deposit, or principal withdrawal.
+    /// Mint/burn fees remain outside projected trade amounts.
     pub custody_delta: BigDecimal,
     pub trader_address: String,
     pub source_ordinal: i64,
@@ -116,17 +119,18 @@ pub fn parse_principal(tx: &TxResponse, mapper: &str) -> Vec<ParsedPrincipal> {
                     continue;
                 }
             };
-            let custody_delta = if direction == "wrap" {
-                principal.clone()
-            } else {
-                match parse_raw_amount(fields.get("gross_amount").copied()) {
-                    Ok(gross) if gross >= principal => -gross,
-                    Ok(_) => continue,
-                    Err(error) => {
-                        report_amount_rejection("listing_principal", "gross_amount", error);
-                        continue;
-                    }
+            let gross = match parse_raw_amount(fields.get("gross_amount").copied()) {
+                Ok(gross) if gross >= principal => gross,
+                Ok(_) => continue,
+                Err(error) => {
+                    report_amount_rejection("listing_principal", "gross_amount", error);
+                    continue;
                 }
+            };
+            let custody_delta = if direction == "wrap" {
+                gross
+            } else {
+                -principal.clone()
             };
             result.push(ParsedPrincipal {
                 native_denom: denom.to_owned(),
@@ -151,15 +155,69 @@ struct BankCoin {
     amount: String,
 }
 
+/// Accept only a canonical Terra contract address before interpolating an LCD path.
+fn canonical_custody_address(address: &str) -> bool {
+    address.len() <= 90
+        && address.starts_with("terra1")
+        && address.bytes().all(|b| !b.is_ascii_uppercase())
+        && bech32::decode(address)
+            .ok()
+            .is_some_and(|(hrp, data, variant)| {
+                hrp == "terra"
+                    && variant == bech32::Variant::Bech32
+                    && Vec::<u8>::from_base32(&data)
+                        .ok()
+                        .is_some_and(|bytes| matches!(bytes.len(), 20 | 32))
+            })
+}
+
+#[derive(Deserialize)]
+struct MapperConfigResponse {
+    data: MapperConfig,
+}
+
+#[derive(Deserialize)]
+struct MapperConfig {
+    treasury: String,
+}
+
+async fn treasury_at(lcd: &LcdClient, mapper: &str, height: i64) -> Result<String, BoxError> {
+    if !canonical_custody_address(mapper) {
+        return Err("invalid mapper contract address".into());
+    }
+    let query = base64::engine::general_purpose::STANDARD.encode(br#"{"config":{}}"#);
+    let response: MapperConfigResponse = lcd
+        .get_at_height(
+            &format!("/cosmwasm/wasm/v1/contract/{mapper}/smart/{query}"),
+            height,
+        )
+        .await?;
+    if !canonical_custody_address(&response.data.treasury) {
+        return Err("invalid mapper treasury contract address".into());
+    }
+    Ok(response.data.treasury)
+}
+
+/// Reconciliation spans the source block and predecessor. A custody rotation
+/// cannot combine balances from different authoritative treasury contracts.
+async fn verified_treasury(lcd: &LcdClient, mapper: &str, height: i64) -> Result<String, BoxError> {
+    let current = treasury_at(lcd, mapper, height).await?;
+    let previous = treasury_at(lcd, mapper, height - 1).await?;
+    if current != previous {
+        return Err("mapper treasury changed across source block".into());
+    }
+    Ok(current)
+}
+
 async fn custody_at(
     lcd: &LcdClient,
-    mapper: &str,
+    custody_address: &str,
     denom: &str,
     height: i64,
 ) -> Result<BigDecimal, BoxError> {
     let response: BankBalance = lcd
         .get_at_height(
-            &format!("/cosmos/bank/v1beta1/balances/{mapper}/by_denom?denom={denom}"),
+            &format!("/cosmos/bank/v1beta1/balances/{custody_address}/by_denom?denom={denom}"),
             height,
         )
         .await?;
@@ -170,18 +228,54 @@ async fn custody_at(
     }
 }
 
+struct Snapshot<'a> {
+    mapper: &'a str,
+    custody_address: Option<&'a str>,
+    denom: &'a str,
+    custody: &'a BigDecimal,
+    height: i64,
+    timestamp: DateTime<Utc>,
+    block_hash: &'a str,
+}
+
 async fn persist_snapshot(
     executor: &mut sqlx::PgConnection,
+    snapshot: Snapshot<'_>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("INSERT INTO listing_mapper_custody(mapper_address,custody_address,native_denom,custody_raw,block_height,block_timestamp,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(mapper_address,native_denom,block_height) DO UPDATE SET custody_address=EXCLUDED.custody_address,custody_raw=EXCLUDED.custody_raw,block_timestamp=EXCLUDED.block_timestamp,block_hash=EXCLUDED.block_hash")
+        .bind(snapshot.mapper).bind(snapshot.custody_address).bind(snapshot.denom).bind(snapshot.custody)
+        .bind(snapshot.height).bind(snapshot.timestamp).bind(snapshot.block_hash)
+        .execute(executor).await?;
+    Ok(())
+}
+
+/// An unavailable proof replaces the current snapshot with an explicit unknown
+/// source. The adapter rejects it instead of falling back to older positive custody.
+async fn persist_unproven(
+    pool: &PgPool,
     mapper: &str,
-    denom: &str,
-    custody: &BigDecimal,
+    denoms: &[&str],
     height: i64,
     timestamp: DateTime<Utc>,
     block_hash: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("INSERT INTO listing_mapper_custody(mapper_address,native_denom,custody_raw,block_height,block_timestamp,block_hash) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(mapper_address,native_denom,block_height) DO UPDATE SET custody_raw=EXCLUDED.custody_raw,block_timestamp=EXCLUDED.block_timestamp,block_hash=EXCLUDED.block_hash")
-        .bind(mapper).bind(denom).bind(custody).bind(height).bind(timestamp).bind(block_hash)
-        .execute(executor).await?;
+    let mut db = pool.begin().await?;
+    for denom in denoms {
+        persist_snapshot(
+            &mut db,
+            Snapshot {
+                mapper,
+                custody_address: None,
+                denom,
+                custody: &BigDecimal::from(0),
+                height,
+                timestamp,
+                block_hash,
+            },
+        )
+        .await?;
+    }
+    db.commit().await?;
     Ok(())
 }
 
@@ -210,6 +304,28 @@ pub async fn ingest_block(
                 .map(move |event| (tx_index as i64, &tx.txhash, event))
         })
         .collect();
+    if parsed.is_empty() {
+        return Ok(());
+    }
+    let treasury = match verified_treasury(lcd, mapper, height).await {
+        Ok(address) => address,
+        Err(_) => {
+            persist_unproven(
+                pool,
+                mapper,
+                &["uluna", "uusd"],
+                height,
+                timestamp,
+                block_hash,
+            )
+            .await?;
+            tracing::warn!(
+                event_kind = "listing_principal",
+                "Historical treasury identity unavailable; projection omitted"
+            );
+            return Ok(());
+        }
+    };
     for denom in ["uluna", "uusd"] {
         let matching: Vec<_> = parsed
             .iter()
@@ -218,13 +334,14 @@ pub async fn ingest_block(
         if matching.is_empty() {
             continue;
         }
-        let final_custody = match custody_at(lcd, mapper, denom, height).await {
+        let final_custody = match custody_at(lcd, &treasury, denom, height).await {
             Ok(value) => value,
             Err(_) => {
                 tracing::warn!(
                     event_kind = "listing_principal",
-                    "Historical mapper custody unavailable; projection omitted"
+                    "Historical treasury custody unavailable; projection omitted"
                 );
+                persist_unproven(pool, mapper, &[denom], height, timestamp, block_hash).await?;
                 continue;
             }
         };
@@ -240,33 +357,38 @@ pub async fn ingest_block(
             custody -= &event.custody_delta;
         }
         if !valid || custody < BigDecimal::from(0) {
+            persist_unproven(pool, mapper, &[denom], height, timestamp, block_hash).await?;
             continue;
         }
         // Reconcile the complete block so unrelated native transfers cannot manufacture reserves.
-        match custody_at(lcd, mapper, denom, height - 1).await {
+        match custody_at(lcd, &treasury, denom, height - 1).await {
             Ok(initial) if initial == custody => {}
             _ => {
                 tracing::warn!(
                     event_kind = "listing_principal",
-                    "Mapper custody movement cannot be reconciled; projection omitted"
+                    "Treasury custody movement cannot be reconciled; projection omitted"
                 );
+                persist_unproven(pool, mapper, &[denom], height, timestamp, block_hash).await?;
                 continue;
             }
         }
         let mut db = pool.begin().await?;
         persist_snapshot(
             &mut db,
-            mapper,
-            denom,
-            &final_custody,
-            height,
-            timestamp,
-            block_hash,
+            Snapshot {
+                mapper,
+                custody_address: Some(&treasury),
+                denom,
+                custody: &final_custody,
+                height,
+                timestamp,
+                block_hash,
+            },
         )
         .await?;
         for (tx_index, hash, event, custody) in rows.into_iter().rev() {
-            sqlx::query("INSERT INTO listing_wrap_principal(mapper_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,source_ordinal,txn_index,block_height,block_timestamp,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(mapper_address,tx_hash,source_ordinal) DO NOTHING")
-                .bind(mapper).bind(denom).bind(event.direction).bind(&event.principal_raw).bind(custody)
+            sqlx::query("INSERT INTO listing_wrap_principal(mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,source_ordinal,txn_index,block_height,block_timestamp,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(mapper_address,tx_hash,source_ordinal) DO NOTHING")
+                .bind(mapper).bind(&treasury).bind(denom).bind(event.direction).bind(&event.principal_raw).bind(custody)
                 .bind(hash).bind(&event.trader_address).bind(event.source_ordinal).bind(tx_index)
                 .bind(height).bind(timestamp).bind(block_hash).execute(&mut *db).await?;
         }
@@ -286,20 +408,57 @@ pub async fn refresh_custody(pool: &PgPool, lcd: &LcdClient, mapper: &str) -> Re
         return Ok(());
     }
     let timestamp = DateTime::parse_from_rfc3339(&block.block.header.time)?.with_timezone(&Utc);
+    let treasury = match verified_treasury(lcd, mapper, height).await {
+        Ok(address) => address,
+        Err(error) => {
+            persist_unproven(
+                pool,
+                mapper,
+                &["uluna", "uusd"],
+                height,
+                timestamp,
+                hash.as_deref().unwrap_or(""),
+            )
+            .await?;
+            return Err(error);
+        }
+    };
+    let mut unavailable = false;
     for denom in ["uluna", "uusd"] {
-        let custody = custody_at(lcd, mapper, denom, height).await?;
-        let mut db = pool.begin().await?;
-        persist_snapshot(
-            &mut db,
-            mapper,
-            denom,
-            &custody,
-            height,
-            timestamp,
-            hash.as_deref().unwrap_or(""),
-        )
-        .await?;
-        db.commit().await?;
+        match custody_at(lcd, &treasury, denom, height).await {
+            Ok(custody) => {
+                let mut db = pool.begin().await?;
+                persist_snapshot(
+                    &mut db,
+                    Snapshot {
+                        mapper,
+                        custody_address: Some(&treasury),
+                        denom,
+                        custody: &custody,
+                        height,
+                        timestamp,
+                        block_hash: hash.as_deref().unwrap_or(""),
+                    },
+                )
+                .await?;
+                db.commit().await?;
+            }
+            Err(_) => {
+                persist_unproven(
+                    pool,
+                    mapper,
+                    &[denom],
+                    height,
+                    timestamp,
+                    hash.as_deref().unwrap_or(""),
+                )
+                .await?;
+                unavailable = true;
+            }
+        }
+    }
+    if unavailable {
+        return Err("Treasury custody unavailable at indexed checkpoint".into());
     }
     Ok(())
 }
@@ -361,9 +520,9 @@ mod tests {
             assert_eq!(
                 events[0].custody_delta,
                 BigDecimal::from(if action == "unwrap" {
-                    -5_010_000
+                    -5_000_000
                 } else {
-                    5_000_000
+                    5_010_000
                 })
             );
         }
@@ -425,6 +584,7 @@ mod tests {
                         {"key": "_contract_address", "value": "pinned"},
                         {"key": "action", "value": "notify_deposit"},
                         {"key": "denom", "value": "uluna"},
+                        {"key": "gross_amount", "value": "5010000"},
                         {"key": "mint_amount", "value": "5000000"}
                     ]}
                 ]
@@ -435,6 +595,65 @@ mod tests {
             assert_eq!(events[0].trader_address, "sdk_sender");
             assert_eq!(events[0].principal_raw, BigDecimal::from(5_000_000));
         }
+    }
+
+    #[test]
+    fn gross_bank_movements_are_strict_and_distinct_from_trade_principal() {
+        for action in ["notify_deposit", "unwrap"] {
+            for gross in [
+                "0",
+                "4999999",
+                "-1",
+                "1e6",
+                "1.0",
+                " 5010000",
+                "999999999999999999999999999999999999999",
+            ] {
+                let mut source = tx("pinned", action, "5000000");
+                let field = source.events.as_mut().unwrap()[1]
+                    .attributes
+                    .iter_mut()
+                    .find(|a| a.key == "gross_amount")
+                    .unwrap();
+                field.value = gross.into();
+                assert!(parse_principal(&source, "pinned").is_empty());
+            }
+            let mut missing = tx("pinned", action, "5000000");
+            missing.events.as_mut().unwrap()[1]
+                .attributes
+                .retain(|a| a.key != "gross_amount");
+            assert!(parse_principal(&missing, "pinned").is_empty());
+        }
+    }
+
+    #[test]
+    fn custody_contract_addresses_require_canonical_terra_checksums() {
+        use bech32::ToBase32;
+        for size in [20, 32] {
+            let address =
+                bech32::encode("terra", vec![7; size].to_base32(), bech32::Variant::Bech32)
+                    .unwrap();
+            assert!(canonical_custody_address(&address));
+            assert!(!canonical_custody_address(&address.to_ascii_uppercase()));
+            assert!(!canonical_custody_address(&format!(" {address}")));
+        }
+        for address in [
+            "terra1notchecksummed",
+            "terra1/address",
+            "https://treasury",
+            "cl8y-virtual:treasury",
+        ] {
+            assert!(!canonical_custody_address(address));
+        }
+        let other =
+            bech32::encode("osmo", vec![7; 32].to_base32(), bech32::Variant::Bech32).unwrap();
+        assert!(!canonical_custody_address(&other));
+        let wrong_variant =
+            bech32::encode("terra", vec![7; 32].to_base32(), bech32::Variant::Bech32m).unwrap();
+        assert!(!canonical_custody_address(&wrong_variant));
+        let short =
+            bech32::encode("terra", vec![7; 4].to_base32(), bech32::Variant::Bech32).unwrap();
+        assert!(!canonical_custody_address(&short));
     }
 
     #[tokio::test]

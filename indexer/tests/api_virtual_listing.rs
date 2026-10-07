@@ -89,7 +89,7 @@ async fn swap(
         .bind(pair).bind(block).bind(tx).bind(offer).bind(ask).bind(BigDecimal::from_str(amounts.0).unwrap()).bind(BigDecimal::from_str(amounts.1).unwrap()).bind(BigDecimal::from_str(amounts.2).unwrap()).bind(BigDecimal::from_str(reserves.0).unwrap()).bind(BigDecimal::from_str(reserves.1).unwrap()).execute(pool).await.unwrap();
 }
 async fn wrap(pool: &PgPool, denom: &str, direction: &str, tx: &str, block: i64) {
-    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ($1,$2,$3,5000000,100000000,$4,'terra1maker1437',$5,NOW()-interval '1 minute'*(110-$5))").bind(MAPPER).bind(denom).bind(direction).bind(tx).bind(block).execute(pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ($1,'terra1treasury1437',$2,$3,5000000,100000000,$4,'terra1maker1437',$5,NOW()-interval '1 minute'*(110-$5))").bind(MAPPER).bind(denom).bind(direction).bind(tx).bind(block).execute(pool).await.unwrap();
 }
 async fn fixture() -> (PgPool, TestServer, MockServer, i32) {
     let pool = common::setup_pool().await;
@@ -152,9 +152,9 @@ async fn fixture() -> (PgPool, TestServer, MockServer, i32) {
     wrap(&pool, "uluna", "wrap", "wrap-lunc", 100).await;
     wrap(&pool, "uluna", "unwrap", "unwrap-lunc", 101).await;
     wrap(&pool, "uusd", "wrap", "wrap-ustc", 102).await;
-    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ('terra1foreignmapper1437','uluna','wrap',999000000,999000000,'forged-wrap','terra1attacker1437',100,NOW())").execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ('terra1foreignmapper1437','terra1treasury1437','uluna','wrap',999000000,999000000,'forged-wrap','terra1attacker1437',100,NOW())").execute(&pool).await.unwrap();
     for denom in ["uluna", "uusd"] {
-        sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,$2,100000000,105,NOW())").bind(MAPPER).bind(denom).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,custody_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,'terra1treasury1437',$2,100000000,105,NOW())").bind(MAPPER).bind(denom).execute(&pool).await.unwrap();
     }
     // Captured fees are separate economic ledger rows and must not become principal.
     sqlx::query("INSERT INTO protocol_fee_events (source,asset_id,amount_raw,decimals,block_height,block_timestamp,tx_hash) VALUES ('wrap', $1,10000,6,100,NOW(),'wrap-lunc')").bind(clunc).execute(&pool).await.unwrap();
@@ -407,7 +407,7 @@ async fn virtual_orderbooks_trades_pair_and_asset_ids_never_call_lcd() {
         .json();
     assert_eq!(buys["buy"].as_array().unwrap().len(), 1);
     assert!(buys["sell"].as_array().unwrap().is_empty());
-    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) SELECT $1,'uluna','wrap',1000000,100000000,'cap-principal-'||n,'terra1maker1437',105,NOW() FROM generate_series(1,600) n").bind(MAPPER).execute(&_pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) SELECT $1,'terra1treasury1437','uluna','wrap',1000000,100000000,'cap-principal-'||n,'terra1maker1437',105,NOW() FROM generate_series(1,600) n").bind(MAPPER).execute(&_pool).await.unwrap();
     let capped: Value = server
         .get("/cg/historical_trades?ticker_id=cLUNC_LUNC&limit=9999")
         .await
@@ -553,7 +553,7 @@ async fn missing_backing_missing_pin_and_symbol_collisions_fail_closed() {
     cl8y_dex_indexer::db::queries::state::set_last_indexed_height(&pool, 106)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,'uluna',0,106,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,custody_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,'terra1treasury1437','uluna',0,106,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
     let rows: Vec<Value> = server.get("/cg/pairs").await.json();
     for id in [IDS[0], IDS[2], IDS[3]] {
         assert!(!rows.iter().any(|v| v["pool_id"] == id));
@@ -776,8 +776,8 @@ async fn prices_use_exact_contract_pool_not_symbol_or_oracle_and_zero_reserves_o
 #[tokio::test]
 async fn uncommitted_future_custody_and_principal_cannot_publish_prices_or_inflate_prints() {
     let (pool, server, mock, _cross) = fixture().await;
-    sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,'uluna',0,9999,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
-    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ($1,'uluna','wrap',999000000,999000000,'future-wrap','terra1maker1437',9999,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,custody_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,'terra1treasury1437','uluna',0,9999,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ($1,'terra1treasury1437','uluna','wrap',999000000,999000000,'future-wrap','terra1maker1437',9999,NOW())").bind(MAPPER).execute(&pool).await.unwrap();
     let response = server.get("/cg/pairs").await;
     response.assert_status_ok();
     let pairs: Vec<Value> = response.json();
@@ -791,5 +791,53 @@ async fn uncommitted_future_custody_and_principal_cannot_publish_prices_or_infla
     let prints: Value = response.json();
     assert_eq!(prints["buy"].as_array().unwrap().len(), 1);
     assert_eq!(prints["sell"].as_array().unwrap().len(), 1);
+    assert!(mock.received_requests().await.unwrap().is_empty());
+}
+
+#[serial]
+#[tokio::test]
+async fn treasury_source_is_required_and_rotated_backing_cannot_reuse_old_prints() {
+    let (pool, server, mock, _) = fixture().await;
+    // Legacy/unproven and foreign-custody rows never inflate a proven peg feed.
+    sqlx::query("INSERT INTO listing_wrap_principal (mapper_address,custody_address,native_denom,direction,principal_raw,custody_raw,tx_hash,trader_address,block_height,block_timestamp) VALUES ($1,NULL,'uluna','wrap',999000000,999000000,'legacy-unproven','actor',104,NOW()),($1,'terra1othercustody','uluna','wrap',999000000,999000000,'wrong-custody','actor',104,NOW())")
+        .bind(MAPPER).execute(&pool).await.unwrap();
+    cl8y_dex_indexer::api::reset_aggregator_cache();
+    let tickers: Vec<Value> = server.get("/cg/tickers").await.json();
+    number(&market(&tickers, IDS[0])["base_volume"], "10000000");
+    let body: Value = server
+        .get("/gt/events?fromBlock=100&toBlock=105")
+        .await
+        .json();
+    assert_eq!(events(&body, IDS[0]).len(), 2);
+
+    // The latest committed unproven observation must suppress old positive backing.
+    sqlx::query("INSERT INTO listing_mapper_custody (mapper_address,custody_address,native_denom,custody_raw,block_height,block_timestamp) VALUES ($1,NULL,'uluna',100000000,106,NOW())")
+        .bind(MAPPER).execute(&pool).await.unwrap();
+    cl8y_dex_indexer::db::queries::state::set_last_indexed_height(&pool, 106)
+        .await
+        .unwrap();
+    cl8y_dex_indexer::api::reset_aggregator_cache();
+    let pairs: Vec<Value> = server.get("/cg/pairs").await.json();
+    for id in [IDS[0], IDS[2], IDS[3]] {
+        assert!(pairs.iter().all(|pair| pair["pool_id"] != id));
+    }
+    server
+        .get("/gt/pair?id=cl8y-virtual:clunc-uluna")
+        .await
+        .assert_status_not_found();
+    // A rotated, proven source publishes metadata but cannot borrow another source's prints.
+    sqlx::query("UPDATE listing_mapper_custody SET custody_address='terra1newcustody' WHERE mapper_address=$1 AND block_height=106")
+        .bind(MAPPER).execute(&pool).await.unwrap();
+    cl8y_dex_indexer::api::reset_aggregator_cache();
+    let tickers: Vec<Value> = server.get("/cg/tickers").await.json();
+    number(&market(&tickers, IDS[0])["base_volume"], "0");
+    let trades: Value = server
+        .get("/cg/historical_trades?ticker_id=cLUNC_LUNC")
+        .await
+        .json();
+    assert_eq!(
+        trades["buy"].as_array().unwrap().len() + trades["sell"].as_array().unwrap().len(),
+        0
+    );
     assert!(mock.received_requests().await.unwrap().is_empty());
 }

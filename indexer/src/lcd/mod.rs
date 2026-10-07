@@ -257,7 +257,12 @@ impl LcdClient {
             let log_path = lcd_log_path(path);
             let mut request = self.inner.client.get(&full_url);
             if let Some(height) = height {
-                request = request.header("x-cosmos-block-height", height.to_string());
+                // Public LCD proxies may cache smart/bank URLs without varying
+                // on the height header. Give each historical height its own URL
+                // cache key, while still requiring an exact response header.
+                request = request
+                    .query(&[("height", height)])
+                    .header("x-cosmos-block-height", height.to_string());
             }
             match request.send().await {
                 Ok(resp) => {
