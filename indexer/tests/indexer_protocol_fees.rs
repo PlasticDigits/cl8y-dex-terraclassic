@@ -466,6 +466,7 @@ fn wrap_pin_and_spoof() {
     )
     .unwrap();
     let tx = TxResponse {
+        code: 0,
         height: "1".into(),
         txhash: "T".into(),
         timestamp: None,
@@ -507,6 +508,7 @@ fn attr(key: &str, value: &str) -> Attribute {
 /// Captured ustr-cmm wrap-mapper fixture (GitLab #613): `notify_deposit` + `fee`.
 fn captured_wrap_tx(pin: &str, denom: &str, fee: &str) -> TxResponse {
     TxResponse {
+        code: 0,
         height: "1".into(),
         txhash: "WRAP-CAPTURED".into(),
         timestamp: None,
@@ -849,6 +851,7 @@ fn ust1_window_parse_exported_for_fixtures() {
     let pin = "terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2";
     let ust1 = "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
     let tx = TxResponse {
+        code: 0,
         height: "1".into(),
         txhash: "W".into(),
         timestamp: None,

@@ -567,6 +567,7 @@ mod tests {
 
     fn tx_with_wasm(attrs: Vec<Attribute>) -> TxResponse {
         TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "TX".into(),
             timestamp: None,

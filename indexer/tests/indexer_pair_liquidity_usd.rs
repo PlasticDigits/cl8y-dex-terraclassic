@@ -90,15 +90,18 @@ async fn insert_reserves(
 }
 
 async fn insert_oracle(pool: &sqlx::PgPool, ticker: &str, price: &str) {
-    sqlx::query(
-        "INSERT INTO oracle_prices (ticker, price_usd, source, fetched_at)
-         VALUES ($1, $2, 'average', NOW())",
+    // #1391: fixtures must certify the same freshness and two-source quorum as
+    // production. Legacy oracle_prices averages alone cannot supply safe TVL.
+    cl8y_dex_indexer::db::queries::oracle::record_observation(
+        pool,
+        cl8y_dex_indexer::indexer::oracle::OracleTicker::parse(ticker)
+            .expect("known synthetic oracle ticker"),
+        Some(&bd(price)),
+        &["mexc".into(), "coingecko".into()],
+        "fresh",
     )
-    .bind(ticker)
-    .bind(bd(price))
-    .execute(pool)
     .await
-    .expect("oracle");
+    .expect("certify synthetic oracle fixture");
 }
 
 fn item_for<'a>(body: &'a Value, addr: &str) -> &'a Value {
@@ -177,9 +180,12 @@ async fn i4_i5_hub_marks_not_pegs() {
     let p_ustr = insert_pair(&pool, "terra1ust1ustr655", ust1, ustr).await;
     insert_reserves(&pool, p_ustr, "10000000", "100000000000000000000", now).await;
     insert_oracle(&pool, "ustc", "0.01").await;
+    // #1391: these deliberate synthetic spot marks have a current source time
+    // and the bounded quality required by the production TVL reader.
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
-         VALUES ('ust1', $1, 0.98, NOW()), ('ustr', $2, 0.012, NOW())",
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at, as_of, quality)
+         VALUES ('ust1', $1, 0.98, NOW(), NOW(), 'bounded_spot'),
+                ('ustr', $2, 0.012, NOW(), NOW(), 'bounded_spot')",
     )
     .bind(ust1)
     .bind(ustr)

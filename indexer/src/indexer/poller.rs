@@ -151,6 +151,25 @@ pub async fn run_indexer(
     });
     let ustc_price = oracle_prices.ustc.clone();
 
+    if let Some(mapper) = config.wrap_mapper_address.clone().filter(|a| !a.is_empty()) {
+        let backing_pool = pool.clone();
+        let backing_lcd = lcd.clone();
+        let backing_cancel = cancel.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            loop {
+                tokio::select! {
+                    _ = backing_cancel.cancelled() => break,
+                    _ = interval.tick() => {
+                        if super::listing_principal::refresh_custody(&backing_pool, &backing_lcd, &mapper).await.is_err() {
+                            tracing::warn!(event_kind="listing_principal", "Mapper backing refresh unavailable");
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     let snapshot_pool = pool.clone();
     let snapshot_lcd = lcd.clone();
     let snapshot_interval = config.book_snapshot_interval_ms;

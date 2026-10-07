@@ -94,3 +94,9 @@ Live Coolify check (2026-09-24): yesterday UTC and `start` returned HTTP 200; `s
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Llama pricing coverage
 - [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) other listing venues — [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md)
 - [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) closed: Llama fees headline partial SUM + adapter start — regression gate `make verify-issue-687`; post-merge ops record [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688)
+
+Listing-only native CG/GT edges (#1437): apply
+[LV1437-1–LV1437-10](AGENTS_LISTING_VIRTUAL_PAIRS.md);
+`make verify-issue-1437` and the
+[agent checklist/skip policy](../docs/qa/issue-1437/README.md).
+These projections never become factory markets or DeFiLlama economic totals.
