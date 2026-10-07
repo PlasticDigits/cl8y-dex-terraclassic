@@ -25,7 +25,6 @@ import {
 } from '@/utils/trailingWindowCopy'
 import type { IndexerOverview } from '@/types'
 import { ProtocolVolumeDailyChart } from './ProtocolVolumeDailyChart'
-import { ProtocolDetails } from './ProtocolDetails'
 
 interface ProtocolGlobalStatsProps {
   overviewQuery: UseQueryResult<IndexerOverview>
@@ -132,13 +131,8 @@ function ProtocolLiquidityStat({
     <StatBox
       variant="flat"
       label="Total liquidity"
-      labelAccessory={liquidity.hint ? <ProtocolDetails detail={liquidity.hint} /> : undefined}
       value={liquidity.value}
-      valueAriaLabel={
-        liquidity.value === '—'
-          ? 'Total liquidity unavailable'
-          : `Total liquidity ${liquidity.quality === 'partial' ? 'lower bound ' : ''}${liquidity.value}`
-      }
+      valueAriaLabel={liquidity.value === '—' ? 'Total liquidity unavailable' : `Total liquidity ${liquidity.value}`}
       loading={loading && overview == null && latest == null}
       deltas={
         delta === '—'

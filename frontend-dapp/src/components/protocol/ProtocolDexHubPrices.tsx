@@ -1,4 +1,3 @@
-import { ProtocolDetails } from './ProtocolDetails'
 import { formatPairPrice } from '@/utils/formatAmount'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { RetryError, Skeleton } from '@/components/ui'
@@ -32,15 +31,9 @@ export function ProtocolDexHubPrices({ query }: ProtocolDexHubPricesProps) {
 
   return (
     <div className="shell-panel" data-testid="protocol-dex-hub-prices">
-      <div className="flex items-center gap-1 mb-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
-          DEX reference prices
-        </h2>
-        <ProtocolDetails
-          label="DEX price details"
-          detail="Reference prices used for DEX pools. Trade prices can differ."
-        />
-      </div>
+      <h2 className="text-sm font-semibold uppercase tracking-wide font-heading mb-3" style={{ color: 'var(--ink)' }}>
+        DEX reference prices
+      </h2>
 
       {query.isError && <RetryError message="Failed to load DEX hub prices" onRetry={() => void query.refetch()} />}
       <dl className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">

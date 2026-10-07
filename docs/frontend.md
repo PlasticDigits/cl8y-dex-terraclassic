@@ -27,8 +27,11 @@ of gray categories, hatching, full-height empty boxes or fake zeroes. Preserve
 actual observation dates. Tooltips contain only a readable date and amount;
 quality, freshness, snapshot and generation terms stay in engineering docs.
 Retain the last known headline through background refreshes and outages; its
-optional info may contain only “Updated …”. Simplify by deleting explanatory
-code and text, rather than moving the same complexity into a tooltip.
+liquidity headline contains only the label and plain USD amount, without quality
+markers, age text or an info control. Simplify by deleting explanatory
+code and text, rather than moving the same complexity into a tooltip. Protocol
+fee and reference-price cards likewise keep headings, values and identity/provider
+controls, without explanatory info popups. Methodology stays in engineering docs.
 
 ### One chrome layer / anti-nesting {#one-chrome-layer}
 
@@ -2605,7 +2608,7 @@ value, original as-of and qualified quality are stored locally, scoped to expect
 chain, factory and indexer. No overview/wallet data is saved. A new qualified total,
 including a genuine decrease or zero, replaces the previous total. Partial never
 overwrites a retained complete total. Before any complete total exists, the last
-qualified partial lower bound persists with `≥` and its original observation time
+qualified partial amount persists with its original observation time kept internally
 through expiry, outages and reloads. A newer qualified partial lower bound may
 decrease; a complete valuation replaces it. An em dash means no usable valuation
 has ever been received.
@@ -2621,8 +2624,9 @@ This presentation follows the explicit 2026-10-07 user direction and supersedes
 previous frontend quality-gap/estimate styling. API canonical values and delta
 rules remain unchanged. Reported amounts never supply a current headline or
 comparable delta. Volume/Fees retain their existing flow behavior. Keyboard focus
-and mobile tap expose date and amount. Optional headline info contains only
-“Updated …”; no expired/stale/verified/snapshot explanation appears.
+and mobile tap expose chart date and amount. The headline shows only the plain USD
+amount; no `≥` prefix, age/status text or liquidity info control appears. Partial
+quality and observation time remain internal.
 Expiry suppresses the 24h delta using original liquidity time,
 independently of volume polling, without removing the last known correct amount.
 This display-only retention follows the explicit 2026-10-06 user instruction and

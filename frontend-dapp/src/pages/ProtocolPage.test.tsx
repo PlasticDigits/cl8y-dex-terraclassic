@@ -583,9 +583,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       })
       renderWithProviders(<ProtocolPage />, { route: '/protocol' })
       const liquidity = await screen.findByTestId('protocol-stat-liquidity')
-      await waitFor(() => expect(liquidity).toHaveTextContent(quality === 'partial' ? '≥ $' : '—'))
+      await waitFor(() => expect(liquidity).toHaveTextContent(quality === 'partial' ? '$218' : '—'))
       expect(within(liquidity).queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
       expect(liquidity).not.toHaveTextContent('-100%')
+      expect(liquidity).not.toHaveTextContent(/≥|Updated|Fresh|As of/)
+      expect(screen.queryByRole('button', { name: 'Liquidity details' })).not.toBeInTheDocument()
       expect(liquidity).not.toHaveTextContent('$0')
       expect(screen.getByTestId('protocol-stat-volume-24h')).toHaveTextContent('$')
     }
@@ -655,6 +657,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.getByTestId('protocol-volume-chart-xaxis')).not.toHaveTextContent('09-30')
     expect(screen.getByTestId('protocol-volume-daily-bars')).not.toHaveTextContent('pattern')
     expect(screen.queryByRole('button', { name: 'Chart details' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Fee details|DEX price details|Reference price details/ })
+    ).not.toBeInTheDocument()
     expect(screen.queryByText(/TVL moves with LP|UTC calendar day|Dashed gaps mean/)).not.toBeInTheDocument()
   })
 

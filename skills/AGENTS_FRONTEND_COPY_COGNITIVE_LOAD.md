@@ -31,8 +31,11 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
     chart-info essays and fresh/stale/snapshot/generation vocabulary from retail
     charts rather than hiding the same explanation behind an info icon.
     Retain the last known headline amount through background refreshes and outages;
-    optional headline info may say only “Updated …”. Backend quality, provenance
-    and delta eligibility remain internal. No spinner replaces an existing number.
+    liquidity headlines show only the label and plain USD amount, without `≥`,
+    age/status text or an info control. Backend quality, provenance, observation
+    time and delta eligibility remain internal. No spinner replaces an existing number.
+    Protocol fee/reference-price cards keep their headings and values; delete
+    methodology/explanatory info popups instead of relocating essays into them.
 
 ## QuickSwap-aligned Limits IA
 

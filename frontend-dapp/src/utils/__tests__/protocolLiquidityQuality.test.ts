@@ -53,13 +53,12 @@ describe('liquidity quality #1380', () => {
   it('permits fresh totals despite permanently unsupported catalog pairs', () => {
     expect(overviewLiquidityDisplay(fresh, now)).toMatchObject({ value: '$249K', comparable: true })
   })
-  it('labels partial totals as lower bounds and suppresses deltas', () => {
+  it('shows partial totals as plain amounts while suppressing deltas', () => {
     const display = overviewLiquidityDisplay(
       { ...fresh, liquidity_quality: 'partial', total_liquidity_usd: '218' },
       now
     )
-    expect(display.value).toMatch(/^≥ \$/)
-    expect(display.hint).toBe('Updated 10 seconds ago.')
+    expect(display.value).toBe('$218')
     expect(display.comparable).toBe(false)
   })
   it('ages liquidity independently and rejects future/missing observations', () => {
@@ -79,10 +78,8 @@ describe('liquidity quality #1380', () => {
     ).toBe('$0')
     expect(overviewLiquidityDisplay({ ...fresh, total_liquidity_usd: '0' }, now).value).toBe('$0')
   })
-  it('keeps stale last-observed value explicitly dated without a delta', () => {
+  it('keeps stale data ineligible for a delta', () => {
     const display = overviewLiquidityDisplay({ ...fresh, liquidity_quality: 'stale' }, now)
-    expect(display.hint).toContain('Updated 10 seconds ago.')
-    expect(display.hint).not.toContain('2026-')
     expect(display.comparable).toBe(false)
   })
   it('rejects contradictory verified-empty positive totals in the headline', () => {
@@ -95,7 +92,6 @@ describe('liquidity quality #1380', () => {
       expect(overviewLiquidityDisplay({ ...fresh, total_liquidity_usd: raw }, now).value).toBe('—')
     }
     const old = overviewLiquidityDisplay({ ...fresh, liquidity_quality: undefined }, now)
-    expect(old.hint).toBe('Updated 10 seconds ago.')
     expect(old.comparable).toBe(false)
   })
   it('plots all supplied numeric history without imposing current quality on older dates', () => {
@@ -124,7 +120,7 @@ describe('public last verified liquidity retention', () => {
     expect(retained).toEqual({ value: '206000', quality: 'partial', asOf: partial.liquidity_as_of })
     expect(parseLiquiditySnapshot(JSON.stringify(retained), now + 60_000)).toEqual(retained)
     expect(overviewLiquidityDisplay(partial, now, retained)).toMatchObject({
-      value: '≥ $206K',
+      value: '$206K',
       comparable: false,
     })
     for (const next of [
@@ -136,15 +132,14 @@ describe('public last verified liquidity retention', () => {
       expect(retainQualifiedLiquidity(retained, next, now + 60_000)).toBe(retained)
       expect(overviewLiquidityDisplay(next, now + 60_000, retained)).toMatchObject({
         quality: 'partial',
-        value: '≥ $206K',
+        value: '$206K',
         comparable: false,
       })
-      expect(overviewLiquidityDisplay(next, now + 60_000, retained).hint).toMatch(/^Updated /)
     }
     const lower = { ...partial, total_liquidity_usd: '120000', liquidity_as_of: new Date(now).toISOString() }
     const reduced = retainQualifiedLiquidity(retained, lower, now)
     expect(reduced?.value).toBe('120000')
-    expect(overviewLiquidityDisplay(lower, now, reduced).value).toBe('≥ $120K')
+    expect(overviewLiquidityDisplay(lower, now, reduced).value).toBe('$120K')
     // A full total takes priority even when its value or oldest input time is lower.
     expect(overviewLiquidityDisplay(fresh, now, reduced)).toMatchObject({ value: '$249K', comparable: true })
     const complete = retainQualifiedLiquidity(reduced, fresh, now)
@@ -164,7 +159,6 @@ describe('public last verified liquidity retention', () => {
       expect(overviewLiquidityDisplay(next, now, retained)).toMatchObject({ value: '$249K', comparable: false })
     }
     expect(overviewLiquidityDisplay(fresh, now + 60_000, retained)).toMatchObject({ value: '$249K', comparable: false })
-    expect(overviewLiquidityDisplay(undefined, now + 60_000, retained).hint).toBe('Updated 1 minute ago.')
   })
   it('replaces previous totals with qualified decreases and verified zero even when oldest input time is earlier', () => {
     const retained = retainQualifiedLiquidity(null, fresh, now)

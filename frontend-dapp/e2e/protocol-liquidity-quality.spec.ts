@@ -66,13 +66,10 @@ for (const width of [390, 1280]) {
     await page.goto('/protocol')
     const liquidity = page.getByTestId('protocol-stat-liquidity')
     await expect(liquidity).toBeVisible({ timeout: 60_000 })
-    await expect(liquidity).toContainText('≥ $')
+    await expect(liquidity).toContainText('$218')
     await expect(liquidity).not.toContainText(/Fresh|As of|Partial ·/)
-    const info = page.getByRole('button', { name: 'Liquidity details' })
-    await info.click()
-    await expect(page.getByRole('tooltip')).toContainText('Updated')
-    await expect(page.getByRole('tooltip')).not.toContainText('2026-')
-    await page.keyboard.press('Escape')
+    await expect(page.getByRole('button', { name: 'Liquidity details' })).toHaveCount(0)
+    await expect(liquidity).not.toContainText(/≥|Updated|As of|partial|fresh/i)
     await expect(liquidity).not.toContainText('-100%')
     await expect(page.getByTestId('protocol-stat-volume-24h')).toContainText('$')
     await page.getByTestId('protocol-utc-metric-liquidity').click()
@@ -159,10 +156,6 @@ test('last verified total survives expiry, outage and reload; decreases and genu
   await page.clock.setFixedTime(new Date(frozen.getTime() + 3000))
   await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
   await expect(liquidity).toContainText('$250K')
-  await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Updated 3 seconds ago.')
-  await expect(page.getByRole('tooltip')).not.toContainText(/expired|too old|stale/i)
-  await page.keyboard.press('Escape')
   for (const degraded of [3, 4, 5]) {
     phase = degraded
     await page.reload()
@@ -176,20 +169,13 @@ test('last verified total survives expiry, outage and reload; decreases and genu
   phase = 2
   await page.reload()
   await expect(liquidity).toContainText('$0')
-  await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Updated just now.')
-  await page.keyboard.press('Escape')
   phase = 3
   await page.reload()
   await expect(liquidity).toContainText('$0')
-  await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Updated')
   await page.screenshot({ path: join(evidenceDir, 'last-known-zero-reload.png'), fullPage: true })
 })
 
-test('first partial lower bound survives TTL, null, failure and reload until a complete total arrives', async ({
-  page,
-}) => {
+test('first partial amount survives TTL, null, failure and reload until a complete total arrives', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 })
   const frozen = new Date('2026-10-04T08:00:00Z')
   await page.clock.setFixedTime(frozen)
@@ -216,7 +202,7 @@ test('first partial lower bound survives TTL, null, failure and reload until a c
   })
   await page.goto('/protocol')
   const liquidity = page.getByTestId('protocol-stat-liquidity')
-  await expect(liquidity).toContainText('≥ $206K', { timeout: 60_000 })
+  await expect(liquidity).toContainText('$206K', { timeout: 60_000 })
   await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
   await expect
     .poll(() =>
@@ -228,21 +214,21 @@ test('first partial lower bound survives TTL, null, failure and reload until a c
     )
     .toBe(true)
   await page.clock.setFixedTime(new Date(frozen.getTime() + 3000))
-  await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Updated 3 seconds ago.')
-  await expect(liquidity).toContainText('≥ $206K')
-  await page.keyboard.press('Escape')
+  await expect(liquidity).toContainText('$206K')
+  await expect(liquidity).not.toContainText(/≥|Updated|As of|partial|fresh/i)
+  await expect(page.getByRole('button', { name: 'Liquidity details' })).toHaveCount(0)
   for (const next of ['null', 'failed'] as const) {
     phase = next
     await page.reload()
-    await expect(liquidity).toContainText('≥ $206K')
+    await expect(liquidity).toContainText('$206K')
+    await expect(liquidity).not.toContainText(/≥|Updated|As of|partial|fresh/i)
     await expect(liquidity).not.toContainText(/expired|stale/i)
     await expect(liquidity.locator('.animate-pulse')).toHaveCount(0)
     await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
   }
   phase = 'lower'
   await page.reload()
-  await expect(liquidity).toContainText('≥ $120K')
+  await expect(liquidity).toContainText('$120K')
   phase = 'complete'
   await page.reload()
   await expect(liquidity).toContainText('$110K')
@@ -253,7 +239,5 @@ test('first partial lower bound survives TTL, null, failure and reload until a c
   await expect(liquidity).toContainText('$110K')
   await expect(liquidity).not.toContainText('≥')
   await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Updated')
   await page.screenshot({ path: join(evidenceDir, 'partial-to-complete-retention-phone.png'), fullPage: true })
 })
