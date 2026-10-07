@@ -61,6 +61,11 @@ For production rollout automation, use
 [rollout script checklist](docs/qa/issue-1381-rollout/README.md).
 Planning/probing is read-only; execution and pause restoration are explicit
 operator actions. Script verification does not establish production deployment.
+The integrated release close is
+[REL1421-1–REL1421-10](skills/AGENTS_RELEASE_OPS_1421.md)
+([#1421](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1421),
+[#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384));
+`make verify-issue-1421` checks those cross-links only.
 
 Guidance for AI coding agents working in this repository.
 
@@ -113,6 +118,9 @@ migration history. This supersedes historical shared `cl8y_legal`/TEST_DATABASE_
 instructions below. Run `make verify-issue-1396` and follow the
 [agent checklist/skip policy](docs/qa/issue-1396/README.md) and
 [role transition/rollback runbook](docs/runbooks/indexer-database-isolation.md).
+The production maintenance receipt is under
+[docs/qa/issue-1385/production-maintenance.json](docs/qa/issue-1385/production-maintenance.json)
+and is coordinated by [REL1421-4](skills/AGENTS_RELEASE_OPS_1421.md).
 
 ## Git commits
 

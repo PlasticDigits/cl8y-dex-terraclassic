@@ -15,8 +15,10 @@ retains its original signed bytes and journal for reconciliation.
 
 The process uses `cl8ydeploy`, `multisig_2of3` with `multisig1`/`multisig2`, and
 `cl8y2_admin`. Passphrase input stays in process memory. The script records fj
-issue notes; #1384 closes only after actual migration, app, provider and execution
-receipts pass. Broader release scope remains recorded on #1421.
+issue notes. The 2026-10-07 close separates contract verification from the
+funded smoke and Bridge-Debt keyring steps. See
+[docs/qa/issue-1384/README.md](../../../docs/qa/issue-1384/README.md) and
+[REL1421-1–REL1421-10](../../../skills/AGENTS_RELEASE_OPS_1421.md).
 
 Agent work already completed includes production database isolation/migrations,
 retained history repair, indexer/frontend rollout, owned funded chain controls,

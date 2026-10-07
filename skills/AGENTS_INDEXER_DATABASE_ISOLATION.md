@@ -27,3 +27,8 @@ Run `make verify-issue-1396` and follow the
 Provisioning/transition/rollback instructions:
 [runbook](../docs/runbooks/indexer-database-isolation.md).
 Local setup: [Postgres playbook](AGENTS_LOCAL_POSTGRES_DEV.md).
+Production role transition receipt:
+[docs/qa/issue-1385/production-maintenance.json](../docs/qa/issue-1385/production-maintenance.json)
+(61 migrations, schema marker `20261006133000`, four permission denials).
+That receipt is deployment evidence for [#1396](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1396);
+release coordination is [REL1421-4](AGENTS_RELEASE_OPS_1421.md).

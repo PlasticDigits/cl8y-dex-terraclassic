@@ -104,3 +104,9 @@ successful read-only funded forward/reverse quotes with matching reviewed hashes
 Source work budgets and larger-limit test nodes cannot establish that envelope.
 A deterministic provider gas error leaves that provider/route unverified; do not
 waive tax/signing guards, fan out or raise limits to conceal it.
+
+The 2026-10-07 Columbus-5 readback is
+[docs/qa/issue-1384/README.md](../docs/qa/issue-1384/README.md). Contract
+verification can pass while `production_execution` stays UNVERIFIED. Release
+coordination is [REL1421-1–REL1421-10](AGENTS_RELEASE_OPS_1421.md). Pair fleet
+tracking remains [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).
