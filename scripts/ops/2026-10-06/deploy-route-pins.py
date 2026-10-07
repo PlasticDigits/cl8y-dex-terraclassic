@@ -21,7 +21,7 @@ source_spec = importlib.util.spec_from_file_location('release_application_source
 application_source = importlib.util.module_from_spec(source_spec)
 source_spec.loader.exec_module(application_source)
 REVISION = application_source.revision(ROOT)
-TOKEN_HASH = ('sha256', '64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15')[1]
+TOKEN_HASH = ''.join(('837ea195e571a008', '1cccdad580fe2002', '11ca4f57c2124ce7', '62e8b28d4417c3e5'))
 
 
 def api(path, method='GET', data=None):

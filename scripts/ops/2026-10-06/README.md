@@ -27,3 +27,24 @@ current API quality and percentage comparability remain independently qualified.
 The [route instructions](ROUTE-README.md) and
 [Bridge-Debt instructions](BRIDGE-DEBT-README.md) document the journals and bounded
 spending. The single consolidated inbox card contains the original DEX issue URLs.
+
+The interrupted October 7 rollout has an audited artifact correction: the token
+and pair are rebuilt from unchanged locked source with the pinned Rust 1.81
+compiler's size profile. Only unsigned, unstored artifacts may change. Original
+manifest, inventory, pause states and included transactions remain archived and
+linked to the amendment. The preflight now checks the production 100-local limit
+before any signing. Application code stays pinned while operational fixes may
+follow it only with identical application and contract source inputs.
+
+The keyring passphrase passes to custody children through a bounded anonymous
+pipe, not an environment value. SDK commands receive it only on stdin. Route,
+smoke and containment fees share the route cap, with funds reserved for both
+containment and restoration before signing.
+
+The repair also freezes a current economic checkpoint while every affected pair
+is paused and every token/pair still has its original implementation. This
+checkpoint is bound to the immutable amendment receipt; the earlier inventory
+and original pause flags are retained. Historical providers did not supply
+height-attested snapshots, so the checkpoint establishes the state before the
+remaining migrations and does not attribute prior swaps or LP changes. Any
+subsequent pool or supply drift fails verification.

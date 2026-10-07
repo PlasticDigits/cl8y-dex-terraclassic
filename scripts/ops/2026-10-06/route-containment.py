@@ -7,6 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'scripts/lib'))
 from route_tax_rollout import Rollout, digest, require, write_json
+from route_tax_rollout_cli import fee_budget_guard
 
 
 def aggregate_fees(state_dir, state):
@@ -60,11 +61,10 @@ def operation(chain, state_dir, path, state, name, action):
         return receipt
     write_json(path, state)
     def signed(tx_hash, signed_path, fee):
-        total, cap = aggregate_fees(state_dir, state)
-        require(total+fee <= cap, 'Rollout + smoke + containment aggregate fee cap exceeded')
+        fee_budget_guard(state_dir, fee, purpose='containment', action=action)
         entry.update(tx_hash=tx_hash, signed_path=signed_path, fee_uluna=fee)
         write_json(path, state)
-    receipt = chain.transaction(action, signed)
+    receipt = chain.transaction(action, signed, budget_purpose='containment')
     Rollout._receipt_ok(receipt)
     entry['receipt'] = receipt
     write_json(path, state)

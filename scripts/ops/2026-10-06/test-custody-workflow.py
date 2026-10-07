@@ -31,7 +31,8 @@ class FakeChain:
     def receipt(self, hash_value): return self.receipts.get(hash_value)
     def validate_saved(self, action, entry):
         assert entry['action'] == action
-    def transaction(self, action, signed):
+    def transaction(self, action, signed, *, budget_purpose='normal'):
+        assert budget_purpose == 'containment'
         tx_hash = f'{len(self.actions)+1:064X}'
         signed(tx_hash, '/external/signed.json', 7)
         self.actions.append(action)
@@ -48,7 +49,8 @@ class WorkflowTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.journal = {'status': 'complete', 'identity_hash': 'release', 'codes': {'factory': 10},
             'operations': {}, 'identity': {'config': {'chain_id': 'columbus-5', 'factory': 'factory',
-                'governance': 'gov', 'max_total_fee_uluna': 100}, 'artifacts': {'factory': {'sha256': 'a'*64}}},
+                'governance': 'gov', 'max_total_fee_uluna': 100,
+                'transport': {'gas_prices': '0.000005uluna'}}, 'artifacts': {'factory': {'sha256': 'a'*64}}},
             'inventory': {'pairs': [{'address': 'a', 'paused': False}, {'address': 'b', 'paused': False},
                 {'address': 'c', 'paused': True}], 'affected_pairs': ['a', 'b', 'c']}}
         self.write('journal.json', self.journal)
@@ -57,22 +59,22 @@ class WorkflowTest(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(value))
 
-    def test_one_prompt_adapter_validates_keys_and_restores_process_environment(self):
+    def test_one_prompt_adapter_validates_keys_without_password_environment_injection(self):
         self.journal['identity']['config']['transport'] = {
             'home': '/synthetic/home', 'keyring_backend': 'file',
             'node': 'https://synthetic.invalid', 'lcd': 'https://synthetic.invalid'}
         self.write('journal.json', self.journal)
         observations = []
-        chain = SimpleNamespace(unlock=lambda: observations.append(
-            os.environ.get('TERRAD_HOST_KEYRING_PASS')))
+        chain = SimpleNamespace(password='', unlock=lambda: observations.append(
+            (chain.password, os.environ.get('TERRAD_HOST_KEYRING_PASS'))))
         with patch.object(custody, 'STATE', self.root), \
              patch.object(custody, 'TerradChain', return_value=chain), \
              patch.dict(os.environ, {'TERRAD_HOST_KEYRING_PASS': 'prior-synthetic-value'}):
             self.assertIs(chain, custody.adapter({'TERRAD_HOST_KEYRING_PASS': 'synthetic-pass'}))
-            self.assertEqual(['synthetic-pass'], observations)
+            self.assertEqual([('synthetic-pass', 'prior-synthetic-value')], observations)
             self.assertEqual('prior-synthetic-value', os.environ['TERRAD_HOST_KEYRING_PASS'])
 
-    def test_failed_key_identity_validation_clears_temporary_process_environment(self):
+    def test_failed_key_identity_validation_never_injects_process_environment(self):
         self.journal['identity']['config']['transport'] = {
             'home': '/synthetic/home', 'keyring_backend': 'file',
             'node': 'https://synthetic.invalid', 'lcd': 'https://synthetic.invalid'}
@@ -94,7 +96,7 @@ class WorkflowTest(unittest.TestCase):
         deployment = SimpleNamespace(live_trading_readback=lambda: {'response': {'tax_kind': 'route_local_v1'}})
         with patch.object(custody, 'STATE', self.root), patch.object(custody, 'adapter', return_value=object()), \
              patch.object(custody, 'load_module', side_effect=lambda name, file: smoke if 'smoke' in file else deployment if 'deploy' in file else object()), \
-             patch.object(custody, 'run', side_effect=lambda cmd, env=None: calls.append(cmd)), \
+             patch.object(custody, 'run', side_effect=lambda cmd, env=None, credentials=(): calls.append(cmd)), \
              patch.object(custody, 'provider_readback'):
             custody.complete_route({})
         commands = ' '.join(' '.join(c) for c in calls)
@@ -131,7 +133,7 @@ class WorkflowTest(unittest.TestCase):
         chain = FakeChain()
         self.journal['operations'] = {'store': {'fee_uluna': 95}}
         self.write('journal.json', self.journal)
-        with self.assertRaisesRegex(RuntimeError, 'aggregate fee cap'):
+        with self.assertRaisesRegex(RuntimeError, 'protected containment/restoration reserve'):
             containment.contain(chain, self.root, 'smoke failed')
         self.assertEqual([], chain.actions)
 
@@ -204,7 +206,7 @@ class WorkflowTest(unittest.TestCase):
         self.write('journal.json', self.journal)
         self.write('application-rollout.json', {'status': 'finished', 'live_readback': {'ok': True}})
         order = []
-        def run(cmd, env=None):
+        def run(cmd, env=None, credentials=()):
             order.append(Path(cmd[-1]).name)
             if 'route-04-finalize.sh' in cmd[-1]:
                 self.journal['status'] = 'complete'

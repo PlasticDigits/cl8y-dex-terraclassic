@@ -16,18 +16,28 @@ ROOT = Path(__file__).resolve().parents[3]
 OPS = ROOT/'scripts/ops/2026-10-06'
 STATE = Path.home()/'.local/state/cl8y-dex/release-20261006-route'
 sys.path.insert(0, str(ROOT/'scripts/lib'))
-from route_tax_rollout_cli import TerradChain, parser as transport_parser
+from route_tax_rollout_cli import (TerradChain, parser as transport_parser, child_environment,
+                                  KEYRING_PASSWORD_ENV, KEYRING_FD_ENV, keyring_password_pipe)
 
 
-def run(command, env=None):
-    subprocess.run(command, cwd=ROOT, env=env, check=True)
+def run(command, env=None, credentials=()):
+    allowed = set(credentials) - {KEYRING_PASSWORD_ENV, KEYRING_FD_ENV}
+    child = child_environment(env, allowed)
+    if KEYRING_PASSWORD_ENV in credentials:
+        source = os.environ if env is None else env
+        with keyring_password_pipe(source[KEYRING_PASSWORD_ENV]) as fd:
+            child[KEYRING_FD_ENV] = str(fd)
+            subprocess.run(command, cwd=ROOT, env=child, pass_fds=(fd,), close_fds=True, check=True)
+    else:
+        subprocess.run(command, cwd=ROOT, env=child, close_fds=True, check=True)
 
 
 def note(issue, body, env):
     with tempfile.NamedTemporaryFile('w', prefix='dex-custody-note-', suffix='.md') as file:
         file.write(body)
         file.flush()
-        run(['fj', 'issue', 'comment', str(issue), '--body-file', file.name], env)
+        run(['fj', 'issue', 'comment', str(issue), '--body-file', file.name], env,
+            ('FORGEJO_PLASTICDIGTS_PAT',))
 
 
 def load_module(name, filename):
@@ -41,24 +51,16 @@ def adapter(env):
     tr = json.loads((STATE/'journal.json').read_text())['identity']['config']['transport']
     chain = TerradChain(transport_parser().parse_args(['--state-dir', str(STATE), '--home', tr['home'],
         '--keyring-backend', tr['keyring_backend'], '--node', tr['node'], '--lcd', tr['lcd']]))
-    # Unlock validates all public key identities. The transport reads the
-    # process environment, so retain the single terminal prompt across this
-    # in-process smoke/containment adapter as well as child commands.
-    previous = os.environ.get('TERRAD_HOST_KEYRING_PASS')
-    os.environ['TERRAD_HOST_KEYRING_PASS'] = env['TERRAD_HOST_KEYRING_PASS']
-    try:
-        chain.unlock()
-    finally:
-        if previous is None:
-            os.environ.pop('TERRAD_HOST_KEYRING_PASS', None)
-        else:
-            os.environ['TERRAD_HOST_KEYRING_PASS'] = previous
+    # The in-process adapter receives custody directly; unrelated children and
+    # terrad environments never need the passphrase.
+    chain.password = env[KEYRING_PASSWORD_ENV]
+    chain.unlock()
     return chain
 
 
 def provider_readback(env):
     result = subprocess.run([sys.executable, str(OPS/'route-provider-readback.py')], cwd=ROOT,
-                            env=env, text=True, capture_output=True)
+                            env=child_environment(env), close_fds=True, text=True, capture_output=True)
     (STATE/'provider-readback.json').write_text(result.stdout)
     (STATE/'provider-readback.stderr').write_text(result.stderr)
     if result.returncode:
@@ -86,12 +88,12 @@ def complete_route(env):
     if journal['status'] == 'complete':
         run(['bash', str(OPS/'route-03-verify.sh')], env)
     else:
-        run(['bash', str(OPS/'route-02-execute.sh')], env)
-    run([sys.executable, str(OPS/'deploy-route-pins.py')], env)
+        run(['bash', str(OPS/'route-02-execute.sh')], env, (KEYRING_PASSWORD_ENV,))
+    run([sys.executable, str(OPS/'deploy-route-pins.py')], env, ('COOLIFY_WIRE_TOKEN',))
     provider_readback(env)
     journal = json.loads((STATE/'journal.json').read_text())
     if journal['status'] != 'complete':
-        run(['bash', str(OPS/'route-04-finalize.sh')], env)
+        run(['bash', str(OPS/'route-04-finalize.sh')], env, (KEYRING_PASSWORD_ENV,))
     try:
         smoke.run_smoke(chain, STATE)
         deploy = load_module('route_live_deployment', 'deploy-route-pins.py')
@@ -166,10 +168,10 @@ def main():
              'was 1,000,000 uluna with zero initial intermediate token balances. '
              'Actual smoke transaction: '+evidence['receipts'][-1]['txhash']+'; '
              'gas used: '+str(evidence['gas_used'])+'.\n', env)
-        run(['fj', 'issue', 'close', '1384'], env)
-        run([sys.executable, str(OPS/'bridge-debt.py'), 'execute'], env)
+        run(['fj', 'issue', 'close', '1384'], env, ('FORGEJO_PLASTICDIGTS_PAT',))
+        run([sys.executable, str(OPS/'bridge-debt.py'), 'execute'], env, (KEYRING_PASSWORD_ENV,))
         run([sys.executable, str(OPS/'bridge-debt.py'), 'verify'], env)
-        run([sys.executable, str(OPS/'bridge-debt.py'), 'probes'], env)
+        run([sys.executable, str(OPS/'bridge-debt.py'), 'probes'], env, (KEYRING_PASSWORD_ENV,))
         note(1421, 'Local-custody Bridge-Debt 1.1 release completed with exact reviewed '
              'legacy market pins, finite limits, preserved accounting and Issue paused. '
              'The journal confirms one-raw-unit repayment and plain-transfer/recovery '
