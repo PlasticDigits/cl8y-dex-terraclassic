@@ -25,6 +25,8 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
     in one normal series color. Omit missing values instead of gray bars, hatch
     patterns, dashed full-height boxes or fake zeroes. Start at the first available
     observation and preserve its actual date; never invent values or dates.
+    Thin date text to fit the actual width with a readable gap; keep every bar
+    and both endpoint dates, dropping a nearby interior label to avoid overlap.
     Tooltips contain only a readable date and amount. Delete quality legends,
     chart-info essays and fresh/stale/snapshot/generation vocabulary from retail
     charts rather than hiding the same explanation behind an info icon.

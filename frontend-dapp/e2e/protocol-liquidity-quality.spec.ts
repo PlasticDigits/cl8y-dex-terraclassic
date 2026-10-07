@@ -52,6 +52,12 @@ for (const width of [390, 1280]) {
               quality: 'unknown',
               reasons: { legacy_unqualified: 1 },
             },
+            // Dense phone series verifies label spacing while every available bar remains.
+            ...Array.from({ length: 16 }, (_, index) => ({
+              utc_day: `2026-10-${String(index + 7).padStart(2, '0')}`,
+              liquidity_usd: String(225000 + index * 1000),
+              quality: 'fresh',
+            })),
           ],
         }
       if (body) await route.fulfill({ json: body })
@@ -86,13 +92,21 @@ for (const width of [390, 1280]) {
     await expect(tooltip).toHaveText('Oct 6, 2026 $249K')
     await page.keyboard.press('Escape')
     const bars = page.locator('[data-testid^="protocol-volume-bar-"]')
-    await expect(bars).toHaveCount(5)
+    await expect(bars).toHaveCount(21)
     for (const bar of await bars.all()) {
       await expect(bar).toHaveAttribute('fill', 'var(--accent)')
       await expect(bar).not.toHaveAttribute('stroke-dasharray')
       await expect(bar).not.toHaveAttribute('data-quality')
     }
     await expect(page.getByRole('button', { name: 'Chart details' })).toHaveCount(0)
+    const labels = await page
+      .getByTestId('protocol-volume-chart-xaxis')
+      .locator('text')
+      .evaluateAll((nodes) =>
+        nodes.map((node) => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right }))
+      )
+    for (let i = 1; i < labels.length; i++) expect(labels[i].left - labels[i - 1].right).toBeGreaterThanOrEqual(6)
+
     const visible = await page.locator('body').innerText()
     expect(visible).not.toMatch(
       /USD volume and pool TVL use the same|UTC calendar day|Dashed gaps mean|not swap settlement, TWAP/
