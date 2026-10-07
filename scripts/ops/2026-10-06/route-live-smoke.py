@@ -12,7 +12,7 @@ import time
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'scripts/lib'))
 from route_tax_rollout import Rollout, require, write_json
-from route_tax_rollout_cli import TerradChain, parser as transport_parser
+from route_tax_rollout_cli import TerradChain, parser as transport_parser, fee_budget_guard
 
 CLUNC = 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'
 UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
@@ -42,6 +42,7 @@ def raw_transaction(chain, messages, gas, folder, name, key):
     account, sequence = chain._account(chain.args.store_address)
     fee = int((Decimal(chain.args.gas_prices.removesuffix('uluna'))*gas).to_integral_value(rounding=ROUND_CEILING))
     require(0 < fee <= MAX_TOTAL_FEE, 'Smoke fee exceeds its finite bound')
+    fee_budget_guard(folder.parent, fee)
     unsigned = {'body': {'messages': messages, 'memo': '', 'timeout_height': '0',
                          'extension_options': [], 'non_critical_extension_options': []},
                 'auth_info': {'signer_infos': [], 'fee': {'amount': [{'denom': 'uluna', 'amount': str(fee)}],
@@ -54,6 +55,7 @@ def raw_transaction(chain, messages, gas, folder, name, key):
     write_json(signed_path, signed)
     tx_hash = chain._encoded_hash(signed_path)
     write_json(pending, {'messages': messages, 'signed_path': str(signed_path), 'tx_hash': tx_hash, 'fee_uluna': fee})
+    fee_budget_guard(folder.parent)
     receipt = chain.rebroadcast(signed_path, tx_hash)
     write_json(folder/(name+'-receipt.json'), receipt)
     return receipt, fee

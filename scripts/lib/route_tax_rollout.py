@@ -108,6 +108,27 @@ def validate_signers(multisig, signer_keys):
             "Two distinct member signer keys are required")
 
 
+def validate_pair_membership(chain, config, inventory):
+    """A matching count cannot conceal a delisted/replaced affected market."""
+    expected = {pair["address"]: pair["assets"] for pair in inventory["pairs"]}
+    observed, cursor = {}, None
+    bound = config["max_pairs"]
+    for _ in range((bound + 29) // 30 + 1):
+        page = chain.smart(config["factory"], {"pairs": {"start_after": cursor, "limit": 30}})["pairs"]
+        require(len(page) <= 30, "Oversized pair membership page")
+        for pair in page:
+            address = pair["contract_addr"]
+            require(address not in observed and len(observed) < bound, "Repeated/unbounded pair membership")
+            observed[address] = pair["asset_infos"]
+        if len(page) < 30:
+            break
+        require(page[-1]["asset_infos"] != cursor, "Pair membership cursor stalled")
+        cursor = page[-1]["asset_infos"]
+    else:
+        raise RolloutError("Unbounded factory pair membership")
+    require(observed == expected, "Factory pair membership changed since planning")
+
+
 class Rollout:
     def __init__(self, chain, artifacts, config, journal_path, explicit_tokens=()):
         self.chain, self.artifacts = chain, artifacts
@@ -120,11 +141,42 @@ class Rollout:
         write_json(self.journal_path, self.state)
 
     def _integrity(self):
+        require(not self.journal_path.with_name("artifact-amendment-pending.json").exists(),
+                "Artifact amendment is staged; recover it before rollout resume")
         require(self.state.get("inventory_hash") == digest(self.state.get("inventory")), "Rollout inventory was modified")
         require(self.state.get("identity_hash") == digest(self.state.get("identity")), "Rollout identity was modified")
         manifest = json.loads(self.journal_path.with_name("manifest.json").read_text())
         require(manifest == {k: self.state[k] for k in ("identity", "identity_hash", "inventory", "inventory_hash")},
                 "Immutable rollout manifest differs from journal")
+        amendments = self.state.get("artifact_amendments", [])
+        require(isinstance(amendments, list) and len(amendments) <= 16 and all(isinstance(v, dict) for v in amendments),
+                "Malformed/unbounded artifact amendment chain")
+        receipts, previous = [], None
+        for link in amendments:
+            checksum = link.get("sha256", "")
+            require(re.fullmatch(r"[0-9a-f]{64}", checksum) and
+                    link.get("receipt") == "artifact-amendments/" + checksum + "/receipt.json", "Invalid amendment receipt link")
+            path = self.journal_path.parent / link["receipt"]
+            require(not path.is_symlink() and path.resolve().is_relative_to(self.journal_path.parent.resolve()),
+                    "Amendment receipt leaves the rollout evidence directory")
+            raw = path.read_bytes()
+            require(hashlib.sha256(raw).hexdigest() == checksum, "Immutable amendment receipt changed")
+            receipt = json.loads(raw)
+            require(receipt["inventory_hash"] == self.state["inventory_hash"], "Amendment changed original inventory")
+            if previous is not None:
+                require(receipt["prior_identity_hash"] == previous, "Artifact amendment identity chain differs")
+            previous = receipt["next_identity_hash"]
+            receipts.append(receipt)
+        if receipts:
+            require(previous == self.state["identity_hash"], "Current identity differs from immutable amendment")
+        checkpoints = [r["preservation_checkpoint"] for r in receipts if r.get("preservation_checkpoint") is not None]
+        checkpoint = self.state.get("preservation_checkpoint")
+        require(checkpoint == (checkpoints[-1] if checkpoints else None), "Preservation checkpoint differs from immutable receipt")
+        if checkpoint is not None:
+            require(checkpoint.get("schema") == 1 and checkpoint.get("inventory_hash") == self.state["inventory_hash"]
+                    and set(checkpoint["pairs"]) == set(self.state["inventory"]["affected_pairs"])
+                    and set(checkpoint["token_supplies"]) == {t["address"] for t in self.state["inventory"]["tokens"]},
+                    "Preservation checkpoint coverage/original identity differs")
 
     def _journal_proofs(self):
         total = 0
@@ -359,6 +411,8 @@ class Rollout:
     def _live_bindings(self):
         """Reject a changed authority or unrelated governance update before spending."""
         inv, c = self.state["inventory"], self.config
+        if self.state["status"] != "complete":
+            validate_pair_membership(self.chain, c, inv)
         for item in [*inv["instances"].values(), *inv["pairs"], *inv["tokens"]]:
             current = self.chain.info(item["address"])
             require(current.get("admin") == item["admin"], "Wasm admin changed after planning")
@@ -517,7 +571,8 @@ class Rollout:
             require(self.chain.smart(token["address"], {"get_config": {}}) == token["config"], "Token settings changed during migration")
             require(self.chain.smart(token["address"], {"get_features": {}}) == token["features"], "Token features changed")
             if self.state["status"] != "complete":
-                require(self.chain.smart(token["address"], {"token_info": {}})["total_supply"] == token["supply"],
+                baseline_supply = (self.state.get("preservation_checkpoint") or {}).get("token_supplies", {}).get(token["address"], token["supply"])
+                require(self.chain.smart(token["address"], {"token_info": {}})["total_supply"] == baseline_supply,
                         "Token supply changed; reconcile concurrent activity before cutover")
             cap = self.chain.smart(token["address"], {"route_tax_capability": {}})
             error = funded_capability_error(cap, c["router"])
@@ -553,7 +608,8 @@ class Rollout:
                 require(self.chain.smart(c["factory"], {"is_code_id_whitelisted": {"code_id": code}})["whitelisted"] is True, "Pair asset is no longer whitelisted")
             if pair["address"] in inv["affected_pairs"]:
                 if self.state["status"] != "complete":
-                    require(self.chain.smart(pair["address"], {"pool": {}}) == pair["pool"], "Affected pool liquidity changed during rollout")
+                    baseline_pool = (self.state.get("preservation_checkpoint") or {}).get("pairs", {}).get(pair["address"], pair["pool"])
+                    require(self.chain.smart(pair["address"], {"pool": {}}) == baseline_pool, "Affected pool liquidity changed during rollout")
                 restored = self.state["operations"].get("restore:" + pair["address"], {}).get("receipt")
                 expected_pause = pair["paused"] if self.state["status"] == "complete" or restored else True
                 require(self.chain.smart(pair["address"], {"is_paused": {}})["paused"] is expected_pause, "Pair pause state drifted")

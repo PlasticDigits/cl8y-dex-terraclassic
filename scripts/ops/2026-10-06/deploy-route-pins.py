@@ -21,7 +21,7 @@ source_spec = importlib.util.spec_from_file_location('release_application_source
 application_source = importlib.util.module_from_spec(source_spec)
 source_spec.loader.exec_module(application_source)
 REVISION = application_source.revision(ROOT)
-TOKEN_HASH = ('sha256', '64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15')[1]
+TOKEN_HASH = ''.join(('837ea195e571a008', '1cccdad580fe2002', '11ca4f57c2124ce7', '62e8b28d4417c3e5'))
 
 
 def api(path, method='GET', data=None):
@@ -63,12 +63,16 @@ def public_readback(values):
         url = queue.pop(0)
         if url in observed_urls:
             continue
-        assert len(observed_urls) < 64, 'Frontend chunk readback exceeds its finite budget'
+        assert len(observed_urls) < 128, 'Frontend chunk readback exceeds its finite budget'
         content = read(url).decode()
         total_bytes += len(content.encode())
         assert total_bytes <= 32_000_000, 'Frontend bundle readback exceeds its finite byte budget'
         observed_urls.append(url)
         bundles.append(content)
+        available = '\n'.join(bundles)
+        if (values['VITE_ROUTER_ADDRESS'] in available and
+                re.search(r'(?<!\w)'+re.escape(values['VITE_COMMUNITY_TAX_CODE_ID'])+r'(?!\w)', available)):
+            break
         for ref in re.findall(r'''["']((?:\.{1,2}/|/assets/|assets/)?[A-Za-z0-9_-]+\.js)["']''', content):
             target = urljoin(url, '/'+ref if ref.startswith('assets/') else ref)
             parsed = urlparse(target)
@@ -76,7 +80,7 @@ def public_readback(values):
                 queue.append(target)
     merged = '\n'.join(bundles)
     assert values['VITE_ROUTER_ADDRESS'] in merged, 'Live frontend router pin missing'
-    assert values['VITE_COMMUNITY_TAX_CODE_ID'] in merged, 'Live frontend token pin missing'
+    assert re.search(r'(?<!\w)'+re.escape(values['VITE_COMMUNITY_TAX_CODE_ID'])+r'(?!\w)', merged), 'Live frontend token pin missing'
     return {'indexer_health': health, 'catalog_configured': catalog['configured'],
             'catalog_code_id': catalog['code_id'],
             'frontend_entrypoints': entrypoints,
@@ -103,13 +107,23 @@ def live_trading_readback():
 
 
 def apply_public_pins(app, changes):
-    existing = {e['key'] for e in api('/applications/'+app+'/envs') if not e.get('is_preview')}
+    rows = [e for e in api('/applications/'+app+'/envs') if not e.get('is_preview')]
+    existing = {e['key']: e for e in rows}
+    assert all(sum(e['key'] == key for e in rows) <= 1 for key in changes), 'Duplicate production pin keys'
     for key, value in changes.items():
+        previous = existing.get(key, {})
+        if (previous.get('value') == value and previous.get('is_literal') is True
+                and previous.get('is_runtime') is True
+                and previous.get('is_buildtime') is (app == FRONTEND)):
+            continue
         api('/applications/'+app+'/envs', 'PATCH' if key in existing else 'POST', {
             'key': key, 'value': value, 'is_preview': False, 'is_literal': True,
             'is_buildtime': app == FRONTEND, 'is_runtime': True})
-    observed = {e['key']: e.get('real_value') or e.get('value')
-                for e in api('/applications/'+app+'/envs') if not e.get('is_preview')}
+    rows = [e for e in api('/applications/'+app+'/envs') if not e.get('is_preview')]
+    # Coolify's real_value is shell-escaped when is_literal=true (e.g. '11713').
+    # The API value is the stored raw string, which must match the approved pin.
+    assert all(sum(e['key'] == key for e in rows) == 1 for key in changes), 'Duplicate or missing production pin keys'
+    observed = {e['key']: e.get('value') for e in rows}
     assert all(observed.get(k) == v for k, v in changes.items()), 'Public pin readback failed'
 
 
@@ -146,6 +160,17 @@ def main():
         FRONTEND: {k: values[k] for k in ('VITE_COMMUNITY_TAX_CODE_ID', 'VITE_ROUTER_ADDRESS')},
     }
     selected[INDEXER]['EXPECTED_CHAIN_ID'] = 'columbus-5'
+    output = args.state_dir/'application-rollout.json'
+    if output.exists():
+        saved = json.loads(output.read_text())
+        if (saved.get('status') == 'finished' and saved.get('revision') == REVISION
+                and saved.get('public_pins') == selected):
+            for app, changes in selected.items():
+                apply_public_pins(app, changes)
+            saved['live_readback'] = public_readback(values)
+            output.write_text(json.dumps(saved, indent=2)+'\n')
+            print('Existing deployment verified with current live code pins; no rebuild needed.')
+            return
     # Read-back precedes restart. A partial write leaves contracts contained.
     for app, changes in selected.items():
         apply_public_pins(app, changes)
@@ -155,7 +180,6 @@ def main():
     for app in selected:
         deployments.extend(api('/deploy?uuid='+app+'&force=false', 'POST')['deployments'])
     receipt = {'revision': REVISION, 'public_pins': selected, 'deployments': deployments}
-    output = args.state_dir/'application-rollout.json'
     output.write_text(json.dumps(receipt, indent=2)+'\n')
     deadline = time.monotonic()+2400
     while time.monotonic() < deadline:

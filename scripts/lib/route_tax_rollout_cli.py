@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import copy
+from contextlib import contextmanager
 import base64
 import fcntl
 import getpass
@@ -10,11 +12,13 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -25,6 +29,178 @@ KEY_ADDRESSES = {
     "cl8ydeploy": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
     "cl8y2_admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
 }
+
+KEYRING_PASSWORD_ENV = "TERRAD_HOST_KEYRING_PASS"
+KEYRING_FD_ENV = "TERRAD_HOST_KEYRING_FD"
+KEYRING_PIPE_MAX_BYTES = 4096
+SENSITIVE_CHILD_ENV = frozenset({
+    KEYRING_PASSWORD_ENV, KEYRING_FD_ENV, "COOLIFY_WIRE_TOKEN", "COOLIFY_TOKEN", "FORGEJO_PLASTICDIGTS_PAT",
+    "BAO_TOKEN", "HCLOUD_TOKEN", "CURSOR_API_KEY", "CURSOR2_" + "API_KEY", "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY", "CAC_INTAKE_CONTROL_TOKEN", "WOODPECKER_TOKEN", "WOODPECKER_AGENT_SECRET",
+    "CL8Y_PM_ASSIGNER_TOKEN_DESKTOP_AGENTS", "GITLAB_TOKEN", "PGPASSWORD", "DATABASE_URL", "DB_ADMIN_URL",
+})
+CONTAINMENT_GAS_LIMIT = 2_000_000
+RUNTIME_READ_NODE = "TERRAD_RUNTIME_READ_NODE"
+RUNTIME_READ_LCD = "TERRAD_RUNTIME_READ_LCD"
+RUNTIME_EXEC_NODE = "TERRAD_RUNTIME_EXEC_NODE"
+
+
+class EndpointReadError(RolloutError):
+    def __init__(self, message, endpoint, status=None, body="", retryable=False):
+        super().__init__(message)
+        self.endpoint, self.status, self.http_error_body, self.retryable = endpoint, status, body, retryable
+
+
+def endpoint_url(value):
+    parsed = urlsplit(value)
+    require(parsed.scheme in ("http", "https") and parsed.hostname and not parsed.username and not parsed.password
+            and not parsed.query and not parsed.fragment, "Invalid public runtime endpoint URL")
+    require(parsed.scheme == "https" or parsed.hostname in ("127.0.0.1", "localhost", "::1"),
+            "Remote runtime endpoints require HTTPS")
+    return value.rstrip("/")
+
+
+def child_environment(source=None, allowed=()):
+    """Do not lend custody/service credentials to unrelated child commands.
+
+    Certificate configuration paths and ordinary CLI configuration are retained.
+    The narrow explicit allowlist controls the credentials each local child needs.
+    """
+    result = dict(os.environ if source is None else source)
+    for name in SENSITIVE_CHILD_ENV.difference(allowed):
+        result.pop(name, None)
+    return result
+
+
+@contextmanager
+def keyring_password_pipe(password):
+    """One bounded anonymous pipe, never a password environment value or file."""
+    require(isinstance(password, str) and password and not any(c in password for c in ("\n", "\r", "\0")),
+            "Keyring passphrase must be a nonempty single line")
+    payload = password.encode("utf-8") + b"\n"
+    require(len(payload) <= KEYRING_PIPE_MAX_BYTES, "Keyring passphrase exceeds its bounded pipe")
+    read_fd, write_fd = os.pipe()
+    try:
+        require(os.write(write_fd, payload) == len(payload), "Incomplete keyring credential pipe")
+        os.close(write_fd)
+        write_fd = None
+        yield read_fd
+    finally:
+        if write_fd is not None:
+            os.close(write_fd)
+        os.close(read_fd)
+
+
+def read_keyring_password_pipe():
+    raw_fd = os.environ.pop(KEYRING_FD_ENV, None)
+    if raw_fd is None:
+        return ""
+    require(raw_fd.isascii() and raw_fd.isdigit() and 2 < int(raw_fd) < 1_000_000,
+            "Invalid keyring credential descriptor")
+    try:
+        with os.fdopen(int(raw_fd), "rb") as stream:
+            payload = stream.readline(KEYRING_PIPE_MAX_BYTES + 1)
+        require(payload.endswith(b"\n") and 1 < len(payload) <= KEYRING_PIPE_MAX_BYTES,
+                "Invalid bounded keyring credential pipe")
+        password = payload[:-1].decode("utf-8")
+        require(not any(c in password for c in ("\n", "\r", "\0")), "Invalid keyring credential line")
+        return password
+    except (OSError, UnicodeError):
+        raise RolloutError("Unable to consume the private keyring credential pipe") from None
+
+
+def fee_budget_guard(state_dir, proposed_fee=0, *, purpose="normal", action=None):
+    """Reserve an entire containment/restoration round before normal spending.
+
+    Saved hashes count as spent/reserved even when inclusion is unknown. A
+    containment action consumes its own remaining reservation as it checkpoints
+    actual fees, so reservations never get charged as if they were transactions.
+    Bridge-Debt uses its own independent journal/cap without route reservations.
+    """
+    require(isinstance(proposed_fee, int) and not isinstance(proposed_fee, bool) and proposed_fee >= 0,
+            "Invalid proposed fee accounting")
+    root = Path(state_dir)
+    if not (root / "journal.json").exists() and root.name == "live-smoke":
+        root = root.parent
+    journal_path = root / "journal.json"
+    if not journal_path.exists():
+        return None
+    journal = json.loads(journal_path.read_text())
+    identity = journal["identity"]
+    route = "inventory" in journal and "config" in identity
+    config = identity["config"] if route else identity
+    cap = config["max_total_fee_uluna"]
+    require(isinstance(cap, int) and not isinstance(cap, bool) and cap > 0, "Invalid aggregate fee cap")
+
+    def total(entries):
+        amount = 0
+        for entry in entries:
+            fee = entry.get("fee_uluna", 0)
+            require(isinstance(fee, int) and not isinstance(fee, bool) and fee >= 0,
+                    "Invalid saved aggregate fee accounting")
+            require(not entry.get("tx_hash") or fee > 0, "Pending signed transaction lacks reserved fee")
+            amount += fee
+        return amount
+
+    fees = total(journal["operations"].values())
+    reserve = 0
+    containment = None
+    if route:
+        path = root / "containment.json"
+        if path.exists():
+            containment = json.loads(path.read_text())
+            fees += total(containment["operations"].values())
+        for name in ("fund", "swap"):
+            path = root / "live-smoke" / (name + "-pending.json")
+            if path.exists():
+                fees += total([json.loads(path.read_text())])
+        targets = {pair["address"]: pair["paused"] for pair in journal["inventory"]["pairs"]
+                   if pair["address"] in journal["inventory"]["affected_pairs"]}
+        require(all(isinstance(paused, bool) for paused in targets.values()), "Malformed original pause state")
+        eligible = {pair for pair, paused in targets.items() if not paused}
+        try:
+            price_text = config["transport"]["gas_prices"]
+            require(price_text.endswith("uluna"), "Containment reserve requires uluna gas prices")
+            price = Decimal(price_text.removesuffix("uluna"))
+            require(price.is_finite() and price > 0, "Invalid containment gas price")
+            unit = int((price * CONTAINMENT_GAS_LIMIT).to_integral_value(rounding=ROUND_CEILING))
+        except (InvalidOperation, ValueError):
+            raise RolloutError("Invalid containment gas price") from None
+        slots = 2 * len(eligible)
+        if purpose == "containment":
+            require(containment is not None and containment["status"] in ("containing", "contained", "restoring"),
+                    "Containment budget requires an active containment journal")
+            require(containment["identity"]["manifest_identity"] == journal["identity_hash"] and
+                    containment["identity"]["targets"] == targets, "Containment budget identity changed")
+            require(action is not None and action.get("op") == "execute" and action.get("role") == "gov" and
+                    action.get("contract") == config["factory"] and set(action.get("msg", {})) == {"set_pair_paused"},
+                    "Reservation may only fund reviewed factory pause/restoration")
+            target = action["msg"]["set_pair_paused"]
+            require(set(target) == {"pair", "paused"} and target["pair"] in eligible and
+                    isinstance(target["paused"], bool), "Containment action lies outside its owned scope")
+            require(target["pair"] in containment.get("introduced", []),
+                    "Containment reservation requires a journal-owned pause")
+            if not target["paused"]:
+                pause = containment["operations"].get(f"round:{containment['round']}:pause:{target['pair']}", {})
+                require(pause.get("receipt") is not None, "Restoration requires an included owned pause")
+                Rollout._receipt_ok(pause["receipt"])
+                require(pause["receipt"]["txhash"] == pause.get("tx_hash"), "Owned pause receipt/hash mismatch")
+            external = set(containment.get("external_pauses", []))
+            require(external <= eligible and target["pair"] not in external,
+                    "External pauses cannot consume owned containment reservations")
+            slots = 0
+            for pair in eligible - external:
+                for stage in ("pause", "restore"):
+                    name = f"round:{containment['round']}:{stage}:{pair}"
+                    checkpointed = bool(containment["operations"].get(name, {}).get("tx_hash"))
+                    current = pair == target["pair"] and (stage == "pause") == target["paused"]
+                    if not checkpointed and not (current and proposed_fee > 0):
+                        slots += 1
+            require(proposed_fee <= unit, "Containment action exceeds its reserved fee envelope")
+        reserve = slots * unit
+    require(fees + proposed_fee + reserve <= cap,
+            "Aggregate rollout/smoke fees would consume the protected containment/restoration reserve")
+    return {"fees": fees, "proposed_fee": proposed_fee, "reserve": reserve, "cap": cap}
 
 
 def redact(value, secret):
@@ -41,30 +217,101 @@ class TerradChain:
         self.roles = {"store": args.store_key, "gov": args.multisig_key}
         self.roles.update({key: key for key in args.admin_key})
         self.last_read = 0.0
+        self.expected_chain_id = getattr(args, "chain_id", DEFAULTS["chain_id"])
+        self.read_endpoints = {}
+        for rpc, anchor, preferred, fallbacks in (
+                (True, args.node, getattr(args, "read_node", None), getattr(args, "read_rpc_fallback", [])),
+                (False, args.lcd, getattr(args, "read_lcd", None), getattr(args, "read_lcd_fallback", []))):
+            values = [preferred or anchor, *(fallbacks or [])]
+            if preferred and preferred.rstrip("/") != anchor.rstrip("/"):
+                values.append(anchor)
+            require(len(values) <= 4, "Runtime endpoint failover is bounded to four candidates")
+            self.read_endpoints[rpc] = list(dict.fromkeys(endpoint_url(v) for v in values))
+        self.selected_read = {rpc: values[0] for rpc, values in self.read_endpoints.items()}
+        self.execution_node = endpoint_url(getattr(args, "execution_node", None) or args.node)
+        self.verified_endpoints = set()
+        self.immutable_reads = {}
+        self.encoded_transactions = {}
+        self.read_providers = []
 
-    def get(self, path, rpc=False):
+    def _request(self, endpoint, path):
         delay = max(0, 0.12 - (time.monotonic() - self.last_read))
         if delay:
             time.sleep(delay)
         self.last_read = time.monotonic()
-        url = (self.args.node if rpc else self.args.lcd).rstrip("/") + path
-        request = Request(url, headers={"User-Agent": "CL8Y-route-tax-rollout/1"})
-        for attempt in range(3):
+        request = Request(endpoint + path, headers={"User-Agent": "CL8Y-route-tax-rollout/1"})
+        try:
+            with urlopen(request, timeout=15) as response:
+                return json.load(response)
+        except HTTPError as error:
+            body = error.read(16384).decode("utf-8", errors="replace")
+            deterministic = any(value in body.lower() for value in ("out of gas", "query gas", "gaswanted", "gas wanted",
+                "codespace", "error executing", "wasmvm", "contract error", "overflow"))
+            raise EndpointReadError(f"Read-only endpoint returned HTTP {error.code}", endpoint, error.code, body,
+                error.code in (429, 502, 503, 504) and not deterministic) from None
+        except (URLError, TimeoutError):
+            raise EndpointReadError("Read-only endpoint unavailable", endpoint, retryable=True) from None
+
+    def _verify_endpoint(self, endpoint, rpc, force=False):
+        key = (rpc, endpoint)
+        if force or key not in self.verified_endpoints:
+            value = self._request(endpoint, "/status" if rpc else "/cosmos/base/tendermint/v1beta1/blocks/latest")
+            observed = value["result"]["node_info"]["network"] if rpc else value["block"]["header"]["chain_id"]
+            require(observed == self.expected_chain_id, "Runtime endpoint chain identity mismatch")
+            if rpc:
+                require(value["result"].get("sync_info", {}).get("catching_up", False) is False,
+                        "Runtime execution/read RPC is still catching up")
+            self.verified_endpoints.add(key)
+            return value
+
+    @staticmethod
+    def _immutable(path, value):
+        if re.fullmatch(r"/cosmwasm/wasm/v1/code/[0-9]+", path):
+            return bool(re.fullmatch(r"[0-9A-Fa-f]{64}", value.get("code_info", {}).get("data_hash", "")))
+        if re.fullmatch(r"/cosmos/tx/v1beta1/txs/[0-9A-Fa-f]{64}", path):
+            receipt = value.get("tx_response", {})
+            return str(receipt.get("height", "")).isdigit() and int(receipt["height"]) > 0 and bool(receipt.get("txhash"))
+        if re.fullmatch(r"/tx\?hash=0x[0-9A-Fa-f]{64}", path):
+            result = value.get("result", {})
+            return str(result.get("height", "")).isdigit() and int(result["height"]) > 0 and bool(result.get("tx"))
+        return False
+
+    def get(self, path, rpc=False, allow_failover=True):
+        candidates = [self.selected_read[rpc], *[v for v in self.read_endpoints[rpc] if v != self.selected_read[rpc]]]
+        if not allow_failover:
+            candidates = candidates[:1]
+        last = None
+        for index, endpoint in enumerate(candidates):
             try:
-                with urlopen(request, timeout=15) as response:
-                    return json.load(response)
-            except HTTPError as error:
-                if error.code not in (429, 502, 503, 504) or attempt == 2:
-                    raise RolloutError(f"Read-only endpoint returned HTTP {error.code}") from error
-            except (URLError, TimeoutError) as error:
-                if attempt == 2:
-                    raise RolloutError("Read-only endpoint unavailable") from error
-            time.sleep(attempt + 1)
+                anchor = endpoint_url(self.args.node if rpc else self.args.lcd)
+                verification = self._verify_endpoint(endpoint, rpc) if endpoint != anchor or index > 0 else None
+                key = (self.expected_chain_id, rpc, endpoint, path)
+                if key in self.immutable_reads:
+                    return copy.deepcopy(self.immutable_reads[key])
+                identity_path = "/status" if rpc else "/cosmos/base/tendermint/v1beta1/blocks/latest"
+                value = verification if verification is not None and path == identity_path else self._request(endpoint, path)
+                self.selected_read[rpc] = endpoint
+                if (rpc, endpoint) not in self.read_providers:
+                    self.read_providers.append((rpc, endpoint))
+                if self._immutable(path, value):
+                    self.immutable_reads[key] = copy.deepcopy(value)
+                return value
+            except EndpointReadError as error:
+                if not error.retryable or not allow_failover:
+                    raise
+                last = error
+        raise last
 
     def network(self):
-        rpc = self.get("/status", rpc=True)["result"]["node_info"]["network"]
+        status = self.get("/status", rpc=True)["result"]
+        rpc = status["node_info"]["network"]
         lcd = self.get("/cosmos/base/tendermint/v1beta1/blocks/latest")["block"]["header"]["chain_id"]
         require(rpc == lcd, "RPC and LCD serve different chains")
+        require(rpc == self.expected_chain_id, "Runtime endpoint chain identity mismatch")
+        require(status.get("sync_info", {}).get("catching_up", False) is False, "Runtime RPC is still catching up")
+        self.verified_endpoints.update((kind, self.selected_read[kind]) for kind in (True, False))
+        if self.execution_node != self.selected_read[True]:
+            self._verify_endpoint(self.execution_node, True, force=True)
         return rpc
 
     def info(self, address):
@@ -81,7 +328,9 @@ class TerradChain:
 
     def smart(self, address, msg):
         encoded = quote(base64.b64encode(json.dumps(msg).encode()).decode(), safe="")
-        value = self.get(f"/cosmwasm/wasm/v1/contract/{address}/smart/{encoded}")["data"]
+        quote_query = any("simulation" in key or "simulate_swap" in key or key in ("route_tax_preview", "tax_preview") for key in msg)
+        path = f"/cosmwasm/wasm/v1/contract/{address}/smart/{encoded}"
+        value = (self.get(path, allow_failover=False) if quote_query else self.get(path))["data"]
         return json.loads(base64.b64decode(value)) if isinstance(value, str) else value
 
     def contracts(self, code, limit):
@@ -104,7 +353,8 @@ class TerradChain:
         # Password travels only over stdin, never argv, diagnostics or journal.
         try:
             result = subprocess.run([self.args.terrad, *parts], input=(self.password + "\n") * 64 if self.password else None,
-                                    capture_output=True, text=True, timeout=timeout)
+                                    capture_output=True, text=True, timeout=timeout,
+                                    env=child_environment(), close_fds=True)
         except subprocess.TimeoutExpired as error:
             # Captured output can contain a password echoed by a failed wrapper.
             raise RolloutError("terrad command timed out; reconcile any saved transaction before resuming") from error
@@ -116,14 +366,18 @@ class TerradChain:
         return result.stdout
 
     def flags(self):
-        return ["--chain-id", self.args.chain_id, "--node", self.args.node,
+        if self.execution_node != endpoint_url(self.args.node):
+            self._verify_endpoint(self.execution_node, True)
+        return ["--chain-id", self.args.chain_id, "--node", self.execution_node,
                 "--home", self.args.home, "--keyring-backend", self.args.keyring_backend]
 
     def unlock(self):
         if self.unlocked:
             return
         if self.args.keyring_backend == "file":
-            self.password = os.environ.get("TERRAD_HOST_KEYRING_PASS", "")
+            # The wrapper uses a private inherited descriptor. Old manually
+            # exported credentials remain compatible, but never reach terrad.
+            self.password = self.password or read_keyring_password_pipe() or os.environ.get(KEYRING_PASSWORD_ENV, "")
             if not self.password:
                 require(sys.stdin.isatty(), "Encrypted keyring requires an operator TTY; never supply a passphrase in chat")
                 self.password = getpass.getpass("terrad keyring passphrase (used for this run only): ")
@@ -210,8 +464,16 @@ class TerradChain:
         raise RolloutError(f"Inclusion unknown for {tx_hash}; resume with the saved journal, do not re-sign")
 
     def _encoded_hash(self, path):
+        source_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        if source_hash in self.encoded_transactions:
+            return self.encoded_transactions[source_hash]
         encoded = self.command(["tx", "encode", str(path), "--home", self.args.home]).strip()
-        return hashlib.sha256(base64.b64decode(encoded, validate=True)).hexdigest().upper()
+        value = hashlib.sha256(base64.b64decode(encoded, validate=True)).hexdigest().upper()
+        # Read the bytes again so a concurrent edit cannot seed a stale proof.
+        require(hashlib.sha256(Path(path).read_bytes()).hexdigest() == source_hash,
+                "Signed transaction changed while being encoded")
+        self.encoded_transactions[source_hash] = value
+        return value
 
     def validate_saved(self, action, entry):
         """Verify resume data without unlocking the keyring or trusting fee edits."""
@@ -240,12 +502,13 @@ class TerradChain:
         require(fee["amount"][0]["denom"] == "uluna" and int(fee["amount"][0]["amount"]) == entry["fee_uluna"],
                 "Saved fee accounting differs from signed transaction")
 
-    def rebroadcast(self, path, expected_hash):
+    def rebroadcast(self, path, expected_hash, *, budget_purpose="normal", budget_action=None):
         require(self.network() == self.args.chain_id, "Rebroadcast chain mismatch")
         require(self._encoded_hash(path) == expected_hash, "Saved signed bytes changed")
         existing = self.receipt(expected_hash)
         if existing:
             return existing
+        fee_budget_guard(self.args.state_dir, purpose=budget_purpose, action=budget_action)
         # A single deliberate replay of identical TxRaw has the same hash and cannot
         # become a new nonce/new store. Never retry by generating another transaction.
         output = json.loads(self.command(["tx", "broadcast", str(path), *self.flags(),
@@ -254,7 +517,7 @@ class TerradChain:
         require("code" in output and str(output["code"]) == "0", "Broadcast rejected; reconcile saved transaction")
         return self._wait(expected_hash)
 
-    def transaction(self, action, on_signed):
+    def transaction(self, action, on_signed, *, budget_purpose="normal"):
         self.unlock()
         require(self.network() == self.args.chain_id, "Signing chain mismatch")
         key = self.roles[action["role"]]
@@ -276,6 +539,9 @@ class TerradChain:
         require(len(fee["amount"]) == 1 and fee["amount"][0]["denom"] == "uluna", "Unexpected fee denomination")
         amount = int(fee["amount"][0]["amount"])
         require(amount > 0, "Invalid fee amount")
+        if budget_purpose == "containment":
+            require(int(fee["gas_limit"]) <= CONTAINMENT_GAS_LIMIT, "Containment gas exceeds its reserved ceiling")
+        fee_budget_guard(self.args.state_dir, amount, purpose=budget_purpose, action=action)
         require(len(unsigned["body"]["messages"]) == 1, "Unexpected generated message count")
         body = unsigned["body"]
         require(set(body) <= {"messages", "memo", "timeout_height", "unordered", "timeout_timestamp",
@@ -327,6 +593,8 @@ class TerradChain:
         tx_hash = self._encoded_hash(signed_path)
         on_signed(tx_hash, str(signed_path), amount)
         print(f"Broadcast {action['op']} via {key}: {tx_hash}", flush=True)
+        if budget_purpose == "containment":
+            return self.rebroadcast(signed_path, tx_hash, budget_purpose=budget_purpose, budget_action=action)
         return self.rebroadcast(signed_path, tx_hash)
 
 
@@ -345,6 +613,11 @@ def parser():
     p.add_argument("--tax-free-code-id", type=int, action="append")
     p.add_argument("--node", default=os.environ.get("TERRAD_HOST_NODE", "https://terra-classic-rpc.publicnode.com:443"))
     p.add_argument("--lcd", default=os.environ.get("TERRA_LCD_URL", "https://terra-classic-lcd.publicnode.com"))
+    p.add_argument("--read-node", default=os.environ.get(RUNTIME_READ_NODE), help="Runtime-only read RPC; does not amend the manifest")
+    p.add_argument("--read-lcd", default=os.environ.get(RUNTIME_READ_LCD), help="Runtime-only read LCD; does not amend the manifest")
+    p.add_argument("--execution-node", default=os.environ.get(RUNTIME_EXEC_NODE), help="One vetted runtime RPC for tx delivery; no broadcast failover")
+    p.add_argument("--read-rpc-fallback", action="append", default=[])
+    p.add_argument("--read-lcd-fallback", action="append", default=[])
     p.add_argument("--terrad", default="terrad")
     p.add_argument("--home", default=os.environ.get("TERRAD_HOST_HOME", str(Path.home() / ".terra")))
     p.add_argument("--keyring-backend", choices=("file", "os", "test"), default=os.environ.get("TERRAD_HOST_KEYRING_BACKEND", "file"))

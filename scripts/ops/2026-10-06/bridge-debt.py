@@ -105,6 +105,7 @@ class DebtOps:
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('mode',choices=['plan','execute','verify','probes']);p.add_argument('--state-dir',default=str(Path.home()/'.local/state/cl8y-dex/release-20261006-bridge-debt'));p.add_argument('--rebroadcast-pending',action='store_true');a=p.parse_args()
  args=transport_parser().parse_args(['--state-dir',a.state_dir,'--admin-key','cl8y2_admin','--max-gas','25000000','--max-total-fee-uluna','2000000000']);args.governance=GOV
+ args.read_node=args.read_node or 'https://rpc.terra-classic.hexxagon.io:443';args.execution_node=args.execution_node or 'https://rpc.terra-classic.hexxagon.io:443'
  folder=Path(a.state_dir);folder.mkdir(parents=True,exist_ok=True,mode=0o700);folder.chmod(0o700)
  with (folder/'lock').open('w') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB);chain=TerradChain(args);ops=DebtOps(chain,a.state_dir,a.rebroadcast_pending)
