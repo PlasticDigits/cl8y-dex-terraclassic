@@ -95,6 +95,14 @@ pub async fn get_liquidity_rollup(pool: &PgPool) -> Result<LiquidityRollup, sqlx
         .map(Into::into)
         .unwrap_or_default())
 }
+/// API cache hits require the canonical row; its disappearance is a read error,
+/// never permission to keep serving a previously healthy cached publication.
+pub async fn get_required_liquidity_rollup(pool: &PgPool) -> Result<LiquidityRollup, sqlx::Error> {
+    Ok(sqlx::query_as::<_, RollupRow>(ROLLUP_SELECT)
+        .fetch_one(pool)
+        .await?
+        .into())
+}
 pub async fn get_liquidity_rollup_tx(
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<LiquidityRollup, sqlx::Error> {

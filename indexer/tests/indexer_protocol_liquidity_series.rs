@@ -30,18 +30,18 @@ async fn wipe_liquidity_history(pool: &sqlx::PgPool) {
     .expect("wipe liquidity history");
 }
 
-async fn snap(
-    pool: &sqlx::PgPool,
-    at: chrono::DateTime<Utc>,
-    usd: &str,
-    priced: i32,
-) {
+async fn snap(pool: &sqlx::PgPool, at: chrono::DateTime<Utc>, usd: &str, priced: i32) {
     liquidity_snapshots::insert_snapshot(pool, at, &bd(usd), priced)
         .await
         .expect("snapshot");
-    sqlx::query("UPDATE global_liquidity_snapshots SET quality='fresh',as_of=sampled_at,
-        coverage_identity='fixture-coverage',generation=1,reasons='{}' WHERE sampled_at=$1")
-        .bind(at).execute(pool).await.unwrap();
+    sqlx::query(
+        "UPDATE global_liquidity_snapshots SET quality='fresh',as_of=sampled_at,
+        coverage_identity='fixture-coverage',generation=1,reasons='{}' WHERE sampled_at=$1",
+    )
+    .bind(at)
+    .execute(pool)
+    .await
+    .unwrap();
 }
 
 #[serial]
@@ -105,10 +105,14 @@ async fn liquidity_last_snapshot_in_hour_not_sum() {
     let hour = vol_q::utc_hour_start(Utc::now()) - Duration::hours(3);
     snap(&pool, hour + Duration::minutes(10), "10", 1).await;
     snap(&pool, hour + Duration::minutes(59), "40", 2).await;
-    snap(&pool, hour + Duration::hours(1) + Duration::minutes(1), "70", 3).await;
-    liq_q::refresh_protocol_hourly(&pool)
-        .await
-        .expect("hourly");
+    snap(
+        &pool,
+        hour + Duration::hours(1) + Duration::minutes(1),
+        "70",
+        3,
+    )
+    .await;
+    liq_q::refresh_protocol_hourly(&pool).await.expect("hourly");
 
     let rows = liq_q::get_hourly_rows(&pool, hour, hour + Duration::hours(1))
         .await
@@ -130,13 +134,10 @@ async fn liquidity_last_snapshot_in_hour_not_sum() {
     );
 
     let empty_hour = hour + Duration::hours(2);
-    let empty = rows
-        .iter()
-        .find(|r| r.utc_hour == empty_hour)
-        .or_else(|| {
-            // generate_series may not include empty_hour in get range; query GET fill
-            None
-        });
+    let empty = rows.iter().find(|r| r.utc_hour == empty_hour).or_else(|| {
+        // generate_series may not include empty_hour in get range; query GET fill
+        None
+    });
     if let Some(row) = empty {
         assert!(row.liquidity_usd.is_none(), "empty bucket is null not 0");
     }
@@ -164,9 +165,7 @@ async fn liquidity_empty_bucket_is_null_not_zero() {
     seed_db(&pool).await;
     wipe_liquidity_history(&pool).await;
     reset_protocol_liquidity_cache();
-    liq_q::refresh_protocol_hourly(&pool)
-        .await
-        .expect("hourly");
+    liq_q::refresh_protocol_hourly(&pool).await.expect("hourly");
 
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
@@ -211,9 +210,7 @@ async fn liquidity_cache_ignores_extra_query_junk() {
 
     let hour = vol_q::utc_hour_start(Utc::now()) - Duration::hours(1);
     snap(&pool, hour + Duration::minutes(30), "15", 1).await;
-    liq_q::refresh_protocol_hourly(&pool)
-        .await
-        .expect("hourly");
+    liq_q::refresh_protocol_hourly(&pool).await.expect("hourly");
 
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
@@ -223,7 +220,13 @@ async fn liquidity_cache_ignores_extra_query_junk() {
     first.assert_status_ok();
     let body: Value = first.json();
 
-    snap(&pool, vol_q::utc_hour_start(Utc::now()) + Duration::minutes(1), "99", 1).await;
+    snap(
+        &pool,
+        vol_q::utc_hour_start(Utc::now()) + Duration::minutes(1),
+        "99",
+        1,
+    )
+    .await;
     liq_q::refresh_protocol_hourly(&pool)
         .await
         .expect("refresh");
@@ -291,12 +294,132 @@ async fn liquidity_hourly_prune_drops_old_rows() {
     liq_q::refresh_protocol_hourly(&pool)
         .await
         .expect("refresh");
-    let leftover: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM protocol_hourly_liquidity WHERE utc_hour = $1",
-    )
-    .bind(old)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let leftover: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM protocol_hourly_liquidity WHERE utc_hour = $1")
+            .bind(old)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(leftover, 0);
+}
+
+#[serial]
+#[tokio::test]
+async fn preserved_positive_legacy_estimates_are_additive_in_all_grains() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    wipe_liquidity_history(&pool).await;
+    reset_protocol_liquidity_cache();
+    let server = TestServer::new(build_test_app(pool.clone()).await);
+    let now = Utc::now();
+    let cases = [
+        (
+            Some("123"),
+            "unknown",
+            serde_json::json!({"legacy_unqualified":1}),
+            true,
+        ),
+        (
+            Some("0"),
+            "unknown",
+            serde_json::json!({"legacy_unqualified":1}),
+            false,
+        ),
+        (
+            Some("-1"),
+            "unknown",
+            serde_json::json!({"legacy_unqualified":1}),
+            false,
+        ),
+        (
+            Some("999"),
+            "unknown",
+            serde_json::json!({"legacy_unqualified":1,"historical_coverage_unreconciled":1}),
+            false,
+        ),
+        (
+            Some("999"),
+            "unknown",
+            serde_json::json!({"historical_coverage_unreconciled":1}),
+            false,
+        ),
+        (Some("456"), "fresh", serde_json::json!({}), false),
+        (
+            None,
+            "unknown",
+            serde_json::json!({"legacy_unqualified":1}),
+            false,
+        ),
+    ];
+    for (grain, table, key, sql_type) in [
+        (
+            "hourly",
+            "protocol_hourly_liquidity",
+            "utc_hour",
+            "timestamptz",
+        ),
+        ("daily", "protocol_daily_liquidity", "utc_day", "date"),
+        ("monthly", "protocol_monthly_liquidity", "utc_month", "date"),
+    ] {
+        let mut buckets = Vec::new();
+        for (offset, (amount, quality, reasons, _)) in cases.iter().enumerate() {
+            let bucket = match grain {
+                "hourly" => {
+                    (vol_q::utc_hour_start(now) - Duration::hours(offset as i64)).to_rfc3339()
+                }
+                "daily" => (now.date_naive() - Duration::days(offset as i64)).to_string(),
+                _ => vol_q::utc_month_start(now)
+                    .checked_sub_months(chrono::Months::new(offset as u32))
+                    .unwrap()
+                    .to_string(),
+            };
+            buckets.push(bucket.clone());
+            sqlx::query(&format!("INSERT INTO {table}({key},liquidity_usd,priced_pair_count,quality,reasons,coverage_identity,generation)
+                VALUES($1::text::{sql_type},$2,1,$3,$4,'preserved-legacy',0)"))
+                .bind(bucket).bind(amount.map(bd)).bind(quality).bind(reasons)
+                .execute(&pool).await.unwrap();
+        }
+        let response = server
+            .get(&format!(
+                "/api/v1/protocol/liquidity/daily?grain={grain}&limit=7"
+            ))
+            .await;
+        response.assert_status_ok();
+        let body: Value = response.json();
+        let points = body["series"].as_array().unwrap();
+        for (offset, (amount, quality, reasons, reported)) in cases.iter().enumerate() {
+            let point = &points[points.len() - 1 - offset];
+            assert_eq!(point["quality"], *quality);
+            assert_eq!(point["reasons"], *reasons);
+            assert!(
+                point["as_of"].is_null(),
+                "legacy original as-of is unchanged"
+            );
+            assert_eq!(point["coverage_identity"], "preserved-legacy");
+            assert_eq!(point["generation"], 0);
+            if *quality == "fresh" {
+                assert_eq!(
+                    bd(point["liquidity_usd"].as_str().unwrap()),
+                    bd(amount.unwrap())
+                );
+            } else {
+                assert!(
+                    point["liquidity_usd"].is_null(),
+                    "unknown canonical total must remain null"
+                );
+            }
+            if *reported {
+                assert_eq!(
+                    bd(point["reported_liquidity_usd"].as_str().unwrap()),
+                    bd(amount.unwrap())
+                );
+            } else {
+                assert!(
+                    point["reported_liquidity_usd"].is_null(),
+                    "zeros, repaired gaps and qualified rows aren't legacy estimates"
+                );
+            }
+        }
+    }
+    reset_protocol_liquidity_cache();
 }

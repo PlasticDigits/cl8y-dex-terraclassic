@@ -1,0 +1,28 @@
+{
+  "observed_at_utc": "2026-10-06T12:00:49.955Z",
+  "scope": "actual serving frontend, no mocked API or wallet connection",
+  "results": [
+    {
+      "width": 1280,
+      "status": "PASS",
+      "headline": "TOTAL LIQUIDITY\n\n—\n\n—24h\n\nUnavailable · liquidity unknown. As of 2026-10-06T11:59:28.961Z",
+      "quality": "stale",
+      "as_of": "2026-10-06T11:59:28.961961+00:00",
+      "generation": 24,
+      "unknown_gap_tooltip": "2026-07-18 — Coverage unknown",
+      "requestFailures": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "status": "PASS",
+      "headline": "TOTAL LIQUIDITY\n\n$250K\n\n—24h\n\nFresh. As of 2026-10-06T12:00:37.359Z",
+      "quality": "fresh",
+      "as_of": "2026-10-06T12:00:37.359401+00:00",
+      "generation": 30,
+      "unknown_gap_tooltip": "2026-09-15 — Coverage unknown",
+      "requestFailures": [],
+      "overflow": false
+    }
+  ]
+}

@@ -35,16 +35,8 @@ async fn pair_trades_expose_leg_volume_aliases_matching_cg() {
     assert_eq!(trade["book_leg_volume"], "55");
     assert_eq!(trade["limit_book_offer_consumed"], "60");
 
-    let pool_leg: i64 = trade["pool_leg_volume"]
-        .as_str()
-        .unwrap()
-        .parse()
-        .unwrap();
-    let book_leg: i64 = trade["book_leg_volume"]
-        .as_str()
-        .unwrap()
-        .parse()
-        .unwrap();
+    let pool_leg: i64 = trade["pool_leg_volume"].as_str().unwrap().parse().unwrap();
+    let book_leg: i64 = trade["book_leg_volume"].as_str().unwrap().parse().unwrap();
     let ret: i64 = trade["return_amount"].as_str().unwrap().parse().unwrap();
     assert_eq!(pool_leg + book_leg, ret);
 }

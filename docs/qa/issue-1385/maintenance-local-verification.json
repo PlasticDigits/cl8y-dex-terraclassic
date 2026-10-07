@@ -1,0 +1,7 @@
+{
+  "runtime_acl": "PASS",
+  "migration_history_preserved": true,
+  "schema_version": "20261006133000",
+  "migrations": 61,
+  "actual_permission_denials": 4
+}

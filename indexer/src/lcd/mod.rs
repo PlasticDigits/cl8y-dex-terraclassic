@@ -3,7 +3,7 @@ pub mod pair_discovery_state;
 pub mod types;
 #[cfg(test)]
 pub(crate) use chain_identity::mock_chain_identity;
-pub use chain_identity::{ChainIdentityHealth, EndpointIdentity, valid_chain_id};
+pub use chain_identity::{valid_chain_id, ChainIdentityHealth, EndpointIdentity};
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -764,8 +764,8 @@ mod tests {
 
     #[tokio::test]
     async fn rate_limit_429_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -871,8 +871,8 @@ mod tests {
 
     #[tokio::test]
     async fn wasm_query_reject_does_not_fan_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -1011,8 +1011,8 @@ mod tests {
 
     #[tokio::test]
     async fn infra_500_still_fans_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -1053,8 +1053,8 @@ mod tests {
 
     #[tokio::test]
     async fn gateway_502_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;

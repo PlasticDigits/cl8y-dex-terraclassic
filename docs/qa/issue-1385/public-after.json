@@ -1,0 +1,1639 @@
+{
+  "observed_at_utc": "2026-10-06T11:58:29.496765+00:00",
+  "base_url": "https://indexer.dex.cl8y.com/api/v1",
+  "reads": {
+    "overview": {
+      "status": "ok",
+      "payload": {
+        "total_liquidity_usd": "206687.62174849048166731700",
+        "liquidity_quality": "partial",
+        "liquidity_as_of": "2026-10-06T11:58:18.578459+00:00",
+        "liquidity_coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+        "liquidity_generation": 17,
+        "liquidity_reasons": {
+          "advisory_hub_spot": 1,
+          "stale_reserve": 1,
+          "unsupported_identity": 11
+        },
+        "liquidity_max_age_seconds": 20,
+        "liquidity_change_24h_pct": null,
+        "liquidity_change_30d_pct": null,
+        "priced_pair_count": 10,
+        "unpriced_pair_count": 12,
+        "total_liquidity_usd_24h_ago": null,
+        "total_liquidity_usd_30d_ago": null
+      }
+    },
+    "hourly": {
+      "status": "ok",
+      "payload": {
+        "grain": "hourly",
+        "limit": 72,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_hour": "2026-10-03T12",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T13",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T14",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T15",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T16",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T17",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T18",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T19",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T20",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T21",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T22",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-03T23",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T00",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T01",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": "2026-10-04T02:58:55.013459+00:00",
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "historical_coverage_unreconciled": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T03",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T04",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T05",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T06",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T07",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T08",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T09",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T10",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T11",
+            "liquidity_usd": null,
+            "priced_pair_count": 8,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T12",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T13",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T14",
+            "liquidity_usd": null,
+            "priced_pair_count": 6,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T15",
+            "liquidity_usd": null,
+            "priced_pair_count": 1,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T16",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T17",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T18",
+            "liquidity_usd": null,
+            "priced_pair_count": 1,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T19",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T20",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T21",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T22",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-04T23",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T00",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T01",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T02",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T03",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T04",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T05",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T06",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T07",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T08",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T09",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T10",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T11",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T12",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T13",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T14",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T15",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T16",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T17",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T18",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T19",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T20",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T21",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T22",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-05T23",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T00",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T02",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T03",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T04",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T05",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T06",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T07",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T08",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T09",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T10",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T11",
+            "liquidity_usd": "206687.62174849048166731700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-06T11:58:18.578459+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    },
+    "daily": {
+      "status": "ok",
+      "payload": {
+        "grain": "daily",
+        "limit": 35,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_day": "2026-09-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-08",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-09",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-10",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-13",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-14",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-15",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-16",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-17",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-18",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-19",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-20",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-21",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-22",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-23",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-24",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-25",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-26",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-27",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-28",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-29",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-30",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-06",
+            "liquidity_usd": "206687.62174849048166731700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-06T11:58:18.578459+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    },
+    "monthly": {
+      "status": "ok",
+      "payload": {
+        "grain": "monthly",
+        "limit": 24,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_month": "2024-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2024-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-08",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-09",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-10",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-08",
+            "liquidity_usd": null,
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_month": "2026-09",
+            "liquidity_usd": null,
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_month": "2026-10",
+            "liquidity_usd": "206687.62174849048166731700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-06T11:58:18.578459+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    }
+  }
+}

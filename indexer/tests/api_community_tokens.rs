@@ -163,7 +163,9 @@ async fn detail_and_events_settings_fee_vs_sku() {
 
     let app = common::build_test_app_with_price_and_config(pool, None, configured()).await;
     let server = TestServer::new(app);
-    let detail = server.get(&format!("/api/v1/community-tokens/{TOKEN}")).await;
+    let detail = server
+        .get(&format!("/api/v1/community-tokens/{TOKEN}"))
+        .await;
     detail.assert_status_ok();
     let token = detail.json::<Value>()["token"].clone();
     assert_eq!(token["buy_bps"], 100);

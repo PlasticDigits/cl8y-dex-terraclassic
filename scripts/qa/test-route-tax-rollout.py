@@ -617,6 +617,41 @@ class RolloutTest(unittest.TestCase):
         target = self.chain.configs[FACTORY]["pair_code_id"]
         self.assertEqual(self.artifacts["pair"].sha256, self.chain.code_hash(target))
 
+    def test_optional_autolp_rotates_only_reviewed_template_and_preserves_instances(self):
+        identity, version, filename = rollout.SPECS["autolp"]
+        binary = b"\0asm\x01\0\0\0" + identity.encode() + b"\0" + version.encode()
+        path = self.folder / filename
+        path.write_bytes(binary)
+        self.artifacts["autolp"] = rollout.Artifact.load("autolp", path, digest(binary))
+        self.chain.artifact_metadata[str(path)] = {"contract": identity, "version": version, "sha256": digest(binary)}
+        self.chain.codes[70] = {"contract": identity, "version": "1.0.0", "sha256": digest(b"legacy-autolp")}
+        self.chain.instances["legacy-sister"] = {"code_id": 70, "admin": GOV}
+        original = clone(self.chain.configs[LAUNCHER])
+        self.engine.prepare()
+        self.engine.execute()
+        target = self.engine.state["codes"]["autolp"]
+        self.assertEqual(self.artifacts["autolp"].sha256, self.chain.code_hash(target))
+        self.assertEqual({**original, "token_code_id": self.engine.state["codes"]["token"],
+                          "autolp_code_id": target}, self.chain.configs[LAUNCHER])
+        self.assertEqual(70, self.chain.instances["legacy-sister"]["code_id"])
+        self.engine.verify()
+        self.engine.finalize()
+        self.engine.verify()
+
+    def test_optional_autolp_reuses_exact_current_code_without_store(self):
+        identity, version, filename = rollout.SPECS["autolp"]
+        binary = b"\0asm\x01\0\0\0" + identity.encode() + b"\0" + version.encode()
+        path = self.folder / filename
+        path.write_bytes(binary)
+        self.artifacts["autolp"] = rollout.Artifact.load("autolp", path, digest(binary))
+        self.chain.codes[70] = {"contract": identity, "version": version, "sha256": digest(binary)}
+        self.engine.prepare()
+        self.engine.execute()
+        self.assertEqual(70, self.engine.state["codes"]["autolp"])
+        self.assertFalse(any(action["op"] == "store" and action["path"] == str(path)
+                             for action in self.chain.actions))
+        self.engine.verify()
+
     def test_verification_detects_pins_whitelist_factory_and_pair_identity_drift(self):
         self.engine.execute()
         original_pins = clone(self.chain.pins)

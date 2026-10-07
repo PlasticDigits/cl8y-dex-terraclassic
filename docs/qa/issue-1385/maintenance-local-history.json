@@ -1,0 +1,134 @@
+{
+  "scope": "synthetic target UTC rows on owned local clone, exact migration repair extracted from source",
+  "result": {
+    "repair_counts": [
+      {
+        "source_table": "global_liquidity_snapshots",
+        "retained_originals": 2
+      },
+      {
+        "source_table": "protocol_daily_liquidity",
+        "retained_originals": 2
+      },
+      {
+        "source_table": "protocol_hourly_liquidity",
+        "retained_originals": 2
+      }
+    ],
+    "original_hourly": [
+      {
+        "source_key": "2026-10-02 05:00:00+00",
+        "original_value": "218.571320311113240000",
+        "original_priced_pair_count": "2"
+      },
+      {
+        "source_key": "2026-10-04 02:00:00+00",
+        "original_value": "0.000000000000000000",
+        "original_priced_pair_count": "0"
+      }
+    ],
+    "sources": [
+      {
+        "sampled_at": "2026-10-02T05:10:00+00:00",
+        "total_liquidity_usd": null,
+        "priced_pair_count": 2,
+        "quality": "unknown",
+        "as_of": "2026-10-02T05:10:00+00:00",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      },
+      {
+        "sampled_at": "2026-10-04T02:59:00+00:00",
+        "total_liquidity_usd": null,
+        "priced_pair_count": 0,
+        "quality": "unknown",
+        "as_of": "2026-10-04T02:59:00+00:00",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      }
+    ],
+    "hourly": [
+      {
+        "utc_hour": "2026-10-02T05:00:00+00:00",
+        "liquidity_usd": null,
+        "priced_pair_count": 2,
+        "quality": "unknown",
+        "as_of": null,
+        "coverage_identity": "",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      },
+      {
+        "utc_hour": "2026-10-04T02:00:00+00:00",
+        "liquidity_usd": null,
+        "priced_pair_count": 0,
+        "quality": "unknown",
+        "as_of": null,
+        "coverage_identity": "",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      }
+    ],
+    "daily": [
+      {
+        "utc_day": "2026-10-02",
+        "liquidity_usd": null,
+        "quality": "unknown",
+        "as_of": null,
+        "coverage_identity": "",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      },
+      {
+        "utc_day": "2026-10-04",
+        "liquidity_usd": null,
+        "quality": "unknown",
+        "as_of": null,
+        "coverage_identity": "",
+        "generation": 0,
+        "reasons": {
+          "historical_coverage_unreconciled": 1
+        }
+      }
+    ],
+    "monthly": [
+      {
+        "utc_month": "2026-10-01",
+        "liquidity_usd": "1.010009090000000000",
+        "quality": "fresh",
+        "as_of": "2026-10-06T11:20:55.284417+00:00",
+        "coverage_identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+        "generation": 4,
+        "reasons": {}
+      }
+    ],
+    "baselines": {
+      "quality": "fresh",
+      "total": "1.010009090000000000",
+      "as_of": "2026-10-06T11:20:55.284417+00:00",
+      "generation": 4,
+      "identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+      "reasons": {},
+      "delta_24h": null,
+      "delta_30d": null,
+      "baseline_24h": null,
+      "baseline_30d": null
+    },
+    "observed_at_utc": "2026-10-06T11:39:06.572190+00:00",
+    "exact_amount_rejection_census": {
+      "status": "UNAVAILABLE",
+      "reason": "Parser rejection diagnostics are bounded runtime logs, not persistent database counters"
+    },
+    "documented_hourly_repair": "PASS"
+  }
+}

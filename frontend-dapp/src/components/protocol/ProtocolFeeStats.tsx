@@ -1,3 +1,4 @@
+import { ProtocolDetails } from './ProtocolDetails'
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError } from '@/components/ui'
@@ -84,13 +85,12 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
 
   return (
     <div className="shell-panel" data-testid="protocol-fee-stats">
-      <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
-        Protocol fees
-      </h2>
-      <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        Treasury inflows indexed from swaps, book takes, limit places, wrap, and UST1 mint/redeem. Reference only — not
-        a CMM balance.
-      </p>
+      <div className="flex items-center gap-1 mb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide font-heading" style={{ color: 'var(--ink)' }}>
+          Protocol fees
+        </h2>
+        <ProtocolDetails label="Fee details" detail="Fees received by the treasury, not its balance." />
+      </div>
       {overviewQuery.isError && (
         <RetryError message="Failed to load fee totals" onRetry={() => void overviewQuery.refetch()} />
       )}

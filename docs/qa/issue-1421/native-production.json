@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "scope": "two independent cold production Rust1.96 builder-stage native binaries from identical reviewed source bytes; not image-level reproducibility or promotion",
+  "builder_image": "rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663",
+  "runtime_from": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "toolchain": "rustc 1.96.1 (31fca3adb 2026-06-26)\ncargo 1.96.1 (356927216 2026-06-26)\nlibc6:amd64\t2.36-9+deb12u14\nlibssl-dev:amd64\t3.0.22-1~deb12u1\npkg-config:amd64\t1.8.1-1\nSOURCE_DATE_EPOCH=0\n",
+  "input_file_count": 264,
+  "input_manifest_sha256": "f806d27ce14d75bcf78a695b1acb064391474736ac6ff0c938fbc0fff35dd24d",
+  "source_context_unchanged": true,
+  "no_cache": true,
+  "target": "builder",
+  "source_date_epoch": 0,
+  "step_memory_limit": "8GiB",
+  "step_cpu_quota": 3,
+  "stripped": true,
+  "artifacts": [
+    {
+      "filename": "cl8y-dex-indexer",
+      "sha256": "6ff89efb9c9edd3d93808455032c569c763b5a5fd733e7e8b3d9a061d4d97212"
+    }
+  ],
+  "independent_image_ids": [
+    "sha256:bfcf76f9530a48cb29411e8276dd8a127def6581144c8be721a1d62bd5d0f630",
+    "sha256:0b6607e63a34521438dc38c820c89596288edc66ae8040b3ff50f03911a3efc1"
+  ],
+  "source_snapshot": "final formatted backend source; exact reviewed byte inputs captured before both independent cold builds",
+  "captured_input_manifest_sha256": "2352051d6c8cfc4b59fbd98cc94da35ef9231249ddb3b06afd9c764dceaeb611",
+  "input_manifest_format": "structured SHA256/path records; identical captured file identities"
+}

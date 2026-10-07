@@ -4,11 +4,11 @@
  * Bar count follows plot width, then `[min, max]` per grain. Do not request
  * above the indexer allowlist (hourly 168 / daily 90 / monthly 24).
  * Monthly on narrow plots caps at 12 (or 6) so horizontal `YY-MM` ticks fit.
- * X-axis labels use step 1 or 2 (hourly may widen when step 2 collides).
+ * X-axis label spacing follows available width for every grain; all bars remain.
  * Do not rotate tick text.
  */
 import type { LiquidityQuality } from '@/types'
-import { liquidityQualityForValue, validLiquidityUsd } from './protocolLiquidityQuality'
+import { validLiquidityUsd } from './protocolLiquidityQuality'
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
 export type ProtocolVolumeGrain = (typeof PROTOCOL_VOLUME_GRAINS)[number]
@@ -94,6 +94,7 @@ export type ProtocolVolumeSeriesPoint = {
   utc_month?: string | null
   volume_usd?: string | null
   liquidity_usd?: string | null
+  reported_liquidity_usd?: string | null
   fees_usd?: string | null
   trade_count?: number
   priced_pair_count?: number
@@ -106,13 +107,8 @@ export type ProtocolVolumeSeriesPoint = {
 }
 
 export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric = 'volume'): string | null {
-  if (metric === 'liquidity') {
-    const raw = validLiquidityUsd(point.liquidity_usd)
-    const quality = liquidityQualityForValue(point.quality, raw)
-    // Legacy positive subtotals can be coverage outages, so history requires explicit quality.
-    if (quality !== 'fresh' && quality !== 'verified_empty') return null
-    return raw
-  }
+  if (metric === 'liquidity')
+    return validLiquidityUsd(point.liquidity_usd) ?? validLiquidityUsd(point.reported_liquidity_usd)
   if (metric === 'fees') return point.fees_usd ?? null
   return point.volume_usd ?? null
 }
@@ -121,6 +117,21 @@ export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVol
   if (grain === 'hourly') return point.utc_hour ?? ''
   if (grain === 'monthly') return point.utc_month ?? ''
   return point.utc_day ?? ''
+}
+
+/** Human-readable labels retain the API period's UTC date without exposing machine timestamps. */
+export function formatPeriodTooltip(period: string, grain: ProtocolVolumeGrain): string {
+  const timestamp =
+    grain === 'hourly' ? `${period}:00:00Z` : grain === 'monthly' ? `${period}-01T00:00:00Z` : `${period}T00:00:00Z`
+  const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, period.length) !== period) return period
+  return date.toLocaleString('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    ...(grain !== 'monthly' ? { day: 'numeric' } : {}),
+    year: 'numeric',
+    ...(grain === 'hourly' ? { hour: 'numeric', minute: '2-digit' } : {}),
+  })
 }
 
 /**
@@ -133,17 +144,15 @@ export const PROTOCOL_VOLUME_AXIS_PLOT_PX = 260
 const AXIS_LABEL_EM_PX = 4.8
 const AXIS_LABEL_PAD_PX = 2
 
+export const PROTOCOL_VOLUME_AXIS_LABEL_GAP_PX = 6
+
 /** Formatted axis width: hourly `HH`, daily `MM-DD`, monthly `YY-MM` (#703). */
 export function estimatedAxisLabelWidthPx(grain: ProtocolVolumeGrain): number {
   const chars = grain === 'hourly' ? 2 : 5
   return chars * AXIS_LABEL_EM_PX + AXIS_LABEL_PAD_PX
 }
 
-/**
- * X-axis step (GitLab #677 / **P668-9**).
- * Daily and Monthly: 1 (every bar) or 2 (every other). Hourly may use a wider
- * step only when step 2 still collides in the **current** plot width. No global maxLabels=5.
- */
+/** Space readable labels across the actual plot width without limiting the number of bars. */
 export function timeLabelStep(
   count: number,
   grain: ProtocolVolumeGrain,
@@ -152,12 +161,10 @@ export function timeLabelStep(
   if (count <= 1) return 1
   const slot = plotWidthPx / count
   if (!Number.isFinite(slot) || slot <= 0) return 1
-  const raw = Math.max(1, Math.ceil(estimatedAxisLabelWidthPx(grain) / slot))
-  if (grain === 'hourly') return raw
-  return raw <= 1 ? 1 : 2
+  return Math.max(1, Math.ceil((estimatedAxisLabelWidthPx(grain) + PROTOCOL_VOLUME_AXIS_LABEL_GAP_PX) / slot))
 }
 
-/** First and last indexes stay labeled when any labels are shown. */
+/** Keep both endpoints, removing a nearby interior label before appending the last. */
 export function timeLabelIndexes(
   count: number,
   grain: ProtocolVolumeGrain,
@@ -168,8 +175,9 @@ export function timeLabelIndexes(
   const step = timeLabelStep(count, grain, plotWidthPx)
   const last = count - 1
   const out: number[] = []
-  for (let i = 0; i <= last; i += step) out.push(i)
-  if (out[out.length - 1] !== last) out.push(last)
+  for (let i = 0; i < last; i += step) out.push(i)
+  if (out.length > 1 && last - out[out.length - 1] < step) out.pop()
+  out.push(last)
   return out
 }
 

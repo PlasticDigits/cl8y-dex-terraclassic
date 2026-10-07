@@ -21,8 +21,9 @@ const FEES_CACHE_TTL: Duration = Duration::from_secs(60);
 
 fn fees_cache() -> &'static Mutex<std::collections::HashMap<String, (ProtocolFeesResponse, Instant)>>
 {
-    static CACHE: OnceLock<Mutex<std::collections::HashMap<String, (ProtocolFeesResponse, Instant)>>> =
-        OnceLock::new();
+    static CACHE: OnceLock<
+        Mutex<std::collections::HashMap<String, (ProtocolFeesResponse, Instant)>>,
+    > = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
 }
 

@@ -2,29 +2,22 @@ import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RetryError } from '@/components/ui'
 import { formatProtocolUsd } from '@/utils/formatProtocolStats'
-import { liquidityQualityForValue, liquidityQualityLabel, validLiquidityUsd } from '@/utils/protocolLiquidityQuality'
 import {
-  PROTOCOL_FEES_DAILY_LABEL,
-  PROTOCOL_FEES_DAILY_TITLE,
   PROTOCOL_FEES_EMPTY,
-  PROTOCOL_LIQUIDITY_DAILY_LABEL,
-  PROTOCOL_LIQUIDITY_DAILY_TITLE,
   PROTOCOL_LIQUIDITY_EMPTY,
   PROTOCOL_UTC_METRIC_FEES_LABEL,
   PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
   PROTOCOL_UTC_METRIC_VOLUME_LABEL,
-  PROTOCOL_VOLUME_DAILY_LABEL,
-  PROTOCOL_VOLUME_DAILY_TITLE,
   PROTOCOL_VOLUME_EMPTY,
   PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
   PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
   PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
-  PROTOCOL_VOLUME_GRAIN_SUBTITLE,
 } from '@/utils/trailingWindowCopy'
 import {
   formatPeriodAxisLabel,
   limitFromPlotWidth,
   maxPricedUsd,
+  formatPeriodTooltip,
   pointPeriod,
   pointValueUsd,
   PROTOCOL_UTC_METRICS,
@@ -52,18 +45,6 @@ const METRIC_TAB_LABEL: Record<ProtocolUtcMetric, string> = {
   fees: PROTOCOL_UTC_METRIC_FEES_LABEL,
 }
 
-const METRIC_CHART_LABEL: Record<ProtocolUtcMetric, string> = {
-  volume: PROTOCOL_VOLUME_DAILY_LABEL,
-  liquidity: PROTOCOL_LIQUIDITY_DAILY_LABEL,
-  fees: PROTOCOL_FEES_DAILY_LABEL,
-}
-
-const METRIC_CHART_TITLE: Record<ProtocolUtcMetric, string> = {
-  volume: PROTOCOL_VOLUME_DAILY_TITLE,
-  liquidity: PROTOCOL_LIQUIDITY_DAILY_TITLE,
-  fees: PROTOCOL_FEES_DAILY_TITLE,
-}
-
 const METRIC_EMPTY: Record<ProtocolUtcMetric, string> = {
   volume: PROTOCOL_VOLUME_EMPTY,
   liquidity: PROTOCOL_LIQUIDITY_EMPTY,
@@ -80,7 +61,7 @@ const PLOT_H = VIEW_H - PAD_T - PAD_B
 const MIN_VIEW_W = PROTOCOL_VOLUME_AXIS_PLOT_PX + PAD_L + PAD_R
 
 function chartAria(metric: ProtocolUtcMetric, grain: ProtocolVolumeGrain): string {
-  return `${METRIC_CHART_TITLE[metric]} ${PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}.`
+  return `${METRIC_TAB_LABEL[metric]}, ${GRAIN_TAB_LABEL[grain]}`
 }
 
 export function ProtocolVolumeDailyChart() {
@@ -130,39 +111,30 @@ export function ProtocolVolumeDailyChart() {
   }, [applyWidth])
 
   const query = useProtocolUtcSeriesQuery(metric, grain, limit)
-  const series = useMemo((): ProtocolVolumeSeriesPoint[] => query.data?.series ?? [], [query.data?.series])
+  const series = useMemo((): ProtocolVolumeSeriesPoint[] => {
+    const points = query.data?.series ?? []
+    return metric === 'liquidity' ? points.filter((point) => pointValueUsd(point, metric) != null) : points
+  }, [query.data?.series, metric])
   const peak = useMemo(() => maxPricedUsd(series, metric), [series, metric])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
   const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, plotW), [series.length, grain, plotW])
   const unavailable = query.isError && isProtocolVolumeSeriesUnavailable(query.error)
-  const volumeMissing = metric === 'volume' && unavailable
-  const siblingMissing = metric !== 'volume' && unavailable
+  const volumeMissing = metric === 'volume' && unavailable && series.length === 0
+  const siblingMissing = metric !== 'volume' && unavailable && series.length === 0
   const allNull = series.length > 0 && series.every((p) => pointValueUsd(p, metric) == null)
-  const empty = !query.isLoading && (series.length === 0 || (allNull && metric !== 'liquidity'))
-  const pointDescription = (point: ProtocolVolumeSeriesPoint) => {
-    if (metric !== 'liquidity') return ''
-    const quality = liquidityQualityForValue(point.quality, validLiquidityUsd(point.liquidity_usd))
-    const partial = quality === 'partial' ? validLiquidityUsd(point.liquidity_usd) : null
-    const label =
-      pointValueUsd(point, metric) == null && !quality ? 'Unknown liquidity' : liquidityQualityLabel(quality)
-    return `${label}${partial != null ? `: ≥ ${formatProtocolUsd(partial)}` : ''}${point.as_of ? ` · As of ${point.as_of}` : ''}`
-  }
+  const empty = !query.isLoading && (series.length === 0 || allNull)
 
   if (volumeMissing) return null
 
   const tooltip =
     active != null && series[active]
       ? {
-          period: pointPeriod(series[active], grain),
-          usd:
-            pointValueUsd(series[active], metric) == null
-              ? '—'
-              : formatProtocolUsd(pointValueUsd(series[active], metric)),
-          quality: pointDescription(series[active]),
+          period: formatPeriodTooltip(pointPeriod(series[active], grain), grain),
+          usd: formatProtocolUsd(pointValueUsd(series[active], metric)),
         }
       : null
 
-  const showPlot = !query.isLoading && !query.isError && !empty && !siblingMissing
+  const showPlot = !query.isLoading && !empty && !siblingMissing
   const showEmpty = !query.isLoading && !query.isError && empty && !siblingMissing
 
   return (
@@ -173,15 +145,8 @@ export function ProtocolVolumeDailyChart() {
       data-protocol-utc-series-chart=""
     >
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-        <h3
-          className="text-xs font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--ink-dim)' }}
-          title={METRIC_CHART_TITLE[metric]}
-        >
-          {METRIC_CHART_LABEL[metric]}
-        </h3>
         <div className="flex flex-wrap gap-2 justify-end">
-          <div className="flex gap-1" role="tablist" aria-label="UTC chart metric">
+          <div className="flex gap-1" role="tablist" aria-label="Chart metric">
             {PROTOCOL_UTC_METRICS.map((m) => (
               <button
                 key={m}
@@ -221,21 +186,7 @@ export function ProtocolVolumeDailyChart() {
           </div>
         </div>
       </div>
-      <p className="text-[10px] mb-2" style={{ color: 'var(--ink-dim)' }} title={METRIC_CHART_TITLE[metric]}>
-        {PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}
-      </p>
-      {metric === 'liquidity' && (
-        <p
-          id="protocol-liquidity-quality-help"
-          className="text-xs mb-2"
-          style={{ color: 'var(--ink-dim)' }}
-          data-testid="protocol-liquidity-quality-help"
-        >
-          Dashed gaps mean unknown, partial, or stale liquidity, not zero. Tap or focus a period for quality and
-          observation time.
-        </p>
-      )}
-      {query.isError && !unavailable && (
+      {query.isError && !unavailable && series.length === 0 && (
         <RetryError message={`Failed to load ${metric}`} onRetry={() => void query.refetch()} />
       )}
       {query.isLoading && <div className="h-32 rounded" style={{ background: 'var(--accent-surface)' }} aria-hidden />}
@@ -254,7 +205,6 @@ export function ProtocolVolumeDailyChart() {
             className="block w-full h-32"
             role="img"
             aria-label={chartAria(metric, grain)}
-            aria-describedby={metric === 'liquidity' ? 'protocol-liquidity-quality-help' : undefined}
             data-testid="protocol-volume-daily-bars"
           >
             <g data-testid="protocol-volume-chart-yaxis">
@@ -281,15 +231,14 @@ export function ProtocolVolumeDailyChart() {
               const w = Math.max(slot * 0.82, 2)
               const period = pointPeriod(p, grain)
               const usd = priced ? formatProtocolUsd(raw) : '—'
-              const gap = metric === 'liquidity' && !priced
-              const barLabel = `${period} ${usd}${metric === 'liquidity' ? ` · ${pointDescription(p)}` : ''}`
+              const barLabel = `${formatPeriodTooltip(period, grain)} ${usd}`
               return (
                 <rect
                   key={`${period}-${i}`}
                   x={x}
-                  y={gap ? PAD_T : PAD_T + PLOT_H - h}
+                  y={PAD_T + PLOT_H - h}
                   width={w}
-                  height={gap ? PLOT_H : h}
+                  height={h}
                   rx={2}
                   tabIndex={0}
                   role="img"
@@ -298,12 +247,6 @@ export function ProtocolVolumeDailyChart() {
                   data-testid={`protocol-volume-bar-${i}`}
                   fill={priced ? 'var(--accent)' : 'transparent'}
                   stroke={raw == null ? 'var(--ink-dim)' : active === i ? 'var(--ink)' : 'none'}
-                  strokeDasharray={gap ? '3 3' : undefined}
-                  data-quality={
-                    metric === 'liquidity'
-                      ? (liquidityQualityForValue(p.quality, validLiquidityUsd(p.liquidity_usd)) ?? 'unknown')
-                      : undefined
-                  }
                   onClick={() => setActive(i)}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') setActive(null)
@@ -346,7 +289,7 @@ export function ProtocolVolumeDailyChart() {
               id="protocol-volume-chart-tooltip"
               data-testid="protocol-volume-chart-tooltip"
             >
-              {tooltip.period} {tooltip.usd} {tooltip.quality}
+              {tooltip.period} {tooltip.usd}
             </div>
           )}
         </div>

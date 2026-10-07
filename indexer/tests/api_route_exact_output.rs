@@ -2,9 +2,9 @@
 mod common;
 
 use axum_test::TestServer;
-use bigdecimal::{ToPrimitive, num_bigint::BigUint};
+use bigdecimal::{num_bigint::BigUint, ToPrimitive};
 use common::lcd_mock;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use serial_test::serial;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -272,12 +272,10 @@ async fn route_exact_output_competing_path_beats_direct_and_unusable_first_path(
                 .unwrap()
                 < 1100000
         );
-        assert!(
-            body["optimality_scope"]
-                .as_str()
-                .unwrap()
-                .contains("pool-only")
-        );
+        assert!(body["optimality_scope"]
+            .as_str()
+            .unwrap()
+            .contains("pool-only"));
     }
 }
 
@@ -373,15 +371,14 @@ async fn route_exact_output_stale_empty_and_infeasible_are_finite() {
         .await;
     resp.assert_status_unprocessable_entity();
     assert!(resp.text().contains("fresh reserves"));
-    assert!(
-        mock.received_requests()
-            .await
-            .unwrap()
-            .iter()
-            .all(|request| lcd_mock::smart_query_from_request(request)
-                .get("simulate_swap_operations")
-                .is_none())
-    );
+    assert!(mock
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .all(|request| lcd_mock::smart_query_from_request(request)
+            .get("simulate_swap_operations")
+            .is_none()));
 }
 
 #[serial]
@@ -704,15 +701,14 @@ async fn route_exact_output_present_standard_reference_unavailable_fails_closed(
         .await;
     resp.assert_status_service_unavailable();
     assert!(resp.text().contains("fair-route reference"));
-    assert!(
-        mock.received_requests()
-            .await
-            .unwrap()
-            .iter()
-            .all(|request| lcd_mock::smart_query_from_request(request)
-                .get("simulate_swap_operations")
-                .is_none())
-    );
+    assert!(mock
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .all(|request| lcd_mock::smart_query_from_request(request)
+            .get("simulate_swap_operations")
+            .is_none()));
 }
 
 /// #1390: reverse sizing preserves authoritative protocol-trader preview rejection.

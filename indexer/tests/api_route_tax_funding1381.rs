@@ -4,7 +4,7 @@ mod common;
 
 use axum_test::TestServer;
 use common::lcd_mock::smart_query_from_request;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use serial_test::serial;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -278,10 +278,13 @@ async fn funded_quote_cache_and_progress_keep_actual_gross_amount_identity() {
     // amount, so it cannot reuse the prior amount's funded splits. Both distinct gross budgets reach router simulation.
     let requests = mock.received_requests().await.unwrap();
     for amount in ["1010000", "1020000"] {
-        assert!(requests.iter().any(
-            |request| smart_query_from_request(request)["simulate_swap_operations"]["offer_amount"]
-                == amount
-        ));
+        assert!(requests
+            .iter()
+            .any(
+                |request| smart_query_from_request(request)["simulate_swap_operations"]
+                    ["offer_amount"]
+                    == amount
+            ));
     }
 }
 

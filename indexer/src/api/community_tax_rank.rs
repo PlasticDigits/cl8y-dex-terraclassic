@@ -870,10 +870,9 @@ mod tests {
                 let economic = sell_economic(gross, bps);
                 assert!(economic.checked_add(tax_amount(economic, bps)).unwrap() <= gross);
                 if let Some(next) = economic.checked_add(1) {
-                    assert!(
-                        next.checked_add(tax_amount(next, bps))
-                            .is_none_or(|total| total > gross)
-                    );
+                    assert!(next
+                        .checked_add(tax_amount(next, bps))
+                        .is_none_or(|total| total > gross));
                 }
             }
         }

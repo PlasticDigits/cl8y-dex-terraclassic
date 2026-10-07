@@ -58,10 +58,10 @@ fn without_qa_credentials<T>(read: impl FnOnce() -> T) -> T {
 use std::env;
 use std::net::SocketAddr;
 
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{header, HeaderValue, StatusCode};
 use axum_test::TestServer;
 use cl8y_dex_indexer::api::LCD_UPSTREAM_GATEWAY_MSG;
-use cl8y_dex_indexer::config::{Config, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS, RunMode};
+use cl8y_dex_indexer::config::{Config, RunMode, DEFAULT_RATE_LIMIT_LCD_HEAVY_RPS};
 use serde_json::Value;
 use serial_test::serial;
 use wiremock::matchers::{method, path_regex};

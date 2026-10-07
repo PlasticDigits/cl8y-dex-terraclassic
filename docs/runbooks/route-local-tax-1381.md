@@ -88,6 +88,15 @@ launcher with different wasm requires a properly versioned future release and
 updated reviewed target; the script cannot force same-version migration.
 Follow `--help` for complete supported options.
 
+The integrated AutoLP release is **1.1.0**. Include
+`--autolp-wasm smartcontracts/artifacts/cl8y_community_tax_autolp.wasm` and
+`--autolp-sha256 <reviewed-checksum>` in every invocation to store or reuse that
+exact code and rotate the launcher's `autolp_code_id` alongside its token template.
+This changes creation templates only; it does not migrate existing sisters or
+refresh any reserve/share policy. Inventory existing sisters separately and use
+their actual administrators and managers under [LP1429](../../skills/AGENTS_AUTOLP_POLICY_RECOVERY.md).
+Omitting the optional artifact preserves the original AutoLP template and settings.
+
 For a live CMM below 0.2.2, set `ROLL1381_CMM_WASM` to the reviewed treasury
 artifact path and `ROLL1381_CMM_SHA256` to its checksum from the reviewed release
 record, then include both arguments when planning and on every subsequent mode:
@@ -129,8 +138,8 @@ sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
 `deployment.env` contains public application pins/registries for the handoff,
 not secret credentials. This PR's source review does not run any production mode.
 
-The rollout retains official contract addresses. It targets router **1.4.0**, community
-tax tokens **1.3.0**, factory **1.12.0**, pair **1.21.0**, and launcher **1.0.0**.
+The rollout retains official contract addresses. It targets router **1.5.0**, community
+tax tokens **1.4.0**, factory **1.12.0**, pair **1.21.0**, and launcher **1.0.0**.
 Production factory 1.10.0 has a different stored hash from the repository artifact;
 The integrated factory 1.12.0 release also includes bounded hook admission
 (#1398); its version permits the reviewed upgrade. Review the exact deployed artifact hash rather
@@ -259,7 +268,7 @@ router address and reject every inventoried stored binding mismatch before mutat
 
 ## Funded reverse provider gas validation (#1422)
 
-Router **1.4.0** reuses immutable query-local capability/pair lookup metadata;
+Router **1.5.0** retains the 1.4.0 immutable query-local capability/pair lookup metadata;
 all amount-specific previews and fresh final sufficiency validation remain real
 queries. Pair **1.21.0** remains the reviewed bounded-reverse target. These targets
 supersede old router 1.3.0/pair 1.19.0 rollout plans in

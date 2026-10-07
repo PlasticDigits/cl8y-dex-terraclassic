@@ -451,8 +451,8 @@ mod tests {
     use super::*;
     use base64::Engine;
     use serde_json::json;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
     use wiremock::matchers::{method, path_regex};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -1,3 +1,4 @@
+import { ProtocolDetails } from './ProtocolDetails'
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { KeyboardEvent } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -67,18 +68,23 @@ export function ProtocolOracleCard({
 
   return (
     <div className="shell-panel" data-testid="protocol-oracle">
-      <h2
-        className="text-sm font-semibold tracking-wide mb-3 font-heading"
-        style={{ color: 'var(--ink)' }}
-        id="protocol-oracle-heading"
-      >
-        {heading}
-      </h2>
-      <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        {isVfdusd
-          ? 'CEX FDUSD reference and Venus redeem rate — not settlement.'
-          : 'Indexer CEX/aggregator reference — not swap settlement, TWAP, or the UST1 window rate.'}
-      </p>
+      <div className="flex items-center gap-1 mb-3">
+        <h2
+          className="text-sm font-semibold tracking-wide font-heading"
+          style={{ color: 'var(--ink)' }}
+          id="protocol-oracle-heading"
+        >
+          {heading}
+        </h2>
+        <ProtocolDetails
+          label="Reference price details"
+          detail={
+            isVfdusd
+              ? 'FDUSD market price and vFDUSD redemption value.'
+              : 'Reference price, not a guaranteed trade price.'
+          }
+        />
+      </div>
 
       <div
         className="flex gap-2 mb-4 flex-wrap"

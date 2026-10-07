@@ -18,7 +18,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Top pairs (30d)** (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+cLUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. || **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% **and** fee totals come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
+| **P550-5** | 7d/30d/active-pair/unique-trader and fee totals come from the `global_stats_24h` rollup + 60s cache. Liquidity / Δ% independently read that single materialized row on every response so its shorter observation TTL cannot expire behind the stats cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
 | **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
@@ -161,7 +161,7 @@ Do **not** invent a Protocol-only `StatBox` variant. The same value-row class se
 | **P668-6** | GET reads rollup tables only (`protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume`). No `swap_events` SUM. No Llama. Idle `"0"`; activity + unpriced `null`. Missing row → idle `"0"`. Newest-last. |
 | **P668-7** | Hourly bucket `[hour, hour+1)` UTC (`YYYY-MM-DDTHH`). Monthly = UTC calendar month (`YYYY-MM`), not trailing 30d. Aggregator refresh; `--fresh` / young indexer shows idle zeros / available months — **not** a GET-path backfill. Hourly prune ~10d; monthly retain ≥ 24 months. |
 | **P668-8** | XSS strings in period / `volume_usd` render as **text**. Unpriced bars are outlined, not `$0`. No `PriceChart`. No nested `card-glass` around the plot (C653). Verify: `make verify-issue-668`. Keep `verify-issue-652` / `550` / `569` / `586` / `576` / `631` / `653` / `677` green. |
-| **P668-9** | X-axis labels every bar (**step 1**) or every second bar (**step 2**) for Daily and Monthly. Hourly may use a wider step only when step 2 still collides in the **current plot width**. Monthly on phone is fewer bars + `YY-MM` axis text — **do not rotate** tick text (`transform="rotate(…)"`, CSS `writing-mode`, `textPath`) ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) **P703-1** / **P703-3**). The SVG viewBox width follows the Global stats panel (`ResizeObserver`) — do **not** letterbox a fixed 320×128 canvas (that left ~⅔ of the panel empty and packed hourly `HH` labels). First and last period stay labeled. No global `maxLabels = 5`. Tooltip still tells the truth on unlabeled hourly bars ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). |
+| **P668-9** | Space x-axis date labels by estimated label width plus a six-pixel gap using the **actual plot width**, for every grain. Keep all bars and all hover/focus dates; reduce only visible date text. Always label first and last observations, removing an interior candidate if it would collide with the last. No arbitrary five-label ceiling. This responsive rule follows the explicit 2026-10-07 cognitive-load correction and supersedes the former Daily/Monthly step-1-or-2 restriction. Monthly keeps horizontal `YY-MM` text; do not rotate labels. The SVG viewBox tracks `ResizeObserver`, never a letterboxed fixed 320×128 canvas. |
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). The volume chart is a **separate** UTC calendar-grain series (hour / day / month) — do not add a lecture to the Global stats lead.
 
@@ -173,7 +173,7 @@ One census chart, exclusive metric. Do **not** overlay Volume + Liquidity + Fees
 |----|------|
 | **P689-1** | Buttons **Volume / Liquidity / Fees** (default **Volume**) on the existing `protocol-volume-daily-chart` (alias `data-protocol-utc-series-chart`). Grain stays **Hourly / Daily / Monthly** (default Daily). Switching metric **keeps** grain; switching grain resets the tooltip. Fetch **only** the selected metric. |
 | **P689-2** | Trailing tiles unchanged: Last 24h/7d/30d vol, Total liquidity + **one** 24h Δ%, `GET /protocol/fees?window=` 24h/7d/30d. Chart stays inside `protocol-global-stats` — not in `protocol-fee-stats`. |
-| **P689-3** | **Volume / fees** = FLOW: idle JSON `"0"`; activity + all unpriced → `null` (outlined bar, tooltip em-dash). Missing rollup row → idle `"0"`. **Liquidity** = STOCK: last snapshot in the bucket (not SUM, not average). No sample → JSON `null` (not `"0"`). Empty copy **No liquidity yet** / **No fees yet**. Titles **UTC volume** / **UTC liquidity** / **UTC fees**. |
+| **P689-3** | **Volume / fees** = FLOW: idle JSON `"0"`; activity + all unpriced → `null` (outlined bar, tooltip em-dash). Missing rollup row → idle `"0"`. **Liquidity** = STOCK: last snapshot in the bucket (not SUM, not average). No sample → JSON `null` (not `"0"`). Empty copy **No liquidity yet** / **No fees yet**. Visible controls name the selected metric and grain; do not repeat UTC titles or instructional subtitles. |
 | **P689-4** | Sibling GETs `GET /api/v1/protocol/liquidity/daily` and `GET /api/v1/protocol/fees/daily`: `grain` + capped `limit` else **400**. `from`/`to`/`window`/`days`/`metric`/`ticker` → **400**. 60s cache keyed only by allowlisted `(grain, limit)`. Volume `days=7\|30` alias stays on the volume path. |
 | **P689-5** | GET reads grain tables only (`protocol_{hourly,daily,monthly}_{liquidity,fees}`). No `SUM` of `protocol_fee_events` / `swap_events`. No snapshot / `pair_reserves` walk. No Llama. Methodology `protocol_catalog`. Newest-last. |
 | **P689-6** | Aggregator downsamples liquidity **before** 35d snapshot prune so Monthly stock retains ≥ 24 months. Hourly prune ~10d; daily ≥ 95d; monthly ≥ 24 months. Fees SUM priced `fee_usd` off GET (PFee sources). |
@@ -256,6 +256,25 @@ make verify-issue-1290  # leftover #1306 (Q22 / B1290; aliases verify-issue-1302
 
 P569 omission means unknown, not current zero. Nullable overview totals and
 quality/as-of/generation must follow [Q1380](../docs/indexer-invariants.md#protocol-liquidity-quality-1380).
-Do not render partial or unknown history as a complete liquidity point, or restore
-an unqualified delta. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
+Server quality and comparable delta rules remain internal; never restore an
+unqualified delta. The retail liquidity chart shows available canonical numbers,
+including partial observations, or reported numbers when canonical values are
+absent. Use the same normal series color for all available values. Omit missing
+rows, retaining each actual observation date; no invented zeroes, hatching,
+gray categories, full-height dashed boxes, chart-info control or quality legend.
+Tooltips show only a readable date and USD amount. This presentation follows the
+explicit 2026-10-07 user direction and supersedes prior frontend quality styling. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
 and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verify-issue-1380`.
+
+
+### Last verified liquidity display (2026-10-06 user direction)
+
+Retain the last qualified complete public amount through TTL expiry and temporary
+outages, including route remounts/reloads using validated storage scoped to chain,
+factory and indexer. Keep original observation time internally; optional info says only “Updated …”. Suppress the
+24h delta when current data is unqualified, and replace retained totals with new
+qualified decreases or zero. Partial totals never overwrite complete totals.
+Before any complete total exists, retain the last qualified partial lower bound
+with `≥` and its original time through expiry, outages and reloads; newer lower
+partial values replace it, and a complete valuation takes priority.
+Server canonical quality and historical baseline rules remain unchanged.

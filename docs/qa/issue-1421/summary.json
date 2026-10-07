@@ -1,0 +1,127 @@
+{
+  "utc": "2026-10-06T11:42:50.200585+00:00",
+  "source_commit": "fab88dbbccb514657d786e3034e12c99423026eb",
+  "policy": {
+    "deployed_commit": "fab88dbbccb514657d786e3034e12c99423026eb",
+    "deployment_uuid": "ulgrip4slu7zxy9hvawq0jsr",
+    "policy_sha256": "02a9b1282c318bd9dae2ac6a003e2eb7528998a33ad8a8d866332fc0cfde706c",
+    "health": "PASS",
+    "unsigned_request": "401",
+    "exclusive": true,
+    "netrc": false,
+    "gitleaks": "PASS narrow existing case-insensitive Venus allowlist",
+    "hosted_pipeline": 336
+  },
+  "bridge_debt": {
+    "read_only_plan": "PASS twice",
+    "legacy_issuer_code_id": 11709,
+    "legacy_receipt_code_id": 11708,
+    "issuer_owner_and_both_admins": "observed2-of-3 multisig",
+    "supply_and_outstanding": "10000000000000000000000",
+    "custody_broadcast": "NOT EXECUTED encrypted file-keyring passphrase unavailable",
+    "scripts": "scripts/ops/2026-10-06/bridge-debt.py",
+    "resume_regressions": "2 PASS"
+  },
+  "concrete_eight_hooks": {
+    "scope": "synthetic LocalTerra concrete eight burn hooks at1bps; not arbitrary-hook gas envelope or production provider qualification",
+    "first": {
+      "baseline_swap": {
+        "txhash": "71C1FCBA5C386E9DB23D32EBCE98817F1FD80A55F6AAFCC499708047B9100151",
+        "gas_used": "632671"
+      },
+      "eight_hook_swap": {
+        "txhash": "E7E4A00D8F0899220BEDE510790889A5F15208F8979FD8D9AC1D50960E8C456F",
+        "gas_used": "3494375"
+      },
+      "autolp_eight_hook_skim": {
+        "txhash": "D56433454291E4982B2B5AC6D482501D651201BA46E88F7C81B04C8A07A606F8",
+        "gas_used": "4844182"
+      },
+      "minted_lp": "498107",
+      "quote_net": "996206",
+      "delivered_net": "996206"
+    },
+    "retest": {
+      "baseline_swap": {
+        "txhash": "2690F8161235AD39CFC5FCE3B6A38E41727AB90EB2937E4301F112DC244D41EE",
+        "gas_used": "632671"
+      },
+      "eight_hook_swap": {
+        "txhash": "9A8973FFC603F8AB922553DF27457171A02BBDFDEDFB99BC9B32A871BAD88818",
+        "gas_used": "3494375"
+      },
+      "autolp_eight_hook_skim": {
+        "txhash": "E3C0CC4CC3432B46346D9DFD3E2ACE55667CAC47B3CE493BDD1315BA380357E9",
+        "gas_used": "4844182"
+      },
+      "minted_lp": "498107",
+      "quote_net": "996206",
+      "delivered_net": "996206"
+    },
+    "policy_preserved": true,
+    "missing_floor_rollback": true
+  },
+  "scheduler": {
+    "user_timer": "cl8y-dex-functional1400.timer",
+    "daily_utc": "03:00",
+    "enabled": true,
+    "user_linger": true,
+    "dedicated_compose_project": "cl8y-dex-functional1400",
+    "production_keys_used": false,
+    "critical_full_run": "PASS twice on earlier host native artifact, plus PASS final pinned Rust1.96 native alignment; each browser expected4 unexpected0 flaky0 skipped0",
+    "running_binary_matches_verified_artifact": true,
+    "runtime_native_sha256": "6ff89efb9c9edd3d93808455032c569c763b5a5fd733e7e8b3d9a061d4d97212",
+    "final_native_run_utc": "2026-10-06T13:00:08.641435+00:00"
+  },
+  "native_release": {
+    "initial_shared_build": "compiled; provenance rejected concurrent source mutation",
+    "two_random_target_builds": "FAIL exact byte comparison; generated Swagger file paths differ",
+    "two_remap_only_builds": "FAIL exact byte comparison; Cargo crate metadata differs",
+    "final_strategy": "Fresh stable logical target created atomically, path remap, reviewed SOURCE_DATE_EPOCH=0",
+    "final_independent_comparison": "PASS",
+    "compiler": "rustc 1.99.0 (b940084d7 2026-09-28); cargo 1.99.0 (5f94df478 2026-08-27); SOURCE_DATE_EPOCH=0",
+    "recipe_cache_security_tests": "9 PASS",
+    "artifacts": [
+      {
+        "filename": "indexer/target/release/cl8y-dex-indexer",
+        "sha256": "afd2c7f2749651b9b019c0d7533071b3c3cc7a6a24d2274e76af34377ebc8b53"
+      }
+    ],
+    "production_pinned_builder_comparison": "PASS final formatted backend source; 264 reviewed inputs unchanged",
+    "production_builder_image": "rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663",
+    "production_toolchain": "rustc 1.96.1 (31fca3adb 2026-06-26)\ncargo 1.96.1 (356927216 2026-06-26)\nlibc6:amd64\t2.36-9+deb12u14\nlibssl-dev:amd64\t3.0.22-1~deb12u1\npkg-config:amd64\t1.8.1-1\nSOURCE_DATE_EPOCH=0\n",
+    "production_artifacts": [
+      {
+        "filename": "cl8y-dex-indexer",
+        "sha256": "6ff89efb9c9edd3d93808455032c569c763b5a5fd733e7e8b3d9a061d4d97212"
+      }
+    ]
+  },
+  "hosted_ci": {
+    "pipeline": 336,
+    "commit": "fab88dbbccb514657d786e3034e12c99423026eb",
+    "result": "FAIL initial advisory teardown race",
+    "passed": [
+      "gitleaks",
+      "contracts",
+      "frontend",
+      "indexer-lib"
+    ],
+    "failed": [
+      "indexer-postgres",
+      "functional-required"
+    ],
+    "repair": "graceful connection close and bounded5s acquisition check",
+    "repair_local_full_suite": "12 passed twice",
+    "repair_isolated_process_repeats": "20 PASS",
+    "genuine_postrepair_hosted_result": "PENDING parent final source push"
+  },
+  "owned_wasm_rebuild": {
+    "fresh_pinned_optimizer": true,
+    "owned_hashes_match": 13
+  },
+  "cleanup": {
+    "inactive_owned_disposable_qa_databases_removed": 22,
+    "dedicated_daily_chain_runtime_control_preserved": true
+  }
+}

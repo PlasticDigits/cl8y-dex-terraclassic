@@ -525,6 +525,8 @@ export interface ProtocolLiquidityDailyPoint {
   utc_hour?: string
   utc_month?: string
   liquidity_usd: string | null
+  /** Original unqualified positive history; only an explicitly labeled chart estimate. */
+  reported_liquidity_usd?: string | null
   /** Terminal observation quality; historical samples are evaluated at their bucket, not the current time. */
   quality?: LiquidityQuality
   as_of?: string | null

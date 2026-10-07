@@ -300,11 +300,9 @@ mod tests {
         assert_eq!(factory.rejections.len(), factory.insertion_fifo.len());
         let queued: HashSet<_> = factory.insertion_fifo.iter().collect();
         assert_eq!(queued.len(), factory.insertion_fifo.len());
-        assert!(
-            queued
-                .iter()
-                .all(|key| factory.rejections.contains_key(*key))
-        );
+        assert!(queued
+            .iter()
+            .all(|key| factory.rejections.contains_key(*key)));
     }
 
     #[test]
@@ -394,11 +392,9 @@ mod tests {
             assert_queue_consistent(factory);
             assert!(!factory.rejections.contains_key("pair-0"));
         }
-        assert!(
-            inner.factories["factory-15"]
-                .rejections
-                .contains_key("pair-99999")
-        );
+        assert!(inner.factories["factory-15"]
+            .rejections
+            .contains_key("pair-99999"));
     }
 
     #[test]

@@ -17,7 +17,7 @@ before preparing a new manifest; these observations are not migration receipts.
 | Component | Observed code / CW2 | Reviewed rollout action |
 |---|---|---|
 | Factory | 11629 / 1.10.0 | Store/migrate reviewed 1.12.0. The integrated release adds bounded hook admission (#1398); live 1.10.0 has a different hash from the prior repository artifact, so a same-version migration is rejected. |
-| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.4.0. |
+| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.5.0. |
 | Pair template | 11676 / 1.18.0 | Store reviewed 1.21.0, rotate factory template and migrate inventoried behind-version pairs. |
 | Launcher | 11632 / 1.0.0 | Retain compatible wasm, rotate `token_code_id`, preserve AutoLP/unrelated configuration. |
 | CMM | 11667 / 0.2.2 | Existing dispatcher meets the prerequisite; use actual `migrate_owned_contract` for its tokens, with no unnecessary CMM upgrade. |
@@ -139,7 +139,7 @@ Recorded results and public synthetic receipts: [RESULTS.md](RESULTS.md).
 
 ## Funded quote gas acceptance (#1422)
 
-The current pair **1.21.0** and router **1.4.0** targets supersede earlier
+The current pair **1.21.0** and router **1.5.0** targets supersede earlier
 pair 1.19.0/router 1.3.0 plans in #1384/#1386. Follow the
 [FRQ1422 invariants](../../../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md) and
 [reproducible checklist](../issue-1422/README.md). Before rollout acceptance,

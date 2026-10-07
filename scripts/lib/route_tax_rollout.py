@@ -23,8 +23,9 @@ class RolloutError(RuntimeError):
 SPECS = {
     "factory": ("cl8y-dex-factory", "1.12.0", "cl8y_dex_factory.wasm"),
     "pair": ("cl8y-dex-pair", "1.21.0", "cl8y_dex_pair.wasm"),
-    "router": ("cl8y-dex-router", "1.4.0", "cl8y_dex_router.wasm"),
-    "token": ("crates.io:cl8y-community-tax-token", "1.3.0", "cl8y_community_tax_token.wasm"),
+    "router": ("cl8y-dex-router", "1.5.0", "cl8y_dex_router.wasm"),
+    "token": ("crates.io:cl8y-community-tax-token", "1.4.0", "cl8y_community_tax_token.wasm"),
+    "autolp": ("crates.io:cl8y-community-tax-autolp", "1.1.0", "cl8y_community_tax_autolp.wasm"),
     "launcher": ("crates.io:cl8y-community-token-launcher", "1.0.0", "cl8y_community_token_launcher.wasm"),
     "cmm": ("crates.io:treasury", "0.2.2", "treasury.wasm"),
 }
@@ -394,6 +395,8 @@ class Rollout:
         expected = dict(inv["launcher_config"])
         if self.state["operations"].get("launcher:template", {}).get("tx_hash"):
             expected["token_code_id"] = self.state["codes"]["token"]
+            if "autolp" in self.artifacts:
+                expected["autolp_code_id"] = self.state["codes"]["autolp"]
         require(lc == expected, "Launcher settings changed after planning")
         if "cmm" in inv["instances"]:
             require(self.chain.smart(c["cmm"], {"config": {}})["governance"] == c["governance"],
@@ -461,7 +464,14 @@ class Rollout:
                 role = "gov" if token["admin"] == c["governance"] else c["eoa_admins"][token["admin"]]
                 self._operation("migrate:token:" + token["address"], {"op": "migrate", "role": role,
                     "contract": token["address"], "code_id": token_code, "msg": {}}, rebroadcast_pending)
-        self._execute_msg("launcher:template", c["launcher"], {"update_config": {"token_code_id": token_code}}, rebroadcast_pending)
+        launcher_update = {"token_code_id": token_code}
+        if "autolp" in self.artifacts:
+            old_autolp = inv["launcher_config"].get("autolp_code_id")
+            autolp_code = self._code("autolp", [old_autolp] if old_autolp else [], rebroadcast_pending)
+            require(self.chain.code_hash(autolp_code).lower() == self.artifacts["autolp"].sha256,
+                    "AutoLP template checksum mismatch")
+            launcher_update["autolp_code_id"] = autolp_code
+        self._execute_msg("launcher:template", c["launcher"], {"update_config": launcher_update}, rebroadcast_pending)
         pair_code = self._code("pair", [inv["factory_config"]["pair_code_id"],
             *[p["code_id"] for p in inv["pairs"]]], rebroadcast_pending)
         if int(inv["factory_config"]["pair_code_id"]) != pair_code:
@@ -492,7 +502,13 @@ class Rollout:
         error = funded_capability_error(router_config) or router_settlement_error(router_config)
         require(error is None, error)
         launcher = self.chain.smart(c["launcher"], {"get_config": {}})
-        require(launcher == {**inv["launcher_config"], "token_code_id": self.state["codes"]["token"]}, "Launcher configuration changed unexpectedly")
+        expected_launcher = {**inv["launcher_config"], "token_code_id": self.state["codes"]["token"]}
+        if "autolp" in self.artifacts:
+            autolp_code = self.state["codes"]["autolp"]
+            require(self.chain.code_hash(autolp_code).lower() == self.artifacts["autolp"].sha256,
+                    "AutoLP template checksum mismatch")
+            expected_launcher["autolp_code_id"] = autolp_code
+        require(launcher == expected_launcher, "Launcher configuration changed unexpectedly")
         for token in inv["tokens"]:
             actual = self._instance(token["address"], "token")
             require(not actual["needs_migrate"], "Token migration incomplete")

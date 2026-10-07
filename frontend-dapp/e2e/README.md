@@ -110,7 +110,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-ro
 |------|---------|-------|
 | `trader-page.spec.ts` | `e2e-smoke` | Indexer positions section for connected dev wallet |
 | `protocol-page.spec.ts` | `e2e-smoke` | Factory + router audit addresses |
-| `protocol-liquidity-quality.spec.ts` | `e2e-smoke` | Synthetic #1380 coverage loss, unknown gaps, partial lower bounds, expiry/recovery and verified zero; phone + desktop, tap + keyboard |
+| `protocol-liquidity-quality.spec.ts` | `e2e-smoke` | Plain available liquidity bars, omitted missing observations, date-and-amount tooltips, retained totals through expiry/outage/reload and real decreases/zero; phone + desktop, tap + keyboard |
 | `blacklist-swap.spec.ts` | `e2e-smoke` | LCD mock via `helpers/blacklist-lcd-mock.ts` — disabled **Trading restricted** CTA |
 
 Indexer required for `trader-page.spec.ts` (`bash scripts/e2e-start-indexer.sh`).

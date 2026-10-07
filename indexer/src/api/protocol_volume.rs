@@ -26,14 +26,16 @@ const DAILY_CACHE_TTL: Duration = Duration::from_secs(60);
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum VolumeCacheKey {
     AliasDays(i32),
-    Grain { grain: vol_q::VolumeGrain, limit: i32 },
+    Grain {
+        grain: vol_q::VolumeGrain,
+        limit: i32,
+    },
 }
 
 fn volume_cache() -> &'static Mutex<HashMap<VolumeCacheKey, (ProtocolVolumeDailyResponse, Instant)>>
 {
-    static CACHE: OnceLock<
-        Mutex<HashMap<VolumeCacheKey, (ProtocolVolumeDailyResponse, Instant)>>,
-    > = OnceLock::new();
+    static CACHE: OnceLock<Mutex<HashMap<VolumeCacheKey, (ProtocolVolumeDailyResponse, Instant)>>> =
+        OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 

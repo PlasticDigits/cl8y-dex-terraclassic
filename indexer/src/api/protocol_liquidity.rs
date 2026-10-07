@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use bigdecimal::BigDecimal;
 use chrono::{Duration as ChronoDuration, Months, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -59,6 +60,10 @@ pub struct ProtocolLiquidityDailyPoint {
     pub utc_month: Option<String>,
     /// Last snapshot USD in the bucket. JSON `null` when no sample (not `"0"`).
     pub liquidity_usd: Option<String>,
+    /// Preserved positive legacy estimate only. Quality remains unknown; never a
+    /// canonical TVL, comparable baseline or replacement for a repaired gap.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reported_liquidity_usd: Option<String>,
     pub priced_pair_count: i32,
     pub quality: String,
     pub as_of: Option<String>,
@@ -75,6 +80,22 @@ pub struct ProtocolLiquidityDailyResponse {
     /// Protocol catalog pool TVL (P569). Not DeFiLlama / CG `liquidity_in_usd`.
     pub methodology: String,
     pub series: Vec<ProtocolLiquidityDailyPoint>,
+}
+
+fn reported_legacy_liquidity(
+    quality: &str,
+    reasons: &serde_json::Value,
+    amount: Option<&BigDecimal>,
+) -> Option<String> {
+    let solely_legacy = reasons.as_object().is_some_and(|r| {
+        r.len() == 1 && r.get("legacy_unqualified").and_then(|v| v.as_i64()) == Some(1)
+    });
+    if quality != "unknown" || !solely_legacy {
+        return None;
+    }
+    amount
+        .filter(|v| **v > BigDecimal::from(0))
+        .map(|v| v.to_string())
 }
 
 /// Drop the 60s liquidity-series response cache (tests).
@@ -188,6 +209,11 @@ async fn build_daily_series(
                 } else {
                     None
                 },
+                reported_liquidity_usd: reported_legacy_liquidity(
+                    &row.quality,
+                    &row.reasons,
+                    row.liquidity_usd.as_ref(),
+                ),
                 quality: row.quality.clone(),
                 as_of: row.as_of.map(|v| v.to_rfc3339()),
                 coverage_identity: row.coverage_identity.clone(),
@@ -200,6 +226,7 @@ async fn build_daily_series(
                 utc_day: Some(day.to_string()),
                 utc_month: None,
                 liquidity_usd: None,
+                reported_liquidity_usd: None,
                 quality: "unknown".into(),
                 as_of: None,
                 coverage_identity: String::new(),
@@ -243,6 +270,11 @@ async fn build_hourly_series(
                 } else {
                     None
                 },
+                reported_liquidity_usd: reported_legacy_liquidity(
+                    &row.quality,
+                    &row.reasons,
+                    row.liquidity_usd.as_ref(),
+                ),
                 quality: row.quality.clone(),
                 as_of: row.as_of.map(|v| v.to_rfc3339()),
                 coverage_identity: row.coverage_identity.clone(),
@@ -255,6 +287,7 @@ async fn build_hourly_series(
                 utc_day: None,
                 utc_month: None,
                 liquidity_usd: None,
+                reported_liquidity_usd: None,
                 quality: "unknown".into(),
                 as_of: None,
                 coverage_identity: String::new(),
@@ -302,6 +335,11 @@ async fn build_monthly_series(
                 } else {
                     None
                 },
+                reported_liquidity_usd: reported_legacy_liquidity(
+                    &row.quality,
+                    &row.reasons,
+                    row.liquidity_usd.as_ref(),
+                ),
                 quality: row.quality.clone(),
                 as_of: row.as_of.map(|v| v.to_rfc3339()),
                 coverage_identity: row.coverage_identity.clone(),
@@ -314,6 +352,7 @@ async fn build_monthly_series(
                 utc_day: None,
                 utc_month: Some(vol_q::format_utc_month(month)),
                 liquidity_usd: None,
+                reported_liquidity_usd: None,
                 quality: "unknown".into(),
                 as_of: None,
                 coverage_identity: String::new(),

@@ -62,10 +62,10 @@ pub async fn blacklist_check(
     State(state): State<AppState>,
     Query(params): Query<BlacklistCheckParams>,
 ) -> Result<axum::Json<BlacklistCheckApiResponse>, (StatusCode, String)> {
-    let factory = state
-        .factory_address
-        .as_deref()
-        .ok_or((StatusCode::NOT_FOUND, "Factory address not configured".to_string()))?;
+    let factory = state.factory_address.as_deref().ok_or((
+        StatusCode::NOT_FOUND,
+        "Factory address not configured".to_string(),
+    ))?;
 
     let tokens = split_csv_addrs(params.tokens.as_deref());
     let pairs = split_csv_addrs(params.pairs.as_deref());

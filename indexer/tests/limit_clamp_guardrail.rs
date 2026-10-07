@@ -21,8 +21,7 @@ use std::path::{Path, PathBuf};
 
 /// Recursively collect every `.rs` file under `dir`.
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries =
-        fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {}: {e}", dir.display()));
+    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {}: {e}", dir.display()));
     for entry in entries {
         let entry = entry.expect("dir entry");
         let path = entry.path();
@@ -38,11 +37,19 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 fn no_upper_only_clamp_on_defaulted_query_limit() {
     // CARGO_MANIFEST_DIR = .../indexer
     let api_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/api");
-    assert!(api_dir.is_dir(), "expected src/api dir at {}", api_dir.display());
+    assert!(
+        api_dir.is_dir(),
+        "expected src/api dir at {}",
+        api_dir.display()
+    );
 
     let mut files = Vec::new();
     rust_files(&api_dir, &mut files);
-    assert!(!files.is_empty(), "found no .rs files under {}", api_dir.display());
+    assert!(
+        !files.is_empty(),
+        "found no .rs files under {}",
+        api_dir.display()
+    );
 
     let mut offenders = Vec::new();
     for file in &files {

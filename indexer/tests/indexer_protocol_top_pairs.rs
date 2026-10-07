@@ -264,11 +264,19 @@ async fn idle_unpriced_overflow_and_zero_tvl() {
     let live_item = &items(&body)[0];
     assert!(
         live_item["liquidity_usd"].is_null()
-            || live_item.as_object().unwrap().get("liquidity_usd").is_none()
+            || live_item
+                .as_object()
+                .unwrap()
+                .get("liquidity_usd")
+                .is_none()
     );
     assert!(
         live_item["volume_per_tvl"].is_null()
-            || live_item.as_object().unwrap().get("volume_per_tvl").is_none()
+            || live_item
+                .as_object()
+                .unwrap()
+                .get("volume_per_tvl")
+                .is_none()
     );
     let missing = &items(&body)[1];
     assert!(
@@ -374,7 +382,8 @@ async fn get_400_on_disallowed_params_and_cache_ignores_junk() {
     junk.assert_status_ok();
     let junk_body: Value = junk.json();
     assert_eq!(
-        items(&junk_body)[0]["volume_usd_30d"], "7",
+        items(&junk_body)[0]["volume_usd_30d"],
+        "7",
         "junk query keys must not bust the 60s cache"
     );
 }
@@ -417,12 +426,8 @@ async fn overview_stays_rollup_after_30d_stamp() {
     let uluna = insert_native(&pool, "uluna", "LUNC", 6).await;
     let pid = insert_pair(&pool, "terra1ov1263", uusd, uluna).await;
     insert_swap(&pool, pid, uusd, uluna, "txov1263", Some("3")).await;
-    volume::refresh_pair_volumes_30d(&pool)
-        .await
-        .expect("30d");
-    volume::refresh_global_stats(&pool)
-        .await
-        .expect("global");
+    volume::refresh_pair_volumes_30d(&pool).await.expect("30d");
+    volume::refresh_global_stats(&pool).await.expect("global");
 
     let app = build_test_app(pool).await;
     let server = TestServer::new(app);

@@ -200,6 +200,7 @@ async fn limit_book_negative_and_zero_limit_depth_clamp_not_500() {
         let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
         let server = TestServer::new(app);
 
-        assert_limit_book_param_clamps_low(&server, &seed.pair_address, "limit-book", "limit").await;
+        assert_limit_book_param_clamps_low(&server, &seed.pair_address, "limit-book", "limit")
+            .await;
     }
 }

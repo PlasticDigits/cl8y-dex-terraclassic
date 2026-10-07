@@ -20,7 +20,9 @@ pub struct Cl8yConsolidatedExtensions {
     pub pool_leg_volume_quote_24h: String,
 }
 
-pub fn extensions_from_breakdown(b: &swap_events::HybridVolumeBreakdown) -> Cl8yConsolidatedExtensions {
+pub fn extensions_from_breakdown(
+    b: &swap_events::HybridVolumeBreakdown,
+) -> Cl8yConsolidatedExtensions {
     Cl8yConsolidatedExtensions {
         consolidated: true,
         hybrid_trade_count_24h: b.hybrid_trade_count.to_string(),

@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   clampProtocolVolumeLimit,
+  estimatedAxisLabelWidthPx,
+  PROTOCOL_VOLUME_AXIS_LABEL_GAP_PX,
   formatPeriodAxisLabel,
+  formatPeriodTooltip,
   isAllowlistedProtocolVolumeLimit,
   isProtocolVolumeGrain,
   limitFromPlotWidth,
@@ -15,6 +18,14 @@ import {
 } from '../protocolVolumeGrain'
 
 describe('protocolVolumeGrain (GitLab #668 / #677 / #703)', () => {
+  it('formats the actual UTC period as a readable date without quality jargon', () => {
+    expect(formatPeriodTooltip('2026-10-01', 'daily')).toBe('Oct 1, 2026')
+    expect(formatPeriodTooltip('2026-10', 'monthly')).toBe('Oct 2026')
+    expect(formatPeriodTooltip('2026-10-01T23', 'hourly')).toBe('Oct 1, 2026, 11:00 PM')
+    expect(formatPeriodTooltip('2026-02-31', 'daily')).toBe('2026-02-31')
+    expect(formatPeriodTooltip('<script>', 'daily')).toBe('<script>')
+  })
+
   it('allowlists grain and rejects injection', () => {
     expect(isProtocolVolumeGrain('hourly')).toBe(true)
     expect(isProtocolVolumeGrain('daily')).toBe(true)
@@ -67,43 +78,41 @@ describe('protocolVolumeGrain (GitLab #668 / #677 / #703)', () => {
     expect(usdAxisTicks(100)).toEqual([0, 25, 50, 75, 100])
   })
 
-  it('labels every daily/monthly bar or every second (GitLab #677)', () => {
-    expect(timeLabelIndexes(7, 'daily')).toEqual([0, 1, 2, 3, 4, 5, 6])
-    expect(timeLabelStep(7, 'daily')).toBe(1)
-    const daily90 = timeLabelIndexes(90, 'daily')
-    expect(timeLabelStep(90, 'daily')).toBeLessThanOrEqual(2)
-    expect(daily90[0]).toBe(0)
-    expect(daily90.at(-1)).toBe(89)
-    expect(daily90.length).toBeGreaterThanOrEqual(Math.ceil(90 / 2))
-    expect(daily90.length).toBeLessThanOrEqual(90)
-
-    const monthly6 = timeLabelIndexes(6, 'monthly')
-    expect(monthly6[0]).toBe(0)
-    expect(monthly6.at(-1)).toBe(5)
-    expect(timeLabelStep(6, 'monthly')).toBeLessThanOrEqual(2)
-    expect(monthly6.length).toBeGreaterThanOrEqual(Math.ceil(6 / 2))
-
-    const monthly24 = timeLabelIndexes(24, 'monthly')
-    expect(timeLabelStep(24, 'monthly')).toBeLessThanOrEqual(2)
-    expect(monthly24[0]).toBe(0)
-    expect(monthly24.at(-1)).toBe(23)
-    expect(monthly24.length).toBeGreaterThanOrEqual(Math.ceil(24 / 2))
+  it('spaces all grains by their estimated width plus a readable gap at phone and desktop sizes', () => {
+    for (const viewportWidth of [390, 2048]) {
+      // Include narrow panel widths and wide viewports; production uses measured width.
+      for (const plotWidth of [260, viewportWidth - 60]) {
+        for (const grain of ['hourly', 'daily', 'monthly'] as const) {
+          for (let count = 2; count <= PROTOCOL_VOLUME_GRAIN_MAX[grain]; count++) {
+            const indexes = timeLabelIndexes(count, grain, plotWidth)
+            expect(indexes[0]).toBe(0)
+            expect(indexes.at(-1)).toBe(count - 1)
+            const requiredGap = estimatedAxisLabelWidthPx(grain) + PROTOCOL_VOLUME_AXIS_LABEL_GAP_PX
+            for (let i = 1; i < indexes.length; i++) {
+              expect(((indexes[i] - indexes[i - 1]) * plotWidth) / count).toBeGreaterThanOrEqual(requiredGap)
+            }
+          }
+        }
+      }
+    }
   })
 
-  it('hourly 12 is all or every 2nd; 168 is width-clamped, not capped at 5', () => {
-    const h12 = timeLabelIndexes(12, 'hourly')
-    expect(h12[0]).toBe(0)
-    expect(h12.at(-1)).toBe(11)
-    expect(timeLabelStep(12, 'hourly')).toBeLessThanOrEqual(2)
-    expect(h12.length).toBeGreaterThanOrEqual(Math.ceil(12 / 2))
+  it('removes a colliding penultimate label without losing the first or last observation', () => {
+    expect(timeLabelIndexes(22, 'daily', 272)).toEqual([0, 3, 6, 9, 12, 15, 18, 21])
+    expect(timeLabelIndexes(23, 'daily', 272)).toEqual([0, 3, 6, 9, 12, 15, 18, 22])
+    expect(timeLabelIndexes(6, 'monthly', 130)).toEqual([0, 2, 5])
+    expect(timeLabelIndexes(1, 'daily', 272)).toEqual([0])
+    expect(timeLabelIndexes(0, 'daily', 272)).toEqual([])
+  })
 
-    const h168 = timeLabelIndexes(168, 'hourly')
-    expect(h168[0]).toBe(0)
-    expect(h168.at(-1)).toBe(167)
-    expect(h168.length).toBeGreaterThan(5)
-    expect(h168.length).toBeLessThanOrEqual(168)
-    expect(timeLabelStep(168, 'hourly')).toBeGreaterThan(2)
-    expect(timeLabelStep(168, 'hourly', 1100)).toBeLessThan(timeLabelStep(168, 'hourly', 260))
+  it('shows more labels when space permits without an arbitrary five-label ceiling', () => {
+    expect(timeLabelIndexes(7, 'daily')).toEqual([0, 1, 2, 3, 4, 5, 6])
+    expect(timeLabelStep(7, 'daily')).toBe(1)
+    for (const grain of ['hourly', 'daily', 'monthly'] as const) {
+      const count = PROTOCOL_VOLUME_GRAIN_MAX[grain]
+      expect(timeLabelIndexes(count, grain, 1988).length).toBeGreaterThan(5)
+      expect(timeLabelStep(count, grain, 1988)).toBeLessThan(timeLabelStep(count, grain, 260))
+    }
   })
 
   it('formats period keys and peak without NaN', () => {

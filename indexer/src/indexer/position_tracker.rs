@@ -244,7 +244,10 @@ pub async fn repair_positions_if_trade_count_mismatch(pool: &PgPool) -> Result<b
         "trader_positions.trade_count diverges from swap_events; rebuilding (GitLab #676)"
     );
     let n = rebuild_all_positions_from_swaps(pool).await?;
-    tracing::info!(swaps_replayed = n, "rebuilt trader_positions from swap_events");
+    tracing::info!(
+        swaps_replayed = n,
+        "rebuilt trader_positions from swap_events"
+    );
     Ok(true)
 }
 

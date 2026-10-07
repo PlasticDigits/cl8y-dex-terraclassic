@@ -21,6 +21,15 @@ Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com
 
 On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** / **Guide** control for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). Unfunded Swap/Trade pay uses one-sentence acquire guidance + `/ust1` or `/wrap` Guide (**A678-1–A678-11**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678); [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](../skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md)) — not an oracle essay and not AMM-as-mint. **Documented exception:** configured `/token/migrate` uses **title + two short why-paragraphs** (Unlock {X} headline + examples) so token admins see the template upside before Load ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670**; still no env / 50 UST1 / cw2 essay). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
+Charts must be understandable without reading a legend or an info essay. Display
+available values in one normal series color; omit missing observations instead
+of gray categories, hatching, full-height empty boxes or fake zeroes. Preserve
+actual observation dates. Tooltips contain only a readable date and amount;
+quality, freshness, snapshot and generation terms stay in engineering docs.
+Retain the last known headline through background refreshes and outages; its
+optional info may contain only “Updated …”. Simplify by deleting explanatory
+code and text, rather than moving the same complexity into a tooltip.
+
 ### One chrome layer / anti-nesting {#one-chrome-layer}
 
 Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653); Trade application **L561-2**). Agent playbook: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md). Stack: page `--bg-*` → **one** `shell-panel*` per region → content. Mechanical guard: [`scripts/check_chrome_nesting.py`](../scripts/check_chrome_nesting.py) + [`scripts/chrome_nesting_allowlist.txt`](../scripts/chrome_nesting_allowlist.txt).
@@ -1150,7 +1159,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
 
-Volume boxes use **Last 24h / 7d / 30d vol** plus static trailing-window `title` / `aria-label` — not calendar buckets and not a lecture in the lead paragraph ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)). Each volume tile also shows prior-window flow Δ% (`volume_change_*_pct`). The Δ% chip sits immediately after (or wrapped under) that tile’s USD — not `justify-between` into the next column’s gutter ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1–P667-4**). Census tiles (tokens / pairs / trades) are integer locale counts (`14`, not `14.00`). A UTC **Hourly / Daily / Monthly** bar chart (`protocol-volume-daily-chart`, default Daily) with a **Volume / Liquidity / Fees** metric toggle (default Volume; GitLab [#689](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) **P689-1–P689-8**) and a visible USD value axis and pointer/keyboard tooltip is additive and must not be read as the trailing tiles ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) **P652-1–P652-7**, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) **P668-1–P668-9**). The plot SVG **fills the Global stats panel width** (viewBox tracks `ResizeObserver`; do not letterbox a 320×128 canvas). Liquidity bars are **stock** (last snapshot in the UTC bucket; missing → outlined / em-dash, not `$0`). Fees bars are **flow** treasury USD. X-axis labels every bar or every second bar (Daily/Monthly step 1 or 2; Hourly may widen when step 2 collides) ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). Phone Monthly requests the last **6–12** UTC calendar months (desktop up to **24**) with horizontal `YY-MM` ticks — do not rotate labels ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) **P703-1–P703-8**). Hide the chart when `GET /api/v1/protocol/volume/daily` is missing (old indexer). Missing liquidity/fees sibling routes hide that metric’s plot only. Do not call `GET /defillama/daily` from this page. Do not mount `PriceChart`. Bar count follows plot width (hourly ≤ 168, daily ≤ 90, monthly ≤ 24; phone monthly ≤ 12).
+Volume boxes use **Last 24h / 7d / 30d vol** plus static trailing-window `title` / `aria-label` — not calendar buckets and not a lecture in the lead paragraph ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)). Each volume tile also shows prior-window flow Δ% (`volume_change_*_pct`). The Δ% chip sits immediately after (or wrapped under) that tile’s USD — not `justify-between` into the next column’s gutter ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1–P667-4**). Census tiles (tokens / pairs / trades) are integer locale counts (`14`, not `14.00`). A UTC **Hourly / Daily / Monthly** bar chart (`protocol-volume-daily-chart`, default Daily) with a **Volume / Liquidity / Fees** metric toggle (default Volume; GitLab [#689](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) **P689-1–P689-8**) and a visible USD value axis and pointer/keyboard tooltip is additive and must not be read as the trailing tiles ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) **P652-1–P652-7**, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) **P668-1–P668-9**). The plot SVG **fills the Global stats panel width** (viewBox tracks `ResizeObserver`; do not letterbox a 320×128 canvas). Liquidity bars show available stock observations; missing amounts are omitted, never replaced with `$0`. Fees bars are **flow** treasury USD. X-axis date labels use actual plot width and estimated text width plus a six-pixel gap for every grain. Keep all bars and tooltip dates; thin only visible date text. First and last dates stay labeled, omitting a nearby interior label to prevent endpoint overlap. This 2026-10-07 cognitive-load correction supersedes the former Daily/Monthly step-1-or-2 restriction ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). Phone Monthly requests the last **6–12** UTC calendar months (desktop up to **24**) with horizontal `YY-MM` ticks — do not rotate labels ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) **P703-1–P703-8**). Hide the chart when `GET /api/v1/protocol/volume/daily` is missing (old indexer). Missing liquidity/fees sibling routes hide that metric’s plot only. Do not call `GET /defillama/daily` from this page. Do not mount `PriceChart`. Bar count follows plot width (hourly ≤ 168, daily ≤ 90, monthly ≤ 24; phone monthly ≤ 12).
 Regression: `make verify-issue-1263` · `make verify-issue-1240` · `make verify-issue-1290` · `make verify-issue-1302` · `make verify-issue-1306` · `make verify-issue-703` · `make verify-issue-689` · `make verify-issue-677` · `make verify-issue-668` · `make verify-issue-667` · `make verify-issue-652` · `make verify-issue-550` · `make verify-issue-569` · `make verify-issue-586` · `make verify-issue-614` · `make verify-issue-570` · `make verify-issue-576` · `make verify-issue-571`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](../skills/AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md), [`skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md`](../skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md), [`skills/AGENTS_FRONTEND_PROTOCOL_HUB.md`](../skills/AGENTS_FRONTEND_PROTOCOL_HUB.md), [`skills/AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md). Venus redeem: [`skills/AGENTS_INDEXER_VENUS_VFDUSD.md`](../skills/AGENTS_INDEXER_VENUS_VFDUSD.md). Overview TVL / fee / volume-Δ% rollup: [`runbooks/overview-global-stats-brin.md`](./runbooks/overview-global-stats-brin.md).
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
@@ -2590,15 +2599,39 @@ Route-funded v1 static gas fallback uses **600,000 + 1,700,000 × hop count** (2
 [#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380) makes
 `IndexerOverview.total_liquidity_usd` nullable and adds independent quality/as-of,
 coverage identity, generation, bounded reasons and max-age fields. The headline
-shows an em dash with an explanation for unknown/unavailable/stale, `≥` for a
-partial lower bound, and true zero only for qualified current observations.
+retains the last successfully qualified complete total through expiry, partial or
+unavailable responses, background refetches and request failures. Only its public
+value, original as-of and qualified quality are stored locally, scoped to expected
+chain, factory and indexer. No overview/wallet data is saved. A new qualified total,
+including a genuine decrease or zero, replaces the previous total. Partial never
+overwrites a retained complete total. Before any complete total exists, the last
+qualified partial lower bound persists with `≥` and its original observation time
+through expiry, outages and reloads. A newer qualified partial lower bound may
+decrease; a complete valuation replaces it. An em dash means no usable valuation
+has ever been received.
 Only fresh/verified-empty current quality can show the existing 24h delta;
-backend baseline coverage must also match. Legacy positive values are labeled
-coverage unknown and legacy zero cannot prove emptiness. Liquidity chart
-partial/unknown samples are accessible explained gaps; verified known zero is
-preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
-focus and mobile tap expose quality/as-of. Cached fresh data expires using its
-original liquidity time, independently of volume polling.
+backend baseline coverage must also match. Legacy zero cannot prove current
+emptiness. The liquidity chart shows available valid canonical amounts, including
+partial observations, or valid reported amounts when canonical values are absent,
+as ordinary blue bars. Rows without a valid amount are omitted. Each observation
+keeps its actual date; no fabricated zeroes or observation times are introduced.
+No hatching, gray categories, empty boxes, estimate markers, quality legends or
+chart-info essays appear. Tooltips contain only a human-readable date and amount.
+This presentation follows the explicit 2026-10-07 user direction and supersedes
+previous frontend quality-gap/estimate styling. API canonical values and delta
+rules remain unchanged. Reported amounts never supply a current headline or
+comparable delta. Volume/Fees retain their existing flow behavior. Keyboard focus
+and mobile tap expose date and amount. Optional headline info contains only
+“Updated …”; no expired/stale/verified/snapshot explanation appears.
+Expiry suppresses the 24h delta using original liquidity time,
+independently of volume polling, without removing the last known correct amount.
+This display-only retention follows the explicit 2026-10-06 user instruction and
+supersedes previous frontend expiry-display guidance. The server rereads the
+complete authoritative liquidity publication from one bounded row on every
+overview response, while expensive volume, fee and census fields remain cached
+for 60 seconds. New outage/degraded generations replace the server canonical amount
+without smoothing or resetting its observation timestamp; they do not erase the
+frontend last verified display snapshot.
 See [QA and agent verification](qa/issue-1380/README.md), [Q1380 invariants](indexer-invariants.md#protocol-liquidity-quality-1380),
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 

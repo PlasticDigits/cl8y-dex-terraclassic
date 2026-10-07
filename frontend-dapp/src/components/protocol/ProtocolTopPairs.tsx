@@ -7,7 +7,6 @@ import { formatProtocolUsd, formatVolumePerTvl } from '@/utils/formatProtocolSta
 import { chartsPairHref } from '@/utils/chartsPairRoute'
 import {
   PROTOCOL_TOP_PAIRS_EMPTY,
-  PROTOCOL_TOP_PAIRS_LEAD,
   PROTOCOL_TOP_PAIRS_LP_LABEL,
   PROTOCOL_TOP_PAIRS_LP_TITLE,
   PROTOCOL_TOP_PAIRS_PAIR_LABEL,
@@ -69,9 +68,6 @@ export function ProtocolTopPairs({ query }: { query: UseQueryResult<ProtocolTopP
       <h2 className="text-sm font-semibold uppercase tracking-wide mb-1 font-heading" style={{ color: 'var(--ink)' }}>
         {PROTOCOL_TOP_PAIRS_TITLE}
       </h2>
-      <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        {PROTOCOL_TOP_PAIRS_LEAD}
-      </p>
       {query.isLoading && (
         <div className="space-y-2 py-2" aria-live="polite">
           {Array.from({ length: 3 }).map((_, i) => (

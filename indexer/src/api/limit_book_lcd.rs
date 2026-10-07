@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::ToSchema;
 
-use super::limit_book_price::{compare_positive_decimal_strings, validate_limit_book_price, DecimalCmp};
+use super::limit_book_price::{
+    compare_positive_decimal_strings, validate_limit_book_price, DecimalCmp,
+};
 use crate::lcd::{LcdClient, LcdError};
 
 /// Default page size for `GET .../limit-book`.
@@ -283,14 +285,10 @@ pub async fn resolve_limit_insert_hints(
 
     let mut validated: Vec<String> = Vec::with_capacity(target_prices.len());
     for raw in target_prices {
-        validated.push(
-            validate_limit_book_price(raw)
-                .map_err(LimitBookLcdError::BadRequest)?,
-        );
+        validated.push(validate_limit_book_price(raw).map_err(LimitBookLcdError::BadRequest)?);
     }
 
-    let mut results: Vec<Option<LimitBookInsertHintItem>> =
-        vec![None; validated.len()];
+    let mut results: Vec<Option<LimitBookInsertHintItem>> = vec![None; validated.len()];
     let mut pending: Vec<PendingInsertHint> = validated
         .iter()
         .enumerate()
@@ -360,12 +358,9 @@ pub async fn resolve_limit_insert_hints(
         let order_price = row.price.clone();
         let mut still_pending = Vec::new();
         for p in pending {
-            if let Some(resolved) = resolve_hint_on_order(
-                side_label,
-                &p.price,
-                &order_price,
-                prev_order_id,
-            ) {
+            if let Some(resolved) =
+                resolve_hint_on_order(side_label, &p.price, &order_price, prev_order_id)
+            {
                 results[p.request_index] = Some(resolved);
             } else {
                 still_pending.push(p);
@@ -452,7 +447,8 @@ pub async fn fetch_limit_book_price_window(
     page_limit: i64,
     after_order_id: Option<u64>,
 ) -> Result<(Vec<LimitBookOrderItem>, bool, Option<u64>), LimitBookLcdError> {
-    let price_from = validate_limit_book_price(price_from).map_err(LimitBookLcdError::BadRequest)?;
+    let price_from =
+        validate_limit_book_price(price_from).map_err(LimitBookLcdError::BadRequest)?;
     let price_to = validate_limit_book_price(price_to).map_err(LimitBookLcdError::BadRequest)?;
     let band_ok = match side_label {
         "bid" => compare_positive_decimal_strings(&price_from, &price_to) != Some(DecimalCmp::Lt),

@@ -10,12 +10,14 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use super::{internal_err, AppState};
-use crate::db::queries::{assets, hub_prices, pairs, volume};
+use crate::db::queries::{assets, hub_prices, liquidity_snapshots, pairs, volume};
 use crate::indexer::hub_usd::HubTicker;
 use crate::indexer::protocol_fees::overview_fee_usd_field;
 
 // GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
-// cache the whole response for 1 minute so a request burst can't hammer the DB.
+// Keep expensive volume/fee/census work cached for 1 minute. Liquidity has a
+// shorter independent observation TTL, so each response reads its single rollup
+// row rather than aging the same cached generation for 60 seconds.
 const OVERVIEW_CACHE_TTL: Duration = Duration::from_secs(60);
 
 fn overview_cache() -> &'static Mutex<Option<(OverviewResponse, Instant)>> {
@@ -123,6 +125,71 @@ fn qualify_liquidity_age(resp: &mut OverviewResponse) {
     }
 }
 
+/// Copy the complete liquidity publication; never mix values from generations.
+fn copy_liquidity(target: &mut OverviewResponse, source: &OverviewResponse) {
+    target.total_liquidity_usd = source.total_liquidity_usd.clone();
+    target.liquidity_quality = source.liquidity_quality.clone();
+    target.liquidity_as_of = source.liquidity_as_of.clone();
+    target.liquidity_coverage_identity = source.liquidity_coverage_identity.clone();
+    target.liquidity_generation = source.liquidity_generation;
+    target.liquidity_reasons = source.liquidity_reasons.clone();
+    target.liquidity_max_age_seconds = source.liquidity_max_age_seconds;
+    target.liquidity_change_24h_pct = source.liquidity_change_24h_pct.clone();
+    target.liquidity_change_30d_pct = source.liquidity_change_30d_pct.clone();
+    target.priced_pair_count = source.priced_pair_count;
+    target.unpriced_pair_count = source.unpriced_pair_count;
+    target.total_liquidity_usd_24h_ago = source.total_liquidity_usd_24h_ago.clone();
+    target.total_liquidity_usd_30d_ago = source.total_liquidity_usd_30d_ago.clone();
+}
+
+async fn refresh_live_liquidity(
+    resp: &mut OverviewResponse,
+    state: &AppState,
+) -> Result<(), (StatusCode, String)> {
+    // One indexed id=1 read. No asset counts, reserve/history scans or LCD work.
+    let row = liquidity_snapshots::get_required_liquidity_rollup(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    if row.quality.generation >= resp.liquidity_generation {
+        resp.total_liquidity_usd = row.total_liquidity_usd.map(|v| v.to_string());
+        resp.liquidity_max_age_seconds = if row.quality.status == "verified_empty" {
+            crate::indexer::protocol_tvl::FACTORY_INVENTORY_MAX_AGE_SECONDS as u64
+        } else {
+            crate::indexer::protocol_tvl::max_staleness_from_env().as_secs()
+        };
+        resp.liquidity_quality = row.quality.status;
+        resp.liquidity_as_of = row.quality.as_of.map(|v| v.to_rfc3339());
+        resp.liquidity_coverage_identity = row.quality.coverage_identity;
+        resp.liquidity_generation = row.quality.generation;
+        resp.liquidity_reasons = row.quality.reasons;
+        resp.liquidity_change_24h_pct = row.liquidity_change_24h_pct.map(|v| v.to_string());
+        resp.liquidity_change_30d_pct = row.liquidity_change_30d_pct.map(|v| v.to_string());
+        resp.priced_pair_count = i64::from(row.priced_pair_count);
+        resp.unpriced_pair_count = i64::from(row.unpriced_pair_count);
+        resp.total_liquidity_usd_24h_ago = row.total_liquidity_usd_24h_ago.map(|v| v.to_string());
+        resp.total_liquidity_usd_30d_ago = row.total_liquidity_usd_30d_ago.map(|v| v.to_string());
+    }
+    let mut guard = overview_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((current, _)) = guard.as_mut() {
+        if current.liquidity_generation > resp.liquidity_generation {
+            copy_liquidity(resp, current);
+        } else {
+            // Preserve the original cache age of volume, fees and census fields.
+            copy_liquidity(current, resp);
+        }
+    }
+    Ok(())
+}
+
+fn select_newest_cached_liquidity(resp: &mut OverviewResponse) {
+    let guard = overview_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((current, _)) = guard.as_ref() {
+        if current.liquidity_generation > resp.liquidity_generation {
+            copy_liquidity(resp, current);
+        }
+    }
+}
+
 async fn qualify_live_prices(
     resp: &mut OverviewResponse,
     state: &AppState,
@@ -206,8 +273,10 @@ pub async fn get_overview(
             .map(|(resp, _)| resp.clone())
     });
     if let Some(mut cached) = cached {
-        qualify_liquidity_age(&mut cached);
+        refresh_live_liquidity(&mut cached, &state).await?;
         qualify_live_prices(&mut cached, &state).await?;
+        select_newest_cached_liquidity(&mut cached);
+        qualify_liquidity_age(&mut cached);
         return Ok(Json(cached));
     }
 
@@ -299,25 +368,17 @@ pub async fn get_overview(
         volume_change_30d_pct: global.volume_change_30d_pct.map(|p| p.to_string()),
     };
 
-    qualify_liquidity_age(&mut resp);
+    refresh_live_liquidity(&mut resp, &state).await?;
     qualify_live_prices(&mut resp, &state).await?;
-    let newer = if let Ok(mut guard) = overview_cache().lock() {
-        if let Some((current, _)) = guard
-            .as_ref()
-            .filter(|(current, _)| current.liquidity_generation > resp.liquidity_generation)
-        {
-            Some(current.clone())
-        } else {
-            *guard = Some((resp.clone(), Instant::now()));
-            None
+    {
+        let mut guard = overview_cache().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((current, _)) = guard.as_ref() {
+            if current.liquidity_generation > resp.liquidity_generation {
+                copy_liquidity(&mut resp, current);
+            }
         }
-    } else {
-        None
-    };
-    if let Some(mut newer) = newer {
-        qualify_liquidity_age(&mut newer);
-        qualify_live_prices(&mut newer, &state).await?;
-        return Ok(Json(newer));
+        qualify_liquidity_age(&mut resp);
+        *guard = Some((resp.clone(), Instant::now()));
     }
 
     Ok(Json(resp))

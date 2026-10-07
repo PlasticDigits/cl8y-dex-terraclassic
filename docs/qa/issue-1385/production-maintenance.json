@@ -1,0 +1,450 @@
+{
+  "action": "apply",
+  "result": {
+    "transition": {
+      "transition": "PASS",
+      "objects_transferred": 61
+    },
+    "migrate": {
+      "migrate": "PASS"
+    },
+    "verify": {
+      "runtime_acl": "PASS",
+      "migration_history_preserved": true,
+      "schema_version": "20261006133000",
+      "migrations": 61,
+      "actual_permission_denials": 4
+    },
+    "history": {
+      "repair_counts": [
+        {
+          "source_table": "global_liquidity_snapshots",
+          "retained_originals": 2
+        },
+        {
+          "source_table": "protocol_hourly_liquidity",
+          "retained_originals": 2
+        }
+      ],
+      "original_hourly": [
+        {
+          "source_key": "2026-10-02 05:00:00+00",
+          "original_value": "218.571320311113240000",
+          "original_priced_pair_count": "2"
+        },
+        {
+          "source_key": "2026-10-04 02:00:00+00",
+          "original_value": "0.000000000000000000",
+          "original_priced_pair_count": "0"
+        }
+      ],
+      "sources": [
+        {
+          "sampled_at": "2026-10-02T05:03:56.78293+00:00",
+          "total_liquidity_usd": "235158.583703074278067688",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:08:00.747312+00:00",
+          "total_liquidity_usd": "235306.684668439217132783",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:12:04.717246+00:00",
+          "total_liquidity_usd": "234582.161207588911345905",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:16:08.712235+00:00",
+          "total_liquidity_usd": "234100.849118479744919840",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:20:12.629775+00:00",
+          "total_liquidity_usd": "233788.583721035474667868",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:24:16.603818+00:00",
+          "total_liquidity_usd": "233665.262139694572607888",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:28:20.639049+00:00",
+          "total_liquidity_usd": "233511.477848950215292328",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:32:24.753889+00:00",
+          "total_liquidity_usd": "233254.828533480930757966",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:36:28.862286+00:00",
+          "total_liquidity_usd": "233095.070079985750788455",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:40:33.114566+00:00",
+          "total_liquidity_usd": "232821.794064046764678533",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:44:37.27649+00:00",
+          "total_liquidity_usd": "233114.756200186078826546",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:48:41.181251+00:00",
+          "total_liquidity_usd": "232475.422461729676656583",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:52:45.269681+00:00",
+          "total_liquidity_usd": "232645.708834557609730597",
+          "priced_pair_count": 10,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-02T05:56:49.225814+00:00",
+          "total_liquidity_usd": null,
+          "priced_pair_count": 2,
+          "quality": "unknown",
+          "as_of": "2026-10-02T05:56:49.225814+00:00",
+          "generation": 0,
+          "reasons": {
+            "historical_coverage_unreconciled": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:01:55.131414+00:00",
+          "total_liquidity_usd": "247319.532623317510151757",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:05:59.514301+00:00",
+          "total_liquidity_usd": "247483.168954209294557767",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:10:03.593093+00:00",
+          "total_liquidity_usd": "25143.632429691906461071",
+          "priced_pair_count": 4,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:14:07.893193+00:00",
+          "total_liquidity_usd": "247675.277342412503109145",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:18:12.078812+00:00",
+          "total_liquidity_usd": "247893.526214492697464629",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:22:16.294697+00:00",
+          "total_liquidity_usd": "247852.344170131480922262",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:26:20.558251+00:00",
+          "total_liquidity_usd": "247660.206303129978932627",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:30:24.886307+00:00",
+          "total_liquidity_usd": "247705.432328672389940016",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:34:29.230844+00:00",
+          "total_liquidity_usd": "247865.358500362057255534",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:38:33.676186+00:00",
+          "total_liquidity_usd": "247983.059407872279228558",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:42:38.0431+00:00",
+          "total_liquidity_usd": "247882.487511923752288430",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:46:42.356074+00:00",
+          "total_liquidity_usd": "247930.966625117286651655",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:50:46.595414+00:00",
+          "total_liquidity_usd": "247937.959268610550051655",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:54:50.682693+00:00",
+          "total_liquidity_usd": "247722.243450652867427905",
+          "priced_pair_count": 11,
+          "quality": "unknown",
+          "as_of": null,
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "sampled_at": "2026-10-04T02:58:55.013459+00:00",
+          "total_liquidity_usd": null,
+          "priced_pair_count": 0,
+          "quality": "unknown",
+          "as_of": "2026-10-04T02:58:55.013459+00:00",
+          "generation": 0,
+          "reasons": {
+            "historical_coverage_unreconciled": 1
+          }
+        }
+      ],
+      "hourly": [
+        {
+          "utc_hour": "2026-10-02T05:00:00+00:00",
+          "liquidity_usd": null,
+          "priced_pair_count": 2,
+          "quality": "unknown",
+          "as_of": null,
+          "coverage_identity": "",
+          "generation": 0,
+          "reasons": {
+            "historical_coverage_unreconciled": 1
+          }
+        },
+        {
+          "utc_hour": "2026-10-04T02:00:00+00:00",
+          "liquidity_usd": null,
+          "priced_pair_count": 0,
+          "quality": "unknown",
+          "as_of": null,
+          "coverage_identity": "",
+          "generation": 0,
+          "reasons": {
+            "historical_coverage_unreconciled": 1
+          }
+        }
+      ],
+      "daily": [
+        {
+          "utc_day": "2026-10-02",
+          "liquidity_usd": "226542.627397420985259540",
+          "quality": "unknown",
+          "as_of": null,
+          "coverage_identity": "",
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        },
+        {
+          "utc_day": "2026-10-04",
+          "liquidity_usd": "249312.631107333007767303",
+          "quality": "unknown",
+          "as_of": null,
+          "coverage_identity": "",
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        }
+      ],
+      "monthly": [
+        {
+          "utc_month": "2026-10-01",
+          "liquidity_usd": "249899.093169436272913240",
+          "quality": "unknown",
+          "as_of": null,
+          "coverage_identity": "",
+          "generation": 0,
+          "reasons": {
+            "legacy_unqualified": 1
+          }
+        }
+      ],
+      "baselines": {
+        "quality": "unknown",
+        "total": "249860.756957130036804044",
+        "as_of": null,
+        "generation": 0,
+        "identity": "",
+        "reasons": {
+          "legacy_unqualified": 1
+        },
+        "delta_24h": null,
+        "delta_30d": null,
+        "baseline_24h": null,
+        "baseline_30d": null
+      },
+      "observed_at_utc": "2026-10-06T11:50:58.428463+00:00",
+      "exact_amount_rejection_census": {
+        "status": "UNAVAILABLE",
+        "reason": "Parser rejection diagnostics are bounded runtime logs, not persistent database counters"
+      },
+      "documented_hourly_repair": "PASS"
+    },
+    "status": "PASS"
+  },
+  "run_id": "392eb022f3654aa0858cbcc11462f0de",
+  "observed_at_utc": "2026-10-06T11:50:58.431225+00:00"
+}

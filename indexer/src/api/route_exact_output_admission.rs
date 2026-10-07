@@ -3,7 +3,7 @@
 
 use std::{collections::HashSet, future::Future, net::IpAddr, sync::Mutex, time::Duration};
 
-use axum::{Extension, extract::ConnectInfo, http::StatusCode};
+use axum::{extract::ConnectInfo, http::StatusCode, Extension};
 use std::net::SocketAddr;
 
 type Error = (StatusCode, String);
@@ -137,13 +137,13 @@ impl AdmissionController {
 mod tests {
     use super::*;
     use axum::{
-        Router,
         extract::State,
         http::{HeaderValue, Request},
         routing::get,
+        Router,
     };
     use std::sync::Arc;
-    use tokio::sync::{Notify, oneshot};
+    use tokio::sync::{oneshot, Notify};
     use tower::ServiceExt;
 
     fn ip(n: u8) -> Option<IpAddr> {
@@ -184,8 +184,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn route_exact_output_admission_rejected_work_is_never_polled_and_missing_peer_is_bounded()
-     {
+    async fn route_exact_output_admission_rejected_work_is_never_polled_and_missing_peer_is_bounded(
+    ) {
         let controller = AdmissionController::default();
         let held = controller.admit(None).unwrap();
         let result = controller
@@ -200,12 +200,10 @@ mod tests {
         let actual_peer = controller.admit(ip(1)).unwrap();
         drop(held);
         drop(actual_peer);
-        assert!(
-            controller
-                .run(None, Duration::from_secs(1), async { Ok(()) })
-                .await
-                .is_ok()
-        );
+        assert!(controller
+            .run(None, Duration::from_secs(1), async { Ok(()) })
+            .await
+            .is_ok());
     }
 
     #[tokio::test]
@@ -229,12 +227,10 @@ mod tests {
             assert!(controller.0.lock().unwrap().active.is_empty());
         }
         assert_eq!(controller.0.lock().unwrap().cancelled, 20);
-        assert!(
-            controller
-                .run(ip(1), Duration::from_secs(1), async { Ok(()) })
-                .await
-                .is_ok()
-        );
+        assert!(controller
+            .run(ip(1), Duration::from_secs(1), async { Ok(()) })
+            .await
+            .is_ok());
     }
 
     #[tokio::test(start_paused = true)]
@@ -248,20 +244,16 @@ mod tests {
             )
             .await;
         assert_eq!(result.unwrap_err().0, StatusCode::GATEWAY_TIMEOUT);
-        assert!(
-            controller
-                .run(ip(1), Duration::from_secs(1), async {
-                    Err::<(), _>((StatusCode::UNPROCESSABLE_ENTITY, "infeasible".into()))
-                })
-                .await
-                .is_err()
-        );
-        assert!(
-            controller
-                .run(ip(1), Duration::from_secs(1), async { Ok(()) })
-                .await
-                .is_ok()
-        );
+        assert!(controller
+            .run(ip(1), Duration::from_secs(1), async {
+                Err::<(), _>((StatusCode::UNPROCESSABLE_ENTITY, "infeasible".into()))
+            })
+            .await
+            .is_err());
+        assert!(controller
+            .run(ip(1), Duration::from_secs(1), async { Ok(()) })
+            .await
+            .is_ok());
         let capacity = controller.0.lock().unwrap();
         assert!(capacity.active.is_empty());
         assert_eq!(
@@ -353,12 +345,10 @@ mod tests {
             }));
             ready.await.unwrap();
         }
-        assert!(
-            controller
-                .run(ip(5), Duration::from_secs(1), async { Ok(()) })
-                .await
-                .is_err()
-        );
+        assert!(controller
+            .run(ip(5), Duration::from_secs(1), async { Ok(()) })
+            .await
+            .is_err());
         release.notify_waiters();
         for task in tasks {
             assert!(task.await.unwrap().is_ok());

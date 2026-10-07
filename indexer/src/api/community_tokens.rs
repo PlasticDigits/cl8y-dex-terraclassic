@@ -83,16 +83,34 @@ pub struct CommunityTokenEventItem {
 
 fn features_from_value(v: &serde_json::Value) -> CommunityTokenFeaturesJson {
     CommunityTokenFeaturesJson {
-        mint_control: v.get("mint_control").and_then(|x| x.as_bool()).unwrap_or(false),
-        transfer_tax: v.get("transfer_tax").and_then(|x| x.as_bool()).unwrap_or(false),
-        split_router: v.get("split_router").and_then(|x| x.as_bool()).unwrap_or(false),
-        auto_v2_lp: v.get("auto_v2_lp").and_then(|x| x.as_bool()).unwrap_or(false),
+        mint_control: v
+            .get("mint_control")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
+        transfer_tax: v
+            .get("transfer_tax")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
+        split_router: v
+            .get("split_router")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
+        auto_v2_lp: v
+            .get("auto_v2_lp")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
         exemption_directory: v
             .get("exemption_directory")
             .and_then(|x| x.as_bool())
             .unwrap_or(false),
-        variable_rates: v.get("variable_rates").and_then(|x| x.as_bool()).unwrap_or(false),
-        launch_guards: v.get("launch_guards").and_then(|x| x.as_bool()).unwrap_or(false),
+        variable_rates: v
+            .get("variable_rates")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
+        launch_guards: v
+            .get("launch_guards")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
     }
 }
 
@@ -137,7 +155,10 @@ pub async fn list_community_tokens(
     State(state): State<AppState>,
     Query(q): Query<ListCommunityTokensQuery>,
 ) -> Result<Json<CommunityTokenListResponse>, (StatusCode, String)> {
-    let limit = q.limit.unwrap_or(LIST_LIMIT_DEFAULT).clamp(1, LIST_LIMIT_MAX);
+    let limit = q
+        .limit
+        .unwrap_or(LIST_LIMIT_DEFAULT)
+        .clamp(1, LIST_LIMIT_MAX);
     let offset = q.offset.unwrap_or(0).max(0);
     if offset > LIST_OFFSET_MAX {
         return Err((
@@ -236,7 +257,10 @@ pub async fn get_community_token_events(
     if exists.is_none() {
         return Err((StatusCode::NOT_FOUND, "Token not found".to_string()));
     }
-    let limit = q.limit.unwrap_or(LIST_LIMIT_DEFAULT).clamp(1, LIST_LIMIT_MAX);
+    let limit = q
+        .limit
+        .unwrap_or(LIST_LIMIT_DEFAULT)
+        .clamp(1, LIST_LIMIT_MAX);
     let offset = q.offset.unwrap_or(0).max(0);
     if offset > LIST_OFFSET_MAX {
         return Err((

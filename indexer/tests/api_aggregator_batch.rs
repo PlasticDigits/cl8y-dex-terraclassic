@@ -13,11 +13,10 @@ async fn batch_stats_match_per_pair_queries() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
 
-    let per_pair = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(
-        &pool, seed.pair_id,
-    )
-    .await
-    .expect("per-pair stats");
+    let per_pair =
+        cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(&pool, seed.pair_id)
+            .await
+            .expect("per-pair stats");
     let all = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_all_pairs(&pool)
         .await
         .expect("batch stats");

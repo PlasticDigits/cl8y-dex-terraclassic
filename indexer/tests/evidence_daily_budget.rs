@@ -3,11 +3,11 @@ mod common;
 
 use chrono::{DateTime, Duration as ChronoDuration, TimeZone, Utc};
 use cl8y_dex_indexer::db::queries::evidence_daily::{
-    EvidenceSortKey, EvidenceSurfaceSet, list_evidence_rows,
+    list_evidence_rows, EvidenceSortKey, EvidenceSurfaceSet,
 };
 use common::{seed_db, setup_pool, test_config};
 use serial_test::serial;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::time::{Duration, Instant};
 
 fn day() -> DateTime<Utc> {
@@ -169,19 +169,17 @@ async fn evidence_dense_day_cursor_filter_and_index_scan() {
         limit: false,
         lp: false,
     };
-    assert!(
-        list_evidence_rows(
-            &pool,
-            day(),
-            day() + ChronoDuration::days(1),
-            only_wrap,
-            None,
-            101
-        )
-        .await
-        .unwrap()
-        .is_empty()
-    );
+    assert!(list_evidence_rows(
+        &pool,
+        day(),
+        day() + ChronoDuration::days(1),
+        only_wrap,
+        None,
+        101
+    )
+    .await
+    .unwrap()
+    .is_empty());
 
     // Natural planner choices are permitted when actual source reads stay
     // bounded. Empty first pages must seek directly by UTC day rather than

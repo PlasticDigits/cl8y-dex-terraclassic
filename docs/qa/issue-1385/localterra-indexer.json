@@ -1,0 +1,46 @@
+{
+  "initial": {
+    "as_of": "2026-10-06T11:20:24.805590+00:00",
+    "delta_24h": null,
+    "delta_30d": null,
+    "generation": 1,
+    "identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+    "quality": "fresh",
+    "reasons": {},
+    "total": "10.1000"
+  },
+  "outage": {
+    "as_of": null,
+    "delta_24h": null,
+    "delta_30d": null,
+    "generation": 2,
+    "identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+    "quality": "stale",
+    "reasons": {
+      "stale_reserve": 1
+    },
+    "total": null
+  },
+  "recovery": {
+    "as_of": "2026-10-06T11:20:47.707263+00:00",
+    "delta_24h": null,
+    "delta_30d": null,
+    "generation": 3,
+    "identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+    "quality": "fresh",
+    "reasons": {},
+    "total": "10.1000"
+  },
+  "scope": "actual dedicated LocalTerra reserves and LP withdrawal; synthetic fixed quotes; disposable QA database",
+  "status": "PASS",
+  "withdrawal": {
+    "as_of": "2026-10-06T11:20:55.284417+00:00",
+    "delta_24h": null,
+    "delta_30d": null,
+    "generation": 4,
+    "identity": "9d5167d1cd5f3d7681c0e672385b99b81ff6da1f2522ab0d8b808d730194decc",
+    "quality": "fresh",
+    "reasons": {},
+    "total": "1.01000909"
+  }
+}

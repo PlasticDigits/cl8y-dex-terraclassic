@@ -12,8 +12,8 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::Semaphore;
 
-use super::AppState;
 use super::community_tax_rank::{CataloguedTaxToken, RouterHopTaxPolicy};
+use super::AppState;
 
 pub const DISCOVERY_TTL: Duration = Duration::from_secs(5);
 pub const MAX_DISCOVERY_ASSETS: usize = 64;

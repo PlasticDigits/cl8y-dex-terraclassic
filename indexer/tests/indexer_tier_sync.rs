@@ -198,8 +198,5 @@ async fn route_solve_uses_tier_after_registration_event() {
         seed.token_a, seed.token_b
     );
     let body: serde_json::Value = server.get(&url).await.json();
-    assert_eq!(
-        body["estimated_amount_out"],
-        "9777776"
-    );
+    assert_eq!(body["estimated_amount_out"], "9777776");
 }

@@ -461,7 +461,9 @@ async fn leaderboard_pair_filter_isolates_volume_and_pnl() {
     assert_eq!(pair_b_rows.len(), 1);
     assert_eq!(pair_b_rows[0]["address"], wallet_b);
     assert_eq!(pair_b_rows[0]["total_trades"], 1);
-    assert!(pair_b_rows.iter().all(|r| r["address"] != seed.trader_address));
+    assert!(pair_b_rows
+        .iter()
+        .all(|r| r["address"] != seed.trader_address));
 
     let unscoped: Vec<Value> = server
         .get("/api/v1/traders/leaderboard?sort=total_volume_usd&limit=20")

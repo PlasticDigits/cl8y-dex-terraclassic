@@ -180,6 +180,7 @@ class BuildInputs(unittest.TestCase):
             "#!/usr/bin/env python3\nimport os,pathlib,sys\n"
             "if sys.argv[1]=='--version': print('cargo fixture');sys.exit()\n"
             "assert '--locked' in sys.argv and '--release' in sys.argv\n"
+            "assert os.environ['SOURCE_DATE_EPOCH']=='0'\n"
             "p=pathlib.Path(sys.argv[sys.argv.index('--target-dir')+1])\n"
             "assert [f.name for f in p.iterdir()]==['inputs.json']\n"
             "pathlib.Path(os.environ['TARGET_TEST_LOG']).write_text(str(p))\n"
@@ -189,11 +190,26 @@ class BuildInputs(unittest.TestCase):
         (binary / "rustc").chmod(0o755)
         subprocess.run(["bash", str(scripts / "build-indexer-release.sh")], check=True,
                        env={**os.environ, "PATH": str(binary) + ":" + os.environ["PATH"],
-                            "TARGET_TEST_LOG": str(build_log)})
+                            "TARGET_TEST_LOG": str(build_log), "SOURCE_DATE_EPOCH": "1234567890"})
         self.assertEqual((indexer / "target/release/cl8y-dex-indexer").read_bytes(), b"fresh output")
         self.assertFalse(Path(build_log.read_text()).exists())
         receipt = json.loads((indexer / "target/release/build-provenance.json").read_text())
         self.assertEqual(receipt["cache_policy"], "fresh-executable-target")
+        self.assertIn("SOURCE_DATE_EPOCH=0", receipt["toolchain"])
+
+    def test_indexer_cold_target_collision_preserves_existing_bytes(self):
+        target = self.root / "indexer/target/release-cold-build"
+        target.mkdir(parents=True)
+        sentinel = target / "prior-build"
+        sentinel.write_bytes(b"another build owns these bytes")
+        scripts = self.root / "scripts/ci"
+        scripts.mkdir(parents=True)
+        script = scripts / "build-indexer-release.sh"
+        shutil.copy(ROOT / "scripts/ci/build-indexer-release.sh", script)
+        result = subprocess.run(["bash", str(script)], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"Fresh release target already exists", result.stderr)
+        self.assertEqual(sentinel.read_bytes(), b"another build owns these bytes")
 
 
 if __name__ == "__main__":

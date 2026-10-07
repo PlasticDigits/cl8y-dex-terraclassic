@@ -20,13 +20,7 @@ import { useProtocolFeesQuery } from '@/components/protocol/useProtocolFeesQuery
 import { useProtocolTopPairsQuery } from '@/components/protocol/useProtocolTopPairsQuery'
 import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
 import { parseProtocolOracleTicker, type ProtocolOracleTicker } from '@/utils/protocolOracleTicker'
-import {
-  FACTORY_CONTRACT_ADDRESS,
-  ROUTER_CONTRACT_ADDRESS,
-  TERRA_LCD_URL,
-  TERRA_RPC_URL,
-  DEFAULT_NETWORK,
-} from '@/utils/constants'
+import { FACTORY_CONTRACT_ADDRESS, ROUTER_CONTRACT_ADDRESS, TERRA_LCD_URL, TERRA_RPC_URL } from '@/utils/constants'
 
 function formatHookAmount(amount: string | number | null | undefined): string {
   if (amount == null || amount === '') return '—'
@@ -84,9 +78,6 @@ export default function ProtocolPage() {
         <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
           Protocol
         </h1>
-        <p className="text-sm mt-1 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-          DEX USD stats, DEX hub marks, and CEX reference prices. Not settlement.
-        </p>
       </div>
 
       {marketDataDown && (
@@ -118,12 +109,12 @@ export default function ProtocolPage() {
         venusQuery={venusQuery}
       />
 
-      <div className="shell-panel" data-testid="protocol-contract-addresses">
-        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
-          On-chain contracts (audit)
-        </h2>
+      <details className="shell-panel" data-testid="protocol-contract-addresses">
+        <summary className="text-sm font-semibold font-heading cursor-pointer" style={{ color: 'var(--ink)' }}>
+          Contracts
+        </summary>
         <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-          Factory and router for this deployment ({DEFAULT_NETWORK}). Compare against governance records before signing.
+          Verify addresses before signing.
         </p>
         <dl className="space-y-3 text-sm">
           <div>
@@ -179,12 +170,12 @@ export default function ProtocolPage() {
             </dd>
           </div>
         </dl>
-      </div>
+      </details>
 
-      <div className="shell-panel-strong">
-        <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+      <details className="shell-panel-strong">
+        <summary className="text-sm font-semibold font-heading cursor-pointer mb-3" style={{ color: 'var(--ink)' }}>
           Hook events
-        </h2>
+        </summary>
         {!hooksQuery.isError && (
           <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input
@@ -238,7 +229,7 @@ export default function ProtocolPage() {
             </table>
           </div>
         )}
-      </div>
+      </details>
     </div>
   )
 }
