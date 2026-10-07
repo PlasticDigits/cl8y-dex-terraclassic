@@ -64,3 +64,9 @@ Related: `make verify-issue-655` · `make verify-issue-646` · `make verify-issu
 - [`docs/listings/forms/coingecko-exchange.md`](../docs/listings/forms/coingecko-exchange.md)
 - [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — `/cg/orderbook` hybrid depth
 - GT historical reserves: [#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)
+
+Listing-only native CG/GT edges (#1437): apply
+[LV1437-1–LV1437-10](AGENTS_LISTING_VIRTUAL_PAIRS.md);
+`make verify-issue-1437` and the
+[agent checklist/skip policy](../docs/qa/issue-1437/README.md).
+These projections never become factory markets or DeFiLlama economic totals.

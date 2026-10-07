@@ -308,6 +308,14 @@ pub async fn cmc_orderbook(
     let depth = orderbook_sim::cap_orderbook_depth(q.depth);
     let pair_addr = find_pair_by_ticker(&state, &market_pair).await?;
 
+    // Resolve only a real factory ticker before LCD; unknown listing-only
+    // tickers return 404. Factory cache hits still require fresh attestation.
+    if state.lcd.require_verified_chain().await.is_err() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No endpoint attests the expected chain".into(),
+        ));
+    }
     let ob = orderbook_sim::simulate_orderbook_cached(
         &state.orderbook_cache,
         &state.pool,

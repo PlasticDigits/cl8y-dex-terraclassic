@@ -362,6 +362,9 @@ pub async fn get_pair_by_address(
     pool: &PgPool,
     contract_address: &str,
 ) -> Result<Option<PairRow>, sqlx::Error> {
+    if crate::listing_id_guard::is_listing_only_id(contract_address) {
+        return Ok(None);
+    }
     sqlx::query_as::<_, PairRow>("SELECT * FROM pairs WHERE contract_address = $1")
         .bind(contract_address)
         .fetch_optional(pool)

@@ -14,6 +14,7 @@ use serial_test::serial;
 
 fn wasm_park_tx(pair: &str, order_id: &str, remaining: &str, txhash: &str) -> TxResponse {
     TxResponse {
+        code: 0,
         height: "5001".into(),
         txhash: txhash.into(),
         logs: Some(vec![TxLog {
@@ -57,6 +58,7 @@ fn wasm_park_tx(pair: &str, order_id: &str, remaining: &str, txhash: &str) -> Tx
 
 fn wasm_claim_tx(pair: &str, order_id: &str, txhash: &str) -> TxResponse {
     TxResponse {
+        code: 0,
         height: "5002".into(),
         txhash: txhash.into(),
         logs: Some(vec![TxLog {

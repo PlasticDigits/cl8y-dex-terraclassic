@@ -802,3 +802,11 @@ partial malformed blocks, retry/replay accounting, exact 38-digit quantities,
 multihop fee identities, recovery and daily evidence. See the
 [agent checklist and unavailable-check skip policy](qa/issue-1395/README.md) and
 [third-party agent playbook](../skills/AGENTS_INDEXER_EVENT_AMOUNTS.md).
+
+## Listing-only native market projections (#1437)
+
+Run `make verify-issue-1437` with disposable PostgreSQL to build, test and retest
+CG/GT feed/isolation, principal/custody and abuse cases.
+[Agent checklist and explicit unavailable-check skip policy](qa/issue-1437/README.md)
+· [invariants/playbook](../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md).
+Regression targets: `make verify-issue-685 verify-issue-646 verify-issue-684 verify-issue-694 verify-issue-631 verify-issue-655`.

@@ -35,6 +35,7 @@ async fn build_app_with_health(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        wrap_mapper_address: config.wrap_mapper_address.clone(),
         fee_discount_address: config.fee_discount_address.clone(),
         fee_discount_registry_health: health,
         route_solver_db_hybrid: config.route_solver_db_hybrid,

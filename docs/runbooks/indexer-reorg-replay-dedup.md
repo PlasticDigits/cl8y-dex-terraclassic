@@ -15,11 +15,25 @@ Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terr
   retries. See [A1395](../indexer-invariants.md#exact-event-amounts-1395) and the
   [agent checklist](../qa/issue-1395/README.md).
 
+An explicitly supplied `DATABASE_URL` is preserved through local credential
+setup and always uses host `psql`; recovery never silently redirects it to a
+Compose application database. Credentials are omitted from recovery output.
+This also keeps integration recovery confined to its process-owned disposable
+database ([DB1396](../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md)).
+
 ## Dedup and replay
 
 - **Swap dedup:** Inserts use a unique constraint on `(tx_hash, pair_id, swap_index)` with `ON CONFLICT DO NOTHING` ([`insert_swap`](../../indexer/src/db/queries/swap_events.rs); migration `20260605000000_swap_events_per_tx_pair_swap_index.sql`, GitLab [**#287**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)). `swap_index` is the per-pair ordinal within the tx so multiple genuine swaps on one pair are stored separately; re-processing the **same** canonical swaps after a restart **skips** duplicate delivery safely.
 - **Protocol fee dedup (#1269):** `protocol_fee_events` is **not** unique on `(tx_hash, source, ordinal)` alone. `swap_amm` uses `(tx_hash, source, pair_id, ordinal)` (pair-scoped `swap_index`); wrap / unwrap / ust1_* / book_take / limit_place use `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL`. Poller replay is `ON CONFLICT DO NOTHING` — never `DO UPDATE`. Historical hops already in `swap_events` are backfilled at migrate + poller startup (`backfill_missing_swap_amm_fees`); `trade_exists` still skips swap insert but now retries fee ingest. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md).
 - **True reorg:** Canonical txs at affected heights may differ from what was indexed. Use `--cleanup-derived` before replay (see [Shallow reorg recovery](#shallow-reorg-recovery-1–few-blocks)).
+- **Listing principal dedup (#1437):** `listing_wrap_principal` uses
+  `(mapper_address, tx_hash, source_ordinal)` with `ON CONFLICT DO NOTHING`.
+  Ordinals include rejected wasm actions; a restart does not duplicate a
+  projected wrap or unwrap. `listing_mapper_custody` records height-scoped bank
+  backing. Both tables serve CG/GT projections exclusively and do not rebuild or
+  increase economic swap volume, protocol fees or TVL. See the
+  [listing protocol](../CG_CMC_COMPLIANCE.md) and
+  [agent playbook](../../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md).
 
 ## Alerting on reorg halt
 
@@ -77,6 +91,9 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
      re-ingests canonical fees using their original source/pair/ordinal keys.
      Non-height-keyed positions and rollups still need their existing rebuild or
      snapshot recovery; deleting ledgers alone is not full accounting restoration.
+   - Cleanup also deletes `listing_wrap_principal` and `listing_mapper_custody`
+     from the fork height. Stop the indexer first, including its background
+     custody refresh; replay reconstructs canonical principal and reserves.
    - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs. That also drops persisted `/gt/events` post-event reserves ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); replay re-ingests them. Cursor-only rewind must **not** leave future-height reserves on rolled-back rows — use `--cleanup-derived` when canonical txs changed, then `cl8y-dex-indexer backfill-gt-event-reserves` if NULL columns remain.
 
 4. **Restart** the indexer; confirm `last_indexed_height` advances and API pair/candle data matches LCD tip within normal lag.
@@ -107,6 +124,21 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 
 - **`START_BLOCK`:** Optional env ([`indexer/src/config.rs`](../../indexer/src/config.rs)). When `last_indexed_height` is `0`, the indexer can start after `START_BLOCK - 1`. Use only on a **fresh** or **cursor-reset** database.
 - **Caution:** Backfilling from a mid-chain height **without** clearing inconsistent state can leave candles/traders wrong. Prefer a clean DB or a documented SQL cleanup plan.
+- **Listing wrap history (#1437):** Legacy mapper fee records do not contain
+  principal and cannot establish a projected swap. Replay the original blocks
+  using the configured mapper pin. Wrap principal is `mint_amount`; unwrap
+  principal is `withdraw_amount`; fees never become trade amounts. The SDK
+  message event supplies the transaction sender. A nonzero SDK execution code
+  rejects the projection even if custody movements happen to match.
+  Historical custody requires an attested LCD with bank state at both the
+  source block and its predecessor, and matching `x-cosmos-block-height`
+  response headers. Projection reserves are reconstructed per action and
+  reconciled against those balances. Missing/pruned history, negative inferred
+  backing or unrelated custody movement omits that denomination's block
+  projection; economic indexing continues. A background refresh at the indexed
+  checkpoint supplies current backing without request-path LCD calls. Do not
+  treat a current custody snapshot or existing fee row as historical trade
+  evidence.
 
 ## Config (ingestion + alerting)
 

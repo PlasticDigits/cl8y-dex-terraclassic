@@ -5,6 +5,7 @@ mod db;
 mod hybrid_limits;
 mod indexer;
 mod lcd;
+mod listing_id_guard;
 mod qa_guard;
 mod startup;
 

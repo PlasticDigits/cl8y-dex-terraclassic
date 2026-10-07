@@ -12,10 +12,16 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# An explicit operator/test target must survive local setup defaults. Recovery
+# never redirects that capability to a Compose application database (#1437/#1396).
+REORG_DATABASE_URL="${DATABASE_URL:-}"
 # shellcheck source=scripts/lib/postgres-dev.env
 source "${REPO_ROOT}/scripts/lib/postgres-dev.env"
 # shellcheck source=scripts/lib/postgres-psql.sh
 source "${REPO_ROOT}/scripts/lib/postgres-psql.sh"
+if [[ -n "$REORG_DATABASE_URL" ]]; then
+  POSTGRES_PSQL_MODE=host
+fi
 
 HEIGHT=""
 DRY_RUN=1
@@ -71,7 +77,7 @@ if [[ -z "$HEIGHT" ]] || ! [[ "$HEIGHT" =~ ^[0-9]+$ ]] || [[ "$HEIGHT" -lt 1 ]];
 fi
 
 PREV=$((HEIGHT - 1))
-DB_URL="${DATABASE_URL:-postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}}"
+DB_URL="${REORG_DATABASE_URL:-${DATABASE_URL}}"
 
 psql_query() {
   local query="$1"
@@ -102,7 +108,7 @@ psql_exec() {
 }
 
 echo "=== Indexer reorg recovery (GitLab #236 / #362) ==="
-echo "DATABASE_URL: ${DB_URL%%@*}@***"
+echo "DATABASE_URL: [configured; credentials omitted]"
 echo "Fork replay start height: ${HEIGHT} (cursor -> ${PREV})"
 echo "Mode: $([[ "$DRY_RUN" -eq 1 ]] && echo 'DRY RUN' || echo 'APPLY')"
 echo "Cleanup derived rows (block_height >= ${HEIGHT}): $([[ "$CLEANUP_DERIVED" -eq 1 ]] && echo yes || echo no)"
@@ -124,6 +130,8 @@ for label_table in \
   "limit_order_placements:limit_order_placements" \
   "limit_order_cancellations:limit_order_cancellations" \
   "protocol_fee_events:protocol_fee_events" \
+  "listing_wrap_principal:listing_wrap_principal" \
+  "listing_mapper_custody:listing_mapper_custody" \
   "hook_events:hook_events"; do
   label="${label_table%%:*}"
   table="${label_table##*:}"
@@ -159,6 +167,8 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
+DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
+DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_fills WHERE block_height >= ${HEIGHT};
@@ -199,6 +209,8 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
+DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
+DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_cancellations WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_placements WHERE block_height >= ${HEIGHT};
 DELETE FROM limit_order_fills WHERE block_height >= ${HEIGHT};

@@ -201,6 +201,31 @@ impl LcdClient {
         path: &str,
         max_bytes: Option<usize>,
     ) -> Result<T, LcdError> {
+        self.get_at_height_with_body_limit(path, max_bytes, None)
+            .await
+    }
+
+    /// Background historical bank snapshots must never silently read the latest state.
+    pub async fn get_at_height<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        height: i64,
+    ) -> Result<T, LcdError> {
+        if height <= 0 {
+            return Err(LcdError::Deserialize(
+                "invalid historical query height".into(),
+            ));
+        }
+        self.get_at_height_with_body_limit(path, Some(16_384), Some(height))
+            .await
+    }
+
+    async fn get_at_height_with_body_limit<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        max_bytes: Option<usize>,
+        height: Option<i64>,
+    ) -> Result<T, LcdError> {
         let mut errors = Vec::new();
 
         let endpoint_count = {
@@ -230,9 +255,26 @@ impl LcdClient {
 
             let full_url = format!("{}{}", url, path);
             let log_path = lcd_log_path(path);
-            match self.inner.client.get(&full_url).send().await {
+            let mut request = self.inner.client.get(&full_url);
+            if let Some(height) = height {
+                request = request.header("x-cosmos-block-height", height.to_string());
+            }
+            match request.send().await {
                 Ok(resp) => {
                     let status = resp.status();
+                    if status.is_success() && height.is_some() {
+                        let served_height = resp
+                            .headers()
+                            .get("x-cosmos-block-height")
+                            .and_then(|h| h.to_str().ok())
+                            .and_then(|h| h.parse::<i64>().ok());
+                        if served_height != height {
+                            errors.push(format!(
+                                "endpoint[{idx}] historical query height was not confirmed"
+                            ));
+                            continue;
+                        }
+                    }
                     let text = match max_bytes {
                         Some(limit) => match bounded_response_text(resp, limit).await {
                             Ok(body) => body,

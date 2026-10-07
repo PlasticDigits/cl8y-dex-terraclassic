@@ -67,3 +67,9 @@ No LocalTerra, indexer, or wallet. Child venue PRs and form submits are operator
 - Crawler field truth: [`AGENTS_INDEXER_CG_CMC_LISTING.md`](./AGENTS_INDEXER_CG_CMC_LISTING.md) · [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)
 - Integrators: [`docs/integrators.md`](../docs/integrators.md#listing-venue-catalog-gitlab-639)
 - QA: [`docs/qa/issue-639/README.md`](../docs/qa/issue-639/README.md)
+
+Listing-only native CG/GT edges (#1437): apply
+[LV1437-1–LV1437-10](AGENTS_LISTING_VIRTUAL_PAIRS.md);
+`make verify-issue-1437` and the
+[agent checklist/skip policy](../docs/qa/issue-1437/README.md).
+These projections never become factory markets or DeFiLlama economic totals.

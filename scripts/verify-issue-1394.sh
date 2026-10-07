@@ -39,10 +39,14 @@ format_changed() {
   for candidate in indexer/src/lcd/pair_discovery_state.rs indexer/tests/indexer_pair_discovery.rs; do
     [[ ! -f "$candidate" ]] || files+=("$candidate")
   done
+  # Match Cargo's package edition; a different edition changes rustfmt's style
+  # and incorrectly rejects files that pass the repository-wide formatter.
+  local edition
+  edition="$(python3 -c 'import tomllib; print(tomllib.load(open("indexer/Cargo.toml", "rb"))["package"]["edition"])')"
   printf 'Rustfmt command:'
-  printf ' %q' rustfmt --edition 2024 --config skip_children=true --check "${files[@]}"
+  printf ' %q' rustfmt --edition "$edition" --config skip_children=true --check "${files[@]}"
   printf '\n'
-  rustfmt --edition 2024 --config skip_children=true --check "${files[@]}"
+  rustfmt --edition "$edition" --config skip_children=true --check "${files[@]}"
 }
 run 'changed Rust formatting' format_changed
 run 'discovery cache and admission tests' cargo_indexer test --lib pair_discovery

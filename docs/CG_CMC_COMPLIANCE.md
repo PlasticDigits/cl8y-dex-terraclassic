@@ -77,7 +77,7 @@ Returns all available trading pairs on the DEX.
 | `ticker_id` | string | Identifier: `{BASE_SYMBOL}_{TARGET_SYMBOL}` |
 | `base` | string | Symbol of the base asset |
 | `target` | string | Symbol of the target (quote) asset |
-| `pool_id` | string | On-chain pair contract address |
+| `pool_id` | string | Factory contract address, or a listing-only opaque id (#1437) |
 
 ### `GET /cg/tickers`
 
@@ -243,6 +243,81 @@ Returns recent trades for a given pair.
 **Trade direction:** A trade is `"buy"` when the trader **offers quote** (`asset_1`) to **buy base** (`asset_0`). `"sell"` is offer = base. This matches CEX convention (buy the base). GitLab #685.
 
 ---
+
+## Listing-only native markets (#1437)
+
+[Implementation issue](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1437),
+[projection module](../indexer/src/api/listing_virtual_pairs.rs),
+[agent invariants](../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md),
+[verification/checklist](qa/issue-1437/README.md).
+
+CG and GT may publish these five additional markets in their existing JSON
+structs, without a discriminator or new wrapper. Their ids are opaque and never
+on-chain pair addresses. Symbols come from indexed rows; legs use configured
+`HUB_CLUNC_ADDRESS`, `HUB_CUSTC_ADDRESS` and `USDT_CW20_ADDRESS` pins plus native
+denoms. Defaults are the Columbus-5 pins in `indexer/src/config.rs`.
+
+| Fixed opaque id | Expected CG ticker | Source |
+|---|---|---|
+| `cl8y-virtual:clunc-uluna` | `cLUNC_LUNC` | Pinned mapper cLUNC/uluna principal |
+| `cl8y-virtual:custc-uusd` | `cUSTC_USTC` | Pinned mapper cUSTC/uusd principal |
+| `cl8y-virtual:uluna-uusd` | `LUNC_USTC` | Highest stamped-liquidity exact cLUNC/cUSTC pool + both pegs |
+| `cl8y-virtual:uluna-usdt` | `LUNC_USDT` | Highest stamped-liquidity exact cLUNC/USDT pool + LUNC peg |
+| `cl8y-virtual:clunc-uusd` | `cLUNC_USTC` | Same cLUNC/cUSTC pool + USTC peg |
+
+Missing assets, mapper configuration, positive indexed native backing, or a
+usable exact-leg source pool omit only the affected markets. Spoofed symbols do
+not identify legs. Peg human price is one: wrap native in/wrapped out and unwrap
+wrapped in/native out use principal (`mint_amount` / `withdraw_amount`), excluding
+fees. Cross fills translate source amounts and persisted post-swap reserves
+through those unit pegs; reversed source order inverts price once and USDT stays
+18 decimals. Trade prices never use CEX/advisory USD prices or hub prices.
+
+`/gt/events` emits a swap for each eligible indexed wrap/unwrap or source-pool
+swap, with the original tx hash, sender, block and timestamp. It preserves the
+factory row and appends translated rows with unique per-tx event indexes. Peg
+reserves come from height-validated mapper native custody, reconstructed after
+each event, with the same human backing on both sides. Cross reserves are the
+source event's post-swap reserves translated into the published leg order.
+Missing postevent state never becomes an invented reserve. Projection rows beyond the committed indexed checkpoint are invisible to listing requests. The existing **5000
+factory rows** admission cap runs first; appended projections do not change an
+under-cap response to 400 or remove any factory event. No joins/exits are copied. A transaction with multiple distinct indexed source fills retains those fills; replaying the same source ordinal or factory swap index never emits a second copy.
+
+`/cg/historical_trades` uses the same `CgTradeEntry` assignment as factory trades:
+buy means target offered, raw base/target volume fields, Unix seconds and a
+maximum 500 rows. GT decimalizes raw amounts into human strings. Tickers aggregate
+the projected fills once over 24 hours with the same raw volume convention as
+factory consolidated stats; price/high/low are human target-per-base. `last_price`
+is the latest indexed projected fill (reserve rate when no fill exists); high/low
+are zero when no 24h fill exists. The same consolidated extension struct reports
+zero book count/volume and projected pool count/volume. Bid/ask use exact
+`listing_spread` math. Reserve USD values are computed/read in memory using
+factory pricing/stamps; they never write to `pair_liquidity_usd`.
+
+`/cg/orderbook` returns one indexed bid and ask at the latest projected price,
+with sizes from post-swap reserves and a Unix millisecond timestamp. The existing
+depth cap remains. Virtual listing request handlers perform **zero LCD calls**.
+Custody refresh and historical queries run only in ingestion/background on
+attested endpoints; unavailable historical state fails closed for that event.
+
+`/cg/pairs` appends the published markets in table order before applying
+limit/offset. `/cg/tickers` keeps the volume-sorted real page intact and appends
+published markets in table order within its complete 60s cache payload. Real CG
+tickers win symbol collisions; the matching virtual market is omitted on CG and
+cannot replace a factory address in CMC's factory-only ticker cache. GT uses the
+opaque identities independently.
+
+`/gt/asset` assigns `terra-luna-classic` to bank `uluna`, `terraclassicusd` to bank
+`uusd`, and adds a `tether` override only for the pinned USDT. Other asset ids remain indexed metadata and are never assigned by ticker symbol. Native ids never copy onto cLUNC or
+cUSTC. These changes do not edit `assets.coingecko_id`.
+
+The listing-only principal/custody tables do not feed factory `pairs`,
+`swap_events`, `liquidity_events`, reserves, candles, CMC, retail APIs, route solve,
+trader volume/positions, protocol TVL/fees, hub prices or DeFiLlama. Ordinary pair
+lookups and discovery reject the opaque namespace before SQL/LCD. No new admin
+route edits projection reserves or allowlists. This issue changes source code
+only; deployment and the prepared [GT form remark](listings/forms/geckoterminal.md)
+remain separate actions.
 
 ## CoinMarketCap Endpoints (`/cmc/`)
 

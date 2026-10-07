@@ -26,6 +26,7 @@ fn wasm_tx_hybrid_swap(pair_addr: &str) -> TxResponse {
         ("effective_fee_bps", "30"),
     ];
     TxResponse {
+        code: 0,
         height: "1".into(),
         txhash: "hybrid_swap_cols_integration_tx".into(),
         logs: Some(vec![TxLog {

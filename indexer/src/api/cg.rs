@@ -7,7 +7,9 @@ use utoipa::{IntoParams, ToSchema};
 use super::{
     aggregator_snapshot::{self, AggregatorListQuery},
     build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_spread,
-    listing_timestamps, orderbook_sim, AppState,
+    listing_timestamps,
+    listing_virtual_pairs::{self, ProjectedSwap, SwapFilter, VirtualMarket},
+    orderbook_sim, AppState,
 };
 use crate::db::queries::{pairs as db_pairs, swap_events};
 use crate::indexer::listing_exclude::pair_is_listing_excluded;
@@ -81,6 +83,20 @@ pub async fn cg_pairs(
                 base: a0.symbol.clone(),
                 target: a1.symbol.clone(),
                 pool_id: p.contract_address.clone(),
+            });
+        }
+    }
+
+    for market in listing_virtual_pairs::load_markets(&state)
+        .await
+        .map_err(internal_err)?
+    {
+        if market.cg_enabled {
+            result.push(CgPairResponse {
+                ticker_id: market.ticker_id(),
+                base: market.base.symbol.clone(),
+                target: market.target.symbol.clone(),
+                pool_id: market.id.to_string(),
             });
         }
     }
@@ -198,6 +214,55 @@ pub async fn cg_tickers(
         });
     }
 
+    for market in listing_virtual_pairs::load_markets(&state)
+        .await
+        .map_err(internal_err)?
+    {
+        if !market.cg_enabled {
+            continue;
+        }
+        let stats = &market.stats;
+        let (bid, ask) = listing_spread::listing_bid_ask(
+            Some(&market.last_price),
+            Some(&market.reserve_0),
+            Some(&market.reserve_1),
+            market.base.decimals,
+            market.target.decimals,
+            market.fee_bps.unwrap_or(0),
+        );
+        result.push(CgTickerResponse {
+            ticker_id: market.ticker_id(),
+            base_currency: market.base_id().to_string(),
+            target_currency: market.target_id().to_string(),
+            last_price: super::gt::format_dec(&market.last_price),
+            base_volume: super::gt::format_dec(&stats.volume_base),
+            target_volume: super::gt::format_dec(&stats.volume_quote),
+            bid: plain_decimal(&bid),
+            ask: plain_decimal(&ask),
+            high: stats
+                .high
+                .as_ref()
+                .map(super::gt::format_dec)
+                .unwrap_or_else(|| "0".into()),
+            low: stats
+                .low
+                .as_ref()
+                .map(super::gt::format_dec)
+                .unwrap_or_else(|| "0".into()),
+            pool_id: market.id.to_string(),
+            liquidity_in_usd: plain_decimal(&listing_spread::listing_liquidity_in_usd(
+                market.liquidity_usd.as_ref(),
+            )),
+            cl8y_extensions: consolidated_stats::Cl8yConsolidatedExtensions {
+                consolidated: true,
+                hybrid_trade_count_24h: "0".into(),
+                pool_only_trade_count_24h: stats.trade_count.to_string(),
+                book_leg_volume_quote_24h: "0".into(),
+                pool_leg_volume_quote_24h: super::gt::format_dec(&stats.volume_quote),
+            },
+        });
+    }
+
     let value = serde_json::to_value(&result).map_err(internal_err)?;
     super::aggregator_cache_put(&cache_key, value.clone());
     Ok(Json(value))
@@ -237,8 +302,58 @@ pub async fn cg_orderbook(
     Query(q): Query<OrderbookQuery>,
 ) -> Result<Json<CgOrderbookResponse>, (StatusCode, String)> {
     let depth = orderbook_sim::cap_orderbook_depth(q.depth);
-    let pair_addr = find_pair_by_ticker(&state, &q.ticker_id).await?;
+    let pair_addr = match resolve_cg_market(&state, &q.ticker_id).await? {
+        CgMarket::Factory(address) => address,
+        CgMarket::Virtual(market) => {
+            let trades = listing_virtual_pairs::load_swaps(
+                &state,
+                std::slice::from_ref(&market),
+                SwapFilter {
+                    limit: Some(1),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(internal_err)?;
+            let (r0, r1) = trades
+                .first()
+                .map(|trade| {
+                    (
+                        trade.reserve_0.as_ref().unwrap_or(&market.reserve_0),
+                        trade.reserve_1.as_ref().unwrap_or(&market.reserve_1),
+                    )
+                })
+                .unwrap_or((&market.reserve_0, &market.reserve_1));
+            let price = trades
+                .first()
+                .map(|trade| &trade.price)
+                .unwrap_or(&market.last_price);
+            let base_size = super::gt::decimalize(r0, market.base.decimals);
+            let target_size = super::gt::decimalize(r1, market.target.decimals);
+            let ts = listing_timestamps::ListingOrderbookTimestamps::now();
+            let price_string = super::gt::format_dec(price);
+            let bids = vec![[
+                price_string.clone(),
+                super::gt::format_dec(&(target_size / price)),
+            ]];
+            let asks = vec![[price_string, super::gt::format_dec(&base_size)]];
+            // cap_orderbook_depth has already admitted at least one level per side.
+            return Ok(Json(CgOrderbookResponse {
+                ticker_id: q.ticker_id,
+                timestamp: ts.cg_ms,
+                bids,
+                asks,
+            }));
+        }
+    };
 
+    // Factory books retain fresh chain attestation, including cache hits (#1392).
+    if state.lcd.require_verified_chain().await.is_err() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "No endpoint attests the expected chain".into(),
+        ));
+    }
     let ob = orderbook_sim::simulate_orderbook_cached(
         &state.orderbook_cache,
         &state.pool,
@@ -310,7 +425,38 @@ pub async fn cg_historical_trades(
     Query(q): Query<HistoricalTradesQuery>,
 ) -> Result<Json<CgHistoricalTradesResponse>, (StatusCode, String)> {
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
-    let pair_addr = find_pair_by_ticker(&state, &q.ticker_id).await?;
+    validate_trade_type(q.trade_type.as_deref())?;
+    let pair_addr = match resolve_cg_market(&state, &q.ticker_id).await? {
+        CgMarket::Factory(address) => address,
+        CgMarket::Virtual(market) => {
+            let trades = listing_virtual_pairs::load_swaps(
+                &state,
+                std::slice::from_ref(&market),
+                SwapFilter {
+                    limit: Some(limit),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(internal_err)?;
+            let mut response = CgHistoricalTradesResponse {
+                buy: Vec::new(),
+                sell: Vec::new(),
+            };
+            for trade in &trades {
+                let entry = projected_trade_entry(trade);
+                let is_buy = !trade.offer_is_base;
+                if accepts_trade_type(q.trade_type.as_deref(), is_buy) {
+                    if is_buy {
+                        response.buy.push(entry);
+                    } else {
+                        response.sell.push(entry);
+                    }
+                }
+            }
+            return Ok(Json(response));
+        }
+    };
 
     let pair = db_pairs::get_pair_by_address(&state.pool, &pair_addr)
         .await
@@ -327,28 +473,15 @@ pub async fn cg_historical_trades(
     for t in &trades {
         let is_buy = t.offer_asset_id == pair.asset_1_id;
         let (pool_leg_volume, book_leg_volume) = consolidated_stats::hybrid_leg_volumes(t);
-        let entry = CgTradeEntry {
-            trade_id: t.id,
-            price: t.price.to_string(),
-            base_volume: if is_buy {
-                t.return_amount.to_string()
-            } else {
-                t.offer_amount.to_string()
-            },
-            target_volume: if is_buy {
-                t.offer_amount.to_string()
-            } else {
-                t.return_amount.to_string()
-            },
-            trade_timestamp: t.block_timestamp.timestamp(),
-            trade_type: if is_buy {
-                "buy".to_string()
-            } else {
-                "sell".to_string()
-            },
-            pool_leg_volume,
-            book_leg_volume,
-        };
+        let entry = trade_entry(
+            t.id,
+            &t.price,
+            &t.offer_amount,
+            &t.return_amount,
+            t.block_timestamp.timestamp(),
+            is_buy,
+            (pool_leg_volume, book_leg_volume),
+        );
 
         match q.trade_type.as_deref() {
             None | Some("") => {
@@ -381,4 +514,105 @@ pub async fn cg_historical_trades(
         buy: buys,
         sell: sells,
     }))
+}
+
+// Factory lookup/cache remains real-only for CMC. CG resolves a fresh published
+// projection separately so a removed peg or colliding factory ticker cannot be
+// resurrected from the shared factory cache (#1437).
+enum CgMarket {
+    Factory(String),
+    Virtual(VirtualMarket),
+}
+
+async fn resolve_cg_market(
+    state: &AppState,
+    ticker_id: &str,
+) -> Result<CgMarket, (StatusCode, String)> {
+    match find_pair_by_ticker(state, ticker_id).await {
+        Ok(address) => Ok(CgMarket::Factory(address)),
+        Err((StatusCode::NOT_FOUND, _)) => {
+            let markets = listing_virtual_pairs::load_markets(state)
+                .await
+                .map_err(internal_err)?;
+            if let Some(market) = markets
+                .into_iter()
+                .find(|market| market.ticker_id().eq_ignore_ascii_case(ticker_id))
+            {
+                if market.cg_enabled {
+                    return Ok(CgMarket::Virtual(market));
+                }
+                // A newly indexed factory collision must win even when the
+                // previous virtual lookup cached a miss in the factory map.
+                *state.ticker_map_cache.inner.write().await = None;
+                return find_pair_by_ticker(state, &market.ticker_id())
+                    .await
+                    .map(CgMarket::Factory);
+            }
+            Err((
+                StatusCode::NOT_FOUND,
+                format!("Pair not found for ticker: {ticker_id}"),
+            ))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn plain_decimal(value: &str) -> String {
+    // listing_spread returns exact decimal strings; use GT's fixed notation on
+    // the listing projection to keep very small reserve prices readable.
+    value
+        .parse::<bigdecimal::BigDecimal>()
+        .map(|v| super::gt::format_dec(&v))
+        .unwrap_or_else(|_| value.to_string())
+}
+
+fn validate_trade_type(trade_type: Option<&str>) -> Result<(), (StatusCode, String)> {
+    match trade_type {
+        None | Some("" | "buy" | "sell") => Ok(()),
+        Some(other) => Err((
+            StatusCode::BAD_REQUEST,
+            format!("Invalid type '{other}'. Valid values: buy, sell"),
+        )),
+    }
+}
+
+fn accepts_trade_type(trade_type: Option<&str>, is_buy: bool) -> bool {
+    match trade_type {
+        Some("buy") => is_buy,
+        Some("sell") => !is_buy,
+        _ => true,
+    }
+}
+
+fn trade_entry(
+    id: i64,
+    price: &bigdecimal::BigDecimal,
+    offer: &bigdecimal::BigDecimal,
+    returned: &bigdecimal::BigDecimal,
+    timestamp: i64,
+    is_buy: bool,
+    legs: (Option<String>, Option<String>),
+) -> CgTradeEntry {
+    CgTradeEntry {
+        trade_id: id,
+        price: super::gt::format_dec(price),
+        base_volume: super::gt::format_dec(if is_buy { returned } else { offer }),
+        target_volume: super::gt::format_dec(if is_buy { offer } else { returned }),
+        trade_timestamp: timestamp,
+        trade_type: if is_buy { "buy".into() } else { "sell".into() },
+        pool_leg_volume: legs.0,
+        book_leg_volume: legs.1,
+    }
+}
+
+fn projected_trade_entry(trade: &ProjectedSwap) -> CgTradeEntry {
+    trade_entry(
+        trade.id,
+        &trade.price,
+        &trade.offer_amount,
+        &trade.return_amount,
+        trade.block_timestamp.timestamp(),
+        !trade.offer_is_base,
+        (None, None),
+    )
 }

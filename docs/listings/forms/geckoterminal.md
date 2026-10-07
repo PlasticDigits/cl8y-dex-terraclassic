@@ -57,6 +57,14 @@ Permanent economic pairs only (ignore soft-launch gems such as EMBER/CORAL in /c
 - cLUNC/UST1 terra1su5363453fj326u4t0kqar30f35cm3n0dc9yksg379u6875z350s4mm7h4
 - cLUNC/cUSTC terra15rl8g308yzzt5kxu4skgwlahrvm8adyv0s2cupsmvte0akgs2ttsszau38
 
+Listing-only native pricing edges (implementation #1437; deployment required):
+- cLUNC/LUNC cl8y-virtual:clunc-uluna
+- cUSTC/USTC cl8y-virtual:custc-uusd
+- LUNC/USTC cl8y-virtual:uluna-uusd
+- LUNC/USDT cl8y-virtual:uluna-usdt
+- cLUNC/USTC cl8y-virtual:clunc-uusd
+These are opaque adapter ids, not factory contracts. /gt/events translates real pinned-mapper wrap/unwrap principal and exact pinned-source pool swaps into the existing swap shape. Native legs are uluna/uusd. USDT is pinned terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4 (18 decimals). Missing backing/source omits an edge. Factory/economic accounting excludes these projections.
+
 UST1 is an unstablecoin — never advertise $1. USTR is USTC Repeg, not a stablecoin.
 CL8Y CoinGecko id ceramicliberty-com is BSC-only today; columbus-5 CW20 is terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3 (18 decimals).
 
@@ -71,3 +79,7 @@ Contact: contact@ceramicliberty.com / Telegram @ceramicliberty / https://x.com/c
 - **Don’t** submit gems / ALPHA / USTRIX / SpaceUSD as the featured pool (**L639-2**).
 - **Don’t** advertise UST1 as `$1` or USTR as a stablecoin (**L639-5**).
 - GT adapters are live at `https://indexer.dex.cl8y.com/gt` after indexer redeploy (`make verify-issue-646`). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684), `make verify-issue-684`). Not `/cg/*`.
+
+Prepared #1437 remark only; this change does not submit or deploy. See the
+[projection contract](../../CG_CMC_COMPLIANCE.md#listing-only-native-markets-1437) and
+[agent verification checklist](../../qa/issue-1437/README.md).
