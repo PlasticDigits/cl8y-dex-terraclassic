@@ -1,4 +1,3 @@
-import { ProtocolDetails } from './ProtocolDetails'
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { KeyboardEvent } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -68,23 +67,13 @@ export function ProtocolOracleCard({
 
   return (
     <div className="shell-panel" data-testid="protocol-oracle">
-      <div className="flex items-center gap-1 mb-3">
-        <h2
-          className="text-sm font-semibold tracking-wide font-heading"
-          style={{ color: 'var(--ink)' }}
-          id="protocol-oracle-heading"
-        >
-          {heading}
-        </h2>
-        <ProtocolDetails
-          label="Reference price details"
-          detail={
-            isVfdusd
-              ? 'FDUSD market price and vFDUSD redemption value.'
-              : 'Reference price, not a guaranteed trade price.'
-          }
-        />
-      </div>
+      <h2
+        className="text-sm font-semibold tracking-wide font-heading mb-3"
+        style={{ color: 'var(--ink)' }}
+        id="protocol-oracle-heading"
+      >
+        {heading}
+      </h2>
 
       <div
         className="flex gap-2 mb-4 flex-wrap"

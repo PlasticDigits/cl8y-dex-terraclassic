@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderWithProviders } from '@/test-utils'
 import type { IndexerOverview } from '@/types'
@@ -34,7 +34,7 @@ async function settle() {
   })
 }
 
-describe('liquidity headline disclosure and polling', () => {
+describe('liquidity headline retention and polling', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.useFakeTimers()
@@ -54,6 +54,7 @@ describe('liquidity headline disclosure and polling', () => {
     const amount = within(card).getByText('$250K')
     expect(card).not.toHaveTextContent(/Fresh|As of|2026|—24h/)
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Liquidity details' })).not.toBeInTheDocument()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(25_000)
     })
@@ -126,15 +127,14 @@ describe('liquidity headline disclosure and polling', () => {
     const first = renderWithProviders(<Harness />)
     await settle()
     const card = screen.getByTestId('protocol-stat-liquidity')
-    const amount = within(card).getByText('≥ $206K')
+    const amount = within(card).getByText('$206K')
     await act(async () => {
       await vi.advanceTimersByTimeAsync(21_000)
     })
-    expect(within(card).getByText('≥ $206K')).toBe(amount)
+    expect(within(card).getByText('$206K')).toBe(amount)
     expect(card.querySelector('.animate-pulse')).toBeNull()
     expect(within(card).queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Liquidity details' }))
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Updated 21 seconds ago.')
+    expect(card).not.toHaveTextContent(/≥|Updated|Fresh|As of/)
     first.unmount()
 
     for (const failed of [false, true]) {
@@ -142,7 +142,7 @@ describe('liquidity headline disclosure and polling', () => {
       else vi.mocked(getOverview).mockResolvedValue({ ...observation(), total_liquidity_usd: null })
       const restored = renderWithProviders(<Harness />)
       await settle()
-      expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('≥ $206K')
+      expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('$206K')
       restored.unmount()
     }
 
@@ -150,7 +150,7 @@ describe('liquidity headline disclosure and polling', () => {
     vi.mocked(getOverview).mockImplementation(async () => current)
     const lower = renderWithProviders(<Harness />)
     await settle()
-    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('≥ $120K')
+    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('$120K')
     lower.unmount()
     vi.mocked(getOverview).mockResolvedValue({ ...observation(), total_liquidity_usd: '110000' })
     const complete = renderWithProviders(<Harness />)
@@ -163,21 +163,5 @@ describe('liquidity headline disclosure and polling', () => {
     await settle()
     expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('$110K')
     expect(screen.getByTestId('protocol-stat-liquidity')).not.toHaveTextContent('≥')
-  })
-
-  it('reveals a relative timestamp on keyboard focus and tap, and closes with Escape or outside tap', async () => {
-    renderWithProviders(<Harness />)
-    await settle()
-    const control = screen.getByRole('button', { name: 'Liquidity details' })
-    act(() => control.focus())
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Updated just now.')
-    expect(screen.getByRole('tooltip')).not.toHaveTextContent('2026-')
-    expect(control).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
-    fireEvent.click(control)
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Updated just now.')
-    fireEvent.pointerDown(document.body)
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 })

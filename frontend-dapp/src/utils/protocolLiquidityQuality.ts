@@ -1,6 +1,5 @@
 import type { IndexerOverview, LiquidityQuality } from '@/types'
 import { formatProtocolUsd } from './formatProtocolStats'
-import { formatRelativeAge, RELATIVE_AGE_FALLBACK } from './formatDate'
 import { DEFAULT_NETWORK, FACTORY_CONTRACT_ADDRESS, NETWORKS } from './constants'
 
 /** Poll before a normal liquidity observation expires, with a finite request budget. */
@@ -128,26 +127,17 @@ export function overviewLiquidityDisplay(
   if (legacyZero || raw == null) quality = 'unavailable'
   quality = liquidityQualityForValue(quality, raw)
   const known = quality === 'fresh' || quality === 'verified_empty' || quality === 'partial' || quality == null
-  let value = known && raw != null ? `${quality === 'partial' ? '≥ ' : ''}${formatProtocolUsd(raw)}` : '—'
+  let value = known && raw != null ? formatProtocolUsd(raw) : '—'
   const useRetained =
     retained != null &&
     !(retained.quality === 'partial' && (quality === 'fresh' || quality === 'verified_empty')) &&
     (quality !== retained.quality || retained.asOf !== asOf || retained.value !== raw)
   if (useRetained) {
-    value = `${retained.quality === 'partial' ? '≥ ' : ''}${formatProtocolUsd(retained.value)}`
+    value = formatProtocolUsd(retained.value)
   }
-  const displayAsOf = useRetained ? retained.asOf : asOf
-  const displayObserved = displayAsOf ? Date.parse(displayAsOf) : NaN
-  const ageMs = now - displayObserved
-  const age =
-    Number.isFinite(ageMs) && ageMs >= 1_000 && ageMs < 60_000
-      ? `${Math.floor(ageMs / 1000)} ${Math.floor(ageMs / 1000) === 1 ? 'second' : 'seconds'} ago`
-      : formatRelativeAge(displayAsOf, now)
-  const asOfText = age === RELATIVE_AGE_FALLBACK ? '' : `Updated ${age}.`
   return {
     quality: useRetained ? retained.quality : quality,
     value,
-    hint: asOfText,
     // Backend only supplies a delta for matching, qualified baseline coverage.
     comparable: !useRetained && (quality === 'fresh' || quality === 'verified_empty'),
   }

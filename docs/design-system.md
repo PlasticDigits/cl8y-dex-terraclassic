@@ -104,7 +104,8 @@ encode data-quality categories as gray bars, hatching or dashed empty boxes that
 require a legend to decipher. Omit missing observations, preserve actual dates,
 and use date-and-amount tooltips only. Fresh/stale/snapshot vocabulary and quality
 explanations belong in engineering docs. Keep the last known headline during
-refreshes; optional info may say only “Updated …”. See the
+refreshes; liquidity headlines contain only the label and plain USD amount,
+without quality markers, age text or an info control. See the
 [copy playbook](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md).
 
 ## Typography

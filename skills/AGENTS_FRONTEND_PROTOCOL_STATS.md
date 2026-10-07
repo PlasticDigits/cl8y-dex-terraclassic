@@ -252,6 +252,10 @@ make verify-issue-1290  # leftover #1306 (Q22 / B1290; aliases verify-issue-1302
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
 
+Retail Protocol fee and reference-price cards show headings, values and actual
+identity/provider/address controls only. Methodology explanations belong in these
+engineering docs, without explanatory info icons or popup paragraphs on the page.
+
 ## Liquidity quality extension (Q1380)
 
 P569 omission means unknown, not current zero. Nullable overview totals and
@@ -267,14 +271,15 @@ explicit 2026-10-07 user direction and supersedes prior frontend quality styling
 and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verify-issue-1380`.
 
 
-### Last verified liquidity display (2026-10-06 user direction)
+### Last known liquidity display (2026-10-06 user direction)
 
 Retain the last qualified complete public amount through TTL expiry and temporary
 outages, including route remounts/reloads using validated storage scoped to chain,
-factory and indexer. Keep original observation time internally; optional info says only “Updated …”. Suppress the
+factory and indexer. Keep original observation time internally. Show the plain USD amount without
+quality markers, age text or a headline info control. Suppress the
 24h delta when current data is unqualified, and replace retained totals with new
 qualified decreases or zero. Partial totals never overwrite complete totals.
-Before any complete total exists, retain the last qualified partial lower bound
-with `≥` and its original time through expiry, outages and reloads; newer lower
+Before any complete total exists, retain the last qualified partial amount
+and its original time through expiry, outages and reloads; newer lower
 partial values replace it, and a complete valuation takes priority.
 Server canonical quality and historical baseline rules remain unchanged.

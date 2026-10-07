@@ -22,10 +22,12 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
   quality and time, scoped to expected chain/factory/indexer. Reject malformed,
   future or contradictory cached records. New qualified decreases and zero replace
   older totals; partial never overwrites a complete total. Before a complete total
-  exists, retain the last qualified partial lower bound with `≥` and its original
+  exists, retain the last qualified partial amount and its original
   time through expiry/errors/reload; newer lower partial values replace it.
   Suppress 24h delta when
-  current quality is unqualified. Optional headline info says only “Updated …”;
+  current quality is unqualified. Retail headlines show only an ordinary USD amount;
+  no `≥` prefix, quality/age text or info control. Observation time and partial
+  quality stay internal, following the explicit 2026-10-07 user direction;
   never relabel retained data fresh or feed it into server baselines/history.
 - Lock before input reads and use atomic generation publication. Do not separately
   write headline, stamps, history or grains. Reject older publications. Preserve
