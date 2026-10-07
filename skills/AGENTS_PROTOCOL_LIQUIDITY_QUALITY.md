@@ -14,7 +14,7 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
   pairs do not block supported-catalog completeness. A failed first enumeration
   leaving populated rows is still unknown inventory without completion provenance. Missing supported inputs do.
 - Do not turn omitted-all into current zero. Canonical total is nullable; partial
-  numeric totals must disclose lower-bound quality. Zero requires validated current
+  numeric totals retain lower-bound quality internally. Zero requires validated current
   reserves or fresh complete empty-factory enumeration. No server smoothing/last-good peg. The frontend retains the last qualified
   complete public total as display-only history, following the explicit 2026-10-06
   user instruction; do not erase it at TTL expiry or during an outage.
@@ -25,7 +25,7 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
   exists, retain the last qualified partial lower bound with `≥` and its original
   time through expiry/errors/reload; newer lower partial values replace it.
   Suppress 24h delta when
-  current quality is unqualified. Explain last verified time only in optional info;
+  current quality is unqualified. Optional headline info says only “Updated …”;
   never relabel retained data fresh or feed it into server baselines/history.
 - Lock before input reads and use atomic generation publication. Do not separately
   write headline, stamps, history or grains. Reject older publications. Preserve
@@ -41,8 +41,14 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
   Legacy values are unqualified, and a skip is not reconstructed chain evidence.
   A strictly positive preserved legacy amount may be a separate
   `reported_liquidity_usd` historical estimate only with unknown quality and
-  solely `legacy_unqualified: 1`. Keep canonical totals null; repaired,
-  unreconciled, zero and missing values remain gaps. Estimates never feed deltas.
+  solely `legacy_unqualified: 1`. Keep canonical totals null. The retail chart
+  displays valid canonical amounts (including partial observations), falling back
+  to valid reported amounts, all in the same normal color. Omit rows without any
+  valid amount; no hatching, gray quality categories or empty outlined boxes.
+  Keep each observation's original date and show only date and amount in tooltips.
+  Reported amounts never feed deltas or overwrite server canonical totals.
+  These presentation rules follow the explicit 2026-10-07 user direction and
+  supersede previous frontend quality-gap/estimate styling instructions.
 - Reserve work is bounded: ≤8 jobs, 4s pair deadline, 2s height probe, ≤1000 orders
   per side, no overlapping cadence cycles. Failed jobs retain old amounts and time.
   Oversized contract bodies must not poison LCD-wide health.

@@ -21,6 +21,15 @@ Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com
 
 On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** / **Guide** control for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). Unfunded Swap/Trade pay uses one-sentence acquire guidance + `/ust1` or `/wrap` Guide (**A678-1–A678-11**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678); [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](../skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md)) — not an oracle essay and not AMM-as-mint. **Documented exception:** configured `/token/migrate` uses **title + two short why-paragraphs** (Unlock {X} headline + examples) so token admins see the template upside before Load ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670**; still no env / 50 UST1 / cw2 essay). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
+Charts must be understandable without reading a legend or an info essay. Display
+available values in one normal series color; omit missing observations instead
+of gray categories, hatching, full-height empty boxes or fake zeroes. Preserve
+actual observation dates. Tooltips contain only a readable date and amount;
+quality, freshness, snapshot and generation terms stay in engineering docs.
+Retain the last known headline through background refreshes and outages; its
+optional info may contain only “Updated …”. Simplify by deleting explanatory
+code and text, rather than moving the same complexity into a tooltip.
+
 ### One chrome layer / anti-nesting {#one-chrome-layer}
 
 Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653); Trade application **L561-2**). Agent playbook: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md). Stack: page `--bg-*` → **one** `shell-panel*` per region → content. Mechanical guard: [`scripts/check_chrome_nesting.py`](../scripts/check_chrome_nesting.py) + [`scripts/chrome_nesting_allowlist.txt`](../scripts/chrome_nesting_allowlist.txt).
@@ -2601,16 +2610,20 @@ through expiry, outages and reloads. A newer qualified partial lower bound may
 decrease; a complete valuation replaces it. An em dash means no usable valuation
 has ever been received.
 Only fresh/verified-empty current quality can show the existing 24h delta;
-backend baseline coverage must also match. Legacy positive values are labeled
-coverage unknown and legacy zero cannot prove emptiness. The chart may draw a
-strictly positive preserved `reported_liquidity_usd` separately as a subdued
-“Historical estimate” only for unknown rows whose sole reason is
-`legacy_unqualified: 1`. Canonical `liquidity_usd` remains null; repaired or
-unreconciled holes and zero/missing legacy amounts remain gaps. Estimates never
-supply a current headline or comparable delta; verified known zero is preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
-focus and mobile tap expose optional details. Retained amounts disclose “Last
-verified total. Updated …” only in the info control; no expired/stale status is
-shown on the tile. Expiry suppresses the 24h delta using original liquidity time,
+backend baseline coverage must also match. Legacy zero cannot prove current
+emptiness. The liquidity chart shows available valid canonical amounts, including
+partial observations, or valid reported amounts when canonical values are absent,
+as ordinary blue bars. Rows without a valid amount are omitted. Each observation
+keeps its actual date; no fabricated zeroes or observation times are introduced.
+No hatching, gray categories, empty boxes, estimate markers, quality legends or
+chart-info essays appear. Tooltips contain only a human-readable date and amount.
+This presentation follows the explicit 2026-10-07 user direction and supersedes
+previous frontend quality-gap/estimate styling. API canonical values and delta
+rules remain unchanged. Reported amounts never supply a current headline or
+comparable delta. Volume/Fees retain their existing flow behavior. Keyboard focus
+and mobile tap expose date and amount. Optional headline info contains only
+“Updated …”; no expired/stale/verified/snapshot explanation appears.
+Expiry suppresses the 24h delta using original liquidity time,
 independently of volume polling, without removing the last known correct amount.
 This display-only retention follows the explicit 2026-10-06 user instruction and
 supersedes previous frontend expiry-display guidance. The server rereads the

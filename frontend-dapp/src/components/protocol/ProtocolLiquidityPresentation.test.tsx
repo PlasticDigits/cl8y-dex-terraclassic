@@ -134,7 +134,7 @@ describe('liquidity headline disclosure and polling', () => {
     expect(card.querySelector('.animate-pulse')).toBeNull()
     expect(within(card).queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Liquidity details' }))
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Last reported lower bound. Updated 21 seconds ago.')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Updated 21 seconds ago.')
     first.unmount()
 
     for (const failed of [false, true]) {
@@ -176,7 +176,7 @@ describe('liquidity headline disclosure and polling', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
     fireEvent.click(control)
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Value of liquidity in factory pools.')
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Updated just now.')
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })

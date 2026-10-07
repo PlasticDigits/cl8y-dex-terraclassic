@@ -173,7 +173,7 @@ One census chart, exclusive metric. Do **not** overlay Volume + Liquidity + Fees
 |----|------|
 | **P689-1** | Buttons **Volume / Liquidity / Fees** (default **Volume**) on the existing `protocol-volume-daily-chart` (alias `data-protocol-utc-series-chart`). Grain stays **Hourly / Daily / Monthly** (default Daily). Switching metric **keeps** grain; switching grain resets the tooltip. Fetch **only** the selected metric. |
 | **P689-2** | Trailing tiles unchanged: Last 24h/7d/30d vol, Total liquidity + **one** 24h Δ%, `GET /protocol/fees?window=` 24h/7d/30d. Chart stays inside `protocol-global-stats` — not in `protocol-fee-stats`. |
-| **P689-3** | **Volume / fees** = FLOW: idle JSON `"0"`; activity + all unpriced → `null` (outlined bar, tooltip em-dash). Missing rollup row → idle `"0"`. **Liquidity** = STOCK: last snapshot in the bucket (not SUM, not average). No sample → JSON `null` (not `"0"`). Empty copy **No liquidity yet** / **No fees yet**. Titles **UTC volume** / **UTC liquidity** / **UTC fees**. |
+| **P689-3** | **Volume / fees** = FLOW: idle JSON `"0"`; activity + all unpriced → `null` (outlined bar, tooltip em-dash). Missing rollup row → idle `"0"`. **Liquidity** = STOCK: last snapshot in the bucket (not SUM, not average). No sample → JSON `null` (not `"0"`). Empty copy **No liquidity yet** / **No fees yet**. Visible controls name the selected metric and grain; do not repeat UTC titles or instructional subtitles. |
 | **P689-4** | Sibling GETs `GET /api/v1/protocol/liquidity/daily` and `GET /api/v1/protocol/fees/daily`: `grain` + capped `limit` else **400**. `from`/`to`/`window`/`days`/`metric`/`ticker` → **400**. 60s cache keyed only by allowlisted `(grain, limit)`. Volume `days=7\|30` alias stays on the volume path. |
 | **P689-5** | GET reads grain tables only (`protocol_{hourly,daily,monthly}_{liquidity,fees}`). No `SUM` of `protocol_fee_events` / `swap_events`. No snapshot / `pair_reserves` walk. No Llama. Methodology `protocol_catalog`. Newest-last. |
 | **P689-6** | Aggregator downsamples liquidity **before** 35d snapshot prune so Monthly stock retains ≥ 24 months. Hourly prune ~10d; daily ≥ 95d; monthly ≥ 24 months. Fees SUM priced `fee_usd` off GET (PFee sources). |
@@ -256,8 +256,14 @@ make verify-issue-1290  # leftover #1306 (Q22 / B1290; aliases verify-issue-1302
 
 P569 omission means unknown, not current zero. Nullable overview totals and
 quality/as-of/generation must follow [Q1380](../docs/indexer-invariants.md#protocol-liquidity-quality-1380).
-Do not render partial or unknown history as a complete liquidity point, or restore
-an unqualified delta. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
+Server quality and comparable delta rules remain internal; never restore an
+unqualified delta. The retail liquidity chart shows available canonical numbers,
+including partial observations, or reported numbers when canonical values are
+absent. Use the same normal series color for all available values. Omit missing
+rows, retaining each actual observation date; no invented zeroes, hatching,
+gray categories, full-height dashed boxes, chart-info control or quality legend.
+Tooltips show only a readable date and USD amount. This presentation follows the
+explicit 2026-10-07 user direction and supersedes prior frontend quality styling. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
 and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verify-issue-1380`.
 
 
@@ -265,7 +271,7 @@ and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verif
 
 Retain the last qualified complete public amount through TTL expiry and temporary
 outages, including route remounts/reloads using validated storage scoped to chain,
-factory and indexer. Keep original observation time in optional info, suppress the
+factory and indexer. Keep original observation time internally; optional info says only “Updated …”. Suppress the
 24h delta when current data is unqualified, and replace retained totals with new
 qualified decreases or zero. Partial totals never overwrite complete totals.
 Before any complete total exists, retain the last qualified partial lower bound

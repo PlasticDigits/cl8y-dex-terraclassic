@@ -99,6 +99,14 @@ Do **not** downscale `/logo.png` into a favicon. Source for the simplified famil
 
 Canonical same-origin only — do not wire user-controlled OG URLs, and do not build `og:image` from the request host header or the browser location object. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`; production bake: [`viteOg.ts`](../frontend-dapp/viteOg.ts). Favicon `<link>` tags: `favicon-32.png` / `favicon-16.png` (browsers also fetch `/favicon.ico`). Agent playbook: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) (invariants **OG-1–OG-8**).
 
+Retail charts show available numbers in a single normal series color. Do not
+encode data-quality categories as gray bars, hatching or dashed empty boxes that
+require a legend to decipher. Omit missing observations, preserve actual dates,
+and use date-and-amount tooltips only. Fresh/stale/snapshot vocabulary and quality
+explanations belong in engineering docs. Keep the last known headline during
+refreshes; optional info may say only “Updated …”. See the
+[copy playbook](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md).
+
 ## Typography
 
 | Use | Font | Notes |

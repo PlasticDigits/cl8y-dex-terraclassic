@@ -20,6 +20,18 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
    Page chrome = **title + controls + live status (fee/limit/pause) + CTA**. Put depth in docs/`<details>`, not permanent paragraphs. Bad example that was removed from `/wrap`: subtitle + Swap/UST1 blurb + Mapper Ready + gas/burn-tax footer.
    **Documented exception (#670 / M670):** configured `/token/migrate` is title + two short why-paragraphs (`Unlock {X} features…` + high-value examples) so a token admin sees the template upside before Load. Still no env / 50 UST1 / cw2 / Minting-as-unlock essay. Unavailable stub stays silent. Playbook: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md).
 
+10. **Charts must work without a manual.** Humans scan shapes and numbers; do not
+    make them learn data-quality categories. Show available numeric observations
+    in one normal series color. Omit missing values instead of gray bars, hatch
+    patterns, dashed full-height boxes or fake zeroes. Start at the first available
+    observation and preserve its actual date; never invent values or dates.
+    Tooltips contain only a readable date and amount. Delete quality legends,
+    chart-info essays and fresh/stale/snapshot/generation vocabulary from retail
+    charts rather than hiding the same explanation behind an info icon.
+    Retain the last known headline amount through background refreshes and outages;
+    optional headline info may say only “Updated …”. Backend quality, provenance
+    and delta eligibility remain internal. No spinner replaces an existing number.
+
 ## QuickSwap-aligned Limits IA
 
 Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive → Expiry → CTA. Book and open orders **below** the place card.

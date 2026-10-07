@@ -602,13 +602,12 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     })
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const liquidity = await screen.findByTestId('protocol-stat-liquidity')
-    await userEvent.click(screen.getByRole('button', { name: 'Liquidity details' }))
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Pool data is temporarily unavailable.')
+    expect(screen.queryByRole('button', { name: 'Liquidity details' })).not.toBeInTheDocument()
     expect(liquidity).not.toHaveTextContent('$0')
     expect(liquidity).not.toHaveTextContent('-100%')
   })
 
-  it('shows partial/unknown history as accessible gaps and verified empty as zero (#1380)', async () => {
+  it('shows available liquidity in one color with only date and amount on focus or tap', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
       grain: 'daily',
@@ -616,96 +615,47 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       timezone: 'UTC',
       methodology: 'protocol_catalog',
       series: [
+        { utc_day: '2026-09-30', liquidity_usd: null, quality: 'unknown' },
         { utc_day: '2026-10-01', liquidity_usd: '218', quality: 'partial', as_of: '2026-10-01T23:59:00Z' },
-        { utc_day: '2026-10-02', liquidity_usd: '0', priced_pair_count: 0 },
+        { utc_day: '2026-10-02', liquidity_usd: null, quality: 'unavailable' },
         { utc_day: '2026-10-03', liquidity_usd: '0', quality: 'verified_empty' },
         { utc_day: '2026-10-04', liquidity_usd: '249000', quality: 'fresh' },
-        { utc_day: '2026-10-05', liquidity_usd: '249000', quality: 'verified_empty' },
+        {
+          utc_day: '2026-10-05',
+          liquidity_usd: null,
+          reported_liquidity_usd: '250000',
+          quality: 'unknown',
+          reasons: { legacy_unqualified: 1 },
+        },
         { utc_day: '2026-10-06', liquidity_usd: '218.57', priced_pair_count: 2 },
       ],
     })
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     await screen.findByTestId('protocol-volume-daily-chart')
     await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
-    const gap = await screen.findByTestId('protocol-volume-bar-0')
-    await waitFor(() => expect(gap).toHaveAttribute('stroke-dasharray', '3 3'))
-    await user.click(gap)
-    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Partial · lower bound: ≥ $')
-    expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('As of 2026-10-01T23:59:00Z')
-    const unknown = screen.getByTestId('protocol-volume-bar-1')
-    unknown.focus()
-    await waitFor(() =>
-      expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Unknown liquidity')
+    const partial = await screen.findByTestId('protocol-volume-bar-0')
+    await user.click(partial)
+    expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent(/^Oct 1, 2026 \$/)
+    expect(screen.getByTestId('protocol-volume-chart-tooltip')).not.toHaveTextContent(
+      /partial|quality|As of|fresh|unknown|≈|≥/i
     )
+    partial.focus()
     await user.keyboard('{Escape}')
     expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
-    expect(screen.getByTestId('protocol-volume-bar-2')).toHaveAttribute('aria-label', expect.stringContaining('$0'))
-    expect(screen.getByTestId('protocol-volume-bar-2')).toHaveAttribute(
-      'aria-label',
-      expect.stringContaining('Verified empty')
-    )
-    expect(screen.getByTestId('protocol-volume-bar-3')).not.toHaveAttribute('stroke-dasharray')
-    const contradictory = screen.getByTestId('protocol-volume-bar-4')
-    expect(contradictory).toHaveAttribute('stroke-dasharray', '3 3')
-    expect(contradictory).toHaveAttribute('aria-label', expect.stringContaining('Coverage unknown'))
-    expect(contradictory).not.toHaveAttribute('aria-label', expect.stringContaining('Verified empty'))
-    const legacyPositive = screen.getByTestId('protocol-volume-bar-5')
-    expect(legacyPositive).toHaveAttribute('stroke-dasharray', '3 3')
-    expect(legacyPositive).toHaveAttribute('aria-label', expect.stringContaining('Unknown liquidity'))
-    expect(legacyPositive).not.toHaveAttribute('aria-label', expect.stringContaining('$218'))
-  })
-
-  it('keeps protocol copy compact and restores only labeled legacy estimates alongside real gaps', async () => {
-    const user = userEvent.setup()
-    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
-      grain: 'daily',
-      limit: 4,
-      timezone: 'UTC',
-      methodology: 'protocol_catalog',
-      series: [
-        {
-          utc_day: '2026-10-01',
-          liquidity_usd: null,
-          reported_liquidity_usd: '250000',
-          quality: 'unknown',
-          reasons: { legacy_unqualified: 1 },
-        },
-        {
-          utc_day: '2026-10-02',
-          liquidity_usd: null,
-          quality: 'unknown',
-          reasons: { historical_coverage_unreconciled: 1 },
-        },
-        {
-          utc_day: '2026-10-03',
-          liquidity_usd: null,
-          reported_liquidity_usd: '0',
-          quality: 'unknown',
-          reasons: { legacy_unqualified: 1 },
-        },
-        { utc_day: '2026-10-04', liquidity_usd: '249000', quality: 'fresh' },
-      ],
-    })
-    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
-    await screen.findByTestId('protocol-stat-liquidity')
-    expect(screen.queryByText(/TVL moves with LP/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/not swap settlement, TWAP/)).not.toBeInTheDocument()
-    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
-    const estimate = await screen.findByTestId('protocol-volume-bar-0')
-    expect(estimate).toHaveAttribute('data-historical-estimate', 'true')
-    expect(estimate).toHaveAttribute('data-quality', 'unknown')
-    expect(Number(estimate.getAttribute('height'))).toBeGreaterThan(0)
-    expect(estimate).toHaveAttribute('aria-label', expect.stringContaining('≈ $250K'))
-    await user.click(estimate)
-    expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Historical estimate')
-    for (const index of [1, 2]) {
-      expect(screen.getByTestId(`protocol-volume-bar-${index}`)).toHaveAttribute('stroke-dasharray', '3 3')
-      expect(screen.getByTestId(`protocol-volume-bar-${index}`)).not.toHaveAttribute('data-historical-estimate')
+    const bars = within(screen.getByTestId('protocol-volume-daily-bars')).getAllByRole('img')
+    expect(bars).toHaveLength(5)
+    for (const bar of bars) {
+      expect(bar).toHaveAttribute('fill', 'var(--accent)')
+      expect(bar).not.toHaveAttribute('stroke-dasharray')
+      expect(bar).not.toHaveAttribute('data-quality')
+      expect(bar).not.toHaveAttribute('data-historical-estimate')
     }
-    expect(screen.getByTestId('protocol-volume-bar-3')).toHaveAttribute('fill', 'var(--accent)')
-    expect(screen.queryByText('UTC liquidity')).not.toBeInTheDocument()
-    expect(screen.queryByText('UTC calendar day')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Dashed gaps mean/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('protocol-volume-bar-1')).toHaveAttribute('aria-label', 'Oct 3, 2026 $0')
+    expect(screen.getByTestId('protocol-volume-bar-3')).toHaveAttribute('aria-label', 'Oct 5, 2026 $250K')
+    expect(screen.getByTestId('protocol-volume-chart-xaxis')).not.toHaveTextContent('09-30')
+    expect(screen.getByTestId('protocol-volume-daily-bars')).not.toHaveTextContent('pattern')
+    expect(screen.queryByRole('button', { name: 'Chart details' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/TVL moves with LP|UTC calendar day|Dashed gaps mean/)).not.toBeInTheDocument()
   })
 
   it('keeps volume and fee 30d tiles while liquidity stays 24h-only (GitLab #677)', async () => {
@@ -1138,10 +1088,10 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(monthlyAxis.textContent).not.toMatch(/2026-0/)
     const monthBar = screen.getByTestId('protocol-volume-bar-0')
     await user.hover(monthBar)
-    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('2026-01')
+    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Jan 2026')
   })
 
-  it('keeps monthly axis YY-MM and tooltip YYYY-MM (GitLab #703)', async () => {
+  it('keeps monthly axis YY-MM and readable tooltip month (GitLab #703)', async () => {
     const user = userEvent.setup()
     const monthlyVol = Array.from({ length: 6 }, (_, i) => ({
       utc_month: `2026-0${i + 1}`,
@@ -1188,7 +1138,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       expect(el.getAttribute('style') ?? '').not.toMatch(/rotate/i)
     })
     await user.hover(screen.getByTestId('protocol-volume-bar-0'))
-    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent(/2026-01/)
+    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Jan 2026')
     const volMonthly = vi.mocked(indexerClient.getProtocolVolumeSeries).mock.calls.filter((c) => c[0] === 'monthly')
     const monthlyLimit = volMonthly[volMonthly.length - 1][1]
     await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
@@ -1207,7 +1157,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const bar = await screen.findByTestId('protocol-volume-bar-0')
     await user.hover(bar)
     const tip = await screen.findByTestId('protocol-volume-chart-tooltip')
-    expect(tip).toHaveTextContent(/2026-08-20/)
+    expect(tip).toHaveTextContent('Aug 20, 2026')
     expect(tip).toHaveTextContent('$')
     const unpriced = screen.getByTestId('protocol-volume-bar-3')
     await user.hover(unpriced)
@@ -1275,7 +1225,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
   })
 
-  it('shows explicit unknown gaps for an all-null stock series (#1380)', async () => {
+  it('omits all-null liquidity observations without drawing empty boxes (#1380)', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
       grain: 'daily',
@@ -1290,10 +1240,23 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     await screen.findByTestId('protocol-volume-daily-chart')
     await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
-    const gap = await screen.findByTestId('protocol-volume-bar-0')
-    expect(gap).toHaveAttribute('stroke-dasharray', '3 3')
-    expect(gap).toHaveAttribute('aria-label', expect.stringContaining('Unknown liquidity'))
+    expect(await screen.findByTestId('protocol-volume-daily-empty')).toHaveTextContent('No liquidity yet')
+    expect(screen.queryByTestId('protocol-volume-bar-0')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('protocol-volume-daily-bars')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-liquidity-quality-help')).not.toBeInTheDocument()
+  })
+
+  it('keeps available liquidity bars visible after a background request fails', async () => {
+    const user = userEvent.setup()
+    const { queryClient } = renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    const bar = await screen.findByTestId('protocol-volume-bar-0')
+    expect(bar).toHaveAttribute('aria-label', 'Aug 20, 2026 $50')
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockRejectedValue(new Error('Indexer API error: 503'))
+    await queryClient.refetchQueries({ queryKey: ['indexer-protocol-utc-series', 'liquidity'] })
+    await waitFor(() => expect(screen.getByTestId('protocol-volume-bar-0')).toBe(bar))
+    expect(screen.getByTestId('protocol-volume-daily-bars')).toBeInTheDocument()
   })
 
   it('hides the liquidity plot on 404 but keeps Volume (GitLab #689)', async () => {

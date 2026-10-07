@@ -8,7 +8,7 @@ import {
   retainQualifiedLiquidity,
   liquiditySnapshotKey,
 } from '../protocolLiquidityQuality'
-import { pointValueUsd, maxPricedUsd, historicalLiquidityEstimateUsd, maxPlotUsd } from '../protocolVolumeGrain'
+import { pointValueUsd, maxPricedUsd } from '../protocolVolumeGrain'
 
 const now = Date.parse('2026-10-04T08:00:00Z')
 const fresh: IndexerOverview = {
@@ -26,27 +26,14 @@ const fresh: IndexerOverview = {
 }
 
 describe('liquidity quality #1380', () => {
-  it('plots only explicitly reported positive legacy estimates without qualifying them as canonical history', () => {
-    const legacy = {
-      liquidity_usd: null,
-      reported_liquidity_usd: '249000',
-      quality: 'unknown' as const,
-      reasons: { legacy_unqualified: 1 },
+  it('plots available amounts with canonical values preferred over reported fallback', () => {
+    expect(pointValueUsd({ liquidity_usd: null, reported_liquidity_usd: '249000' }, 'liquidity')).toBe('249000')
+    expect(pointValueUsd({ liquidity_usd: '218', reported_liquidity_usd: '249000' }, 'liquidity')).toBe('218')
+    expect(pointValueUsd({ liquidity_usd: '0', reported_liquidity_usd: '249000' }, 'liquidity')).toBe('0')
+    for (const raw of ['-1', 'NaN', 'Infinity', '1e9', '<script>', '9'.repeat(100), '']) {
+      expect(pointValueUsd({ liquidity_usd: raw, reported_liquidity_usd: raw }, 'liquidity')).toBeNull()
     }
-    expect(historicalLiquidityEstimateUsd(legacy)).toBe('249000')
-    expect(pointValueUsd(legacy, 'liquidity')).toBeNull()
-    expect(maxPricedUsd([legacy], 'liquidity')).toBe(0)
-    expect(maxPlotUsd([legacy], 'liquidity')).toBe(249000)
-    for (const raw of ['0', '-1', 'NaN', 'Infinity', '1e9', '<script>', '9'.repeat(100)]) {
-      expect(historicalLiquidityEstimateUsd({ ...legacy, reported_liquidity_usd: raw })).toBeNull()
-    }
-    expect(historicalLiquidityEstimateUsd({ ...legacy, reasons: { historical_coverage_unreconciled: 1 } })).toBeNull()
-    expect(
-      historicalLiquidityEstimateUsd({ ...legacy, reasons: { legacy_unqualified: 1, stale_reserve: 1 } })
-    ).toBeNull()
-    expect(historicalLiquidityEstimateUsd({ ...legacy, quality: 'fresh' })).toBeNull()
-    expect(historicalLiquidityEstimateUsd({ ...legacy, liquidity_usd: '249000' })).toBeNull()
-    expect(maxPlotUsd([{ volume_usd: 'Infinity' }, { volume_usd: '-1' }, { volume_usd: '12' }], 'volume')).toBe(12)
+    expect(maxPricedUsd([{ volume_usd: 'Infinity' }, { volume_usd: '-1' }, { volume_usd: '12' }], 'volume')).toBe(12)
   })
   it('polls before normal expiry without an expired-data request storm', () => {
     expect(protocolOverviewPollInterval({ ...fresh, liquidity_as_of: new Date(now).toISOString() }, now)).toBe(10_000)
@@ -72,7 +59,7 @@ describe('liquidity quality #1380', () => {
       now
     )
     expect(display.value).toMatch(/^≥ \$/)
-    expect(display.hint).toContain('This is a lower bound.')
+    expect(display.hint).toBe('Updated 10 seconds ago.')
     expect(display.comparable).toBe(false)
   })
   it('ages liquidity independently and rejects future/missing observations', () => {
@@ -94,16 +81,13 @@ describe('liquidity quality #1380', () => {
   })
   it('keeps stale last-observed value explicitly dated without a delta', () => {
     const display = overviewLiquidityDisplay({ ...fresh, liquidity_quality: 'stale' }, now)
-    expect(display.hint).toContain('The latest pool data is too old.')
     expect(display.hint).toContain('Updated 10 seconds ago.')
     expect(display.hint).not.toContain('2026-')
     expect(display.comparable).toBe(false)
   })
-  it('rejects contradictory verified-empty positive totals in overview and history', () => {
+  it('rejects contradictory verified-empty positive totals in the headline', () => {
     const display = overviewLiquidityDisplay({ ...fresh, liquidity_quality: 'verified_empty' }, now)
     expect(display).toMatchObject({ quality: 'unknown', value: '—', comparable: false })
-    expect(pointValueUsd({ quality: 'verified_empty', liquidity_usd: '250' }, 'liquidity')).toBeNull()
-    expect(maxPricedUsd([{ quality: 'verified_empty', liquidity_usd: '250' }], 'liquidity')).toBe(0)
   })
   it('fails closed on malformed numerics and statuses while safely supporting legacy positives', () => {
     for (const raw of ['NaN', 'Infinity', '-1', '1e5', '<script>x</script>', '9'.repeat(100), '']) {
@@ -111,20 +95,16 @@ describe('liquidity quality #1380', () => {
       expect(overviewLiquidityDisplay({ ...fresh, total_liquidity_usd: raw }, now).value).toBe('—')
     }
     const old = overviewLiquidityDisplay({ ...fresh, liquidity_quality: undefined }, now)
-    expect(old.hint).toContain('There is not enough data')
+    expect(old.hint).toBe('Updated 10 seconds ago.')
     expect(old.comparable).toBe(false)
   })
-  it('gaps degraded/unknown history without aging good terminal samples to today', () => {
-    for (const quality of ['partial', 'stale', 'unavailable', 'unknown'] as const) {
-      expect(pointValueUsd({ liquidity_usd: '218', quality }, 'liquidity')).toBeNull()
+  it('plots all supplied numeric history without imposing current quality on older dates', () => {
+    for (const quality of ['partial', 'stale', 'unavailable', 'unknown', 'fresh', 'verified_empty'] as const) {
+      expect(pointValueUsd({ liquidity_usd: '218', quality }, 'liquidity')).toBe('218')
     }
-    expect(pointValueUsd({ liquidity_usd: '0', priced_pair_count: 0 }, 'liquidity')).toBeNull()
-    expect(pointValueUsd({ liquidity_usd: '218.57', priced_pair_count: 2 }, 'liquidity')).toBeNull()
-    expect(maxPricedUsd([{ liquidity_usd: '218.57', priced_pair_count: 2 }], 'liquidity')).toBe(0)
-    expect(pointValueUsd({ liquidity_usd: '0', quality: 'verified_empty' }, 'liquidity')).toBe('0')
-    expect(pointValueUsd({ liquidity_usd: '250', quality: 'fresh', as_of: '2020-01-01T00:00:00Z' }, 'liquidity')).toBe(
-      '250'
-    )
+    expect(pointValueUsd({ liquidity_usd: null }, 'liquidity')).toBeNull()
+    expect(pointValueUsd({ liquidity_usd: '0' }, 'liquidity')).toBe('0')
+    expect(pointValueUsd({ liquidity_usd: '218.57', priced_pair_count: 2 }, 'liquidity')).toBe('218.57')
     expect(
       maxPricedUsd(
         [
@@ -133,7 +113,7 @@ describe('liquidity quality #1380', () => {
         ],
         'liquidity'
       )
-    ).toBe(250)
+    ).toBe(9999)
   })
 })
 
@@ -159,9 +139,7 @@ describe('public last verified liquidity retention', () => {
         value: '≥ $206K',
         comparable: false,
       })
-      expect(overviewLiquidityDisplay(next, now + 60_000, retained).hint).toMatch(
-        /^Last reported lower bound\. Updated /
-      )
+      expect(overviewLiquidityDisplay(next, now + 60_000, retained).hint).toMatch(/^Updated /)
     }
     const lower = { ...partial, total_liquidity_usd: '120000', liquidity_as_of: new Date(now).toISOString() }
     const reduced = retainQualifiedLiquidity(retained, lower, now)
@@ -186,7 +164,7 @@ describe('public last verified liquidity retention', () => {
       expect(overviewLiquidityDisplay(next, now, retained)).toMatchObject({ value: '$249K', comparable: false })
     }
     expect(overviewLiquidityDisplay(fresh, now + 60_000, retained)).toMatchObject({ value: '$249K', comparable: false })
-    expect(overviewLiquidityDisplay(undefined, now + 60_000, retained).hint).toContain('Last verified total. Updated')
+    expect(overviewLiquidityDisplay(undefined, now + 60_000, retained).hint).toBe('Updated 1 minute ago.')
   })
   it('replaces previous totals with qualified decreases and verified zero even when oldest input time is earlier', () => {
     const retained = retainQualifiedLiquidity(null, fresh, now)

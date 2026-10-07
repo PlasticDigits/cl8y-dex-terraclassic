@@ -132,7 +132,7 @@ function ProtocolLiquidityStat({
     <StatBox
       variant="flat"
       label="Total liquidity"
-      labelAccessory={<ProtocolDetails detail={liquidity.hint} />}
+      labelAccessory={liquidity.hint ? <ProtocolDetails detail={liquidity.hint} /> : undefined}
       value={liquidity.value}
       valueAriaLabel={
         liquidity.value === '—'

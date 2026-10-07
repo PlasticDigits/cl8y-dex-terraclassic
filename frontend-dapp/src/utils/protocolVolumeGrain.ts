@@ -8,7 +8,7 @@
  * Do not rotate tick text.
  */
 import type { LiquidityQuality } from '@/types'
-import { liquidityQualityForValue, validLiquidityUsd } from './protocolLiquidityQuality'
+import { validLiquidityUsd } from './protocolLiquidityQuality'
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
 export type ProtocolVolumeGrain = (typeof PROTOCOL_VOLUME_GRAINS)[number]
@@ -107,47 +107,31 @@ export type ProtocolVolumeSeriesPoint = {
 }
 
 export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric = 'volume'): string | null {
-  if (metric === 'liquidity') {
-    const raw = validLiquidityUsd(point.liquidity_usd)
-    const quality = liquidityQualityForValue(point.quality, raw)
-    // Legacy positive subtotals can be coverage outages, so history requires explicit quality.
-    if (quality !== 'fresh' && quality !== 'verified_empty') return null
-    return raw
-  }
+  if (metric === 'liquidity')
+    return validLiquidityUsd(point.liquidity_usd) ?? validLiquidityUsd(point.reported_liquidity_usd)
   if (metric === 'fees') return point.fees_usd ?? null
   return point.volume_usd ?? null
-}
-
-/** Preserve original legacy observations as estimates, never qualified totals or baselines. */
-export function historicalLiquidityEstimateUsd(point: ProtocolVolumeSeriesPoint): string | null {
-  const raw = validLiquidityUsd(point.reported_liquidity_usd)
-  if (
-    point.quality !== 'unknown' ||
-    point.liquidity_usd != null ||
-    point.reasons?.legacy_unqualified !== 1 ||
-    Object.keys(point.reasons).length !== 1 ||
-    raw == null ||
-    Number(raw) <= 0
-  )
-    return null
-  return raw
-}
-
-export function plotPointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric): string | null {
-  return pointValueUsd(point, metric) ?? (metric === 'liquidity' ? historicalLiquidityEstimateUsd(point) : null)
-}
-
-export function maxPlotUsd(points: ProtocolVolumeSeriesPoint[], metric: ProtocolUtcMetric): number {
-  return points.reduce((maximum, point) => {
-    const value = Number(plotPointValueUsd(point, metric) ?? 0)
-    return Number.isFinite(value) && value > maximum ? value : maximum
-  }, 0)
 }
 
 export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVolumeGrain): string {
   if (grain === 'hourly') return point.utc_hour ?? ''
   if (grain === 'monthly') return point.utc_month ?? ''
   return point.utc_day ?? ''
+}
+
+/** Human-readable labels retain the API period's UTC date without exposing machine timestamps. */
+export function formatPeriodTooltip(period: string, grain: ProtocolVolumeGrain): string {
+  const timestamp =
+    grain === 'hourly' ? `${period}:00:00Z` : grain === 'monthly' ? `${period}-01T00:00:00Z` : `${period}T00:00:00Z`
+  const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, period.length) !== period) return period
+  return date.toLocaleString('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    ...(grain !== 'monthly' ? { day: 'numeric' } : {}),
+    year: 'numeric',
+    ...(grain === 'hourly' ? { hour: 'numeric', minute: '2-digit' } : {}),
+  })
 }
 
 /**

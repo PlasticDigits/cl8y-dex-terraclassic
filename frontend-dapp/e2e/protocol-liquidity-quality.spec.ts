@@ -19,7 +19,7 @@ const overview: IndexerOverview = {
 }
 
 for (const width of [390, 1280]) {
-  test(`liquidity gaps and lower-bound headline, tap and keyboard at ${width}px (#1380)`, async ({ page }) => {
+  test(`plain liquidity bars and retained headline, tap and keyboard at ${width}px (#1380)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.route('**/api/v1/**', async (route) => {
       const url = new URL(route.request().url())
@@ -42,7 +42,7 @@ for (const width of [390, 1280]) {
           series: [
             { utc_day: '2026-10-01', liquidity_usd: '250000', quality: 'fresh' },
             { utc_day: '2026-10-02', liquidity_usd: '218', quality: 'partial', as_of: observation },
-            { utc_day: '2026-10-03', liquidity_usd: '0', quality: 'unavailable' },
+            { utc_day: '2026-10-03', liquidity_usd: null, quality: 'unavailable' },
             { utc_day: '2026-10-04', liquidity_usd: '0', quality: 'verified_empty' },
             { utc_day: '2026-10-05', liquidity_usd: '218.57', priced_pair_count: 2 },
             {
@@ -64,43 +64,35 @@ for (const width of [390, 1280]) {
     await expect(liquidity).not.toContainText(/Fresh|As of|Partial ·/)
     const info = page.getByRole('button', { name: 'Liquidity details' })
     await info.click()
-    await expect(page.getByRole('tooltip')).toContainText('This is a lower bound.')
     await expect(page.getByRole('tooltip')).toContainText('Updated')
     await expect(page.getByRole('tooltip')).not.toContainText('2026-')
     await page.keyboard.press('Escape')
     await expect(liquidity).not.toContainText('-100%')
     await expect(page.getByTestId('protocol-stat-volume-24h')).toContainText('$')
     await page.getByTestId('protocol-utc-metric-liquidity').click()
-    const gap = page.getByTestId('protocol-volume-bar-1')
-    await expect(gap).toHaveAttribute('stroke-dasharray', '3 3')
-    await gap.click()
+    const partial = page.getByTestId('protocol-volume-bar-1')
+    await expect(partial).toHaveAttribute('fill', 'var(--accent)')
+    await partial.click()
     const tooltip = page.getByTestId('protocol-volume-chart-tooltip')
-    await expect(tooltip).toContainText('Partial · lower bound: ≥ $')
-    await expect(tooltip).toContainText(`As of ${observation}`)
-    await gap.focus()
+    await expect(tooltip).toHaveText(/^Oct 2, 2026 \$/)
+    await expect(tooltip).not.toContainText(/quality|partial|snapshot|As of|UTC|fresh|≈|≥/i)
+    await partial.focus()
     await page.keyboard.press('Escape')
     await expect(tooltip).toHaveCount(0)
-    await page.getByTestId('protocol-volume-bar-2').focus()
-    await expect(tooltip).toContainText('Unavailable · liquidity unknown')
-    await expect(page.getByTestId('protocol-volume-bar-3')).toHaveAttribute('aria-label', /\$0.*Verified empty/)
-    const legacyPositive = page.getByTestId('protocol-volume-bar-4')
-    await expect(legacyPositive).toHaveAttribute('stroke-dasharray', '3 3')
-    await expect(legacyPositive).toHaveAttribute('aria-label', /Unknown liquidity/)
-    await legacyPositive.focus()
-    await expect(tooltip).toContainText('Unknown liquidity')
-    await expect(tooltip).not.toContainText('$218')
-    const estimate = page.getByTestId('protocol-volume-bar-5')
-    await expect(estimate).toHaveAttribute('data-historical-estimate', 'true')
-    await expect(estimate).toHaveAttribute('data-quality', 'unknown')
-    await expect(estimate).toHaveAttribute('stroke-dasharray', '2 2')
-    await expect(estimate).toHaveAttribute('aria-label', /≈.*Historical estimate/)
-    expect(Number(await estimate.getAttribute('height'))).toBeGreaterThan(0)
-    await estimate.focus()
-    await expect(tooltip).toContainText('Historical estimate')
+    await expect(page.getByTestId('protocol-volume-bar-2')).toHaveAttribute('aria-label', 'Oct 4, 2026 $0')
+    const reported = page.getByTestId('protocol-volume-bar-4')
+    await expect(reported).toHaveAttribute('aria-label', 'Oct 6, 2026 $249K')
+    await reported.focus()
+    await expect(tooltip).toHaveText('Oct 6, 2026 $249K')
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Chart details' }).click()
-    await expect(page.getByRole('tooltip')).toContainText('Hatched bars are historical estimates.')
-    await page.keyboard.press('Escape')
+    const bars = page.locator('[data-testid^="protocol-volume-bar-"]')
+    await expect(bars).toHaveCount(5)
+    for (const bar of await bars.all()) {
+      await expect(bar).toHaveAttribute('fill', 'var(--accent)')
+      await expect(bar).not.toHaveAttribute('stroke-dasharray')
+      await expect(bar).not.toHaveAttribute('data-quality')
+    }
+    await expect(page.getByRole('button', { name: 'Chart details' })).toHaveCount(0)
     const visible = await page.locator('body').innerText()
     expect(visible).not.toMatch(
       /USD volume and pool TVL use the same|UTC calendar day|Dashed gaps mean|not swap settlement, TWAP/
@@ -154,7 +146,7 @@ test('last verified total survives expiry, outage and reload; decreases and genu
   await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
   await expect(liquidity).toContainText('$250K')
   await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Last verified total. Updated 3 seconds ago.')
+  await expect(page.getByRole('tooltip')).toContainText('Updated 3 seconds ago.')
   await expect(page.getByRole('tooltip')).not.toContainText(/expired|too old|stale/i)
   await page.keyboard.press('Escape')
   for (const degraded of [3, 4, 5]) {
@@ -171,13 +163,13 @@ test('last verified total survives expiry, outage and reload; decreases and genu
   await page.reload()
   await expect(liquidity).toContainText('$0')
   await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('No liquidity was found in the checked pools.')
+  await expect(page.getByRole('tooltip')).toContainText('Updated just now.')
   await page.keyboard.press('Escape')
   phase = 3
   await page.reload()
   await expect(liquidity).toContainText('$0')
   await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Last verified total.')
+  await expect(page.getByRole('tooltip')).toContainText('Updated')
   await page.screenshot({ path: join(evidenceDir, 'last-known-zero-reload.png'), fullPage: true })
 })
 
@@ -223,7 +215,7 @@ test('first partial lower bound survives TTL, null, failure and reload until a c
     .toBe(true)
   await page.clock.setFixedTime(new Date(frozen.getTime() + 3000))
   await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Last reported lower bound. Updated 3 seconds ago.')
+  await expect(page.getByRole('tooltip')).toContainText('Updated 3 seconds ago.')
   await expect(liquidity).toContainText('≥ $206K')
   await page.keyboard.press('Escape')
   for (const next of ['null', 'failed'] as const) {
@@ -248,6 +240,6 @@ test('first partial lower bound survives TTL, null, failure and reload until a c
   await expect(liquidity).not.toContainText('≥')
   await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
   await page.getByRole('button', { name: 'Liquidity details' }).click()
-  await expect(page.getByRole('tooltip')).toContainText('Last verified total.')
+  await expect(page.getByRole('tooltip')).toContainText('Updated')
   await page.screenshot({ path: join(evidenceDir, 'partial-to-complete-retention-phone.png'), fullPage: true })
 })

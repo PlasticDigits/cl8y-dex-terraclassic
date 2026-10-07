@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   clampProtocolVolumeLimit,
   formatPeriodAxisLabel,
+  formatPeriodTooltip,
   isAllowlistedProtocolVolumeLimit,
   isProtocolVolumeGrain,
   limitFromPlotWidth,
@@ -15,6 +16,14 @@ import {
 } from '../protocolVolumeGrain'
 
 describe('protocolVolumeGrain (GitLab #668 / #677 / #703)', () => {
+  it('formats the actual UTC period as a readable date without quality jargon', () => {
+    expect(formatPeriodTooltip('2026-10-01', 'daily')).toBe('Oct 1, 2026')
+    expect(formatPeriodTooltip('2026-10', 'monthly')).toBe('Oct 2026')
+    expect(formatPeriodTooltip('2026-10-01T23', 'hourly')).toBe('Oct 1, 2026, 11:00 PM')
+    expect(formatPeriodTooltip('2026-02-31', 'daily')).toBe('2026-02-31')
+    expect(formatPeriodTooltip('<script>', 'daily')).toBe('<script>')
+  })
+
   it('allowlists grain and rejects injection', () => {
     expect(isProtocolVolumeGrain('hourly')).toBe(true)
     expect(isProtocolVolumeGrain('daily')).toBe(true)

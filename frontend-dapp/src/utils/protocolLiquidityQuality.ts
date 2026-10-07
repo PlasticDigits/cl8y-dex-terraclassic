@@ -40,23 +40,6 @@ export function liquidityQualityForValue(
   return quality === 'verified_empty' && raw != null && Number(raw) !== 0 ? 'unknown' : quality
 }
 
-export function liquidityQualityLabel(quality: LiquidityQuality | undefined): string {
-  switch (quality) {
-    case 'fresh':
-      return 'Fresh'
-    case 'verified_empty':
-      return 'Verified empty'
-    case 'partial':
-      return 'Partial · lower bound'
-    case 'stale':
-      return 'Stale · current liquidity unknown'
-    case 'unavailable':
-      return 'Unavailable · liquidity unknown'
-    default:
-      return 'Coverage unknown'
-  }
-}
-
 /** Retain only a public valuation; a partial fallback never replaces a complete total. */
 export interface LastKnownLiquidity {
   value: string
@@ -146,29 +129,12 @@ export function overviewLiquidityDisplay(
   quality = liquidityQualityForValue(quality, raw)
   const known = quality === 'fresh' || quality === 'verified_empty' || quality === 'partial' || quality == null
   let value = known && raw != null ? `${quality === 'partial' ? '≥ ' : ''}${formatProtocolUsd(raw)}` : '—'
-  let reason = (() => {
-    switch (quality) {
-      case 'fresh':
-        return 'Value of liquidity in factory pools.'
-      case 'partial':
-        return 'Some pools could not be valued. This is a lower bound.'
-      case 'verified_empty':
-        return 'No liquidity was found in the checked pools.'
-      case 'stale':
-        return 'The latest pool data is too old.'
-      case 'unavailable':
-        return 'Pool data is temporarily unavailable.'
-      default:
-        return 'There is not enough data to value these pools.'
-    }
-  })()
   const useRetained =
     retained != null &&
     !(retained.quality === 'partial' && (quality === 'fresh' || quality === 'verified_empty')) &&
     (quality !== retained.quality || retained.asOf !== asOf || retained.value !== raw)
   if (useRetained) {
     value = `${retained.quality === 'partial' ? '≥ ' : ''}${formatProtocolUsd(retained.value)}`
-    reason = retained.quality === 'partial' ? 'Last reported lower bound.' : 'Last verified total.'
   }
   const displayAsOf = useRetained ? retained.asOf : asOf
   const displayObserved = displayAsOf ? Date.parse(displayAsOf) : NaN
@@ -177,11 +143,11 @@ export function overviewLiquidityDisplay(
     Number.isFinite(ageMs) && ageMs >= 1_000 && ageMs < 60_000
       ? `${Math.floor(ageMs / 1000)} ${Math.floor(ageMs / 1000) === 1 ? 'second' : 'seconds'} ago`
       : formatRelativeAge(displayAsOf, now)
-  const asOfText = age === RELATIVE_AGE_FALLBACK ? 'Update time is unavailable.' : `Updated ${age}.`
+  const asOfText = age === RELATIVE_AGE_FALLBACK ? '' : `Updated ${age}.`
   return {
     quality: useRetained ? retained.quality : quality,
     value,
-    hint: `${reason} ${asOfText}`,
+    hint: asOfText,
     // Backend only supplies a delta for matching, qualified baseline coverage.
     comparable: !useRetained && (quality === 'fresh' || quality === 'verified_empty'),
   }
