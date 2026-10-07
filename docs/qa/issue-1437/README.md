@@ -31,7 +31,7 @@ commands, outcomes, and the reason for each unavailable item in a receipt.
 | AC7 | Query ordinary pair list/detail/candles/trades, CMC, route solve and DeFiLlama; assert no opaque markets. Factory/economic tables, TVL and trader-volume sums do not change. Ordinary-id guards and discovery reject prefix variants before SQL/LCD. |
 | AC8 | Seed spoofed symbols and a real LUNC/USTC ticker on different contracts: real ticker wins, virtual CG market/lookup omitted. Repeat requests and cache hits cannot replace factory identities or create extra swaps. |
 | AC9 | Run `make verify-issue-685 verify-issue-646 verify-issue-684 verify-issue-694 verify-issue-631 verify-issue-655`. Preserve listing exclusions, cap behavior, stamped reserves, DeFiLlama and pair-liquidity totals. |
-| Ingestion | Retest strict principal parsing, wrong emitter, malformed fields, fee-only events, real sender, source ordinal, height attestation, replay uniqueness, postevent custody and reorg cleanup. Run amount/DB/chain regression checks when changing their boundaries. |
+| Ingestion | Retest height-attested configured treasury ownership, NULL/rotated backing and print isolation, height URL cache keys, strict principal parsing, wrong emitter, malformed fields, fee-only events, real sender, source ordinal, height attestation, replay uniqueness, postevent custody and reorg cleanup. Run amount/DB/chain regression checks when changing their boundaries. |
 | Documentation | Verify all five ids, projection provenance, isolation, crosslinks and the prepared GT form remark. This issue does not submit the form or deploy. |
 
 ## Explicit skip policy

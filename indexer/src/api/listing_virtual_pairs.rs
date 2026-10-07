@@ -29,6 +29,7 @@ enum Source {
     Peg {
         mapper: String,
         denom: String,
+        custody_address: String,
     },
     Pool {
         pair_id: i32,
@@ -157,8 +158,8 @@ async fn peg(
     id: &'static str,
     indexed_height: i64,
 ) -> Result<Option<VirtualMarket>, sqlx::Error> {
-    let custody: Option<(BigDecimal, i64, DateTime<Utc>)> = sqlx::query_as(
-        "SELECT custody_raw, block_height, block_timestamp FROM listing_mapper_custody
+    let custody: Option<(BigDecimal, i64, DateTime<Utc>, Option<String>)> = sqlx::query_as(
+        "SELECT custody_raw, block_height, block_timestamp, custody_address FROM listing_mapper_custody
          WHERE mapper_address=$1 AND native_denom=$2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1",
     )
     .bind(mapper)
@@ -166,10 +167,16 @@ async fn peg(
     .bind(indexed_height)
     .fetch_optional(pool)
     .await?;
-    let Some((reserve_1, height, time)) = custody.filter(|(r, _, _)| r > &BigDecimal::zero())
+    let Some((reserve_1, height, time, Some(custody_address))) =
+        custody.filter(|(r, _, _, _)| r > &BigDecimal::zero())
     else {
         return Ok(None);
     };
+    // Inspect the newest checkpoint even when its source is unproven. Never
+    // resurrect older backing after a failed/rotated custody observation.
+    if custody_address.is_empty() {
+        return Ok(None);
+    }
     let reserve_0 = rescale(&reserve_1, target.decimals, base.decimals);
     Ok(Some(VirtualMarket {
         id,
@@ -188,6 +195,7 @@ async fn peg(
         source: Source::Peg {
             mapper: mapper.into(),
             denom: target.denom.clone().unwrap_or_default(),
+            custody_address,
         },
     }))
 }
@@ -528,20 +536,20 @@ pub async fn load_swaps(
 ) -> Result<Vec<ProjectedSwap>, sqlx::Error> {
     let mut out = Vec::new();
     for m in markets {
-        let (sql, key, base_id, reversed, denom) = match &m.source {
-            Source::Peg { mapper, denom } => (
+        let (sql, key, base_id, reversed, denom, custody_address) = match &m.source {
+            Source::Peg { mapper, denom, custody_address } => (
                 "SELECT id,block_height,block_timestamp,tx_hash,trader_address AS sender,
                 direction='unwrap' AS offer_is_base,principal_raw AS offer_amount,principal_raw AS return_amount,
                 custody_raw AS reserve_0,custody_raw AS reserve_1,1::numeric AS price FROM listing_wrap_principal
-                WHERE mapper_address=$1 AND native_denom=$8 AND $6::int=0 AND NOT $7::bool AND principal_raw>0",
-                mapper.clone(), 0, false, Some(denom.as_str())),
+                WHERE mapper_address=$1 AND native_denom=$8 AND custody_address=$10 AND $6::int=0 AND NOT $7::bool AND principal_raw>0",
+                mapper.clone(), 0, false, Some(denom.as_str()), Some(custody_address.as_str())),
             Source::Pool { pair_id, source_base_id, reversed, .. } => (
                 "SELECT id,block_height,block_timestamp,tx_hash,sender,
                 offer_asset_id=$6 AS offer_is_base,offer_amount,return_amount,
                 CASE WHEN $7 THEN reserve_1 ELSE reserve_0 END AS reserve_0,
                 CASE WHEN $7 THEN reserve_0 ELSE reserve_1 END AS reserve_1,price FROM swap_events
-                WHERE pair_id=$1::text::int AND $8::text IS NULL AND price>0 AND offer_amount>0 AND return_amount>0 AND reserve_0>0 AND reserve_1>0",
-                pair_id.to_string(), *source_base_id, *reversed, None),
+                WHERE pair_id=$1::text::int AND $8::text IS NULL AND $10::text IS NULL AND price>0 AND offer_amount>0 AND return_amount>0 AND reserve_0>0 AND reserve_1>0",
+                pair_id.to_string(), *source_base_id, *reversed, None, None),
         };
         let sql=format!("{sql} AND ($2::bigint IS NULL OR block_height >= $2) AND ($3::bigint IS NULL OR block_height <= $3)
             AND ($4::timestamptz IS NULL OR block_timestamp >= $4) AND block_height <= $9 ORDER BY block_height DESC,id DESC LIMIT $5");
@@ -555,6 +563,7 @@ pub async fn load_swaps(
             .bind(reversed)
             .bind(denom)
             .bind(m.indexed_height)
+            .bind(custody_address)
             .fetch_all(&state.pool)
             .await?;
         out.extend(rows.into_iter().filter_map(|r| translate(m, r)));
@@ -600,17 +609,17 @@ struct StatsRow {
 }
 
 async fn load_stats(pool: &PgPool, m: &VirtualMarket) -> Result<PairStats, sqlx::Error> {
-    let (sql, key, base_id, reversed, denom) = match &m.source {
-        Source::Peg { mapper, denom } => (
+    let (sql, key, base_id, reversed, denom, custody_address) = match &m.source {
+        Source::Peg { mapper, denom, custody_address } => (
             "SELECT principal_raw AS base_amount,principal_raw AS target_amount,1::numeric AS price,block_height,id FROM listing_wrap_principal
-            WHERE mapper_address=$1 AND native_denom=$3 AND $2::int=0 AND principal_raw>0",
-            mapper.clone(), 0, false, Some(denom.as_str())),
+            WHERE mapper_address=$1 AND native_denom=$3 AND custody_address=$5 AND $2::int=0 AND principal_raw>0",
+            mapper.clone(), 0, false, Some(denom.as_str()), Some(custody_address.as_str())),
         Source::Pool { pair_id, source_base_id, reversed, .. } => (
             "SELECT CASE WHEN offer_asset_id=$2 THEN offer_amount ELSE return_amount END AS base_amount,
             CASE WHEN offer_asset_id=$2 THEN return_amount ELSE offer_amount END AS target_amount,
             price,block_height,id FROM swap_events
-            WHERE pair_id=$1::text::int AND $3::text IS NULL AND price>0 AND offer_amount>0 AND return_amount>0 AND reserve_0>0 AND reserve_1>0",
-            pair_id.to_string(), *source_base_id, *reversed, None),
+            WHERE pair_id=$1::text::int AND $3::text IS NULL AND $5::text IS NULL AND price>0 AND offer_amount>0 AND return_amount>0 AND reserve_0>0 AND reserve_1>0",
+            pair_id.to_string(), *source_base_id, *reversed, None, None),
     };
     let sql=format!("WITH fills AS ({sql} AND block_timestamp>=NOW()-INTERVAL '24 hours' AND block_height <= $4)
         SELECT COALESCE(SUM(base_amount),0) AS volume_base,COALESCE(SUM(target_amount),0) AS volume_quote,
@@ -621,6 +630,7 @@ async fn load_stats(pool: &PgPool, m: &VirtualMarket) -> Result<PairStats, sqlx:
         .bind(base_id)
         .bind(denom)
         .bind(m.indexed_height)
+        .bind(custody_address)
         .fetch_one(pool)
         .await?;
     let (bd, td) = match &m.source {
@@ -652,9 +662,9 @@ async fn first_swap(
     m: &VirtualMarket,
 ) -> Result<Option<(i64, DateTime<Utc>)>, sqlx::Error> {
     match &m.source {
-        Source::Peg{mapper,denom}=>sqlx::query_as("SELECT block_height,block_timestamp FROM listing_wrap_principal
-            WHERE mapper_address=$1 AND native_denom=$2 AND principal_raw>0 AND block_height <= $3 ORDER BY block_height,id LIMIT 1")
-            .bind(mapper).bind(denom).bind(m.indexed_height).fetch_optional(pool).await,
+        Source::Peg{mapper,denom,custody_address}=>sqlx::query_as("SELECT block_height,block_timestamp FROM listing_wrap_principal
+            WHERE mapper_address=$1 AND native_denom=$2 AND custody_address=$4 AND principal_raw>0 AND block_height <= $3 ORDER BY block_height,id LIMIT 1")
+            .bind(mapper).bind(denom).bind(m.indexed_height).bind(custody_address).fetch_optional(pool).await,
         Source::Pool{pair_id,..}=>sqlx::query_as("SELECT block_height,block_timestamp FROM swap_events
             WHERE pair_id=$1 AND price>0 AND offer_amount>0 AND return_amount>0 AND reserve_0>0 AND reserve_1>0 AND block_height <= $2 ORDER BY block_height,id LIMIT 1")
             .bind(pair_id).bind(m.indexed_height).fetch_optional(pool).await,

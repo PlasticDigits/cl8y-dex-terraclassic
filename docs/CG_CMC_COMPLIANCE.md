@@ -276,7 +276,7 @@ through those unit pegs; reversed source order inverts price once and USDT stays
 `/gt/events` emits a swap for each eligible indexed wrap/unwrap or source-pool
 swap, with the original tx hash, sender, block and timestamp. It preserves the
 factory row and appends translated rows with unique per-tx event indexes. Peg
-reserves come from height-validated mapper native custody, reconstructed after
+reserves come from height-validated configured treasury native custody, reconstructed after
 each event, with the same human backing on both sides. Cross reserves are the
 source event's post-swap reserves translated into the published leg order.
 Missing postevent state never becomes an invented reserve. Projection rows beyond the committed indexed checkpoint are invisible to listing requests. The existing **5000
@@ -310,6 +310,18 @@ opaque identities independently.
 `/gt/asset` assigns `terra-luna-classic` to bank `uluna`, `terraclassicusd` to bank
 `uusd`, and adds a `tether` override only for the pinned USDT. Other asset ids remain indexed metadata and are never assigned by ticker symbol. Native ids never copy onto cLUNC or
 cUSTC. These changes do not edit `assets.coingecko_id`.
+
+The backing address is derived from the pinned mapper's height-attested
+`Config.treasury`, consistent at the source and predecessor blocks. Production
+verification found zero native funds at the mapper and positive backing at its
+configured treasury; funding the mapper to bypass the check is invalid. A wrap
+changes treasury custody by its gross deposit, while an unwrap pays its `withdraw_amount`
+(net of mapper fees, before any recipient burn tax); projected principal/price still exclude fees. `custody_address` is
+stored on each observation and print. Legacy NULL sources and the newest
+unproven/rotated observation fail closed; old positive backing cannot revive a
+market or mix another treasury's prints. Historical request URLs include the
+height as a cache key and require an exact served-height header. No request-path
+LCD calls or new custody override knob are introduced.
 
 The listing-only principal/custody tables do not feed factory `pairs`,
 `swap_events`, `liquidity_events`, reserves, candles, CMC, retail APIs, route solve,

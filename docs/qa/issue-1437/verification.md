@@ -137,3 +137,33 @@ heights with matching height headers. Missing/pruned or unreconciled custody
 omits the affected listing projection; historical fee rows cannot reconstruct
 principal. A later deployment uses the separate privileged migrator job and
 normal indexer startup; this PR neither deploys nor submits the listing form.
+
+## Production custody readback correction (2026-10-07)
+
+Before publishing the listing, height-attested production readback proved that
+both native balances at the mapper are zero, while its configured treasury holds
+positive uluna/uusd. The prior literal mapper-backing assumption therefore
+withheld every native market. The corrected projection derives the custodian
+from the pinned mapper's historical `Config.treasury` at the source and
+predecessor heights and requires matching canonical identities and served-height
+headers. Production probes also confirmed that proxies can reuse an old smart
+query response for a different header-only height; a height-specific URL cache
+key fixes that while exact header validation remains mandatory.
+
+Only an additive `20261007133000_listing_custody_source.sql` migration is added;
+the already merged original migration is byte-identical. Authenticated custody
+addresses are persisted, newest unproven observations suppress older backing,
+and legacy/wrong-treasury principal cannot inflate current feeds. Treasury
+custody changes by gross wrap input and unwrap `withdraw_amount`; projected
+principal still excludes fees. No native funds are sent to the mapper.
+
+Corrected-source SHA-256 fingerprint:
+`387ca4a87d5ca9b40f81b351b1772d7dba22b327202afc4b7e654d1036b8682d`.
+`make verify-issue-1437`: **13 PASS, 0 FAIL, 0 SKIP**, library **577/577**, API
+**11/11**, principal ingestion **5/5**, each using the same executable for retest.
+`make verify-issue-685 verify-issue-646 verify-issue-684 verify-issue-694 verify-issue-631`
+and `make verify-issue-1395` passed. Independent assembled-source review passed.
+Initial ingestion-test isolation failures were corrected by clearing the
+process-owned disposable fixtures before each test; passing retest supersedes
+them. Deployment and the actual form receipt are recorded separately after
+production migration and live readback, rather than inferred from these tests.

@@ -11,7 +11,7 @@ listing ids. [Issue #1437](https://git.cl8y.com/code/cl8y-dex-terraclassic/issue
 |---|---|
 | LV1437-1 | Only CG and GT consume the five translated markets. Never insert opaque ids into factory pairs, swaps, liquidity, reserves, candles, TVL, or trader accounting. CMC's ticker cache stays factory-only. |
 | LV1437-2 | Exact configured cLUNC/cUSTC/USDT pins and native denoms identify legs. Indexed asset symbols supply CG tickers. Gems and listing-excluded legs/sources remain excluded. Missing assets, mapper, backing, or source omit the affected market. |
-| LV1437-3 | Peg principal is `mint_amount` / `withdraw_amount`, never mapper fees. Trust reserved `_contract_address` only at the configured mapper, strict bounded raw integers, a successful real indexed tx sender/hash/block, and validated historical custody. Uncommitted future blocks remain invisible. |
+| LV1437-3 | Peg principal is `mint_amount` / `withdraw_amount`, never mapper fees. Trust reserved `_contract_address` only at the configured mapper, strict bounded raw integers, a successful real indexed tx sender/hash/block, and validated historical custody at height-attested `Config.treasury` (same source/predecessor address). Never assume the mapper holds the native bank funds. Uncommitted future blocks remain invisible. |
 | LV1437-4 | Crosses select the greatest stamped USD liquidity exact-leg pool. Translate human 1:1 peg amounts and postevent reserves, preserve USDT decimals, and invert source orientation once. No CEX/advisory USD price becomes a trade price. |
 | LV1437-5 | Each eligible indexed source event becomes one swap per applicable market; stable source ids and replay uniqueness prevent duplicate projection. Multiple genuine source actions within one transaction retain distinct prints. Factory feeds remain unchanged. GT event indexes are unique per block/tx across the combined response. No invented trades or liquidity events. |
 | LV1437-6 | Use existing CG/GT response types. Human price is target/base; GT amounts are human, CG trade/volume assignments match factory raw units. Exact BigDecimal formatting never emits scientific notation. |
@@ -33,3 +33,11 @@ Related: [amount parsing](AGENTS_INDEXER_EVENT_AMOUNTS.md),
 [chain attestation](AGENTS_CHAIN_ATTESTATION.md),
 [CG/CMC truthfulness](AGENTS_INDEXER_CG_CMC_LISTING.md),
 [listing exclusions](AGENTS_LISTINGS.md), [DeFiLlama](AGENTS_DEFILLAMA.md).
+
+Production custody correction: persist the attested `custody_address`; legacy
+NULL/unproven observations do not publish, and the newest unproven marker cannot
+fall back to older backing. Only same-source principal fills contribute to the
+peg. Wrap treasury delta is gross input; unwrap delta is net withdrawal.
+Historical URLs carry height as a cache key and require matching response height.
+Apply the new additive custody-source migration; never rewrite the original
+#1437 migration or fund the mapper to manufacture listing backing.

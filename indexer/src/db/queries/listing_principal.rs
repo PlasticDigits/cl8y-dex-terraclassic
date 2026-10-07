@@ -7,6 +7,8 @@ use sqlx::{FromRow, PgPool};
 pub struct PrincipalEvent {
     pub id: i64,
     pub mapper_address: String,
+    /// Authoritative historical mapper Config.treasury; legacy NULL is unproven.
+    pub custody_address: Option<String>,
     pub native_denom: String,
     pub direction: String,
     pub principal_raw: BigDecimal,
@@ -23,6 +25,8 @@ pub struct PrincipalEvent {
 #[derive(Debug, Clone, FromRow)]
 pub struct CustodySnapshot {
     pub mapper_address: String,
+    /// Authoritative historical mapper Config.treasury; legacy NULL is unproven.
+    pub custody_address: Option<String>,
     pub native_denom: String,
     pub custody_raw: BigDecimal,
     pub block_height: i64,
@@ -45,6 +49,6 @@ pub async fn get_principal_events(
     from_height: Option<i64>,
     to_height: Option<i64>,
 ) -> Result<Vec<PrincipalEvent>, sqlx::Error> {
-    sqlx::query_as("SELECT * FROM listing_wrap_principal WHERE mapper_address = $1 AND ($2::BIGINT IS NULL OR block_height >= $2) AND ($3::BIGINT IS NULL OR block_height <= $3) ORDER BY block_height, txn_index, source_ordinal")
+    sqlx::query_as("SELECT * FROM listing_wrap_principal WHERE mapper_address = $1 AND custody_address IS NOT NULL AND ($2::BIGINT IS NULL OR block_height >= $2) AND ($3::BIGINT IS NULL OR block_height <= $3) ORDER BY block_height, txn_index, source_ordinal")
         .bind(mapper).bind(from_height).bind(to_height).fetch_all(pool).await
 }
