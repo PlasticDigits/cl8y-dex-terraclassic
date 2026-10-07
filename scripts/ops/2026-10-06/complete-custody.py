@@ -85,7 +85,7 @@ def complete_route(env):
             smoke.run_smoke(chain, STATE)
             containment.restore_after_success(chain, STATE)
     journal = json.loads((STATE/'journal.json').read_text())
-    if journal['status'] == 'complete':
+    if journal['status'] in ('contracts_ready_paused', 'complete'):
         run(['bash', str(OPS/'route-03-verify.sh')], env)
     else:
         run(['bash', str(OPS/'route-02-execute.sh')], env, (KEYRING_PASSWORD_ENV,))

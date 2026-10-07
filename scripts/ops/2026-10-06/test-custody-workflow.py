@@ -104,6 +104,52 @@ class WorkflowTest(unittest.TestCase):
         self.assertNotIn('route-04-finalize', commands)
         self.assertIn('route-03-verify', commands)
 
+    def test_migrated_paused_resume_does_not_repeat_execute(self):
+        self.journal['status'] = 'contracts_ready_paused'
+        self.write('journal.json', self.journal)
+        self.write('live-smoke/evidence.json', {'status': 'PASS'})
+        self.write('application-rollout.json', {'status': 'finished', 'live_readback': {'ok': True}})
+        calls = []
+        smoke = SimpleNamespace(run_smoke=lambda *a: {'status': 'PASS'})
+        deployment = SimpleNamespace(live_trading_readback=lambda: {'response': {'tax_kind': 'route_local_v1'}})
+        with patch.object(custody, 'STATE', self.root), patch.object(custody, 'adapter', return_value=object()), \
+             patch.object(custody, 'load_module', side_effect=lambda name, file: smoke if 'smoke' in file else deployment if 'deploy' in file else object()), \
+             patch.object(custody, 'run', side_effect=lambda cmd, env=None, credentials=(): calls.append(cmd)), \
+             patch.object(custody, 'provider_readback'):
+            custody.complete_route({})
+        commands = ' '.join(' '.join(c) for c in calls)
+        self.assertNotIn('route-02-execute', commands)
+        self.assertIn('route-04-finalize', commands)
+
+    def test_finished_matching_app_deployment_rechecks_live_pins_without_rebuild(self):
+        values = {'TRADING_ROUTE_TAX_CODE_IDS': '11713', 'TRADING_ROUTE_TAX_DATA_HASHES': deploy.TOKEN_HASH,
+                  'TRADING_TAX_FREE_CODE_IDS': '6036,8266,10184', 'COMMUNITY_TAX_CODE_ID': '11713',
+                  'COMMUNITY_TAX_OPTION2_CODE_IDS': '11713', 'ROUTER_ADDRESS': 'router',
+                  'VITE_COMMUNITY_TAX_CODE_ID': '11713', 'VITE_ROUTER_ADDRESS': 'router'}
+        self.journal.update(status='contracts_ready_paused', codes={'token': 11713})
+        self.write('journal.json', self.journal)
+        (self.root/'deployment.env').write_text(''.join(k+'='+v+'\n' for k, v in values.items()))
+        selected = {deploy.INDEXER: {k: values[k] for k in values if not k.startswith('VITE_')},
+                    deploy.FRONTEND: {k: values[k] for k in values if k.startswith('VITE_')}}
+        selected[deploy.INDEXER]['EXPECTED_CHAIN_ID'] = 'columbus-5'
+        self.write('application-rollout.json', {'status': 'finished', 'revision': deploy.REVISION,
+                    'public_pins': selected, 'deployments': [{'deployment_uuid': 'included-deployment'}]})
+        def api(path, method='GET', data=None):
+            self.assertEqual('GET', method)
+            self.assertFalse(path.startswith('/deploy'))
+            if path.endswith('/envs'): return [{'key': 'INDEXER_RUNTIME_ROLE', 'is_preview': False}]
+            return {'name': 'CL8Y Dex TerraClassic Indexer' if path.endswith(deploy.INDEXER) else 'CL8Y Dex Frontend',
+                    'git_repository': 'https://git.cl8y.com/code/cl8y-dex-terraclassic'}
+        with patch.object(deploy.argparse.ArgumentParser, 'parse_args', return_value=SimpleNamespace(state_dir=self.root)), \
+             patch.object(deploy.subprocess, 'run'), patch.object(deploy, 'api', side_effect=api), \
+             patch.object(deploy, 'apply_public_pins') as pins, \
+             patch.object(deploy, 'public_readback', return_value={'git_sha': deploy.REVISION}) as live:
+            deploy.main()
+        self.assertEqual(2, pins.call_count)
+        live.assert_called_once_with(values)
+        saved = json.loads((self.root/'application-rollout.json').read_text())
+        self.assertEqual([{'deployment_uuid': 'included-deployment'}], saved['deployments'])
+
     def test_exact_containment_preserves_original_and_external_pauses(self):
         chain = FakeChain()
         containment.contain(chain, self.root, 'smoke failed')
@@ -178,6 +224,33 @@ class WorkflowTest(unittest.TestCase):
         with patch.object(deploy, 'api', side_effect=api):
             deploy.apply_public_pins(deploy.INDEXER, {'ROUTER_ADDRESS': 'new', 'EXPECTED_CHAIN_ID': 'columbus-5'})
         self.assertEqual([('ROUTER_ADDRESS', 'PATCH'), ('EXPECTED_CHAIN_ID', 'POST')], methods)
+
+    def test_literal_pin_uses_raw_value_and_matching_settings_are_a_noop(self):
+        rows = [{'key': 'COMMUNITY_TAX_CODE_ID', 'value': '11713', 'real_value': "'11713'",
+                 'is_preview': False, 'is_literal': True, 'is_runtime': True, 'is_buildtime': False},
+                {'key': 'COMMUNITY_TAX_CODE_ID', 'value': 'old-preview', 'is_preview': True}]
+        calls = []
+        def api(path, method='GET', data=None):
+            calls.append(method)
+            return rows
+        with patch.object(deploy, 'api', side_effect=api):
+            deploy.apply_public_pins(deploy.INDEXER, {'COMMUNITY_TAX_CODE_ID': '11713'})
+        self.assertEqual(['GET', 'GET'], calls)
+
+    def test_shell_formatted_value_cannot_hide_a_failed_raw_pin_write(self):
+        rows = [{'key': 'COMMUNITY_TAX_CODE_ID', 'value': '11630', 'real_value': "'11713'",
+                 'is_preview': False}]
+        with patch.object(deploy, 'api', return_value=rows):
+            with self.assertRaisesRegex(AssertionError, 'Public pin readback'):
+                deploy.apply_public_pins(deploy.INDEXER, {'COMMUNITY_TAX_CODE_ID': '11713'})
+
+    def test_ambiguous_duplicate_production_pins_are_rejected_before_writes(self):
+        rows = [{'key': 'COMMUNITY_TAX_CODE_ID', 'value': value, 'is_preview': False}
+                for value in ('11630', '11713')]
+        with patch.object(deploy, 'api', return_value=rows) as api:
+            with self.assertRaisesRegex(AssertionError, 'Duplicate production pin'):
+                deploy.apply_public_pins(deploy.INDEXER, {'COMMUNITY_TAX_CODE_ID': '11713'})
+        self.assertEqual(1, api.call_count)
 
     def test_paused_configuration_readback_reads_dynamic_chunks_without_quote(self):
         class Response:

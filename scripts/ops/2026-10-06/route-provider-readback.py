@@ -50,7 +50,8 @@ def main():
     alpha = config["alpha"]
     ust1 = journal["inventory"]["launcher_config"]["ust1"]
     evidence = {"time_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "provider": transport["lcd"], "provider_smart_query_limit": args.provider_smart_query_limit,
+                "provider": chain.selected_read[False], "manifest_lcd_anchor": transport["lcd"],
+                "provider_smart_query_limit": args.provider_smart_query_limit,
                 "chain_id": chain.network(), "manifest_identity": journal["identity_hash"],
                 "query_trader": trader, "checks": [], "status": "PASS",
                 "limitations": ["Two one-hop pool routes only; populated greedy routes and broader provider envelopes remain separate.",
@@ -73,9 +74,16 @@ def main():
         except Exception as error:
             check["status"] = evidence["status"] = "FAIL"
             check["error"] = str(error)
-            if isinstance(error.__cause__, HTTPError):
+            if getattr(error, "http_error_body", ""):
+                check["http_error_body"] = error.http_error_body
+                check["provider"] = error.endpoint
+            elif isinstance(error.__cause__, HTTPError):
                 check["http_error_body"] = error.__cause__.read().decode(errors="replace")
+        check.setdefault("provider", chain.selected_read[False])
         evidence["checks"].append(check)
+    evidence["provider"] = chain.selected_read[False]
+    evidence["read_rpc"] = chain.selected_read[True]
+    evidence["providers_used"] = [{"kind": "rpc" if rpc else "lcd", "url": url} for rpc, url in chain.read_providers]
     print(json.dumps(evidence, indent=2))
     return 0 if evidence["status"] == "PASS" else 1
 

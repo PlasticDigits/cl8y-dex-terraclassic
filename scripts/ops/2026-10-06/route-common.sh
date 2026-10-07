@@ -4,6 +4,9 @@ set -euo pipefail
 ROUTE_OPS_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ROUTE_OPS_STATE="${ROUTE_OPS_STATE:-$HOME/.local/state/cl8y-dex/release-20261006-route}"
 export ROUTE_OPS_REPO ROUTE_OPS_STATE
+export TERRAD_RUNTIME_READ_NODE="${TERRAD_RUNTIME_READ_NODE:-https://rpc.terra-classic.hexxagon.io:443}"
+export TERRAD_RUNTIME_READ_LCD="${TERRAD_RUNTIME_READ_LCD:-https://terra-classic-lcd.publicnode.com}"
+export TERRAD_RUNTIME_EXEC_NODE="${TERRAD_RUNTIME_EXEC_NODE:-https://rpc.terra-classic.hexxagon.io:443}"
 python3 - "$ROUTE_OPS_REPO" <<'PY'
 import hashlib, pathlib, sys
 root = pathlib.Path(sys.argv[1])

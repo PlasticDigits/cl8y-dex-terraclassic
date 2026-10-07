@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 from contextlib import contextmanager
 import base64
 import fcntl
@@ -11,12 +12,13 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -38,6 +40,24 @@ SENSITIVE_CHILD_ENV = frozenset({
     "CL8Y_PM_ASSIGNER_TOKEN_DESKTOP_AGENTS", "GITLAB_TOKEN", "PGPASSWORD", "DATABASE_URL", "DB_ADMIN_URL",
 })
 CONTAINMENT_GAS_LIMIT = 2_000_000
+RUNTIME_READ_NODE = "TERRAD_RUNTIME_READ_NODE"
+RUNTIME_READ_LCD = "TERRAD_RUNTIME_READ_LCD"
+RUNTIME_EXEC_NODE = "TERRAD_RUNTIME_EXEC_NODE"
+
+
+class EndpointReadError(RolloutError):
+    def __init__(self, message, endpoint, status=None, body="", retryable=False):
+        super().__init__(message)
+        self.endpoint, self.status, self.http_error_body, self.retryable = endpoint, status, body, retryable
+
+
+def endpoint_url(value):
+    parsed = urlsplit(value)
+    require(parsed.scheme in ("http", "https") and parsed.hostname and not parsed.username and not parsed.password
+            and not parsed.query and not parsed.fragment, "Invalid public runtime endpoint URL")
+    require(parsed.scheme == "https" or parsed.hostname in ("127.0.0.1", "localhost", "::1"),
+            "Remote runtime endpoints require HTTPS")
+    return value.rstrip("/")
 
 
 def child_environment(source=None, allowed=()):
@@ -197,30 +217,101 @@ class TerradChain:
         self.roles = {"store": args.store_key, "gov": args.multisig_key}
         self.roles.update({key: key for key in args.admin_key})
         self.last_read = 0.0
+        self.expected_chain_id = getattr(args, "chain_id", DEFAULTS["chain_id"])
+        self.read_endpoints = {}
+        for rpc, anchor, preferred, fallbacks in (
+                (True, args.node, getattr(args, "read_node", None), getattr(args, "read_rpc_fallback", [])),
+                (False, args.lcd, getattr(args, "read_lcd", None), getattr(args, "read_lcd_fallback", []))):
+            values = [preferred or anchor, *(fallbacks or [])]
+            if preferred and preferred.rstrip("/") != anchor.rstrip("/"):
+                values.append(anchor)
+            require(len(values) <= 4, "Runtime endpoint failover is bounded to four candidates")
+            self.read_endpoints[rpc] = list(dict.fromkeys(endpoint_url(v) for v in values))
+        self.selected_read = {rpc: values[0] for rpc, values in self.read_endpoints.items()}
+        self.execution_node = endpoint_url(getattr(args, "execution_node", None) or args.node)
+        self.verified_endpoints = set()
+        self.immutable_reads = {}
+        self.encoded_transactions = {}
+        self.read_providers = []
 
-    def get(self, path, rpc=False):
+    def _request(self, endpoint, path):
         delay = max(0, 0.12 - (time.monotonic() - self.last_read))
         if delay:
             time.sleep(delay)
         self.last_read = time.monotonic()
-        url = (self.args.node if rpc else self.args.lcd).rstrip("/") + path
-        request = Request(url, headers={"User-Agent": "CL8Y-route-tax-rollout/1"})
-        for attempt in range(3):
+        request = Request(endpoint + path, headers={"User-Agent": "CL8Y-route-tax-rollout/1"})
+        try:
+            with urlopen(request, timeout=15) as response:
+                return json.load(response)
+        except HTTPError as error:
+            body = error.read(16384).decode("utf-8", errors="replace")
+            deterministic = any(value in body.lower() for value in ("out of gas", "query gas", "gaswanted", "gas wanted",
+                "codespace", "error executing", "wasmvm", "contract error", "overflow"))
+            raise EndpointReadError(f"Read-only endpoint returned HTTP {error.code}", endpoint, error.code, body,
+                error.code in (429, 502, 503, 504) and not deterministic) from None
+        except (URLError, TimeoutError):
+            raise EndpointReadError("Read-only endpoint unavailable", endpoint, retryable=True) from None
+
+    def _verify_endpoint(self, endpoint, rpc, force=False):
+        key = (rpc, endpoint)
+        if force or key not in self.verified_endpoints:
+            value = self._request(endpoint, "/status" if rpc else "/cosmos/base/tendermint/v1beta1/blocks/latest")
+            observed = value["result"]["node_info"]["network"] if rpc else value["block"]["header"]["chain_id"]
+            require(observed == self.expected_chain_id, "Runtime endpoint chain identity mismatch")
+            if rpc:
+                require(value["result"].get("sync_info", {}).get("catching_up", False) is False,
+                        "Runtime execution/read RPC is still catching up")
+            self.verified_endpoints.add(key)
+            return value
+
+    @staticmethod
+    def _immutable(path, value):
+        if re.fullmatch(r"/cosmwasm/wasm/v1/code/[0-9]+", path):
+            return bool(re.fullmatch(r"[0-9A-Fa-f]{64}", value.get("code_info", {}).get("data_hash", "")))
+        if re.fullmatch(r"/cosmos/tx/v1beta1/txs/[0-9A-Fa-f]{64}", path):
+            receipt = value.get("tx_response", {})
+            return str(receipt.get("height", "")).isdigit() and int(receipt["height"]) > 0 and bool(receipt.get("txhash"))
+        if re.fullmatch(r"/tx\?hash=0x[0-9A-Fa-f]{64}", path):
+            result = value.get("result", {})
+            return str(result.get("height", "")).isdigit() and int(result["height"]) > 0 and bool(result.get("tx"))
+        return False
+
+    def get(self, path, rpc=False, allow_failover=True):
+        candidates = [self.selected_read[rpc], *[v for v in self.read_endpoints[rpc] if v != self.selected_read[rpc]]]
+        if not allow_failover:
+            candidates = candidates[:1]
+        last = None
+        for index, endpoint in enumerate(candidates):
             try:
-                with urlopen(request, timeout=15) as response:
-                    return json.load(response)
-            except HTTPError as error:
-                if error.code not in (429, 502, 503, 504) or attempt == 2:
-                    raise RolloutError(f"Read-only endpoint returned HTTP {error.code}") from error
-            except (URLError, TimeoutError) as error:
-                if attempt == 2:
-                    raise RolloutError("Read-only endpoint unavailable") from error
-            time.sleep(attempt + 1)
+                anchor = endpoint_url(self.args.node if rpc else self.args.lcd)
+                verification = self._verify_endpoint(endpoint, rpc) if endpoint != anchor or index > 0 else None
+                key = (self.expected_chain_id, rpc, endpoint, path)
+                if key in self.immutable_reads:
+                    return copy.deepcopy(self.immutable_reads[key])
+                identity_path = "/status" if rpc else "/cosmos/base/tendermint/v1beta1/blocks/latest"
+                value = verification if verification is not None and path == identity_path else self._request(endpoint, path)
+                self.selected_read[rpc] = endpoint
+                if (rpc, endpoint) not in self.read_providers:
+                    self.read_providers.append((rpc, endpoint))
+                if self._immutable(path, value):
+                    self.immutable_reads[key] = copy.deepcopy(value)
+                return value
+            except EndpointReadError as error:
+                if not error.retryable or not allow_failover:
+                    raise
+                last = error
+        raise last
 
     def network(self):
-        rpc = self.get("/status", rpc=True)["result"]["node_info"]["network"]
+        status = self.get("/status", rpc=True)["result"]
+        rpc = status["node_info"]["network"]
         lcd = self.get("/cosmos/base/tendermint/v1beta1/blocks/latest")["block"]["header"]["chain_id"]
         require(rpc == lcd, "RPC and LCD serve different chains")
+        require(rpc == self.expected_chain_id, "Runtime endpoint chain identity mismatch")
+        require(status.get("sync_info", {}).get("catching_up", False) is False, "Runtime RPC is still catching up")
+        self.verified_endpoints.update((kind, self.selected_read[kind]) for kind in (True, False))
+        if self.execution_node != self.selected_read[True]:
+            self._verify_endpoint(self.execution_node, True, force=True)
         return rpc
 
     def info(self, address):
@@ -237,7 +328,9 @@ class TerradChain:
 
     def smart(self, address, msg):
         encoded = quote(base64.b64encode(json.dumps(msg).encode()).decode(), safe="")
-        value = self.get(f"/cosmwasm/wasm/v1/contract/{address}/smart/{encoded}")["data"]
+        quote_query = any("simulation" in key or "simulate_swap" in key or key in ("route_tax_preview", "tax_preview") for key in msg)
+        path = f"/cosmwasm/wasm/v1/contract/{address}/smart/{encoded}"
+        value = (self.get(path, allow_failover=False) if quote_query else self.get(path))["data"]
         return json.loads(base64.b64decode(value)) if isinstance(value, str) else value
 
     def contracts(self, code, limit):
@@ -273,7 +366,9 @@ class TerradChain:
         return result.stdout
 
     def flags(self):
-        return ["--chain-id", self.args.chain_id, "--node", self.args.node,
+        if self.execution_node != endpoint_url(self.args.node):
+            self._verify_endpoint(self.execution_node, True)
+        return ["--chain-id", self.args.chain_id, "--node", self.execution_node,
                 "--home", self.args.home, "--keyring-backend", self.args.keyring_backend]
 
     def unlock(self):
@@ -369,8 +464,16 @@ class TerradChain:
         raise RolloutError(f"Inclusion unknown for {tx_hash}; resume with the saved journal, do not re-sign")
 
     def _encoded_hash(self, path):
+        source_hash = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        if source_hash in self.encoded_transactions:
+            return self.encoded_transactions[source_hash]
         encoded = self.command(["tx", "encode", str(path), "--home", self.args.home]).strip()
-        return hashlib.sha256(base64.b64decode(encoded, validate=True)).hexdigest().upper()
+        value = hashlib.sha256(base64.b64decode(encoded, validate=True)).hexdigest().upper()
+        # Read the bytes again so a concurrent edit cannot seed a stale proof.
+        require(hashlib.sha256(Path(path).read_bytes()).hexdigest() == source_hash,
+                "Signed transaction changed while being encoded")
+        self.encoded_transactions[source_hash] = value
+        return value
 
     def validate_saved(self, action, entry):
         """Verify resume data without unlocking the keyring or trusting fee edits."""
@@ -510,6 +613,11 @@ def parser():
     p.add_argument("--tax-free-code-id", type=int, action="append")
     p.add_argument("--node", default=os.environ.get("TERRAD_HOST_NODE", "https://terra-classic-rpc.publicnode.com:443"))
     p.add_argument("--lcd", default=os.environ.get("TERRA_LCD_URL", "https://terra-classic-lcd.publicnode.com"))
+    p.add_argument("--read-node", default=os.environ.get(RUNTIME_READ_NODE), help="Runtime-only read RPC; does not amend the manifest")
+    p.add_argument("--read-lcd", default=os.environ.get(RUNTIME_READ_LCD), help="Runtime-only read LCD; does not amend the manifest")
+    p.add_argument("--execution-node", default=os.environ.get(RUNTIME_EXEC_NODE), help="One vetted runtime RPC for tx delivery; no broadcast failover")
+    p.add_argument("--read-rpc-fallback", action="append", default=[])
+    p.add_argument("--read-lcd-fallback", action="append", default=[])
     p.add_argument("--terrad", default="terrad")
     p.add_argument("--home", default=os.environ.get("TERRAD_HOST_HOME", str(Path.home() / ".terra")))
     p.add_argument("--keyring-backend", choices=("file", "os", "test"), default=os.environ.get("TERRAD_HOST_KEYRING_BACKEND", "file"))
