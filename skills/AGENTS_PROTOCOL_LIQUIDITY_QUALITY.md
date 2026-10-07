@@ -21,7 +21,10 @@ Related pricing/layout: [Protocol stats](AGENTS_FRONTEND_PROTOCOL_STATS.md).
 - Frontend retention preserves original as-of and stores only value, qualified
   quality and time, scoped to expected chain/factory/indexer. Reject malformed,
   future or contradictory cached records. New qualified decreases and zero replace
-  older totals; partial never overwrites a complete total. Suppress 24h delta when
+  older totals; partial never overwrites a complete total. Before a complete total
+  exists, retain the last qualified partial lower bound with `≥` and its original
+  time through expiry/errors/reload; newer lower partial values replace it.
+  Suppress 24h delta when
   current quality is unqualified. Explain last verified time only in optional info;
   never relabel retained data fresh or feed it into server baselines/history.
 - Lock before input reads and use atomic generation publication. Do not separately

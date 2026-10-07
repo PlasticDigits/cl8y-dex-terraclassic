@@ -57,10 +57,10 @@ export function liquidityQualityLabel(quality: LiquidityQuality | undefined): st
   }
 }
 
-/** Only this public, complete valuation is retained; never an overview or wallet record. */
+/** Retain only a public valuation; a partial fallback never replaces a complete total. */
 export interface LastKnownLiquidity {
   value: string
-  quality: 'fresh' | 'verified_empty'
+  quality: 'fresh' | 'verified_empty' | 'partial'
   asOf: string
 }
 
@@ -83,7 +83,7 @@ export function parseLiquiditySnapshot(serialized: string | null, now = Date.now
     const value = validLiquidityUsd(parsed.value)
     const observed = liquidityObservationTime(parsed.asOf)
     if (value == null || !Number.isFinite(observed) || observed <= 0 || observed > now) return null
-    if (parsed.quality !== 'fresh' && parsed.quality !== 'verified_empty') return null
+    if (parsed.quality !== 'fresh' && parsed.quality !== 'verified_empty' && parsed.quality !== 'partial') return null
     if (parsed.quality === 'verified_empty' && Number(value) !== 0) return null
     return { value, quality: parsed.quality, asOf: parsed.asOf }
   } catch {
@@ -113,7 +113,8 @@ export function retainQualifiedLiquidity(
   now = Date.now()
 ): LastKnownLiquidity | null {
   const current = overviewLiquidityDisplay(overview, now)
-  if (!current.comparable || !overview?.liquidity_as_of) return previous
+  if ((!current.comparable && current.quality !== 'partial') || !overview?.liquidity_as_of) return previous
+  if (current.quality === 'partial' && previous != null && previous.quality !== 'partial') return previous
   const next = parseLiquiditySnapshot(
     JSON.stringify({ value: overview.total_liquidity_usd, quality: current.quality, asOf: overview.liquidity_as_of }),
     now
@@ -163,10 +164,11 @@ export function overviewLiquidityDisplay(
   })()
   const useRetained =
     retained != null &&
-    ((quality !== 'fresh' && quality !== 'verified_empty') || retained.asOf !== asOf || retained.value !== raw)
+    !(retained.quality === 'partial' && (quality === 'fresh' || quality === 'verified_empty')) &&
+    (quality !== retained.quality || retained.asOf !== asOf || retained.value !== raw)
   if (useRetained) {
-    value = formatProtocolUsd(retained.value)
-    reason = 'Last verified total.'
+    value = `${retained.quality === 'partial' ? '≥ ' : ''}${formatProtocolUsd(retained.value)}`
+    reason = retained.quality === 'partial' ? 'Last reported lower bound.' : 'Last verified total.'
   }
   const displayAsOf = useRetained ? retained.asOf : asOf
   const displayObserved = displayAsOf ? Date.parse(displayAsOf) : NaN

@@ -138,6 +138,45 @@ describe('liquidity quality #1380', () => {
 })
 
 describe('public last verified liquidity retention', () => {
+  it('keeps an initial qualified partial lower bound through TTL, null and outages until a complete total arrives', () => {
+    const partial = { ...fresh, liquidity_quality: 'partial' as const, total_liquidity_usd: '206000' }
+    const retained = retainQualifiedLiquidity(null, partial, now)
+    expect(retained).toEqual({ value: '206000', quality: 'partial', asOf: partial.liquidity_as_of })
+    expect(parseLiquiditySnapshot(JSON.stringify(retained), now + 60_000)).toEqual(retained)
+    expect(overviewLiquidityDisplay(partial, now, retained)).toMatchObject({
+      value: '≥ $206K',
+      comparable: false,
+    })
+    for (const next of [
+      partial,
+      undefined,
+      { ...partial, total_liquidity_usd: null },
+      { ...partial, liquidity_quality: 'unknown' as const },
+    ]) {
+      expect(retainQualifiedLiquidity(retained, next, now + 60_000)).toBe(retained)
+      expect(overviewLiquidityDisplay(next, now + 60_000, retained)).toMatchObject({
+        quality: 'partial',
+        value: '≥ $206K',
+        comparable: false,
+      })
+      expect(overviewLiquidityDisplay(next, now + 60_000, retained).hint).toMatch(
+        /^Last reported lower bound\. Updated /
+      )
+    }
+    const lower = { ...partial, total_liquidity_usd: '120000', liquidity_as_of: new Date(now).toISOString() }
+    const reduced = retainQualifiedLiquidity(retained, lower, now)
+    expect(reduced?.value).toBe('120000')
+    expect(overviewLiquidityDisplay(lower, now, reduced).value).toBe('≥ $120K')
+    // A full total takes priority even when its value or oldest input time is lower.
+    expect(overviewLiquidityDisplay(fresh, now, reduced)).toMatchObject({ value: '$249K', comparable: true })
+    const complete = retainQualifiedLiquidity(reduced, fresh, now)
+    expect(complete?.quality).toBe('fresh')
+    expect(retainQualifiedLiquidity(complete, lower, now)).toBe(complete)
+    expect(overviewLiquidityDisplay(lower, now, complete).value).toBe('$249K')
+    const empty = { ...fresh, total_liquidity_usd: '0', liquidity_quality: 'verified_empty' as const }
+    expect(overviewLiquidityDisplay(empty, now, reduced)).toMatchObject({ value: '$0', comparable: true })
+    expect(retainQualifiedLiquidity(reduced, empty, now)?.quality).toBe('verified_empty')
+  })
   it('retains a complete observation through expiry, missing and degraded totals without a delta', () => {
     const retained = retainQualifiedLiquidity(null, fresh, now)
     expect(retained).toEqual({ value: '249000', quality: 'fresh', asOf: fresh.liquidity_as_of })
@@ -174,7 +213,7 @@ describe('public last verified liquidity retention', () => {
       '[1]',
       'null',
       '<script>',
-      JSON.stringify({ ...retained, quality: 'partial' }),
+      JSON.stringify({ ...retained, quality: 'unknown' }),
       JSON.stringify({ ...retained, quality: 'verified_empty' }),
       JSON.stringify({ ...retained, value: 'Infinity' }),
       JSON.stringify({ ...retained, asOf: 'bogus' }),

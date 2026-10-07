@@ -5,7 +5,8 @@ actual hosted policy deployment, and the remaining encrypted-keyring broadcasts.
 The integrated contract release remains factory 1.12.0, pair 1.21.0, router 1.5.0,
 community-tax token 1.4.0 and AutoLP 1.1.0. Bridge-Debt issuer/receipt targets 1.1.0.
 
-The signed Woodpecker policy was deployed from exact `fab88dbbccb514657d786e3034e12c99423026eb`.
+The signed Woodpecker policy was initially deployed from `fab88dbb` and then
+rebased to exact `c5312d328e2dc8c7a9e6e4016212df72027c4878`.
 Its `/health` matched the independently built policy bundle SHA256
 `02a9b1282c318bd9dae2ac6a003e2eb7528998a33ad8a8d866332fc0cfde706c`;
 unsigned configuration requests returned 401. Repo 7 retained exclusive signed
@@ -22,8 +23,12 @@ holder excludes it. The entire 12-check ingestion suite passed twice, and the
 lock test passed 20 independent processes using separate disposable databases.
 The 22 verified inactive owned child databases were removed; runtime/control
 schemas and unrelated clusters were preserved. The initial hosted failure
-remains an actual failure; post-repair hosted acceptance needs a genuine result
-on the final reviewed commit.
+remains an actual failure. Genuine pipeline 337 found only a public checksum
+false positive; its representation was corrected without scanner exclusions.
+[Pipeline 338](https://ci.cl8y.com/repos/7/pipeline/338/1) passed every required
+step on exact `80b9ca2b46a689f6b9f2d0234312bd4748c4d92f`: scanner, contracts,
+frontend, indexer library/PostgreSQL and aggregate functional acceptance. The
+subsequent first-partial display refinement receives its own real hosted run.
 
 Native cold builds exposed two sources of nondeterminism: random target paths
 in generated Swagger code and extracted asset creation/modified timestamps.

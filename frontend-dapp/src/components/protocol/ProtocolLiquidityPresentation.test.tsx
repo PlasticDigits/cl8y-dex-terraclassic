@@ -120,6 +120,51 @@ describe('liquidity headline disclosure and polling', () => {
     expect(Object.keys(JSON.parse(localStorage.getItem(keys[0])!)).sort()).toEqual(['asOf', 'quality', 'value'])
   })
 
+  it('retains an initial partial lower bound across expiry and reload until a complete total replaces it', async () => {
+    let current = { ...observation(), liquidity_quality: 'partial' as const, total_liquidity_usd: '206000' }
+    vi.mocked(getOverview).mockImplementation(async () => current)
+    const first = renderWithProviders(<Harness />)
+    await settle()
+    const card = screen.getByTestId('protocol-stat-liquidity')
+    const amount = within(card).getByText('≥ $206K')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(21_000)
+    })
+    expect(within(card).getByText('≥ $206K')).toBe(amount)
+    expect(card.querySelector('.animate-pulse')).toBeNull()
+    expect(within(card).queryByTestId('protocol-stat-liquidity-24h')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Liquidity details' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Last reported lower bound. Updated 21 seconds ago.')
+    first.unmount()
+
+    for (const failed of [false, true]) {
+      if (failed) vi.mocked(getOverview).mockRejectedValue(new Error('offline'))
+      else vi.mocked(getOverview).mockResolvedValue({ ...observation(), total_liquidity_usd: null })
+      const restored = renderWithProviders(<Harness />)
+      await settle()
+      expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('≥ $206K')
+      restored.unmount()
+    }
+
+    current = { ...observation(), liquidity_quality: 'partial', total_liquidity_usd: '120000' }
+    vi.mocked(getOverview).mockImplementation(async () => current)
+    const lower = renderWithProviders(<Harness />)
+    await settle()
+    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('≥ $120K')
+    lower.unmount()
+    vi.mocked(getOverview).mockResolvedValue({ ...observation(), total_liquidity_usd: '110000' })
+    const complete = renderWithProviders(<Harness />)
+    await settle()
+    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('$110K')
+    expect(screen.getByTestId('protocol-stat-liquidity')).not.toHaveTextContent('≥')
+    complete.unmount()
+    vi.mocked(getOverview).mockResolvedValue(current)
+    renderWithProviders(<Harness />)
+    await settle()
+    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent('$110K')
+    expect(screen.getByTestId('protocol-stat-liquidity')).not.toHaveTextContent('≥')
+  })
+
   it('reveals a relative timestamp on keyboard focus and tap, and closes with Escape or outside tap', async () => {
     renderWithProviders(<Harness />)
     await settle()

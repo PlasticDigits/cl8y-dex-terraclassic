@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import type { IndexerOverview } from '../src/types'
 
+const evidenceDir = join(homedir(), '.local/state/cl8y-dex/release-20261007/qa')
 const observation = new Date().toISOString()
 const overview: IndexerOverview = {
   total_volume_24h: '0',
@@ -104,7 +107,7 @@ for (const width of [390, 1280]) {
     )
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
     expect(overflow).toBe(false)
-    await page.screenshot({ path: `/tmp/issue-1380-liquidity-${width}.png`, fullPage: true })
+    await page.screenshot({ path: join(evidenceDir, `issue-1380-liquidity-${width}.png`), fullPage: true })
   })
 }
 
@@ -175,5 +178,76 @@ test('last verified total survives expiry, outage and reload; decreases and genu
   await expect(liquidity).toContainText('$0')
   await page.getByRole('button', { name: 'Liquidity details' }).click()
   await expect(page.getByRole('tooltip')).toContainText('Last verified total.')
-  await page.screenshot({ path: '/tmp/dex-ops-20261006/liquidity/last-known-zero-reload.png', fullPage: true })
+  await page.screenshot({ path: join(evidenceDir, 'last-known-zero-reload.png'), fullPage: true })
+})
+
+test('first partial lower bound survives TTL, null, failure and reload until a complete total arrives', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  const frozen = new Date('2026-10-04T08:00:00Z')
+  await page.clock.setFixedTime(frozen)
+  let phase: 'initial' | 'null' | 'failed' | 'lower' | 'complete' | 'partial' = 'initial'
+  await page.route('**/api/v1/**', async (route) => {
+    if (!new URL(route.request().url()).pathname.endsWith('/overview')) {
+      await route.fulfill({ status: 404, json: {} })
+      return
+    }
+    if (phase === 'failed') {
+      await route.abort('failed')
+      return
+    }
+    await route.fulfill({
+      json: {
+        ...overview,
+        liquidity_quality: phase === 'complete' ? 'fresh' : phase === 'null' ? 'unavailable' : 'partial',
+        total_liquidity_usd:
+          phase === 'null' ? null : phase === 'lower' ? '120000' : phase === 'complete' ? '110000' : '206000',
+        liquidity_as_of: phase === 'initial' ? frozen.toISOString() : new Date(frozen.getTime() + 3000).toISOString(),
+        liquidity_max_age_seconds: phase === 'initial' ? 2 : 300,
+      },
+    })
+  })
+  await page.goto('/protocol')
+  const liquidity = page.getByTestId('protocol-stat-liquidity')
+  await expect(liquidity).toContainText('≥ $206K', { timeout: 60_000 })
+  await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.entries(localStorage).some(
+          ([key, value]) => key.startsWith('cl8y:protocol-liquidity:') && JSON.parse(value).quality === 'partial'
+        )
+      )
+    )
+    .toBe(true)
+  await page.clock.setFixedTime(new Date(frozen.getTime() + 3000))
+  await page.getByRole('button', { name: 'Liquidity details' }).click()
+  await expect(page.getByRole('tooltip')).toContainText('Last reported lower bound. Updated 3 seconds ago.')
+  await expect(liquidity).toContainText('≥ $206K')
+  await page.keyboard.press('Escape')
+  for (const next of ['null', 'failed'] as const) {
+    phase = next
+    await page.reload()
+    await expect(liquidity).toContainText('≥ $206K')
+    await expect(liquidity).not.toContainText(/expired|stale/i)
+    await expect(liquidity.locator('.animate-pulse')).toHaveCount(0)
+    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
+  }
+  phase = 'lower'
+  await page.reload()
+  await expect(liquidity).toContainText('≥ $120K')
+  phase = 'complete'
+  await page.reload()
+  await expect(liquidity).toContainText('$110K')
+  await expect(liquidity).not.toContainText('≥')
+  await expect(page.getByTestId('protocol-stat-liquidity-24h')).toContainText('%')
+  phase = 'partial'
+  await page.reload()
+  await expect(liquidity).toContainText('$110K')
+  await expect(liquidity).not.toContainText('≥')
+  await expect(page.getByTestId('protocol-stat-liquidity-24h')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Liquidity details' }).click()
+  await expect(page.getByRole('tooltip')).toContainText('Last verified total.')
+  await page.screenshot({ path: join(evidenceDir, 'partial-to-complete-retention-phone.png'), fullPage: true })
 })

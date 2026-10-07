@@ -2595,8 +2595,11 @@ unavailable responses, background refetches and request failures. Only its publi
 value, original as-of and qualified quality are stored locally, scoped to expected
 chain, factory and indexer. No overview/wallet data is saved. A new qualified total,
 including a genuine decrease or zero, replaces the previous total. Partial never
-overwrites a retained complete total; without a complete total, `≥` may show a
-current partial lower bound and unknown/unavailable remain an em dash.
+overwrites a retained complete total. Before any complete total exists, the last
+qualified partial lower bound persists with `≥` and its original observation time
+through expiry, outages and reloads. A newer qualified partial lower bound may
+decrease; a complete valuation replaces it. An em dash means no usable valuation
+has ever been received.
 Only fresh/verified-empty current quality can show the existing 24h delta;
 backend baseline coverage must also match. Legacy positive values are labeled
 coverage unknown and legacy zero cannot prove emptiness. The chart may draw a

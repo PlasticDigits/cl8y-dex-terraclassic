@@ -268,4 +268,7 @@ outages, including route remounts/reloads using validated storage scoped to chai
 factory and indexer. Keep original observation time in optional info, suppress the
 24h delta when current data is unqualified, and replace retained totals with new
 qualified decreases or zero. Partial totals never overwrite complete totals.
+Before any complete total exists, retain the last qualified partial lower bound
+with `≥` and its original time through expiry, outages and reloads; newer lower
+partial values replace it, and a complete valuation takes priority.
 Server canonical quality and historical baseline rules remain unchanged.
