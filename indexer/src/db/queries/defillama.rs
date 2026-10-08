@@ -26,6 +26,7 @@ pub struct DailyFeeRow {
     pub amount_usd: BigDecimal,
     pub event_count: i64,
     pub unpriced_count: i64,
+    pub unresolved_pair_count: i64,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -43,38 +44,47 @@ pub struct DailyAssetRow {
     pub circulating_raw: Option<BigDecimal>,
 }
 
-pub async fn get_daily_stat(
-    pool: &PgPool,
+pub async fn get_daily_stat<'e, E>(
+    executor: E,
     utc_day: NaiveDate,
-) -> Result<Option<DailyStatRow>, sqlx::Error> {
+) -> Result<Option<DailyStatRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as::<_, DailyStatRow>(
         r#"SELECT utc_day, volume_usd, trade_count, unpriced_trade_count, refreshed_at
            FROM defillama_daily_stats
            WHERE utc_day = $1"#,
     )
     .bind(utc_day)
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await
 }
 
-pub async fn get_daily_fees(
-    pool: &PgPool,
+pub async fn get_daily_fees<'e, E>(
+    executor: E,
     utc_day: NaiveDate,
-) -> Result<Vec<DailyFeeRow>, sqlx::Error> {
+) -> Result<Vec<DailyFeeRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as::<_, DailyFeeRow>(
-        r#"SELECT utc_day, source, amount_usd, event_count, unpriced_count
+        r#"SELECT utc_day, source, amount_usd, event_count, unpriced_count, unresolved_pair_count
            FROM defillama_daily_fees
            WHERE utc_day = $1"#,
     )
     .bind(utc_day)
-    .fetch_all(pool)
+    .fetch_all(executor)
     .await
 }
 
-pub async fn get_daily_assets(
-    pool: &PgPool,
+pub async fn get_daily_assets<'e, E>(
+    executor: E,
     utc_day: NaiveDate,
-) -> Result<Vec<DailyAssetRow>, sqlx::Error> {
+) -> Result<Vec<DailyAssetRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as::<_, DailyAssetRow>(
         r#"SELECT utc_day, ticker, volume_usd, trade_count, unpriced_trade_count,
                   fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw, price_as_of
@@ -83,7 +93,7 @@ pub async fn get_daily_assets(
            ORDER BY ticker"#,
     )
     .bind(utc_day)
-    .fetch_all(pool)
+    .fetch_all(executor)
     .await
 }
 
@@ -101,6 +111,51 @@ pub async fn refresh_defillama_day(
     pool: &PgPool,
     day_start: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
+    materialize_defillama_day(pool, day_start, false).await
+}
+
+/// Reaggregate historical ledger amounts without resampling advisory asset marks
+/// or circulating supply. Missing historical snapshots remain unavailable.
+pub async fn repair_defillama_day(
+    pool: &PgPool,
+    day_start: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    materialize_defillama_day(pool, day_start, true).await
+}
+
+async fn materialize_defillama_day(
+    pool: &PgPool,
+    day_start: DateTime<Utc>,
+    preserve_auxiliary_snapshots: bool,
+) -> Result<(), sqlx::Error> {
+    if day_start != utc_day_start(day_start) {
+        return Err(sqlx::Error::Protocol(
+            "DeFiLlama refresh requires a UTC day boundary".into(),
+        ));
+    }
+    let mut transaction = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("SET LOCAL statement_timeout = '120s'")
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("SET LOCAL lock_timeout = '5s'")
+        .execute(&mut *transaction)
+        .await?;
+    // Never wait on a competing refresh after taking the repeatable-read snapshot.
+    // A waiting advisory lock could otherwise publish data from before that writer.
+    let locked: bool = sqlx::query_scalar(
+        "SELECT pg_try_advisory_xact_lock(1354, ($1::date - DATE '1970-01-01')::integer)",
+    )
+    .bind(day_start.date_naive())
+    .fetch_one(&mut *transaction)
+    .await?;
+    if !locked {
+        return Err(sqlx::Error::Protocol(
+            "UTC-day DeFiLlama refresh already running".into(),
+        ));
+    }
     let day_end = day_start + Duration::days(1);
     let utc_day = day_start.date_naive();
     let gems = gem_addresses_lowercased();
@@ -142,7 +197,7 @@ pub async fn refresh_defillama_day(
     .bind(day_start)
     .bind(day_end)
     .bind(&gems)
-    .fetch_one(pool)
+    .fetch_one(&mut *transaction)
     .await?;
 
     sqlx::query(
@@ -161,7 +216,7 @@ pub async fn refresh_defillama_day(
     .bind(vol.volume_usd.unwrap_or_else(|| BigDecimal::from(0)))
     .bind(vol.trade_count)
     .bind(vol.unpriced_trade_count)
-    .execute(pool)
+    .execute(&mut *transaction)
     .await?;
 
     #[derive(FromRow)]
@@ -169,82 +224,68 @@ pub async fn refresh_defillama_day(
         source: String,
         event_count: i64,
         unpriced_count: i64,
+        unresolved_pair_count: i64,
         amount_usd: Option<BigDecimal>,
     }
 
-    let fees: Vec<FeeAgg> = sqlx::query_as(
+    let fee_sql = format!(
+        "{}{}",
+        include_str!("defillama_fee_scope.sql"),
         r#"
-        WITH gem_pairs AS (
-            SELECT p.id
-            FROM pairs p
-            JOIN assets a0 ON a0.id = p.asset_0_id
-            JOIN assets a1 ON a1.id = p.asset_1_id
-            WHERE LOWER(COALESCE(a0.contract_address, '')) = ANY($3)
-               OR LOWER(COALESCE(a1.contract_address, '')) = ANY($3)
-        )
-        SELECT
-            e.source,
-            COUNT(*)::bigint AS event_count,
-            COUNT(*) FILTER (
-                WHERE e.fee_usd IS NULL OR e.fee_usd <= 0
-            )::bigint AS unpriced_count,
-            COALESCE(
-                SUM(e.fee_usd) FILTER (
-                    WHERE e.fee_usd IS NOT NULL AND e.fee_usd > 0
-                ),
-                0
-            ) AS amount_usd
-        FROM protocol_fee_events e
-        WHERE e.block_timestamp >= $1
-          AND e.block_timestamp < $2
-          AND (
-              e.source IN ('wrap', 'unwrap', 'ust1_mint', 'ust1_redeem')
-              OR NOT EXISTS (
-                  SELECT 1 FROM gem_pairs gp
-                  WHERE
-                      (e.source = 'swap_amm' AND EXISTS (
-                          SELECT 1 FROM swap_events se
-                          WHERE se.tx_hash = e.tx_hash AND se.pair_id = gp.id
-                      ))
-                      OR (e.source = 'book_take' AND EXISTS (
-                          SELECT 1 FROM limit_order_fills f
-                          WHERE f.tx_hash = e.tx_hash AND f.pair_id = gp.id
-                      ))
-                      OR (e.source = 'limit_place' AND EXISTS (
-                          SELECT 1 FROM limit_order_placements pl
-                          WHERE pl.tx_hash = e.tx_hash AND pl.pair_id = gp.id
-                      ))
-              )
-          )
+        SELECT e.source,
+               COUNT(*)::bigint AS event_count,
+               COUNT(*) FILTER (WHERE e.fee_usd IS NULL OR e.fee_usd <= 0)::bigint AS unpriced_count,
+               COUNT(*) FILTER (WHERE e.unresolved_pair_scope)::bigint AS unresolved_pair_count,
+               COALESCE(SUM(e.fee_usd) FILTER (WHERE e.fee_usd > 0), 0) AS amount_usd
+        FROM scoped_fee_events e
+        WHERE e.resolved_pair_id IS NULL
+           OR e.resolved_pair_id NOT IN (SELECT id FROM gem_pairs)
         GROUP BY e.source
-        "#,
-    )
-    .bind(day_start)
-    .bind(day_end)
-    .bind(&gems)
-    .fetch_all(pool)
-    .await?;
+        "#
+    );
+    let fees: Vec<FeeAgg> = sqlx::query_as(&fee_sql)
+        .bind(day_start)
+        .bind(day_end)
+        .bind(&gems)
+        .fetch_all(&mut *transaction)
+        .await?;
 
     sqlx::query("DELETE FROM defillama_daily_fees WHERE utc_day = $1")
         .bind(utc_day)
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
 
+    let pins: Option<(bool, bool)> = sqlx::query_as(
+        "SELECT factory_configured, community_invoices_configured FROM global_stats_24h WHERE id = 1"
+    ).fetch_optional(&mut *transaction).await?;
+    let (factory_configured, community_invoices_configured) = pins.unwrap_or_default();
     for source in FeeSource::ALL {
         let row = fees.iter().find(|r| r.source == source.as_str());
-        let (amount, count, unpriced) = match row {
+        let has_attested_history = row.is_some_and(|r| r.event_count > 0);
+        // Removing a current pin does not erase immutable already-ingested fees.
+        if source == FeeSource::PairCreation && !factory_configured && !has_attested_history {
+            continue;
+        }
+        if matches!(source, FeeSource::SkuUnlock | FeeSource::SettingsFee)
+            && !community_invoices_configured
+            && !has_attested_history
+        {
+            continue;
+        }
+        let (amount, count, unpriced, unresolved) = match row {
             Some(r) => (
                 r.amount_usd.clone().unwrap_or_else(|| BigDecimal::from(0)),
                 r.event_count,
                 r.unpriced_count,
+                r.unresolved_pair_count,
             ),
-            None => (BigDecimal::from(0), 0, 0),
+            None => (BigDecimal::from(0), 0, 0, 0),
         };
         sqlx::query(
             r#"
             INSERT INTO defillama_daily_fees
-                (utc_day, source, amount_usd, event_count, unpriced_count)
-            VALUES ($1, $2, $3, $4, $5)
+                (utc_day, source, amount_usd, event_count, unpriced_count, unresolved_pair_count)
+            VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
         .bind(utc_day)
@@ -252,11 +293,21 @@ pub async fn refresh_defillama_day(
         .bind(&amount)
         .bind(count)
         .bind(unpriced)
-        .execute(pool)
+        .bind(unresolved)
+        .execute(&mut *transaction)
         .await?;
     }
 
-    super::defillama_assets::refresh_daily_assets(pool, day_start, day_end, utc_day, &gems).await?;
+    super::defillama_assets::refresh_daily_assets(
+        &mut transaction,
+        day_start,
+        day_end,
+        utc_day,
+        &gems,
+        preserve_auxiliary_snapshots,
+    )
+    .await?;
+    transaction.commit().await?;
 
     Ok(())
 }

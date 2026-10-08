@@ -26,7 +26,7 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | **L631-4** | Exclude columbus-5 gem pairs from daily volume and pair-linked fees. Same address set as `COLUMBUS5_GEM_ADDRESSES`. |
 | **L631-5** | Exclude wrap/unwrap and UST1 mint/redeem from `dailyVolume`. They may appear as **labeled** fee breakdowns. |
 | **L631-6** | Fees are PFee/L7 treasury sources. `spread_amount`, burn tax, gas, hooks, and community-tax extra-debit are not `dailyFees`. SSR is `0`. |
-| **L631-7** | GET `/api/v1/defillama/daily` is O(1) rollup + 60s cache. Invalid timestamp → **400**. Missing day → **404**. Idle → `"0"`. Volume: activity + unpriced → `null`. Headline **fees** are EFee-6 partial SUM (**L687**); per-source `fees.*` stay fail-closed. Single-day param only. |
+| **L631-7** | GET `/api/v1/defillama/daily` is O(1) rollup + 60s cache. Invalid timestamp → **400**. Missing day → **404**. Idle → `"0"`. Volume: positive priced SUM is a lower bound with priced/unpriced counts; all-unpriced activity → `null` (#1354). Headline **fees** are EFee-6 partial SUM (**L687**); per-source `fees.*` stay fail-closed. Single-day param only. |
 | **L631-8** | Named wrap substitution only: cLUNC → `uluna`, cUSTC → `uusd` (1:1). No UST1=$1 / USTR hub pegs. vFDUSD / CEX FDUSD is not a pool asset. |
 | **L631-9** | This skill + `docs/DEFILLAMA.md` + `make verify-issue-631`. Keep `make verify-issue-586` / `569` / `562`. Headline fee regression gate: `make verify-issue-687` (closed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)). |
 | **L631-10** | UST1 is the **unstablecoin** on Llama Stablecoins (`peggedUSD`, crypto-backed). Circulating is CW20 `total_supply`. Price is hub / Llama — never `$1`. |
@@ -58,13 +58,13 @@ from remaining indexer/fee/price acceptance.
 | ID | Required behavior |
 |----|-------------------|
 | DL1354-1 | Compare identical completed UTC days from 2026-08-17, never trailing overview totals. Record serving and checkout revisions separately. |
-| DL1354-2 | Target live volume headline is the positive priced sum with completeness counts: idle zero, all-unpriced null. This remains unimplemented; L631-7 legacy fail-closed volume is not #1354 acceptance. |
+| DL1354-2 | Volume headline is the positive priced sum with `priced_trade_count`, `unpriced_trade_count` and `volume_complete`: idle zero, all-unpriced null. Asset volume follows the same rule; fee source breakdowns remain fail-closed. |
 | DL1354-3 | Upstream #9907 fallback requires explicit legacy null, matching date/timestamp and exact nonnegative trade counts against a daily UTC protocol rollup. Reject gem count mismatch, duplicates, missing/malformed rows, active zero and unavailable data. Its 90-day retention is not permanent historical repair. |
 | DL1354-4 | Count swap hops once; keep gem, wrap/window principal and L10 exclusions. Never invent historical marks, UST1 $1 or a USTR multiplier. |
 | DL1354-5 | Reconcile fee ledger and both stored rollups by day/source/pair in a read-only repeatable snapshot. Separate exclusions, unresolved legacy scope, unpriced activity and stale materialization. Public protocol sums alone cannot explain the listing gap. |
-| DL1354-6 | Exclude pair-linked fees by their actual pair/event, never any gem swap sharing a transaction. Mixed hops retain ordinary fees. Current tx-wide SQL is a failing acceptance item. |
-| DL1354-7 | Ledger repair and NULL-only as-of pricing must explicitly reaggregate affected old Llama days. The bounded eight-day loop is not historical acceptance. GET remains rollup-only/60s; upstream reload is separately evidenced. |
-| DL1354-8 | Missing pair_creation/SKU/settings sources belong to #1209/#1210 and #1213. Closed docs-only trackers are not ingest evidence. Preserve reserved emitter, exact amount, dedupe and omit-unconfigured rules; gas/spread/tax are not fees. |
+| DL1354-6 | Exclude pair-linked fees by their actual pair/event, never any gem swap sharing a transaction. Mixed hops retain ordinary fees. Legacy rows resolve only from a unique pair matched by swap index/order id; otherwise retain headline fees with `unresolved_pair_fee_event_count` and do not allocate them to an asset. |
+| DL1354-7 | Ledger repair and NULL-only as-of pricing must explicitly reaggregate affected old Llama days. Use `backfill-defillama --start YYYY-MM-DD --end YYYY-MM-DD` for 1–400 completed days from adapter start. Each day atomically reaggregates original stamps with timeouts and a per-day lock; retry on concurrent refresh/interruption. The bounded eight-day loop is not historical acceptance. GET remains rollup-only/60s; upstream reload is separately evidenced. |
+| DL1354-8 | Pair creation/SKU/settings sources are implemented under #1209/#1210 in #1354; their paid production replay evidence remains separate. Closed docs-only trackers are not ingest evidence. Preserve reserved emitter, exact amount, dedupe and omit-unconfigured rules; gas/spread/tax are not fees. |
 | DL1354-9 | TVL stays raw factory Pool reserves with verified prices and valued/unvalued keys at the same pinned block/time. Last Llama/current-price snapshots cannot establish an exact TVL target; one-sided indexer USD is not interchangeable. |
 | DL1354-10 | Finish runnable checks first. Unavailable checks may be explicit SKIP under the user's close permission; executed failures stay FAIL and block this close. Distinguish source, deployment, reload, fixture and scheduled-monitoring receipts; update docs, invariants, copies and this skill together. |
 
@@ -72,7 +72,7 @@ Upstream [dimension-adapters#9907](https://github.com/DefiLlama/dimension-adapte
 merged 2026-10-04. The volume copy/helper and boundary tests are under
 [`scripts/defillama/dexs`](../scripts/defillama/dexs/).
 The anchored August 26–September 24 chart now includes the ten former null dates;
-live feed completeness, fees and CW20 pricing still fail. Keep #631/#687 closed.
+the source implements completeness, history repair and missing fees, while live rollout/reload/CW20 pricing remain separately evidenced. Keep #631/#687 closed.
 
 ## Do / don’t
 
@@ -100,6 +100,12 @@ live feed completeness, fees and CW20 pricing still fail. Keep #631/#687 closed.
 | TVL helper | [`scripts/defillama/tvl/tvlCore.js`](../scripts/defillama/tvl/tvlCore.js) |
 | Tests | [`indexer/tests/indexer_defillama.rs`](../indexer/tests/indexer_defillama.rs) |
 | Mapper | [`scripts/defillama/dimensions/mapDaily.js`](../scripts/defillama/dimensions/mapDaily.js) |
+
+## Historical repair and monitoring
+
+Read the bounded read-only SQL report in [QA #1354](../docs/qa/issue-1354/README.md) before repair. Run the repair CLI with a prepared schema and runtime credential after ledger corrections; never run migrations through the runtime. It only reaggregates existing stamps, including old newly idle days, and is safe to retry. Explicit history repair preserves old asset price/as-of/supply snapshots; absent snapshots stay unavailable and current hub marks are never backdated. GET cache may retain the old day for 60 seconds; independent serving processes need their next expiry.
+
+`bash scripts/defillama/install-drift-monitor.sh` installs a daily user systemd timer at 01:15 UTC plus up to five minutes jitter. The latest 90 completed days are checked; JSON and journal record missing/drifting dates, CW20 coverage and up to 256 changed daily readbacks. Older history remains an explicit bounded audit. Exit 1 is real drift; exit 2 is unavailable evidence. Timer activation is scheduling evidence, not external alert delivery or accounting acceptance. Keep its checkout alive; remove with `systemctl --user disable --now cl8y-defillama-drift.timer`.
 
 ## Regression
 

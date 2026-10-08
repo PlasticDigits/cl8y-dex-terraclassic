@@ -503,6 +503,29 @@ pub async fn process_block_txs(
                 .await?;
         }
 
+        for candidate in crate::indexer::invoice_fees::parse_invoice_fees(
+            tx,
+            &config.factory_address,
+            config.community_token_launcher.as_deref().unwrap_or(""),
+            &config.hub_ust1_address,
+        ) {
+            if crate::indexer::invoice_fees::trusted_invoice_emitter(pool, lcd, config, &candidate)
+                .await?
+            {
+                process_wrap_fee(
+                    pool,
+                    lcd,
+                    config,
+                    &candidate.fee,
+                    height,
+                    block_time,
+                    &tx.txhash,
+                    ustc_price,
+                )
+                .await?;
+            }
+        }
+
         if let Some(ref mapper) = config.wrap_mapper_address {
             for fee in protocol_fees::parse_wrap_fees(tx, mapper) {
                 process_wrap_fee(

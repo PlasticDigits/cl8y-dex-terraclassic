@@ -47,8 +47,9 @@ The TVL adapter paginates factory `Pairs { limit: 30, start_after }` and `api.ad
 `dailyVolume` = `GET /api/v1/defillama/daily` `volume_usd`.
 
 - Window is **UTC midnight → +86400**, not trailing 24h (**#576** retail windows stay separate).
-- Headline = `SUM(swap_events.volume_usd)` **once per swap row** ([**L10**](./integrators-hybrid-volume.md), [#216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)).
+- Headline = positive priced `SUM(swap_events.volume_usd)` **once per swap row** ([**L10**](./integrators-hybrid-volume.md), [#216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)).
 - **Exclude:** columbus-5 gem pairs ([`COLUMBUS5_GEM_ADDRESSES`](../frontend-dapp/src/utils/pairCatalogRank.ts) / [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)), wrap/unwrap, UST1 mint/redeem, `limit_order_fills` (already inside the parent swap), community-tax extra-debit as a separate add.
+- A positive partial priced headline is a **lower bound**. `priced_trade_count` + `unpriced_trade_count` = `trade_count`; `volume_complete` is true only when no eligible swaps are unpriced. Idle is `"0"`, all-unpriced activity is `null`. Never invent historical marks.
 - Do **not** serve `overview.total_volume_24h_usd` as `dailyVolume`.
 
 ### Fees / revenue
@@ -62,7 +63,9 @@ Pair commission goes to `FEE_CONFIG.treasury` (CMM), **not** to LPs. `spread_amo
 | `dailySupplySideRevenue` | `0` (do not reclassify `spread_amount` or residual) |
 | `dailyHoldersRevenue` | Omit |
 
-Community-tax extra-debit is **token tax**, not a protocol DEX fee.
+Community-tax extra-debit is **token tax**, not a protocol DEX fee. Additional treasury sources are pinned factory `pair_creation` and authenticated `sku_unlock` / `settings_fee` UST1 invoices (#1209/#1210). They use actual emitted raw amounts and verified payment identity, never a guessed USD peg.
+
+Pair-linked fees use their own `pair_id`. Legacy NULL pair fees resolve only when their source-specific swap index or order id identifies exactly one pair. Ambiguous legacy rows remain in the priced headline with explicit `unresolved_pair_fee_event_count`; they are not allocated to asset totals. A gem hop never erases an ordinary hop sharing its transaction.
 
 ### UST1 unstablecoin (Stablecoins dashboard)
 
@@ -150,11 +153,18 @@ nulls those dates and omits completeness counts. Same-window stored fees are
 $746.87 versus $816.735930564854092361 on the daily feed. The broader protocol
 fee series is about $897.47; its extra amount needs source/pair reconciliation.
 
-Outstanding: live volume completeness, transaction-wide gem fee exclusion,
-#1209/#1210 sources, historical repair outside the eight-day window, and verified
-CW20 prices. The target headline is a positive priced lower bound with counts
-(idle zero, all-unpriced null); the indexer still needs that change. This
-qualifies legacy behavior above and leaves completed #631/#687 closed.
+The source now implements positive partial volume with completeness, pair/event-scoped fees, pinned creation/invoice sources and explicit old-day repair. These changes need rollout before the public feed establishes acceptance; verified CW20 pricing and upstream historical fee reload remain separate.
+
+After a read-only day/source/pair reconciliation and actual ledger corrections, run:
+
+```sh
+# Runtime DATABASE_URL only; pre-applied migrations, no repricing or migrations.
+cl8y-dex-indexer backfill-defillama --start 2026-08-17 --end 2026-09-24
+```
+
+The CLI validates 1–400 completed UTC days before accessing credentials. Each day commits an atomic repeatable snapshot with statement/lock timeouts and a per-day advisory lock. Retry the range after interruption or concurrent-writer failure. Fees and volumes are rebuilt from original event stamps. Existing auxiliary asset price/as-of/supply snapshots are preserved; missing historical snapshots stay unavailable rather than capturing current hub marks. It does not reload upstream charts or invent historical prices. The ordinary eight-day loop stays bounded. GET cache expires within 60 seconds.
+
+Install read-only daily drift monitoring with `bash scripts/defillama/install-drift-monitor.sh`. A user timer runs at 01:15 UTC plus up to five minutes jitter; The latest 90 completed days and up to 256 changed daily readbacks are recorded; older corrections need an explicit bounded audit. JSON is under the user's state directory and findings are visible in the systemd journal with a failed service exit. External alert delivery is separately configured/evidenced. Keep the checkout available or disable the timer before removing it.
 
 Treat the listing as regressed if volume includes gems or fills; TVL comes from indexer USD; fees include `spread_amount` or token tax; unpriced activity is published as `$0`; SSR is non-zero; or adapter `start` walks May 2026 404s.
 

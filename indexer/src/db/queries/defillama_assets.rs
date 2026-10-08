@@ -2,16 +2,27 @@
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgConnection};
 
 use crate::indexer::defillama::{daily_asset_contract, DAILY_ASSET_TICKERS};
 
+/// These snapshots are advisory auxiliary data, separate from ledger accounting.
+/// Historical repair preserves them verbatim and never samples today's marks.
+#[derive(Clone, Default, FromRow)]
+struct AuxiliarySnapshot {
+    ticker: String,
+    price_usd: Option<BigDecimal>,
+    price_as_of: Option<DateTime<Utc>>,
+    circulating_raw: Option<BigDecimal>,
+}
+
 pub async fn refresh_daily_assets(
-    pool: &PgPool,
+    connection: &mut PgConnection,
     day_start: DateTime<Utc>,
     day_end: DateTime<Utc>,
     utc_day: NaiveDate,
     gems: &[String],
+    preserve_auxiliary_snapshots: bool,
 ) -> Result<(), sqlx::Error> {
     #[derive(FromRow)]
     struct VolAgg {
@@ -26,9 +37,21 @@ pub async fn refresh_daily_assets(
         amount_usd: Option<BigDecimal>,
     }
 
+    let previous_snapshots: Vec<AuxiliarySnapshot> = if preserve_auxiliary_snapshots {
+        sqlx::query_as(
+            "SELECT ticker, price_usd, price_as_of, circulating_raw
+             FROM defillama_daily_assets WHERE utc_day = $1",
+        )
+        .bind(utc_day)
+        .fetch_all(&mut *connection)
+        .await?
+    } else {
+        Vec::new()
+    };
+
     sqlx::query("DELETE FROM defillama_daily_assets WHERE utc_day = $1")
         .bind(utc_day)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
 
     for ticker in DAILY_ASSET_TICKERS {
@@ -77,109 +100,73 @@ pub async fn refresh_daily_assets(
         .bind(day_end)
         .bind(gems)
         .bind(&contract_lc)
-        .fetch_one(pool)
+        .fetch_one(&mut *connection)
         .await?;
 
         let include_window = *ticker == "ust1";
-        let fees: FeeAgg = sqlx::query_as(
+        let fee_sql = format!(
+            "{}{}",
+            include_str!("defillama_fee_scope.sql"),
             r#"
-            WITH gem_pairs AS (
-                SELECT p.id
-                FROM pairs p
-                JOIN assets a0 ON a0.id = p.asset_0_id
-                JOIN assets a1 ON a1.id = p.asset_1_id
-                WHERE LOWER(COALESCE(a0.contract_address, '')) = ANY($3)
-                   OR LOWER(COALESCE(a1.contract_address, '')) = ANY($3)
-            ),
-            target_pairs AS (
-                SELECT p.id
-                FROM pairs p
+            , target_pairs AS (
+                SELECT p.id FROM pairs p
                 JOIN assets a0 ON a0.id = p.asset_0_id
                 JOIN assets a1 ON a1.id = p.asset_1_id
                 WHERE LOWER(COALESCE(a0.contract_address, '')) = $4
                    OR LOWER(COALESCE(a1.contract_address, '')) = $4
             )
-            SELECT
-                COUNT(*)::bigint AS event_count,
-                COUNT(*) FILTER (
-                    WHERE e.fee_usd IS NULL OR e.fee_usd <= 0
-                )::bigint AS unpriced_count,
-                COALESCE(
-                    SUM(e.fee_usd) FILTER (
-                        WHERE e.fee_usd IS NOT NULL AND e.fee_usd > 0
-                    ),
-                    0
-                ) AS amount_usd
-            FROM protocol_fee_events e
-            WHERE e.block_timestamp >= $1
-              AND e.block_timestamp < $2
-              AND (
-                  ($5 AND e.source IN ('ust1_mint', 'ust1_redeem'))
-                  OR (
-                      e.source IN ('swap_amm', 'book_take', 'limit_place')
-                      AND NOT EXISTS (
-                          SELECT 1 FROM gem_pairs gp
-                          WHERE
-                              (e.source = 'swap_amm' AND EXISTS (
-                                  SELECT 1 FROM swap_events se
-                                  WHERE se.tx_hash = e.tx_hash AND se.pair_id = gp.id
-                              ))
-                              OR (e.source = 'book_take' AND EXISTS (
-                                  SELECT 1 FROM limit_order_fills f
-                                  WHERE f.tx_hash = e.tx_hash AND f.pair_id = gp.id
-                              ))
-                              OR (e.source = 'limit_place' AND EXISTS (
-                                  SELECT 1 FROM limit_order_placements pl
-                                  WHERE pl.tx_hash = e.tx_hash AND pl.pair_id = gp.id
-                              ))
-                      )
-                      AND (
-                          (e.source = 'swap_amm' AND EXISTS (
-                              SELECT 1 FROM swap_events se
-                              WHERE se.tx_hash = e.tx_hash
-                                AND se.pair_id IN (SELECT id FROM target_pairs)
-                          ))
-                          OR (e.source = 'book_take' AND EXISTS (
-                              SELECT 1 FROM limit_order_fills f
-                              WHERE f.tx_hash = e.tx_hash
-                                AND f.pair_id IN (SELECT id FROM target_pairs)
-                          ))
-                          OR (e.source = 'limit_place' AND EXISTS (
-                              SELECT 1 FROM limit_order_placements pl
-                              WHERE pl.tx_hash = e.tx_hash
-                                AND pl.pair_id IN (SELECT id FROM target_pairs)
-                          ))
-                      )
-                  )
-              )
-            "#,
-        )
-        .bind(day_start)
-        .bind(day_end)
-        .bind(gems)
-        .bind(&contract_lc)
-        .bind(include_window)
-        .fetch_one(pool)
-        .await?;
+            SELECT COUNT(*)::bigint AS event_count,
+                   COUNT(*) FILTER (WHERE e.fee_usd IS NULL OR e.fee_usd <= 0)::bigint AS unpriced_count,
+                   COALESCE(SUM(e.fee_usd) FILTER (WHERE e.fee_usd > 0), 0) AS amount_usd
+            FROM scoped_fee_events e
+            WHERE ($5 AND e.source IN ('ust1_mint', 'ust1_redeem'))
+               OR (e.source IN ('swap_amm', 'book_take', 'limit_place')
+                   AND e.resolved_pair_id IN (SELECT id FROM target_pairs)
+                   AND e.resolved_pair_id NOT IN (SELECT id FROM gem_pairs))
+            "#
+        );
+        let fees: FeeAgg = sqlx::query_as(&fee_sql)
+            .bind(day_start)
+            .bind(day_end)
+            .bind(gems)
+            .bind(&contract_lc)
+            .bind(include_window)
+            .fetch_one(&mut *connection)
+            .await?;
 
-        let price: Option<(BigDecimal, DateTime<Utc>)> = sqlx::query_as(
-            "SELECT price_usd, as_of FROM hub_prices WHERE ticker = $1 AND price_usd > 0
+        let auxiliary = if preserve_auxiliary_snapshots {
+            previous_snapshots
+                .iter()
+                .find(|row| row.ticker == *ticker)
+                .cloned()
+                .unwrap_or_default()
+        } else {
+            let price: Option<(BigDecimal, DateTime<Utc>)> = sqlx::query_as(
+                "SELECT price_usd, as_of FROM hub_prices WHERE ticker = $1 AND price_usd > 0
              AND quality IN ('bounded_spot','external_quorum')
              AND as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()
              AND EXISTS (SELECT 1 FROM oracle_state os WHERE os.ticker = 'ustc'
                  AND os.quality = 'fresh' AND cardinality(os.accepted_sources) >= 2
                  AND os.as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW())",
-        )
-        .bind(*ticker)
-        .fetch_optional(pool)
-        .await?;
+            )
+            .bind(*ticker)
+            .fetch_optional(&mut *connection)
+            .await?;
+
+            AuxiliarySnapshot {
+                ticker: ticker.to_string(),
+                price_usd: price.as_ref().map(|p| p.0.clone()),
+                price_as_of: price.map(|p| p.1),
+                circulating_raw: None,
+            }
+        };
 
         sqlx::query(
             r#"
             INSERT INTO defillama_daily_assets
                 (utc_day, ticker, volume_usd, trade_count, unpriced_trade_count,
                  fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw, price_as_of)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             "#,
         )
         .bind(utc_day)
@@ -190,9 +177,10 @@ pub async fn refresh_daily_assets(
         .bind(fees.amount_usd.unwrap_or_else(|| BigDecimal::from(0)))
         .bind(fees.event_count)
         .bind(fees.unpriced_count)
-        .bind(price.as_ref().map(|p|p.0.clone()))
-        .bind(price.map(|p|p.1))
-        .execute(pool)
+        .bind(auxiliary.price_usd)
+        .bind(auxiliary.circulating_raw)
+        .bind(auxiliary.price_as_of)
+        .execute(&mut *connection)
         .await?;
     }
 

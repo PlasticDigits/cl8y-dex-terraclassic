@@ -12,6 +12,54 @@ function bottom(b: Box) {
   return b.y + b.height
 }
 
+/** Layout checks need populated UTC buckets even when the local indexer is down. */
+async function mockProtocolVolumeSeries(page: Page) {
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname !== '/api/v1/protocol/volume/daily') {
+      await route.fulfill({ status: 404, json: { error: 'Unavailable layout fixture' } })
+      return
+    }
+    const grain = url.searchParams.get('grain')
+    const limit = Number(url.searchParams.get('limit'))
+    const available = { hourly: 24, daily: 30, monthly: 12 }
+    if (!(grain === 'hourly' || grain === 'daily' || grain === 'monthly') || !Number.isInteger(limit) || limit < 1) {
+      await route.fulfill({ status: 400, json: { error: 'Invalid UTC series request' } })
+      return
+    }
+    const count = Math.min(limit, available[grain])
+    const series = Array.from({ length: count }, (_, index) => {
+      const period = new Date(Date.UTC(2026, 0, 1))
+      if (grain === 'hourly') period.setUTCHours(index)
+      else if (grain === 'monthly') period.setUTCMonth(index)
+      else period.setUTCDate(index + 1)
+      const key = grain === 'hourly' ? 'utc_hour' : grain === 'monthly' ? 'utc_month' : 'utc_day'
+      const length = grain === 'hourly' ? 13 : grain === 'monthly' ? 7 : 10
+      return { [key]: period.toISOString().slice(0, length), volume_usd: String(100 + index * 10), trade_count: 1 }
+    })
+    await route.fulfill({ json: { grain, limit, timezone: 'UTC', methodology: 'protocol_catalog', series } })
+  })
+}
+
+async function selectProtocolVolumeGrain(page: Page, grain: 'hourly' | 'monthly') {
+  const response = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return (
+      url.pathname === '/api/v1/protocol/volume/daily' &&
+      url.searchParams.get('grain') === grain &&
+      response.status() === 200
+    )
+  })
+  await page.getByTestId(`protocol-volume-grain-${grain}`).click()
+  await response
+  // The five-worker companion suite can delay rendering after the fixture's
+  // successful response. Require the actual populated plot, never an empty tab.
+  const label = grain === 'hourly' ? 'Hourly' : 'Monthly'
+  await expect(page.getByTestId('protocol-volume-daily-bars')).toHaveAttribute('aria-label', `Volume, ${label}`, {
+    timeout: 15_000,
+  })
+}
+
 /** GitLab #667 — Δ% chip sits with its headline, not under the next column. */
 async function assertChipGroupedWithHeadline(page: Page, tile: Locator, chip: Locator, nextTile?: Locator) {
   await expect(tile).toBeVisible()
@@ -338,18 +386,20 @@ test.describe('Protocol Δ% grouping (GitLab #667)', () => {
 test.describe('Protocol leftovers (GitLab #677)', () => {
   test('Hourly / Daily / Monthly x-axis meets density floor', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
+    await mockProtocolVolumeSeries(page)
     await page.goto('/protocol')
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
     const chart = page.getByTestId('protocol-volume-daily-chart')
-    if (!(await chart.count())) return
     await expect(chart).toBeVisible()
+    const plot = page.getByTestId('protocol-volume-daily-bars')
+    await expect(plot).toBeVisible({ timeout: 15_000 })
+    await expect(plot).toHaveAttribute('aria-label', 'Volume, Daily')
     await assertChartFillsPanel(page)
     await assertVolumeXAxisDensity(page, 'daily')
-    await page.getByTestId('protocol-volume-grain-hourly').click()
-    await expect(chart).toContainText(/UTC hour/)
+    await selectProtocolVolumeGrain(page, 'hourly')
     await assertVolumeXAxisDensity(page, 'hourly')
-    await page.getByTestId('protocol-volume-grain-monthly').click()
+    await selectProtocolVolumeGrain(page, 'monthly')
     await expect(page.getByTestId('protocol-volume-grain-monthly')).toHaveAttribute('aria-selected', 'true')
     await assertVolumeXAxisDensity(page, 'monthly')
   })

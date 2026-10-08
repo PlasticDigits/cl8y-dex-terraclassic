@@ -42,10 +42,13 @@ pub enum FeeSource {
     Unwrap,
     Ust1Mint,
     Ust1Redeem,
+    PairCreation,
+    SkuUnlock,
+    SettingsFee,
 }
 
 impl FeeSource {
-    pub const ALL: [FeeSource; 7] = [
+    pub const ALL: [FeeSource; 10] = [
         FeeSource::SwapAmm,
         FeeSource::BookTake,
         FeeSource::LimitPlace,
@@ -53,6 +56,9 @@ impl FeeSource {
         FeeSource::Unwrap,
         FeeSource::Ust1Mint,
         FeeSource::Ust1Redeem,
+        FeeSource::PairCreation,
+        FeeSource::SkuUnlock,
+        FeeSource::SettingsFee,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -64,6 +70,9 @@ impl FeeSource {
             FeeSource::Unwrap => "unwrap",
             FeeSource::Ust1Mint => "ust1_mint",
             FeeSource::Ust1Redeem => "ust1_redeem",
+            FeeSource::PairCreation => "pair_creation",
+            FeeSource::SkuUnlock => "sku_unlock",
+            FeeSource::SettingsFee => "settings_fee",
         }
     }
 
@@ -76,6 +85,9 @@ impl FeeSource {
             "unwrap" => Some(FeeSource::Unwrap),
             "ust1_mint" => Some(FeeSource::Ust1Mint),
             "ust1_redeem" => Some(FeeSource::Ust1Redeem),
+            "pair_creation" => Some(FeeSource::PairCreation),
+            "sku_unlock" => Some(FeeSource::SkuUnlock),
+            "settings_fee" => Some(FeeSource::SettingsFee),
             _ => None,
         }
     }
@@ -99,6 +111,9 @@ pub fn fee_source_label(source: FeeSource) -> &'static str {
         FeeSource::Unwrap => "Unwrap",
         FeeSource::Ust1Mint => "UST1 mint",
         FeeSource::Ust1Redeem => "UST1 redeem",
+        FeeSource::PairCreation => "Pair creation",
+        FeeSource::SkuUnlock => "SKU unlock",
+        FeeSource::SettingsFee => "Settings invoice",
     }
 }
 
@@ -160,7 +175,7 @@ fn pin_matches(pinned: &str, contract: &str) -> bool {
 
 /// Same contract as parser lifecycle scans (#141 / #285): last reserved
 /// `_contract_address` **before** `idx`. Forged `contract_address` is ignored.
-fn wasm_contract_addr_before<'a>(attrs: &'a [Attribute], idx: usize) -> Option<&'a str> {
+pub(super) fn wasm_contract_addr_before<'a>(attrs: &'a [Attribute], idx: usize) -> Option<&'a str> {
     attrs[..idx]
         .iter()
         .rev()
@@ -169,7 +184,7 @@ fn wasm_contract_addr_before<'a>(attrs: &'a [Attribute], idx: usize) -> Option<&
 }
 
 /// Key/value pairs after `action_pos` until the next `action` or `_contract_address`.
-fn wasm_kv_map_after_action(
+pub(super) fn wasm_kv_map_after_action(
     attrs: &[Attribute],
     action_pos: usize,
 ) -> std::collections::HashMap<&str, &str> {
@@ -188,7 +203,7 @@ fn wasm_kv_map_after_action(
 
 /// Valid zero means no treasury fee. Invalid or missing values reject the fee
 /// action and emit only bounded metadata, never event values or identities.
-fn positive_fee_amount(
+pub(super) fn positive_fee_amount(
     value: Option<&str>,
     source: FeeSource,
     field: &'static str,
@@ -336,7 +351,7 @@ fn window_fee_token(seg: &std::collections::HashMap<&str, &str>) -> Option<Strin
     None
 }
 
-fn wasm_contract_addr_before_action<'a>(
+pub(super) fn wasm_contract_addr_before_action<'a>(
     attrs: &'a [Attribute],
     action_idx: usize,
 ) -> Option<&'a str> {

@@ -919,7 +919,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
   })
 
-  it('omits UST1 mint/redeem when window is unconfigured (GitLab #614)', async () => {
+  it('retains paid UST1 mint and omits idle redeem after pin removal (#1354 / GitLab #614)', async () => {
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
       ...feesOk,
       ust1_window_configured: false,
@@ -927,11 +927,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const fees = await screen.findByTestId('protocol-fee-stats')
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('AMM swap')
-    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 mint')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('UST1 mint')
     expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 redeem')
   })
 
-  it('omits UST1 window rows when flag is missing (old indexer, GitLab #614 / PFee-10)', async () => {
+  it('retains paid UST1 window rows when flag is missing (old indexer, #1354 / PFee-10)', async () => {
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
       window: feesOk.window,
       wrap_mapper_configured: feesOk.wrap_mapper_configured,
@@ -940,7 +940,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     })
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const fees = await screen.findByTestId('protocol-fee-stats')
-    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 mint')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('UST1 mint')
   })
 
   it('inlines volume Δ% and hosts a UTC grain chart (GitLab #652 / #668)', async () => {

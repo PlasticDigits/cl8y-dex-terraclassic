@@ -619,7 +619,7 @@ async fn captured_unwrap_and_combo_with_swap_amm() {
 
 #[serial]
 #[tokio::test]
-async fn unconfigured_mapper_omits_wrap_family() {
+async fn unconfigured_mapper_retains_paid_wrap_and_omits_idle_unwrap() {
     let pool = setup_pool().await;
     let seed = seed_db(&pool).await;
     insert_fee(
@@ -651,7 +651,8 @@ async fn unconfigured_mapper_omits_wrap_family() {
     let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
     assert!(sources
         .iter()
-        .all(|s| s.source != "wrap" && s.source != "unwrap"));
+        .any(|s| s.source == "wrap" && s.event_count == 1));
+    assert!(sources.iter().all(|s| s.source != "unwrap"));
     assert!(sources
         .iter()
         .any(|s| s.source == "swap_amm" && s.event_count == 1));
@@ -743,7 +744,7 @@ async fn ust1_window_fees_included_in_totals_when_configured() {
 
 #[serial]
 #[tokio::test]
-async fn ust1_window_unconfigured_omits_sources_not_fake_zero() {
+async fn ust1_window_unconfigured_retains_paid_mint_and_omits_idle_redeem() {
     let pool = setup_pool().await;
     let seed = seed_db(&pool).await;
     insert_fee(
@@ -774,12 +775,13 @@ async fn ust1_window_unconfigured_omits_sources_not_fake_zero() {
     .await;
     let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
     assert!(!rollup.ust1_window_configured);
-    // Totals still include stored events (census); Source table omits window keys.
+    // Both totals and source breakdown retain immutable paid receipts.
     assert_eq!(rollup.fee_event_count_24h, 2);
     let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
     assert!(sources
         .iter()
-        .all(|s| s.source != "ust1_mint" && s.source != "ust1_redeem"));
+        .any(|s| s.source == "ust1_mint" && s.event_count == 1));
+    assert!(sources.iter().all(|s| s.source != "ust1_redeem"));
     assert!(sources
         .iter()
         .any(|s| s.source == "swap_amm" && s.event_count == 1));
@@ -1154,4 +1156,292 @@ async fn backfill_skips_zero_commission_hops() {
         .expect("backfill");
     assert_eq!(inserted, 0);
     assert_eq!(swap_amm_count(&pool, "tx-zero").await, 0);
+}
+
+/// #1209/#1210: additive non-pair replay keys, configured idle/unpriced and
+/// unconfigured omission survive the same rollup/API path as existing fees.
+#[serial]
+#[tokio::test]
+async fn missing_fee_sources_replay_configuration_and_null_semantics() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::PairCreation,
+        seed.asset_0_id,
+        "1000000",
+        Some("2"),
+        1,
+        "creation",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::PairCreation,
+        seed.asset_0_id,
+        "9999999",
+        Some("99"),
+        1,
+        "creation",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SkuUnlock,
+        seed.asset_1_id,
+        "50000000",
+        None,
+        1,
+        "invoice",
+        0,
+    )
+    .await;
+    fee_q::refresh_protocol_fees_with_sources(&pool, false, false, true, true)
+        .await
+        .unwrap();
+    reset_protocol_fees_cache();
+    let server = TestServer::new(build_test_app(pool.clone()).await);
+    let response = server.get("/api/v1/protocol/fees").await;
+    response.assert_status_ok();
+    let body: Value = response.json();
+    assert_eq!(body["factory_configured"], true);
+    assert_eq!(body["community_invoices_configured"], true);
+    let sources = body["by_source"].as_array().unwrap();
+    let creation = sources
+        .iter()
+        .find(|s| s["source"] == "pair_creation")
+        .unwrap();
+    assert_eq!(creation["event_count"], 1);
+    assert_eq!(bd(creation["amount_usd"].as_str().unwrap()), bd("2"));
+    let sku = sources
+        .iter()
+        .find(|s| s["source"] == "sku_unlock")
+        .unwrap();
+    assert_eq!(sku["event_count"], 1);
+    assert!(sku["amount_usd"].is_null());
+    let settings = sources
+        .iter()
+        .find(|s| s["source"] == "settings_fee")
+        .unwrap();
+    assert_eq!(settings["event_count"], 0);
+    assert_eq!(settings["amount_usd"], "0");
+    let pair: Option<i32> =
+        sqlx::query_scalar("SELECT pair_id FROM protocol_fee_events WHERE tx_hash = 'creation'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(pair.is_none());
+    fee_q::refresh_protocol_fees_with_sources(&pool, false, false, false, false)
+        .await
+        .unwrap();
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    assert!(sources
+        .iter()
+        .any(|s| s.source == "pair_creation" && s.event_count == 1));
+    assert!(sources
+        .iter()
+        .any(|s| s.source == "sku_unlock" && s.event_count == 1));
+    assert!(!sources.iter().any(|s| s.source == "settings_fee"));
+}
+
+#[serial]
+#[tokio::test]
+async fn invoice_provenance_requires_anchored_launcher_and_exact_ust1() {
+    use cl8y_dex_indexer::indexer::invoice_fees::{trusted_invoice_emitter, InvoiceCandidate};
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let pool = setup_pool().await;
+    let mut config = common::test_config();
+    config.community_token_launcher = Some("terra1launcher".into());
+    config.community_tax_code_id = Some(100);
+    config.cmm_governance_addr = Some("terra1governance".into());
+    let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    Mock::given(method("GET")).and(path_regex(r"/smart/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"ust1":config.hub_ust1_address,"cmm_treasury":"terra1treasuryyyyyyyyyyyyyy", "token_code_id":100, "cmm_governance":"terra1governance"}})))
+        .mount(&server).await;
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
+    let mut candidate = InvoiceCandidate {
+        emitter: "terra1token".into(),
+        fee: cl8y_dex_indexer::indexer::protocol_fees::ParsedWrapFee {
+            source: FeeSource::SettingsFee,
+            amount_raw: bd("50000000"),
+            token: config.hub_ust1_address.clone(),
+            ordinal: 0,
+        },
+    };
+    sqlx::query("INSERT INTO community_tokens (contract_address,code_id,wasm_admin,launcher_address,attested_cmm) VALUES ('terra1token',100,'terra1governance','terra1launcher',true)").execute(&pool).await.unwrap();
+    assert!(!trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+    // Catalog attestation/self-reported origin alone is insufficient.
+    sqlx::query("UPDATE community_tokens SET launcher_tx = 'anchored-launcher-receipt' WHERE contract_address='terra1token'").execute(&pool).await.unwrap();
+    assert!(trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+    config.hub_ust1_address = "terra1wrongust1".into();
+    assert!(!trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+    config.hub_ust1_address = cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS.into();
+    Mock::given(method("GET")).and(path_regex(r"/contract/terra1token/smart/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"ust1":config.hub_ust1_address,"cmm_treasury":"terra1changedtreasuryyyyyy"}})))
+        .with_priority(1).mount(&server).await;
+    assert!(!trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+    sqlx::query("UPDATE community_tokens SET wasm_admin = 'terra1other' WHERE contract_address='terra1token'").execute(&pool).await.unwrap();
+    assert!(!trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+    candidate.emitter = "terra1launcher".into();
+    candidate.fee.source = FeeSource::SkuUnlock;
+    assert!(trusted_invoice_emitter(&pool, &lcd, &config, &candidate)
+        .await
+        .unwrap());
+}
+
+/// Actual paid receipt captured read-only from existing LocalTerra, not a
+/// fabricated invoice. Config snapshot is pinned to its observed launcher.
+#[serial]
+#[tokio::test]
+async fn captured_paid_localterra_invoice_retries_outage_and_replays_once() {
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    let receipt: TxResponse = serde_json::from_str(include_str!(
+        "fixtures/issue-1210/localterra-paid-create-token.json"
+    ))
+    .unwrap();
+    let captured_config: Value = serde_json::from_str(include_str!(
+        "fixtures/issue-1210/localterra-launcher-config.json"
+    ))
+    .unwrap();
+    let launcher = "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05";
+    let mut config = common::test_config();
+    config.community_token_launcher = Some(launcher.into());
+    config.community_tax_code_id = captured_config["data"]["token_code_id"].as_u64();
+    config.cmm_governance_addr = captured_config["data"]["cmm_governance"]
+        .as_str()
+        .map(str::to_owned);
+    config.hub_ust1_address = captured_config["data"]["ust1"].as_str().unwrap().into();
+    sqlx::query("INSERT INTO assets (contract_address,is_cw20,name,symbol,decimals) VALUES ($1,true,'UST1','UST1',6)").bind(&config.hub_ust1_address).execute(&pool).await.unwrap();
+    let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    let outage = Mock::given(method("GET"))
+        .and(path_regex(r"/smart/"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount_as_scoped(&server)
+        .await;
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(vec![server.uri()], 5000, 1, "columbus-5");
+    let price = cl8y_dex_indexer::indexer::oracle::new_shared_price();
+    let process = cl8y_dex_indexer::indexer::parser::process_block_txs;
+    assert!(process(
+        &pool,
+        &lcd,
+        &config,
+        std::slice::from_ref(&receipt),
+        1707,
+        Utc::now(),
+        &price
+    )
+    .await
+    .is_err());
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM protocol_fee_events WHERE tx_hash=$1")
+            .bind(&receipt.txhash)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(count, 0);
+    drop(outage);
+    Mock::given(method("GET"))
+        .and(path_regex(r"/smart/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(captured_config))
+        .mount(&server)
+        .await;
+    // New transport represents the retry after endpoint cooldown.
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(vec![server.uri()], 5000, 1, "columbus-5");
+    process(
+        &pool,
+        &lcd,
+        &config,
+        std::slice::from_ref(&receipt),
+        1707,
+        Utc::now(),
+        &price,
+    )
+    .await
+    .unwrap();
+    process(
+        &pool,
+        &lcd,
+        &config,
+        std::slice::from_ref(&receipt),
+        1707,
+        Utc::now(),
+        &price,
+    )
+    .await
+    .unwrap();
+    let rows: Vec<(String, BigDecimal, Option<i32>, Option<BigDecimal>)> = sqlx::query_as(
+        "SELECT source,amount_raw,pair_id,fee_usd FROM protocol_fee_events WHERE tx_hash=$1",
+    )
+    .bind(&receipt.txhash)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, "sku_unlock");
+    assert_eq!(rows[0].1, bd("50000000"));
+    assert!(rows[0].2.is_none());
+    assert!(rows[0].3.is_none()); // No guessed UST1 peg or invented historical price.
+}
+
+#[serial]
+#[tokio::test]
+async fn captured_paid_localterra_pair_creation_ingests_once() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    let receipt: TxResponse = serde_json::from_str(include_str!(
+        "fixtures/issue-1210/localterra-paid-create-pair.json"
+    ))
+    .unwrap();
+    let mut config = common::test_config();
+    config.factory_address =
+        "terra1y8tagmy897u5z4lx4dv36sy84rhyhqqgwcghxuj7pqjnzlxkgj3shrujy3".into();
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(
+        vec!["http://127.0.0.1:1".into()],
+        100,
+        1,
+        "columbus-5",
+    );
+    let price = cl8y_dex_indexer::indexer::oracle::new_shared_price();
+    for _ in 0..2 {
+        cl8y_dex_indexer::indexer::parser::process_block_txs(
+            &pool,
+            &lcd,
+            &config,
+            std::slice::from_ref(&receipt),
+            1722,
+            Utc::now(),
+            &price,
+        )
+        .await
+        .unwrap();
+    }
+    let rows: Vec<(String, BigDecimal, Option<i32>)> = sqlx::query_as(
+        "SELECT source,amount_raw,pair_id FROM protocol_fee_events WHERE tx_hash=$1",
+    )
+    .bind(&receipt.txhash)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, "pair_creation");
+    assert_eq!(rows[0].1, bd("100000000"));
+    assert!(rows[0].2.is_none());
 }

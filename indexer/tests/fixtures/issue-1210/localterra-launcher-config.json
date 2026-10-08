@@ -1,0 +1,11 @@
+{
+  "data": {
+    "token_code_id": 18,
+    "autolp_code_id": 20,
+    "ust1": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u",
+    "cmm_treasury": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+    "cmm_governance": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+    "factory": "terra1y8tagmy897u5z4lx4dv36sy84rhyhqqgwcghxuj7pqjnzlxkgj3shrujy3",
+    "router": "terra1lxp2mwpskymsm4aptq2l3pxlcflqg0qer3e3pnhkuql20phejmdq5028u7"
+  }
+}

@@ -65,7 +65,7 @@ run_step "source: captured attrs + segment scan; GET does not SUM events" \
     grep -q parse_unwrap_captured_fee_not_tax_amount indexer/src/indexer/protocol_fees.rs
     grep -q parse_wrap_never_infers_amount_times_bps indexer/src/indexer/protocol_fees.rs
     grep -q captured_wrap_ingest_rollup_and_get indexer/tests/indexer_protocol_fees.rs
-    grep -q unconfigured_mapper_omits_wrap_family indexer/tests/indexer_protocol_fees.rs
+    grep -q unconfigured_mapper_retains_paid_wrap_and_omits_idle_unwrap indexer/tests/indexer_protocol_fees.rs
     grep -q "GitLab #613" frontend-dapp/src/pages/ProtocolPage.test.tsx
     if grep -nE "SUM\\(.*protocol_fee_events|FROM protocol_fee_events" \
          indexer/src/api/overview.rs indexer/src/api/protocol_fees.rs 2>/dev/null; then

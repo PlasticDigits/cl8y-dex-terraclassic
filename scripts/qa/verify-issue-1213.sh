@@ -94,13 +94,15 @@ run_step "docs: skill + AGENTS.md playbook #1213" \
     grep -qE "AGENTS_INDEXER_FEE_LEDGER_HOME|#1213" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
   '
 
-run_step "no ingest on this epic: FeeSource / CHECK unchanged" \
+run_step "child-owned ingest and focused verification cross-links" \
   bash -c '
-    grep -qE "swap_amm" indexer/src/indexer/protocol_fees.rs && \
-    grep -qE "ust1_redeem" indexer/src/indexer/protocol_fees.rs && \
-    ! grep -qE "PairCreation|SkuUnlock|SettingsFee" indexer/src/indexer/protocol_fees.rs && \
-    ! grep -qE "pair_creation" indexer/src/indexer/protocol_fees.rs && \
-    ! grep -qE "sku_unlock|settings_fee|pair_creation" indexer/migrations/*protocol_fees*.sql
+    grep -qE "PairCreation|SkuUnlock|SettingsFee" indexer/src/indexer/protocol_fees.rs && \
+    grep -qE "creation_fee_uluna" indexer/src/indexer/invoice_fees.rs && \
+    grep -qE "trusted_invoice_emitter" indexer/src/indexer/invoice_fees.rs && \
+    grep -qE "1354" docs/qa/issue-1209/README.md && \
+    grep -qE "1354" docs/qa/issue-1210/README.md && \
+    test -f scripts/qa/verify-issue-1209.sh && \
+    test -f scripts/qa/verify-issue-1210.sh
   '
 
 echo ""

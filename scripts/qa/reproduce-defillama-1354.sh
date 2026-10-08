@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Desired accounting assertions against the existing isolated integration harness.
-# FAIL is expected until #1354's indexer changes land; never run against production.
+# Both original acceptance probes must now pass; never run against production.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 probe="$(pwd)/indexer/tests/qa1354_generated.rs"

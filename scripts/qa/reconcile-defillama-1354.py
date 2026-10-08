@@ -8,7 +8,7 @@ a $1 absolute tolerance per day; absent/null days are never coerced to zero.
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, getcontext
+from decimal import Decimal, InvalidOperation, getcontext
 import json
 from pathlib import Path
 import subprocess
@@ -84,6 +84,29 @@ def summarize(rows):
         "missing_llama_volume_dates": [r["date"] for r in rows if r["llama_volume"] is None],
         "fee_drift_dates": [r["date"] for r in rows if r["fee_comparison"] != "within_rounding"],
     }
+
+
+def historical_corrections(previous, current):
+    """Record changed completed-day readbacks; do not infer their cause."""
+    before = {r["date"]: r for r in previous.get("daily", [])}
+    changes = []
+    for row in current["daily"]:
+        old = before.get(row["date"])
+        if old is None:
+            continue
+        fields = {}
+        for key in ("volume_usd", "daily_fees_usd", "priced_trade_count", "unpriced_trade_count",
+                    "llama_volume", "llama_fees"):
+            a, b = old.get(key), row.get(key)
+            if a is not None and b is not None:
+                same = Decimal(str(a)) == Decimal(str(b))
+            else:
+                same = a is b
+            if not same:
+                fields[key] = {"previous": a, "current": b}
+        if fields:
+            changes.append({"date": row["date"], "observed_at": current["observed_at"], "fields": fields})
+    return (previous.get("historical_corrections", []) + changes)[-256:]
 
 
 def collect(start, end):
@@ -173,7 +196,7 @@ def collect(start, end):
             "llama_current_cw20_prices": data[7], "missing_cw20_prices": missing_prices,
             "failures": failures, "unavailable": unavailable,
             "limits": ["protocol series includes gems; its sum is not listing acceptance",
-                       "public feed omits unpriced counts; DB is needed for exact priced lower bound",
+                       "public readbacks lack a same-snapshot ledger/exclusion certificate; legacy responses may omit counts",
                        "TVL token snapshot and current prices are not a same-block reserve valuation",
                        "no historical backfill, price submission or upstream reload performed"],
             "result": "FAIL" if failures else ("INCOMPLETE" if unavailable else "PUBLIC CHECKS PASS")}
@@ -181,16 +204,32 @@ def collect(start, end):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--start", type=date.fromisoformat, default=START)
+    window = parser.add_mutually_exclusive_group()
+    window.add_argument("--start", type=date.fromisoformat, default=START)
+    window.add_argument("--lookback-days", type=int,
+                        help="monitor a rolling 1-90 completed-day window; excludes explicit --start")
     parser.add_argument("--end", type=date.fromisoformat,
                         default=datetime.now(timezone.utc).date() - timedelta(days=1))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.lookback_days is not None:
+        if not 1 <= args.lookback_days <= 90 or args.start != START:
+            parser.error("--lookback-days must be 1-90 and cannot combine with --start")
+        args.start = max(START, args.end - timedelta(days=args.lookback_days - 1))
     if args.start < START or args.end >= datetime.now(timezone.utc).date() or not 0 <= (args.end - args.start).days < 400:
         parser.error("use at most 400 completed UTC days at/after adapter start")
     receipt = collect(args.start, args.end)
+    try:
+        if args.output.exists() and args.output.stat().st_size <= 8_000_000:
+            previous = json.loads(args.output.read_text(), parse_float=Decimal)
+            receipt["historical_corrections"] = historical_corrections(previous, receipt)
+    except (ValueError, InvalidOperation, KeyError, TypeError, OSError):
+        # A corrupt prior monitor receipt never suppresses this run's findings.
+        receipt["prior_receipt_unavailable"] = True
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(receipt, indent=2, default=str) + "\n")
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(json.dumps(receipt, indent=2, default=str) + "\n")
+    temporary.replace(args.output)
     print(f"{receipt['result']}: {len(receipt['daily'])} days, {len(receipt['failures'])} findings, "
           f"{len(receipt['unavailable'])} unavailable requests; receipt: {args.output}")
     return 1 if receipt["failures"] else (2 if receipt["unavailable"] else 0)

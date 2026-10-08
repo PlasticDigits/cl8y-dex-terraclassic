@@ -11,6 +11,16 @@ spec.loader.exec_module(report)
 
 
 class ReceiptContract(unittest.TestCase):
+    def test_historical_corrections_preserve_null_and_decimal_precision(self):
+        previous = {"daily": [{"date": "2026-09-24", "volume_usd": None,
+                               "daily_fees_usd": "7.2500", "llama_fees": 115}]}
+        current = {"observed_at": "now", "daily": [{"date": "2026-09-24",
+                   "volume_usd": "558.461005", "daily_fees_usd": "7.25", "llama_fees": 167}]}
+        changes = report.historical_corrections(previous, current)
+        self.assertEqual(changes[0]["fields"]["volume_usd"]["previous"], None)
+        self.assertEqual(changes[0]["fields"]["llama_fees"]["current"], 167)
+        self.assertNotIn("daily_fees_usd", changes[0]["fields"])
+
     def test_missing_null_and_display_rounding_are_distinct(self):
         self.assertEqual(report.compare(None, 0), "feed_null")
         self.assertEqual(report.compare("12", None), "llama_day_missing")

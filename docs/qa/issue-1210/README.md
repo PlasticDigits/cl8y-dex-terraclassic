@@ -1,24 +1,25 @@
-# QA — Forgejo #1210
+# Community invoice fee QA (#1210 / #1354)
 
-**Status: open; do not close.** Reviewed 2026-09-24 in a worktree at `origin/main` (`54c4868e`). No newer issue replaces the SKU/settings protocol-fee ingest.
+[Source implementation #1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354) adds separate `sku_unlock` and `settings_fee` sources to the governed ledger. #1210 tracking was reopened after its earlier docs-only close. See [verification](../issue-1354/verification.md) and [L1210-1–L1210-8](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md).
 
-## Findings
+## Agent instructions
 
-- `FeeSource::ALL` has seven sources; neither `sku_unlock` nor `settings_fee` exists in the enum, source constraint, parser, fee rollups, DeFiLlama mapping, or frontend labels.
-- `community_token_events` stores SKU/settings catalog events and invoice attrs, but `/api/v1/protocol/fees` does not read that table.
-- `make verify-issue-1213` passes its four design/home checks; it explicitly validates the fee-ledger map and that no child ingest was implemented. It is not a #1210 acceptance test.
-- No `make verify-issue-1210` target or paid transaction evidence exists in this checkout.
+1. Read issue/comments and fee-ledger/provenance/DB1396 invariants. Provision disposable QA roles; never migrate the shared QA control DB.
+2. Run `make verify-issue-1210`. It checks reserved-emitter action segmentation, emitted invoice/create SKU amounts, replay, API/UTC series/catalog and fixed UI labels.
+3. Confirm token invoice provenance includes an anchored launcher receipt, expected token code/admin/CMM and exact matching token/launcher UST1 and treasury configuration. Origin self-report alone and unanchored adopted tokens fail closed.
+4. Keep `make verify-issue-586`, `make verify-issue-614`, `make verify-issue-594` and #1269 regressions green. Capture a paid chain receipt and replay it into the new ledger when actual chain/custody is available.
 
-## Remaining work
+Unavailable checks may be **SKIP** with reason/missing evidence and overall **PASS WITH SKIPS** when available checks pass. Executed failures remain FAIL. Shared harness options are `VERIFY_ISSUE_1210_SKIP_DB_REASON` / `_SKIP_UI_REASON`. A fixture or skipped deployment does not establish production paid-event acceptance.
 
-1. Implement the two invoice sources with per-action parser fixtures: pinned launcher create-time `sku_count × 50e6`; token `EnableFeature.invoice`; flat `UpdateSettings.invoice`; one row per CMM UST1 invoice; reject duplicates, no-op/revert, malformed amounts, and unrelated tax/gas/swap/wrap events. Require trustworthy token origin; [#1229](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1229) remains open on launcher-origin spoofing.
-2. Wire source checks, rollups, `/protocol/fees`, `/daily`, DeFiLlama, and UI labels while preserving O(1) / 60s GETs, omit-unconfigured, idle `"0"`, and unpriced `null` behavior.
-3. Inherit the widened uniqueness from [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269), add the `make verify-issue-1210` regression bundle and catalog regressions, and capture a paid LocalTerra transaction in `protocol_fee_events` before closing.
+## Acceptance
 
-## Related issue map
+- [x] AC1: separate source/schema/rollup/daily/DeFiLlama/UI wiring.
+- [x] AC2–AC4: emitted token enable/settings and create-time unique SKU count, no launcher/ready/per-field duplicate; zero creates excluded (fixtures).
+- [x] AC5/AC6: reserved emitter/pins and paid provenance; no migrate-adopt/tax/gas/swap fee inference; malformed/no-op/reverted receipts rejected.
+- [x] AC7: idle/unpriced/invalid-window and allowlisted labels; authenticated historical paid rows survive later pin removal.
+- [x] AC8: pair-creation and catalog regression, widened pair-aware/non-pair replay keys; no client analytics changes.
+- [x] Actual paid LocalTerra SKU receipt replayed through block ingestion into disposable QA DB twice; transport failure/retry, exact UST1 amount and dedupe verified.
+- [ ] Production paid invoice history replay; no actual settings-batch receipt was available (synthetic fixture coverage passes).
+- [ ] Production rollout with actual configured launcher/code/admin/UST1/CMM pins.
 
-- [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) is the closed design/home epic; it does not implement ingest.
-- [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) is the separate pair-creation source; [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211) is the separate cohort split. Both remain open.
-- [#594](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/594) is the community-token catalog, not fee truth. [#1237](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1237) / [#1239](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1239) fixed on-chain no-op invoice behavior; [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) updated the fee uniqueness key. None replaces #1210.
-
-The implementation contract and system cross-links for third-party agents are in [`skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md`](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1210-1–L1210-8**).
+Catalog #594 remains lifecycle data. Fee ledger home #1213 is a design map; cohort #1211 stays separate. Unanchored legacy adopted-token invoice recovery needs trustworthy provenance before admission and is not inferred from enabled SKU flags.

@@ -30,6 +30,8 @@ pub struct ProtocolFeeRollup {
     pub fee_event_count_30d: i64,
     pub wrap_mapper_configured: bool,
     pub ust1_window_configured: bool,
+    pub factory_configured: bool,
+    pub community_invoices_configured: bool,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -259,6 +261,36 @@ pub async fn refresh_protocol_fees(
     wrap_mapper_configured: bool,
     ust1_window_configured: bool,
 ) -> Result<(), sqlx::Error> {
+    refresh_protocol_fees_with_sources(
+        pool,
+        wrap_mapper_configured,
+        ust1_window_configured,
+        configured_pin("FACTORY_ADDRESS"),
+        configured_pin("COMMUNITY_TOKEN_LAUNCHER")
+            && configured_pin("CMM_GOVERNANCE_ADDR")
+            && std::env::var("COMMUNITY_TAX_CODE_ID")
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok())
+                .is_some_and(|id| id > 0),
+    )
+    .await
+}
+
+fn configured_pin(key: &str) -> bool {
+    std::env::var(key)
+        .ok()
+        .and_then(|s| crate::indexer::protocol_fees::parse_terra1_pin(&s))
+        .is_some()
+}
+
+/// Explicit source-family pins for isolated QA; normal refresh reads the runtime pins.
+pub async fn refresh_protocol_fees_with_sources(
+    pool: &PgPool,
+    wrap_mapper_configured: bool,
+    ust1_window_configured: bool,
+    factory_configured: bool,
+    community_invoices_configured: bool,
+) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let c24 = now - chrono::Duration::hours(24);
     let c48 = now - chrono::Duration::hours(48);
@@ -345,7 +377,9 @@ pub async fn refresh_protocol_fees(
                fee_event_count_7d = $8,
                fee_event_count_30d = $9,
                wrap_mapper_configured = $10,
-               ust1_window_configured = $11
+               ust1_window_configured = $11,
+               factory_configured = $12,
+               community_invoices_configured = $13
            WHERE id = 1"#,
     )
     .bind(usd24.as_ref())
@@ -359,6 +393,8 @@ pub async fn refresh_protocol_fees(
     .bind(agg.n30)
     .bind(wrap_mapper_configured)
     .bind(ust1_window_configured)
+    .bind(factory_configured)
+    .bind(community_invoices_configured)
     .execute(pool)
     .await?;
 
@@ -368,6 +404,8 @@ pub async fn refresh_protocol_fees(
         c24,
         wrap_mapper_configured,
         ust1_window_configured,
+        factory_configured,
+        community_invoices_configured,
     )
     .await?;
     refresh_source_breakdown(
@@ -376,6 +414,8 @@ pub async fn refresh_protocol_fees(
         c7,
         wrap_mapper_configured,
         ust1_window_configured,
+        factory_configured,
+        community_invoices_configured,
     )
     .await?;
     refresh_source_breakdown(
@@ -384,6 +424,8 @@ pub async fn refresh_protocol_fees(
         c30,
         wrap_mapper_configured,
         ust1_window_configured,
+        factory_configured,
+        community_invoices_configured,
     )
     .await?;
     refresh_token_breakdown(pool, "24h", c24).await?;
@@ -399,6 +441,8 @@ async fn refresh_source_breakdown(
     cutoff: DateTime<Utc>,
     wrap_mapper_configured: bool,
     ust1_window_configured: bool,
+    factory_configured: bool,
+    community_invoices_configured: bool,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(r#"DELETE FROM protocol_fee_stats_by_source WHERE "window" = $1"#)
         .bind(window)
@@ -430,14 +474,19 @@ async fn refresh_source_breakdown(
         .fold(BigDecimal::from(0), |a, b| a + b);
 
     for source in FeeSource::ALL {
-        if source.is_wrap_family() && !wrap_mapper_configured {
-            continue;
-        }
-        if source.is_ust1_window_family() && !ust1_window_configured {
-            continue;
-        }
         let found = rows.iter().find(|r| r.source == source.as_str());
         let event_count = found.map(|r| r.event_count).unwrap_or(0);
+        // Readiness governs future ingest/idle rows, never erases immutable receipts.
+        let configured = match source {
+            FeeSource::Wrap | FeeSource::Unwrap => wrap_mapper_configured,
+            FeeSource::Ust1Mint | FeeSource::Ust1Redeem => ust1_window_configured,
+            FeeSource::PairCreation => factory_configured,
+            FeeSource::SkuUnlock | FeeSource::SettingsFee => community_invoices_configured,
+            _ => true,
+        };
+        if !configured && event_count <= 0 {
+            continue;
+        }
         let amount_usd = match found {
             None => Some(BigDecimal::from(0)),
             Some(r) if r.event_count <= 0 => Some(BigDecimal::from(0)),
@@ -589,13 +638,15 @@ pub async fn get_fee_rollup(pool: &PgPool) -> Result<ProtocolFeeRollup, sqlx::Er
         fee_event_count_30d: i64,
         wrap_mapper_configured: bool,
         ust1_window_configured: bool,
+        factory_configured: bool,
+        community_invoices_configured: bool,
     }
 
     let row = sqlx::query_as::<_, Row>(
         r#"SELECT total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
                   fees_change_24h_pct, fees_change_7d_pct, fees_change_30d_pct,
                   fee_event_count_24h, fee_event_count_7d, fee_event_count_30d,
-                  wrap_mapper_configured, ust1_window_configured
+                  wrap_mapper_configured, ust1_window_configured, factory_configured, community_invoices_configured
            FROM global_stats_24h WHERE id = 1"#,
     )
     .fetch_optional(pool)
@@ -614,6 +665,8 @@ pub async fn get_fee_rollup(pool: &PgPool) -> Result<ProtocolFeeRollup, sqlx::Er
             fee_event_count_30d: r.fee_event_count_30d,
             wrap_mapper_configured: r.wrap_mapper_configured,
             ust1_window_configured: r.ust1_window_configured,
+            factory_configured: r.factory_configured,
+            community_invoices_configured: r.community_invoices_configured,
         },
         None => ProtocolFeeRollup::default(),
     })

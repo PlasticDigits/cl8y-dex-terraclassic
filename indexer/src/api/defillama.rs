@@ -1,7 +1,7 @@
 //! `GET /api/v1/defillama/daily` — UTC calendar-day volume/fees (GitLab #631 / #687).
 //!
 //! Single `timestamp` (unix 00:00 UTC). Invalid / unaligned / future → **400**.
-//! Day not rolled → **404**. Idle closed day → `"0"`. Volume: any unpriced swap → `null`.
+//! Day not rolled → **404**. Idle closed day → `"0"`. Volume: positive priced sum plus completeness counts; all-unpriced → `null`.
 //! Headline fees: EFee-6 partial priced SUM (one unpriced source does not null wrap).
 //! Headline `null` only when fee activity exists and priced SUM is empty. Per-source
 //! `fees.*` stay fail-closed. 60s whole-response cache. Reads `defillama_daily_*` only.
@@ -56,6 +56,12 @@ pub struct DefillamaFeeBreakdown {
     pub unwrap: Option<String>,
     pub ust1_mint: Option<String>,
     pub ust1_redeem: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pair_creation: Option<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sku_unlock: Option<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_fee: Option<Option<String>>,
 }
 
 #[derive(Serialize, ToSchema, Clone)]
@@ -80,6 +86,9 @@ pub struct DefillamaAssetRow {
     pub peg_mechanism: Option<String>,
     pub volume_usd: Option<String>,
     pub trade_count: i64,
+    pub priced_trade_count: i64,
+    pub unpriced_trade_count: i64,
+    pub volume_complete: bool,
     pub fees_usd: Option<String>,
     pub price_usd: Option<String>,
     /// Historical advisory mark sampled during rollup; never a current financial oracle.
@@ -101,7 +110,13 @@ pub struct DefillamaDailyResponse {
     pub timestamp: i64,
     pub volume_usd: Option<String>,
     pub trade_count: i64,
+    pub priced_trade_count: i64,
+    pub unpriced_trade_count: i64,
+    pub volume_complete: bool,
     pub fees: DefillamaFeeBreakdown,
+    /// Legacy pair-linked fee rows that cannot be assigned to a single pair.
+    /// Included in headline sums, excluded from asset-specific allocation.
+    pub unresolved_pair_fee_event_count: i64,
     /// Treasury-bound DEX + labeled wrap/window sources. SSR is always `"0"`.
     pub daily_fees_usd: Option<String>,
     pub daily_revenue_usd: Option<String>,
@@ -114,9 +129,14 @@ pub struct DefillamaDailyResponse {
 fn methodology() -> DefillamaMethodology {
     DefillamaMethodology {
         volume: "UTC-day SUM(swap_events.volume_usd) once per taker swap (L10). \
-                 Excludes gem pairs (#562), wrap/unwrap, UST1 window, and limit_order_fills."
+                 Positive priced sum with priced/unpriced trade counts (#1354): idle zero, \
+                 active all-unpriced null. Excludes gem pairs (#562), wrap/unwrap, UST1 window, \
+                 and limit_order_fills."
             .to_string(),
-        fees: "PFee/L7 treasury: swap_amm + book_take + limit_place + labeled wrap/window. \
+        fees: "PFee/L7 treasury: swap_amm + book_take + limit_place + labeled wrap/window \
+               and configured pair_creation/SKU/settings invoices. \
+               Pair-linked fees use their actual pair, with only unique legacy pair resolution. \
+               Unresolved pair scope is counted explicitly and never allocated to an asset. \
                Headline is priced SUM (EFee-6 / #687); one unpriced source does not null wrap. \
                spread_amount and community-tax extra-debit are not fees. SSR is 0."
             .to_string(),
@@ -146,6 +166,9 @@ fn empty_asset_row(ticker: &str) -> DefillamaAssetRow {
             peg_mechanism: None,
             volume_usd: Some("0".to_string()),
             trade_count: 0,
+            priced_trade_count: 0,
+            unpriced_trade_count: 0,
+            volume_complete: true,
             fees_usd: Some("0".to_string()),
             price_usd: None,
             price_as_of: None,
@@ -164,6 +187,9 @@ fn empty_asset_row(ticker: &str) -> DefillamaAssetRow {
             peg_mechanism: Some("crypto-backed".to_string()),
             volume_usd: Some("0".to_string()),
             trade_count: 0,
+            priced_trade_count: 0,
+            unpriced_trade_count: 0,
+            volume_complete: true,
             fees_usd: Some("0".to_string()),
             price_usd: None,
             price_as_of: None,
@@ -179,9 +205,11 @@ fn map_asset_row(ticker: &str, row: Option<&daily_q::DailyAssetRow>) -> Defillam
     let Some(row) = row else {
         return out;
     };
-    out.volume_usd =
-        daily_usd_field_fail_closed(row.trade_count, row.unpriced_trade_count, &row.volume_usd);
+    out.volume_usd = daily_headline_usd(row.trade_count, &row.volume_usd);
     out.trade_count = row.trade_count;
+    out.priced_trade_count = row.trade_count - row.unpriced_trade_count;
+    out.unpriced_trade_count = row.unpriced_trade_count;
+    out.volume_complete = row.unpriced_trade_count == 0;
     out.fees_usd =
         daily_usd_field_fail_closed(row.fee_event_count, row.fee_unpriced_count, &row.fees_usd);
     out.price_as_of = row.price_as_of.map(|v| v.to_rfc3339());
@@ -218,6 +246,17 @@ fn fee_field(rows: &[daily_q::DailyFeeRow], source: FeeSource) -> Option<String>
         Some(r) => daily_usd_field_fail_closed(r.event_count, r.unpriced_count, &r.amount_usd),
         None => Some("0".to_string()),
     }
+}
+
+// Outer None omits an unconfigured source; Some(None) preserves a configured
+// source's all-unpriced null instead of conflating it with unavailable ingest.
+fn configured_fee_field(
+    rows: &[daily_q::DailyFeeRow],
+    source: FeeSource,
+) -> Option<Option<String>> {
+    rows.iter()
+        .find(|r| r.source == source.as_str())
+        .map(|r| daily_usd_field_fail_closed(r.event_count, r.unpriced_count, &r.amount_usd))
 }
 
 #[utoipa::path(
@@ -269,25 +308,29 @@ pub async fn get_defillama_daily(
         )
     })?;
 
-    let stat = daily_q::get_daily_stat(&state.pool, utc_day)
+    // Keep the three O(1) rollup reads in one snapshot during a concurrent refresh.
+    let mut transaction = state.pool.begin().await.map_err(internal_err)?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        .execute(&mut *transaction)
+        .await
+        .map_err(internal_err)?;
+    let stat = daily_q::get_daily_stat(&mut *transaction, utc_day)
         .await
         .map_err(internal_err)?;
     let Some(stat) = stat else {
         return Err((StatusCode::NOT_FOUND, "UTC day not rolled yet".to_string()));
     };
 
-    let fee_rows = daily_q::get_daily_fees(&state.pool, utc_day)
+    let fee_rows = daily_q::get_daily_fees(&mut *transaction, utc_day)
         .await
         .map_err(internal_err)?;
-    let asset_rows = daily_q::get_daily_assets(&state.pool, utc_day)
+    let asset_rows = daily_q::get_daily_assets(&mut *transaction, utc_day)
         .await
         .map_err(internal_err)?;
 
-    let volume_usd = daily_usd_field_fail_closed(
-        stat.trade_count,
-        stat.unpriced_trade_count,
-        &stat.volume_usd,
-    );
+    transaction.commit().await.map_err(internal_err)?;
+
+    let volume_usd = daily_headline_usd(stat.trade_count, &stat.volume_usd);
 
     let mut fee_events = 0i64;
     let mut fee_usd = BigDecimal::from(0);
@@ -302,6 +345,10 @@ pub async fn get_defillama_daily(
         timestamp: ts,
         volume_usd,
         trade_count: stat.trade_count,
+        priced_trade_count: stat.trade_count - stat.unpriced_trade_count,
+        unpriced_trade_count: stat.unpriced_trade_count,
+        volume_complete: stat.unpriced_trade_count == 0,
+        unresolved_pair_fee_event_count: fee_rows.iter().map(|r| r.unresolved_pair_count).sum(),
         fees: DefillamaFeeBreakdown {
             swap_amm: fee_field(&fee_rows, FeeSource::SwapAmm),
             book_take: fee_field(&fee_rows, FeeSource::BookTake),
@@ -310,6 +357,9 @@ pub async fn get_defillama_daily(
             unwrap: fee_field(&fee_rows, FeeSource::Unwrap),
             ust1_mint: fee_field(&fee_rows, FeeSource::Ust1Mint),
             ust1_redeem: fee_field(&fee_rows, FeeSource::Ust1Redeem),
+            pair_creation: configured_fee_field(&fee_rows, FeeSource::PairCreation),
+            sku_unlock: configured_fee_field(&fee_rows, FeeSource::SkuUnlock),
+            settings_fee: configured_fee_field(&fee_rows, FeeSource::SettingsFee),
         },
         daily_fees_usd: daily_fees.clone(),
         daily_revenue_usd: daily_fees.clone(),
