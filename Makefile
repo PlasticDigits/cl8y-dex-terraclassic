@@ -1984,6 +1984,11 @@ verify-issue-1422:
 verify-issue-1396:
 	bash scripts/qa/verify-issue-1396.sh
 
+# #1421: release-close cross-links only. Does not query Columbus-5 or production Postgres.
+.PHONY: verify-issue-1421
+verify-issue-1421:
+	bash scripts/qa/verify-issue-1421.sh
+
 # Forgejo #1397 — schema-2 evidence policy, query budgets and cancellation recovery.
 .PHONY: verify-issue-1397
 verify-issue-1397:

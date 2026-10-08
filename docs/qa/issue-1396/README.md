@@ -69,3 +69,16 @@ convert it into a skip. Docker startup contention can be resolved with tmpfs
   Woodpecker policy containing the updated QA bootstrap; verify its policy hash
   and actual hosted PR logs. PR-owned workflow changes alone do not update the
   trusted configuration extension.
+
+## 2026-10-07 close reconfirmation
+
+Issue #1396 stays closed on the source receipt in
+[verification.md](verification.md): 28 PASS, 0 FAIL, 2 explicit host-network
+skips. This pass did not rebuild that Rust suite.
+
+The production role transition is the existing
+[production-maintenance.json](../issue-1385/production-maintenance.json) receipt:
+61 migrations, schema marker `20261006133000`, history preserved, and four
+runtime permission denials. Release coordination is
+[REL1421-4](../../../skills/AGENTS_RELEASE_OPS_1421.md). Local
+`make verify-issue-1396` still does not replace that production receipt.

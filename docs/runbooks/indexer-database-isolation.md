@@ -105,3 +105,10 @@ firewall exception is required. A connection from another Docker namespace to a
 host interface must fail; default bridge-network service peers can access the DB
 using their own credentials. Local namespace probes are not an internet exposure
 assessment or a receipt of production rollout.
+
+The production maintenance receipt is
+[production-maintenance.json](../qa/issue-1385/production-maintenance.json):
+61 preserved migrations, schema marker `20261006133000`, and four runtime
+permission denials. Local probes do not replace that receipt. See
+[DB1396](../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md) and
+[REL1421-4](../../skills/AGENTS_RELEASE_OPS_1421.md).

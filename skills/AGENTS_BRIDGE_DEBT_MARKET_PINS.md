@@ -27,6 +27,11 @@ including replacing the issuer; these remain residual governance powers.
 Other legitimate underlying minters (for example the bridge) can mint/burn outside
 this debt ledger. Additional Bridge-Debt controls do not control remote custody.
 
+Columbus-5 1.1.0 migration, repayment, and recovery stay with
+[REL1421-6](AGENTS_RELEASE_OPS_1421.md) and
+[#1421](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1421). A planned
+journal is not that migration. Source pin checks remain `make verify-issue-1393`.
+
 Any `$1` receipt valuation is a display convention, not a redemption promise,
 oracle feed, peg or enforceable collateral guarantee. Keep accounting in raw units.
 

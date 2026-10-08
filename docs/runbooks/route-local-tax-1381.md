@@ -289,3 +289,7 @@ retain Receive intent and invalidate executable quotes; no endpoint fanout,
 automatic retry, weaker signing protection or tax waiver is permitted. Keep
 unavailable production acceptance explicitly unverified while source review may
 PASS with explicit skips under [FRQ1422](../../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md).
+
+The 2026-10-07 Columbus-5 contract readback and the funded-execution skip are
+recorded in [docs/qa/issue-1384/README.md](../qa/issue-1384/README.md). Release
+coordination is [REL1421-1–REL1421-10](../../skills/AGENTS_RELEASE_OPS_1421.md).

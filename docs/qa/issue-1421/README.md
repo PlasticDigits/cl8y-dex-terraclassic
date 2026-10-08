@@ -94,3 +94,40 @@ journalctl --user -u cl8y-dex-functional1400.service -n 30 --no-pager
 
 Production rollout acceptance and issue closure remain separate from these
 receipts and require the pending custody operations and final live readbacks.
+
+## 2026-10-07 close
+
+Follow [REL1421-1–REL1421-10](../../../skills/AGENTS_RELEASE_OPS_1421.md).
+`make verify-issue-1421` checks the cross-links only.
+
+Read back on 2026-10-07 from `dfb60143c432b17a92fcf9dde849257ebece4e1b`:
+
+- Indexer health is ok on `d3030020d174458222a40abbf680b3379d729d2f` with
+  expected chain `columbus-5`. One LCD endpoint returned 429; another endpoint
+  verified `columbus-5`.
+- `GET /api/v1/evidence/daily?day=2026-10-06` is schema 2. Sample events expose
+  transaction linkage and no actor identifier fields.
+- Route contract verification PASS with `production_execution` UNVERIFIED.
+  Details: [issue 1384](../issue-1384/README.md).
+- Bridge-Debt `plan` rechecked live 1.0.0 bindings. The journal remains
+  `planned` with zero operations.
+
+Skipped because the encrypted keyring cannot be unlocked unattended. These
+skips are not execution receipts. [REL1421-10](../../../skills/AGENTS_RELEASE_OPS_1421.md)
+allows the close once they are written down.
+
+- Funded native-wrap / two-hop smoke.
+- Bridge-Debt 1.1.0 migration, one-raw-unit repayment, and recovery.
+
+Optional leftover command. It reuses the completed DEX journal, then runs the
+smoke and Bridge-Debt stages. Enter the passphrase once.
+
+```bash
+bash scripts/ops/2026-10-06/run-custody.sh
+```
+
+Related: [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384),
+[#1385](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1385),
+[#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386),
+[#1393](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1393),
+[#1396](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1396).

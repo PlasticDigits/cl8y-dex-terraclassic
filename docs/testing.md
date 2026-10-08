@@ -36,6 +36,10 @@ execution. [Acceptance/agent checklist](qa/issue-1381/README.md),
 [migration runbook](runbooks/route-local-tax-1381.md).
 Agents may report **PASS with explicit skips** for checks they cannot run, with
 concrete reasons; executed failures remain FAIL and skipped deployment is unverified.
+Columbus-5 route and release close records:
+[qa/issue-1384/README.md](qa/issue-1384/README.md),
+[qa/issue-1421/README.md](qa/issue-1421/README.md).
+`make verify-issue-1421` checks those cross-links and does not query the chain.
 
 Production rollout script review uses the separate
 [rollout checklist](qa/issue-1381-rollout/README.md) and
