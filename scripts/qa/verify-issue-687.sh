@@ -70,7 +70,8 @@ run_step "source: headline partial SUM; per-source fail-closed; no GET scan" \
     grep -q "feeResidual" scripts/defillama/dimensions/mapDaily.js
     grep -q "requirePricedUsd" scripts/defillama/fees/index.ts
     grep -q "ADAPTER_START_ISO" scripts/defillama/fees/index.ts
-    grep -q "ADAPTER_START_ISO" scripts/defillama/dexs/index.ts
+    # #1354 syncs the actual upstream #9907 copy, whose start is a literal.
+    grep -q '\''start: "2026-08-17"'\'' scripts/defillama/dexs/index.ts
     if grep -nE "FROM swap_events|FROM protocol_fee_events|FROM limit_order_fills" \
          indexer/src/api/defillama.rs 2>/dev/null; then
       echo "GET handler must not scan event tables" >&2
@@ -105,7 +106,8 @@ run_step "integration: partial SUM / idle zero / start 200 / NULL-only flip" \
 run_step "node: mapper residual + adapter start pin" \
   bash -c '
     set -euo pipefail
-    node --test scripts/defillama/dimensions/mapDaily.test.js
+    node --test scripts/defillama/dimensions/mapDaily.test.js \
+      scripts/defillama/dexs/volume.test.js
   '
 
 if [[ "${VERIFY_ISSUE_687_SKIP_RELATED:-}" == "1" ]]; then

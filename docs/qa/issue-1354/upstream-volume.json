@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-10-08T03:02:28.550332+00:00",
+  "upstream_pr": "https://github.com/DefiLlama/dimension-adapters/pull/9907",
+  "merge_commit": "3d8f4ca7f1939a784b3e74563cb938071b900fd9",
+  "merged_at": "2026-10-04T11:47:14Z",
+  "copied_files_sha256": {
+    "scripts/defillama/dexs/index.ts": "c6e883fb284bb99e929db658abe9e5cccf443cf014ba4b8269fdbd5dbd7f0078",
+    "scripts/defillama/dexs/volume.ts": "296a504a3bec88cd38aba615ab537a75d608f7819c717c0557e5e32ad1440cab"
+  },
+  "scope": "Volume adapter and helper only. Live feed completeness, fee history and TVL price coverage remain open.",
+  "other_upstream_files_observed_sha256": {
+    "upstream_fee": "8fbcbbac8a2af5c4ef3f7cc5cce919650d551442ff333260e56a934eb0e5fb25",
+    "upstream_tvl": "a0e2558b9e25234d2b1355840b090140670a384255cc075ee366bfac6788880b"
+  },
+  "pinned_upstream_urls_sha256": {
+    "https://raw.githubusercontent.com/DefiLlama/dimension-adapters/3d8f4ca7f1939a784b3e74563cb938071b900fd9/dexs/cl8y-dex/index.ts": "c6e883fb284bb99e929db658abe9e5cccf443cf014ba4b8269fdbd5dbd7f0078",
+    "https://raw.githubusercontent.com/DefiLlama/dimension-adapters/3d8f4ca7f1939a784b3e74563cb938071b900fd9/dexs/cl8y-dex/volume.ts": "296a504a3bec88cd38aba615ab537a75d608f7819c717c0557e5e32ad1440cab"
+  }
+}

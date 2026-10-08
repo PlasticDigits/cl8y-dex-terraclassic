@@ -47,6 +47,33 @@ Llama [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/
 | **L687-7** | GET stays O(1) rollup + 60s cache. No `from`/`to`. Refresh lookback stays **8** UTC days. Optional operator backfill of `defillama_daily_*` from `start` is OK; not a live GET scan. |
 | **L687-8** | `make verify-issue-687`. Keep `make verify-issue-631` and `make verify-issue-683` green. GitHub #8987 is merged; keep future adapter changes in lockstep with `scripts/defillama/` and rerun the upstream Llama tests. |
 
+## Live reconciliation (#1354)
+
+Apply [#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354) for live
+volume/fee/history/TVL drift. Run `make verify-issue-1354`; follow the
+[agent checklist and explicit skip policy](../docs/qa/issue-1354/README.md).
+[Verification](../docs/qa/issue-1354/verification.md) separates upstream recovery
+from remaining indexer/fee/price acceptance.
+
+| ID | Required behavior |
+|----|-------------------|
+| DL1354-1 | Compare identical completed UTC days from 2026-08-17, never trailing overview totals. Record serving and checkout revisions separately. |
+| DL1354-2 | Target live volume headline is the positive priced sum with completeness counts: idle zero, all-unpriced null. This remains unimplemented; L631-7 legacy fail-closed volume is not #1354 acceptance. |
+| DL1354-3 | Upstream #9907 fallback requires explicit legacy null, matching date/timestamp and exact nonnegative trade counts against a daily UTC protocol rollup. Reject gem count mismatch, duplicates, missing/malformed rows, active zero and unavailable data. Its 90-day retention is not permanent historical repair. |
+| DL1354-4 | Count swap hops once; keep gem, wrap/window principal and L10 exclusions. Never invent historical marks, UST1 $1 or a USTR multiplier. |
+| DL1354-5 | Reconcile fee ledger and both stored rollups by day/source/pair in a read-only repeatable snapshot. Separate exclusions, unresolved legacy scope, unpriced activity and stale materialization. Public protocol sums alone cannot explain the listing gap. |
+| DL1354-6 | Exclude pair-linked fees by their actual pair/event, never any gem swap sharing a transaction. Mixed hops retain ordinary fees. Current tx-wide SQL is a failing acceptance item. |
+| DL1354-7 | Ledger repair and NULL-only as-of pricing must explicitly reaggregate affected old Llama days. The bounded eight-day loop is not historical acceptance. GET remains rollup-only/60s; upstream reload is separately evidenced. |
+| DL1354-8 | Missing pair_creation/SKU/settings sources belong to #1209/#1210 and #1213. Closed docs-only trackers are not ingest evidence. Preserve reserved emitter, exact amount, dedupe and omit-unconfigured rules; gas/spread/tax are not fees. |
+| DL1354-9 | TVL stays raw factory Pool reserves with verified prices and valued/unvalued keys at the same pinned block/time. Last Llama/current-price snapshots cannot establish an exact TVL target; one-sided indexer USD is not interchangeable. |
+| DL1354-10 | Finish runnable checks first. Unavailable checks may be explicit SKIP under the user's close permission; executed failures stay FAIL and block this close. Distinguish source, deployment, reload, fixture and scheduled-monitoring receipts; update docs, invariants, copies and this skill together. |
+
+Upstream [dimension-adapters#9907](https://github.com/DefiLlama/dimension-adapters/pull/9907)
+merged 2026-10-04. The volume copy/helper and boundary tests are under
+[`scripts/defillama/dexs`](../scripts/defillama/dexs/).
+The anchored August 26–September 24 chart now includes the ten former null dates;
+live feed completeness, fees and CW20 pricing still fail. Keep #631/#687 closed.
+
 ## Do / don’t
 
 - **Do** refresh the daily rollup from the existing ~5 min volume loop, not on GET.
