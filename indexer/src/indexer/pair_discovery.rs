@@ -184,6 +184,9 @@ pub async fn sync_single_pair(
     lcd: &LcdClient,
     pair_info: &PairInfo,
 ) -> Result<PairRow, BoxError> {
+    if crate::listing_id_guard::is_listing_only_id(&pair_info.contract_addr) {
+        return Err(DiscoverPairError::InvalidAddress { field: "pair" }.into());
+    }
     let asset_0_id = asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[0]).await?;
     let asset_1_id = asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[1]).await?;
 
@@ -301,6 +304,9 @@ pub async fn get_or_discover_pair(
     factory_addr: &str,
     pair_contract_addr: &str,
 ) -> Result<Option<PairRow>, BoxError> {
+    if crate::listing_id_guard::is_listing_only_id(pair_contract_addr) {
+        return Ok(None);
+    }
     loop {
         if let Some(p) = pairs::get_pair_by_address(pool, pair_contract_addr).await? {
             return Ok(Some(p));

@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Listing-only native markets
+
+For CG/GT virtual pairs, wrap principal projections or opaque listing ids, apply
+[LV1437-1–LV1437-10](skills/AGENTS_LISTING_VIRTUAL_PAIRS.md)
+([#1437](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1437)).
+Run `make verify-issue-1437`; use the
+[agent checklist and explicit skip policy](docs/qa/issue-1437/README.md).
+These translated markets never enter factory, retail, CMC or economic accounting.
+
 ## Token-owned AutoLP policy recovery
 
 For legacy sister inventory or manager-mediated LP-policy recovery, follow

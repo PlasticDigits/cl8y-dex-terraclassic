@@ -14,6 +14,7 @@ pub mod gt_event_reserves;
 pub mod hub_guard;
 pub mod hub_usd;
 pub mod listing_exclude;
+pub mod listing_principal;
 pub mod oracle;
 pub mod pair_discovery;
 pub mod pair_price_usd;

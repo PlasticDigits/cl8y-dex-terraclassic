@@ -146,6 +146,19 @@ pub async fn index_block(
         parser::process_block_txs(pool, lcd, config, &txs, height, block_time, ustc_price)
             .await
             .map_err(|e| BlockIndexError::ProcessingFailed { height, source: e })?;
+        if let Some(mapper) = config.wrap_mapper_address.as_deref() {
+            super::listing_principal::ingest_block(
+                pool,
+                lcd,
+                mapper,
+                &txs,
+                height,
+                block_time,
+                &block_hash,
+            )
+            .await
+            .map_err(|source| BlockIndexError::ProcessingFailed { height, source })?;
+        }
     }
 
     state::set_indexer_checkpoint(pool, height, &block_hash)

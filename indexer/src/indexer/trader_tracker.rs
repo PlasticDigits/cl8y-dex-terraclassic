@@ -343,6 +343,7 @@ mod tests {
             })
             .collect();
         TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "HASH".into(),
             logs: Some(vec![TxLog {

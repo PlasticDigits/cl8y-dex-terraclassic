@@ -26,8 +26,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::{IntoParams, ToSchema};
 
-use super::{internal_err, AppState};
+use super::{internal_err, listing_virtual_pairs, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, state};
+#[cfg(test)]
 use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 pub use crate::indexer::listing_exclude::is_excluded_cw20;
 use crate::indexer::listing_exclude::listing_excluded_cw20_binds;
@@ -275,22 +276,34 @@ pub fn decimalize(raw: &BigDecimal, decimals: i16) -> BigDecimal {
 }
 
 pub fn format_dec(v: &BigDecimal) -> String {
-    let s = v.normalized().to_string();
-    if s.contains('e') || s.contains('E') {
-        let scaled = v.with_scale(50);
-        let plain = scaled.normalized().to_string();
-        if plain.contains('e') || plain.contains('E') {
-            return v.to_string();
-        }
-        return plain;
-    }
-    s
+    v.normalized().to_plain_string()
 }
 
-fn coin_gecko_id_for(asset: &assets::AssetRow) -> Option<String> {
+fn coin_gecko_id_for(asset: &assets::AssetRow, state: &AppState) -> Option<String> {
+    match asset.denom.as_deref() {
+        Some("uluna") if !asset.is_cw20 => return Some("terra-luna-classic".into()),
+        Some("uusd") if !asset.is_cw20 => return Some("terraclassicusd".into()),
+        _ => {}
+    }
     let addr = asset.contract_address.as_deref()?.to_ascii_lowercase();
     if addr == CL8Y_CW20 {
         return Some(CL8Y_COINGECKO_ID.to_string());
+    }
+    if addr == state.hub_usd.usdt_address {
+        return Some("tether".into());
+    }
+    // Wrapped legs never inherit a native CoinGecko id from stale catalog data.
+    if addr == state.hub_usd.clunc_address || addr == state.hub_usd.custc_address {
+        return asset.coingecko_id.clone().filter(|id| {
+            !matches!(
+                id.as_str(),
+                "" | "terra-luna-classic"
+                    | "terraclassicusd"
+                    | "terra-luna"
+                    | "terra-luna-2"
+                    | "terrausd"
+            )
+        });
     }
     asset.coingecko_id.clone().filter(|id| !id.is_empty())
 }
@@ -370,7 +383,7 @@ pub async fn gt_asset(
             name: row.name.clone(),
             symbol: row.symbol.clone(),
             decimals: row.decimals,
-            coin_gecko_id: coin_gecko_id_for(&row),
+            coin_gecko_id: coin_gecko_id_for(&row, &state),
         },
     }))
 }
@@ -393,6 +406,28 @@ pub async fn gt_pair(
     let id = q.id.trim();
     if id.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "id is required".into()));
+    }
+    if crate::listing_id_guard::is_listing_only_id(id) {
+        if !listing_virtual_pairs::MARKET_IDS.contains(&id) {
+            return Err((StatusCode::NOT_FOUND, format!("pair not found: {id}")));
+        }
+        let market = listing_virtual_pairs::load_markets(&state)
+            .await
+            .map_err(internal_err)?
+            .into_iter()
+            .find(|market| market.id == id)
+            .ok_or_else(|| (StatusCode::NOT_FOUND, format!("pair not found: {id}")))?;
+        return Ok(Json(GtPairResponse {
+            pair: GtPair {
+                id: market.id.into(),
+                dex_key: DEX_KEY.into(),
+                asset0_id: market.base_id().to_string(),
+                asset1_id: market.target_id().to_string(),
+                created_at_block_number: market.created_at_block,
+                created_at_block_timestamp: Some(market.created_at.timestamp()),
+                fee_bps: market.fee_bps,
+            },
+        }));
     }
     let pair = db_pairs::get_pair_by_address(&state.pool, id)
         .await
@@ -736,6 +771,90 @@ pub async fn gt_events(
         }
     }
 
+    // The #694 admission cap above counts factory events only. Projected swaps
+    // append after it and never replace or renumber a factory event (#1437).
+    let markets = listing_virtual_pairs::load_event_markets(&state)
+        .await
+        .map_err(internal_err)?;
+    let projected = listing_virtual_pairs::load_window_swaps(&state, &markets, from, to)
+        .await
+        .map_err(internal_err)?;
+    for trade in projected {
+        let Some(market) = markets.iter().find(|market| market.id == trade.market_id) else {
+            continue;
+        };
+        let txn_key = (trade.block_height, trade.tx_hash.clone());
+        let txn_index = *txn_index_by_block
+            .entry(txn_key.clone())
+            .or_insert_with(|| {
+                let next = next_txn_in_block.entry(trade.block_height).or_insert(0);
+                let assigned = *next;
+                *next += 1;
+                assigned
+            });
+        let event_index = {
+            let next = event_index_by_tx.entry(txn_key).or_insert(0);
+            let assigned = *next;
+            *next += 1;
+            assigned
+        };
+        let offer = decimalize(
+            &trade.offer_amount,
+            if trade.offer_is_base {
+                market.base.decimals
+            } else {
+                market.target.decimals
+            },
+        );
+        let returned = decimalize(
+            &trade.return_amount,
+            if trade.offer_is_base {
+                market.target.decimals
+            } else {
+                market.base.decimals
+            },
+        );
+        let (asset0_in, asset1_in, asset0_out, asset1_out) = if trade.offer_is_base {
+            (
+                Some(format_dec(&offer)),
+                None,
+                None,
+                Some(format_dec(&returned)),
+            )
+        } else {
+            (
+                None,
+                Some(format_dec(&offer)),
+                Some(format_dec(&returned)),
+                None,
+            )
+        };
+        events.push(GtEvent {
+            block: GtBlock {
+                block_number: trade.block_height,
+                block_timestamp: trade.block_timestamp.timestamp(),
+            },
+            body: GtEventBody::Swap {
+                txn_id: trade.tx_hash,
+                txn_index,
+                event_index,
+                maker: trade.sender,
+                pair_id: trade.market_id,
+                asset0_in,
+                asset1_in,
+                asset0_out,
+                asset1_out,
+                price_native: format_dec(&trade.price),
+                reserves: event_reserves(
+                    trade.reserve_0.as_ref(),
+                    trade.reserve_1.as_ref(),
+                    market.base.decimals,
+                    market.target.decimals,
+                ),
+            },
+        });
+    }
+
     Ok(Json(GtEventsResponse { events }))
 }
 
@@ -743,6 +862,16 @@ pub async fn gt_events(
 mod unit_tests {
     use super::*;
     use std::str::FromStr;
+
+    #[test]
+    fn decimal_strings_preserve_dust_without_scientific_notation() {
+        let dust: BigDecimal = "1E-60".parse().unwrap();
+        let formatted = format_dec(&dust);
+        assert_eq!(formatted.parse::<BigDecimal>().unwrap(), dust);
+        assert!(!formatted.contains(['e', 'E']));
+        let huge: BigDecimal = "1E+58".parse().unwrap();
+        assert_eq!(format_dec(&huge).parse::<BigDecimal>().unwrap(), huge);
+    }
 
     #[test]
     fn decimalize_six_dp() {

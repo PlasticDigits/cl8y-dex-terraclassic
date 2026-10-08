@@ -2506,6 +2506,7 @@ mod tests {
             })
             .collect();
         TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "ABCDHASH".into(),
             logs: Some(vec![TxLog {
@@ -2534,6 +2535,7 @@ mod tests {
             })
             .collect();
         TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "ABCDHASH".into(),
             logs: Some(vec![TxLog { events: evs }]),
@@ -2551,6 +2553,7 @@ mod tests {
             })
             .collect();
         TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "ABCDHASH".into(),
             logs: None,
@@ -3032,6 +3035,7 @@ mod tests {
             },
         ]);
         let tx = TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "HYBRID20".into(),
             logs: Some(vec![TxLog {
@@ -3358,6 +3362,7 @@ mod tests {
             });
         }
         let tx = TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "BATCHCOL".into(),
             logs: Some(vec![TxLog {
@@ -3444,6 +3449,7 @@ mod tests {
             value: "tokenb".into(),
         });
         let tx = TxResponse {
+            code: 0,
             height: "1".into(),
             txhash: "ABCDHASH".into(),
             logs: Some(vec![TxLog {
@@ -3660,6 +3666,7 @@ mod tests {
                 attrs.push(Attribute { key, value: val });
             }
             let tx = TxResponse {
+                code: 0,
                 height: "1".into(),
                 txhash: format!("hash{}", seed_i),
                 logs: Some(vec![TxLog {

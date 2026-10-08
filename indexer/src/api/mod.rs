@@ -27,6 +27,7 @@ pub mod limit_book_lcd;
 pub mod limit_book_price;
 mod listing_spread;
 mod listing_timestamps;
+mod listing_virtual_pairs;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
@@ -117,6 +118,8 @@ pub struct AppState {
     pub router_address: Option<String>,
     /// Factory contract for on-chain governance queries (blacklist, etc.).
     pub factory_address: Option<String>,
+    /// Authenticated mapper pin for listing-only principal/custody projections (#1437).
+    pub wrap_mapper_address: Option<String>,
     /// CL8Y fee-discount registry for on-chain `GetDiscount` (mirror grid fee parity with LCD).
     pub fee_discount_address: Option<String>,
     /// Shared snapshot for `GET /api/v1/health/fee-discount` (GitLab #373).
@@ -785,6 +788,30 @@ async fn require_quote_chain(
     next: axum::middleware::Next,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
+    // Listing books resolve identity before their factory branch attests.
+    // Keep the stricter fanout rate limit without contacting LCD for virtual ids.
+    if request.uri().path() == "/cg/orderbook"
+        || request.uri().path().starts_with("/cmc/orderbook/")
+    {
+        return next.run(request).await;
+    }
+    let request = if request.uri().path().starts_with("/api/v1/pairs/") {
+        use axum::extract::{FromRequestParts, Path};
+        let (mut parts, body) = request.into_parts();
+        if let Ok(Path(params)) =
+            Path::<HashMap<String, String>>::from_request_parts(&mut parts, &state).await
+        {
+            if params
+                .get("addr")
+                .is_some_and(|id| crate::listing_id_guard::is_listing_only_id(id))
+            {
+                return (StatusCode::NOT_FOUND, "Pair not found").into_response();
+            }
+        }
+        axum::extract::Request::from_parts(parts, body)
+    } else {
+        request
+    };
     if state.lcd.require_verified_chain().await.is_err() {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -850,6 +877,7 @@ pub async fn serve(
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,
         factory_address,
+        wrap_mapper_address: config.wrap_mapper_address.clone(),
         fee_discount_address: config.fee_discount_address.clone(),
         fee_discount_registry_health,
         route_solver_db_hybrid: config.route_solver_db_hybrid,

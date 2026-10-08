@@ -140,6 +140,8 @@ async fn clean_db_tables(pool: &PgPool) {
     // TRUNCATE CASCADE avoids flaky DELETE .ok() when FK rows remain.
     sqlx::query(
         "TRUNCATE TABLE
+            listing_wrap_principal,
+            listing_mapper_custody,
             venus_vfdusd_rates,
             oracle_prices,
             oracle_state,
@@ -1093,6 +1095,7 @@ pub async fn build_test_app_with_vfdusd(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        wrap_mapper_address: config.wrap_mapper_address.clone(),
         fee_discount_address: config.fee_discount_address.clone(),
         fee_discount_registry_health:
             cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
@@ -1147,6 +1150,7 @@ pub async fn build_test_app_with_venus(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        wrap_mapper_address: config.wrap_mapper_address.clone(),
         fee_discount_address: config.fee_discount_address.clone(),
         fee_discount_registry_health:
             cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
@@ -1209,6 +1213,7 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
         factory_address: Some(config.factory_address.clone()),
+        wrap_mapper_address: config.wrap_mapper_address.clone(),
         fee_discount_address: config.fee_discount_address.clone(),
         fee_discount_registry_health:
             cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(

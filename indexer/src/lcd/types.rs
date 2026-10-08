@@ -40,6 +40,9 @@ pub struct Pagination {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TxResponse {
+    /// SDK execution result. Missing success codes on legacy responses remain zero.
+    #[serde(default)]
+    pub code: u32,
     pub height: String,
     pub txhash: String,
     pub logs: Option<Vec<TxLog>>,

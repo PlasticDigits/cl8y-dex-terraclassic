@@ -1,5 +1,19 @@
 # Indexer — Invariants, Business Logic, and Security
 
+## Listing-only native markets (#1437)
+
+| Invariant | Contract |
+|---|---|
+| LV1437 | CG/GT alone expose `cl8y-virtual:clunc-uluna`, `cl8y-virtual:custc-uusd`, `cl8y-virtual:uluna-uusd`, `cl8y-virtual:uluna-usdt`, `cl8y-virtual:clunc-uusd`. `/gt/events` swaps and `/cg/historical_trades` prints translate each eligible real wrap, unwrap or source-pool swap once per market. Exact pins, positive indexed custody and source reserves are required; principal excludes fees. Factory events remain unchanged. No virtual ids enter `pairs`, `swap_events`, reserves, candles, protocol TVL/fees, traders, CMC, route solve or DeFiLlama. Ordinary pair/discovery paths reject reserved ids before SQL/LCD. CG ticker collisions preserve real markets. Factory-only GT admission cap stays 5000. |
+
+[LV1437-1–LV1437-10 agent playbook](../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md),
+[response/projection contract](CG_CMC_COMPLIANCE.md#listing-only-native-markets-1437),
+[review checklist and explicit skips](qa/issue-1437/README.md),
+[verification receipt](qa/issue-1437/verification.md).
+Run `make verify-issue-1437`; unavailable agent checks may be explicit SKIP with
+PASS WITH SKIPS, executed failures remain FAIL. Implementation verification does
+not claim deployment or form submission.
+
 ## Pair discovery rejection state and admission (#1394)
 
 Preserve [PD1394-1–PD1394-10](../skills/AGENTS_PAIR_DISCOVERY_CACHE.md).
