@@ -1,0 +1,20 @@
+---- cl8y_ask_fee_stamps_usd_and_rollup stdout ----
+
+thread 'cl8y_ask_fee_stamps_usd_and_rollup' (107931) panicked at tests/indexer_economic_fee_usd.rs:175:10:
+CL8Y mark
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- null_only_backfill_does_not_rewrite_stamp stdout ----
+
+thread 'null_only_backfill_does_not_rewrite_stamp' (107998) panicked at tests/indexer_economic_fee_usd.rs:342:5:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+
+failures:
+    cl8y_ask_fee_stamps_usd_and_rollup
+    null_only_backfill_does_not_rewrite_stamp
+
+test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+

@@ -61,3 +61,5 @@ Pair-creation fee ingest remains pending under [#1209](https://git.cl8y.com/code
 - [QA Onboarding](./qa-onboarding.md) — getting started with QA, test flows, device matrix
 - [Bug Report Template](./qa-templates/frontend-bug.md)
 - [Test Pass Template](./qa-templates/qa-test-pass.md)
+
+DeFiLlama reconciliation [#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354): [agent checklist](qa/issue-1354/README.md), [verification](qa/issue-1354/verification.md), `make verify-issue-1354`. Upstream #9907 recovered stored volume; live feed, fee history and price coverage remain open.

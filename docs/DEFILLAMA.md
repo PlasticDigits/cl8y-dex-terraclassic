@@ -130,6 +130,32 @@ In-repo copies: [`scripts/defillama/README.md`](../scripts/defillama/README.md).
 
 ## Regression conditions
 
+### Live reconciliation (#1354)
+
+[#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354) remains open.
+See [verification](qa/issue-1354/verification.md),
+[agent checklist/skip policy](qa/issue-1354/README.md),
+[DL1354 invariants](../skills/AGENTS_DEFILLAMA.md#live-reconciliation-1354) and
+`make verify-issue-1354`.
+
+Upstream [#9907](https://github.com/DefiLlama/dimension-adapters/pull/9907) merged
+2026-10-04. Its fallback recovers legacy nulls only from matching UTC protocol
+rows with identical trade counts. Missing/duplicate/malformed/all-unpriced rows
+fail; dates outside the 90-day series cannot recover. The volume copy/helper
+now match that merge, with boundary tests.
+
+On 2026-10-08, the original 2026-08-26–09-24 Llama volume chart includes all ten
+formerly missing dates and totals $53,178 (display rounding). The live feed still
+nulls those dates and omits completeness counts. Same-window stored fees are
+$746.87 versus $816.735930564854092361 on the daily feed. The broader protocol
+fee series is about $897.47; its extra amount needs source/pair reconciliation.
+
+Outstanding: live volume completeness, transaction-wide gem fee exclusion,
+#1209/#1210 sources, historical repair outside the eight-day window, and verified
+CW20 prices. The target headline is a positive priced lower bound with counts
+(idle zero, all-unpriced null); the indexer still needs that change. This
+qualifies legacy behavior above and leaves completed #631/#687 closed.
+
 Treat the listing as regressed if volume includes gems or fills; TVL comes from indexer USD; fees include `spread_amount` or token tax; unpriced activity is published as `$0`; SSR is non-zero; or adapter `start` walks May 2026 404s.
 
 ## Related

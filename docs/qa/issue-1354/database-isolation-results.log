@@ -1,0 +1,45 @@
+SKIP: authenticated runtime-login fixture: TEST_DATABASE_RUNTIME_PASSWORD not injected; real ACL checks still run separately
+PASS: first database_isolation (same compiled executable)
+FAIL: first security (same compiled executable)
+PASS: first seed_runtime_security (same compiled executable)
+PASS: first api_health (same compiled executable)
+PASS: first api_candles_newest_n (same compiled executable)
+PASS: first api_aggregator_batch (same compiled executable)
+PASS: first cl8y_dex_indexer (same compiled executable)
+PASS: retest database_isolation (same compiled executable)
+FAIL: retest security (same compiled executable)
+PASS: retest seed_runtime_security (same compiled executable)
+PASS: retest api_health (same compiled executable)
+PASS: retest api_candles_newest_n (same compiled executable)
+PASS: retest api_aggregator_batch (same compiled executable)
+PASS: retest cl8y_dex_indexer (same compiled executable)
+SKIP: host IPv6 socket query: disabled by host kernel; IPv4 and confinement probes still run
+PASS: indexer-run.sh strips inherited capabilities in the actual subprocess
+PASS: indexer-migrate.sh strips inherited capabilities in the actual subprocess
+PASS: first launcher capability isolation
+PASS: first functional CI source tests
+PASS: default/opt-in Compose rendering, explicit Make selection and credential rejection
+PASS: bridge permits loopback/internal queries and denies external-namespace host access
+PASS: opt-in host mode permits IPv4 loopback and denies external-namespace host access
+PASS: first network rendering/socket probes
+SKIP: default published-loopback query: This host does not complete the bridge published-loopback PostgreSQL handshake; internal TCP succeeds. Opt-in host and external-namespace confinement probes still run.
+PASS: runtime DML, denied DDL/role escalation/extensions/programs/files/ledger/unrelated access, migration/QA separation, private env files, idempotency and legacy-owner fail-closed
+PASS: first fresh role ACL probes
+PASS: indexer-run.sh strips inherited capabilities in the actual subprocess
+PASS: indexer-migrate.sh strips inherited capabilities in the actual subprocess
+PASS: retest launcher capability isolation
+PASS: retest functional CI source tests
+PASS: default/opt-in Compose rendering, explicit Make selection and credential rejection
+PASS: bridge permits loopback/internal queries and denies external-namespace host access
+PASS: opt-in host mode permits IPv4 loopback and denies external-namespace host access
+PASS: retest network rendering/socket probes
+PASS: runtime DML, denied DDL/role escalation/extensions/programs/files/ledger/unrelated access, migration/QA separation, private env files, idempotency and legacy-owner fail-closed
+PASS: retest fresh role ACL probes
+PASS: shell syntax
+PASS: diff whitespace
+PASS: cross-link AGENTS.md
+PASS: cross-link docs/testing.md
+PASS: cross-link skills/AGENTS_INDEXER_DATABASE_ISOLATION.md
+PASS: cross-link docs/qa/issue-1396/README.md
+Results: 26 PASS, 2 FAIL, 3 SKIP
+Scope: local implementation only; production transition/reachability and hosted trusted-policy deployment require separate receipts.

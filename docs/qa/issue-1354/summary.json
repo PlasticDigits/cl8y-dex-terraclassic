@@ -1,0 +1,41 @@
+{
+  "observed_at": "2026-10-08T03:12:34.803415+00:00",
+  "source_revision": "48f01fd1",
+  "dirty_scope": "QA/scripts/docs and synced upstream volume adapter only; no indexer production source changes",
+  "command_results": {
+    "make verify-issue-1354": {
+      "pass": 6,
+      "fail": 1,
+      "skip": 0
+    },
+    "make verify-issue-631": {
+      "pass": 5,
+      "fail": 0
+    },
+    "make verify-issue-687": {
+      "pass": 6,
+      "fail": 1,
+      "reason": "related #683 2 economic fee tests fail"
+    },
+    "make verify-issue-1396": {
+      "pass": 26,
+      "fail": 2,
+      "skip": 3,
+      "reason": "security Swagger 404 vs 200 on first/retest"
+    },
+    "reproduce-defillama-1354.sh": {
+      "pass": 0,
+      "fail": 2
+    },
+    "read_only_fee_sql_fixture": "PASS"
+  },
+  "receipt_sha256": {
+    "docs/qa/issue-1354/related-gate-failures.log": "b033c31be1f2418809ca02d64549cd9f37c0b8a343712a2ca53afaf8f4597fc7",
+    "docs/qa/issue-1354/sql-fixture.txt": "6de811916951faaf43cd4eb00d5a8b62ad3303438eccc5f14be88a2e3b1db958",
+    "docs/qa/issue-1354/database-isolation-results.log": "1f2c1f231bd2bc5fea197ca96b4ff2a7074441b13a69b9431be0a514e55fd1e1",
+    "docs/qa/issue-1354/database-isolation-failure.log": "ef668e8d71ebb4fda33b41dea8353e08241625f9a1c2ec6f56739684bd03efcc",
+    "docs/qa/issue-1354/public-reconciliation.json": "0b1bd2310a9f07fb96aae01199b85c74a679cabb9bed4c3c2b5215b22a5db788",
+    "docs/qa/issue-1354/acceptance-probes.log": "e05f566cf3d6d7c987f73b477f37b908ef5280b2fd5ff3a7388a5ace3c9da8d4",
+    "docs/qa/issue-1354/upstream-volume.json": "b70d7cb86881037a2fe68a807b17dda534d02b940579182e3853a67211849892"
+  }
+}

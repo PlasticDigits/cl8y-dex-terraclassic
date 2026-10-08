@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## DeFiLlama live reconciliation
+
+For DeFiLlama volume/fees/history/TVL drift, apply
+[DL1354-1–DL1354-10](skills/AGENTS_DEFILLAMA.md#live-reconciliation-1354)
+and run `make verify-issue-1354`; follow the
+[agent checklist and explicit skip policy](docs/qa/issue-1354/README.md).
+Upstream #9907 recovered historical priced volume; it does not establish live
+indexer completeness, fee-history repair or CW20 price coverage. Unavailable
+checks may be explicit skips; executed accounting failures keep #1354 open.
+
 ## Listing-only native markets
 
 For CG/GT virtual pairs, wrap principal projections or opaque listing ids, apply

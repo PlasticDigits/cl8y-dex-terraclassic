@@ -1,0 +1,1966 @@
+{
+  "observed_at": "2026-10-08T03:11:35.945962+00:00",
+  "start": "2026-08-17",
+  "end": "2026-10-07",
+  "window": "completed UTC days, inclusive",
+  "revision": "48f01fd1a92dc2d4b7fd80f69c6187eabacd4d18",
+  "health": {
+    "status": "ok",
+    "git_sha": "4572e8779801c5c90b63ec95a0c7d5c38ce50bbe",
+    "chain_identity": {
+      "expected_chain_id": "columbus-5",
+      "cache_namespace": "columbus-5:client:1",
+      "endpoints": [
+        {
+          "endpoint_index": 0,
+          "observed_chain_id": "columbus-5",
+          "verified": true,
+          "last_error": null,
+          "checked_at": "2026-10-08T03:11:33.982057442+00:00"
+        },
+        {
+          "endpoint_index": 1,
+          "observed_chain_id": "columbus-5",
+          "verified": false,
+          "last_error": null,
+          "checked_at": "2026-10-08T03:11:03.117459123+00:00"
+        },
+        {
+          "endpoint_index": 2,
+          "observed_chain_id": "columbus-5",
+          "verified": true,
+          "last_error": null,
+          "checked_at": "2026-10-08T03:11:30.968419142+00:00"
+        }
+      ]
+    }
+  },
+  "sources": [
+    "book_take",
+    "limit_place",
+    "swap_amm",
+    "unwrap",
+    "ust1_mint",
+    "ust1_redeem",
+    "wrap"
+  ],
+  "daily": [
+    {
+      "date": "2026-08-17",
+      "timestamp": 1786924800,
+      "volume_usd": "716.51033132252964142800",
+      "trade_count": 38,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0",
+      "fees": {
+        "swap_amm": "0",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-17",
+        "volume_usd": "716.51033132252964142800",
+        "trade_count": 38
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-17",
+        "fees_usd": "11.66493905522696907000",
+        "event_count": 28
+      },
+      "llama_volume": null,
+      "llama_fees": null,
+      "adapter_volume_candidate": "716.51033132252964142800",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "llama_day_missing",
+      "fee_comparison": "llama_day_missing"
+    },
+    {
+      "date": "2026-08-18",
+      "timestamp": 1787011200,
+      "volume_usd": "2206.82467337884930152400",
+      "trade_count": 93,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0",
+      "fees": {
+        "swap_amm": "0",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-18",
+        "volume_usd": "2206.82467337884930152400",
+        "trade_count": 93
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-18",
+        "fees_usd": "23.35557781871014824400",
+        "event_count": 87
+      },
+      "llama_volume": 2207,
+      "llama_fees": null,
+      "adapter_volume_candidate": "2206.82467337884930152400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "llama_day_missing"
+    },
+    {
+      "date": "2026-08-19",
+      "timestamp": 1787097600,
+      "volume_usd": "5437.64112920096649046300",
+      "trade_count": 117,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0",
+      "fees": {
+        "swap_amm": "0",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-19",
+        "volume_usd": "5437.64112920096649046300",
+        "trade_count": 117
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-19",
+        "fees_usd": "46.36582054440196049900",
+        "event_count": 114
+      },
+      "llama_volume": 5438,
+      "llama_fees": null,
+      "adapter_volume_candidate": "5437.64112920096649046300",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "llama_day_missing"
+    },
+    {
+      "date": "2026-08-20",
+      "timestamp": 1787184000,
+      "volume_usd": "1077.89019254949550187000",
+      "trade_count": 43,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0",
+      "fees": {
+        "swap_amm": "0",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-20",
+        "volume_usd": "1077.89019254949550187000",
+        "trade_count": 43
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-20",
+        "fees_usd": "14.75604249836946548400",
+        "event_count": 38
+      },
+      "llama_volume": 1078,
+      "llama_fees": null,
+      "adapter_volume_candidate": "1077.89019254949550187000",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "llama_day_missing"
+    },
+    {
+      "date": "2026-08-21",
+      "timestamp": 1787270400,
+      "volume_usd": "1020.54825468155075470100",
+      "trade_count": 35,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0",
+      "fees": {
+        "swap_amm": "0",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-21",
+        "volume_usd": "1020.54825468155075470100",
+        "trade_count": 35
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-21",
+        "fees_usd": "14.49424900623213258500",
+        "event_count": 27
+      },
+      "llama_volume": 1021,
+      "llama_fees": null,
+      "adapter_volume_candidate": "1020.54825468155075470100",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "llama_day_missing"
+    },
+    {
+      "date": "2026-08-22",
+      "timestamp": 1787356800,
+      "volume_usd": "410.16374489960840513400",
+      "trade_count": 24,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "0.55812594236998726300",
+      "fees": {
+        "swap_amm": "0.54177543613999573900",
+        "book_take": "0.01635050622999152400",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-22",
+        "volume_usd": "410.16374489960840513400",
+        "trade_count": 24
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-22",
+        "fees_usd": "1.03678137614138332400",
+        "event_count": 24
+      },
+      "llama_volume": 410,
+      "llama_fees": "0.56",
+      "adapter_volume_candidate": "410.16374489960840513400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-23",
+      "timestamp": 1787443200,
+      "volume_usd": "1537.02769056782018098200",
+      "trade_count": 48,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "15.63935661413446527300",
+      "fees": {
+        "swap_amm": "14.59832435153649998300",
+        "book_take": "1.04103226259796529000",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-23",
+        "volume_usd": "1537.02769056782018098200",
+        "trade_count": 48
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-23",
+        "fees_usd": "21.90512993287068773500",
+        "event_count": 51
+      },
+      "llama_volume": 1537,
+      "llama_fees": 16,
+      "adapter_volume_candidate": "1537.02769056782018098200",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-24",
+      "timestamp": 1787529600,
+      "volume_usd": "1458.95256356384302652700",
+      "trade_count": 67,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "24.80889177044931281400",
+      "fees": {
+        "swap_amm": "9.26184575327838873900",
+        "book_take": "0.72152573152765434700",
+        "limit_place": "9.37616758734382170400",
+        "wrap": "0.154267094400",
+        "unwrap": "0.01310508785012658700",
+        "ust1_mint": "1.58245054513567691200",
+        "ust1_redeem": "3.69952997091364452500"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-24",
+        "volume_usd": "1458.95256356384302652700",
+        "trade_count": 67
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-24",
+        "fees_usd": "24.80889177044931281400",
+        "event_count": 100
+      },
+      "llama_volume": 1459,
+      "llama_fees": 25,
+      "adapter_volume_candidate": "1458.95256356384302652700",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-25",
+      "timestamp": 1787616000,
+      "volume_usd": "3718.28561509136045645200",
+      "trade_count": 134,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "49.18482430046736648600",
+      "fees": {
+        "swap_amm": "29.31080620615375846300",
+        "book_take": "0.52439880288038341300",
+        "limit_place": "0.13799689664564257700",
+        "wrap": "8.03665285080572768500",
+        "unwrap": "4.93620685952690011500",
+        "ust1_mint": "4.56368118850626671600",
+        "ust1_redeem": "1.67508149594868751700"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-25",
+        "volume_usd": "3718.28561509136045645200",
+        "trade_count": 134
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-25",
+        "fees_usd": "68.33256826814627158300",
+        "event_count": 194
+      },
+      "llama_volume": 3718,
+      "llama_fees": 49,
+      "adapter_volume_candidate": "3718.28561509136045645200",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-26",
+      "timestamp": 1787702400,
+      "volume_usd": "1511.76938968588159196600",
+      "trade_count": 132,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "90.26507977828372922900",
+      "fees": {
+        "swap_amm": "9.82453095056531954800",
+        "book_take": "0.33963231190500757800",
+        "limit_place": "41.52846973000190277900",
+        "wrap": "30.5998068720692600",
+        "unwrap": "0",
+        "ust1_mint": "6.32920465114573813600",
+        "ust1_redeem": "1.64343526259650118800"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-26",
+        "volume_usd": "1511.76938968588159196600",
+        "trade_count": 132
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-26",
+        "fees_usd": "91.34923041363386573000",
+        "event_count": 164
+      },
+      "llama_volume": 1512,
+      "llama_fees": 90,
+      "adapter_volume_candidate": "1511.76938968588159196600",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-27",
+      "timestamp": 1787788800,
+      "volume_usd": null,
+      "trade_count": 129,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "17.43786502672671902500",
+      "fees": {
+        "swap_amm": "11.02103554431445562400",
+        "book_take": "0.19875238667828752700",
+        "limit_place": "0.00748577705536873400",
+        "wrap": "4.60012486409223908200",
+        "unwrap": "0.695076197453",
+        "ust1_mint": "0.91539025713336805800",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-27",
+        "volume_usd": "1326.26005723263606601500",
+        "trade_count": 129
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-27",
+        "fees_usd": "20.53238005666351187400",
+        "event_count": 155
+      },
+      "llama_volume": 1326,
+      "llama_fees": 17,
+      "adapter_volume_candidate": "1326.26005723263606601500",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-28",
+      "timestamp": 1787875200,
+      "volume_usd": "383.91120753297326307700",
+      "trade_count": 100,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "6.29822014911187662500",
+      "fees": {
+        "swap_amm": "5.47150330006665995300",
+        "book_take": "0.020266934939",
+        "limit_place": "0",
+        "wrap": "0.21629203053232003700",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0.59015788357389663500"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-28",
+        "volume_usd": "383.91120753297326307700",
+        "trade_count": 100
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-28",
+        "fees_usd": "6.30726908155856855200",
+        "event_count": 105
+      },
+      "llama_volume": 384,
+      "llama_fees": "6.3",
+      "adapter_volume_candidate": "383.91120753297326307700",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-29",
+      "timestamp": 1787961600,
+      "volume_usd": "1203.70596266013608449500",
+      "trade_count": 109,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "15.66235910619225111100",
+      "fees": {
+        "swap_amm": "13.93331510492259151200",
+        "book_take": "0.04481609536054617100",
+        "limit_place": "0",
+        "wrap": "0.02351725000000000400",
+        "unwrap": "1.66071065590911342400",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-29",
+        "volume_usd": "1203.70596266013608449500",
+        "trade_count": 109
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-29",
+        "fees_usd": "22.24780900091932311600",
+        "event_count": 116
+      },
+      "llama_volume": 1204,
+      "llama_fees": 16,
+      "adapter_volume_candidate": "1203.70596266013608449500",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-30",
+      "timestamp": 1788048000,
+      "volume_usd": "239.11863714324794091000",
+      "trade_count": 120,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "2.78761076973786329300",
+      "fees": {
+        "swap_amm": "2.22436953711317595400",
+        "book_take": "0.02177270932800000400",
+        "limit_place": "0",
+        "wrap": "0.46272694785839000200",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0.07874157543829733300"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-30",
+        "volume_usd": "239.11863714324794091000",
+        "trade_count": 120
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-30",
+        "fees_usd": "3.09437558131978333000",
+        "event_count": 129
+      },
+      "llama_volume": 239,
+      "llama_fees": "2.79",
+      "adapter_volume_candidate": "239.11863714324794091000",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-08-31",
+      "timestamp": 1788134400,
+      "volume_usd": "1135.77630092922559292600",
+      "trade_count": 122,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "19.72549035916227690500",
+      "fees": {
+        "swap_amm": "8.72026639170781665300",
+        "book_take": "0.000269847752",
+        "limit_place": "0.04520752119735557900",
+        "wrap": "4.74569280131754500800",
+        "unwrap": "0.71501680559046972500",
+        "ust1_mint": "3.00579044140189324200",
+        "ust1_redeem": "2.49324655019519669800"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-08-31",
+        "volume_usd": "1135.77630092922559292600",
+        "trade_count": 122
+      },
+      "protocol_fees": {
+        "utc_day": "2026-08-31",
+        "fees_usd": "20.12422890855912989600",
+        "event_count": 146
+      },
+      "llama_volume": 1136,
+      "llama_fees": 20,
+      "adapter_volume_candidate": "1135.77630092922559292600",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-01",
+      "timestamp": 1788220800,
+      "volume_usd": null,
+      "trade_count": 114,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "7.05539583777346572000",
+      "fees": {
+        "swap_amm": "2.31705148014875985200",
+        "book_take": "0.07972748535492001600",
+        "limit_place": "0",
+        "wrap": "1.52785161754217609700",
+        "unwrap": "0.13242830173985647500",
+        "ust1_mint": "1.76066293957938024300",
+        "ust1_redeem": "1.23767401340837303700"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-01",
+        "volume_usd": "665.71860839662778551100",
+        "trade_count": 114
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-01",
+        "fees_usd": "7.88984559862729301400",
+        "event_count": 135
+      },
+      "llama_volume": 666,
+      "llama_fees": "7.06",
+      "adapter_volume_candidate": "665.71860839662778551100",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-02",
+      "timestamp": 1788307200,
+      "volume_usd": "1624.21245484559303212400",
+      "trade_count": 120,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "18.60461977472000532200",
+      "fees": {
+        "swap_amm": "11.24423703188508070600",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "2.37814335195365005400",
+        "unwrap": "2.86841132308959646100",
+        "ust1_mint": "0",
+        "ust1_redeem": "2.11382806779167810100"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-02",
+        "volume_usd": "1624.21245484559303212400",
+        "trade_count": 120
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-02",
+        "fees_usd": "30.04141203823114002400",
+        "event_count": 145
+      },
+      "llama_volume": 1624,
+      "llama_fees": 19,
+      "adapter_volume_candidate": "1624.21245484559303212400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-03",
+      "timestamp": 1788393600,
+      "volume_usd": "212.21724872551554289600",
+      "trade_count": 27,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "4.72972426840933110900",
+      "fees": {
+        "swap_amm": "0.65069653538943955800",
+        "book_take": "0.09691343062899998200",
+        "limit_place": "0.86458231833856767000",
+        "wrap": "0.63538024316459999400",
+        "unwrap": "0",
+        "ust1_mint": "2.48215174088772390500",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-03",
+        "volume_usd": "212.21724872551554289600",
+        "trade_count": 27
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-03",
+        "fees_usd": "4.75646384798092152700",
+        "event_count": 34
+      },
+      "llama_volume": 212,
+      "llama_fees": "4.73",
+      "adapter_volume_candidate": "212.21724872551554289600",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-04",
+      "timestamp": 1788480000,
+      "volume_usd": "451.71223085077402983500",
+      "trade_count": 22,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "5.90637980201704634200",
+      "fees": {
+        "swap_amm": "1.35507009693639497800",
+        "book_take": "0.15127919595715988800",
+        "limit_place": "0",
+        "wrap": "0.52276339873073332400",
+        "unwrap": "1.74930821997536326700",
+        "ust1_mint": "0",
+        "ust1_redeem": "2.12795889041739488500"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-04",
+        "volume_usd": "451.71223085077402983500",
+        "trade_count": 22
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-04",
+        "fees_usd": "6.72992690771136614300",
+        "event_count": 35
+      },
+      "llama_volume": 452,
+      "llama_fees": "5.91",
+      "adapter_volume_candidate": "451.71223085077402983500",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-05",
+      "timestamp": 1788566400,
+      "volume_usd": null,
+      "trade_count": 20,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "4.53035776883325371800",
+      "fees": {
+        "swap_amm": "1.14372517696417611900",
+        "book_take": "0.17868196645631092000",
+        "limit_place": "0",
+        "wrap": "0.57591571354619343900",
+        "unwrap": "0.20303285114649999100",
+        "ust1_mint": "2.42900206072007324900",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-05",
+        "volume_usd": "364.52916568895825106500",
+        "trade_count": 20
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-05",
+        "fees_usd": "4.53035776883325371800",
+        "event_count": 34
+      },
+      "llama_volume": 365,
+      "llama_fees": "4.53",
+      "adapter_volume_candidate": "364.52916568895825106500",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-06",
+      "timestamp": 1788652800,
+      "volume_usd": "858.10626999231125183900",
+      "trade_count": 60,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "20.57062755961354243700",
+      "fees": {
+        "swap_amm": "9.95049691231396596100",
+        "book_take": "0.76853968563620822300",
+        "limit_place": "0",
+        "wrap": "9.21810036898144440800",
+        "unwrap": "0.63349059268192384500",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-06",
+        "volume_usd": "858.10626999231125183900",
+        "trade_count": 60
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-06",
+        "fees_usd": "21.85205848284429456300",
+        "event_count": 114
+      },
+      "llama_volume": 858,
+      "llama_fees": 21,
+      "adapter_volume_candidate": "858.10626999231125183900",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-07",
+      "timestamp": 1788739200,
+      "volume_usd": "1246.36368931520801344900",
+      "trade_count": 76,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "15.17324714669676615200",
+      "fees": {
+        "swap_amm": "3.45169304081292738100",
+        "book_take": "0.32709395269144661200",
+        "limit_place": "0.80838651948816823700",
+        "wrap": "4.36533336009443322100",
+        "unwrap": "0.80010937576024570200",
+        "ust1_mint": "5.42063089784954499900",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-07",
+        "volume_usd": "1246.36368931520801344900",
+        "trade_count": 76
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-07",
+        "fees_usd": "15.74110744077830351800",
+        "event_count": 153
+      },
+      "llama_volume": 1246,
+      "llama_fees": 15,
+      "adapter_volume_candidate": "1246.36368931520801344900",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-08",
+      "timestamp": 1788825600,
+      "volume_usd": "387.35365876217509246000",
+      "trade_count": 42,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "5.78513643619503825700",
+      "fees": {
+        "swap_amm": "3.59900760771821589300",
+        "book_take": "0.31277423171860429200",
+        "limit_place": "0.79621096903794107500",
+        "wrap": "0.63353202236036799900",
+        "unwrap": "0.44361160535990899800",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-08",
+        "volume_usd": "387.35365876217509246000",
+        "trade_count": 42
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-08",
+        "fees_usd": "6.40940233866880463300",
+        "event_count": 59
+      },
+      "llama_volume": 387,
+      "llama_fees": "5.79",
+      "adapter_volume_candidate": "387.35365876217509246000",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-09",
+      "timestamp": 1788912000,
+      "volume_usd": null,
+      "trade_count": 190,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "62.34498804247277867000",
+      "fees": {
+        "swap_amm": "23.42188256262486183600",
+        "book_take": "2.83857465466681742300",
+        "limit_place": "0",
+        "wrap": "22.81281113506675835300",
+        "unwrap": "3.71627190754005696200",
+        "ust1_mint": "0",
+        "ust1_redeem": "9.55544778257428409600"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-09",
+        "volume_usd": "4413.65578114754989190700",
+        "trade_count": 190
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-09",
+        "fees_usd": "78.25396023545099978500",
+        "event_count": 389
+      },
+      "llama_volume": 4414,
+      "llama_fees": 62,
+      "adapter_volume_candidate": "4413.65578114754989190700",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-10",
+      "timestamp": 1788998400,
+      "volume_usd": "5025.66945219664313882300",
+      "trade_count": 178,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "69.22694606257595550300",
+      "fees": {
+        "swap_amm": "29.10399136597853749400",
+        "book_take": "1.68710882273055108900",
+        "limit_place": "0",
+        "wrap": "29.0264699656650058",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "9.40937590820186112000"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-10",
+        "volume_usd": "5025.66945219664313882300",
+        "trade_count": 178
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-10",
+        "fees_usd": "92.10270381436486373500",
+        "event_count": 287
+      },
+      "llama_volume": 5026,
+      "llama_fees": 69,
+      "adapter_volume_candidate": "5025.66945219664313882300",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-11",
+      "timestamp": 1789084800,
+      "volume_usd": null,
+      "trade_count": 114,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "35.02729044030764720100",
+      "fees": {
+        "swap_amm": "19.83810997347387287500",
+        "book_take": "0.75729502438951583900",
+        "limit_place": "0",
+        "wrap": "6.02465978333333024000",
+        "unwrap": "0",
+        "ust1_mint": "2.40731977425394825500",
+        "ust1_redeem": "5.99990588485697999200"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-11",
+        "volume_usd": "3450.87997589099946314600",
+        "trade_count": 114
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-11",
+        "fees_usd": "47.01702602537380888100",
+        "event_count": 169
+      },
+      "llama_volume": 3451,
+      "llama_fees": 35,
+      "adapter_volume_candidate": "3450.87997589099946314600",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-12",
+      "timestamp": 1789171200,
+      "volume_usd": null,
+      "trade_count": 58,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "11.01807427974965550800",
+      "fees": {
+        "swap_amm": "4.83093113601105786800",
+        "book_take": "0.06451390557947304300",
+        "limit_place": "0",
+        "wrap": "0.75097921722462497800",
+        "unwrap": "0.67770216494771666800",
+        "ust1_mint": "3.90391682603595899500",
+        "ust1_redeem": "0.79003102995082395600"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-12",
+        "volume_usd": "1198.59717874363175390300",
+        "trade_count": 58
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-12",
+        "fees_usd": "13.90345930507847825700",
+        "event_count": 79
+      },
+      "llama_volume": 1199,
+      "llama_fees": 11,
+      "adapter_volume_candidate": "1198.59717874363175390300",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-13",
+      "timestamp": 1789257600,
+      "volume_usd": null,
+      "trade_count": 97,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "15.46051546068892956700",
+      "fees": {
+        "swap_amm": "6.66011079516151735700",
+        "book_take": "0.02090329715339966000",
+        "limit_place": "0",
+        "wrap": "4.50137537857548712400",
+        "unwrap": "0.78885240152927981900",
+        "ust1_mint": "0.96878458318342914900",
+        "ust1_redeem": "2.52048900508581645800"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-13",
+        "volume_usd": "1241.57989899411512447800",
+        "trade_count": 97
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-13",
+        "fees_usd": "15.46051546068892956700",
+        "event_count": 144
+      },
+      "llama_volume": 1242,
+      "llama_fees": 13,
+      "adapter_volume_candidate": "1241.57989899411512447800",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "drift_over_rounding"
+    },
+    {
+      "date": "2026-09-14",
+      "timestamp": 1789344000,
+      "volume_usd": "1279.48854481040403738700",
+      "trade_count": 38,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "24.52598727550681954500",
+      "fees": {
+        "swap_amm": "20.44230901812694286400",
+        "book_take": "0.53455811631075823800",
+        "limit_place": "0",
+        "wrap": "2.76082621999999997800",
+        "unwrap": "0.7870362517913000",
+        "ust1_mint": "0.00125766927781846500",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-14",
+        "volume_usd": "1279.48854481040403738700",
+        "trade_count": 38
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-14",
+        "fees_usd": "24.52598727550681954500",
+        "event_count": 61
+      },
+      "llama_volume": 1279,
+      "llama_fees": 24,
+      "adapter_volume_candidate": "1279.48854481040403738700",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-15",
+      "timestamp": 1789430400,
+      "volume_usd": "2272.78054051080676315600",
+      "trade_count": 59,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "35.78280675695373463700",
+      "fees": {
+        "swap_amm": null,
+        "book_take": "0.04396084482919416000",
+        "limit_place": "0.06713420272662159800",
+        "wrap": "0.58176980121466660200",
+        "unwrap": "2.78508636498249995800",
+        "ust1_mint": "2.48282273807627721000",
+        "ust1_redeem": "6.49546662977424559300"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-15",
+        "volume_usd": "2272.78054051080676315600",
+        "trade_count": 59
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-15",
+        "fees_usd": "35.78280675695373463700",
+        "event_count": 80
+      },
+      "llama_volume": 2273,
+      "llama_fees": 25,
+      "adapter_volume_candidate": "2272.78054051080676315600",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "drift_over_rounding"
+    },
+    {
+      "date": "2026-09-16",
+      "timestamp": 1789516800,
+      "volume_usd": "147.57742642424569442000",
+      "trade_count": 15,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "3.24879135016673540400",
+      "fees": {
+        "swap_amm": "2.09245831482125509100",
+        "book_take": "0.05665227410056405700",
+        "limit_place": "0",
+        "wrap": "0.00592364",
+        "unwrap": "0",
+        "ust1_mint": "0.06587932233749129000",
+        "ust1_redeem": "1.02787779890742496600"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-16",
+        "volume_usd": "147.57742642424569442000",
+        "trade_count": 15
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-16",
+        "fees_usd": "3.24879135016673540400",
+        "event_count": 26
+      },
+      "llama_volume": 148,
+      "llama_fees": "3.18",
+      "adapter_volume_candidate": "147.57742642424569442000",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-17",
+      "timestamp": 1789603200,
+      "volume_usd": null,
+      "trade_count": 52,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "166.95379056000337423500",
+      "fees": {
+        "swap_amm": "120.77122840090901233700",
+        "book_take": "0.19547794893592808700",
+        "limit_place": "0",
+        "wrap": "29.73680279322143522500",
+        "unwrap": "11.78923336697958640300",
+        "ust1_mint": "0",
+        "ust1_redeem": "4.46104804995741218300"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-17",
+        "volume_usd": "8405.28168574310457157500",
+        "trade_count": 52
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-17",
+        "fees_usd": "166.95379056000337423500",
+        "event_count": 92
+      },
+      "llama_volume": 8405,
+      "llama_fees": 115,
+      "adapter_volume_candidate": "8405.28168574310457157500",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "drift_over_rounding"
+    },
+    {
+      "date": "2026-09-18",
+      "timestamp": 1789689600,
+      "volume_usd": null,
+      "trade_count": 29,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "3.45640419430441774000",
+      "fees": {
+        "swap_amm": "3.03740567828392791300",
+        "book_take": "0.19004998899792978900",
+        "limit_place": "0",
+        "wrap": "0.22894852702256003800",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-18",
+        "volume_usd": "386.27221310932673121000",
+        "trade_count": 29
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-18",
+        "fees_usd": "3.45640419430441774000",
+        "event_count": 42
+      },
+      "llama_volume": 386,
+      "llama_fees": "3.44",
+      "adapter_volume_candidate": "386.27221310932673121000",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-19",
+      "timestamp": 1789776000,
+      "volume_usd": "106.75431922155842063100",
+      "trade_count": 30,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "2.18935046104413068500",
+      "fees": {
+        "swap_amm": "1.44142199058655483700",
+        "book_take": "0.04653563447500251500",
+        "limit_place": "0",
+        "wrap": "0.68360366625543333300",
+        "unwrap": "0.0177891697271400",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-19",
+        "volume_usd": "106.75431922155842063100",
+        "trade_count": 30
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-19",
+        "fees_usd": "2.18935046104413068500",
+        "event_count": 39
+      },
+      "llama_volume": 107,
+      "llama_fees": "2.13",
+      "adapter_volume_candidate": "106.75431922155842063100",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-20",
+      "timestamp": 1789862400,
+      "volume_usd": "4019.94327812243695669900",
+      "trade_count": 134,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "43.34840888894933774600",
+      "fees": {
+        "swap_amm": "12.52485584289517172500",
+        "book_take": "0.12369022155176440300",
+        "limit_place": "0",
+        "wrap": "21.32313631333333334000",
+        "unwrap": "0.16301208482389689000",
+        "ust1_mint": "8.53453336931001876400",
+        "ust1_redeem": "0.67918105703515262400"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-20",
+        "volume_usd": "4019.94327812243695669900",
+        "trade_count": 134
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-20",
+        "fees_usd": "43.34840888894933774600",
+        "event_count": 160
+      },
+      "llama_volume": 4020,
+      "llama_fees": 39,
+      "adapter_volume_candidate": "4019.94327812243695669900",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "drift_over_rounding"
+    },
+    {
+      "date": "2026-09-21",
+      "timestamp": 1789948800,
+      "volume_usd": "3652.41467914118065286900",
+      "trade_count": 83,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "43.70417002158654352900",
+      "fees": {
+        "swap_amm": "31.63354945403042511900",
+        "book_take": "0.71330234979344654900",
+        "limit_place": "0",
+        "wrap": "0.12787758480499983300",
+        "unwrap": "4.03455359504542761900",
+        "ust1_mint": "0",
+        "ust1_redeem": "7.19488703791224440900"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-21",
+        "volume_usd": "3652.41467914118065286900",
+        "trade_count": 83
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-21",
+        "fees_usd": "43.70417002158654352900",
+        "event_count": 115
+      },
+      "llama_volume": 3652,
+      "llama_fees": 44,
+      "adapter_volume_candidate": "3652.41467914118065286900",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-22",
+      "timestamp": 1790035200,
+      "volume_usd": "3081.23271011305516159400",
+      "trade_count": 53,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "37.35851391350202669200",
+      "fees": {
+        "swap_amm": "28.82866389918095564900",
+        "book_take": "0.75942484924668608500",
+        "limit_place": "0",
+        "wrap": "0.15936782800000016600",
+        "unwrap": "0",
+        "ust1_mint": "7.55476127347193677500",
+        "ust1_redeem": "0.05629606360244801700"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-22",
+        "volume_usd": "3081.23271011305516159400",
+        "trade_count": 53
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-22",
+        "fees_usd": "37.35851391350202669200",
+        "event_count": 76
+      },
+      "llama_volume": 3081,
+      "llama_fees": 37,
+      "adapter_volume_candidate": "3081.23271011305516159400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-23",
+      "timestamp": 1790121600,
+      "volume_usd": "2325.89085425567927917800",
+      "trade_count": 66,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "26.54915666533648257000",
+      "fees": {
+        "swap_amm": "17.15965604424610526100",
+        "book_take": "0.01345068750720721500",
+        "limit_place": "0",
+        "wrap": "0.4519097886591694",
+        "unwrap": "1.81429490384550009400",
+        "ust1_mint": "1.20473168999337690500",
+        "ust1_redeem": "5.90511355108512369500"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-23",
+        "volume_usd": "2325.89085425567927917800",
+        "trade_count": 66
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-23",
+        "fees_usd": "26.54915666533648257000",
+        "event_count": 85
+      },
+      "llama_volume": 2326,
+      "llama_fees": 27,
+      "adapter_volume_candidate": "2325.89085425567927917800",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-24",
+      "timestamp": 1790208000,
+      "volume_usd": null,
+      "trade_count": 28,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "2.00862240823235788400",
+      "fees": {
+        "swap_amm": "1.42978113143867780800",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0.07634784",
+        "unwrap": "0",
+        "ust1_mint": "0.50249343679368007600",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-24",
+        "volume_usd": "558.46100505072907764200",
+        "trade_count": 28
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-24",
+        "fees_usd": "2.00862240823235788400",
+        "event_count": 32
+      },
+      "llama_volume": 558,
+      "llama_fees": "2.01",
+      "adapter_volume_candidate": "558.46100505072907764200",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-25",
+      "timestamp": 1790294400,
+      "volume_usd": null,
+      "trade_count": 41,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "10.09789303062120564100",
+      "fees": {
+        "swap_amm": "5.19355891861997377000",
+        "book_take": "0.05463038415240304200",
+        "limit_place": "0.01251462164550247600",
+        "wrap": "0.00263102666666667600",
+        "unwrap": "0",
+        "ust1_mint": "4.83455807953665967700",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-25",
+        "volume_usd": "3265.42412550067564977100",
+        "trade_count": 41
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-25",
+        "fees_usd": "10.09789303062120564100",
+        "event_count": 57
+      },
+      "llama_volume": 3265,
+      "llama_fees": 10,
+      "adapter_volume_candidate": "3265.42412550067564977100",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-26",
+      "timestamp": 1790380800,
+      "volume_usd": "185.66251647477497264800",
+      "trade_count": 9,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "2.24290236243877628500",
+      "fees": {
+        "swap_amm": "0.92299241053869257800",
+        "book_take": "0.02717955250011134300",
+        "limit_place": "0",
+        "wrap": "0.0804614600296000",
+        "unwrap": "0",
+        "ust1_mint": "1.21226893937037236400",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-26",
+        "volume_usd": "185.66251647477497264800",
+        "trade_count": 9
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-26",
+        "fees_usd": "2.24290236243877628500",
+        "event_count": 15
+      },
+      "llama_volume": 186,
+      "llama_fees": "2.24",
+      "adapter_volume_candidate": "185.66251647477497264800",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-27",
+      "timestamp": 1790467200,
+      "volume_usd": "523.27916243003347036500",
+      "trade_count": 20,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "10.83570200768538675300",
+      "fees": {
+        "swap_amm": null,
+        "book_take": "0.19332411385555943700",
+        "limit_place": "0",
+        "wrap": "1.20918946666666666400",
+        "unwrap": "0.75220547962023117100",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-27",
+        "volume_usd": "523.27916243003347036500",
+        "trade_count": 20
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-27",
+        "fees_usd": "10.83570200768538675300",
+        "event_count": 29
+      },
+      "llama_volume": 523,
+      "llama_fees": 11,
+      "adapter_volume_candidate": "523.27916243003347036500",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-28",
+      "timestamp": 1790553600,
+      "volume_usd": "604.74125059314549340700",
+      "trade_count": 27,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "3.83220177673377380300",
+      "fees": {
+        "swap_amm": null,
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "1.06276040000000606000",
+        "unwrap": "0",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-28",
+        "volume_usd": "604.74125059314549340700",
+        "trade_count": 27
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-28",
+        "fees_usd": "3.83220177673377380300",
+        "event_count": 32
+      },
+      "llama_volume": 605,
+      "llama_fees": "3.83",
+      "adapter_volume_candidate": "604.74125059314549340700",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-29",
+      "timestamp": 1790640000,
+      "volume_usd": "897.82221745575704206400",
+      "trade_count": 38,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "5.45055960716880560000",
+      "fees": {
+        "swap_amm": "4.53757547546797830200",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "0.1966053186123250",
+        "ust1_mint": "0",
+        "ust1_redeem": "0.71637881308850229800"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-29",
+        "volume_usd": "897.82221745575704206400",
+        "trade_count": 38
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-29",
+        "fees_usd": "5.4505596071688056",
+        "event_count": 45
+      },
+      "llama_volume": 898,
+      "llama_fees": "5.45",
+      "adapter_volume_candidate": "897.82221745575704206400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-09-30",
+      "timestamp": 1790726400,
+      "volume_usd": "1154.88685351900287405800",
+      "trade_count": 43,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "21.44580828966899941700",
+      "fees": {
+        "swap_amm": "11.97852132108345106100",
+        "book_take": "0.00672039957510309700",
+        "limit_place": "0",
+        "wrap": "7.21394379246966669700",
+        "unwrap": "0.77182627761860771200",
+        "ust1_mint": "1.47479649892217085000",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-09-30",
+        "volume_usd": "1154.88685351900287405800",
+        "trade_count": 43
+      },
+      "protocol_fees": {
+        "utc_day": "2026-09-30",
+        "fees_usd": "21.44580828966899941700",
+        "event_count": 90
+      },
+      "llama_volume": 1155,
+      "llama_fees": 21,
+      "adapter_volume_candidate": "1154.88685351900287405800",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-01",
+      "timestamp": 1790812800,
+      "volume_usd": "1976.16577787671151236400",
+      "trade_count": 45,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "18.44660961921340994500",
+      "fees": {
+        "swap_amm": "16.26935205760146222400",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0.01260480",
+        "unwrap": "1.7865933056018550",
+        "ust1_mint": "0.37805945601009272100",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-01",
+        "volume_usd": "1976.16577787671151236400",
+        "trade_count": 45
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-01",
+        "fees_usd": "18.44660961921340994500",
+        "event_count": 49
+      },
+      "llama_volume": 1976,
+      "llama_fees": 18,
+      "adapter_volume_candidate": "1976.16577787671151236400",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-02",
+      "timestamp": 1790899200,
+      "volume_usd": "2081.59321034277692361600",
+      "trade_count": 71,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "22.59949746152396966100",
+      "fees": {
+        "swap_amm": null,
+        "book_take": "0",
+        "limit_place": "0.00741408450883291200",
+        "wrap": "0.003991407250",
+        "unwrap": "2.00687113896511323600",
+        "ust1_mint": "1.43155270451364579200",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-02",
+        "volume_usd": "2081.59321034277692361600",
+        "trade_count": 71
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-02",
+        "fees_usd": "22.59949746152396966100",
+        "event_count": 88
+      },
+      "llama_volume": 2082,
+      "llama_fees": 23,
+      "adapter_volume_candidate": "2081.59321034277692361600",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-03",
+      "timestamp": 1790985600,
+      "volume_usd": "3643.68484916250408425800",
+      "trade_count": 122,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "57.56274007444024297400",
+      "fees": {
+        "swap_amm": "48.84857631138147168900",
+        "book_take": "0.01011045700506598500",
+        "limit_place": "0",
+        "wrap": "0.43271697666666666300",
+        "unwrap": "2.32059146355459147400",
+        "ust1_mint": "0",
+        "ust1_redeem": "5.95074486583244716300"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-03",
+        "volume_usd": "3643.68484916250408425800",
+        "trade_count": 122
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-03",
+        "fees_usd": "57.56274007444024297400",
+        "event_count": 144
+      },
+      "llama_volume": 3644,
+      "llama_fees": 58,
+      "adapter_volume_candidate": "3643.68484916250408425800",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-04",
+      "timestamp": 1791072000,
+      "volume_usd": "6047.50157127356072557900",
+      "trade_count": 202,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "80.55270112766396831700",
+      "fees": {
+        "swap_amm": "65.28041717893612730900",
+        "book_take": "0",
+        "limit_place": "0.36705341610503853400",
+        "wrap": "1.43600761245796266600",
+        "unwrap": "2.86065659011943342200",
+        "ust1_mint": "2.21628556363735918700",
+        "ust1_redeem": "8.39228076640804719900"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-04",
+        "volume_usd": "6047.50157127356072557900",
+        "trade_count": 202
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-04",
+        "fees_usd": "80.55270112766396831700",
+        "event_count": 250
+      },
+      "llama_volume": 6048,
+      "llama_fees": 81,
+      "adapter_volume_candidate": "6047.50157127356072557900",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-05",
+      "timestamp": 1791158400,
+      "volume_usd": "4166.28444700514302897200",
+      "trade_count": 126,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "45.83349403657831264800",
+      "fees": {
+        "swap_amm": "43.10647847934882264800",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "0",
+        "unwrap": "2.7270155572294900",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-05",
+        "volume_usd": "4166.28444700514302897200",
+        "trade_count": 126
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-05",
+        "fees_usd": "45.83349403657831264800",
+        "event_count": 129
+      },
+      "llama_volume": 4166,
+      "llama_fees": 46,
+      "adapter_volume_candidate": "4166.28444700514302897200",
+      "adapter_volume_basis": "daily_feed",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-06",
+      "timestamp": 1791244800,
+      "volume_usd": null,
+      "trade_count": 273,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "154.51565831891277447900",
+      "fees": {
+        "swap_amm": null,
+        "book_take": "0",
+        "limit_place": "0.34293600",
+        "wrap": "11.50632952005053726200",
+        "unwrap": "12.04841960729564513000",
+        "ust1_mint": "0.50139612912712749300",
+        "ust1_redeem": "0.50559965267495602800"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-06",
+        "volume_usd": "10678.27221225865268222900",
+        "trade_count": 273
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-06",
+        "fees_usd": "154.51565831891277447900",
+        "event_count": 335
+      },
+      "llama_volume": 10678,
+      "llama_fees": 155,
+      "adapter_volume_candidate": "10678.27221225865268222900",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    },
+    {
+      "date": "2026-10-07",
+      "timestamp": 1791331200,
+      "volume_usd": null,
+      "trade_count": 59,
+      "unpriced_trade_count": null,
+      "priced_trade_count": null,
+      "completeness_metadata_present": false,
+      "daily_fees_usd": "26.17508428780644335500",
+      "fees": {
+        "swap_amm": "22.23560661634550871500",
+        "book_take": "0",
+        "limit_place": "0",
+        "wrap": "1.84485253875793459000",
+        "unwrap": "2.09462513270300005000",
+        "ust1_mint": "0",
+        "ust1_redeem": "0"
+      },
+      "protocol_volume": {
+        "utc_day": "2026-10-07",
+        "volume_usd": "1515.35862020635705907700",
+        "trade_count": 59
+      },
+      "protocol_fees": {
+        "utc_day": "2026-10-07",
+        "fees_usd": "26.17508428780644335500",
+        "event_count": 68
+      },
+      "llama_volume": 1515,
+      "llama_fees": 26,
+      "adapter_volume_candidate": "1515.35862020635705907700",
+      "adapter_volume_basis": "upstream_9907_matching_count_protocol_fallback",
+      "volume_comparison": "within_rounding",
+      "fee_comparison": "within_rounding"
+    }
+  ],
+  "upstream_volume_fix": "https://github.com/DefiLlama/dimension-adapters/pull/9907",
+  "summary": {
+    "days": 52,
+    "feed_priced_volume_sum": "70031.46490662848542714600",
+    "feed_priced_fee_sum": "1366.51798119273129307500",
+    "protocol_priced_volume_sum_broader_catalog": "107501.75543459184953467500",
+    "protocol_priced_fee_sum_broader_catalog": "1583.78038707387700074600",
+    "llama_volume_sum": "106787",
+    "llama_fee_sum": "1297.95",
+    "null_volume_dates": [
+      "2026-08-27",
+      "2026-09-01",
+      "2026-09-05",
+      "2026-09-09",
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-10-06",
+      "2026-10-07"
+    ],
+    "missing_llama_volume_dates": [
+      "2026-08-17"
+    ],
+    "fee_drift_dates": [
+      "2026-08-17",
+      "2026-08-18",
+      "2026-08-19",
+      "2026-08-20",
+      "2026-08-21",
+      "2026-09-13",
+      "2026-09-15",
+      "2026-09-17",
+      "2026-09-20"
+    ]
+  },
+  "anchored_issue_window": {
+    "days": 30,
+    "feed_priced_volume_sum": "31165.99885523905154073400",
+    "feed_priced_fee_sum": "816.73593056485409236100",
+    "protocol_priced_volume_sum_broader_catalog": "53177.23442523673025718600",
+    "protocol_priced_fee_sum_broader_catalog": "897.46953480287260053000",
+    "llama_volume_sum": "53178",
+    "llama_fee_sum": "746.87",
+    "null_volume_dates": [
+      "2026-08-27",
+      "2026-09-01",
+      "2026-09-05",
+      "2026-09-09",
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-24"
+    ],
+    "missing_llama_volume_dates": [],
+    "fee_drift_dates": [
+      "2026-09-13",
+      "2026-09-15",
+      "2026-09-17",
+      "2026-09-20"
+    ]
+  },
+  "llama_latest_tokens_usd": {
+    "date": 1791416915,
+    "tokens": {
+      "LUNC": "35853.25114",
+      "USTC": "85248.4465"
+    }
+  },
+  "llama_current_cw20_prices": {
+    "coins": {}
+  },
+  "missing_cw20_prices": [
+    "ust1",
+    "ustr",
+    "cl8y"
+  ],
+  "failures": [
+    "live feed nulls partially priced days recoverable by the matching-count upstream fallback",
+    "daily feed lacks priced/unpriced volume completeness metadata",
+    "settled stored volume/fee chart has missing, null or divergent days",
+    "missing fee sources: pair_creation, settings_fee, sku_unlock",
+    "missing Llama CW20 prices: ust1, ustr, cl8y"
+  ],
+  "unavailable": [],
+  "limits": [
+    "protocol series includes gems; its sum is not listing acceptance",
+    "public feed omits unpriced counts; DB is needed for exact priced lower bound",
+    "TVL token snapshot and current prices are not a same-block reserve valuation",
+    "no historical backfill, price submission or upstream reload performed"
+  ],
+  "result": "FAIL"
+}

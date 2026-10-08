@@ -41,3 +41,22 @@ node --test scripts/defillama/tvl/tvlCore.test.js \
 - Icon / metadata PR (Llama icons repo) is a follow-up if Llama asks.
 
 See [`docs/DEFILLAMA.md`](../../docs/DEFILLAMA.md) and [`skills/AGENTS_DEFILLAMA.md`](../../skills/AGENTS_DEFILLAMA.md).
+
+## Reconciliation #1354
+
+The volume adapter/helper match merged
+[dimension-adapters#9907](https://github.com/DefiLlama/dimension-adapters/pull/9907),
+commit `3d8f4ca7f1939a784b3e74563cb938071b900fd9`.
+[`dexs/volume.ts`](dexs/volume.ts) recovers legacy nulls only from identical UTC
+dates/trade counts; its fallback retention is 90 days. Other local helpers remain
+testable stand-ins, not byte-identical copies of complete upstream fee/TVL files.
+
+```sh
+node --test scripts/defillama/dexs/volume.test.js
+make verify-issue-1354
+```
+
+The [QA checklist](../../docs/qa/issue-1354/README.md) and
+[receipt](../../docs/qa/issue-1354/verification.md) distinguish recovered stored
+volume, unresolved live/fee/price accounting and unavailable production SQL.
+The public drift script never writes history or requests upstream reloads.

@@ -1,0 +1,18 @@
+---- swagger_ui_available stdout ----
+
+thread 'swagger_ui_available' (140121) panicked at tests/security.rs:252:10:
+assertion failed: `(left == right)`: Expected status code to be 200 (OK), received 404 (Not Found), for request GET http://localhost/swagger-ui/, with body ''
+
+Diff < left / right > :
+<200
+>404
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    swagger_ui_available
+
+test result: FAILED. 42 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.24s
+

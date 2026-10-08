@@ -548,6 +548,11 @@ verify-issue-677:
 	@chmod +x scripts/qa/verify-issue-677.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-677.sh
 
+# #1354 — read-only live DeFiLlama reconciliation; unresolved accounting is FAIL.
+.PHONY: verify-issue-1354
+verify-issue-1354:
+	bash scripts/qa/verify-issue-1354.sh
+
 # GitLab #631 — DeFiLlama UTC-day volume/fees API + adapter copies.
 .PHONY: verify-issue-631
 verify-issue-631:
