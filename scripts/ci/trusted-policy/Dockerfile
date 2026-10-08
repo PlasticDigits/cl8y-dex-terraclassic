@@ -9,7 +9,7 @@ COPY .gitleaks.toml /source/.gitleaks.toml
 COPY scripts/ci/functional-run.sh scripts/ci/gitleaks-scan-tracked.sh /source/scripts/ci/
 RUN /trusted-policy bundle /source > /config.json
 
-FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 COPY --from=build /trusted-policy /usr/local/bin/trusted-policy
 COPY --from=build /config.json /policy/config.json
 COPY scripts/ci/trusted-policy/woodpecker-public.pem /policy/woodpecker-public.pem
