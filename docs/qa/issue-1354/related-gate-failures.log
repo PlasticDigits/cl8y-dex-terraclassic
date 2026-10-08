@@ -17,4 +17,3 @@ failures:
     null_only_backfill_does_not_rewrite_stamp
 
 test result: FAILED. 6 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
-

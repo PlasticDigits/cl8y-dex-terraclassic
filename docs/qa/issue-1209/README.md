@@ -1,5 +1,7 @@
 # Pair-creation protocol fee ingest (#1209)
 
+Merged source closeout: PRs [#1447](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1447) and [#1448](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1448) are on main. Remaining production, paid-history, upstream and unavailable network work is tracked by [#1449](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1449). Source issue closure does not establish deployment; see the [merge receipt](../merge-2026-10-08/README.md).
+
 **Source implemented through [#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354).** Creation-fee parsing, schema checks, ledger/replay, API/daily/DeFiLlama fields and UI labels are implemented. Live deployment and paid-chain replay remain separate evidence; #1209 tracking was reopened after its earlier docs-only close. See [#1354 verification](../issue-1354/verification.md).
 ## Required behavior
 

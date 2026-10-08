@@ -1,5 +1,7 @@
 # Community invoice fee QA (#1210 / #1354)
 
+Merged source closeout: PRs [#1447](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1447) and [#1448](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1448) are on main. Remaining production, paid-history, upstream and unavailable network work is tracked by [#1449](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1449). Source issue closure does not establish deployment; see the [merge receipt](../merge-2026-10-08/README.md).
+
 [Source implementation #1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354) adds separate `sku_unlock` and `settings_fee` sources to the governed ledger. #1210 tracking was reopened after its earlier docs-only close. See [verification](../issue-1354/verification.md) and [L1210-1–L1210-8](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md).
 
 ## Agent instructions

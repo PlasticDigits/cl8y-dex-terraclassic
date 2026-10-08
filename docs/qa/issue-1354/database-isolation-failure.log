@@ -15,4 +15,3 @@ failures:
     swagger_ui_available
 
 test result: FAILED. 42 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.24s
-

@@ -1,5 +1,7 @@
 # DeFiLlama reconciliation: agent checklist (#1354)
 
+Merged source closeout: PRs [#1447](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1447) and [#1448](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1448) are on main. Remaining production, paid-history, upstream and unavailable network work is tracked by [#1449](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1449). Source issue closure does not establish deployment; see the [merge receipt](../merge-2026-10-08/README.md).
+
 Issue: [#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354).
 Contract: [DL1354-1–DL1354-10](../../../skills/AGENTS_DEFILLAMA.md#live-reconciliation-1354).
 Results: [implementation verification](verification.md), [earlier investigation](investigation-verification.md),
