@@ -100,7 +100,7 @@ cargo-audit-indexer:
 npm-audit-frontend:
   extends: .security-rules-default-branch
   stage: security
-  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+  image: node:24-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -164,7 +164,7 @@ test-indexer-lib:
 test-frontend:
   extends: .test-rules-default-branch
   stage: test
-  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+  image: node:24-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0
   rules:
     - !reference [.test-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -186,7 +186,7 @@ test-frontend:
 test-frontend-build:
   extends: .test-rules-default-branch
   stage: test
-  image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+  image: node:24-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0
   variables:
     VITE_WC_PROJECT_ID: "ci-build-typecheck"
   rules:
