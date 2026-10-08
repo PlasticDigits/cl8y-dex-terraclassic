@@ -41,3 +41,8 @@ peg. Wrap treasury delta is gross input; unwrap delta is net withdrawal.
 Historical URLs carry height as a cache key and require matching response height.
 Apply the new additive custody-source migration; never rewrite the original
 #1437 migration or fund the mapper to manufacture listing backing.
+
+For subsequent deployment and form evidence, use the
+[production rollout and listing receipt](../docs/qa/issue-1437/production-listing.md).
+Form submission is not crawler acceptance; recheck published edges and feature
+a real factory pool before reusing the form pack.

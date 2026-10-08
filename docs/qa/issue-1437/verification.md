@@ -167,3 +167,7 @@ Initial ingestion-test isolation failures were corrected by clearing the
 process-owned disposable fixtures before each test; passing retest supersedes
 them. Deployment and the actual form receipt are recorded separately after
 production migration and live readback, rather than inferred from these tests.
+
+Subsequent production evidence and repeatable operator checks are recorded in
+[production rollout and listing receipt](production-listing.md). The original
+implementation receipt retains its dated scope.

@@ -48,3 +48,7 @@ state the evidence scope. Executed failures remain **FAIL** until fixed and
 retested. No hold on unavailable external work prevents publishing the tested
 implementation PR. Local PASS is not proof of production rollout or crawler
 acceptance; neither is required here.
+
+Subsequent production evidence and repeatable operator checks are recorded in
+[production rollout and listing receipt](production-listing.md). The original
+implementation receipt retains its dated scope.
