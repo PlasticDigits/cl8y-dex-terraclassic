@@ -4,9 +4,15 @@
 **Form:** [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSeOAlwKZKTj6LFJfukUWSYS9XUIwtvITX9W5C5ZgUIC4NgX0Q/viewform) ([forms.gle](https://forms.gle/zBLCAEv69b8YoFxV6))  
 **Non-EVM spec:** [GeckoTerminal Integration API Standards](https://docs.google.com/document/d/1ufjAJUa6rGO9PBGJGwfBMn-XMk9NE0ow3_iMYrS3drk) (`/latest-block`, `/asset`, `/pair`, `/events`)  
 **Human gate:** none on this form (no Google login required). Express Listing is **USD 15,000** — default **No**.  
-**Submitted:** 2026-08-26 as **DEX Addition** + **Non-EVM** + **Not a Fork**, Express **No**. Confirmation: “Your response has been recorded.” PIC email `contact@ceramicliberty.com` / Telegram `@ceramicliberty`.
+**Historical submission:** 2026-08-26 as **DEX Addition** + **Non-EVM** + **Not a Fork**, Express **No**. Confirmation: “Your response has been recorded.” PIC email `contact@ceramicliberty.com` / Telegram `@ceramicliberty`.
 
-Terra Classic is **not** in GeckoTerminal `GET /api/v2/networks`. This is **DEX Addition** + **Non-EVM**, not Uniswap-V2 auto-detect. Do **not** treat `/cg/*` as already listed on GT ([#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) is CoinGecko exchange shape).
+**Latest submission:** 2026-10-08 01:54:54 UTC, regular DEX Addition on existing
+network `terra`, Non-EVM, Not a Fork, Express No. Google confirmed “Your response
+has been recorded.” See the [rollout and submission receipt](../../qa/issue-1437/production-listing.md)
+for the deployed revision, live retest, submitted scope and historical skips.
+Listing approval remains pending.
+
+Terra Classic is present in GeckoTerminal as network **`terra`** (name **TerraClassic**), verified on 2026-10-08. Request **DEX Addition** on that existing network with **Non-EVM** selected. Do **not** treat `/cg/*` as already listed on GT ([#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) is CoinGecko exchange shape).
 
 ## Fields (DEX Addition path)
 
@@ -17,12 +23,12 @@ Terra Classic is **not** in GeckoTerminal `GET /api/v2/networks`. This is **DEX 
 | Request | **DEX Addition** |
 | Network Name | Terra Classic (`columbus-5`) |
 | DEX Name | CL8Y DEX |
-| DEX Logo | `https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png` (Imgur preferred; GitLab raw is public PNG) |
+| DEX Logo | `https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/CL8Y.png` (public PNG) |
 | DEX URL | `https://dex.cl8y.com` |
 | Unique description | CL8Y DEX is a Terra Classic CosmWasm AMM with an on-chain hybrid limit book. One swap can take pool plus resting limits; native LUNC/USTC wrap to cLUNC/cUSTC. |
-| StablePool / highest liquidity | UST1/USTR pair `terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy` — [Finder](https://finder.terraclassic.community/columbus-5/address/terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy). No native/stable like BUSD-WETH; this is the highest-liquidity factory pair. UST1 is an **unstablecoin** (never `$1`). USTR is **not** a stablecoin. |
-| DEX Pool Page / Analytics | `https://dex.cl8y.com/charts/terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy` |
-| Official documentation | `https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/integrators.md` |
+| StablePool / highest liquidity | UST1/cUSTC pair `terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f` — [Finder](https://finder.terraclassic.community/columbus-5/address/terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f). Highest positive USD liquidity among real CG factory tickers at 2026-10-08 readback; recheck before using. No native/stable pool is asserted. UST1 is an **unstablecoin** (never `$1`). USTR is **not** a stablecoin. |
+| DEX Pool Page / Analytics | `https://dex.cl8y.com/charts/terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f` |
+| Official documentation | `https://git.cl8y.com/code/cl8y-dex-terraclassic/src/branch/main/docs/integrators.md` |
 | DEX Twitter/X | `https://x.com/ceramictoken` |
 | EVM compatible? | **Non-EVM** |
 | Fork | **Not a Fork** |
@@ -39,12 +45,12 @@ Terra Classic is **not** in GeckoTerminal `GET /api/v2/networks`. This is **DEX 
 ### Additional Remark (paste)
 
 ```
-Please add Terra Classic (columbus-5) as a GeckoTerminal network and list CL8Y DEX on it. Classic is not in GET /api/v2/networks today.
+Please list CL8Y DEX on the existing TerraClassic network, GeckoTerminal network id terra (chain columbus-5).
 
 Explorer: https://finder.terraclassic.community
 RPC (https): https://terra-classic-rpc.publicnode.com
 LCD: https://terra-classic-lcd.publicnode.com
-Native ticker: LUNC (denom uluna). Chain logo: https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png
+Native ticker: LUNC (denom uluna). Chain logo: https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/LUNC.png
 
 Factory: terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea
 Router: terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw
@@ -57,7 +63,7 @@ Permanent economic pairs only (ignore soft-launch gems such as EMBER/CORAL in /c
 - cLUNC/UST1 terra1su5363453fj326u4t0kqar30f35cm3n0dc9yksg379u6875z350s4mm7h4
 - cLUNC/cUSTC terra15rl8g308yzzt5kxu4skgwlahrvm8adyv0s2cupsmvte0akgs2ttsszau38
 
-Listing-only native pricing edges (implementation #1437; deployment required):
+Supported listing-only native pricing edges (#1437; include only edges published by live readback):
 - cLUNC/LUNC cl8y-virtual:clunc-uluna
 - cUSTC/USTC cl8y-virtual:custc-uusd
 - LUNC/USTC cl8y-virtual:uluna-uusd
@@ -80,6 +86,11 @@ Contact: contact@ceramicliberty.com / Telegram @ceramicliberty / https://x.com/c
 - **Don’t** advertise UST1 as `$1` or USTR as a stablecoin (**L639-5**).
 - GT adapters are live at `https://indexer.dex.cl8y.com/gt` after indexer redeploy (`make verify-issue-646`). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684), `make verify-issue-684`). Not `/cg/*`.
 
-Prepared #1437 remark only; this change does not submit or deploy. See the
+Before submitting, verify the deployed revision, read the live CG/GT responses, and
+feature the highest-liquidity **real factory pool** at the time of submission.
+The dated featured pool above is not evidence of a later ranking.
+List only currently published native projections; missing custody or source
+legitimately omits an edge. Form confirmation proves receipt, not listing approval.
+See the
 [projection contract](../../CG_CMC_COMPLIANCE.md#listing-only-native-markets-1437) and
 [agent verification checklist](../../qa/issue-1437/README.md).
