@@ -553,6 +553,12 @@ verify-issue-677:
 verify-issue-1354:
 	bash scripts/qa/verify-issue-1354.sh
 
+.PHONY: verify-issue-1209 verify-issue-1210
+verify-issue-1209:
+	bash scripts/qa/verify-issue-1209.sh
+verify-issue-1210:
+	bash scripts/qa/verify-issue-1210.sh
+
 # GitLab #631 — DeFiLlama UTC-day volume/fees API + adapter copies.
 .PHONY: verify-issue-631
 verify-issue-631:

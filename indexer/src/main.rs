@@ -25,13 +25,14 @@ async fn main() -> anyhow::Result<()> {
     // Argument validation must happen before loading credentials or opening a connection.
     match args.first().map(String::as_str) {
         Some("seed-qa") => run_seed_qa(&args[1..]).await,
+        Some("backfill-defillama") => run_backfill_defillama(&args[1..]).await,
         Some("migrate") if args.len() == 1 => run_migrations().await,
         Some("rebuild-positions") if args.len() == 1 => run_rebuild_positions().await,
         Some("backfill-gt-event-reserves") if args.len() == 1 => {
             run_backfill_gt_event_reserves().await
         }
         Some("--help" | "-h") if args.len() == 1 => {
-            eprintln!("Usage: cl8y-dex-indexer [migrate|seed-qa|rebuild-positions|backfill-gt-event-reserves]\nServer mode requires pre-applied migrations and least-privilege DATABASE_URL.");
+            eprintln!("Usage: cl8y-dex-indexer [migrate|seed-qa|rebuild-positions|backfill-gt-event-reserves|backfill-defillama]\nServer mode requires pre-applied migrations and least-privilege DATABASE_URL.");
             Ok(())
         }
         None => run_server().await,
@@ -47,6 +48,37 @@ fn load_config_or_exit() -> Config {
             std::process::exit(1);
         }
     }
+}
+
+async fn run_backfill_defillama(args: &[String]) -> anyhow::Result<()> {
+    if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
+        eprintln!("Usage: cl8y-dex-indexer backfill-defillama --start YYYY-MM-DD --end YYYY-MM-DD\nReaggregate 1-400 completed UTC days from existing event stamps. Requires a prepared schema and least-privilege DATABASE_URL; never migrates, reprices or reloads Llama.");
+        return Ok(());
+    }
+    anyhow::ensure!(
+        args.len() == 4 && args[0] == "--start" && args[2] == "--end",
+        "use backfill-defillama --start YYYY-MM-DD --end YYYY-MM-DD"
+    );
+    let range = indexer::defillama_history::HistoryRange::parse(
+        &args[1],
+        &args[3],
+        chrono::Utc::now().date_naive(),
+    )?;
+    // Parse and bound the complete request before any credentials or connections.
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL is required for backfill-defillama"))?;
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&database_url)
+        .await?;
+    database_security::verify_runtime(&pool).await?;
+    let days = indexer::defillama_history::repair_history(&pool, range).await?;
+    tracing::info!(
+        days,
+        "DeFiLlama history repair complete; upstream reload is separate"
+    );
+    Ok(())
 }
 
 enum SeedArguments {

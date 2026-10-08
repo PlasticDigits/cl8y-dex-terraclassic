@@ -1,0 +1,22 @@
+{
+  "scope": "local user timer and public read-only diagnostic; no deployed accounting acceptance",
+  "observed_at": "2026-10-08T03:28:28.591000+00:00",
+  "source_base_revision": "09039309ee296061f6776ffd6550a65a2fac0cdb",
+  "serving_revision": "4572e8779801c5c90b63ec95a0c7d5c38ce50bbe",
+  "timer": "cl8y-defillama-drift.timer",
+  "timer_active": true,
+  "schedule": "daily 01:15 UTC with at most five minutes jitter",
+  "monitor_lookback_completed_days": 90,
+  "retained_correction_entries": 256,
+  "last_result": "FAIL",
+  "last_exit_status": 1,
+  "completed_days_observed": 52,
+  "public_findings": [
+    "live feed nulls partially priced days recoverable by the matching-count upstream fallback",
+    "daily feed lacks priced/unpriced volume completeness metadata",
+    "settled stored volume/fee chart has missing, null or divergent days",
+    "missing fee sources: pair_creation, settings_fee, sku_unlock",
+    "missing Llama CW20 prices: ust1, ustr, cl8y"
+  ],
+  "external_alert_delivery": "not configured or claimed"
+}

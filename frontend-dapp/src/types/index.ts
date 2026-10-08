@@ -575,6 +575,9 @@ export type ProtocolFeeSourceKey =
   | 'unwrap'
   | 'ust1_mint'
   | 'ust1_redeem'
+  | 'pair_creation'
+  | 'sku_unlock'
+  | 'settings_fee'
 
 export interface ProtocolFeeSourceRow {
   source: ProtocolFeeSourceKey | string
@@ -614,6 +617,8 @@ export interface ProtocolFeesResponse {
   wrap_mapper_configured: boolean
   /** Additive (#614). Missing on old indexers → hide UST1 mint/redeem rows. */
   ust1_window_configured?: boolean
+  factory_configured?: boolean
+  community_invoices_configured?: boolean
   by_source: ProtocolFeeSourceRow[]
   by_token: ProtocolFeeTokenRow[]
 }

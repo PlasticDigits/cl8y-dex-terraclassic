@@ -1,0 +1,949 @@
+{
+  "code": 0,
+  "height": "1707",
+  "txhash": "69E9D1029D53EB19385BB5722B04D045AED8B8EA3C460C5D67600645F3C2D498",
+  "timestamp": "2026-10-06T11:25:58Z",
+  "logs": [
+    {
+      "events": [
+        {
+          "attributes": [
+            {
+              "key": "spender",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "amount",
+              "value": "27625231uluna"
+            }
+          ],
+          "type": "coin_spent"
+        },
+        {
+          "attributes": [
+            {
+              "key": "receiver",
+              "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+            },
+            {
+              "key": "amount",
+              "value": "27625231uluna"
+            }
+          ],
+          "type": "coin_received"
+        },
+        {
+          "attributes": [
+            {
+              "key": "recipient",
+              "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+            },
+            {
+              "key": "sender",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "amount",
+              "value": "27625231uluna"
+            }
+          ],
+          "type": "transfer"
+        },
+        {
+          "attributes": [
+            {
+              "key": "sender",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            }
+          ],
+          "type": "message"
+        },
+        {
+          "attributes": [
+            {
+              "key": "fee",
+              "value": "27625231uluna"
+            },
+            {
+              "key": "fee_payer",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            }
+          ],
+          "type": "tx"
+        },
+        {
+          "attributes": [
+            {
+              "key": "acc_seq",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v/103"
+            }
+          ],
+          "type": "tx"
+        },
+        {
+          "attributes": [
+            {
+              "key": "signature",
+              "value": "GwoyA+JhbyuKV5ty8it+J6YOmWrgS5W35nSEEeIx8YkqA6N/da/EiyEMBDEfMS3pl3PKIFaoIw4cTw7A5XXXcw=="
+            }
+          ],
+          "type": "tx"
+        },
+        {
+          "attributes": [
+            {
+              "key": "action",
+              "value": "/cosmwasm.wasm.v1.MsgExecuteContract"
+            },
+            {
+              "key": "sender",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "module",
+              "value": "wasm"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "message"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "execute"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+            },
+            {
+              "key": "action",
+              "value": "send"
+            },
+            {
+              "key": "from",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "to",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "amount",
+              "value": "50000000"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "execute"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "action",
+              "value": "create_token"
+            },
+            {
+              "key": "code_id",
+              "value": "18"
+            },
+            {
+              "key": "community_token",
+              "value": "pending"
+            },
+            {
+              "key": "manager",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "sku",
+              "value": "auto_v2_lp"
+            },
+            {
+              "key": "sku_count",
+              "value": "1"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "execute"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+            },
+            {
+              "key": "action",
+              "value": "transfer"
+            },
+            {
+              "key": "amount",
+              "value": "50000000"
+            },
+            {
+              "key": "from",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "to",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "code_id",
+              "value": "18"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "instantiate"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "action",
+              "value": "instantiate"
+            },
+            {
+              "key": "community_token",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "invoice_ust1",
+              "value": "50000000"
+            },
+            {
+              "key": "manager",
+              "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "reply"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "action",
+              "value": "create_token_ready"
+            },
+            {
+              "key": "code_id",
+              "value": "18"
+            },
+            {
+              "key": "community_token",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+            },
+            {
+              "key": "code_id",
+              "value": "20"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "instantiate"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+            },
+            {
+              "key": "action",
+              "value": "instantiate"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "reply"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+            },
+            {
+              "key": "action",
+              "value": "autolp_bound"
+            },
+            {
+              "key": "autolp",
+              "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+            },
+            {
+              "key": "community_token",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "execute"
+        },
+        {
+          "attributes": [
+            {
+              "key": "_contract_address",
+              "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+            },
+            {
+              "key": "action",
+              "value": "bind_autolp"
+            },
+            {
+              "key": "autolp",
+              "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+            },
+            {
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        }
+      ],
+      "log": "",
+      "msg_index": 0
+    }
+  ],
+  "events": [
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "spender",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "amount",
+          "value": "27625231uluna"
+        }
+      ],
+      "type": "coin_spent"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "receiver",
+          "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+        },
+        {
+          "index": true,
+          "key": "amount",
+          "value": "27625231uluna"
+        }
+      ],
+      "type": "coin_received"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "recipient",
+          "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+        },
+        {
+          "index": true,
+          "key": "sender",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "amount",
+          "value": "27625231uluna"
+        }
+      ],
+      "type": "transfer"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "sender",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        }
+      ],
+      "type": "message"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "fee",
+          "value": "27625231uluna"
+        },
+        {
+          "index": true,
+          "key": "fee_payer",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        }
+      ],
+      "type": "tx"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "acc_seq",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v/103"
+        }
+      ],
+      "type": "tx"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "signature",
+          "value": "GwoyA+JhbyuKV5ty8it+J6YOmWrgS5W35nSEEeIx8YkqA6N/da/EiyEMBDEfMS3pl3PKIFaoIw4cTw7A5XXXcw=="
+        }
+      ],
+      "type": "tx"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "action",
+          "value": "/cosmwasm.wasm.v1.MsgExecuteContract"
+        },
+        {
+          "index": true,
+          "key": "sender",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "module",
+          "value": "wasm"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "message"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "execute"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "send"
+        },
+        {
+          "index": true,
+          "key": "from",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "to",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "amount",
+          "value": "50000000"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "execute"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "create_token"
+        },
+        {
+          "index": true,
+          "key": "code_id",
+          "value": "18"
+        },
+        {
+          "index": true,
+          "key": "community_token",
+          "value": "pending"
+        },
+        {
+          "index": true,
+          "key": "manager",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "sku",
+          "value": "auto_v2_lp"
+        },
+        {
+          "index": true,
+          "key": "sku_count",
+          "value": "1"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "execute"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gngep4ctz5ka3kswhu7993se4x2u845mze508vxrxzpmuyadapesqh7r8u"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "transfer"
+        },
+        {
+          "index": true,
+          "key": "amount",
+          "value": "50000000"
+        },
+        {
+          "index": true,
+          "key": "from",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "to",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "code_id",
+          "value": "18"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "instantiate"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "instantiate"
+        },
+        {
+          "index": true,
+          "key": "community_token",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "invoice_ust1",
+          "value": "50000000"
+        },
+        {
+          "index": true,
+          "key": "manager",
+          "value": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "reply"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "create_token_ready"
+        },
+        {
+          "index": true,
+          "key": "code_id",
+          "value": "18"
+        },
+        {
+          "index": true,
+          "key": "community_token",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+        },
+        {
+          "index": true,
+          "key": "code_id",
+          "value": "20"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "instantiate"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "instantiate"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "reply"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1qrvfsfdyw79g8zxepkafrsj53xvz2v072mk6kqe3yj82n8ahznpsycwk05"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "autolp_bound"
+        },
+        {
+          "index": true,
+          "key": "autolp",
+          "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+        },
+        {
+          "index": true,
+          "key": "community_token",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "execute"
+    },
+    {
+      "attributes": [
+        {
+          "index": true,
+          "key": "_contract_address",
+          "value": "terra1lg7rlmpvl4rzcqzp85msx69egnnafshza8kz90zusd23hu3yy0xqnnf64d"
+        },
+        {
+          "index": true,
+          "key": "action",
+          "value": "bind_autolp"
+        },
+        {
+          "index": true,
+          "key": "autolp",
+          "value": "terra1gn59sajfpqdlzxwmnnl69r7k2rxdt52l0nwwgalaa8nn2h8vrjzst2gany"
+        },
+        {
+          "index": true,
+          "key": "msg_index",
+          "value": "0"
+        }
+      ],
+      "type": "wasm"
+    }
+  ]
+}

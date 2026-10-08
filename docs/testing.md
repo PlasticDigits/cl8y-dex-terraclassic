@@ -815,3 +815,5 @@ CG/GT feed/isolation, principal/custody and abuse cases.
 [Agent checklist and explicit unavailable-check skip policy](qa/issue-1437/README.md)
 · [invariants/playbook](../skills/AGENTS_LISTING_VIRTUAL_PAIRS.md).
 Regression targets: `make verify-issue-685 verify-issue-646 verify-issue-684 verify-issue-694 verify-issue-631 verify-issue-655`.
+
+#1354 source implementation adds `make verify-issue-1209` / `make verify-issue-1210` for pinned creation/invoice source parsing, disposable ledger/API/replay/catalog and allowlisted UI labels. See [source and live evidence](qa/issue-1354/verification.md) and [fee-ledger invariants](../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md). `backfill-defillama` history tests cover old corrections and retry without repricing. Live-only skips in #1354 must record reasons separately from executed diagnostic findings.

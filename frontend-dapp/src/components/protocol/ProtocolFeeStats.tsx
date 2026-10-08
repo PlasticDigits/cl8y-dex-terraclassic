@@ -23,6 +23,9 @@ const SOURCE_LABEL: Record<ProtocolFeeSourceKey, string> = {
   swap_amm: 'AMM swap',
   book_take: 'Book take',
   limit_place: 'Limit place',
+  pair_creation: 'Pair creation',
+  sku_unlock: 'SKU unlock',
+  settings_fee: 'Settings invoice',
 }
 
 const SOURCE_ORDER: ProtocolFeeSourceKey[] = [
@@ -33,6 +36,9 @@ const SOURCE_ORDER: ProtocolFeeSourceKey[] = [
   'swap_amm',
   'book_take',
   'limit_place',
+  'pair_creation',
+  'sku_unlock',
+  'settings_fee',
 ]
 
 function isWrapFamily(source: string): boolean {
@@ -44,8 +50,8 @@ function isUst1WindowFamily(source: string): boolean {
 }
 
 function sourceLabel(source: string): string {
-  if (source in SOURCE_LABEL) return SOURCE_LABEL[source as ProtocolFeeSourceKey]
-  return source
+  if (Object.hasOwn(SOURCE_LABEL, source)) return SOURCE_LABEL[source as ProtocolFeeSourceKey]
+  return '—'
 }
 
 interface ProtocolFeeStatsProps {
@@ -71,6 +77,11 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
 
   const sources = (fees?.by_source ?? [])
     .filter((row) => {
+      if (!Object.hasOwn(SOURCE_LABEL, row.source)) return false
+      if ((row.event_count ?? 0) > 0) return true
+      if (row.source === 'pair_creation') return fees?.factory_configured === true
+      if (row.source === 'sku_unlock' || row.source === 'settings_fee')
+        return fees?.community_invoices_configured === true
       if (isWrapFamily(row.source)) return wrapConfigured
       if (isUst1WindowFamily(row.source)) return windowConfigured
       return true

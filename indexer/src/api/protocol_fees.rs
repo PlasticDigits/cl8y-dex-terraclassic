@@ -57,6 +57,8 @@ pub struct ProtocolFeesResponse {
     pub wrap_mapper_configured: bool,
     /// Additive (GitLab #614). Missing on old indexers → UI hides window rows.
     pub ust1_window_configured: bool,
+    pub factory_configured: bool,
+    pub community_invoices_configured: bool,
     pub by_source: Vec<ProtocolFeeSourceRow>,
     pub by_token: Vec<ProtocolFeeTokenRow>,
 }
@@ -159,6 +161,8 @@ pub async fn get_protocol_fees(
         window: window.to_string(),
         wrap_mapper_configured: rollup.wrap_mapper_configured,
         ust1_window_configured: rollup.ust1_window_configured,
+        factory_configured: rollup.factory_configured,
+        community_invoices_configured: rollup.community_invoices_configured,
         by_source,
         by_token,
     };

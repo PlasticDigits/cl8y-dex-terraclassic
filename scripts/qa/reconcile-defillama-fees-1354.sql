@@ -39,8 +39,22 @@ WITH gem_addresses(address) AS (VALUES
               WHERE f.tx_hash=e.tx_hash) AS gem_fill_tx,
       EXISTS (SELECT 1 FROM limit_order_placements p JOIN all_gem_pairs g ON g.id=p.pair_id
               WHERE p.tx_hash=e.tx_hash) AS gem_place_tx,
-      e.pair_id IN (SELECT id FROM all_gem_pairs) AS own_pair_is_gem
+      COALESCE(e.pair_id, legacy.pair_id) AS resolved_pair_id,
+      COALESCE(e.pair_id, legacy.pair_id) IN (SELECT id FROM all_gem_pairs) AS own_pair_is_gem
     FROM protocol_fee_events e
+    LEFT JOIN LATERAL (
+      SELECT CASE WHEN COUNT(DISTINCT c.pair_id)=1 THEN MIN(c.pair_id) END AS pair_id
+      FROM (
+        SELECT s.pair_id FROM swap_events s WHERE e.source='swap_amm'
+          AND s.tx_hash=e.tx_hash AND s.swap_index=e.ordinal
+        UNION ALL
+        SELECT f.pair_id FROM limit_order_fills f WHERE e.source='book_take'
+          AND f.tx_hash=e.tx_hash AND f.order_id=e.ordinal
+        UNION ALL
+        SELECT p.pair_id FROM limit_order_placements p WHERE e.source='limit_place'
+          AND p.tx_hash=e.tx_hash AND p.order_id=e.ordinal
+      ) c
+    ) legacy ON e.pair_id IS NULL AND e.source IN ('swap_amm','book_take','limit_place')
     WHERE e.block_timestamp >= :'start'::date
       AND e.block_timestamp < :'end'::date + INTERVAL '1 day'
 ), scoped AS (
@@ -48,9 +62,10 @@ WITH gem_addresses(address) AS (VALUES
         WHEN 'swap_amm' THEN NOT gem_swap_tx
         WHEN 'book_take' THEN NOT gem_fill_tx
         WHEN 'limit_place' THEN NOT gem_place_tx
-        ELSE TRUE END AS included_by_current_rollup,
-      CASE WHEN pair_id IS NOT NULL THEN NOT own_pair_is_gem
-        WHEN source IN ('wrap','unwrap','ust1_mint','ust1_redeem') THEN TRUE
+        ELSE TRUE END AS included_by_legacy_tx_rule,
+      COALESCE(NOT own_pair_is_gem,TRUE) AS included_by_current_rollup,
+      CASE WHEN resolved_pair_id IS NOT NULL THEN NOT own_pair_is_gem
+        WHEN source NOT IN ('swap_amm','book_take','limit_place') THEN TRUE
         ELSE NULL END AS included_by_verified_pair_scope
     FROM classified
 ), per_pair AS (
@@ -63,7 +78,7 @@ WITH gem_addresses(address) AS (VALUES
       COALESCE(SUM(fee_usd) FILTER (WHERE fee_usd > 0 AND NOT included_by_verified_pair_scope),0) AS verified_pair_excluded_usd,
       COUNT(*) FILTER (WHERE included_by_verified_pair_scope IS NULL) AS unresolved_scope_events,
       COALESCE(SUM(fee_usd) FILTER (WHERE fee_usd > 0 AND included_by_verified_pair_scope
-                                  AND NOT included_by_current_rollup),0) AS mixed_tx_lost_priced_usd
+                                  AND NOT included_by_legacy_tx_rule),0) AS mixed_tx_lost_priced_usd
     FROM scoped GROUP BY utc_day, source, pair_id, asset_id
 )
 SELECT pp.*,

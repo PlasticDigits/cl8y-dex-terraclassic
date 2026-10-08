@@ -94,7 +94,8 @@ run_step "source: pin + parse allowlist + omit-if-unconfigured; GET does not sca
     grep -q parse_ust1_window_crate_attrs_without_fee_amount_fail_closed indexer/src/indexer/protocol_fees.rs
     grep -q ust1_window_configured indexer/src/db/queries/protocol_fees.rs
     grep -q ust1_window_configured indexer/src/api/protocol_fees.rs
-    grep -q is_ust1_window_family indexer/src/db/queries/protocol_fees.rs
+    grep -q "FeeSource::Ust1Mint | FeeSource::Ust1Redeem => ust1_window_configured" indexer/src/db/queries/protocol_fees.rs
+    grep -q "if !configured && event_count <= 0" indexer/src/db/queries/protocol_fees.rs
     grep -q "UST1 mint" frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx
     grep -q "UST1 redeem" frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx
     grep -q ust1_window_configured frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx

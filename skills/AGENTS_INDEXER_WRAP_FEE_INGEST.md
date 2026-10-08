@@ -81,3 +81,5 @@ Optional LocalTerra capture (not required when fixtures match ustr-cmm): `make s
 - [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_590.md) — Coolify pin (**M590-2**), unwrap `fee` only (**M590-4**)
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — stamp USD at ingest (#568)
 - [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md)
+
+Historical retention (#1354): source-family pins still gate new ingest. Missing pins omit idle source rows; already authenticated paid ledger rows remain in rollups/UI after pin removal. This qualifies older hide-on-missing-flag wording. See [DeFiLlama reconciliation](AGENTS_DEFILLAMA.md#live-reconciliation-1354) and [source/replay verification](../docs/qa/issue-1354/verification.md).

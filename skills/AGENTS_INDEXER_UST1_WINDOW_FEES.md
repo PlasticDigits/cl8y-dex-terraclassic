@@ -83,3 +83,5 @@ VERIFY614_REQUIRE_LIVE=1 make verify-issue-614
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub UST1 USD
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — stamp USD at ingest (#568)
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — stack child; do **not** reopen #614 for ops/QA
+
+Historical retention (#1354): source-family pins still gate new ingest. Missing pins omit idle source rows; already authenticated paid ledger rows remain in rollups/UI after pin removal. This qualifies older hide-on-missing-flag wording. See [DeFiLlama reconciliation](AGENTS_DEFILLAMA.md#live-reconciliation-1354) and [source/replay verification](../docs/qa/issue-1354/verification.md).

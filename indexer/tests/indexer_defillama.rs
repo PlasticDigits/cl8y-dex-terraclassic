@@ -103,11 +103,13 @@ async fn insert_fill(
     tx: &str,
     order_id: i64,
 ) {
-    let swap_id: i64 = sqlx::query_scalar("SELECT id FROM swap_events WHERE tx_hash = $1")
-        .bind(tx)
-        .fetch_one(pool)
-        .await
-        .expect("parent swap");
+    let swap_id: i64 =
+        sqlx::query_scalar("SELECT id FROM swap_events WHERE tx_hash = $1 AND pair_id = $2")
+            .bind(tx)
+            .bind(pair_id)
+            .fetch_one(pool)
+            .await
+            .expect("parent swap");
     sqlx::query(
         "INSERT INTO limit_order_fills
          (pair_id, swap_event_id, block_height, block_timestamp, tx_hash, order_id, side, maker, price, token0_amount, token1_amount, commission_amount)
@@ -132,13 +134,27 @@ async fn insert_fee(
     usd: Option<&str>,
     ordinal: i64,
 ) {
+    insert_scoped_fee(pool, source, None, asset_id, ts, tx, usd, ordinal).await;
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn insert_scoped_fee(
+    pool: &sqlx::PgPool,
+    source: FeeSource,
+    pair_id: Option<i32>,
+    asset_id: i32,
+    ts: chrono::DateTime<Utc>,
+    tx: &str,
+    usd: Option<&str>,
+    ordinal: i64,
+) {
     let draft = FeeEventDraft {
         block_height: 6312,
         block_timestamp: ts,
         tx_hash: tx.to_string(),
         source,
         ordinal,
-        pair_id: None,
+        pair_id,
         asset_id,
         amount_raw: bd("1000000"),
         decimals: 6,
@@ -357,6 +373,9 @@ async fn unpriced_active_is_null_idle_is_zero() {
     assert!(body["fees"]["swap_amm"].is_null());
     assert!(body["daily_fees_usd"].is_null());
     assert_eq!(body["trade_count"], 1);
+    assert_eq!(body["priced_trade_count"], 0);
+    assert_eq!(body["unpriced_trade_count"], 1);
+    assert_eq!(body["volume_complete"], false);
 
     let idle_ts = (utc_day_start(Utc::now()) - Duration::days(3)).timestamp();
     daily_q::refresh_defillama_day(&pool, Utc.timestamp_opt(idle_ts, 0).single().unwrap())
@@ -369,6 +388,9 @@ async fn unpriced_active_is_null_idle_is_zero() {
         .json();
     assert_eq!(idle["volume_usd"], "0");
     assert_eq!(idle["trade_count"], 0);
+    assert_eq!(idle["priced_trade_count"], 0);
+    assert_eq!(idle["unpriced_trade_count"], 0);
+    assert_eq!(idle["volume_complete"], true);
     assert_eq!(idle["fees"]["swap_amm"], "0");
     assert_eq!(idle["daily_fees_usd"], "0");
 }
@@ -862,4 +884,385 @@ async fn null_only_fee_usd_backfill_flips_headline() {
     assert_usd(&after["daily_fees_usd"], "1.25");
     assert_usd(&after["fees"]["limit_place"], "1.0");
     assert_usd(&after["fees"]["wrap"], "0.25");
+}
+
+#[serial]
+#[tokio::test]
+async fn partial_volume_reports_positive_sum_and_exact_completeness() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let ts = day0() + Duration::hours(2);
+    // NULL, zero and negative marks are all unpriced, never fabricated dollars.
+    for (tx, usd) in [
+        ("partial-positive", Some("12.345")),
+        ("partial-null", None),
+        ("partial-zero", Some("0")),
+        ("partial-negative", Some("-3")),
+    ] {
+        insert_swap(
+            &pool,
+            seed.pair_id,
+            seed.asset_0_id,
+            seed.asset_1_id,
+            ts,
+            tx,
+            usd,
+        )
+        .await;
+    }
+    let gem_pair = seed_gem_pair(&pool, seed.asset_1_id).await;
+    insert_swap(
+        &pool,
+        gem_pair,
+        seed.asset_1_id,
+        seed.asset_1_id,
+        ts,
+        "partial-gem",
+        None,
+    )
+    .await;
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    reset_defillama_cache();
+    let server = TestServer::new(build_test_app(pool).await);
+    let body: Value = server
+        .get(&format!(
+            "/api/v1/defillama/daily?timestamp={}",
+            day0().timestamp()
+        ))
+        .await
+        .json();
+    assert_usd(&body["volume_usd"], "12.345");
+    assert_eq!(body["trade_count"], 4);
+    assert_eq!(body["priced_trade_count"], 1);
+    assert_eq!(body["unpriced_trade_count"], 3);
+    assert_eq!(body["volume_complete"], false);
+}
+
+#[serial]
+#[tokio::test]
+async fn mixed_gem_route_preserves_actual_pair_fees_and_reports_legacy_scope() {
+    use cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS;
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    // Make the ordinary pair UST1-linked to also test asset-specific allocation.
+    sqlx::query("UPDATE assets SET contract_address = $1, is_cw20 = true WHERE id = $2")
+        .bind(DEFAULT_HUB_UST1_ADDRESS)
+        .bind(seed.asset_0_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let gem_pair = seed_gem_pair(&pool, seed.asset_1_id).await;
+    let ts = day0() + Duration::hours(2);
+    for (pair, tx, usd) in [
+        (seed.pair_id, "mixed-route", Some("10")),
+        (gem_pair, "mixed-route", Some("999")),
+        (seed.pair_id, "partial-asset", None),
+    ] {
+        insert_swap(&pool, pair, seed.asset_0_id, seed.asset_1_id, ts, tx, usd).await;
+    }
+    // Pair IDs override all transaction siblings, even when ordinals collide.
+    for source in [
+        FeeSource::SwapAmm,
+        FeeSource::BookTake,
+        FeeSource::LimitPlace,
+    ] {
+        insert_scoped_fee(
+            &pool,
+            source,
+            Some(seed.pair_id),
+            seed.asset_1_id,
+            ts,
+            "mixed-route",
+            Some("1.5"),
+            0,
+        )
+        .await;
+        insert_scoped_fee(
+            &pool,
+            source,
+            Some(gem_pair),
+            seed.asset_1_id,
+            ts,
+            "mixed-route",
+            Some("80"),
+            0,
+        )
+        .await;
+    }
+    // A NULL-pair legacy swap has two candidates: preserve it explicitly unresolved,
+    // never guess gem exclusion or attribute it to UST1.
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        ts,
+        "mixed-route",
+        Some("0.25"),
+        0,
+    )
+    .await;
+    // A unique gem legacy event excludes only its own fee. A missing candidate is
+    // retained with an unresolved count, including an unpriced row.
+    insert_swap(
+        &pool,
+        gem_pair,
+        seed.asset_1_id,
+        seed.asset_1_id,
+        ts,
+        "legacy-gem",
+        Some("99"),
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        ts,
+        "legacy-gem",
+        Some("9"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::BookTake,
+        seed.asset_1_id,
+        ts,
+        "legacy-missing",
+        None,
+        0,
+    )
+    .await;
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    reset_defillama_cache();
+    let server = TestServer::new(build_test_app(pool.clone()).await);
+    let body: Value = server
+        .get(&format!(
+            "/api/v1/defillama/daily?timestamp={}",
+            day0().timestamp()
+        ))
+        .await
+        .json();
+    assert_usd(&body["volume_usd"], "10");
+    assert_usd(&body["daily_fees_usd"], "4.75");
+    assert_usd(&body["fees"]["swap_amm"], "1.75");
+    assert!(body["fees"]["book_take"].is_null());
+    assert_usd(&body["fees"]["limit_place"], "1.5");
+    assert_eq!(body["unresolved_pair_fee_event_count"], 2);
+    assert_usd(&body["assets"]["ust1"]["fees_usd"], "4.5");
+    assert_usd(&body["assets"]["ust1"]["volume_usd"], "10");
+    assert_eq!(body["assets"]["ust1"]["trade_count"], 2);
+    assert_eq!(body["assets"]["ust1"]["priced_trade_count"], 1);
+    assert_eq!(body["assets"]["ust1"]["unpriced_trade_count"], 1);
+    assert_eq!(body["assets"]["ust1"]["volume_complete"], false);
+    // Reaggregation is deterministic and does not mutate stored legacy identity.
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    let rows = daily_q::get_daily_fees(&pool, day0().date_naive())
+        .await
+        .unwrap();
+    let swap = rows.iter().find(|r| r.source == "swap_amm").unwrap();
+    assert_eq!(swap.amount_usd, bd("1.75"));
+    assert_eq!(swap.unresolved_pair_count, 1);
+    let legacy_pair: Option<i32> = sqlx::query_scalar("SELECT pair_id FROM protocol_fee_events WHERE tx_hash = 'mixed-route' AND source = 'swap_amm' AND pair_id IS NULL")
+        .fetch_one(&pool).await.unwrap();
+    assert!(legacy_pair.is_none());
+}
+
+#[serial]
+#[tokio::test]
+async fn failed_day_refresh_rolls_back_all_materializations() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    insert_swap(
+        &pool,
+        seed.pair_id,
+        seed.asset_0_id,
+        seed.asset_1_id,
+        day0(),
+        "atomic-day",
+        Some("7"),
+    )
+    .await;
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    sqlx::query("UPDATE swap_events SET volume_usd = 9 WHERE tx_hash = 'atomic-day'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    // Force a failure after the stats/fees writes, when asset rows are inserted.
+    sqlx::query("ALTER TABLE defillama_daily_assets ADD CONSTRAINT fail_refresh_1354 CHECK (trade_count < 0) NOT VALID")
+        .execute(&pool).await.unwrap();
+    let failed = daily_q::refresh_defillama_day(&pool, day0()).await;
+    sqlx::query("ALTER TABLE defillama_daily_assets DROP CONSTRAINT fail_refresh_1354")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert!(failed.is_err());
+    let stat = daily_q::get_daily_stat(&pool, day0().date_naive())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stat.volume_usd, bd("7"));
+    assert_eq!(
+        daily_q::get_daily_assets(&pool, day0().date_naive())
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn legacy_book_and_place_scope_matches_the_actual_order() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let gem_pair = seed_gem_pair(&pool, seed.asset_1_id).await;
+    let ts = day0() + Duration::hours(2);
+    for pair in [seed.pair_id, gem_pair] {
+        insert_swap(
+            &pool,
+            pair,
+            seed.asset_0_id,
+            seed.asset_1_id,
+            ts,
+            "legacy-orders",
+            Some("10"),
+        )
+        .await;
+    }
+    insert_fill(&pool, seed.pair_id, ts, "legacy-orders", 11).await;
+    insert_fill(&pool, gem_pair, ts, "legacy-orders", 22).await;
+    for (pair, order) in [(seed.pair_id, 33), (gem_pair, 44)] {
+        sqlx::query("INSERT INTO limit_order_placements (pair_id, block_height, block_timestamp, tx_hash, order_id) VALUES ($1,1354,$2,'legacy-orders',$3)")
+            .bind(pair).bind(ts).bind(order as i64).execute(&pool).await.unwrap();
+    }
+    for (source, ordinal, usd) in [
+        (FeeSource::BookTake, 11, Some("0.5")),
+        (FeeSource::BookTake, 22, Some("90")),
+        (FeeSource::BookTake, 999, Some("1")),
+        (FeeSource::LimitPlace, 33, Some("0.25")),
+        (FeeSource::LimitPlace, 44, Some("90")),
+        (FeeSource::LimitPlace, 999, None),
+    ] {
+        insert_fee(
+            &pool,
+            source,
+            seed.asset_1_id,
+            ts,
+            "legacy-orders",
+            usd,
+            ordinal,
+        )
+        .await;
+    }
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    let rows = daily_q::get_daily_fees(&pool, day0().date_naive())
+        .await
+        .unwrap();
+    let book = rows.iter().find(|r| r.source == "book_take").unwrap();
+    let place = rows.iter().find(|r| r.source == "limit_place").unwrap();
+    assert_eq!(book.amount_usd, bd("1.5"));
+    assert_eq!(book.event_count, 2);
+    assert_eq!(book.unresolved_pair_count, 1);
+    assert_eq!(place.amount_usd, bd("0.25"));
+    assert_eq!(place.event_count, 2);
+    assert_eq!(place.unpriced_count, 1);
+    assert_eq!(place.unresolved_pair_count, 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn newly_supported_fee_sources_omit_unconfigured_and_preserve_null_idle() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let ts = day0() + Duration::hours(2);
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    reset_defillama_cache();
+    let server = TestServer::new(build_test_app(pool.clone()).await);
+    let url = format!("/api/v1/defillama/daily?timestamp={}", day0().timestamp());
+    let unconfigured: Value = server.get(&url).await.json();
+    for key in ["pair_creation", "sku_unlock", "settings_fee"] {
+        assert!(
+            unconfigured["fees"].get(key).is_none(),
+            "unconfigured {key} must be omitted"
+        );
+    }
+    assert_usd(&unconfigured["daily_fees_usd"], "0");
+    sqlx::query("UPDATE global_stats_24h SET factory_configured = true, community_invoices_configured = true WHERE id = 1")
+        .execute(&pool).await.unwrap();
+    insert_fee(
+        &pool,
+        FeeSource::PairCreation,
+        seed.asset_1_id,
+        ts,
+        "new-pair-creation",
+        Some("3"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SkuUnlock,
+        seed.asset_1_id,
+        ts,
+        "new-sku",
+        None,
+        0,
+    )
+    .await;
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    reset_defillama_cache();
+    let configured: Value = server.get(&url).await.json();
+    assert_usd(&configured["fees"]["pair_creation"], "3");
+    assert!(configured["fees"].get("sku_unlock").unwrap().is_null());
+    assert_usd(&configured["fees"]["settings_fee"], "0");
+    assert_usd(&configured["daily_fees_usd"], "3");
+    assert_usd(&configured["daily_revenue_usd"], "3");
+    assert_eq!(configured["unresolved_pair_fee_event_count"], 0);
+    sqlx::query("UPDATE global_stats_24h SET factory_configured = false, community_invoices_configured = false WHERE id = 1")
+        .execute(&pool).await.unwrap();
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    reset_defillama_cache();
+    let historical: Value = server.get(&url).await.json();
+    assert_usd(&historical["daily_fees_usd"], "3");
+    assert_usd(&historical["fees"]["pair_creation"], "3");
+    assert!(historical["fees"].get("sku_unlock").unwrap().is_null());
+    assert!(historical["fees"].get("settings_fee").is_none());
+}
+
+#[serial]
+#[tokio::test]
+async fn refresh_rejects_unaligned_days_and_competing_refreshes() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let invalid = daily_q::refresh_defillama_day(&pool, day0() + Duration::seconds(1)).await;
+    assert!(invalid.is_err());
+    assert!(daily_q::get_daily_stat(&pool, day0().date_naive())
+        .await
+        .unwrap()
+        .is_none());
+    let mut competing = pool.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(1354, ($1::date - DATE '1970-01-01')::integer)")
+        .bind(day0().date_naive())
+        .execute(&mut *competing)
+        .await
+        .unwrap();
+    let failed = daily_q::refresh_defillama_day(&pool, day0()).await;
+    assert!(matches!(failed, Err(sqlx::Error::Protocol(_))));
+    assert!(daily_q::get_daily_stat(&pool, day0().date_naive())
+        .await
+        .unwrap()
+        .is_none());
+    competing.rollback().await.unwrap();
+    daily_q::refresh_defillama_day(&pool, day0()).await.unwrap();
+    assert!(daily_q::get_daily_stat(&pool, day0().date_naive())
+        .await
+        .unwrap()
+        .is_some());
 }

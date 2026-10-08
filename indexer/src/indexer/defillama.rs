@@ -118,7 +118,8 @@ pub fn daily_headline_usd(activity_count: i64, priced_usd: &BigDecimal) -> Optio
     daily_usd_field(activity_count, priced_usd)
 }
 
-/// Fail-closed **per source** (and volume): any unpriced row in that grain → null.
+/// Fail-closed **fee source**: any unpriced row in that grain → null.
+/// Volume uses daily_headline_usd plus explicit completeness counts (#1354).
 /// Do **not** use this for the whole-day fee headline.
 pub fn daily_usd_field_fail_closed(
     activity_count: i64,

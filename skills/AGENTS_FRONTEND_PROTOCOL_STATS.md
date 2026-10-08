@@ -283,3 +283,9 @@ Before any complete total exists, retain the last qualified partial amount
 and its original time through expiry, outages and reloads; newer lower
 partial values replace it, and a complete valuation takes priority.
 Server canonical quality and historical baseline rules remain unchanged.
+
+## Creation/invoice source extension (#1354 / #1209 / #1210)
+
+The governed ledger now has ten source variants. `pair_creation`, `sku_unlock` and `settings_fee` have fixed allowlisted labels **Pair creation**, **SKU unlock** and **Settings invoice**; unknown source strings are rejected before rendering. `factory_configured` / `community_invoices_configured` are additive optional flags for backward compatibility. Unconfigured idle rows are omitted, but authenticated historical rows with positive event_count remain visible after any source-family pin is removed. This rule also applies to wrap/window sources; removing a pin cannot erase paid ledger history. Configured idle is zero, unpriced activity is null, headline remains priced SUM.
+
+Run `make verify-issue-1209` / `make verify-issue-1210` and see [fee-ledger provenance invariants](AGENTS_INDEXER_FEE_LEDGER_HOME.md), [DeFiLlama reconciliation](AGENTS_DEFILLAMA.md#live-reconciliation-1354) and [agent QA/skip policy](../docs/qa/issue-1354/README.md). Source/UI checks and skipped deployment never establish live paid invoice acceptance.

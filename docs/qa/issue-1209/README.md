@@ -1,7 +1,6 @@
 # Pair-creation protocol fee ingest (#1209)
 
-**Status on refreshed `origin/main` (`54c4868e`): pending.** The indexer still has seven `FeeSource` values, no `create_pair` fee parser, and no `make verify-issue-1209` target. Keep [Forgejo #1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) open; [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) is the closed home map, not a replacement implementation ticket.
-
+**Source implemented through [#1354](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1354).** Creation-fee parsing, schema checks, ledger/replay, API/daily/DeFiLlama fields and UI labels are implemented. Live deployment and paid-chain replay remain separate evidence; #1209 tracking was reopened after its earlier docs-only close. See [#1354 verification](../issue-1354/verification.md).
 ## Required behavior
 
 - Accept only `action=create_pair` emitted by the pinned `FACTORY_ADDRESS`, using the reserved `_contract_address` attribute. Ignore unreserved `contract_address` and spoofed emitters ([#285](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/285)).
@@ -12,7 +11,15 @@
 
 ## Verification needed before closing #1209
 
-Add focused parser/API/frontend coverage and `make verify-issue-1209`. Cover positive/zero amount, pinned and spoofed emitters, flattened wasm segments, refunds/gas/reply exclusions, replay deduplication, price/idle semantics, daily + DeFiLlama output, and UI label safety. Keep [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586), [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614), and [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) regressions green. Update factory audit item 11 after the parser exists.
+Run `make verify-issue-1209` against a DB1396 disposable QA cluster. It runs the shared invoice/creation parser, ledger/replay/API/series/catalog and allowlisted UI regressions. Keep #586/#614/#1269 regressions green. Factory audit item 11 now links the creation-fee parser.
+
+- [x] AC1/AC8: source/schema/rollup/API/daily/DeFiLlama/UI and invariants/audit cross-links.
+- [x] AC2–AC4: exact positive reserved-factory amount, no reply/gas/refund duplicate, zero/spoof rejected (fixtures).
+- [x] AC5–AC7: idle/unpriced/invalid-window, fixed label safety and widened replay uniqueness (fixtures).
+- [x] Actual paid LocalTerra creation receipt replayed through block ingestion into disposable QA DB twice, with exact native amount and dedupe.
+- [ ] Production rollout and historical replay at actual configured factory.
+
+Agents record UTC revision, commands and results. Unavailable checks may be **SKIP** with reason/missing evidence and overall **PASS WITH SKIPS** when available checks pass. Executed failures remain FAIL. Skip options: `VERIFY_ISSUE_1210_SKIP_DB_REASON` / `_SKIP_UI_REASON` (the shared harness). Never treat fixtures or a skipped rollout as production acceptance.
 
 ## Related work and agent guides
 
