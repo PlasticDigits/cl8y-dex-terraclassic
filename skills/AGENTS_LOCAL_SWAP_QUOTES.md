@@ -1,6 +1,6 @@
 # Local swap quotes (#1452)
 
-Implementation: [merged PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
+Implementation: [merged PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455). Current implementation: [follow-up PR #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
 
 
 Apply when changing route discovery, quote caches, liquidity ingestion, reference

@@ -1,5 +1,7 @@
 # #1452 follow-up implementation and verification
 
+Implementation: [follow-up PR #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
+
 Related: [issue and comments](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452),
 [agent checklist](README.md), [LQ1452 invariants](../../../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
 [tax scope](FOLLOWUP-TAX.md), [exact modes](FOLLOWUP-MODES.md), and
@@ -106,6 +108,11 @@ and overhead-scoped probe transactions using the pinned SDK53 node. The verified
 contract artifacts match all 170 current contract source inputs. No production
 transaction, shared database migration or production deployment was performed.
 
+Rollout requires a compatible indexer before the frontend: clients require each
+hop's `declared_hybrid` signing anchor (explicit `null` for pool-only). Older
+metadata fails closed. Coordinate that deployment under #1456; it is not performed
+by this source PR.
+
 Unimplemented semantics remain engineering work: external direct-wrapper floor
 support, stateful cooldown/AutoLP economics, tax wallets absent the independently
 observed actor census, and composed inverse candidates that fail forward parity.
@@ -113,6 +120,10 @@ They fail closed and are not verification skips. Largest-factory freshness and
 full loaded-graph latency still need independent evidence. Existing deployment,
 provider/history and device work remains tracked in
 [#1456](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1456).
+
+Hosted CI status is unavailable: `bao-exec --only FORGEJO_PLASTICDIGTS_PAT -- fj actions tasks`
+returned "not found". No successful remote CI status is claimed; this unavailable
+publication gate does not hold the user-authorized source PR.
 
 Explicit unavailable checks: production rollout/network/provider/history,
 physical signing, the #1381 external wrap stack, the #1422 independently reviewed

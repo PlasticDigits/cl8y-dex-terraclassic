@@ -5,8 +5,9 @@
 For route selection, quote latency/caching, reference pricing, refresh/preflight
 or signing, follow [LQ1452-1–LQ1452-10](skills/AGENTS_LOCAL_SWAP_QUOTES.md)
 ([#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452)).
-Follow-up supported tax/modes, incremental admission and remaining direct-wrapper
-protocol limits are indexed in [the current review checklist](docs/qa/issue-1452/README.md#follow-up-implementation-review).
+The [follow-up fix #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458) implements supported tax/modes and incremental admission.
+Remaining protocol limits and verification steps are indexed in
+[the current review checklist](docs/qa/issue-1452/README.md#follow-up-implementation-review).
 Run `make verify-issue-1452`; use the
 [agent checklist and explicit skip policy](docs/qa/issue-1452/README.md).
 Requests must never trigger chain polling or network validation; independently
