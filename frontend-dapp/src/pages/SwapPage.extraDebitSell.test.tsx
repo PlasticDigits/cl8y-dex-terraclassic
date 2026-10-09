@@ -212,8 +212,10 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1.05')
-    expect(await screen.findByTestId('swap-submit')).toBeDisabled()
-    expect(screen.getByTestId('swap-submit')).toHaveTextContent(/insufficient balance/i)
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-submit')).toBeDisabled()
+      expect(screen.getByTestId('swap-submit')).toHaveTextContent(/insufficient balance/i)
+    })
     expect(swap).not.toHaveBeenCalled()
   })
 

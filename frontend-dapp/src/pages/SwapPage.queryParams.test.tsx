@@ -827,8 +827,10 @@ describe('SwapPage query params (GitLab #711)', () => {
     await waitForSwapReady()
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1'))
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
-    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
-    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
+      expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+    })
   })
 
   it('QS-1: /?from=UST1&to=USTR selects those tokens (mixed case inbound)', async () => {
