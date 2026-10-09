@@ -2,6 +2,8 @@
 //! Invariants and threat model: see repository `docs/indexer-invariants.md`.
 
 mod aggregator_snapshot;
+// Historical network solver retained only for arithmetic/regression comparison.
+#[cfg(test)]
 mod best_execution;
 mod cg;
 mod cmc;
@@ -49,13 +51,30 @@ pub use protocol_top_pairs::reset_protocol_top_pairs_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
+// Historical network solver retained only for arithmetic/regression comparison.
+#[cfg(test)]
 mod route_exact_output;
 mod route_exact_output_admission;
+// Historical network solver retained only for arithmetic/regression comparison.
+#[cfg(test)]
 mod route_exact_output_reference;
+// Historical network solver retained only for arithmetic/regression comparison.
+#[cfg(test)]
 mod route_graph;
 #[allow(unused_imports)] // re-exported for integration tests
+#[cfg(test)]
 pub use route_graph::reset_route_graph_cache;
+
+/// Compatibility for integration fixtures; production has no legacy graph cache.
+#[cfg(not(test))]
+pub fn reset_route_graph_cache() {}
+mod local_hook_pricing;
+pub mod local_quote;
+mod local_reference_quote;
+mod local_wrapper_quote;
 mod route_paths;
+// Historical network solver retained only for arithmetic/regression comparison.
+#[cfg(test)]
 mod route_slippage;
 mod route_solve_progress;
 mod route_solver;
@@ -404,6 +423,9 @@ pub async fn find_pair_by_ticker(
         route_solver::RouteQuoteKind,
         route_solver::RouteHop,
         route_solver::RouteSolveResponse,
+        route_solver::LocalExecutionMetadata,
+        route_solver::LocalExecutionHop,
+        route_solver::LocalExecutionWrapper,
         pairs::PairResponse,
         pairs::PairListResponse,
         pairs::ListPairsQuery,
@@ -788,6 +810,14 @@ async fn require_quote_chain(
     next: axum::middleware::Next,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
+    // Local quotes consume only snapshots attested by scheduled ingestion. Request-time
+    // chain probes would violate #1452 and make healthy cached data provider dependent.
+    if matches!(
+        request.uri().path(),
+        "/api/v1/route/solve" | "/api/v1/route/solve/best" | "/api/v1/route/solve/progress"
+    ) {
+        return next.run(request).await;
+    }
     // Listing books resolve identity before their factory branch attests.
     // Keep the stricter fanout rate limit without contacting LCD for virtual ids.
     if request.uri().path() == "/cg/orderbook"
@@ -886,6 +916,7 @@ pub async fn serve(
         hub_usd: crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
         community_tax: crate::config::CommunityTaxCatalogConfig::from_indexer_config(&config),
     };
+    local_quote::start_ingestion(state.clone());
     let app = build_router(state, &config);
 
     let addr = format!("{}:{}", config.api_bind, config.api_port);

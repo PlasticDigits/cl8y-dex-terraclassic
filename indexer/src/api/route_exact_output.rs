@@ -402,6 +402,7 @@ async fn solve_inner(
             .chain(hops.iter().map(|h| h.ask_token.clone()))
             .collect();
         let response = RouteSolveResponse {
+            execution_metadata: None,
             required_amount_in: Some(amount.to_string()),
             target_amount_out: Some(target.to_string()),
             sizing_mode: Some("pool_only_exact_output".into()),

@@ -6,18 +6,22 @@ import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
 import { pairFeeDiscountApplies } from '@/utils/pairDiscountRegistry'
 import { effectiveSwapFeeBps, makerPlacementFeeBps, resolveLimitDiscountBps } from '@/utils/limitOrderFeeSummary'
 
-export function useLimitOrderMakerFeeRates(pairAddr: string, walletAddress: string | undefined) {
+export function useLimitOrderMakerFeeRates(
+  pairAddr: string,
+  walletAddress: string | undefined,
+  options?: { enabled?: boolean }
+) {
   const feeConfigQuery = useQuery({
     queryKey: ['pairFeeConfig', pairAddr],
     queryFn: () => getPairFeeConfig(pairAddr),
-    enabled: pairAddr.startsWith('terra1'),
+    enabled: options?.enabled !== false && pairAddr.startsWith('terra1'),
     staleTime: 60_000,
   })
 
   const pairRegistryQuery = useQuery({
     queryKey: ['pairDiscountRegistry', pairAddr],
     queryFn: () => getPairDiscountRegistry(pairAddr),
-    enabled: pairAddr.startsWith('terra1') && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
+    enabled: options?.enabled !== false && pairAddr.startsWith('terra1') && !!FEE_DISCOUNT_CONTRACT_ADDRESS,
     staleTime: 60_000,
     retry: false,
   })
@@ -27,7 +31,7 @@ export function useLimitOrderMakerFeeRates(pairAddr: string, walletAddress: stri
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', walletAddress],
     queryFn: () => getTraderDiscount(walletAddress!),
-    enabled: pairDiscountApplies && !!walletAddress?.startsWith('terra1'),
+    enabled: options?.enabled !== false && pairDiscountApplies && !!walletAddress?.startsWith('terra1'),
     staleTime: 60_000,
   })
 

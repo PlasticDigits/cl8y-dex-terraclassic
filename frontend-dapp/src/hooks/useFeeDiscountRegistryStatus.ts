@@ -1,17 +1,17 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
+import { useWalletStore } from '@/hooks/useWallet'
 import { getFeeDiscountHealth } from '@/services/indexer/client'
+import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
-import { advertisedDiscountBps, pairFeeDiscountApplies } from '@/utils/pairDiscountRegistry'
-import { useWalletStore } from '@/hooks/useWallet'
 import {
   resolveFeeDiscountRegistryStatus,
   shouldShowFeeDiscountRegistryWarning,
   type FeeDiscountRegistryStatus,
   type FeeDiscountRegistryWarningInput,
 } from '@/utils/feeDiscountRegistryWarning'
+import { advertisedDiscountBps, pairFeeDiscountApplies } from '@/utils/pairDiscountRegistry'
+import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 /**
  * Shared fee-discount registry queries + status for Swap and Pool (GitLab #374 / #476 / #537).
@@ -19,7 +19,7 @@ import {
  *
  * Pass `pairAddr` to gate advertised `discountBps` on that pair's `DISCOUNT_REGISTRY` (I14).
  */
-export function useFeeDiscountRegistryStatus(pairAddr?: string) {
+export function useFeeDiscountRegistryStatus(pairAddr?: string, options?: { enabled?: boolean }) {
   const address = useWalletStore((s) => s.address)
   const feeDiscountConfigured = !!FEE_DISCOUNT_CONTRACT_ADDRESS
   const pairQueryAddr = pairAddr?.startsWith('terra1') ? pairAddr : undefined
@@ -30,7 +30,7 @@ export function useFeeDiscountRegistryStatus(pairAddr?: string) {
       if (!address) throw new Error('No address')
       return getTraderDiscount(address)
     },
-    enabled: !!address && feeDiscountConfigured,
+    enabled: options?.enabled !== false && !!address && feeDiscountConfigured,
     staleTime: 15_000,
   })
 
@@ -40,14 +40,14 @@ export function useFeeDiscountRegistryStatus(pairAddr?: string) {
       if (!address) throw new Error('No address')
       return getRegistration(address)
     },
-    enabled: !!address && feeDiscountConfigured,
+    enabled: options?.enabled !== false && !!address && feeDiscountConfigured,
     staleTime: 15_000,
   })
 
   const pairRegistryQuery = useQuery({
     queryKey: ['pairDiscountRegistry', pairQueryAddr],
     queryFn: () => getPairDiscountRegistry(pairQueryAddr!),
-    enabled: !!pairQueryAddr && feeDiscountConfigured,
+    enabled: options?.enabled !== false && !!pairQueryAddr && feeDiscountConfigured,
     staleTime: 60_000,
     retry: false,
   })
@@ -55,7 +55,7 @@ export function useFeeDiscountRegistryStatus(pairAddr?: string) {
   const feeDiscountHealthQuery = useQuery({
     queryKey: ['feeDiscountHealth'],
     queryFn: getFeeDiscountHealth,
-    enabled: feeDiscountConfigured,
+    enabled: options?.enabled !== false && feeDiscountConfigured,
     staleTime: 30_000,
     refetchInterval: 30_000,
     retry: false,

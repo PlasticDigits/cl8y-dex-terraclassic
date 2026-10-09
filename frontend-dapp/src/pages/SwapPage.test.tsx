@@ -1,17 +1,18 @@
+import { useWalletStore } from '@/hooks/useWallet'
+import { renderWithProviders } from '@/test-utils'
+import { LOCAL_FROM, LOCAL_TO, LOCAL_WALLET, localPair, localQuote, localTokens } from '@/test/localRouteFixtures'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { useLocation } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import SwapPage from './SwapPage'
 vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
   assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
   queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
   ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
 }))
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { useLocation } from 'react-router-dom'
-import { renderWithProviders } from '@/test-utils'
-import SwapPage from './SwapPage'
-import { useWalletStore } from '@/hooks/useWallet'
 
-const { MOCK_LUNC_C, MOCK_USTC_C } = vi.hoisted(() => ({
+const { MOCK_LUNC_C } = vi.hoisted(() => ({
   MOCK_LUNC_C: 'terra1lunc_c_mock_address_for_testing_xxxxx',
   MOCK_USTC_C: 'terra1ustc_c_mock_address_for_testing_xxxxx',
 }))
@@ -174,44 +175,29 @@ vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
   probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
 }))
 
+import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { sounds } from '@/lib/sounds'
+import * as indexerClient from '@/services/indexer/client'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
+import { getTraderDiscount } from '@/services/terraclassic/feeDiscount'
+import { getPairPaused, simulateSwap } from '@/services/terraclassic/pair'
+import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
+import { getTokenBalance } from '@/services/terraclassic/queries'
+import type { SwapOperation } from '@/services/terraclassic/router'
 import {
   findRoute,
   findRouteWithNativeSupport,
   getAllTokens,
   isDirectWrapUnwrap,
   simulateMultiHopSwap,
-  simulateNativeSwap,
-  executeNativeSwap,
-  netCw20AfterNativeWrap,
 } from '@/services/terraclassic/router'
-import { queryPausedState, checkRateLimitExceeded, queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
-import { WRAP_CONFIG_UNAVAILABLE_CTA, WRAP_TREASURY_MISCONFIGURED_CTA } from '@/utils/marketDataServiceCopy'
-import type { SwapOperation } from '@/services/terraclassic/router'
-import { simulateSwap, simulateHybridSwap, getPairPaused } from '@/services/terraclassic/pair'
-import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
-import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { getTokenBalance } from '@/services/terraclassic/queries'
-import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
-import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
-import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
-import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
-import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
-import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
-import {
-  TRADING_BLACKLIST_ALLOWED,
-  pairBlacklistedResponse,
-  tokenBlacklistedResponse,
-  tradingBlacklistHookResult,
-  walletBlacklistedResponse,
-} from '@/test/tradingBlacklistMocks'
-import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
-import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
+import { queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
 import { useDexStore } from '@/stores/dex'
-import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
-import { sounds } from '@/lib/sounds'
+import { TRADING_BLACKLIST_ALLOWED } from '@/test/tradingBlacklistMocks'
 import { NUMBER_DISPLAY_MODE_KEY, readNumberDisplayMode } from '@/utils/numberDisplayPreference'
+import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
+import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
 
 function SwapLocationProbe() {
   const { pathname, search } = useLocation()
@@ -226,115 +212,134 @@ async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setu
   await waitFor(() => expect(screen.getByRole('button', { name: /Compare indexer route/i })).toBeVisible())
 }
 
-async function openSwapSettingsWithAdvanced(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Settings' }))
-  await expandSwapAdvancedSettings(user)
-}
-
-describe('SwapPage', () => {
+describe('SwapPage local executable quotes (#1452)', () => {
   beforeEach(() => {
-    window.localStorage.removeItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)
-    window.localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
-    useDexStore.setState({ expertMode: false })
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    useDexStore.setState({ expertMode: false, slippageTolerance: 5 })
+    useWalletStore.setState({ address: LOCAL_WALLET, walletType: 'simulated', error: null })
+    vi.mocked(getConnectedWallet).mockReturnValue({ address: LOCAL_WALLET } as never)
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
-    vi.mocked(findRoute).mockReturnValue(null)
-    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
-    vi.mocked(getAllTokens).mockReturnValue([])
-    vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
-    vi.mocked(queryPausedState).mockResolvedValue(false)
-    vi.mocked(checkRateLimitExceeded).mockResolvedValue(false)
-    vi.mocked(queryWrapMapperConfig).mockResolvedValue({
-      governance: 'terra1gov',
-      treasury: 'terra1treasury',
-      paused: false,
-      fee_wrap_bps: 100,
-      fee_unwrap_bps: 100,
-    })
-    vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
-    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
-    vi.mocked(getConnectedWallet).mockReturnValue(null)
-    useWalletStore.setState({ address: null, walletType: null, error: null })
-    vi.spyOn(indexerClient, 'getRouteSolve').mockReset()
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-    vi.spyOn(indexerClient, 'postRouteSolve').mockReset()
-    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer post not used in this test'))
-    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
-    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
-    vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
-      configured: true,
-      fee_discount_registry_ok: true,
-      consecutive_lcd_failures: 0,
-    })
-    vi.mocked(getRegistration).mockResolvedValue({ registered: false, tier_id: null, tier: null })
-    vi.mocked(getTraderDiscount).mockResolvedValue({
-      discount_bps: 0,
-      needs_deregister: false,
-      registration_epoch: null,
-    })
-    vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1feediscount')
-  })
-
-  it('renders without crashing', async () => {
-    renderWithProviders(<SwapPage />)
-    expect(await screen.findByRole('heading', { name: /^swap$/i })).toBeInTheDocument()
-  })
-
-  it('shows loading pairs state while factory pairs fetch is pending', async () => {
-    let resolvePairs!: (value: { pairs: [] }) => void
-    vi.mocked(getAllPairsPaginated).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvePairs = resolve
-        })
-    )
-    renderWithProviders(<SwapPage />)
-    expect(screen.getByText(/loading pairs/i)).toBeInTheDocument()
-    resolvePairs({ pairs: [] })
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
-  })
-
-  it('uses hybrid LCD quote when indexer POST fails and hybrid book leg is set (#418)', async () => {
-    const user = userEvent.setup()
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(getAllTokens).mockReturnValue([LOCAL_FROM, LOCAL_TO])
     vi.mocked(findRoute).mockReturnValue([
       {
         terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
+          offer_asset_info: { token: { contract_addr: LOCAL_FROM } },
+          ask_asset_info: { token: { contract_addr: LOCAL_TO } },
         },
       },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used'))
-    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer down'))
-    vi.mocked(simulateHybridSwap).mockResolvedValue({
-      return_amount: '4200000',
-      spread_amount: '0',
-      commission_amount: '0',
+    ])
+    vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+    vi.spyOn(indexerClient, 'getAllPairsPaged').mockResolvedValue([localPair])
+    vi.spyOn(indexerClient, 'getPair').mockResolvedValue(localPair)
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue(localTokens)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockImplementation(async (from, to, amount, options) =>
+      localQuote(from, to, amount, options)
+    )
+    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('unused'))
+    vi.spyOn(indexerClient, 'getRouteSolveProgress').mockResolvedValue({
+      stage: 'idle',
+      done: 0,
+      total: 0,
+      label: '',
+      cache_hit: true,
+      updated_at_ms: Date.now(),
     })
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    await openSwapSettingsWithAdvanced(user)
-    await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
-    expect(screen.queryByText(/pool-only simulation/i)).not.toBeInTheDocument()
   })
-
+  afterEach(() => vi.restoreAllMocks())
+  async function ready() {
+    const rendered = renderWithProviders(<SwapPage />, { route: `/?from=${LOCAL_FROM}&to=${LOCAL_TO}` })
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    return rendered
+  }
+  it('shows one useful local quote and sends actual spread without RPC simulation', async () => {
+    await ready()
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
+    expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(
+      LOCAL_FROM,
+      LOCAL_TO,
+      '1000000',
+      expect.objectContaining({ maxSpread: '0.05', trader: LOCAL_WALLET })
+    )
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+    expect(getTraderDiscount).not.toHaveBeenCalled()
+    expect(getPairDiscountRegistry).not.toHaveBeenCalled()
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
+    expect(getPairPaused).not.toHaveBeenCalled()
+  })
+  it('keeps confirmation amounts and positive floors in the submitted single-hop router snapshot', async () => {
+    await ready()
+    expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
+    await userEvent.click(screen.getByTestId('swap-submit'))
+    const { executeMultiHopSwap } = await import('@/services/terraclassic/router')
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalled())
+    expect(vi.mocked(executeMultiHopSwap).mock.calls[0]).toEqual([
+      LOCAL_WALLET,
+      LOCAL_FROM,
+      '1000000',
+      expect.arrayContaining([
+        expect.objectContaining({ terra_swap: expect.objectContaining({ min_return: '950000' }) }),
+      ]),
+      '0.05',
+      '950000',
+      undefined,
+      expect.any(Number),
+      expect.objectContaining({ generation: 'fixture1' }),
+    ])
+  })
+  it('blocks stale pay inputs until the matching local quote arrives', async () => {
+    await ready()
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '10' } })
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await waitFor(() =>
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(LOCAL_FROM, LOCAL_TO, '10000000', expect.anything())
+    )
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('10'))
+  })
+  it('retains the displayed baseline on a failed refresh while blocking submission', async () => {
+    const { queryClient } = await ready()
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new Error('Indexer API error: 503'))
+    await queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('rejects unavailable executable metadata rather than trusting a positive amount', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async () => {
+      const q = localQuote()
+      delete q.execution_metadata
+      return q
+    })
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(simulateSwap).not.toHaveBeenCalled()
+  })
+  it.each([40, 99])('preserves the %s%% route risk guard with Expert Mode', async (impact) => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options)
+      q.spot_amount_out = ((BigInt(q.estimated_amount_out!) * 100n) / BigInt(100 - impact)).toString()
+      return q
+    })
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+    useDexStore.setState({ expertMode: true })
+    if (impact === 99) expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    else await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+  })
   describe('Swap Settings progressive disclosure (#413)', () => {
     const mockDirectCwPair = () => {
       const terraA = 'terra1from00000000000000000000000000000001'
@@ -467,7 +472,7 @@ describe('SwapPage', () => {
         </>,
         { route: `/swap?pay=${terraA}&receive=${terraB}&amount=1234.567` }
       )
-      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567'))
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234.567'))
       await user.click(screen.getByRole('button', { name: 'Settings' }))
 
       const input = screen.getByTestId('swap-you-pay-amount')
@@ -479,7 +484,7 @@ describe('SwapPage', () => {
       await user.click(screen.getByTestId('swap-number-display-full'))
       expect(screen.getByTestId('swap-number-display-preview')).toHaveTextContent('1,234,567')
       expect(input).toHaveValue('1234.567')
-      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567')
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234.567')
       expect(screen.getByTestId('swap-location-probe').textContent).toBe(location)
       expect(simulateSwap).toHaveBeenCalledTimes(swapCalls)
       expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(routeCalls)
@@ -487,7 +492,7 @@ describe('SwapPage', () => {
 
       await user.click(screen.getByTestId('swap-number-display-compact'))
       expect(input).toHaveValue('1234.567')
-      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567')
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234.567')
       expect(screen.getByTestId('swap-location-probe').textContent).toBe(location)
       expect(simulateSwap).toHaveBeenCalledTimes(swapCalls)
       expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(routeCalls)
@@ -551,1655 +556,6 @@ describe('SwapPage', () => {
       await user.type(custom, '99')
       expect(useDexStore.getState().slippageTolerance).toBe(50)
       expect(screen.getByText(/Must be between 0.01% and 50%/i)).toBeInTheDocument()
-    })
-  })
-
-  it('shows hybrid book warning with doc link before swap when book leg > 0', async () => {
-    const user = userEvent.setup()
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockReset()
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-    vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraB,
-      hops: [],
-      router_operations: [],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '5000',
-    })
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    await openSwapSettingsWithAdvanced(user)
-    expect(
-      screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
-    ).not.toBeInTheDocument()
-    await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/Quote may change before submit/i)
-    const docLink = within(alert).getByRole('link', { name: /^Docs$/i })
-    expect(docLink.getAttribute('href')).toContain('limit-orders.md')
-
-    const execution = await screen.findByTestId('swap-execution-summary')
-    expect(execution).toHaveTextContent(/Execution:\s*Limit book \+ pool/i)
-    expect(execution).toHaveTextContent(/Hybrid\s*—\s*pool/i)
-  })
-
-  it('hides Execution notice when hybrid Settings on and book leg empty (#492)', async () => {
-    const user = userEvent.setup()
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-    vi.mocked(simulateSwap).mockResolvedValue({
-      return_amount: '900000',
-      spread_amount: '1000',
-      commission_amount: '0',
-    })
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    await openSwapSettingsWithAdvanced(user)
-    expect(
-      screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
-    ).not.toBeInTheDocument()
-    // Leave book leg amount empty (Swap empty = book_input 0).
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-    await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
-
-    expect(screen.queryByTestId('swap-execution-summary')).not.toBeInTheDocument()
-    expect(screen.queryByText(/add a book leg/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Pool only/i)).not.toBeInTheDocument()
-  })
-
-  it('reconciles direct-hybrid receive to wallet when indexer estimate disagrees (#471)', async () => {
-    const user = userEvent.setup()
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-    vi.spyOn(indexerClient, 'postRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraB,
-      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '9999999',
-      slippage_percent: '0.1',
-      spot_amount_out: '10000000',
-    })
-    vi.mocked(simulateHybridSwap).mockResolvedValue({
-      return_amount: '5000000',
-      spread_amount: '0',
-      commission_amount: '0',
-    })
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    await openSwapSettingsWithAdvanced(user)
-    await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
-    const reconciled = await screen.findByTestId('swap-direct-hybrid-amount-reconciled')
-    expect(reconciled).toHaveTextContent(/Receive amount adjusted/i)
-    expect(screen.queryByText(/9\.999/)).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByTestId('swap-you-receive')).toHaveValue('5')
-    })
-  })
-
-  it('blocks deterministic route rejection before a viable pool-only fallback (#1390)', async () => {
-    const user = userEvent.setup()
-    const from = 'terra1from00000000000000000000000000000001'
-    const to = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({
-      address: 'terra1wallet000000000000000000000000001',
-      walletType: 'simulated',
-      error: null,
-    })
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: from } }, { token: { contract_addr: to } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([from, to])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: from } },
-          ask_asset_info: { token: { contract_addr: to } },
-        },
-      },
-    ])
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 422 Unprocessable Entity'))
-    vi.mocked(simulateSwap)
-      .mockClear()
-      .mockResolvedValue({ return_amount: '1000000', spread_amount: '0', commission_amount: '0' })
-    vi.mocked(simulateMultiHopSwap).mockClear().mockResolvedValue({ amount: '1000000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-    await waitFor(() =>
-      expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(from, to, '1000000', expect.any(Object))
-    )
-    expect(await screen.findByTestId('swap-quote-retry-error')).toHaveTextContent(/Route validation rejected/)
-    expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
-    expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
-    expect(simulateSwap).not.toHaveBeenCalled()
-    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
-  })
-
-  it('shows market-data outage banner when sim fails with indexer transport error (GitLab #241)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
-    vi.mocked(simulateSwap).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    const banner = await screen.findByTestId('swap-market-data-outage-banner')
-    expect(banner).toHaveTextContent(/market data service unavailable/i)
-    expect(banner).not.toHaveTextContent(/VITE_INDEXER_URL|127\.0\.0\.1/i)
-    expect(screen.getByTestId('swap-quote-unavailable')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
-  })
-
-  it('shows calm retry guidance when indexer returns HTTP 429 (SEC-E04 / GitLab #426)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 429 Too Many Requests'))
-    vi.mocked(simulateSwap).mockRejectedValue(new Error('Indexer API error: 429 Too Many Requests'))
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    const retry = await screen.findByTestId('swap-quote-retry-error')
-    expect(retry).toHaveTextContent(/wait a moment and try again/i)
-    expect(retry).not.toHaveTextContent(/\b429\b/)
-    expect(retry).not.toHaveTextContent(/Indexer API error/i)
-    expect(retry).not.toHaveTextContent(/127\.0\.0\.1|https?:\/\//i)
-    expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
-    expect(screen.getByTestId('retry-error-button')).toBeInTheDocument()
-  })
-
-  it('shows outage banner with pool fallback quote when indexer fails but LCD sim succeeds (GitLab #241)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
-    vi.mocked(simulateSwap).mockResolvedValue({
-      return_amount: '1000000',
-      spread_amount: '100',
-      commission_amount: '3000',
-    })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    expect(await screen.findByTestId('swap-market-data-outage-banner')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-  })
-
-  it('does not show outage banner when route/solve returns 400 but LCD fallback succeeds (GitLab #326)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 400 Bad Request'))
-    vi.mocked(simulateSwap).mockResolvedValue({
-      return_amount: '1000000',
-      spread_amount: '100',
-      commission_amount: '3000',
-    })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-    expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
-  })
-
-  it('shows client BFS fallback label when multihop submit uses client graph without indexer ops (#329)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1aa0000000000000000000000000000000001'
-    const terraB = 'terra1bb0000000000000000000000000000000001'
-    const terraC = 'terra1cc0000000000000000000000000000000001'
-    const multihopRoute = [
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraB } },
-          ask_asset_info: { token: { contract_addr: terraC } },
-        },
-      },
-    ] as never
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pairab000000000000000000000000000001',
-          liquidity_token: 'terra1lpab000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-        {
-          contract_addr: 'terra1pairbc000000000000000000000000000001',
-          liquidity_token: 'terra1lpbc000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB])
-    vi.mocked(findRoute).mockReturnValue(multihopRoute)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
-    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    expect(await screen.findByTestId('swap-route-summary')).toBeInTheDocument()
-    expect(await screen.findByTestId('swap-route-source-client-fallback')).toHaveTextContent(/client graph/i)
-  })
-
-  it('does not show client BFS fallback label when indexer multihop ops are used (#329)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1aa0000000000000000000000000000000001'
-    const terraB = 'terra1bb0000000000000000000000000000000001'
-    const terraC = 'terra1cc0000000000000000000000000000000001'
-    const multihopRoute = [
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraB } },
-          ask_asset_info: { token: { contract_addr: terraC } },
-        },
-      },
-    ] as never
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pairab000000000000000000000000000001',
-          liquidity_token: 'terra1lpab000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-        {
-          contract_addr: 'terra1pairbc000000000000000000000000000001',
-          liquidity_token: 'terra1lpbc000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB])
-    vi.mocked(findRoute).mockReturnValue(multihopRoute)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraC,
-      hops: [
-        { offer_token: terraA, ask_token: terraB },
-        { offer_token: terraB, ask_token: terraC },
-      ],
-      router_operations: multihopRoute,
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '1000000',
-      intermediate_tokens: [terraA, terraB, terraC],
-    })
-    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    await screen.findByTestId('swap-route-summary')
-    expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
-  })
-
-  it('reconciles tampered indexer intermediate_tokens to ops path and notifies user (#450 / SEC-I02 H09)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1aa0000000000000000000000000000000001'
-    const terraB = 'terra1bb0000000000000000000000000000000001'
-    const terraC = 'terra1cc0000000000000000000000000000000001'
-    const terraEvil = 'terra1evil00000000000000000000000000000001'
-    const multihopRoute = [
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraEvil } },
-        },
-      },
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraEvil } },
-          ask_asset_info: { token: { contract_addr: terraC } },
-        },
-      },
-    ] as never
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pairab000000000000000000000000000001',
-          liquidity_token: 'terra1lpab000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-        {
-          contract_addr: 'terra1pairbc000000000000000000000000000001',
-          liquidity_token: 'terra1lpbc000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraC, terraB, terraEvil])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraB } },
-          ask_asset_info: { token: { contract_addr: terraC } },
-        },
-      },
-    ] as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraC,
-      hops: [
-        { offer_token: terraA, ask_token: terraEvil },
-        { offer_token: terraEvil, ask_token: terraC },
-      ],
-      router_operations: multihopRoute,
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '1000000',
-      // Display claims A→B→C but ops route through evil token.
-      intermediate_tokens: [terraA, terraB, terraC],
-    })
-    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    const routeSummary = await screen.findByTestId('swap-route-summary')
-    expect(routeSummary).toHaveTextContent(terraEvil)
-    expect(routeSummary).not.toHaveTextContent(terraB)
-    expect(await screen.findByTestId('swap-route-intermediate-reconciled')).toHaveTextContent(/route adjusted/i)
-    expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
-  })
-
-  it('rejects invalid characters in book leg amount without surfacing BigInt errors', async () => {
-    const user = userEvent.setup()
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue([
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: terraA } },
-          ask_asset_info: { token: { contract_addr: terraB } },
-        },
-      },
-    ] as never)
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-    await openSwapSettingsWithAdvanced(user)
-    const bookInput = screen.getByPlaceholderText('0.0')
-    await user.type(bookInput, '1^2')
-    expect(bookInput).toHaveValue('12')
-    expect(screen.queryByText(/Cannot convert/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Something went wrong/i)).not.toBeInTheDocument()
-  })
-
-  it('blocks swap above 30% route slippage unless Expert Mode is enabled (GitLab #293)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue(null)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraB,
-      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '550000',
-      slippage_percent: '45.00',
-      spot_amount_out: '1000000',
-    })
-    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '550000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('45.00%')
-    expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
-    expect(screen.getByTestId('swap-enable-expert-mode')).toBeInTheDocument()
-
-    await user.click(screen.getByTestId('swap-enable-expert-mode'))
-    const modal = await screen.findByRole('dialog')
-    await user.type(screen.getByTestId('expert-mode-confirm-input'), 'ENABLE EXPERT MODE')
-    await user.click(within(modal).getByTestId('expert-mode-confirm-enable'))
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Slippage is too high' })).not.toBeInTheDocument()
-    })
-  })
-
-  it('hides You Receive at ≥99% and does not let Expert Mode waive (Forgejo #1257)', async () => {
-    const user = userEvent.setup()
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-    useDexStore.setState({ expertMode: true })
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          contract_addr: 'terra1pair00000000000000000000000000000001',
-          liquidity_token: 'terra1lp000000000000000000000000000000001',
-          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-        },
-      ],
-    })
-    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-    vi.mocked(findRoute).mockReturnValue(null)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-      token_in: terraA,
-      token_out: terraB,
-      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '36000000000',
-      slippage_percent: '99.97',
-      spot_amount_out: '960000',
-    })
-    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '36000000000' })
-    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-    renderWithProviders(<SwapPage />)
-    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('100.00%')
-    expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
-    expect(screen.getByTestId('swap-theater-quote-blocked')).toBeInTheDocument()
-    expect(screen.queryByTestId('swap-enable-expert-mode')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
-    const receive = screen.getByTestId('swap-you-receive')
-    if (receive.tagName === 'INPUT') {
-      expect(receive).toHaveValue('—')
-    } else {
-      expect(receive).toHaveTextContent('—')
-    }
-    expect(screen.getByTestId('swap-extreme-slippage-warning')).toBeInTheDocument()
-  })
-
-  describe('large-amount precision (GitLab #366)', () => {
-    const aboveSafeInt = '9007199254740992'
-
-    it('gates positive human amounts above Number.MAX_SAFE_INTEGER without parseFloat loss', async () => {
-      const user = userEvent.setup()
-      const wallet = 'terra1wallet000000000000000000000000000001'
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      const terraA = 'terra1from00000000000000000000000000000001'
-      const terraB = 'terra1to00000000000000000000000000000001'
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-      const spread = '891712726219358'
-      const ret = '8917127262193583'
-      vi.mocked(simulateSwap).mockResolvedValue({
-        return_amount: ret,
-        spread_amount: spread,
-        commission_amount: '0',
-      })
-      vi.mocked(getTokenBalance).mockResolvedValue('999999999999999999999999')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-      await user.type(screen.getByTestId('swap-you-pay-amount'), aboveSafeInt)
-      await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
-
-      expect(screen.queryByRole('button', { name: 'Enter Amount' })).not.toBeInTheDocument()
-      const expectedPct = spreadPercentFromRawSim(ret, '0', spread)
-      expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent(`${expectedPct}%`)
-    })
-  })
-
-  describe('submit–quote stale gate (GitLab #356)', () => {
-    beforeEach(() => {
-      vi.useFakeTimers({ shouldAdvanceTime: true })
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('disables Swap with Calculating… while typed amount differs from debounced quote', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-      const wallet = 'terra1wallet000000000000000000000000000001'
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      const terraA = 'terra1from00000000000000000000000000000001'
-      const terraB = 'terra1to00000000000000000000000000000001'
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-      vi.mocked(simulateSwap).mockResolvedValue({
-        return_amount: '1000000',
-        spread_amount: '100',
-        commission_amount: '3000',
-      })
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-      const payInput = screen.getByTestId('swap-you-pay-amount')
-      await user.type(payInput, '1')
-      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-
-      await user.type(payInput, '0')
-
-      expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
-      // #496: You Receive must not keep the prior amount looking current while pay amount is pending.
-      const receive = screen.getByTestId('swap-you-receive')
-      if (receive.tagName === 'INPUT') {
-        expect(receive).toHaveValue('')
-        expect(receive).toHaveAttribute('aria-busy', 'true')
-      } else {
-        expect(receive).toHaveTextContent(/Calculating/i)
-      }
-
-      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-      await waitFor(() => {
-        const settled = screen.getByTestId('swap-you-receive')
-        if (settled.tagName === 'INPUT') {
-          expect(settled).not.toHaveAttribute('aria-busy')
-          expect(settled).not.toHaveValue('')
-        } else {
-          expect(settled).not.toHaveTextContent(/Calculating/i)
-        }
-      })
-    })
-
-    it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-      const wallet = 'terra1wallet000000000000000000000000000001'
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      const terraA = 'terra1from00000000000000000000000000000001'
-      const terraB = 'terra1to00000000000000000000000000000001'
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-      vi.mocked(simulateSwap).mockResolvedValue({
-        return_amount: '1000000',
-        spread_amount: '100',
-        commission_amount: '3000',
-      })
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-      await openSwapSettingsWithAdvanced(user)
-
-      const payInput = screen.getByTestId('swap-you-pay-amount')
-      await user.type(payInput, '10')
-      const bookInput = screen.getByPlaceholderText('0.0')
-      await user.type(bookInput, '2')
-      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-
-      await user.clear(bookInput)
-      await user.type(bookInput, '5')
-
-      expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
-
-      await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-    })
-  })
-
-  describe('trading blacklist UX (GitLab #388 / SEC-A02)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-
-    async function renderConnectedDirectSwap() {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-      return { user }
-    }
-
-    it.each([
-      ['wallet', walletBlacklistedResponse()],
-      ['pair', pairBlacklistedResponse()],
-      ['token', tokenBlacklistedResponse(terraA)],
-    ] as const)('shows %s blacklist alert copy and disables Swap CTA', async (_variant, resp) => {
-      vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
-
-      await renderConnectedDirectSwap()
-
-      const alert = await screen.findByRole('alert')
-      expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
-      expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
-    })
-  })
-
-  describe('fee-discount registry outage warning (GitLab #374)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-
-    async function renderConnectedDirectSwap() {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-
-      const payInput = screen.getByTestId('swap-you-pay-amount')
-      await user.type(payInput, '1')
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), {
-        timeout: 5000,
-      })
-      return { user }
-    }
-
-    it('shows outage warning when registration LCD fails for a registered wallet and keeps swap enabled', async () => {
-      vi.mocked(getRegistration).mockRejectedValue(new Error('LCD unavailable'))
-      vi.mocked(getTraderDiscount).mockResolvedValue({
-        discount_bps: 500,
-        needs_deregister: false,
-        registration_epoch: 1,
-      })
-
-      await renderConnectedDirectSwap()
-
-      expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
-        FEE_DISCOUNT_REGISTRY_WARNING_TEXT
-      )
-      expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled()
-      expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
-    })
-
-    it('shows Hold CL8Y CTA for unregistered wallet with healthy LCD and hides outage banner', async () => {
-      vi.mocked(getRegistration).mockResolvedValue({ registered: false, tier_id: null, tier: null })
-      vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
-        configured: true,
-        fee_discount_registry_ok: true,
-        consecutive_lcd_failures: 0,
-      })
-
-      await renderConnectedDirectSwap()
-
-      await waitFor(() => expect(screen.getByText(/trade details/i)).toBeInTheDocument())
-      expect(await screen.findByText(/Hold CL8Y/i)).toBeInTheDocument()
-      expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
-    })
-
-    it('shows outage warning when indexer reports registry down even if LCD registration succeeded', async () => {
-      vi.mocked(getRegistration).mockResolvedValue({
-        registered: true,
-        tier_id: 1,
-        tier: { min_cl8y_balance: '0', discount_bps: 500, governance_only: false },
-      })
-      vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
-        configured: true,
-        fee_discount_registry_ok: false,
-        consecutive_lcd_failures: 2,
-      })
-
-      await renderConnectedDirectSwap()
-
-      expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
-        FEE_DISCOUNT_REGISTRY_WARNING_TEXT
-      )
-      expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
-    })
-  })
-
-  describe('wrap pause and wrap rate limit CTA (SEC-A02 / GitLab #389)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-
-    async function renderConnectedNativeWrapSwap() {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockImplementation((from, to) => {
-        if (from === 'uluna' && to === MOCK_LUNC_C) return 'wrap'
-        return null
-      })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: 'uluna' } }, { token: { contract_addr: MOCK_LUNC_C } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uluna', MOCK_LUNC_C])
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-      return { user }
-    }
-
-    it('labels submit CTA Wrap (not Swap) on direct LUNC→cLUNC route', async () => {
-      const { simulateNativeSwap } = await import('@/services/terraclassic/router')
-      vi.mocked(simulateNativeSwap).mockResolvedValue({ amount: '990000', isDirectWrapUnwrap: true })
-      await renderConnectedNativeWrapSwap()
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Wrap$/i })).toBeEnabled())
-      expect(screen.queryByRole('button', { name: /^Swap$/i })).not.toBeInTheDocument()
-    })
-
-    it('shows disabled Wrapping is Temporarily Paused CTA when wrap mapper is paused', async () => {
-      vi.mocked(queryPausedState).mockResolvedValue(true)
-      await renderConnectedNativeWrapSwap()
-
-      const btn = await screen.findByRole('button', { name: 'Wrapping is Temporarily Paused' })
-      expect(btn).toBeDisabled()
-    })
-
-    it('shows disabled Rate Limit Exceeded CTA when wrap mapper rate limit is exceeded', async () => {
-      vi.mocked(checkRateLimitExceeded).mockResolvedValue(true)
-      await renderConnectedNativeWrapSwap()
-
-      const btn = await screen.findByRole('button', { name: 'Rate Limit Exceeded' })
-      expect(btn).toBeDisabled()
-    })
-
-    // GitLab #463 (SEC-I05 F-04): a disabled button alone isn't visible feedback —
-    // surface an inline alert with retry guidance below the form too.
-    it('shows an inline rate-limit alert with retry guidance, not just the disabled button', async () => {
-      vi.mocked(checkRateLimitExceeded).mockResolvedValue(true)
-      await renderConnectedNativeWrapSwap()
-
-      const banner = await screen.findByTestId('swap-wrap-rate-limit-banner')
-      expect(banner).toHaveTextContent(/Daily wrap limit reached/i)
-      expect(banner).toHaveTextContent(/try again later, or reduce the amount/i)
-    })
-
-    it('shows Wrap config unavailable when mapper config LCD fails (#507 M1)', async () => {
-      vi.mocked(queryWrapMapperConfig).mockResolvedValue(null)
-      await renderConnectedNativeWrapSwap()
-
-      const btn = await screen.findByRole('button', { name: WRAP_CONFIG_UNAVAILABLE_CTA })
-      expect(btn).toBeDisabled()
-      expect(screen.queryByText(/Wrap \(1:1\)/i)).not.toBeInTheDocument()
-    })
-
-    it('shows Wrap treasury misconfigured when env treasury ≠ on-chain (#507 M3)', async () => {
-      vi.mocked(queryWrapMapperConfig).mockResolvedValue({
-        governance: 'terra1gov',
-        treasury: 'terra1wrong_treasury_address____________',
-        paused: false,
-        fee_wrap_bps: 100,
-        fee_unwrap_bps: 100,
-      })
-      await renderConnectedNativeWrapSwap()
-
-      const btn = await screen.findByRole('button', { name: WRAP_TREASURY_MISCONFIGURED_CTA })
-      expect(btn).toBeDisabled()
-    })
-
-    it('shows fee note with percent when fee_bps=100 (#507)', async () => {
-      await renderConnectedNativeWrapSwap()
-      const note = await screen.findByTestId('swap-wrap-fee-note')
-      expect(note).toHaveTextContent(/1\.00% fee/i)
-      expect(note).not.toHaveTextContent(/1:1/)
-    })
-  })
-
-  describe('network fee disclosure (GitLab #587)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    const mockUstr = 'terra1ustr_mock_address_for_testing_xxxx'
-
-    it('shows Network fee ~X LUNC on LUNC→USTR quote, not USTC; AMM Fee row stays Fee', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
-      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
-        operations: [
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
-              ask_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
-            },
-          },
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
-              ask_asset_info: { token: { contract_addr: mockUstr } },
-            },
-          },
-        ],
-        needsWrapInput: true,
-        needsUnwrapOutput: false,
-      })
-      vi.mocked(simulateNativeSwap).mockResolvedValue({
-        amount: '990000',
-        isDirectWrapUnwrap: false,
-        routerMinReceiveBase: '990000',
-      })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair_clunc_ust1',
-            liquidity_token: 'terra1lp1',
-            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: 'terra1ust1_mock' } }],
-          },
-          {
-            contract_addr: 'terra1pair_ust1_ustr',
-            liquidity_token: 'terra1lp2',
-            asset_infos: [{ token: { contract_addr: 'terra1ust1_mock' } }, { token: { contract_addr: mockUstr } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-      const feeHint = await screen.findByTestId('swap-network-fee')
-      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
-      expect(feeHint).toHaveTextContent('LUNC')
-      expect(feeHint).not.toHaveTextContent('USTC')
-      expect(feeHint).not.toHaveTextContent('uluna')
-      expect(feeHint.textContent?.split(/\s+/).length ?? 99).toBeLessThan(12)
-
-      const ammFee = screen.queryByTestId('swap-fee-row')
-      if (ammFee) {
-        expect(ammFee).toHaveTextContent(/^Fee/)
-        expect(ammFee).not.toHaveTextContent(/Network fee/i)
-      }
-    })
-
-    it('4-hop hybrid-first indexer quote shows ~192 LUNC Network fee, not ~108 (#679)', async () => {
-      const user = userEvent.setup()
-      const terraA = 'terra1aa0000000000000000000000000000000001'
-      const terraB = 'terra1bb0000000000000000000000000000000001'
-      const terraC = 'terra1cc0000000000000000000000000000000001'
-      const terraD = 'terra1dd0000000000000000000000000000000001'
-      const terraE = 'terra1ee0000000000000000000000000000000001'
-      const hop1Hybrid = {
-        pool_input: '0',
-        book_input: '1000000',
-        max_maker_fills: 8,
-        book_start_hint: 1426,
-      }
-      const fourHop = [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-            hybrid: hop1Hybrid,
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraB } },
-            ask_asset_info: { token: { contract_addr: terraC } },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraC } },
-            ask_asset_info: { token: { contract_addr: terraD } },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraD } },
-            ask_asset_info: { token: { contract_addr: terraE } },
-          },
-        },
-      ]
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
-      vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
-      vi.mocked(findRoute).mockReturnValue(fourHop as never)
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair_ab',
-            liquidity_token: 'terra1lp1',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-          {
-            contract_addr: 'terra1pair_bc',
-            liquidity_token: 'terra1lp2',
-            asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
-          },
-          {
-            contract_addr: 'terra1pair_cd',
-            liquidity_token: 'terra1lp3',
-            asset_infos: [{ token: { contract_addr: terraC } }, { token: { contract_addr: terraD } }],
-          },
-          {
-            contract_addr: 'terra1pair_de',
-            liquidity_token: 'terra1lp4',
-            asset_infos: [{ token: { contract_addr: terraD } }, { token: { contract_addr: terraE } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraE, terraB, terraC, terraD])
-      vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-        token_in: terraA,
-        token_out: terraE,
-        hops: [
-          { offer_token: terraA, ask_token: terraB },
-          { offer_token: terraB, ask_token: terraC },
-          { offer_token: terraC, ask_token: terraD },
-          { offer_token: terraD, ask_token: terraE },
-        ],
-        router_operations: fourHop,
-        quote_kind: 'indexer_hybrid_lcd',
-        estimated_amount_out: '1000000',
-        intermediate_tokens: [terraA, terraB, terraC, terraD, terraE],
-      })
-      vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-      await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled(), { timeout: 8000 })
-      const feeHint = await screen.findByTestId('swap-network-fee')
-      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
-      expect(feeHint).toHaveTextContent('LUNC')
-      expect(feeHint).not.toHaveTextContent(/~107/)
-      expect(feeHint).not.toHaveTextContent(/~108/)
-      await waitFor(() => expect(feeHint).toHaveTextContent(/~192/), { timeout: 8000 })
-      const route = await screen.findByTestId('swap-route-summary')
-      expect(route.textContent ?? '').toMatch(/→/)
-      expect((route.textContent ?? '').split('→').length).toBeGreaterThanOrEqual(4)
-    })
-
-    it('USTC→USTR wrap+2hop shows LUNC Network fee and gates on bank LUNC not USTC (#1264)', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
-      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
-        operations: [
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: MOCK_USTC_C } },
-              ask_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
-            },
-          },
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
-              ask_asset_info: { token: { contract_addr: mockUstr } },
-            },
-          },
-        ],
-        needsWrapInput: true,
-        needsUnwrapOutput: false,
-      })
-      vi.mocked(simulateNativeSwap).mockResolvedValue({
-        amount: '990000',
-        isDirectWrapUnwrap: false,
-        routerMinReceiveBase: '990000',
-      })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair_custc_ust1',
-            liquidity_token: 'terra1lp1',
-            asset_infos: [{ token: { contract_addr: MOCK_USTC_C } }, { token: { contract_addr: 'terra1ust1_mock' } }],
-          },
-          {
-            contract_addr: 'terra1pair_ust1_ustr',
-            liquidity_token: 'terra1lp2',
-            asset_infos: [{ token: { contract_addr: 'terra1ust1_mock' } }, { token: { contract_addr: mockUstr } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uusd', mockUstr])
-      vi.mocked(getTokenBalance).mockImplementation(async (_addr, asset) => {
-        if (asset && 'native_token' in asset && asset.native_token.denom === 'uluna') {
-          return '1000'
-        }
-        return '10000000000'
-      })
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-      const feeHint = await screen.findByTestId('swap-network-fee')
-      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
-      expect(feeHint).toHaveTextContent('LUNC')
-      expect(feeHint).not.toHaveTextContent('USTC')
-
-      const cta = await screen.findByRole('button', { name: /Need ~.*LUNC for network fee/i })
-      expect(cta).toBeDisabled()
-    })
-  })
-
-  describe('pair pause disabled swap CTA (SEC-B05 / GitLab #395)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    const terraA = 'terra1from00000000000000000000000000000001'
-    const terraB = 'terra1to00000000000000000000000000000001'
-
-    async function renderConnectedDirectSwap() {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-      return { user }
-    }
-
-    it('shows pause banner and disables swap submit when route pair is paused', async () => {
-      vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
-      await renderConnectedDirectSwap()
-
-      expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(/Pair paused/i)
-      expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
-    })
-
-    it('shows freeze banner and disables swap submit when route pair is code-id frozen (GitLab #585)', async () => {
-      vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
-      await renderConnectedDirectSwap()
-
-      expect(await screen.findByTestId('swap-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
-      expect(screen.getByRole('button', { name: 'Market frozen' })).toBeDisabled()
-    })
-  })
-
-  describe('swap pre-sign confirmation panel (GitLab #409 / SEC-D11)', () => {
-    it('shows labeled action, pair, amounts, max spread, min return, and chain before wallet signing', async () => {
-      const user = userEvent.setup()
-      const wallet = 'terra1wallet000000000000000000000000000001'
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'keplr', error: null })
-      const terraA = 'terra1from00000000000000000000000000000001'
-      const terraB = 'terra1to00000000000000000000000000000001'
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
-      vi.mocked(findRoute).mockReturnValue([
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: terraA } },
-            ask_asset_info: { token: { contract_addr: terraB } },
-          },
-        },
-      ] as never)
-      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
-      vi.mocked(simulateSwap).mockResolvedValue({
-        return_amount: '1000000',
-        spread_amount: '100',
-        commission_amount: '3000',
-      })
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-      expect(await screen.findByTestId('swap-pre-submit-summary')).toBeInTheDocument()
-      expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Swap')
-      expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
-      expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
-      expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
-      expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
-      expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
-      expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
-    })
-  })
-
-  describe('wrap-enter GET /route/solve (#1218)', () => {
-    const wallet = 'terra1wallet000000000000000000000000000001'
-    const mockUstr = 'terra1ustr_mock_address_for_testing_xxxx'
-    const mockCustc = 'terra1ustc_c_mock_for_1218_testingxxxx'
-    const mockUst1 = 'terra1ust1_mock_for_1218_testingxxxxxx'
-
-    it('keeps a wrapped route validation rejection closed before native fallback (#1390)', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(netCw20AfterNativeWrap).mockResolvedValue(980000n)
-      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
-        operations: [
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
-              ask_asset_info: { token: { contract_addr: mockUstr } },
-            },
-          },
-        ],
-        needsWrapInput: true,
-        needsUnwrapOutput: false,
-      })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair_clunc_ustr',
-            liquidity_token: 'terra1lp1',
-            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: mockUstr } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-      vi.mocked(simulateNativeSwap).mockClear().mockResolvedValue({
-        amount: '50000000',
-        isDirectWrapUnwrap: false,
-        routerMinReceiveBase: '50000000',
-      })
-      vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(
-        new Error('Indexer API error: 422 Unprocessable Entity')
-      )
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-      await waitFor(() =>
-        expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(MOCK_LUNC_C, mockUstr, '980000', expect.any(Object))
-      )
-      expect(await screen.findByTestId('swap-quote-retry-error')).toHaveTextContent(/Route validation rejected/)
-      expect(screen.getByRole('button', { name: 'Quote unavailable' })).toBeDisabled()
-      expect(simulateNativeSwap).not.toHaveBeenCalled()
-    })
-
-    it('quotes LUNC→USTR via getRouteSolve(cLUNC) and submits those hops (P1/P2)', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
-      vi.mocked(netCw20AfterNativeWrap).mockResolvedValue(980000n)
-      const solverOps = [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
-            ask_asset_info: { token: { contract_addr: mockCustc } },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: mockCustc } },
-            ask_asset_info: { token: { contract_addr: mockUst1 } },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: mockUst1 } },
-            ask_asset_info: { token: { contract_addr: mockUstr } },
-          },
-        },
-      ]
-      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
-        operations: [
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
-              ask_asset_info: { token: { contract_addr: mockUst1 } },
-            },
-          },
-          {
-            terra_swap: {
-              offer_asset_info: { token: { contract_addr: mockUst1 } },
-              ask_asset_info: { token: { contract_addr: mockUstr } },
-            },
-          },
-        ],
-        needsWrapInput: true,
-        needsUnwrapOutput: false,
-      })
-      vi.mocked(simulateNativeSwap).mockResolvedValue({
-        amount: '50',
-        isDirectWrapUnwrap: false,
-        routerMinReceiveBase: '50',
-      })
-      vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '48400000' })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair_clunc_ust1',
-            liquidity_token: 'terra1lp1',
-            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: mockUst1 } }],
-          },
-          {
-            contract_addr: 'terra1pair_ust1_ustr',
-            liquidity_token: 'terra1lp2',
-            asset_infos: [{ token: { contract_addr: mockUst1 } }, { token: { contract_addr: mockUstr } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-      vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
-        token_in: MOCK_LUNC_C,
-        token_out: mockUstr,
-        hops: [
-          { offer_token: MOCK_LUNC_C, ask_token: mockCustc },
-          { offer_token: mockCustc, ask_token: mockUst1 },
-          { offer_token: mockUst1, ask_token: mockUstr },
-        ],
-        router_operations: solverOps,
-        quote_kind: 'indexer_pool_db',
-        estimated_amount_out: '48400000',
-        intermediate_tokens: [MOCK_LUNC_C, mockCustc, mockUst1, mockUstr],
-      })
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-
-      await waitFor(() => {
-        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
-      })
-      const solveArgs = vi.mocked(indexerClient.getRouteSolve).mock.calls[0]
-      expect(solveArgs[0]).toBe(MOCK_LUNC_C)
-      expect(solveArgs[1]).toBe(mockUstr)
-      expect(solveArgs[2]).toBe('980000')
-
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-      await user.click(screen.getByRole('button', { name: /^Swap$/i }))
-      await waitFor(() => expect(executeNativeSwap).toHaveBeenCalled())
-      const execArgs = vi.mocked(executeNativeSwap).mock.calls[0]
-      expect(execArgs[1]).toBe('uluna')
-      expect(execArgs[2]).toBe(mockUstr)
-      const submittedOps = execArgs[8] as typeof solverOps
-      expect(submittedOps).toHaveLength(3)
-      expect(submittedOps[0].terra_swap.ask_asset_info).toEqual({ token: { contract_addr: mockCustc } })
-    })
-
-    it('does not call /route/solve for direct LUNC→cLUNC wrap (P4)', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
-      vi.mocked(isDirectWrapUnwrap).mockImplementation((from, to) => {
-        if (from === 'uluna' && to === MOCK_LUNC_C) return 'wrap'
-        return null
-      })
-      vi.mocked(simulateNativeSwap).mockResolvedValue({ amount: '990000', isDirectWrapUnwrap: true })
-      vi.mocked(getAllPairsPaginated).mockResolvedValue({
-        pairs: [
-          {
-            contract_addr: 'terra1pair00000000000000000000000000000001',
-            liquidity_token: 'terra1lp000000000000000000000000000000001',
-            asset_infos: [{ token: { contract_addr: 'uluna' } }, { token: { contract_addr: MOCK_LUNC_C } }],
-          },
-        ],
-      })
-      vi.mocked(getAllTokens).mockReturnValue(['uluna', MOCK_LUNC_C])
-      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
-      const solveSpy = vi.spyOn(indexerClient, 'getRouteSolve')
-
-      renderWithProviders(<SwapPage />)
-      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-      await waitFor(() => expect(screen.getByRole('button', { name: /^Wrap$/i })).toBeEnabled())
-      expect(solveSpy).not.toHaveBeenCalled()
     })
   })
 })

@@ -1,0 +1,135 @@
+{
+  "recorded_at": "2026-10-09T09:18:28.444Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected; no broadcast; not production reference evidence",
+  "measurement": "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows"
+  ],
+  "quote_requests": 44,
+  "provider_requests": 0,
+  "receipts": [
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "initialization_ms": 4505,
+      "samples_ms": [
+        73.7,
+        51,
+        62,
+        90.7,
+        41,
+        43.8,
+        42.8,
+        40.3,
+        39.7,
+        39
+      ],
+      "p50_ms": 42.8,
+      "p95_ms": 90.7,
+      "max_ms": 90.7,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "initialization_ms": 4120,
+      "samples_ms": [
+        33.9,
+        34.7,
+        34.7,
+        34.2,
+        32.9,
+        34.4,
+        33.2,
+        34.5,
+        33.2,
+        32.6
+      ],
+      "p50_ms": 33.9,
+      "p95_ms": 34.7,
+      "max_ms": 34.7,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    },
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "initialization_ms": 1806,
+      "samples_ms": [
+        44.6,
+        51.3,
+        41.7,
+        36.9,
+        35,
+        44.4,
+        42.5,
+        36.9,
+        48.7,
+        45.7
+      ],
+      "p50_ms": 42.5,
+      "p95_ms": 51.3,
+      "max_ms": 51.3,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "initialization_ms": 1861,
+      "samples_ms": [
+        37.6,
+        34.3,
+        34.6,
+        34.2,
+        32.2,
+        33.1,
+        37.9,
+        32.4,
+        36.2,
+        34.8
+      ],
+      "p50_ms": 34.3,
+      "p95_ms": 37.9,
+      "max_ms": 37.9,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    }
+  ],
+  "evidence_retention": "All sample durations/distributions, initialization and counters retained; detailed traces retained for >=250ms failures only. Latest browser-controlled.json retains full successful trace."
+}

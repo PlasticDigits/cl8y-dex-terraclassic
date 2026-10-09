@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## Local swap quotes
+
+For route selection, quote latency/caching, reference pricing, refresh/preflight
+or signing, follow [LQ1452-1–LQ1452-10](skills/AGENTS_LOCAL_SWAP_QUOTES.md)
+([#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452)).
+Run `make verify-issue-1452`; use the
+[agent checklist and explicit skip policy](docs/qa/issue-1452/README.md).
+Requests must never trigger chain polling or network validation; independently
+scheduled ingestion owns observations. Unsupported cached semantics fail closed.
+Executed failures stay FAIL; unavailable checks may be explicit skips with
+PASS WITH SKIPS, without claiming complete deployed acceptance.
+
 ## DeFiLlama live reconciliation
 
 For DeFiLlama volume/fees/history/TVL drift, apply

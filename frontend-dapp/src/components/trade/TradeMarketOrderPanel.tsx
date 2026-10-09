@@ -1,7 +1,47 @@
-import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
-import { useMemo, useState, useId, useLayoutEffect } from 'react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { slippagePercentToMaxSpread } from '@/utils/slippageConstraint'
+import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
+import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
+import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
+import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
+import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
+import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
+import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/components/trade/TradeTicketSubmitFooter'
+import { Spinner } from '@/components/ui'
+import { useAssetDecimals } from '@/hooks/useAssetDecimals'
+import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
+import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
+import { useRouterTaxFunding } from '@/hooks/useRouterTaxFunding'
+import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
+import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
+import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
+import { LocalQuoteTokenMetadata } from '@/hooks/useTokenDisplayInfo'
+import { useWalletStore } from '@/hooks/useWallet'
+import { sounds } from '@/lib/sounds'
+import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
+import { estimateSwapNetworkFee, estimateTradeMarketNetworkFeeUluna } from '@/services/terraclassic/swapNetworkFee'
+import { type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import { hybridFromSingleHopIndexerOps } from '@/services/terraclassic/swapRouting'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import { useDexStore } from '@/stores/dex'
+import { assetInfoLabel, type HybridSwapParams, type IndexerRouteQuoteKind, type PairInfo } from '@/types'
+import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
+import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
+import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
+import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY, quoteDisclosureForIndexerKind } from '@/utils/directHybridQuote'
+import { formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
+import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import {
+  evaluateLimitOrderEscrowPlaceGate,
+  LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT,
+} from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
+import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import {
   assertSubmitHybridAligned,
   assertSubmitQuotePayRawAligned,
@@ -9,68 +49,12 @@ import {
   SIM_QUOTE_DEBOUNCE_MS,
   simQuoteRefetchInterval,
 } from '@/utils/quoteDebounce'
-import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
-import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
-import { useWalletStore } from '@/hooks/useWallet'
-import { useDexStore } from '@/stores/dex'
-import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
-import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
-import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { simulateSwap, swap } from '@/services/terraclassic/pair'
-import {
-  computeDirectHybridMinReturn,
-  enrichSwapOperationsWithHopMinReturns,
-  preflightSwapRouteSpread,
-  type SwapRoutePreflightSpread,
-} from '@/services/terraclassic/swapRoutePreflight'
-import { executeMultiHopSwap, simulateMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
-import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
-import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
-import { executeCw20AllowanceThen } from '@/services/terraclassic/transactions'
-import {
-  estimateSwapNetworkFee,
-  estimateTradeMarketNetworkFeeUluna,
-  swapAutoGasProbeEntries,
-} from '@/services/terraclassic/swapNetworkFee'
-import {
-  POOL_ONLY_QUOTE_DISCLOSURE,
-  quoteDirectHybridSwap,
-  quoteDisclosureForIndexerKind,
-  DIRECT_HYBRID_AMOUNT_RECONCILED_COPY,
-} from '@/utils/directHybridQuote'
-import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
-import { isIndexerRouteValidationError } from '@/utils/indexerErrors'
-import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
-import { sounds } from '@/lib/sounds'
-import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
-import { Spinner } from '@/components/ui'
-import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
-import {
-  assetInfoLabel,
-  tokenAssetInfo,
-  type HybridSwapParams,
-  type IndexerRouteQuoteKind,
-  type PairInfo,
-} from '@/types'
-import { useAssetDecimals } from '@/hooks/useAssetDecimals'
-import { toRawAmount, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
-import { isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
-import { impactAsideOutsideDetails, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
-import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
-import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
-import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
-import { acquireGuidanceShowsQuoteOnly, acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
-import { useAutoGasFeeEstimate } from '@/hooks/useAutoGasFeeEstimate'
-import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
-import { LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT } from '@/utils/limitOrderEscrowBalanceGate'
-import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
-import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
-import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
+import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
-import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
-import { useRouterTaxFunding } from '@/hooks/useRouterTaxFunding'
-import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { acquireGuidanceShowsQuoteOnly, acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
+import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
+import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import { impactAsideOutsideDetails, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
@@ -78,18 +62,16 @@ import {
   extraDebitSubmitGate,
   TAX_FUNDING_UNRESOLVED_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
-import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
-import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
-import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
-import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
-import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
-import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
-import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/components/trade/TradeTicketSubmitFooter'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useId, useLayoutEffect, useMemo, useState } from 'react'
 
 interface MarketSimData {
+  executionMetadata?: import('@/types').IndexerRouteExecutionMetadata
+  executionOperations?: string
+  minimumReceive?: string
   return_amount: string
   taxFundingVersion?: 1
   /** Pre-tax wallet sim when `return_amount` is post-buy-split (#615). */
@@ -153,7 +135,7 @@ export function TradeMarketOrderPanel({
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const queryClient = useQueryClient()
-  const { slippageTolerance, setSlippageTolerance, deadlineSeconds } = useDexStore()
+  const { slippageTolerance, setSlippageTolerance, deadlineSeconds, expertMode } = useDexStore()
 
   const bookLegInputId = useId()
   const maxMakersInputId = useId()
@@ -171,15 +153,15 @@ export function TradeMarketOrderPanel({
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const fromToken = side === 'bid' ? token1 : token0
-  const routerTaxFunding = useRouterTaxFunding()
-  const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
+  const routerTaxFunding = useRouterTaxFunding({ enabled: false })
+  const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null, { enabled: false })
   const toToken = side === 'bid' ? token0 : token1
-  const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null)
+  const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null, { enabled: false })
   const payDecimalsState = useAssetDecimals(fromToken, {
-    lcdEnabled: !!fromToken?.startsWith('terra1'),
+    lcdEnabled: false,
   })
   const receiveDecimalsState = useAssetDecimals(toToken, {
-    lcdEnabled: !!toToken?.startsWith('terra1'),
+    lcdEnabled: false,
   })
   const offerDecimals = payDecimalsState.decimals
   const receiveDecimals = receiveDecimalsState.decimals
@@ -209,21 +191,6 @@ export function TradeMarketOrderPanel({
     [fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers, offerDecimals]
   )
   const liveHybrid = hybridParamsFromBookSplit(liveSplit, hybridMaxMakers)
-
-  const debouncedSplit = useMemo(
-    () =>
-      getDirectHybridBookSplit({
-        isDirect: true,
-        fromToken,
-        bookInputHuman: debouncedBookInputHuman,
-        rawInputAmount: debouncedRawInputAmount,
-        hybridMaxMakers: debouncedHybridMaxMakers,
-        payDecimals: offerDecimals,
-      }),
-    [fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers, offerDecimals]
-  )
-  const debouncedHybrid = hybridParamsFromBookSplit(debouncedSplit, debouncedHybridMaxMakers)
-  const debouncedWillSubmitHybrid = !!debouncedSplit?.willSubmitHybrid
 
   const bookLegMaxResult = useMemo(() => {
     if (!escrowBalanceQuery.data || rawInputAmount === '0' || offerDecimals == null) {
@@ -256,7 +223,7 @@ export function TradeMarketOrderPanel({
     ]
   )
 
-  const maxSpreadStr = useMemo(() => (slippageTolerance / 100).toString(), [slippageTolerance])
+  const maxSpreadStr = useMemo(() => slippagePercentToMaxSpread(slippageTolerance), [slippageTolerance])
   const quoteTrader = useMemo(() => (address ? { trader: address } : undefined), [address])
 
   const simQuery = useQuery({
@@ -276,100 +243,23 @@ export function TradeMarketOrderPanel({
     ],
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<MarketSimData> => {
-      if (!selectedPair || debouncedRawInputAmount === '0') throw new Error('missing')
-      const simRaw = debouncedRawInputAmount
-      const offerInfo = tokenAssetInfo(fromToken)
-      const askInfo = tokenAssetInfo(toToken)
-
-      // Advanced: manual book leg overrides indexer GET (same semantics as Swap).
-      if (debouncedHybrid && debouncedWillSubmitHybrid) {
-        if (debouncedSplit?.bookExceedsPay) throw new Error('Book leg cannot exceed pay amount')
-        const quoted = await quoteDirectHybridSwap({
-          pairAddress: selectedPair.contract_addr,
-          fromToken,
-          toToken,
-          offerAssetInfo: offerInfo,
-          askAssetInfo: askInfo,
-          simRaw,
-          hybrid: debouncedHybrid,
-          maxSpreadStr,
-          quoteTrader,
-        })
-        return withBuyTaxReceiveDisplay(
-          {
-            return_amount: quoted.return_amount,
-            taxFundingVersion: quoted.taxFundingVersion,
-            spread_amount: quoted.spread_amount,
-            commission_amount: quoted.commission_amount,
-            quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
-            indexerQuoteKind: quoted.indexerQuoteKind,
-            indexerOperations: quoted.indexerOperations,
-            routePreflight: quoted.routePreflight,
-            indexerAmountReconciled: quoted.indexerAmountReconciled,
-          },
-          taxReceive.buyBps
-        )
+      if (debouncedRawInputAmount === '0') throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+      // Typed book splits require an execution-aligned local mirror; never silently change the plan.
+      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)) {
+        throw new Error('This book split is unavailable. Clear the book leg.')
       }
-
-      // Default (empty manual book): GET /route/solve best-execution split (#501 / #596).
-      if (fromToken.startsWith('terra1') && toToken.startsWith('terra1')) {
-        try {
-          const quoted = await quoteCw20ViaRouteSolve({
-            fromToken,
-            toToken,
-            simRaw,
-            maxMakerFills: debouncedHybridMaxMakers,
-            slippageTolerancePercent: slippageTolerance,
-            maxSpreadStr,
-            quoteTrader,
-            signal,
-          })
-          if (quoted) {
-            return {
-              return_amount: quoted.return_amount,
-              executeAmountOut: quoted.executeAmountOut,
-              taxFundingVersion: quoted.taxFundingVersion,
-              spread_amount: quoted.spread_amount,
-              commission_amount: quoted.commission_amount,
-              quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
-              indexerQuoteKind: quoted.indexerQuoteKind,
-              indexerOperations: quoted.indexerOperations,
-              routePreflight: quoted.routePreflight,
-              routeSlippagePercent: quoted.routeSlippagePercent,
-            }
-          }
-        } catch (error) {
-          if (isIndexerRouteValidationError(error)) throw error
-          /* pool-only fallback below */
-        }
-      }
-
-      if (routerTaxFunding.data === 1) {
-        const operations: SwapOperation[] = [{ terra_swap: { offer_asset_info: offerInfo, ask_asset_info: askInfo } }]
-        const sim = await simulateMultiHopSwap(simRaw, operations, quoteTrader)
-        const routePreflight = await preflightSwapRouteSpread(operations, simRaw, maxSpreadStr, {
-          ...quoteTrader,
-          taxFundingVersion: sim.taxFundingVersion,
-          signal,
-        })
-        return {
-          return_amount: sim.amount,
-          taxFundingVersion: sim.taxFundingVersion,
-          indexerOperations: operations,
-          spread_amount: '0',
-          commission_amount: '0',
-          routePreflight,
-          quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
-        }
-      }
-      const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
-      return withBuyTaxReceiveDisplay(
-        {
-          ...sim,
-          quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
-        },
-        taxReceive.buyBps
-      )
+      const quoted = await quoteCw20ViaRouteSolve({
+        fromToken,
+        toToken,
+        simRaw: debouncedRawInputAmount,
+        maxMakerFills: debouncedHybridMaxMakers,
+        slippageTolerancePercent: slippageTolerance,
+        maxSpreadStr: slippagePercentToMaxSpread(slippageTolerance),
+        quoteTrader,
+        signal,
+      })
+      if (!quoted) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+      return { ...quoted, quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind) }
     },
     enabled:
       decimalsResolved &&
@@ -379,6 +269,8 @@ export function TradeMarketOrderPanel({
       toToken.startsWith('terra1') &&
       debouncedRawInputAmount !== '0',
     // Skip interval while fetching so in-flight quotes are not cancel/restarted (#484).
+    retry: false,
+    refetchOnWindowFocus: false,
     refetchInterval: simQuoteRefetchInterval,
   })
 
@@ -401,7 +293,7 @@ export function TradeMarketOrderPanel({
   const marketSwapFallback = useMemo(() => {
     const ops = simQuery.data?.indexerOperations
     const hybridOn = !!(liveHybrid ?? solverHybridForGas)
-    if (ops && (ops.length >= 2 || simQuery.data?.taxFundingVersion === 1)) {
+    if (ops && (ops.length >= 2 || !!simQuery.data?.executionMetadata || simQuery.data?.taxFundingVersion === 1)) {
       return estimateSwapNetworkFee({
         isDirectWrap: false,
         needsWrapInput: false,
@@ -417,40 +309,15 @@ export function TradeMarketOrderPanel({
       cw20DirectPair: true,
       cw20Hybrid: hybridOn,
     })
-  }, [simQuery.data?.indexerOperations, simQuery.data?.taxFundingVersion, liveHybrid, solverHybridForGas])
-  const marketAutoGasProbe = useMemo(() => {
-    if (!isWalletConnected || !address || !fromToken.startsWith('terra1')) return null
-    const ops = simQuery.data?.indexerOperations
-    const entries = swapAutoGasProbeEntries({
-      hints: {
-        isDirectWrap: false,
-        needsWrapInput: false,
-        hopCount: ops && ops.length >= 2 ? ops.length : 1,
-        taxFundingVersion: simQuery.data?.taxFundingVersion,
-        cw20RouterOperations: ops && (ops.length >= 2 || simQuery.data?.taxFundingVersion === 1) ? ops : undefined,
-        cw20DirectPair: (!ops || ops.length < 2) && simQuery.data?.taxFundingVersion !== 1,
-        cw20Hybrid: !!(liveHybrid ?? solverHybridForGas),
-      },
-      payContract: fromToken,
-      payAmount: rawInputAmount,
-      pairContract: selectedPair?.contract_addr,
-      maxSpread: (slippageTolerance / 100).toString(),
-    })
-    if (!entries) return null
-    return { signer: address, entries }
   }, [
-    isWalletConnected,
-    address,
-    fromToken,
-    rawInputAmount,
-    selectedPair?.contract_addr,
-    slippageTolerance,
     simQuery.data?.indexerOperations,
     simQuery.data?.taxFundingVersion,
+    simQuery.data?.executionMetadata,
     liveHybrid,
     solverHybridForGas,
   ])
-  const marketSwapFee = useAutoGasFeeEstimate(marketSwapFallback, marketAutoGasProbe)
+  const marketSwapFee = marketSwapFallback
+
   const marketGasMin = useMemo(() => {
     const delta = marketSwapFee.feeUluna - marketSwapFallback.feeUluna
     return delta > 0n ? staticMarketGasMin + delta : staticMarketGasMin
@@ -494,6 +361,7 @@ export function TradeMarketOrderPanel({
     worstHopPercent: simQuery.data?.routePreflight?.worstSpreadPercent,
   })
   const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
+  const routeRiskBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
 
   const hybridSubmitSnapshot = useMemo(
     () => ({
@@ -508,7 +376,7 @@ export function TradeMarketOrderPanel({
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
-    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay || theaterRouteQuote,
+    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay || routeRiskBlocked,
     hybrid: {
       enabled: true,
       live: { bookInputHuman, hybridMaxMakers },
@@ -516,7 +384,9 @@ export function TradeMarketOrderPanel({
     },
   })
   const tradeUsesRouter =
-    simData?.taxFundingVersion === 1 || communityTaxExecuteUsesRouter(simData?.indexerOperations?.length)
+    !!simData?.executionMetadata ||
+    simData?.taxFundingVersion === 1 ||
+    communityTaxExecuteUsesRouter(simData?.indexerOperations?.length)
   const communityTaxHint = communityTaxRouteHint({
     payIsTax: taxSell.isTaxToken,
     receiveIsTax: taxReceive.isTaxToken,
@@ -567,6 +437,9 @@ export function TradeMarketOrderPanel({
       if (snapshottedHybrid) {
         assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
       }
+      if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
+        throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+      if (routeRiskBlocked) throw new Error('Slippage is too high')
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived
@@ -588,45 +461,30 @@ export function TradeMarketOrderPanel({
         throw new Error(nativeGate.userMessage)
       }
       const maxSpread = maxSpreadStr
-      const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
       const idxOps = simData.indexerOperations
-      if (swapOpsRequireRouter(idxOps) || (simData.taxFundingVersion === 1 && idxOps?.length)) {
-        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(idxOps!, payRaw, slippageTolerance, {
-          trader: address,
-          taxFundingVersion: simData.taxFundingVersion,
-        })
-        return executeMultiHopSwap(
-          address,
-          fromToken,
-          payRaw,
-          opsForSubmit,
-          maxSpread,
-          submitMinReceived ?? undefined,
-          undefined,
-          deadline
-        )
+      if (!idxOps || !simData.executionMetadata || simData.executionOperations !== JSON.stringify(idxOps)) {
+        throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       }
-      return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, payRaw, async () => {
-        // Prefer solver hybrid from GET quote; Advanced manual split is the fallback (#501).
-        // Cap max_maker_fills like Swap so gas preflight matches the on-chain payload (#249).
-        let hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? debouncedHybrid ?? undefined
-        if (hopHybrid) {
-          hopHybrid = hybridParamsWithSubmitCap(hopHybrid)
-        }
-        const directMinReturn = await computeDirectHybridMinReturn(
-          selectedPair.contract_addr,
-          tokenAssetInfo(fromToken),
-          payRaw,
-          hopHybrid,
-          slippageTolerance,
-          quoteTrader
-        )
-        return swap(address, fromToken, selectedPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
-          hybrid: hopHybrid,
-          minReturn: directMinReturn,
-          deadline,
-        })
-      })
+      assertLocalRouteSubmit(
+        simData.executionMetadata,
+        idxOps,
+        payRaw,
+        maxSpread,
+        address,
+        submitMinReceived ?? undefined
+      )
+      const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
+      return executeMultiHopSwap(
+        address,
+        fromToken,
+        payRaw,
+        idxOps,
+        maxSpread,
+        submitMinReceived ?? undefined,
+        undefined,
+        deadline,
+        simData.executionMetadata
+      )
     },
     onSuccess: () => {
       sounds.playSuccess()
@@ -735,7 +593,7 @@ export function TradeMarketOrderPanel({
             swapMutation.isPending,
             priceImpactTooHigh
               ? 'Hop spread exceeds slippage protection'
-              : theaterRouteQuote
+              : routeRiskBlocked
                 ? 'Slippage is too high'
                 : liveSplit?.bookExceedsPay
                   ? 'Book leg exceeds pay'
@@ -794,258 +652,265 @@ export function TradeMarketOrderPanel({
   if (!selectedPair) return null
 
   return (
-    <div className="space-y-3">
-      <LimitOrderEscrowAmountField
-        compact
-        escrowLabel={getTokenDisplaySymbol(fromToken || '—')}
-        escrowDecimals={offerDecimals}
-        amountHuman={marketAmountHuman}
-        onAmountChange={setMarketAmountHuman}
-        balanceQuery={escrowBalanceQuery}
-        onMax={setMarketAmountHuman}
-        walletConnected={isWalletConnected}
-        maxContext="market_swap"
-        assetIsNativeUluna={fromToken === 'uluna'}
-        marketUsesHybrid={true}
-        extraDebitSellBps={extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter || routerTaxFunding.data === 1)}
-      />
-      {communityTaxHint && (
-        <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }} data-testid="trade-sell-tax-extra">
-          {communityTaxHint}
-        </p>
-      )}
+    <LocalQuoteTokenMetadata.Provider value={true}>
+      <div className="space-y-3">
+        <LimitOrderEscrowAmountField
+          compact
+          escrowLabel={getTokenDisplaySymbol(fromToken || '—')}
+          escrowDecimals={offerDecimals}
+          amountHuman={marketAmountHuman}
+          onAmountChange={setMarketAmountHuman}
+          balanceQuery={escrowBalanceQuery}
+          onMax={setMarketAmountHuman}
+          walletConnected={isWalletConnected}
+          maxContext="market_swap"
+          assetIsNativeUluna={fromToken === 'uluna'}
+          marketUsesHybrid={true}
+          extraDebitSellBps={extraDebitSellBpsForExecute(
+            taxSell.sellBps,
+            tradeUsesRouter || routerTaxFunding.data === 1
+          )}
+        />
+        {communityTaxHint && (
+          <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }} data-testid="trade-sell-tax-extra">
+            {communityTaxHint}
+          </p>
+        )}
 
-      {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
-        <div
-          className="flex items-center gap-2 text-[10px]"
-          style={{ color: 'var(--ink-dim)' }}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-testid="trade-market-quoting"
-        >
-          <Spinner />
-          Quoting…
-        </div>
-      )}
-      {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
-        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
-          {humanizeUserFacingErrorFromUnknown(simQuery.error)}
-        </p>
-      )}
-      {liveSplit?.bookExceedsPay && (
-        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
-          Book leg cannot exceed pay amount
-        </p>
-      )}
-      {simQuery.data && rawInputAmount !== '0' && (
-        <div className="flex justify-between gap-2 text-[10px]" data-testid="trade-market-quote">
-          <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
-          <span className="font-mono text-right" data-testid="trade-market-expected-receive">
-            {showReceiveCalculating ? (
-              <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
-                Quoting…
-              </span>
-            ) : (
-              <>
-                {receiveHuman} {getTokenDisplaySymbol(toToken)}
-              </>
-            )}
-          </span>
-        </div>
-      )}
-      {showQuoteOnly && simQuery.data && rawInputAmount !== '0' && (
-        <p data-testid="trade-market-quote-only" className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
-          Quote only
-        </p>
-      )}
-
-      <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
-        <button
-          type="button"
-          className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-left w-full"
-          style={{ color: 'var(--cyan)' }}
-          data-testid="trade-market-advanced-toggle"
-          aria-expanded={advancedOpen}
-          onClick={() => setAdvancedOpen((o) => !o)}
-        >
-          Advanced
-        </button>
-        {advancedOpen && (
-          <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
-            <SlippageProtectionPresets
-              selectedPercent={slippageTolerance}
-              onSelect={(v) => {
-                sounds.playButtonPress()
-                setSlippageTolerance(v)
-              }}
-              chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
-              groupTestId="trade-market-slippage-presets"
-              presetTestIdPrefix="trade-market-slippage-preset-"
-              labelClassName="text-[10px]"
-              labelStyle={{ color: 'var(--ink-dim)' }}
-              showColon
-            />
-            <div className="space-y-2">
-              <p
-                className="text-[10px] leading-snug"
-                style={{ color: 'var(--ink-dim)' }}
-                data-testid="trade-market-hybrid-min-return-notice"
-              >
-                Quotes always use the indexer solver for a price-optimal split. Type a book leg only to override. Min
-                return applies to the combined payout.
-              </p>
-              <div>
-                <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
-                  Book leg override ({getTokenDisplaySymbol(fromToken)})
-                </label>
-                <input
-                  id={bookLegInputId}
-                  type="text"
-                  inputMode="decimal"
-                  className="input-glass !text-xs w-full font-mono"
-                  value={bookInputHuman}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    if (isDecimalAmountDraft(v)) setBookInputHuman(v)
-                  }}
-                  placeholder="0.0"
-                  data-testid="trade-market-book-leg-input"
-                />
-                {isWalletConnected && fromToken.startsWith('terra1') && offerDecimals != null && (
-                  <AmountBalanceActions
-                    balanceQuery={escrowBalanceQuery}
-                    decimals={offerDecimals}
-                    walletConnected={isWalletConnected}
-                    compact
-                    spendableRaw={bookLegMaxResult.spendableRaw}
-                    onMax={() => setBookInputHuman(bookLegMaxResult.human)}
-                    testIdMax="trade-market-book-leg-max"
-                  />
-                )}
-              </div>
-              <div>
-                <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
-                  Max makers
-                  <span
-                    className="ml-1 cursor-help opacity-70"
-                    title="Caps resting limits one swap can fill; remainder goes to the pool."
-                  >
-                    ⓘ
-                  </span>
-                </label>
-                <input
-                  id={maxMakersInputId}
-                  type="number"
-                  className="input-glass !text-xs w-full"
-                  min={1}
-                  max={256}
-                  value={hybridMaxMakers}
-                  onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
-                  data-testid="trade-market-max-makers"
-                />
-              </div>
-            </div>
-            {simQuery.data && rawInputAmount !== '0' && (
-              <div className="space-y-1 text-[10px]" data-testid="trade-market-quote-extras">
-                {!showQuoteOnly && (
-                  <div className="flex justify-between gap-2">
-                    <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
-                    <span className="font-mono text-right">
-                      {showReceiveCalculating ? (
-                        <span style={{ color: 'var(--ink-subtle)' }}>—</span>
-                      ) : (
-                        <>
-                          {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                )}
-                <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
-                {simQuery.data.indexerAmountReconciled && (
-                  <p
-                    data-testid="trade-market-amount-reconciled"
-                    style={{ color: 'var(--color-warning, #f59e0b)' }}
-                    role="status"
-                  >
-                    {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
-                  </p>
-                )}
-                {indexerHybridExec.show && (
-                  <div className="pt-1 border-t border-white/10">
-                    <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
-                    <p
-                      style={{ color: indexerHybridExec.degraded ? 'var(--color-warning, #f59e0b)' : 'var(--ink-dim)' }}
-                    >
-                      {indexerHybridExec.line}
-                    </p>
-                  </div>
-                )}
-                {marketImpactAside?.kind === 'route' ? (
-                  <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
-                    Expected slippage {marketImpactAside.percent}%.
-                  </p>
-                ) : marketImpactAside?.kind === 'worst_hop' ? (
-                  <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
-                    Worst hop spread (sim): {marketImpactAside.percent}%
-                  </p>
-                ) : null}
-                <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
-                {marketRouteLine && (
-                  <div
-                    data-testid="trade-market-route-summary"
-                    className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
-                    style={{ color: 'var(--ink-dim)' }}
-                  >
-                    <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
-                    <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
-              <SwapPreSubmitSummary
-                actionLabel="Market swap"
-                offerSymbol={getTokenDisplaySymbol(fromToken)}
-                receiveSymbol={getTokenDisplaySymbol(toToken)}
-                offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
-                receiveAmountHuman={
-                  !theaterRouteQuote && simData?.return_amount && receiveDecimals != null
-                    ? fromRawAmount(simData.return_amount, receiveDecimals)
-                    : '—'
-                }
-                maxSpreadPercent={slippageTolerance}
-                minReceiveHuman={
-                  !showQuoteOnly && !theaterRouteQuote && minReceived && receiveDecimals != null
-                    ? fromRawAmount(minReceived, receiveDecimals)
-                    : null
-                }
-                pairContractAddresses={marketPairContractAddresses}
-                chainFullLabel={getNetworkBadgeCopy().fullLabel}
-                data-testid="trade-market-pre-submit-summary"
-              />
-            )}
+        {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
+          <div
+            className="flex items-center gap-2 text-[10px]"
+            style={{ color: 'var(--ink-dim)' }}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-testid="trade-market-quoting"
+          >
+            <Spinner />
+            Quoting…
           </div>
         )}
-      </div>
+        {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
+          <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
+            {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+          </p>
+        )}
+        {liveSplit?.bookExceedsPay && (
+          <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
+            Book leg cannot exceed pay amount
+          </p>
+        )}
+        {simQuery.data && rawInputAmount !== '0' && (
+          <div className="flex justify-between gap-2 text-[10px]" data-testid="trade-market-quote">
+            <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
+            <span className="font-mono text-right" data-testid="trade-market-expected-receive">
+              {showReceiveCalculating ? (
+                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                  Quoting…
+                </span>
+              ) : (
+                <>
+                  {receiveHuman} {getTokenDisplaySymbol(toToken)}
+                </>
+              )}
+            </span>
+          </div>
+        )}
+        {showQuoteOnly && simQuery.data && rawInputAmount !== '0' && (
+          <p data-testid="trade-market-quote-only" className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
+            Quote only
+          </p>
+        )}
 
-      <SwapPayAcquireGuidanceBanner
-        guidance={payAcquireGuidance}
-        testIdPrefix="trade-market"
-        hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
-        onReduce={(human) => setMarketAmountHuman(human)}
-      />
-      <LimitOrderEscrowPlaceGuardMessage
-        gate={
-          payAcquireGuidance.kind.startsWith('insufficient') &&
-          inlineGate.userMessage === LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT
-            ? { ...inlineGate, userMessage: null }
-            : inlineGate
-        }
-        data-testid="trade-market-place-guard"
-      />
-      {!dockSubmit && <TradeMarketSubmitChrome model={submitChromeModel} />}
-    </div>
+        <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
+          <button
+            type="button"
+            className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-left w-full"
+            style={{ color: 'var(--cyan)' }}
+            data-testid="trade-market-advanced-toggle"
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((o) => !o)}
+          >
+            Advanced
+          </button>
+          {advancedOpen && (
+            <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
+              <SlippageProtectionPresets
+                selectedPercent={slippageTolerance}
+                onSelect={(v) => {
+                  sounds.playButtonPress()
+                  setSlippageTolerance(v)
+                }}
+                chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
+                groupTestId="trade-market-slippage-presets"
+                presetTestIdPrefix="trade-market-slippage-preset-"
+                labelClassName="text-[10px]"
+                labelStyle={{ color: 'var(--ink-dim)' }}
+                showColon
+              />
+              <div className="space-y-2">
+                <p
+                  className="text-[10px] leading-snug"
+                  style={{ color: 'var(--ink-dim)' }}
+                  data-testid="trade-market-hybrid-min-return-notice"
+                >
+                  Quotes always use the indexer solver for a price-optimal split. Type a book leg only to override. Min
+                  return applies to the combined payout.
+                </p>
+                <div>
+                  <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
+                    Book leg override ({getTokenDisplaySymbol(fromToken)})
+                  </label>
+                  <input
+                    id={bookLegInputId}
+                    type="text"
+                    inputMode="decimal"
+                    className="input-glass !text-xs w-full font-mono"
+                    value={bookInputHuman}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (isDecimalAmountDraft(v)) setBookInputHuman(v)
+                    }}
+                    placeholder="0.0"
+                    data-testid="trade-market-book-leg-input"
+                  />
+                  {isWalletConnected && fromToken.startsWith('terra1') && offerDecimals != null && (
+                    <AmountBalanceActions
+                      balanceQuery={escrowBalanceQuery}
+                      decimals={offerDecimals}
+                      walletConnected={isWalletConnected}
+                      compact
+                      spendableRaw={bookLegMaxResult.spendableRaw}
+                      onMax={() => setBookInputHuman(bookLegMaxResult.human)}
+                      testIdMax="trade-market-book-leg-max"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
+                    Max makers
+                    <span
+                      className="ml-1 cursor-help opacity-70"
+                      title="Caps resting limits one swap can fill; remainder goes to the pool."
+                    >
+                      ⓘ
+                    </span>
+                  </label>
+                  <input
+                    id={maxMakersInputId}
+                    type="number"
+                    className="input-glass !text-xs w-full"
+                    min={1}
+                    max={256}
+                    value={hybridMaxMakers}
+                    onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
+                    data-testid="trade-market-max-makers"
+                  />
+                </div>
+              </div>
+              {simQuery.data && rawInputAmount !== '0' && (
+                <div className="space-y-1 text-[10px]" data-testid="trade-market-quote-extras">
+                  {!showQuoteOnly && (
+                    <div className="flex justify-between gap-2">
+                      <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
+                      <span className="font-mono text-right">
+                        {showReceiveCalculating ? (
+                          <span style={{ color: 'var(--ink-subtle)' }}>—</span>
+                        ) : (
+                          <>
+                            {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
+                  {simQuery.data.indexerAmountReconciled && (
+                    <p
+                      data-testid="trade-market-amount-reconciled"
+                      style={{ color: 'var(--color-warning, #f59e0b)' }}
+                      role="status"
+                    >
+                      {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
+                    </p>
+                  )}
+                  {indexerHybridExec.show && (
+                    <div className="pt-1 border-t border-white/10">
+                      <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
+                      <p
+                        style={{
+                          color: indexerHybridExec.degraded ? 'var(--color-warning, #f59e0b)' : 'var(--ink-dim)',
+                        }}
+                      >
+                        {indexerHybridExec.line}
+                      </p>
+                    </div>
+                  )}
+                  {marketImpactAside?.kind === 'route' ? (
+                    <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
+                      Expected slippage {marketImpactAside.percent}%.
+                    </p>
+                  ) : marketImpactAside?.kind === 'worst_hop' ? (
+                    <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
+                      Worst hop spread (sim): {marketImpactAside.percent}%
+                    </p>
+                  ) : null}
+                  <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
+                  {marketRouteLine && (
+                    <div
+                      data-testid="trade-market-route-summary"
+                      className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
+                      <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
+                <SwapPreSubmitSummary
+                  actionLabel="Market swap"
+                  offerSymbol={getTokenDisplaySymbol(fromToken)}
+                  receiveSymbol={getTokenDisplaySymbol(toToken)}
+                  offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
+                  receiveAmountHuman={
+                    !theaterRouteQuote && simData?.return_amount && receiveDecimals != null
+                      ? fromRawAmount(simData.return_amount, receiveDecimals)
+                      : '—'
+                  }
+                  maxSpreadPercent={slippageTolerance}
+                  minReceiveHuman={
+                    !showQuoteOnly && !theaterRouteQuote && minReceived && receiveDecimals != null
+                      ? fromRawAmount(minReceived, receiveDecimals)
+                      : null
+                  }
+                  pairContractAddresses={marketPairContractAddresses}
+                  chainFullLabel={getNetworkBadgeCopy().fullLabel}
+                  data-testid="trade-market-pre-submit-summary"
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        <SwapPayAcquireGuidanceBanner
+          guidance={payAcquireGuidance}
+          testIdPrefix="trade-market"
+          hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
+          onReduce={(human) => setMarketAmountHuman(human)}
+        />
+        <LimitOrderEscrowPlaceGuardMessage
+          gate={
+            payAcquireGuidance.kind.startsWith('insufficient') &&
+            inlineGate.userMessage === LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT
+              ? { ...inlineGate, userMessage: null }
+              : inlineGate
+          }
+          data-testid="trade-market-place-guard"
+        />
+        {!dockSubmit && <TradeMarketSubmitChrome model={submitChromeModel} />}
+      </div>
+    </LocalQuoteTokenMetadata.Provider>
   )
 }

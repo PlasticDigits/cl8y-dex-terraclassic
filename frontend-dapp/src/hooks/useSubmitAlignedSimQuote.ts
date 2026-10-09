@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
-import type { UseQueryResult } from '@tanstack/react-query'
-import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import {
   buildSubmitAlignedSimPayload,
   isSubmitQuoteStale,
   type SubmitAlignedSimPayload,
   type SubmitHybridSnapshot,
 } from '@/utils/quoteDebounce'
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 export type SubmitAlignedSimQuote<T extends { return_amount: string }> = {
   /** Raw pay amount aligned with the debounced sim query key — use for on-chain submit. */
@@ -54,7 +54,8 @@ export function useSubmitAlignedSimQuote<T extends { return_amount: string; inde
     hybrid
   )
 
-  const simData = simQuery.isError ? undefined : simQuery.data
+  // Retain the last useful same-key baseline on refresh failure; isError still blocks submit.
+  const simData = simQuery.data
 
   const submitPayload = useMemo(
     () =>

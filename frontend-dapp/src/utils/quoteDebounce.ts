@@ -1,5 +1,5 @@
 /** Debounce before swap / market sim queries fire (GitLab #346). */
-export const SIM_QUOTE_DEBOUNCE_MS = 350
+export const SIM_QUOTE_DEBOUNCE_MS = 25
 
 /**
  * Periodic sim refresh interval (Swap + Trade market).
@@ -104,6 +104,8 @@ export function assertSubmitHybridAligned(live: SubmitHybridSnapshot, snapshotte
 
 export type SubmitSimQuoteFields = {
   return_amount: string
+  /** Stronger snapshot/receive-target floor from the same executable quote. */
+  minimumReceive?: string
   indexerOperations?: unknown
   executeAmountOut?: string
 }
@@ -127,9 +129,19 @@ export function buildSubmitAlignedSimPayload<T extends SubmitSimQuoteFields>(
   slippageTolerance: number,
   applySlippageFloor: (returnAmount: string, slippagePct: number) => string | null
 ): SubmitAlignedSimPayload<T> {
+  const computed = applySlippageFloor(submitMinReceiveBase(simData), slippageTolerance)
+  const quoted = simData.minimumReceive
+  const minReceived =
+    quoted != null &&
+    quoted.length <= 39 &&
+    /^\d+$/.test(quoted) &&
+    BigInt(quoted) > 0n &&
+    (computed == null || BigInt(quoted) > BigInt(computed))
+      ? quoted
+      : computed
   return {
     payRaw,
-    minReceived: applySlippageFloor(submitMinReceiveBase(simData), slippageTolerance),
+    minReceived,
     simData,
     indexerOperations: simData.indexerOperations,
   }

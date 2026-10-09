@@ -74,6 +74,7 @@ fn hop_distance_to_goal(goal: i32, adj: &Adjacency, max_hops: usize) -> HashMap<
 /// Returns up to `max_paths` routes, fewest hops first (then lexicographically by pair addresses).
 /// Selection is the K shortest via iterative deepening: a route that exists is never silently
 /// dropped in favour of a longer one, and an unreachable goal returns empty in O(V+E) (#286).
+#[cfg(test)]
 pub fn find_paths_top_k(
     start: i32,
     goal: i32,
@@ -87,6 +88,7 @@ pub fn find_paths_top_k(
 /// Same as [`find_paths_top_k`] but also returns the number of DFS node expansions, so tests can
 /// prove the search is bounded (0 for an unreachable goal, vs full O(branching^max_hops)
 /// enumeration without the pruning gate) (#286).
+#[cfg(test)]
 pub(crate) fn find_paths_top_k_instrumented(
     start: i32,
     goal: i32,

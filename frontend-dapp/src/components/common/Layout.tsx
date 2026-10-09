@@ -40,8 +40,11 @@ function getInitialTheme(): ThemeMode {
 }
 
 export default function Layout() {
-  const { isLcdUnreachable, isProbePending, retryAll } = useLcdConnectivityRecovery()
   const location = useLocation()
+  // Local quote surfaces never initiate node health polling; request readiness comes from indexed observations.
+  const localQuotes =
+    location.pathname === '/' || location.pathname.startsWith('/swap') || location.pathname.startsWith('/trade')
+  const { isLcdUnreachable, isProbePending, retryAll } = useLcdConnectivityRecovery({ enabled: !localQuotes })
   const mobileNavRef = useRef<HTMLElement>(null)
   useSyncMobileNavStack(mobileNavRef)
 

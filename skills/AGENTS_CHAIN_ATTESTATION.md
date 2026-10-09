@@ -11,6 +11,18 @@ Read the [invariants](../docs/indexer-invariants.md#chain-attestation-1392),
 [agent verification checklist](../docs/qa/issue-1392/README.md) and
 [recorded results](../docs/qa/issue-1392/verification.md).
 
+## Local quote observation boundary (#1452)
+
+[Local quotes](AGENTS_LOCAL_SWAP_QUOTES.md) attest chain identity during the
+independently scheduled bounded ingestion pass. Quote, progress, references,
+refresh and retail route preparation consume that qualified local generation
+with original observation times and client/chain isolation. They must not call
+`require_verified_chain` or financial smart queries on a cache miss/hit, and must
+fail explicitly when required cached evidence is unavailable. The historical
+request-time quote middleware rule is superseded for these local endpoints;
+host treasury/maintenance transaction guards below retain their own trust checks.
+See [scope and verification](../docs/qa/issue-1452/README.md).
+
 ## NET1392 invariants
 
 1. **NET1392-1 — explicit expectation.** Require a configured expected chain in

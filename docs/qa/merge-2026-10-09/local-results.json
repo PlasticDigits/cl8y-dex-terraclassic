@@ -1,0 +1,98 @@
+{
+  "revision": "180aa5919b1099463dc1249871788c3f98f15c7a",
+  "ci": "intentionally skipped",
+  "receipts": [
+    {
+      "issue": 1452,
+      "test_results": [
+        "test result: ok. 632 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 13.30s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 632 filtered out; finished in 4.53s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.12s",
+        "test result: ok. 632 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.90s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 632 filtered out; finished in 1.24s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.32s"
+      ],
+      "summary": [
+        "Results: 13 PASS, 1 FAIL, 0 SKIP"
+      ]
+    },
+    {
+      "issue": 1453,
+      "test_results": [
+        "test result: ok. 55 passed; 0 failed; 1 ignored; 0 measured; 577 filtered out; finished in 1.37s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 632 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 627 filtered out; finished in 4.08s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 613 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 627 filtered out; finished in 0.00s",
+        "test result: ok. 29 passed; 0 failed; 1 ignored; 0 measured; 603 filtered out; finished in 0.93s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 89.48s",
+        "test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.69s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.02s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.28s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.73s",
+        "test result: FAILED. 2 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.08s",
+        "test result: ok. 55 passed; 0 failed; 1 ignored; 0 measured; 577 filtered out; finished in 1.53s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 632 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 627 filtered out; finished in 4.06s",
+        "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 613 filtered out; finished in 0.00s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 627 filtered out; finished in 0.00s",
+        "test result: ok. 29 passed; 0 failed; 1 ignored; 0 measured; 603 filtered out; finished in 1.00s",
+        "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.16s",
+        "test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.63s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.60s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.49s",
+        "test result: FAILED. 2 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.87s"
+      ],
+      "summary": [
+        "PASS=10 FAIL=2 SKIP=2"
+      ]
+    },
+    {
+      "issue": 1396,
+      "test_results": [
+        "test result: ok. 633 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.87s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.29s",
+        "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 102.49s",
+        "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 24.18s",
+        "test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.86s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.14s",
+        "test result: ok. 633 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.52s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s",
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.17s",
+        "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.15s",
+        "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.33s",
+        "test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.65s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.30s"
+      ],
+      "summary": [
+        "Results: 24 PASS, 4 FAIL, 2 SKIP"
+      ]
+    }
+  ],
+  "frontend_unit": {
+    "passed": 2948,
+    "failed": 137,
+    "files_passed": 346,
+    "files_failed": 11,
+    "isolated_token_search_retest": "11 passed",
+    "isolated_acquire_copy_retest": "3 passed, 1 failed"
+  },
+  "runtime_fixture_retest": "authenticated disposable fixture passed twice after removing synthetic application DB CONNECT grant",
+  "source_fingerprint": "bfd8fab6ba88dc47d68882165f540d55a820c057f27497301b4adeed63753d8f",
+  "network_supplementary": {
+    "runs": 2,
+    "result": "PASS WITH SKIPS",
+    "passed": [
+      "internal bridge TCP",
+      "external namespace rejection",
+      "host-mode IPv4 confinement"
+    ],
+    "skipped": [
+      "published bridge host-loopback query times out",
+      "host IPv6 disabled by kernel"
+    ]
+  },
+  "recorded_at": "2026-10-09T11:56:13.151302+00:00"
+}

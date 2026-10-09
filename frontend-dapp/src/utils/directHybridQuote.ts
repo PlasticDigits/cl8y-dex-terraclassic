@@ -1,30 +1,10 @@
-import { queryRouterTaxFundingVersion } from '@/services/terraclassic/routeTaxFunding'
-import { simulateMultiHopSwap } from '@/services/terraclassic/router'
-import { postRouteSolve } from '@/services/indexer/client'
-import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
-import { simulateHybridSwap, type QuoteTraderOptions } from '@/services/terraclassic/pair'
-import {
-  enrichSwapOperationsWithHopMinReturns,
-  preflightSwapRouteSpread,
-  type SwapRoutePreflightSpread,
-} from '@/services/terraclassic/swapRoutePreflight'
-import type { SwapOperation } from '@/services/terraclassic/router'
+import { maxSpreadToSlippagePercent } from '@/utils/slippageConstraint'
+import type { QuoteTraderOptions } from '@/services/terraclassic/pair'
 import type { AssetInfo, HybridSwapParams, IndexerRouteQuoteKind } from '@/types'
-import { indexerWalletAmountMismatch, resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
+import type { Cw20RouteSolveQuote } from '@/utils/cw20RouteSolveQuote'
+import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 
-export type DirectHybridQuoteResult = {
-  return_amount: string
-  taxFundingVersion?: 1
-  spread_amount: string
-  commission_amount: string
-  indexerQuoteKind?: IndexerRouteQuoteKind
-  indexerOperations?: SwapOperation[]
-  routePreflight?: SwapRoutePreflightSpread
-  routeSlippagePercent?: string
-  spotAmountOut?: string
-  /** Indexer `estimated_amount_out` disagreed with wallet `hybrid_simulation`; display uses wallet (GitLab #471). */
-  indexerAmountReconciled?: boolean
-}
+export type DirectHybridQuoteResult = Cw20RouteSolveQuote & { indexerAmountReconciled?: boolean }
 
 /** Shown when direct-hybrid receive was reconciled from indexer to wallet sim (GitLab #471). */
 export const DIRECT_HYBRID_AMOUNT_RECONCILED_COPY = 'Receive amount adjusted to match your wallet.'
@@ -36,9 +16,9 @@ export function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | unde
       return 'Estimated from limit book + pool routing. One or more hops used pool-only pricing.'
     case 'indexer_hybrid_lcd':
     case 'indexer_hybrid_db':
-      return 'Estimated output from limit book + pool routing, checked against your wallet before submit.'
+      return 'Estimated output from limit book + pool routing.'
     case 'indexer_pool_lcd':
-      return 'Estimated output from pool routing, checked against your wallet before submit.'
+      return 'Estimated output from pool routing.'
     case 'indexer_route_only':
       return 'Route found; estimated output unavailable — review carefully before submit.'
     default:
@@ -49,11 +29,7 @@ export function quoteDisclosureForIndexerKind(kind: IndexerRouteQuoteKind | unde
 /** Pool-only direct pair quote (no limit book leg). */
 export const POOL_ONLY_QUOTE_DISCLOSURE = 'Estimated output from pool-only pricing on this pair.'
 
-/**
- * Quote a direct CW20 swap with hybrid params aligned to submit.
- * Tries indexer `POST /route/solve` first, then wallet LCD `hybrid_simulation`.
- * Never returns a pool-only quote when `hybrid` has a positive book leg (GitLab #418 / L8).
- */
+/** Manual book splits require supported local executable metadata; no live simulation fallback. */
 export async function quoteDirectHybridSwap(input: {
   pairAddress: string
   fromToken: string
@@ -65,121 +41,19 @@ export async function quoteDirectHybridSwap(input: {
   maxSpreadStr: string
   quoteTrader?: QuoteTraderOptions
 }): Promise<DirectHybridQuoteResult> {
-  const { pairAddress, fromToken, toToken, offerAssetInfo, askAssetInfo, simRaw, hybrid, maxSpreadStr, quoteTrader } =
-    input
-
-  const fundingVersion = await queryRouterTaxFundingVersion(quoteTrader?.signal)
-  if (fundingVersion === 1) {
-    // Advanced's typed partition is a gross ratio. Router v1 and preflight both
-    // resize it against the funded economic offer, with net per-hop floors.
-    const operations: SwapOperation[] = [
-      {
-        terra_swap: {
-          offer_asset_info: offerAssetInfo,
-          ask_asset_info: askAssetInfo,
-          hybrid,
-        },
-      },
-    ]
-    const fundedTrader = { ...quoteTrader, taxFundingVersion: fundingVersion }
-    const fundedOps = await enrichSwapOperationsWithHopMinReturns(
-      operations,
-      simRaw,
-      Number(maxSpreadStr) * 100,
-      fundedTrader
-    )
-    const walletSim = await simulateMultiHopSwap(simRaw, fundedOps, fundedTrader)
-    const routePreflight = await preflightSwapRouteSpread(fundedOps, simRaw, maxSpreadStr, fundedTrader)
-    let indexerQuoteKind: IndexerRouteQuoteKind | undefined
-    let spotAmountOut: string | undefined
-    let indexerAmountReconciled: boolean | undefined
-    let indexerSlippage: string | undefined
-    try {
-      const idx = await postRouteSolve(fromToken, toToken, simRaw, [hybrid], quoteTrader)
-      if (
-        idx.token_in === fromToken &&
-        idx.token_out === toToken &&
-        idx.hops.length === 1 &&
-        idx.hops[0].pair === pairAddress &&
-        idx.tax_kind === 'route_local_v1'
-      ) {
-        indexerQuoteKind = idx.quote_kind
-        spotAmountOut = idx.spot_amount_out
-        indexerSlippage = idx.slippage_percent
-        indexerAmountReconciled =
-          !!idx.estimated_amount_out && indexerWalletAmountMismatch(idx.estimated_amount_out, walletSim.amount)
-      }
-    } catch {
-      // Authoritative router simulation/preflight is also the supported manual fallback.
-    }
-    return {
-      return_amount: walletSim.amount,
-      taxFundingVersion: 1,
-      spread_amount: '0',
-      commission_amount: '0',
-      indexerQuoteKind,
-      indexerOperations: fundedOps,
-      routePreflight,
-      spotAmountOut,
-      indexerAmountReconciled,
-      routeSlippagePercent: resolveRouteSlippagePercent(walletSim.amount, spotAmountOut, indexerSlippage),
-    }
+  if (BigInt(input.hybrid.book_input) > 0n) throw new Error('This book split is unavailable. Clear the book leg.')
+  const quote = await quoteCw20ViaRouteSolve({
+    ...input,
+    maxMakerFills: input.hybrid.max_maker_fills,
+    slippageTolerancePercent: maxSpreadToSlippagePercent(input.maxSpreadStr),
+    signal: input.quoteTrader?.signal,
+  })
+  if (
+    !quote ||
+    quote.executionMetadata.hops.length !== 1 ||
+    quote.executionMetadata.hops[0].pair !== input.pairAddress
+  ) {
+    throw new Error('This pair quote is unavailable. Refresh the quote.')
   }
-
-  let lastError: unknown
-  try {
-    const idx = await postRouteSolve(fromToken, toToken, simRaw, [hybrid], quoteTrader)
-    if (idx.estimated_amount_out?.trim()) {
-      const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-      const routePreflight =
-        ops.length > 0 ? await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader) : undefined
-      // GitLab #471: reconcile receive + slippage to wallet sim (same as multi-hop indexer branch).
-      const walletSim = await simulateHybridSwap(pairAddress, offerAssetInfo, simRaw, hybrid, quoteTrader)
-      const indexerAmount = idx.estimated_amount_out.trim()
-      const walletAmount = walletSim.return_amount
-      const amountMismatch = indexerWalletAmountMismatch(indexerAmount, walletAmount)
-      if (amountMismatch) {
-        console.warn(
-          '[directHybridQuote] indexer estimated_amount_out disagreed with wallet hybrid_simulation; reconciled receive to wallet amount'
-        )
-      }
-      return {
-        return_amount: walletAmount,
-        spread_amount: walletSim.spread_amount,
-        commission_amount: walletSim.commission_amount,
-        indexerQuoteKind: idx.quote_kind,
-        indexerOperations: ops.length > 0 ? ops : undefined,
-        routePreflight,
-        routeSlippagePercent: resolveRouteSlippagePercent(walletAmount, idx.spot_amount_out, idx.slippage_percent),
-        spotAmountOut: idx.spot_amount_out,
-        indexerAmountReconciled: amountMismatch,
-      }
-    }
-  } catch (e) {
-    lastError = e
-  }
-
-  try {
-    const sim = await simulateHybridSwap(pairAddress, offerAssetInfo, simRaw, hybrid, quoteTrader)
-    const ops: SwapOperation[] = [
-      {
-        terra_swap: {
-          offer_asset_info: offerAssetInfo,
-          ask_asset_info: askAssetInfo,
-          hybrid,
-        },
-      },
-    ]
-    const routePreflight = await preflightSwapRouteSpread(ops, simRaw, maxSpreadStr, quoteTrader)
-    return {
-      return_amount: sim.return_amount,
-      spread_amount: sim.spread_amount,
-      commission_amount: sim.commission_amount,
-      routePreflight,
-    }
-  } catch (e) {
-    lastError = e
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('Hybrid quote unavailable')
+  return quote
 }

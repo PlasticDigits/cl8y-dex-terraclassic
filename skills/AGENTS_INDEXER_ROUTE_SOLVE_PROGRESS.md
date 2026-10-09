@@ -1,5 +1,17 @@
 # Indexer route-solve progress + distant-pair latency (GitLab #485)
 
+## Current local quote contract (#1452)
+
+The local request path follows [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md) and the
+[current solver contract](../docs/route-solver.md#local-quote-contract-1452).
+Request-time LCD simulation, config/tier discovery, enrichment and fallback
+instructions below describe the historical implementation. Never restore them
+for a local quote cache miss or unsupported mode. Preserve positive floors,
+Policy A, actual caller spread constraints, exact-input/generation identity and
+reviewed signing snapshots. See [verification and explicit skips](../docs/qa/issue-1452/README.md)
+for supported implementation scope and acceptance evidence.
+
+
 Audience: third-party agents working on Swap quoting UX, indexer hybrid solve latency, or progress polling.
 
 Companion docs: [`docs/route-solver.md`](../docs/route-solver.md) (progress poll + cache TTLs), [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (#485 row), [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md), [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). Timeout / BFS-fallback census (**F5**, accepted **Stay**) is recorded in [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / closed [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265), implemented by merged [PR #1289](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1289). Wallet-sim comparison remains explicitly unmeasured. Native wrap mapping landed under [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) / PR #1297; any further native-swap check stays there. Verify: `make verify-issue-1265`.

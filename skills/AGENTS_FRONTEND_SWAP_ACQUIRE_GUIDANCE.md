@@ -23,9 +23,9 @@ Use when changing Swap or Trade **insufficient-balance** UX, UST1 acquire deep-l
 4. **A678-4 Over window.** If shortfall exceeds remaining capacity: copy says the window cannot mint that size; Guide still opens `/ust1`; never suggest a vFDUSD amount that would fail on-chain.
 5. **A678-5 Fail closed.** Window env off, query fail, paused, stale, or rate `0`: generic “You don’t have enough {symbol}.” — no invented vFDUSD number.
 6. **A678-6 U1.** Copy never markets AMM Swap/Trade as mint/redeem. Guide for UST1 is **`/ust1`**, never “Swap vFDUSD → UST1”. Run `assertSecondaryMarketCopy` on new strings.
-7. **A678-7 Funded high impact.** Expected slippage **> 5%** and the trade is **funded**: retail size warning + existing confirm-again. **30% / 99% / Expert Mode** gates are unchanged. Unfunded must not prefer high-impact over insufficient.
+7. **A678-7 Funded high impact.** Expected slippage **> 5%** and the trade is **funded**: one applicable risk warning + existing confirm-again. Never infer that a smaller amount fixes the constraint. **30% / 99% / Expert Mode** gates are unchanged. Unfunded must not prefer high-impact over insufficient.
 8. **A678-8 Shared helper.** Trade market uses `evaluateSwapPayAcquireGuidance` / `useSwapPayAcquireGuidance` — do not fork copy.
-9. **A678-9 #489.** One sentence + Guide / Reduce control. No always-on oracle essay on the Swap card. Guide is a `Link`, not a paragraph stack.
+9. **A678-9 #489.** One sentence + the applicable existing action. Reduce is permitted only when a fresh smaller quote proves it meets the actual constraint. No always-on oracle essay on the Swap card. Guide is a `Link`, not a paragraph stack.
 10. **A678-10 Prefill safety.** `/ust1` reads only `direction` + `amount`. Ignore scientific / negative / non-decimal / hostile strings. Clamp legal amounts to remaining capacity **before** apply. Never auto-submit.
 11. **A678-11 Same-origin Guide.** Href allowlist is `/ust1` (+ safe query) or `/wrap`. No `javascript:`, no third-party URLs, no `window.location` from token symbols. No HTML interpolation of amounts.
 
@@ -34,7 +34,7 @@ Use when changing Swap or Trade **insufficient-balance** UX, UST1 acquire deep-l
 - Do **not** change pair/router `max_spread`, indexer `route/solve`, or window contract limits.
 - Do **not** auto-switch pay to vFDUSD or auto-wrap.
 - In-app / WebView without an injected wallet stays on **Connect Wallet**.
-- Optional Reduce sets pay to a conservative fraction of typed amount **capped by spendable** — never above balance.
+- [#1452 local quote rules](AGENTS_LOCAL_SWAP_QUOTES.md) supersede fractional pay/10 guidance. No Reduce action without a fresh executable smaller quote; never exceed spendable balance. Quote/acquire preparation must not start window/config smart queries; unavailable cached guidance remains generic under A678-5.
 - Wrap-native shortfall (cLUNC / cUSTC when wrap env is on) Guides to `/wrap`. Generic CW20 has no Guide.
 
 ## Quick commands
@@ -54,3 +54,5 @@ make lint-frontend
 - [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — 5% protection / confirm-again
 - Expert Mode: [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293); ≥99% theater is not waivable ([#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)): [`AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](./AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
+
+Local quote [verification and explicit skips](../docs/qa/issue-1452/README.md): `make verify-issue-1452`.

@@ -1,3 +1,4 @@
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { describe, it, expect } from 'vitest'
 import {
   assertSubmitHybridAligned,
@@ -152,5 +153,26 @@ describe('buildSubmitAlignedSimPayload', () => {
     }
     const payload = buildSubmitAlignedSimPayload('1000000', simData, 1, (amount, pct) => `${amount}-floor-${pct}`)
     expect(payload.minReceived).toBe('990000-floor-1')
+  })
+})
+
+describe('local reviewed net floor (#1452)', () => {
+  it('keeps a stronger receive target instead of applying slippage below it', () => {
+    const payload = buildSubmitAlignedSimPayload(
+      '1000000',
+      { return_amount: '980000', minimumReceive: '980000' },
+      5,
+      applySlippagePercentFloor
+    )
+    expect(payload.minReceived).toBe('980000')
+  })
+  it('never weakens the current floor when metadata offers a smaller minimum', () => {
+    const payload = buildSubmitAlignedSimPayload(
+      '1000000',
+      { return_amount: '980000', minimumReceive: '1' },
+      5,
+      applySlippagePercentFloor
+    )
+    expect(payload.minReceived).toBe('931000')
   })
 })
