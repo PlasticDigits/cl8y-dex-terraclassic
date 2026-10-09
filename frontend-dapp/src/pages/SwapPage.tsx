@@ -179,6 +179,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
+  executionBlocker?: string
   executionMetadata?: import('@/types').IndexerRouteExecutionMetadata
   executionOperations?: string
   minimumReceive?: string
@@ -554,7 +555,7 @@ export default function SwapPage() {
   const wrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'wrap')
   const unwrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'unwrap')
   // Output intent stays output-sided even when only the server graph has a route (#1376).
-  const canReverseQuote = hasRoute
+  const canReverseQuote = fromToken !== toToken && allTokens.includes(fromToken) && allTokens.includes(toToken)
   const reverseQuoteActive = exactField === 'output' && !!fromToken && !!toToken
   const reverseAskRaw =
     reverseQuoteActive && receiveDecimals != null && isPositiveDecimalAmount(debouncedInputAmount)
@@ -759,10 +760,19 @@ export default function SwapPage() {
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<SwapSimData> => {
       if (debouncedRawInputAmount === '0') throw new Error(LOCAL_ROUTE_UNAVAILABLE)
-      // Typed book splits require an execution-aligned local mirror; never silently change the plan.
-      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)) {
-        throw new Error('This book split is unavailable. Clear the book leg.')
-      }
+      const split =
+        debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)
+          ? getDirectHybridBookSplit({
+              isDirect,
+              fromToken,
+              bookInputHuman: debouncedBookInputHuman,
+              rawInputAmount: debouncedRawInputAmount,
+              hybridMaxMakers: debouncedHybridMaxMakers,
+              payDecimals: offerDecimals,
+            })
+          : null
+      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman) && !split?.willSubmitHybrid)
+        throw new Error('This book split is unavailable. Check the book amount.')
       if (reverseQuoteActive && reverseQuery.data?.quote) return reverseQuery.data.quote
       const quoted = await quoteCw20ViaRouteSolve({
         fromToken,
@@ -773,6 +783,16 @@ export default function SwapPage() {
         maxSpreadStr: slippagePercentToMaxSpread(slippageTolerance),
         quoteTrader,
         signal,
+        declaredHybrid: split?.willSubmitHybrid
+          ? [
+              {
+                pool_input: split.poolRaw,
+                book_input: split.bookRaw,
+                max_maker_fills: debouncedHybridMaxMakers,
+                book_start_hint: null,
+              },
+            ]
+          : undefined,
       })
       if (!quoted) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       return { ...quoted }
@@ -988,6 +1008,8 @@ export default function SwapPage() {
         throw new Error('Quote unavailable')
       }
       if (!simData) throw new Error('Quote unavailable')
+      if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
+        throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
       if (routeSlippageBlocked) throw new Error('Slippage is too high')
       if (simData.routePreflight?.anyHopExceedsMaxSpread) {
         throw new Error('Hop spread exceeds slippage protection')
@@ -1280,6 +1302,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (simQuoteUnavailable) {
     buttonText = 'Quote unavailable'
+    buttonDisabled = true
+  } else if (simData?.executionBlocker) {
+    buttonText = simData.executionBlocker
     buttonDisabled = true
   } else if (routeSlippageBlocked) {
     buttonText = 'Slippage is too high'

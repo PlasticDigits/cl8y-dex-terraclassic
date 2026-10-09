@@ -96,9 +96,12 @@ pub struct SolveRouteParams {
     pub discount_bps: Option<u16>,
 }
 
-/// Local quote POST; explicit unsupported splits fail rather than using remote simulation.
+/// Local quote POST; exact declared splits are evaluated from immutable local observations.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SolveRoutePostBody {
+    /// Caller protection binds exact local math and signed execution floors.
+    #[serde(default)]
+    pub max_spread: Option<String>,
     pub token_in: String,
     pub token_out: String,
     /// Exact raw integer offer amount for locally cached arithmetic.
@@ -120,6 +123,8 @@ pub struct SolveRoutePostBody {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RouteQuoteKind {
+    /// Exact zero-pair native mapping from independent local wrapper observations.
+    IndexerWrapperDb,
     /// Topology only — no `estimated_amount_out` (missing `ROUTER_ADDRESS` and/or `amount_in`, or router sim failed). Documented in `docs/route-solver.md#glossary`.
     IndexerRouteOnly,
     /// Pool-only router operations (`hybrid: null`); LCD `simulate_swap_operations` when configured.
@@ -1221,6 +1226,12 @@ pub async fn solve_route_best(
     Query(q): Query<SolveRouteParams>,
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if q.amount_in.is_none() && q.amount_out.is_none() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Best execution requires amount_in or amount_out".into(),
+        ));
+    }
     if q.amount_out.is_some() {
         static ADMISSION: std::sync::OnceLock<
             super::route_exact_output_admission::AdmissionController,
@@ -1258,6 +1269,12 @@ pub async fn solve_route(
     Query(q): Query<SolveRouteParams>,
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if q.hybrid_optimize == Some(true) && q.amount_in.is_none() && q.amount_out.is_none() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Hybrid execution requires amount_in or amount_out".into(),
+        ));
+    }
     if q.amount_out.is_some() {
         static ADMISSION: std::sync::OnceLock<
             super::route_exact_output_admission::AdmissionController,
@@ -1274,7 +1291,7 @@ pub async fn solve_route(
     super::local_quote::solve(&state, &q).await
 }
 
-/// Same discovery as GET (max 4 hops); optional `hybrid_by_hop` merges hybrid fields into `router_operations` before LCD simulation.
+/// Same local discovery as GET (max 4 hops); declared splits must exactly match every priced hop budget.
 #[utoipa::path(
     post,
     path = "/api/v1/route/solve",
@@ -1291,18 +1308,8 @@ pub async fn solve_route_post(
     State(state): State<AppState>,
     Json(body): Json<SolveRoutePostBody>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body
-        .hybrid_by_hop
-        .as_ref()
-        .is_some_and(|h| h.iter().any(Option::is_some))
-    {
-        return Err((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "Declared hybrid execution is unavailable in local quote snapshots".into(),
-        ));
-    }
     let q = SolveRouteParams {
-        max_spread: None,
+        max_spread: body.max_spread,
         token_in: body.token_in,
         token_out: body.token_out,
         amount_in: body.amount_in,
@@ -1314,7 +1321,7 @@ pub async fn solve_route_post(
         sender: body.sender,
         discount_bps: None,
     };
-    super::local_quote::solve(&state, &q).await
+    super::local_quote::solve_post(&state, &q, body.hybrid_by_hop.as_deref()).await
 }
 
 #[cfg(test)]

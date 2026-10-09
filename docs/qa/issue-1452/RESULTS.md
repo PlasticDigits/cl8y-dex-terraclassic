@@ -1,5 +1,8 @@
 # Issue #1452 implementation evidence
 
+Current follow-up: [implementation, full verification and remaining scope](FOLLOWUP-RESULTS.md).
+The unsupported-mode lists and source receipts below describe the initial merged implementation.
+
 Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455), initial implementation commit `bf056511`.
 
 This record covers the `fix/issue-1452-local-quotes` worktree based on

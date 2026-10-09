@@ -1,3 +1,4 @@
+import { localMarketMocks } from '@/test/localMarketMocks'
 import '@/test/lightweightChartsJsdomMock'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react'
@@ -210,6 +211,9 @@ describe('TradePage', () => {
       offset: 0,
     })
     vi.mocked(indexerClient.getPair).mockResolvedValue(mockIndexerPair)
+    localMarketMocks(factory.getAllPairsPaginated, {
+      preservePairMock: true,
+    })
     vi.mocked(indexerClient.getTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getPairLimitBookPage).mockResolvedValue({
       side: 'bid',
@@ -1058,9 +1062,10 @@ describe('TradePage', () => {
     vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
+    await selectTradeLimitTab(user)
     const banner = await screen.findByText(/Pair paused/i)
     expect(banner).toBeInTheDocument()
-    expect(await screen.findByTestId('trade-market-submit')).toBeDisabled()
+    expect(screen.queryByTestId('trade-market-submit')).not.toBeInTheDocument()
     await selectTradeLimitTab(user)
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')
@@ -1075,6 +1080,7 @@ describe('TradePage', () => {
     vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
+    await selectTradeLimitTab(user)
     expect(await screen.findByTestId('trade-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
     await selectTradeLimitTab(user)
 

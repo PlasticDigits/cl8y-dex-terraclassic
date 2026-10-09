@@ -27,6 +27,22 @@ function reject(): never {
   throw new Error(LOCAL_ROUTE_UNAVAILABLE)
 }
 
+/** The reviewed snapshot binds exact hybrid budgets, cap and hint at mutation time. */
+function sameDeclaredHybrid(
+  pinned: IndexerRouteExecutionMetadata['hops'][number]['declared_hybrid'],
+  actual: SwapOperation['terra_swap']['hybrid']
+): boolean {
+  if (pinned === undefined) return false
+  if (pinned === null) return actual == null
+  return (
+    actual != null &&
+    pinned.pool_input === actual.pool_input &&
+    pinned.book_input === actual.book_input &&
+    pinned.max_maker_fills === actual.max_maker_fills &&
+    (pinned.book_start_hint ?? null) === (actual.book_start_hint ?? null)
+  )
+}
+
 /** Validate the exact local observation and emitted plan; no discovery, simulation or RPC. */
 export function validateLocalRouteQuote(
   idx: IndexerRouteSolveResponse,
@@ -54,15 +70,22 @@ export function validateLocalRouteQuote(
   if (
     !m ||
     m.version !== 1 ||
+    m.execution_supported === false ||
     typeof m.generation !== 'string' ||
     !m.generation.trim() ||
-    !['pool_only', 'declared_hybrid_hop0'].includes(m.policy) ||
-    m.tax_funding_version != null ||
-    idx.tax_funding_version != null ||
-    (idx.tax_kind != null && idx.tax_kind !== 'none') ||
-    idx.buy_tax_bps ||
-    idx.sell_tax_bps ||
-    idx.router_hops_tax ||
+    !['pool_only', 'declared_hybrid_hop0', 'declared_hybrid_manual'].includes(m.policy) ||
+    !(
+      (m.tax_funding_version == null &&
+        idx.tax_funding_version == null &&
+        (idx.tax_kind == null || idx.tax_kind === 'none') &&
+        !idx.buy_tax_bps &&
+        !idx.sell_tax_bps &&
+        !idx.router_hops_tax) ||
+      (m.tax_funding_version === 1 &&
+        idx.tax_funding_version === 1 &&
+        idx.tax_kind === 'route_local_v1' &&
+        idx.router_hops_tax === true)
+    ) ||
     m.input_amount !== input.simRaw ||
     m.max_spread !== input.maxSpreadStr ||
     (m.trader ?? '') !== (input.trader ?? '') ||
@@ -136,6 +159,7 @@ export function validateLocalRouteQuote(
       !isLocalQuoteRaw(h.pool_input_actual, false) ||
       !isLocalQuoteRaw(h.book_offer_consumed, false) ||
       ts.min_return !== h.min_return ||
+      !sameDeclaredHybrid(h.declared_hybrid, ts.hybrid) ||
       assetInfoLabel(ts.offer_asset_info) !== declared.offer_token ||
       assetInfoLabel(ts.ask_asset_info) !== declared.ask_token
     )
@@ -144,15 +168,52 @@ export function validateLocalRouteQuote(
     const floor = applySlippagePercentFloor(h.return_amount, input.slippageTolerancePercent)
     if (floor == null || BigInt(h.min_return) < BigInt(floor) || BigInt(h.min_return) > BigInt(h.return_amount))
       reject()
-    if (BigInt(h.pool_input_actual) + BigInt(h.book_offer_consumed) !== BigInt(h.offer_amount)) reject()
+    let economic = BigInt(h.offer_amount)
+    if (m.tax_funding_version === 1) {
+      if (
+        !isLocalQuoteRaw(h.economic_offer_amount) ||
+        !isLocalQuoteRaw(h.sell_tax_amount, false) ||
+        !isLocalQuoteRaw(h.sell_residue, false) ||
+        !isLocalQuoteRaw(h.buy_tax_amount, false) ||
+        !isLocalQuoteRaw(h.post_hook_return_amount) ||
+        !Number.isInteger(h.sell_tax_bps) ||
+        !Number.isInteger(h.buy_tax_bps) ||
+        h.sell_tax_bps! < 0 ||
+        h.sell_tax_bps! > 10000 ||
+        h.buy_tax_bps! < 0 ||
+        h.buy_tax_bps! > 10000
+      )
+        reject()
+      economic = BigInt(h.economic_offer_amount)
+      const sellRate = BigInt(h.sell_tax_bps!),
+        buyRate = BigInt(h.buy_tax_bps!)
+      const sellTax = (economic * sellRate) / 10000n
+      if (
+        sellTax !== BigInt(h.sell_tax_amount) ||
+        economic + sellTax + BigInt(h.sell_residue) !== BigInt(h.offer_amount) ||
+        economic + 1n + ((economic + 1n) * sellRate) / 10000n <= BigInt(h.offer_amount) ||
+        (BigInt(h.post_hook_return_amount) * buyRate) / 10000n !== BigInt(h.buy_tax_amount) ||
+        BigInt(h.post_hook_return_amount) - BigInt(h.buy_tax_amount) !== BigInt(h.return_amount) ||
+        BigInt(h.post_hook_return_amount) > BigInt(h.pool_return_amount) + BigInt(h.book_return_net)
+      )
+        reject()
+    } else if (
+      (h.economic_offer_amount != null && BigInt(h.economic_offer_amount) !== economic) ||
+      (h.sell_tax_amount != null && h.sell_tax_amount !== '0') ||
+      (h.sell_residue != null && h.sell_residue !== '0') ||
+      h.sell_tax_bps ||
+      h.buy_tax_bps ||
+      (h.buy_tax_amount != null && h.buy_tax_amount !== '0')
+    )
+      reject()
+    if (BigInt(h.pool_input_actual) + BigInt(h.book_offer_consumed) !== economic) reject()
     if (ts.hybrid != null) {
       const hybrid = ts.hybrid
       if (
-        i !== 0 ||
-        m.policy !== 'declared_hybrid_hop0' ||
+        (m.policy !== 'declared_hybrid_manual' && (i !== 0 || m.policy !== 'declared_hybrid_hop0')) ||
         !isLocalQuoteRaw(hybrid.pool_input, false) ||
-        !isLocalQuoteRaw(hybrid.book_input) ||
-        BigInt(hybrid.pool_input) + BigInt(hybrid.book_input) !== BigInt(current) ||
+        !isLocalQuoteRaw(hybrid.book_input, false) ||
+        BigInt(hybrid.pool_input) + BigInt(hybrid.book_input) !== economic ||
         !Number.isSafeInteger(hybrid.max_maker_fills) ||
         hybrid.max_maker_fills < 1 ||
         hybrid.max_maker_fills > (input.maxMakerFills ?? 8) ||
@@ -160,7 +221,7 @@ export function validateLocalRouteQuote(
         hybrid.book_start_hint != null ||
         BigInt(h.book_offer_consumed) > BigInt(hybrid.book_input) ||
         hybridNoBeliefMaterialPoolReject(
-          BigInt(current),
+          economic,
           BigInt(hybrid.pool_input),
           BigInt(hybrid.book_input),
           BigInt(h.pool_return_amount)
@@ -168,7 +229,7 @@ export function validateLocalRouteQuote(
       )
         reject()
     } else if (
-      (i === 0 && m.policy !== 'pool_only') ||
+      (i === 0 && m.policy !== 'pool_only' && m.policy !== 'declared_hybrid_manual') ||
       BigInt(h.book_return_net) !== 0n ||
       BigInt(h.book_offer_consumed) !== 0n
     )
@@ -228,8 +289,9 @@ export function assertLocalRouteSubmit(
 ): void {
   if (
     metadata.version !== 1 ||
-    !['pool_only', 'declared_hybrid_hop0'].includes(metadata.policy) ||
-    metadata.tax_funding_version != null ||
+    metadata.execution_supported === false ||
+    !['pool_only', 'declared_hybrid_hop0', 'declared_hybrid_manual'].includes(metadata.policy) ||
+    (metadata.tax_funding_version != null && metadata.tax_funding_version !== 1) ||
     !metadata.generation ||
     metadata.input_amount !== amount ||
     metadata.max_spread !== maxSpread ||
@@ -247,9 +309,12 @@ export function assertLocalRouteSubmit(
     if (
       assetInfoLabel(op.terra_swap.offer_asset_info) !== metadata.hops[i].offer_token ||
       assetInfoLabel(op.terra_swap.ask_asset_info) !== metadata.hops[i].ask_token ||
-      (op.terra_swap.hybrid != null && (i !== 0 || metadata.policy !== 'declared_hybrid_hop0')) ||
+      (op.terra_swap.hybrid != null &&
+        metadata.policy !== 'declared_hybrid_manual' &&
+        (i !== 0 || metadata.policy !== 'declared_hybrid_hop0')) ||
       !isLocalQuoteRaw(op.terra_swap.min_return) ||
-      op.terra_swap.min_return !== metadata.hops[i].min_return
+      op.terra_swap.min_return !== metadata.hops[i].min_return ||
+      !sameDeclaredHybrid(metadata.hops[i].declared_hybrid, op.terra_swap.hybrid)
     )
       reject()
   }

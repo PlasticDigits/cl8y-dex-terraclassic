@@ -1,6 +1,6 @@
 # Local swap quotes (#1452)
 
-Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
+Implementation: [merged PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
 
 
 Apply when changing route discovery, quote caches, liquidity ingestion, reference
@@ -48,9 +48,26 @@ are recorded in [RESULTS.md](../docs/qa/issue-1452/RESULTS.md); never equate a
 passing local verifier with complete issue or production acceptance.
 
 Known negative wallet contexts survive recency-census eviction. Each scheduled
-pass checks at most 120 recent and eight rotating historical wallets; at most
+pass checks eight rotating recent wallets from a 120-wallet census and eight rotating historical wallets; at most
 2,048 contexts are retained. An explicit fresh unblock clears a block even when
 fee lookup fails. Capacity overflow must quarantine runtime quotes immediately,
 including cached responses, without evicting a block. Authoritative complete
 inventory is required for recovery; a skipped verification or partial census
 cannot clear this protection. This is not a human approval/reset task.
+
+Community-tax supported scope, exact gross/economic metadata and unsupported
+cooldown/AutoLP observations are documented in [follow-up tax checks](../docs/qa/issue-1452/FOLLOWUP-TAX.md).
+Named actors require scheduled per-token identity/cap observations; do not introduce
+request-triggered discovery or wallet-funded fallback to broaden this scope.
+
+Follow-up local modes and the direct zero-hop signing limitation are documented
+in [FOLLOWUP-MODES.md](../docs/qa/issue-1452/FOLLOWUP-MODES.md). Hook inverse must
+preserve independent rounding collisions; declared POST plans bind every exact
+hop budget/maker cap and cannot be replaced by deeper search. A `wrapper_only`
+result with `execution_supported:false` is useful arithmetic, never permission
+to send a floorless external wrap/unwrap transaction.
+
+Incremental configuration, per-pair expiry and epoch-checked authoritative inventory
+recovery follow [FOLLOWUP-INGESTION.md](../docs/qa/issue-1452/FOLLOWUP-INGESTION.md).
+Publish completed scheduled observations before further work; request traffic must
+never advance the slice cursor or reset quarantine.

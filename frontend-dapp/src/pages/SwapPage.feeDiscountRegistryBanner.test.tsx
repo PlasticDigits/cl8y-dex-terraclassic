@@ -1,10 +1,10 @@
+import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
-import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
 
 // GitLab #374: the registry-outage banner only renders when a fee-discount contract is
 // configured. The default test env leaves VITE_FEE_DISCOUNT_ADDRESS empty, so this file
@@ -147,7 +147,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     vi.mocked(getRegistration).mockResolvedValue({ registered: true, tier_id: 1, tier: null })
     vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1feediscount000000000000000000000000001')
     // LCD pool sim succeeds; route/solve 400 falls back to LCD without the market-data outage banner (#326).
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 400 Bad Request'))
+    localMarketMocks(getAllPairsPaginated)
     vi.mocked(simulateSwap).mockResolvedValue({
       return_amount: '1000000',
       spread_amount: '100',
@@ -155,7 +155,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     })
   })
 
-  it('shows the non-blocking warning when a registered trader hits indexer health ok:false, and Swap stays enabled', async () => {
+  it('uses the executable local quote without live registry warnings during an outage', async () => {
     const user = userEvent.setup()
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
@@ -167,13 +167,14 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
-    const banner = await screen.findByTestId('swap-fee-discount-registry-warning')
-    expect(banner).toHaveTextContent(FEE_DISCOUNT_REGISTRY_WARNING_TEXT)
+    expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
+    expect(indexerClient.getFeeDiscountHealth).not.toHaveBeenCalled()
+    expect(getRegistration).not.toHaveBeenCalled()
     // Non-blocking: submit remains enabled while the warning is shown.
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
   })
 
-  it('shows the warning when the registration LCD query errors for a connected trader', async () => {
+  it('ignores unavailable live registration and keeps the locally admitted quote', async () => {
     const user = userEvent.setup()
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
@@ -186,9 +187,9 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
-    expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
-      FEE_DISCOUNT_REGISTRY_WARNING_TEXT
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+    expect(getRegistration).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
   })
 
   it('does not show the warning when a registered trader has a healthy registry', async () => {
@@ -224,7 +225,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
   })
 
-  it('strikethroughs the pair fee when the pair registry matches the configured contract (#537)', async () => {
+  it('does not fabricate a live discount from an unused registry fixture (#537 / #1452)', async () => {
     const user = userEvent.setup()
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
@@ -238,11 +239,11 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
     await user.click(screen.getByText(/trade details/i))
 
-    await waitFor(() => expect(document.querySelector('.line-through')).toBeTruthy())
-    expect(screen.getByText('0.30%')).toBeInTheDocument()
+    expect(getPairDiscountRegistry).not.toHaveBeenCalled()
+    expect(document.querySelector('.line-through')).toBeNull()
   })
 
-  it('shows full pair fee with no strikethrough when discount_registry is unset (#537)', async () => {
+  it('does not discover missing fee configuration during quoting (#537 / #1452)', async () => {
     const user = userEvent.setup()
     vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
     vi.mocked(getTraderDiscount).mockResolvedValue({
@@ -262,7 +263,8 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
     await user.click(screen.getByText(/trade details/i))
 
-    await waitFor(() => expect(screen.getByText('0.30%')).toBeInTheDocument())
+    expect(getPairDiscountRegistry).not.toHaveBeenCalled()
+    expect(getTraderDiscount).not.toHaveBeenCalled()
     expect(document.querySelector('.line-through')).toBeNull()
     expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
   })

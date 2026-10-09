@@ -1,11 +1,8 @@
 //! Independent scheduled bounded quote observation workers.
 use super::*;
-use crate::api::{
-    community_tax_rank, local_hook_pricing, local_reference_quote, local_wrapper_quote,
-    trading_tax_discovery,
-};
+use crate::api::{local_reference_quote, local_wrapper_quote};
 
-async fn query(state: &AppState, address: &str, value: Value) -> Option<Value> {
+pub(super) async fn query(state: &AppState, address: &str, value: Value) -> Option<Value> {
     state
         .lcd
         .query_contract_bounded(address, &value, 32_768)
@@ -13,7 +10,7 @@ async fn query(state: &AppState, address: &str, value: Value) -> Option<Value> {
         .ok()
 }
 
-fn actor_context(
+pub(super) fn actor_context(
     blocked: Option<bool>,
     discount: Option<u16>,
     previous: Option<(u16, bool)>,
@@ -26,10 +23,10 @@ fn actor_context(
             .map(|_| (0, true)),
     }
 }
-const MAX_ACTOR_CONTEXTS: usize = 2048;
+pub(super) const MAX_ACTOR_CONTEXTS: usize = 2048;
 const RECENT_ACTORS: usize = 120;
 const HISTORICAL_BLOCK_REFRESH: usize = 8;
-fn retained_blocks(
+pub(super) fn retained_blocks(
     previous: &HashMap<String, (u16, bool)>,
 ) -> Result<HashMap<String, (u16, bool)>, sqlx::Error> {
     let blocks = previous
@@ -46,7 +43,7 @@ fn actor_capacity_error() -> sqlx::Error {
     sqlx::Error::Protocol("Local actor observation capacity exhausted".into())
 }
 /// Fees can fall back conservatively; an observed block is never a capacity victim.
-fn insert_actor(
+pub(super) fn insert_actor(
     actors: &mut HashMap<String, (u16, bool)>,
     address: String,
     context: (u16, bool),
@@ -71,7 +68,7 @@ fn insert_actor(
 }
 /// Reserve eight observations for forgotten-but-still-blocked wallets. Rotation
 /// is per namespace and advances independently of request traffic or snapshot epochs.
-fn actor_refresh_addresses(
+pub(super) fn actor_refresh_addresses(
     recent: Vec<String>,
     previous: &HashMap<String, (u16, bool)>,
     cursor: usize,
@@ -95,196 +92,6 @@ fn actor_refresh_addresses(
         (cursor % historical.len() + count) % historical.len(),
     )
 }
-/// One scheduled observation pass, also used by integration fixtures. No request invokes it.
-/// Sequential admission has one outstanding provider operation and a per-pair timeout;
-/// failed or unsupported config is omitted rather than interpreted as tax/hook free.
-pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
-    let all_assets: Vec<assets::AssetRow> =
-        sqlx::query_as("SELECT * FROM assets ORDER BY id LIMIT 2048")
-            .fetch_all(&state.pool)
-            .await?;
-    let (addresses, _) = route_solver::build_id_to_addr_map(&all_assets);
-    let all_pairs: Vec<pairs::PairRow> =
-        sqlx::query_as("SELECT * FROM pairs ORDER BY contract_address LIMIT 512")
-            .fetch_all(&state.pool)
-            .await?;
-    let policy = community_tax_rank::RouterHopTaxPolicy::from_catalog(&state.community_tax);
-    let mut ordinary = HashMap::new();
-    let mut asset_addresses = addresses.values().collect::<Vec<_>>();
-    asset_addresses.sort();
-    for address in asset_addresses.into_iter().take(MAX_PAIRS) {
-        let verdict = trading_tax_discovery::discover(state, address, &policy).await;
-        if let trading_tax_discovery::TradingTax::Ordinary { code_id: Some(id) } = verdict {
-            ordinary.insert(address.clone(), id as u64);
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    let mut admitted = Vec::new();
-    let mut hook_prices = HashMap::new();
-    let mut discounted_pairs = HashSet::new();
-    let mut policy_identity = Vec::new();
-    let config_started = now_ms();
-    let references =
-        local_reference_quote::ReferencePrices::observe(&state.pool, &all_assets, &state.hub_usd)
-            .await?;
-    let actor_addresses: Vec<String> = sqlx::query_scalar(
-        "SELECT address FROM traders ORDER BY last_trade_at DESC NULLS LAST,address LIMIT 120",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-    let previous_actors = store()
-        .lock()
-        .unwrap()
-        .snapshots
-        .get(&state.lcd.chain_cache_namespace())
-        .map(|s| s.actors.clone())
-        .unwrap_or_default();
-    let namespace = state.lcd.chain_cache_namespace();
-    let mut actors = match retained_blocks(&previous_actors) {
-        Ok(actors) => actors,
-        Err(error) => {
-            mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
-            return Err(error);
-        }
-    };
-    let actor_addresses = {
-        let mut g = store().lock().unwrap();
-        let cursor = g
-            .actor_refresh_cursors
-            .get(&namespace)
-            .copied()
-            .unwrap_or(0);
-        let (addresses, next) = actor_refresh_addresses(actor_addresses, &previous_actors, cursor);
-        if g.actor_refresh_cursors.len() < 32 || g.actor_refresh_cursors.contains_key(&namespace) {
-            g.actor_refresh_cursors.insert(namespace.clone(), next);
-        }
-        addresses
-    };
-    let mut actor_overflow = false;
-    if let Some(factory) = state.factory_address.as_deref() {
-        for address in actor_addresses {
-            let verdict = query(
-                state,
-                factory,
-                json!({"blacklist_check":{"wallet":address,"tokens":[],"pairs":[],"pair":null}}),
-            )
-            .await;
-            let blocked = verdict.and_then(|v| v["wallet_blacklisted"].as_bool());
-            let discount = if blocked != Some(false) {
-                None
-            } else if let Some(registry) = state.fee_discount_address.as_deref() {
-                state
-                    .lcd
-                    .query_contract_bounded::<Value>(
-                        registry,
-                        &json!({"get_discount":{"trader":address,"sender":address}}),
-                        32_768,
-                    )
-                    .await
-                    .ok()
-                    .and_then(|v| v["discount_bps"].as_u64())
-                    .filter(|d| *d <= 10_000)
-                    .map(|d| d as u16)
-            } else {
-                Some(0)
-            };
-            if let Some(context) =
-                actor_context(blocked, discount, previous_actors.get(&address).copied())
-            {
-                if insert_actor(&mut actors, address, context).is_err() {
-                    mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
-                    actor_overflow = true;
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
-    }
-    if actor_overflow {
-        return Err(actor_capacity_error());
-    }
-    for pair in all_pairs.into_iter().take(MAX_PAIRS) {
-        if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&pair.contract_address) {
-            continue;
-        }
-        let (Some(a), Some(b)) = (
-            addresses.get(&pair.asset_0_id),
-            addresses.get(&pair.asset_1_id),
-        ) else {
-            continue;
-        };
-        if crate::indexer::defillama::is_columbus5_gem_address(a)
-            || crate::indexer::defillama::is_columbus5_gem_address(b)
-        {
-            continue;
-        }
-        let (Some(code_a), Some(code_b)) = (ordinary.get(a), ordinary.get(b)) else {
-            continue;
-        };
-        let Some(factory) = state.factory_address.as_deref() else {
-            continue;
-        };
-        let checked=tokio::time::timeout(Duration::from_secs(6),async{
-            let paused=query(state,&pair.contract_address,json!({"is_paused":{}})).await?;
-            let hooks=query(state,&pair.contract_address,json!({"get_hooks":{}})).await?;
-            let pins=query(state,&pair.contract_address,json!({"get_asset_code_ids":{}})).await?;
-            let blacklist=query(state,factory,json!({"blacklist_check":{"tokens":[a,b],"pairs":[pair.contract_address],"wallet":null,"pair":null}})).await?;
-            let wa=query(state,factory,json!({"is_code_id_whitelisted":{"code_id":code_a}})).await?;
-            let wb=query(state,factory,json!({"is_code_id_whitelisted":{"code_id":code_b}})).await?;
-            let hook_list=hooks["hooks"].as_array()?;
-            if hook_list.len()>8{return None;}
-            let mut hook_obs=Vec::new();
-            for hook in hook_list {let addr=hook.as_str()?;let cfg=query(state,addr,json!({"get_config":{}})).await?;hook_obs.push((addr.to_string(),cfg));}
-            let prices=local_hook_pricing::CachedHookPrices::from_observation(&hook_obs).ok()?;
-            let registry=query(state,&pair.contract_address,json!({"get_discount_registry":{}})).await;
-            let discounted=state.fee_discount_address.as_deref().is_some_and(|configured|registry.as_ref().and_then(|v|v["registry"].as_str())==Some(configured));
-            let identity=format!("{}|{pins}|{:?}",pair.contract_address,registry);
-            Some((prices,discounted,identity,paused["paused"].as_bool()==Some(false) && pins["code_ids"]==json!([code_a,code_b])
-                && blacklist["blacklisted_tokens"].as_array().is_some_and(|v|v.is_empty()) && blacklist["blacklisted_pairs"].as_array().is_some_and(|v|v.is_empty())
-                && wa["whitelisted"].as_bool()==Some(true) && wb["whitelisted"].as_bool()==Some(true)))
-        }).await.ok().flatten();
-        if let Some((prices, discount_supported, identity, true)) = checked {
-            policy_identity.push(identity);
-            if discount_supported {
-                discounted_pairs.insert(pair.contract_address.clone());
-            }
-            hook_prices.insert(pair.contract_address.clone(), prices);
-            admitted.push(pair);
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    let mut mirrors = HashMap::new();
-    for pair in &admitted {
-        if let Ok(m) = sim::load_local_mirror(
-            &state.pool,
-            pair,
-            &addresses,
-            state.book_snapshot_max_staleness_ms,
-        )
-        .await
-        {
-            mirrors.insert(pair.contract_address.clone(), m);
-        }
-    }
-    publish(
-        state.lcd.chain_cache_namespace(),
-        admitted,
-        addresses,
-        mirrors,
-        state.book_snapshot_max_staleness_ms,
-        hook_prices,
-        config_started + CONFIG_TTL_MS,
-        references,
-        actors,
-        discounted_pairs,
-        format!(
-            "{:?}|{:?}|{policy_identity:?}",
-            state.factory_address, state.router_address
-        ),
-        None,
-    );
-    Ok(())
-}
-
 /// Refresh immutable reserves independently of slow configuration/network admission.
 /// Only scheduled workers and test setup call this function.
 pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
@@ -298,6 +105,14 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
     }
     let mut mirrors = HashMap::new();
     for pair in &s.pairs {
+        if s.config_expiries
+            .get(&pair.contract_address)
+            .copied()
+            .unwrap_or(s.config_expiry_ms)
+            <= now_ms()
+        {
+            continue;
+        }
         if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&pair.contract_address) {
             continue;
         }
@@ -313,6 +128,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         s.max_age_ms,
         s.hooks.clone(),
         s.config_expiry_ms,
+        s.config_expiries.clone(),
         local_reference_quote::ReferencePrices::observe(
             &state.pool,
             &sqlx::query_as::<_, assets::AssetRow>("SELECT * FROM assets ORDER BY id LIMIT 2048")
@@ -324,6 +140,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         s.actors.clone(),
         s.discounted_pairs.clone(),
         s.policy_identity.clone(),
+        s.taxes.clone(),
         Some(s.config_epoch),
     );
     Ok(())
@@ -443,13 +260,13 @@ pub fn start_ingestion(mut state: AppState) {
         }
     });
     tokio::spawn(async move {
-        let mut timer = tokio::time::interval(Duration::from_secs(60));
+        let mut timer = tokio::time::interval(Duration::from_secs(2));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             timer.tick().await;
             match tokio::time::timeout(
-                Duration::from_millis(CONFIG_TTL_MS as u64),
-                ingest_once(&state),
+                Duration::from_secs(60),
+                super::admission::ingest_once(&state),
             )
             .await
             {

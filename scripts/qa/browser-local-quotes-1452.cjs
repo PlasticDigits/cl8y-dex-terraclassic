@@ -74,6 +74,7 @@ function quote(q) {
     spread_amount: "0",
     commission_amount: "0",
     min_return: floor,
+    declared_hybrid: null,
   };
   return {
     token_in: hop.offer_token,

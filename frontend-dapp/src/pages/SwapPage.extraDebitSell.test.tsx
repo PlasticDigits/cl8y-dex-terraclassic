@@ -1,3 +1,5 @@
+import { localTaxQuote } from '@/test/localRouteFixtures'
+import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -197,9 +199,7 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     seedPair()
     vi.mocked(getTokenBalance).mockResolvedValue('1050000')
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unused'))
-    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
-    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
+    localMarketMocks(getAllPairsPaginated)
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -241,14 +241,17 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
 })
 
 describe('Swap gross router input (#1381)', () => {
-  it('Max keeps the full authorized balance for supported one-hop client fallback', async () => {
+  it('Max keeps the full authorized balance for a local gross-funded router quote', async () => {
     taxPreviewMock.fundingVersion = 1
     taxPreviewMock.debitRaw = null
     seedPair()
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     vi.mocked(getTokenBalance).mockResolvedValue('1050000')
     vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000', taxFundingVersion: 1 })
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unavailable'))
+    localMarketMocks(getAllPairsPaginated)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockImplementation(async (from, to, amount, options) =>
+      localTaxQuote(from, to, amount, options)
+    )
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)

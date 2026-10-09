@@ -1,3 +1,4 @@
+import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -129,7 +130,6 @@ import { findRoute, getAllTokens } from '@/services/terraclassic/router'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getUst1EffectiveSwap } from '@/services/terraclassic/ust1Window'
-import * as indexerClient from '@/services/indexer/client'
 
 const nowSec = Math.floor(Date.now() / 1000)
 
@@ -176,7 +176,7 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     seedUst1Pair()
     vi.mocked(getTokenBalance).mockResolvedValue('0')
     vi.mocked(getUst1EffectiveSwap).mockResolvedValue(healthyWindow as never)
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 400 Bad Request'))
+    localMarketMocks(getAllPairsPaginated)
   })
 
   it('A1: disconnected settled quote is quote-only with Connect Wallet', async () => {
@@ -199,7 +199,7 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     expect(screen.queryByTestId('swap-acquire-guidance')).not.toBeInTheDocument()
   })
 
-  it('A2/A4: connected empty UST1 + 50k pay blocks submit and states window cannot mint that size', async () => {
+  it('A2/A4: connected empty UST1 + 50k pay blocks submit and keeps one acquisition action without live window lookup', async () => {
     const user = userEvent.setup()
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
@@ -210,10 +210,10 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
       expect(screen.getByRole('button', { name: /insufficient balance/i })).toBeDisabled()
     })
     const banner = await screen.findByTestId('swap-acquire-guidance')
-    expect(banner).toHaveTextContent(/cannot mint this size/i)
-    const guide = screen.getByTestId('swap-acquire-guide')
-    expect(guide).toHaveAttribute('href', expect.stringMatching(/^\/ust1\?direction=deposit/))
-    expect(guide.getAttribute('href')).not.toMatch(/49999/)
+    expect(banner).toHaveTextContent(/enough UST1/i)
+    expect(getUst1EffectiveSwap).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('swap-acquire-guide')).not.toBeInTheDocument()
+    /* No amount advice can be generated from unavailable window data. */
   })
 
   it('A3: UST1 shortfall under cap Guides to inverse deposit amount', async () => {
@@ -223,9 +223,10 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '500')
-    const guide = await screen.findByTestId('swap-acquire-guide')
-    expect(screen.getByTestId('swap-acquire-message')).toHaveTextContent(/Deposit about/)
-    expect(guide).toHaveAttribute('href', expect.stringMatching(/^\/ust1\?direction=deposit&amount=/))
+    await waitFor(() => expect(screen.getByTestId('swap-acquire-message')).toHaveTextContent(/enough UST1/i))
+    expect(screen.queryByTestId('swap-acquire-guide')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-acquire-message')).toHaveTextContent(/enough UST1/i)
+    expect(getUst1EffectiveSwap).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: /insufficient balance/i })).toBeDisabled()
   })
 })

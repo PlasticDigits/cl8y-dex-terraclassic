@@ -1,3 +1,5 @@
+import { localQuote } from '@/test/localRouteFixtures'
+import * as indexerClient from '@/services/indexer/client'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -87,7 +89,8 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   computeDirectHybridMinReturn: vi.fn().mockResolvedValue('900000'),
 }))
 
-vi.mock('@/services/terraclassic/transactions', () => ({
+vi.mock('@/services/terraclassic/transactions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/terraclassic/transactions')>()),
   executeCw20AllowanceThen: vi.fn(async (_a, _b, _c, _d, fn: () => Promise<string>) => fn()),
   estimateMarketPairSwapSequenceUlunaFeesTotal: vi.fn().mockReturnValue(1000000n),
 }))
@@ -126,6 +129,18 @@ const healthyWindow = {
 
 describe('TradeMarketOrderPanel acquire guidance (GitLab #678)', () => {
   beforeEach(() => {
+    vi.mocked(indexerClient.getTokens).mockResolvedValue(
+      selectedPair.asset_infos.map((a) => ({
+        contract_address: 'token' in a ? a.token.contract_addr : null,
+        denom: 'native_token' in a ? a.native_token.denom : null,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, constraints) =>
+      localQuote(from, to, amount, constraints)
+    )
     vi.mocked(getUst1EffectiveSwap).mockResolvedValue(healthyWindow as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
   })
@@ -142,9 +157,9 @@ describe('TradeMarketOrderPanel acquire guidance (GitLab #678)', () => {
       />
     )
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '500')
-    const guide = await screen.findByTestId('trade-market-acquire-guide')
-    expect(screen.getByTestId('trade-market-acquire-guidance')).toHaveTextContent(/Deposit about/)
-    expect(guide).toHaveAttribute('href', expect.stringMatching(/^\/ust1\?direction=deposit&amount=/))
+    await waitFor(() => expect(screen.getByTestId('trade-market-acquire-guidance')).toHaveTextContent(/enough UST1/i))
+    expect(screen.queryByTestId('trade-market-acquire-guide')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-acquire-guidance')).toHaveTextContent(/enough UST1/i)
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
   })
 

@@ -5,6 +5,199 @@ use common::lcd_mock;
 use serde_json::{json, Value};
 use serial_test::serial;
 
+/// Synthetic generation prepared once; requests cannot fetch or repair observations.
+async fn local_app(
+    pool: sqlx::PgPool,
+    config: cl8y_dex_indexer::config::Config,
+    books: bool,
+) -> axum::Router {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::{
+        db::queries::{pair_reserves, pairs, resting_orders},
+        lcd::LcdClient,
+    };
+    use std::{
+        collections::{HashMap, HashSet},
+        str::FromStr,
+    };
+    let rows = pairs::get_all_pairs(&pool).await.unwrap();
+    for pair in &rows {
+        let depth = if pair.contract_address == "terra1pairroutempac" {
+            "10000000"
+        } else {
+            "10000000000000"
+        };
+        pair_reserves::upsert_pair_reserves(
+            &pool,
+            pair.id,
+            &BigDecimal::from_str(depth).unwrap(),
+            &BigDecimal::from_str(depth).unwrap(),
+            30,
+            Some(100),
+        )
+        .await
+        .unwrap();
+        let orders = if books && pair.contract_address != "terra1pairroutempac" {
+            vec![resting_orders::RestingOrderInput {
+                order_id: 1,
+                side: "bid".into(),
+                price: BigDecimal::from_str("1.01").unwrap(),
+                remaining: BigDecimal::from_str("100000000000000").unwrap(),
+                owner: Some("terra1syntheticmaker".into()),
+                expires_at: None,
+            }]
+        } else {
+            vec![]
+        };
+        resting_orders::replace_pair_resting_orders(&pool, pair.id, Some(100), &orders)
+            .await
+            .unwrap();
+    }
+    let tier_rows: Vec<(String, Option<i16>)> =
+        sqlx::query_as("SELECT address,tier_id FROM traders")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    let actors: HashMap<_, _> = tier_rows
+        .into_iter()
+        .map(|(address, tier)| (address, (if tier == Some(5) { 5000 } else { 0 }, false)))
+        .collect();
+    let discounted: HashSet<_> = rows.iter().map(|p| p.contract_address.clone()).collect();
+    let lcd = LcdClient::new_with_policy(
+        config.lcd_urls.clone(),
+        config.lcd_timeout_ms,
+        config.lcd_cooldown_ms,
+        config.expected_chain_id.clone(),
+        config.lcd_provider_policy.clone(),
+    );
+    let namespace = lcd.chain_cache_namespace();
+    let assets = cl8y_dex_indexer::db::queries::assets::get_all_assets(&pool)
+        .await
+        .unwrap();
+    let addresses: HashMap<_, _> = assets
+        .iter()
+        .filter_map(|a| {
+            a.contract_address
+                .as_ref()
+                .or(a.denom.as_ref())
+                .map(|address| (a.id, address.clone()))
+        })
+        .collect();
+    let pair_addresses = rows
+        .iter()
+        .map(|p| p.contract_address.clone())
+        .collect::<Vec<_>>();
+    let mirrors = cl8y_dex_indexer::api::db_orderbook_sim::preload_mirrors_for_pairs(
+        &pool,
+        &pair_addresses,
+        &addresses,
+        60_000,
+    )
+    .await
+    .unwrap();
+    cl8y_dex_indexer::api::local_quote::initialize_for_test(
+        namespace.clone(),
+        rows,
+        addresses,
+        mirrors,
+        60_000,
+    );
+    cl8y_dex_indexer::api::local_quote::initialize_fixture_contexts(&namespace, actors, discounted);
+    cl8y_dex_indexer::api::build_router(common::local_quotes::state(pool, &config, lcd), &config)
+}
+fn amount(body: &Value) -> u128 {
+    body["estimated_amount_out"]
+        .as_str()
+        .expect("positive useful output")
+        .parse()
+        .unwrap()
+}
+/// Independent arithmetic for these 1:1 reserves / 1.01 escrow-book fixtures.
+fn assert_local_economics(body: &Value) {
+    assert_eq!(body["solver_version"], "local_v1");
+    assert_eq!(body["lcd_hybrid_queries"], 0);
+    let metadata = &body["execution_metadata"];
+    assert!(!metadata["generation"].as_str().unwrap().is_empty());
+    let actor = metadata["trader"]
+        .as_str()
+        .or_else(|| metadata["sender"].as_str());
+    let different = metadata["trader"].as_str().is_some()
+        && metadata["sender"].as_str().is_some()
+        && metadata["trader"] != metadata["sender"];
+    let fee = if !different
+        && matches!(
+            actor,
+            Some(TIER5_SENDER_A | TIER5_SENDER_B | "terra1discountwallet000000000000000000000")
+        ) {
+        15u128
+    } else {
+        30u128
+    };
+    let mut current: u128 = metadata["input_amount"].as_str().unwrap().parse().unwrap();
+    for (index, hop) in metadata["hops"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(
+            hop["offer_amount"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap(),
+            current
+        );
+        let pool_input: u128 = hop["pool_input_actual"].as_str().unwrap().parse().unwrap();
+        let consumed: u128 = hop["book_offer_consumed"]
+            .as_str()
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(pool_input + consumed, current);
+        let reserve = if hop["pair"] == "terra1pairroutempac" {
+            10_000_000u128
+        } else {
+            10_000_000_000_000u128
+        };
+        let pool_gross = reserve * pool_input / (reserve + pool_input);
+        let pool_net = pool_gross - pool_gross * fee / 10_000;
+        let book_gross = consumed * 101 / 100;
+        let book_net = book_gross - book_gross * (fee - fee / 2) / 10_000;
+        assert_eq!(
+            hop["pool_return_amount"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap(),
+            pool_net
+        );
+        assert_eq!(
+            hop["book_return_net"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap(),
+            book_net
+        );
+        current = pool_net + book_net;
+        assert_eq!(
+            hop["return_amount"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap(),
+            current
+        );
+        let floor: u128 = hop["min_return"].as_str().unwrap().parse().unwrap();
+        assert!(floor > 0 && floor >= current * 95 / 100 && floor <= current);
+        assert_eq!(
+            body["router_operations"][index]["terra_swap"]["min_return"],
+            hop["min_return"]
+        );
+    }
+    assert_eq!(amount(body), current);
+    assert_eq!(
+        metadata["minimum_receive"],
+        metadata["hops"].as_array().unwrap().last().unwrap()["min_return"]
+    );
+}
+
 /// Retail GET Policy A (#1280): hop 0 may carry a declared split; hops 1+ are pool-only.
 fn assert_retail_get_hybrid_hop0_only(ops: &[Value], amount_in: &str) {
     assert!(!ops.is_empty());
@@ -40,7 +233,7 @@ fn assert_retail_get_hybrid_hop0_only(ops: &[Value], amount_in: &str) {
 async fn route_solve_returns_hops_and_pool_only_hybrid() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -75,7 +268,7 @@ async fn route_solve_returns_hops_and_pool_only_hybrid() {
 async fn route_solve_unknown_token_returns_400() {
     let pool = common::setup_pool().await;
     common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -84,13 +277,13 @@ async fn route_solve_unknown_token_returns_400() {
     resp.assert_status_bad_request();
 }
 
-/// #1218 AC8: indexer graph is CW20 contract ids; wrap-map is client-side only.
+/// Missing cached wrapper observations cannot manufacture a native graph identity.
 #[serial]
 #[tokio::test]
 async fn route_solve_native_uluna_returns_400() {
     let pool = common::setup_pool().await;
     common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -104,7 +297,7 @@ async fn route_solve_native_uluna_returns_400() {
 async fn route_solve_no_path_returns_404() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -112,13 +305,9 @@ async fn route_solve_no_path_returns_404() {
         seed.token_a, seed.token_c
     );
     let resp = server.get(&url).await;
-    resp.assert_status_not_found();
+    resp.assert_status_unprocessable_entity();
     let text = resp.text();
-    assert!(
-        text.contains("no route") || text.contains("3 hops") || text.contains("4 hops"),
-        "{}",
-        text
-    );
+    assert!(text.contains("No eligible route"), "{}", text);
 }
 
 #[serial]
@@ -126,7 +315,7 @@ async fn route_solve_no_path_returns_404() {
 async fn route_solve_post_hybrid_length_mismatch_returns_400() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let body = json!({
@@ -150,7 +339,7 @@ async fn route_solve_post_merges_hybrid_and_simulates() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let body = json!({
@@ -171,12 +360,12 @@ async fn route_solve_post_merges_hybrid_and_simulates() {
     assert!(!hybrid.is_null());
     assert_eq!(hybrid["pool_input"], "700000");
     assert_eq!(hybrid["book_input"], "300000");
-    assert_eq!(j["estimated_amount_out"], "424242");
+    assert_local_economics(&j);
     assert_eq!(
         j["intermediate_tokens"],
         json!([seed.token_a, seed.token_b])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
 }
 
 #[serial]
@@ -188,7 +377,7 @@ async fn route_solve_get_default_hybrid_two_hops() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -203,9 +392,12 @@ async fn route_solve_get_default_hybrid_two_hops() {
         j["intermediate_tokens"],
         json!([seed.token_a, seed.token_b, seed.token_c])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
-    assert_eq!(j["estimated_amount_out"], "8888888");
-    assert!(!j["hybrid_notes"].is_null());
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
+    assert_local_economics(&j);
+    assert!(!j["execution_metadata"]["generation"]
+        .as_str()
+        .unwrap()
+        .is_empty());
     let ops = j["router_operations"].as_array().unwrap();
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
     assert_retail_get_hybrid_hop0_only(ops, "1000000");
@@ -220,7 +412,7 @@ async fn route_solve_pool_only_escape_hatch() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -231,8 +423,8 @@ async fn route_solve_pool_only_escape_hatch() {
     resp.assert_status_ok();
     let j: Value = resp.json();
     assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
-    assert_eq!(j["estimated_amount_out"], "424242");
-    assert_eq!(j["quote_kind"], "indexer_pool_lcd");
+    assert_local_economics(&j);
+    assert_eq!(j["quote_kind"], "indexer_pool_db");
     assert!(j["hybrid_notes"].is_null());
 }
 
@@ -245,7 +437,7 @@ async fn route_solve_slippage_percent_enrichment_293() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -273,16 +465,8 @@ async fn route_solve_slippage_percent_enrichment_293() {
         .expect("parse slippage_percent");
 
     assert!(est > 0 && spot > 0, "expected non-zero quote outputs");
-    assert!(
-        j["token_in_price_quote"].as_str().is_some(),
-        "token_in_price_quote"
-    );
-    assert_eq!(
-        j["token_out_price_quote"].as_str(),
-        Some("1.000000000000000000"),
-        "USTC quote leg is unit price"
-    );
-
+    assert_eq!(spot, 1_000_000, "independent same-unit fixture reference");
+    assert_local_economics(&j);
     let lo = est.min(spot) as f64;
     let hi = est.max(spot) as f64;
     let recomputed = (1.0 - lo / hi) * 100.0;
@@ -297,7 +481,7 @@ async fn route_solve_slippage_percent_enrichment_293() {
 async fn route_solve_hybrid_optimize_requires_amount_in() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -317,7 +501,7 @@ async fn route_solve_get_hybrid_optimize_two_hops() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -332,9 +516,12 @@ async fn route_solve_get_hybrid_optimize_two_hops() {
         j["intermediate_tokens"],
         json!([seed.token_a, seed.token_b, seed.token_c])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
-    assert_eq!(j["estimated_amount_out"], "8888888");
-    assert!(!j["hybrid_notes"].is_null());
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
+    assert_local_economics(&j);
+    assert!(!j["execution_metadata"]["generation"]
+        .as_str()
+        .unwrap()
+        .is_empty());
     let ops = j["router_operations"].as_array().unwrap();
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
     assert_retail_get_hybrid_hop0_only(ops, "1000000");
@@ -350,9 +537,11 @@ async fn route_solve_post_three_hop_multi_leg_hybrid() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
+    let first: Value = server.post("/api/v1/route/solve").json(&json!({"token_in":seed.token_a,"token_out":seed.token_b,"amount_in":"1000000","hybrid_by_hop":[{"pool_input":"250000","book_input":"750000","max_maker_fills":8}]})).await.json();
+    let second_offer = amount(&first);
     let body = json!({
         "token_in": seed.token_a,
         "token_out": token_d,
@@ -365,7 +554,7 @@ async fn route_solve_post_three_hop_multi_leg_hybrid() {
                 "book_start_hint": null
             },
             {
-                "pool_input": "400000",
+                "pool_input": (second_offer - 600000).to_string(),
                 "book_input": "600000",
                 "max_maker_fills": 8,
                 "book_start_hint": null
@@ -383,12 +572,12 @@ async fn route_solve_post_three_hop_multi_leg_hybrid() {
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
     assert!(!ops[1]["terra_swap"]["hybrid"].is_null());
     assert!(ops[2]["terra_swap"]["hybrid"].is_null());
-    assert_eq!(j["estimated_amount_out"], "7777777");
+    assert_local_economics(&j);
     assert_eq!(
         j["intermediate_tokens"],
         json!([seed.token_a, seed.token_b, seed.token_c, token_d])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
 }
 
 #[serial]
@@ -401,7 +590,7 @@ async fn route_solve_get_hybrid_optimize_three_hops() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -416,8 +605,8 @@ async fn route_solve_get_hybrid_optimize_three_hops() {
         j["intermediate_tokens"],
         json!([seed.token_a, seed.token_b, seed.token_c, token_d])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
-    assert_eq!(j["estimated_amount_out"], "8888888");
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
+    assert_local_economics(&j);
     let ops = j["router_operations"].as_array().unwrap();
     assert_eq!(ops.len(), 3);
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
@@ -434,7 +623,7 @@ async fn route_solve_get_default_hybrid_four_hops() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -455,8 +644,8 @@ async fn route_solve_get_default_hybrid_four_hops() {
             token_e
         ])
     );
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd");
-    assert_eq!(j["estimated_amount_out"], "8888888");
+    assert_eq!(j["quote_kind"], "indexer_hybrid_db");
+    assert_local_economics(&j);
     let ops = j["router_operations"].as_array().unwrap();
     assert_eq!(ops.len(), 4);
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
@@ -468,7 +657,7 @@ async fn route_solve_get_default_hybrid_four_hops() {
 async fn route_solve_best_requires_amount_in() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -488,7 +677,7 @@ async fn route_solve_best_matches_hybrid_optimize() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let best_url = format!(
@@ -503,7 +692,7 @@ async fn route_solve_best_matches_hybrid_optimize() {
     let best: Value = server.get(&best_url).await.json();
     let default_get: Value = server.get(&default_url).await.json();
 
-    assert_eq!(best["quote_kind"], "indexer_hybrid_lcd");
+    assert_eq!(best["quote_kind"], "indexer_hybrid_db");
     assert_eq!(
         best["estimated_amount_out"],
         default_get["estimated_amount_out"]
@@ -520,7 +709,7 @@ async fn route_solve_hybrid_optimize_degraded_falls_back_to_pool_only() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, false).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -530,8 +719,10 @@ async fn route_solve_hybrid_optimize_degraded_falls_back_to_pool_only() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["quote_kind"], "indexer_hybrid_lcd_degraded");
+    assert_eq!(j["quote_kind"], "indexer_pool_db");
     assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+    assert_local_economics(&j);
+    assert!(mock.received_requests().await.unwrap().is_empty());
 }
 
 #[serial]
@@ -543,7 +734,7 @@ async fn route_solve_global_picks_best_path_not_shortest() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -553,19 +744,19 @@ async fn route_solve_global_picks_best_path_not_shortest() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v5_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     assert_eq!(j["paths_considered"], 2);
     assert_eq!(
         j["hops"].as_array().unwrap().len(),
         2,
         "2-hop path beats 1-hop"
     );
-    assert_eq!(j["estimated_amount_out"], "9000000");
+    assert_local_economics(&j);
     assert!(
         j["optimality_scope"]
             .as_str()
             .unwrap_or("")
-            .contains("top-5"),
+            .contains("bounded"),
         "optimality_scope must describe search bounds"
     );
 }
@@ -579,7 +770,7 @@ async fn route_solve_global_response_metadata_contract() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -587,10 +778,14 @@ async fn route_solve_global_response_metadata_contract() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v5_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     assert!(j["paths_considered"].as_u64().unwrap_or(0) >= 1);
-    assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
-    assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
+    assert!(!j["execution_metadata"]["generation"]
+        .as_str()
+        .unwrap_or("")
+        .is_empty());
+    assert_eq!(j["lcd_hybrid_queries"], 0);
+    assert!(mock.received_requests().await.unwrap().is_empty());
 }
 
 #[serial]
@@ -599,13 +794,13 @@ async fn route_solve_get_with_trader_returns_higher_estimate() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_2hop(&pool).await;
     let trader = "terra1discountwallet000000000000000000000";
-    // #283 tier-keyed GET cache: unregistered trader collides with no-trader (tier -1).
+    // Cached actor fee context is prepared explicitly before requests.
     common::seed_traders_with_tiers(&pool, &[(trader, 5)]).await;
     let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let base_url = format!(
@@ -616,8 +811,10 @@ async fn route_solve_get_with_trader_returns_higher_estimate() {
     let discounted_url = format!("{base_url}&trader={trader}");
     let discounted: Value = server.get(&discounted_url).await.json();
 
-    assert_eq!(base["estimated_amount_out"], "8888888");
-    assert_eq!(discounted["estimated_amount_out"], "9777776");
+    assert_local_economics(&base);
+    assert_local_economics(&discounted);
+    assert!(amount(&discounted) > amount(&base));
+    assert!(mock.received_requests().await.unwrap().is_empty());
 }
 
 #[serial]
@@ -625,7 +822,7 @@ async fn route_solve_get_with_trader_returns_higher_estimate() {
 async fn route_solve_invalid_trader_returns_400() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -640,11 +837,13 @@ async fn route_solve_invalid_trader_returns_400() {
 async fn route_solve_post_forwards_trader_to_router_sim() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
+    common::seed_traders_with_tiers(&pool, &[("terra1discountwallet000000000000000000000", 5)])
+        .await;
     let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let trader = "terra1discountwallet000000000000000000000";
@@ -661,13 +860,8 @@ async fn route_solve_post_forwards_trader_to_router_sim() {
         }]
     });
     let j: Value = server.post("/api/v1/route/solve").json(&body).await.json();
-    assert_eq!(j["estimated_amount_out"], "9777776");
+    assert_local_economics(&j);
 }
-
-/// Tier-0 router/hybrid LCD mock output (no discount subject or tier-0 sender).
-const TIER0_ROUTE_AMOUNT: &str = "8888888";
-/// Tier-5 router/hybrid LCD mock output (sender/trader in tier5_addrs list).
-const TIER5_ROUTE_AMOUNT: &str = "9777776";
 
 const TIER0_SENDER: &str = "terra1tier0sender000000000000000000000000";
 const TIER5_SENDER_A: &str = "terra1tier5sendera00000000000000000000000";
@@ -685,7 +879,7 @@ async fn route_solve_get_cache_tier_isolation() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let base_url = format!(
@@ -697,13 +891,13 @@ async fn route_solve_get_cache_tier_isolation() {
         .get(&format!("{base_url}&sender={TIER0_SENDER}"))
         .await
         .json();
-    assert_eq!(tier0["estimated_amount_out"], TIER0_ROUTE_AMOUNT);
+    assert_local_economics(&tier0);
 
     let tier5: Value = server
         .get(&format!("{base_url}&sender={TIER5_SENDER_A}"))
         .await
         .json();
-    assert_eq!(tier5["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    assert_local_economics(&tier5);
     assert_ne!(
         tier5["estimated_amount_out"], tier0["estimated_amount_out"],
         "tier-5 sender must not receive tier-0 cached quote"
@@ -714,7 +908,7 @@ async fn route_solve_get_cache_tier_isolation() {
         .await
         .json();
     assert_eq!(
-        unknown["estimated_amount_out"], TIER0_ROUTE_AMOUNT,
+        unknown["estimated_amount_out"], tier0["estimated_amount_out"],
         "unknown sender resolves to tier 0"
     );
 }
@@ -731,7 +925,7 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let base_url = format!(
@@ -744,68 +938,45 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
         .await;
     first_response.assert_status_ok();
     let tier5_a: Value = first_response.json();
-    assert_eq!(tier5_a["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    assert_local_economics(&tier5_a);
     let requests_after_first = mock
         .received_requests()
         .await
         .expect("mock server should expose request log");
     assert!(
-        requests_after_first.iter().any(|request| {
-            lcd_mock::smart_query_from_request(request)
-                .get("simulate_swap_operations")
-                .is_some()
-        }),
-        "the initial quote must perform an LCD router simulation"
+        requests_after_first.is_empty(),
+        "initial useful quote performs zero provider calls"
     );
-
     let second_response = server
         .get(&format!("{base_url}&sender={TIER5_SENDER_B}"))
         .await;
     second_response.assert_status_ok();
     let tier5_b: Value = second_response.json();
-    assert_eq!(tier5_b["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
+    assert_local_economics(&tier5_b);
     assert_eq!(tier5_b["router_operations"], tier5_a["router_operations"]);
     assert_eq!(tier5_b["hops"], tier5_a["hops"]);
 
     let requests_after_second = mock.received_requests().await.expect("request log");
-    let delta = &requests_after_second[requests_after_first.len()..];
-    let node_info_path = "/cosmos/base/tendermint/v1beta1/node_info";
-    let identity_probes = delta
-        .iter()
-        .filter(|r| r.url.path() == node_info_path)
-        .count();
     assert!(
-        (3..=11).contains(&identity_probes),
-        "cache hits re-attest each candidate with bounded chain work"
+        requests_after_second.is_empty(),
+        "same-tier and distinct actor cache identity perform zero provider calls"
     );
-    let mut cache_hit_requests: Vec<_> = delta
-        .iter()
-        .filter(|r| r.url.path() != node_info_path)
-        .map(|request| {
-            (
-                request.method.to_string(),
-                request.url.path().to_string(),
-                request.url.query().map(str::to_owned),
-            )
-        })
-        .collect();
-    cache_hit_requests.sort();
-    let mut expected_identity_reads: Vec<_> = [&seed.token_a, &seed.token_b, &seed.token_c]
-        .into_iter()
-        .map(|token| {
-            (
-                "GET".to_string(),
-                format!("/cosmwasm/wasm/v1/contract/{token}"),
-                None,
-            )
-        })
-        .collect();
-    expected_identity_reads.sort();
+    assert_eq!(tier5_a["execution_metadata"]["sender"], TIER5_SENDER_A);
+    assert_eq!(tier5_b["execution_metadata"]["sender"], TIER5_SENDER_B);
+    let counters = cl8y_dex_indexer::api::local_quote::cache_counters();
+    let repeated: Value = server
+        .get(&format!("{base_url}&sender={TIER5_SENDER_B}"))
+        .await
+        .json();
+    assert_eq!(repeated["router_operations"], tier5_b["router_operations"]);
     assert_eq!(
-        cache_hit_requests, expected_identity_reads,
-        "same-tier GET must reuse the quote and smart-query verdicts while checking each \
-         candidate's live code identity exactly once (#1388); no extra simulation, \
-         capability or pool queries are permitted"
+        repeated["execution_metadata"],
+        tier5_b["execution_metadata"]
+    );
+    assert_eq!(
+        cl8y_dex_indexer::api::local_quote::cache_counters().0,
+        counters.0 + 1,
+        "identical actual actor request hits its exact local cache key"
     );
 }
 
@@ -814,7 +985,7 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
 async fn route_solve_invalid_sender_returns_400() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -835,7 +1006,7 @@ async fn route_solve_progress_idle_then_terminal_after_solve() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let progress_url = format!(
@@ -850,9 +1021,19 @@ async fn route_solve_progress_idle_then_terminal_after_solve() {
         "/api/v1/route/solve?token_in={}&token_out={}&amount_in=13760000001",
         seed.token_a, seed.token_c
     );
-    server.get(&solve_url).await.assert_status_ok();
-
-    let after: Value = server.get(&progress_url).await.json();
+    let useful = server.get(&solve_url).await;
+    useful.assert_status_ok();
+    assert_local_economics(&useful.json());
+    let mut after: Value = server.get(&progress_url).await.json();
+    for _ in 0..100 {
+        if after["stage"] != "evaluating" {
+            break;
+        }
+        assert_eq!(after["done"], 0);
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+        after = server.get(&progress_url).await.json();
+    }
+    assert!(mock.received_requests().await.unwrap().is_empty());
     let stage = after["stage"].as_str().unwrap_or("");
     assert!(
         stage == "done" || stage == "cached",
@@ -867,7 +1048,7 @@ async fn route_solve_progress_idle_then_terminal_after_solve() {
 async fn route_solve_progress_requires_amount_in() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -888,7 +1069,7 @@ async fn route_solve_progress_trader_reuses_discount_bps_cache() {
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.fee_discount_address = Some("terra1feediscount69400000000000000000000".to_string());
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = local_app(pool, cfg, true).await;
     let server = TestServer::new(app);
 
     let trader = "terra1discountwallet000000000000000000000";
@@ -910,8 +1091,8 @@ async fn route_solve_progress_trader_reuses_discount_bps_cache() {
         })
         .count();
     assert_eq!(
-        get_discount, 1,
-        "progress polls inside TTL must reuse discount_bps cache (got {get_discount} GetDiscount calls)"
+        get_discount, 0,
+        "progress polls only read initialized context (got {get_discount} provider calls)"
     );
 }
 
@@ -934,12 +1115,12 @@ async fn route_solve_excludes_code_id_frozen_pair() {
     let _restore = RestoreFrozenPairs(snapshot_frozen_pair_addresses());
     replace_frozen_pair_addresses(HashSet::from(["terra1pairrouteabc".to_string()]));
 
-    let app = common::build_test_app(pool).await;
+    let app = local_app(pool, common::test_config(), true).await;
     let server = TestServer::new(app);
     let url = format!(
         "/api/v1/route/solve?token_in={}&token_out={}",
         seed.token_a, seed.token_b
     );
     let resp = server.get(&url).await;
-    resp.assert_status_not_found();
+    resp.assert_status_unprocessable_entity();
 }

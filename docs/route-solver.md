@@ -34,22 +34,23 @@ with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
 | Resource | Bound |
 | --- | --- |
 | Asset rows / discovered contract identities / pair rows | 2,048 / 512 / 512, deterministic order |
-| Actor observations / retained contexts | 120 recent + 8 rotating historical observations per pass; 2,048 stored contexts, known blocks never evicted; unknown actors use full-fee estimates without wallet-specific approval |
+| Actor observations / retained contexts | 8 rotating recent (from a 120-wallet census) + 8 rotating historical observations per pass; 2,048 stored contexts, known blocks never evicted; unknown actors use full-fee estimates without wallet-specific approval |
 | Graph work / returned structural candidates | 16,384 edge visits / 1,024 paths, at most four hops |
 | Initial book alternatives | Pool-only, half-book and full-book on hop zero; compare emitted plans with L9 and material-pool checks |
 | Mirrored book rows | 500 per side per pair; excessive/invalid required mirrors fail explicitly |
 | Exact-output sizing | At most 64 pool candidates; checked integer inverse and local forward sufficiency, positive target floors |
 | Cached results / skeletons / namespaces / concurrent deeper jobs | 256 / 128 / 32 / 4; exact results, namespace/topology/freeze-bound skeletons, coalesced jobs with cleanup |
-| Configuration admission | Nonoverlapping 60 s cadence, 180 s pass deadline and validity ceiling; each pair check has a 6 s deadline |
+| Configuration admission | Nonoverlapping 2 s cadence, 60 s slice deadline; 8 pairs per slice; original per-pair 180 s validity ceiling and 6 s dependent-check deadline |
 | Local reserve/reference publication | Nonoverlapping 2 s cadence and 2 s pass deadline; original observation times retained |
 | Wrapper observation | 10 s cadence, 8 s deadline, 20 s observation-age ceiling |
 | Quote-worker provider traffic | Two data-request permits, one aggregate request start every 250 ms; 64 KiB response ceiling, 32 KiB config and 8 KiB wrapper sublimits |
 
-The current admission pass validates its capped population before publication.
-A large population or slow providers can exhaust the 180 s initialization budget;
-this implementation does not yet have incremental configuration publication.
-Initialized representative fixtures and bounded failure are verified separately
-from that large-factory production behavior. Ordinary code identity, pair pins,
+Configuration admission rotates through bounded slices and publishes each completed
+pair before continuing. Failed checks remove pending admission without renewing its
+old timestamps. Each quote checks its own pairs' configuration expiry; an expired
+unrelated edge cannot disable a fresh corridor. Provider delay can still expire
+observations, so largest-factory production liveness needs separate evidence.
+See [incremental admission and recovery](qa/issue-1452/FOLLOWUP-INGESTION.md). Ordinary code identity, pair pins,
 hook configuration/order, registry wiring, known actors, references, books,
 reserves, wrapper semantics and local freeze membership invalidate generations.
 
@@ -59,11 +60,20 @@ of request traffic. At the 2,048-context limit, fee contexts may be discarded,
 but losing a known block is forbidden. Overflow immediately quarantines local
 quotes, cache hits, topology and progress; the 32-namespace quarantine registry
 fails closed if it is exhausted. No reset based on a partial census is allowed.
-Recovery needs a complete authoritative block inventory, which is currently
-unavailable; this runtime capacity boundary is distinct from verification skips.
+Recovery requires a complete pinned-height raw inventory from the canonical factory
+layout, including a terminal page and unchanged configuration epoch. Missing,
+partial, stale or oversized inventory leaves quarantine intact. This runtime
+capacity boundary is distinct from verification skips.
 
-Community-tax forward settlement, deducting-hook inverse, explicit manual split POST
-and direct zero-hop wrapper quotes are currently unsupported and fail explicitly.
+Supported local v1 community-tax forward and pool receive sizing account for exact
+gross funding, sell residue, hook deductions and buy tax. Named actors require
+scheduled per-token identity and wallet-cap observations; enabled AutoLP and
+unobservable cooldowns fail explicitly. See [tax scope](qa/issue-1452/FOLLOWUP-TAX.md).
+Deducting-hook inverse uses observation-time residue tables, preserving independent
+rounding collisions. Manual split POST binds every exact hop budget and maker cap.
+Direct zero-hop wrapper arithmetic/sizing is available with
+`execution_supported:false`; signing remains blocked because the external
+protocol cannot enforce a receive floor. See [mode scope](qa/issue-1452/FOLLOWUP-MODES.md).
 Known actor discounts apply only to pairs with the matching observed registry;
 unknown wallet blacklist/tier context cannot be represented as fresh approval.
 On-chain blacklist, launch, tax, wallet funding and positive settlement floors
@@ -559,3 +569,13 @@ and one raw ask unit in both directions, plus one human ask unit forward.
 Additional mixed-decimal one-to-three-hop requests still exhibit work-budget or
 provider-gas failures; see the limitation receipts in [#1428 results](qa/issue-1428/RESULTS.md).
 No automatic substitution converts those failures into executable quotes.
+
+### Additional local quote modes (#1452 follow-up)
+
+[Mode invariants and focused agent checks](qa/issue-1452/FOLLOWUP-MODES.md) cover
+exact deducting-hook receive inversion and POST declared splits. POST accepts
+`max_spread` and an exact `hybrid_by_hop` plan; no manual result may be replaced
+by deferred optimization. Native-to-own-wrapper mappings have zero pair hops
+and local receive sizing. They set `execution_supported:false`: the current
+external wrap/unwrap messages cannot sign the reviewed receive floor, so official
+submission remains blocked until a compatible contract protocol exists.

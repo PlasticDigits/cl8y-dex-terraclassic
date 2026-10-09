@@ -1,3 +1,6 @@
+import { executeMultiHopSwap } from '@/services/terraclassic/router'
+import { localQuote } from '@/test/localRouteFixtures'
+import * as indexerClient from '@/services/indexer/client'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -74,7 +77,8 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   computeDirectHybridMinReturn: vi.fn().mockResolvedValue('900000'),
 }))
 
-vi.mock('@/services/terraclassic/transactions', () => ({
+vi.mock('@/services/terraclassic/transactions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/terraclassic/transactions')>()),
   executeCw20AllowanceThen: vi.fn(async (_a, _b, _c, _d, fn: () => Promise<string>) => fn()),
   estimateMarketPairSwapSequenceUlunaFeesTotal: vi.fn().mockReturnValue(1000000n),
 }))
@@ -136,6 +140,18 @@ function renderPanel(overrides?: { isPaused?: boolean; address?: string | null }
 
 describe('TradeMarketOrderPanel slippage presets (GitLab #528)', () => {
   beforeEach(() => {
+    vi.mocked(indexerClient.getTokens).mockResolvedValue(
+      selectedPair.asset_infos.map((a) => ({
+        contract_address: 'token' in a ? a.token.contract_addr : null,
+        denom: 'native_token' in a ? a.native_token.denom : null,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, constraints) =>
+      localQuote(from, to, amount, constraints)
+    )
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.clearAllMocks()
     useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
@@ -205,8 +221,10 @@ describe('TradeMarketOrderPanel slippage presets (GitLab #528)', () => {
     expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('0.5%')
 
     await user.click(screen.getByTestId('trade-market-submit'))
-    await waitFor(() => expect(pair.swap).toHaveBeenCalled())
-    const swapArgs = vi.mocked(pair.swap).mock.calls.at(-1)
-    expect(swapArgs?.[5]).toBe('0.005')
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalled())
+    const swapArgs = vi.mocked(executeMultiHopSwap).mock.calls.at(-1)
+    expect(swapArgs?.[4]).toBe('0.005')
+    expect(swapArgs?.[8]).toMatchObject({ max_spread: '0.005', generation: 'fixture1' })
+    expect(pair.swap).not.toHaveBeenCalled()
   })
 })

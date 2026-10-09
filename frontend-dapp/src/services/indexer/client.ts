@@ -739,13 +739,13 @@ export async function getRouteSolveProgress(
   })
 }
 
-/** `POST /api/v1/route/solve` — merges `hybrid_by_hop` into router ops and optionally returns `estimated_amount_out` from LCD simulation. */
+/** `POST /api/v1/route/solve` — exact local declared-split quotes with no remote simulation. */
 export async function postRouteSolve(
   tokenIn: string,
   tokenOut: string,
   amountIn: string | undefined,
   hybridByHop: (IndexerHybridHopInput | null)[],
-  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal'>
+  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal' | 'maxSpread'>
 ): Promise<IndexerRouteSolveResponse> {
   return fetchJsonPost<IndexerRouteSolveResponse>(
     '/api/v1/route/solve',
@@ -754,6 +754,7 @@ export async function postRouteSolve(
       token_out: tokenOut.trim(),
       amount_in: amountIn?.trim() || null,
       hybrid_by_hop: hybridByHop,
+      max_spread: options?.maxSpread,
       trader: options?.trader?.trim() || null,
       sender: options?.sender?.trim() || null,
     },

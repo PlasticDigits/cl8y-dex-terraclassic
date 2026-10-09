@@ -132,6 +132,7 @@ async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
 describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
     useWalletStore.setState({ address: LOCAL_WALLET, walletType: 'simulated', error: null })
     vi.mocked(indexerClient.getTokens).mockResolvedValue(localTokens)
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
@@ -193,12 +194,60 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     )
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
   })
-  it('rejects unsupported manual splits explicitly instead of simulating a fallback', async () => {
+  it('fails closed when local observations for a manual split are unavailable', async () => {
     await ready()
     await openAdvanced(userEvent.setup())
     fireEvent.change(screen.getByTestId('trade-market-book-leg-input'), { target: { value: '0.1' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
-    await waitFor(() => expect(screen.getByTestId('trade-market-quote-error')).toHaveTextContent(/Clear the book leg/i))
+    await waitFor(() =>
+      expect(screen.getByTestId('trade-market-quote-error')).toHaveTextContent(/temporarily unavailable/i)
+    )
+    expect(indexerClient.postRouteSolve).toHaveBeenCalledWith(
+      TERRA_A,
+      TERRA_B,
+      '1000000',
+      [{ pool_input: '900000', book_input: '100000', max_maker_fills: 8, book_start_hint: null }],
+      expect.objectContaining({ maxSpread: '0.05', trader: LOCAL_WALLET })
+    )
+    expect(pair.simulateHybridSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('pins and signs the exact locally admitted manual split', async () => {
+    vi.mocked(indexerClient.postRouteSolve).mockImplementation(async (from, to, amount, plan, options) => {
+      const q = localQuote(from, to, amount, options)
+      const split = plan[0]!
+      const h = q.execution_metadata!.hops[0]
+      Object.assign(h, {
+        pool_input_actual: split.pool_input,
+        book_offer_consumed: split.book_input,
+        pool_return_amount: split.pool_input,
+        book_return_net: split.book_input,
+      })
+      h.declared_hybrid = { ...split, book_start_hint: null }
+      q.execution_metadata!.policy = 'declared_hybrid_manual'
+      ;(q.router_operations[0] as import('@/services/terraclassic/router').SwapOperation).terra_swap.hybrid = {
+        ...split,
+        book_start_hint: null,
+      }
+      return q
+    })
+    await ready()
+    await openAdvanced(userEvent.setup())
+    fireEvent.change(screen.getByTestId('trade-market-book-leg-input'), { target: { value: '0.1' } })
+    await waitFor(() => expect(indexerClient.postRouteSolve).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalled())
+    const call = vi.mocked(executeMultiHopSwap).mock.calls.at(-1)!
+    expect(call[2]).toBe('1000000')
+    expect(call[3][0].terra_swap.hybrid).toMatchObject({
+      pool_input: '900000',
+      book_input: '100000',
+      max_maker_fills: 8,
+    })
+    expect(call[3][0].terra_swap.min_return).toBe('950000')
+    expect(call[5]).toBe('950000')
+    expect(call[8]).toMatchObject({ policy: 'declared_hybrid_manual', generation: 'fixture1' })
     expect(pair.simulateHybridSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
   })

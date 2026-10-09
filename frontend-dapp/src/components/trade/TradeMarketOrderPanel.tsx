@@ -244,10 +244,19 @@ export function TradeMarketOrderPanel({
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<MarketSimData> => {
       if (debouncedRawInputAmount === '0') throw new Error(LOCAL_ROUTE_UNAVAILABLE)
-      // Typed book splits require an execution-aligned local mirror; never silently change the plan.
-      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)) {
-        throw new Error('This book split is unavailable. Clear the book leg.')
-      }
+      const split =
+        debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)
+          ? getDirectHybridBookSplit({
+              isDirect: true,
+              fromToken,
+              bookInputHuman: debouncedBookInputHuman,
+              rawInputAmount: debouncedRawInputAmount,
+              hybridMaxMakers: debouncedHybridMaxMakers,
+              payDecimals: offerDecimals,
+            })
+          : null
+      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman) && !split?.willSubmitHybrid)
+        throw new Error('This book split is unavailable. Check the book amount.')
       const quoted = await quoteCw20ViaRouteSolve({
         fromToken,
         toToken,
@@ -257,6 +266,16 @@ export function TradeMarketOrderPanel({
         maxSpreadStr: slippagePercentToMaxSpread(slippageTolerance),
         quoteTrader,
         signal,
+        declaredHybrid: split?.willSubmitHybrid
+          ? [
+              {
+                pool_input: split.poolRaw,
+                book_input: split.bookRaw,
+                max_maker_fills: debouncedHybridMaxMakers,
+                book_start_hint: null,
+              },
+            ]
+          : undefined,
       })
       if (!quoted) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       return { ...quoted, quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind) }

@@ -8,7 +8,7 @@ import {
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
 import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
-import { assertLocalRouteSubmit } from '@/utils/localRouteQuote'
+import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import {
   fetchNativeTransferTaxParams,
   grossUlunaForTargetNet,
@@ -135,9 +135,12 @@ export async function executeMultiHopSwap(
   deadline?: number,
   localExecution?: import('@/types').IndexerRouteExecutionMetadata
 ): Promise<string> {
+  if (localExecution && to != null && to !== walletAddress) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
   if (localExecution)
     assertLocalRouteSubmit(localExecution, operations, amount, maxSpread, walletAddress, minimumReceive)
-  const taxFundingVersion = localExecution ? undefined : await assertRouteTaxFunding(operations)
+  const taxFundingVersion = localExecution
+    ? localExecution.tax_funding_version
+    : await assertRouteTaxFunding(operations)
   if (taxFundingVersion !== 1) assertHop0DeclaredHybridPartitionsOffer(operations, amount)
   const swapMsg = btoa(
     JSON.stringify({
@@ -521,6 +524,8 @@ export async function executeLocalNativeRoute(
   minimumReceive: string,
   deadline?: number
 ): Promise<string> {
+  if (metadata.execution_supported === false || metadata.policy === 'wrapper_only')
+    throw new Error('Direct wrapping cannot enforce the reviewed receive floor')
   const w = metadata.wrapper
   if (
     !w ||
@@ -545,7 +550,8 @@ export async function executeLocalNativeRoute(
       amount: w.route_input_amount,
       msg: btoa(
         JSON.stringify({
-          execute_swap_operations: {
+          [metadata.tax_funding_version === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+            ...(metadata.tax_funding_version === 1 ? { funding_version: 1 } : {}),
             operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
             max_spread: maxSpread,
             minimum_receive: minimumReceive,

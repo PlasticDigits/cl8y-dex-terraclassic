@@ -804,12 +804,14 @@ export type IndexerRouteQuoteKind =
   | 'indexer_pool_lcd'
   | 'indexer_hybrid_lcd'
   | 'indexer_hybrid_lcd_degraded'
+  | 'indexer_wrapper_db'
   | 'indexer_pool_db'
   | 'indexer_hybrid_db'
   | 'indexer_hybrid_db_degraded'
 
 /** Local observation-pinned executable quote (#1452); never authorizes live fallback. */
 export interface IndexerRouteExecutionMetadata {
+  execution_supported?: false
   version: 1
   generation: string
   input_amount: string
@@ -818,7 +820,7 @@ export interface IndexerRouteExecutionMetadata {
   sender?: string | null
   observed_at_ms: number
   expires_at_ms: number
-  policy: 'pool_only' | 'declared_hybrid_hop0'
+  policy: 'pool_only' | 'declared_hybrid_hop0' | 'declared_hybrid_manual' | 'wrapper_only'
   tax_funding_version?: 1
   minimum_receive: string
   wrapper?: {
@@ -838,6 +840,15 @@ export interface IndexerRouteExecutionMetadata {
     ask_token: string
     pair: string
     offer_amount: string
+    declared_hybrid: HybridSwapParams | null
+    /** Gross-funding v1 fields; pair credit and declared hybrid budgets use economic offer. */
+    economic_offer_amount?: string
+    sell_tax_amount?: string
+    sell_residue?: string
+    sell_tax_bps?: number
+    buy_tax_bps?: number
+    buy_tax_amount?: string
+    post_hook_return_amount?: string
     return_amount: string
     pool_return_amount: string
     book_return_net: string
@@ -850,6 +861,7 @@ export interface IndexerRouteExecutionMetadata {
 }
 
 export interface IndexerRouteSolveResponse {
+  execution_blocker?: string
   execution_metadata?: IndexerRouteExecutionMetadata
   /** Exact-output sizing metadata (#1376); target is net CW20 raw units. */
   required_amount_in?: string
@@ -865,7 +877,7 @@ export interface IndexerRouteSolveResponse {
   hybrid_notes?: string | null
   router_operations: unknown[]
   estimated_amount_out?: string
-  /** Catalog buy-split net (#615). Execute / min_return still use `estimated_amount_out`. */
+  /** Delivered net output; local v1 aliases estimated_amount_out and already pins net floors. */
   estimated_amount_out_net?: string
   /** Gross input and all-tax net output; verified route funding protocol (#1381). */
   tax_funding_version?: 1
