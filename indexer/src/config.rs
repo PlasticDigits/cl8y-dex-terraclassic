@@ -228,6 +228,8 @@ pub struct Config {
     pub api_ipv6_enabled: bool,
     pub lcd_timeout_ms: u64,
     pub lcd_cooldown_ms: u64,
+    /// Client-shared provider admission, circuit and request bounds (#1453).
+    pub lcd_provider_policy: crate::lcd::ProviderPolicy,
     pub start_block: Option<i64>,
     pub cors_origins: Vec<String>,
     pub rate_limit_rps: u64,
@@ -455,6 +457,24 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30000),
+            lcd_provider_policy: {
+                fn setting(name: &str, default: u64) -> u64 {
+                    env::var(name)
+                        .ok()
+                        .and_then(|value| value.parse().ok())
+                        .unwrap_or(default)
+                }
+                crate::lcd::ProviderPolicy {
+                    concurrency: setting("LCD_PROVIDER_CONCURRENCY", 8).clamp(1, 32) as usize,
+                    requests_per_second: setting("LCD_PROVIDER_RPS", 64).clamp(1, 1024) as u32,
+                    burst: setting("LCD_PROVIDER_BURST", 128).clamp(2, 1024) as u32,
+                    max_attempts: setting("LCD_MAX_ATTEMPTS", 3).clamp(1, 8) as usize,
+                    attempt_timeout_ms: setting("LCD_ATTEMPT_TIMEOUT_MS", 1000).clamp(10, 5000),
+                    deadline_ms: setting("LCD_DEADLINE_MS", 4000).clamp(10, 30_000),
+                    max_backoff_ms: setting("LCD_MAX_BACKOFF_MS", 60_000).clamp(1, 300_000),
+                    max_height_lag: setting("LCD_MAX_HEIGHT_LAG", 20).clamp(1, 1000) as i64,
+                }
+            },
             start_block: env::var("START_BLOCK").ok().and_then(|v| v.parse().ok()),
             cors_origins,
             rate_limit_rps: {
@@ -639,6 +659,14 @@ mod tests {
             "EXPECTED_CHAIN_ID",
             "RUN_MODE",
             "LCD_URLS",
+            "LCD_PROVIDER_CONCURRENCY",
+            "LCD_PROVIDER_RPS",
+            "LCD_PROVIDER_BURST",
+            "LCD_MAX_ATTEMPTS",
+            "LCD_ATTEMPT_TIMEOUT_MS",
+            "LCD_DEADLINE_MS",
+            "LCD_MAX_BACKOFF_MS",
+            "LCD_MAX_HEIGHT_LAG",
             "DATABASE_URL",
             "FACTORY_ADDRESS",
             "CORS_ORIGINS",
@@ -954,5 +982,40 @@ mod tests {
         let c = Config::from_env().expect("prod clamps dual-zero");
         assert_eq!(c.rate_limit_rps, 60);
         assert_eq!(c.rate_limit_lcd_heavy_rps, 10);
+    }
+    #[test]
+    #[serial]
+    fn provider_policy_settings_are_bounded_and_defaulted() {
+        let _config_env = clear_config_env();
+        env::set_var("FACTORY_ADDRESS", "terra1syntheticfactory");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://runtime:synthetic-local-password@localhost/test",
+        );
+        let config = Config::from_env().unwrap();
+        assert_eq!(config.lcd_provider_policy.attempt_timeout_ms, 1000);
+        assert_eq!(config.lcd_provider_policy.max_attempts, 3);
+        for name in [
+            "LCD_PROVIDER_CONCURRENCY",
+            "LCD_PROVIDER_RPS",
+            "LCD_PROVIDER_BURST",
+            "LCD_MAX_ATTEMPTS",
+            "LCD_ATTEMPT_TIMEOUT_MS",
+            "LCD_DEADLINE_MS",
+            "LCD_MAX_BACKOFF_MS",
+            "LCD_MAX_HEIGHT_LAG",
+        ] {
+            env::set_var(name, "18446744073709551615");
+        }
+        let policy = Config::from_env().unwrap().lcd_provider_policy;
+        assert_eq!(policy.concurrency, 32);
+        assert_eq!(policy.requests_per_second, 1024);
+        assert_eq!(policy.burst, 1024);
+        assert_eq!(policy.max_attempts, 8);
+        assert_eq!(policy.attempt_timeout_ms, 5000);
+        assert_eq!(policy.deadline_ms, 30_000);
+        assert_eq!(policy.max_backoff_ms, 300_000);
+        assert_eq!(policy.max_height_lag, 1000);
     }
 }

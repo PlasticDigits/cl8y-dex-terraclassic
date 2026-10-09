@@ -1,0 +1,83 @@
+{
+  "issue": 1453,
+  "status": "PASS_WITH_SKIPS",
+  "source_base_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "source_fingerprint_sha256": "0345a6cd00692641740af589efe948e7377e4c058614250d7583bff856a27e30",
+  "fingerprint_scope": "Sorted indexer/src and indexer/tests *.rs, indexer/migrations *.sql, Cargo.toml and Cargo.lock; hash relative path + NUL + bytes + NUL.",
+  "utc_start": "2026-10-09T09:08:35Z",
+  "utc_end": "2026-10-09T09:10:56Z",
+  "command": "CARGO_TARGET_DIR=<shared host build cache> CI=1 make verify-issue-1453",
+  "verification_groups": {
+    "pass": 12,
+    "fail": 0,
+    "skip": 2
+  },
+  "test_and_retest": {
+    "library": {
+      "lcd": 54,
+      "provider_config": 1,
+      "book_snapshot": 6,
+      "protocol_tvl": 20,
+      "listing_spread": 6,
+      "pair_discovery": 29
+    },
+    "disposable_postgres": {
+      "book_snapshot_loop": 16,
+      "indexer_protocol_liquidity": 34,
+      "indexer_protocol_liquidity_series": 9,
+      "api_overview": 2,
+      "indexer_pair_discovery": 12,
+      "api_route_solve_db_hybrid": 10
+    },
+    "frontend": 97
+  },
+  "mock_browser": {
+    "passed": 4,
+    "scope": "desktop/phone, expiry/outage/reload, actual decreases and zero"
+  },
+  "probe_privacy_and_budgets": 9,
+  "library_ignored_benchmarks": "Two existing ignored benchmarks in focused filters; discovery benchmark executed by verify-issue-1394.",
+  "related_verifiers": [
+    {
+      "issue": 1394,
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    {
+      "issue": 1396,
+      "pass": 28,
+      "fail": 0,
+      "skip": 2
+    },
+    {
+      "issue": 1398,
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    {
+      "issue": 1399,
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    {
+      "issue": 1437,
+      "pass": 13,
+      "fail": 0,
+      "skip": 0
+    }
+  ],
+  "skipped_acceptance": [
+    "New implementation production deployment, active failover/recovery and latency envelope are unverified; read-only pre-fix audits are partial evidence.",
+    "Exact historical missing contribution/chain reconciliation unavailable in bounded collected evidence; originals preserved and no repair performed."
+  ],
+  "remaining_cross_issue": "#1452 owns complete removal of existing quote-triggered LCD calls; no zero-RPC or <250ms result is claimed.",
+  "related_local_limits": [
+    "DB1396 dedicated bridge published-loopback prerequisite timed out; internal bridge/host IPv4 probes passed.",
+    "Host IPv6 loopback disabled by kernel.",
+    "No isolated funded LP/outage controls supplied; existing shared chain was not mutated for QA."
+  ],
+  "corrections_and_previous_failures": "See verification.md. Initial executed failures remain documented as failures; final runnable checks were fixed and retested."
+}

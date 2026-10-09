@@ -1,6 +1,6 @@
 //! Postgres-backed hybrid simulation for the route solver (GitLab #319 Phase 1c).
 //!
-//! Prices pool + resting-book legs from `pair_reserves` and `resting_limit_orders` using the same
+//! Prices pool + resting-book legs from `hybrid_pair_reserves` and `resting_limit_orders` using the same
 //! math as on-chain `query_hybrid_simulation` / `orderbook::simulate_match_*`.
 
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
@@ -209,22 +209,27 @@ pub async fn load_hop_mirror(
         .cloned()
         .ok_or(DbSimError::PairNotFound)?;
 
-    // Reserves and resting book are written in one snapshot transaction (#322); read them under
+    // Compatible reserves and resting book are written in one transaction (#1453); read them under
     // REPEATABLE READ so a concurrent snapshot cannot mix rows from different commits.
     let mut tx = pool.begin().await?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await?;
 
-    let reserves = pair_reserves::get_pair_reserves(&mut *tx, pair_row.id)
+    let reserves = pair_reserves::get_hybrid_pair_reserves(&mut *tx, pair_row.id)
         .await?
         .ok_or(DbSimError::MissingMirror)?;
 
+    if !(0..=10_000).contains(&reserves.fee_bps) {
+        return Err(DbSimError::InvalidNumeric);
+    }
     let reserve_0 = parse_u128(&reserves.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
     let reserve_1 = parse_u128(&reserves.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
 
     let stale = is_snapshot_stale(reserves.snapshot_at, max_staleness_ms);
-    let freshness = if reserve_0 == 0 || reserve_1 == 0 {
+    let freshness = if reserves.block_height.is_none() {
+        MirrorFreshness::MissingReserves
+    } else if reserve_0 == 0 || reserve_1 == 0 {
         MirrorFreshness::EmptyPool
     } else if stale {
         MirrorFreshness::Stale
@@ -246,7 +251,7 @@ pub async fn load_hop_mirror(
         asset_1_addr,
         reserve_0,
         reserve_1,
-        fee_bps: reserves.fee_bps.max(0) as u16,
+        fee_bps: reserves.fee_bps as u16,
         block_height: reserves.block_height,
         snapshot_at: reserves.snapshot_at,
         freshness,

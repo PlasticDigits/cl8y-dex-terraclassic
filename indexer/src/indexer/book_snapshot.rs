@@ -4,11 +4,11 @@
 //!
 //! | Field | Meaning |
 //! |-------|---------|
-//! | **Cadence** | Target interval between full snapshot cycles — config `book_snapshot_interval_ms` (default [`BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS`]). |
-//! | **Max staleness** | Wall-clock TTL beyond which Phase 1c should treat mirror rows as stale and **degrade** (fall back to LCD or mark quote degraded): [`book_snapshot_max_staleness_ms`] (cadence) = cadence × [`BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES`] (tolerates one missed cycle). At default cadence use [`BOOK_SNAPSHOT_MAX_STALENESS_MS`]. |
-//! | **Block height** | Each cycle stamps the same `block_height` on reserves + resting rows when LCD returns latest height; Phase 1c can reason about block lag vs chain head. |
+//! | **Cadence** | Target interval for each independently scheduled pool/book lane — config `book_snapshot_interval_ms` (default [`BOOK_SNAPSHOT_DEFAULT_INTERVAL_MS`]). |
+//! | **Max staleness** | Wall-clock TTL beyond which Phase 1c should treat mirror rows as stale and **degrade** (omit cached quote eligibility): [`book_snapshot_max_staleness_ms`] (cadence) = cadence × [`BOOK_SNAPSHOT_STALENESS_TOLERANCE_CYCLES`] (tolerates one missed cycle). At default cadence use [`BOOK_SNAPSHOT_MAX_STALENESS_MS`]. |
+//! | **Block height** | Pool reads are pinned to the cycle's observed head; fee/book reads are pinned to their cached reserve height. Hybrid rows publish atomically under that original height/time. Unknown height cannot establish hybrid eligibility. |
 //!
-//! **Degrade-not-error:** missing snapshot (`get_pair_reserves` → `None`), empty book, or stale `snapshot_at` must not hard-fail the solver — Phase 1c falls back per pair/hop.
+//! **Degrade-not-error:** missing snapshot (`get_pair_reserves` → `None`), empty book, or stale `snapshot_at` must not hard-fail the solver — consumers omit unavailable pairs/hops without requesting a refresh.
 //!
 //! ## LCD budget (documented upper bound per cycle)
 //!
@@ -26,14 +26,16 @@ use tokio::task::JoinSet;
 use tokio::time::{Instant, MissedTickBehavior};
 
 use bigdecimal::BigDecimal;
-use serde::Deserialize;
+use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::json;
 use sqlx::PgPool;
 
-use crate::db::queries::pair_reserves;
+use chrono::Utc;
+
 use crate::db::queries::pairs::{self, PairRow};
 use crate::db::queries::resting_orders::{self, RestingOrderInput};
-use crate::lcd::types::{FeeConfigResponse, PoolResponse};
+use crate::db::queries::{assets, pair_reserves};
+use crate::lcd::types::{AssetInfo, FeeConfigResponse, PoolResponse};
 use crate::lcd::{LcdClient, LcdError};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -72,7 +74,7 @@ impl Default for SnapshotLimits {
         Self {
             concurrency: 8,
             pair_timeout: Duration::from_secs(4),
-            height_timeout: Duration::from_secs(2),
+            height_timeout: Duration::from_secs(4),
         }
     }
 }
@@ -84,17 +86,99 @@ pub const BOOK_SNAPSHOT_RESPONSE_MAX_BYTES: usize = 65_536;
 /// Latest block envelopes can include transactions; cap separately from tiny smart queries.
 pub const BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES: usize = 1_048_576;
 
+/// Two independent, nonoverlapping lanes: only the pool lane writes current
+/// reserves; the book lane consumes those observations and publishes hybrids.
+/// Slow books cannot postpone the next successful pool read.
 pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_interval_ms: u64) {
-    let mut ticker = tokio::time::interval(Duration::from_millis(snapshot_interval_ms.max(1)));
-    // Slow passes skip missed ticks instead of building a retry burst or adding pass duration
-    // to every interval. Never overlap two cycles from this loop.
-    ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    loop {
-        ticker.tick().await;
-        if let Err(e) = snapshot_all_pairs(&pool, &lcd).await {
-            tracing::error!("Book snapshot cycle failed: {}", e);
+    let run_lane = |lane_pool: PgPool, lane_lcd: LcdClient, mode| async move {
+        let mut ticker = tokio::time::interval(Duration::from_millis(snapshot_interval_ms.max(1)));
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        // Lifetime leadership coalesces even sequential cycles from replicas.
+        // Transaction-scoped ownership releases the lane on cancellation.
+        let mut leadership = None;
+        loop {
+            ticker.tick().await;
+            if leadership.is_none() {
+                let attempt = async {
+                    let mut tx = lane_pool.begin().await?;
+                    let key: i32 = if matches!(mode, SnapshotMode::Pool) {
+                        1
+                    } else {
+                        2
+                    };
+                    let admitted: bool =
+                        sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(1453, $1)")
+                            .bind(key)
+                            .fetch_one(&mut *tx)
+                            .await?;
+                    Ok::<_, sqlx::Error>(if admitted { Some(tx) } else { None })
+                }
+                .await;
+                match attempt {
+                    Ok(Some(tx)) => leadership = Some(tx),
+                    Ok(None) => continue,
+                    Err(e) => {
+                        tracing::error!("Liquidity lane leadership unavailable: {}", e);
+                        continue;
+                    }
+                }
+            }
+            if sqlx::query("SELECT 1")
+                .execute(&mut **leadership.as_mut().unwrap())
+                .await
+                .is_err()
+            {
+                leadership = None;
+                continue;
+            }
+            let mut limits = SnapshotLimits::default();
+            // Leave headroom for pool reads under the default shared HTTP budget.
+            // Provider settings still independently bound admission; this is not
+            // a guaranteed reservation when operators configure a smaller budget.
+            if matches!(mode, SnapshotMode::Book) {
+                limits.concurrency = 4;
+            }
+            let cycle = snapshot_cycle(
+                &lane_pool,
+                &lane_lcd,
+                limits,
+                mode,
+                crate::config::book_snapshot_max_staleness_ms(snapshot_interval_ms),
+            );
+            tokio::pin!(cycle);
+            let mut heartbeat = tokio::time::interval(Duration::from_millis(250));
+            heartbeat.set_missed_tick_behavior(MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    result = &mut cycle => {
+                        if let Err(e) = result { tracing::error!("Liquidity observation lane failed: {}", e); }
+                        break;
+                    }
+                    _ = heartbeat.tick() => {
+                        let alive = tokio::time::timeout(Duration::from_millis(250),
+                            sqlx::query("SELECT 1").execute(&mut **leadership.as_mut().unwrap())).await;
+                        if !matches!(alive, Ok(Ok(_))) {
+                            // Dropping this cycle aborts its JoinSet before re-election.
+                            // Raw commits already completed remain monotonic and valid.
+                            leadership = None;
+                            break;
+                        }
+                    }
+                }
+            }
         }
-    }
+    };
+    tokio::join!(
+        run_lane(pool.clone(), lcd.clone(), SnapshotMode::Pool),
+        run_lane(pool, lcd, SnapshotMode::Book)
+    );
+}
+
+#[derive(Clone, Copy)]
+enum SnapshotMode {
+    Pool,
+    Book,
+    Combined,
 }
 
 /// One full snapshot pass over every indexed pair, with bounded concurrency and deadlines.
@@ -108,23 +192,71 @@ pub async fn snapshot_all_pairs_with_limits(
     lcd: &LcdClient,
     limits: SnapshotLimits,
 ) -> Result<(), BoxError> {
+    snapshot_cycle(
+        pool,
+        lcd,
+        limits,
+        SnapshotMode::Combined,
+        BOOK_SNAPSHOT_MAX_STALENESS_MS,
+    )
+    .await
+}
+
+async fn snapshot_cycle(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    limits: SnapshotLimits,
+    mode: SnapshotMode,
+    max_staleness_ms: u64,
+) -> Result<(), BoxError> {
     if limits.concurrency == 0 || limits.pair_timeout.is_zero() || limits.height_timeout.is_zero() {
         return Err("snapshot limits must be positive".into());
     }
+    // Transaction-scoped locks coalesce lanes across replicas and release on
+    // cancellation. They protect ingestion, never a request-triggered refresh.
+    let mut lane_lock = if matches!(mode, SnapshotMode::Combined) {
+        Some(pool.begin().await?)
+    } else {
+        None
+    };
+    let lane_keys: &[i32] = match mode {
+        // Production lanes already own lifetime leadership above.
+        SnapshotMode::Pool | SnapshotMode::Book => &[],
+        SnapshotMode::Combined => &[1, 2],
+    };
+    for key in lane_keys {
+        let admitted: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(1453, $1)")
+            .bind(key)
+            .fetch_one(&mut **lane_lock.as_mut().unwrap())
+            .await?;
+        if !admitted {
+            return Ok(());
+        }
+    }
     let started = Instant::now();
-    let block_height = match tokio::time::timeout(
-        limits.height_timeout,
-        lcd.get_latest_block_height_bounded(BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES),
-    )
-    .await
-    {
-        Ok(Ok(h)) if h > 0 => Some(h),
-        outcome => {
-            tracing::warn!(?outcome, "Book snapshot: latest block height unavailable");
-            None
+    // Every pinned read in this cycle keeps the head observation's original age;
+    // queued tail jobs must not renew an old block with a later start timestamp.
+    let cycle_observed_at = Utc::now();
+    let block_height = if matches!(mode, SnapshotMode::Book) {
+        None
+    } else {
+        match tokio::time::timeout(
+            limits.height_timeout,
+            lcd.get_latest_block_height_bounded(BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES),
+        )
+        .await
+        {
+            Ok(Ok(h)) if h > 0 => Some(h),
+            outcome => {
+                tracing::warn!(?outcome, "Book snapshot: latest block height unavailable");
+                None
+            }
         }
     };
-    let pairs = pairs::get_all_pairs(pool).await?;
+    // Oldest/missing observations first: slow work cannot always penalize the same tail.
+    let mut pairs = pairs::get_all_pairs(pool).await?;
+    let ages = pair_reserves::get_all_pair_reserves(pool).await?;
+    pairs.sort_by_key(|p| ages.get(&p.id).map(|r| r.snapshot_at));
     let pair_count = pairs.len();
     let mut pending = pairs.into_iter();
     let mut jobs = JoinSet::new();
@@ -141,19 +273,28 @@ pub async fn snapshot_all_pairs_with_limits(
                 let started = Instant::now();
                 let result = tokio::time::timeout(
                     limits.pair_timeout,
-                    snapshot_single_pair(&pool, &lcd, &pair, block_height),
+                    async {
+                        match mode {
+                            SnapshotMode::Pool => observe_pool(&pool, &lcd, &pair, block_height, cycle_observed_at).await.map(|_| ()),
+                            SnapshotMode::Book => observe_book(&pool, &lcd, &pair, max_staleness_ms).await,
+                            SnapshotMode::Combined => {
+                                observe_pool(&pool, &lcd, &pair, block_height, cycle_observed_at).await?;
+                                observe_book(&pool, &lcd, &pair, max_staleness_ms).await
+                            },
+                        }
+                    },
                 ).await;
                 let latency_ms = started.elapsed().as_millis() as u64;
                 let success = match result {
                     Ok(Ok(())) => true,
                     Ok(Err(e)) => {
                         tracing::warn!(pair_id = pair.id, pair_addr = %pair.contract_address,
-                            latency_ms, failure_reason = %e, "Book snapshot pair failed; prior snapshot retained");
+                            latency_ms, failure_reason = %e, "Book snapshot pair failed; committed observations retained");
                         false
                     }
                     Err(_) => {
                         tracing::warn!(pair_id = pair.id, pair_addr = %pair.contract_address,
-                            latency_ms, failure_reason = "pair_timeout", "Book snapshot pair timed out; prior snapshot retained");
+                            latency_ms, failure_reason = "pair_timeout", "Book snapshot pair timed out; committed observations retained");
                         false
                     }
                 };
@@ -204,53 +345,216 @@ pub async fn snapshot_single_pair(
     pair: &PairRow,
     block_height: Option<i64>,
 ) -> Result<(), BoxError> {
-    let addr = &pair.contract_address;
+    observe_pool(pool, lcd, pair, block_height, Utc::now()).await?;
+    observe_book(pool, lcd, pair, BOOK_SNAPSHOT_MAX_STALENESS_MS).await
+}
 
-    let pool_resp: PoolResponse = lcd
-        .query_contract_bounded(
-            addr,
-            &json!({ "pool": {} }),
-            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
-        )
-        .await?;
-    let reserve_0 = parse_reserve_amount(&pool_resp.assets[0].amount)?;
-    let reserve_1 = parse_reserve_amount(&pool_resp.assets[1].amount)?;
-
-    let fee_resp: FeeConfigResponse = lcd
-        .query_contract_bounded(
-            addr,
-            &json!({ "get_fee_config": {} }),
-            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
-        )
-        .await?;
-    if fee_resp.fee_config.fee_bps > 10_000 {
-        return Err("invalid pair fee_bps".into());
+async fn observe_pool(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair: &PairRow,
+    block_height: Option<i64>,
+    observed_at: chrono::DateTime<Utc>,
+) -> Result<(), BoxError> {
+    // Preserve observation start, never write completion time for a delayed reply.
+    let query = json!({ "pool": {} });
+    let response: PoolResponse =
+        query_snapshot(lcd, &pair.contract_address, &query, block_height).await?;
+    for (asset_id, asset) in [
+        (pair.asset_0_id, &response.assets[0]),
+        (pair.asset_1_id, &response.assets[1]),
+    ] {
+        let expected = assets::get_asset_by_id(pool, asset_id)
+            .await?
+            .ok_or("missing pair asset")?;
+        let matches = match &asset.info {
+            AssetInfo::NativeToken { denom } => {
+                !expected.is_cw20 && expected.denom.as_ref() == Some(denom)
+            }
+            AssetInfo::Token { contract_addr } => {
+                expected.is_cw20 && expected.contract_address.as_ref() == Some(contract_addr)
+            }
+        };
+        if !matches {
+            return Err("pool asset identity/order does not match indexed pair".into());
+        }
     }
-    let fee_bps = fee_resp.fee_config.fee_bps as i16;
-
-    // Concat LCD DLL walks (best price first, then arrival-at-price). Replace
-    // assigns `walk_index` from this slice so sim does not re-sort by `order_id` (#1227).
-    let mut orders = Vec::new();
-    for side in ["bid", "ask"] {
-        let side_orders = walk_resting_book_side(lcd, addr, side).await?;
-        orders.extend(side_orders);
-    }
-
-    let mut tx = pool.begin().await?;
-    pair_reserves::upsert_pair_reserves(
-        &mut *tx,
+    let reserve_0 = parse_reserve_amount(&response.assets[0].amount)?;
+    let reserve_1 = parse_reserve_amount(&response.assets[1].amount)?;
+    if !pair_reserves::upsert_pool_observation(
+        pool,
         pair.id,
         &reserve_0,
         &reserve_1,
-        fee_bps,
         block_height,
+        observed_at,
+    )
+    .await?
+    {
+        return Err("older or unknown-height pool observation rejected".into());
+    }
+    // A failed fee read is independent: the successfully committed pool survives.
+    // The pool lane owns fee refresh too, so books never duplicate fee queries or
+    // leave advancing pool generations indefinitely ineligible for pool quotes.
+    if let Some(height) = block_height {
+        observed_fee(pool, lcd, pair, height).await?;
+    }
+    Ok(())
+}
+
+/// Reuse fee configuration for the same pinned height for at most a minute.
+/// New heights refresh configuration; failures preserve its actual observation time.
+async fn observed_fee(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair: &PairRow,
+    height: i64,
+) -> Result<i16, BoxError> {
+    let cached: Option<i16> = sqlx::query_scalar(
+        "SELECT fee_bps FROM pair_fee_observations WHERE pair_id = $1 AND block_height = $2
+         AND observed_at <= NOW() AND observed_at >= NOW() - INTERVAL '60 seconds'",
+    )
+    .bind(pair.id)
+    .bind(height)
+    .fetch_optional(pool)
+    .await?;
+    if let Some(fee) = cached {
+        return Ok(fee);
+    }
+    let observed_at = Utc::now();
+    let response: FeeConfigResponse = query_snapshot(
+        lcd,
+        &pair.contract_address,
+        &json!({ "get_fee_config": {} }),
+        Some(height),
     )
     .await?;
-    resting_orders::replace_pair_resting_orders_in_tx(&mut tx, pair.id, block_height, &orders)
+    if response.fee_config.fee_bps > 10_000 {
+        return Err("invalid pair fee_bps".into());
+    }
+    let fee = response.fee_config.fee_bps as i16;
+    let mut tx = pool.begin().await?;
+    // Admit monotonic fee observations first, then expose that same admitted fee
+    // to pool-only quote consumers without changing their reserve timestamp.
+    let result = sqlx::query(
+        "INSERT INTO pair_fee_observations VALUES ($1, $2, $3, $4)
+         ON CONFLICT (pair_id) DO UPDATE SET fee_bps = EXCLUDED.fee_bps, observed_at = EXCLUDED.observed_at, block_height = EXCLUDED.block_height
+         WHERE EXCLUDED.observed_at >= pair_fee_observations.observed_at AND EXCLUDED.block_height >= pair_fee_observations.block_height",
+    ).bind(pair.id).bind(fee).bind(observed_at).bind(height).execute(&mut *tx).await?;
+    if result.rows_affected() == 1 {
+        sqlx::query(
+            "UPDATE pair_reserves SET fee_bps = $2 WHERE pair_id = $1 AND block_height = $3",
+        )
+        .bind(pair.id)
+        .bind(fee)
+        .bind(height)
+        .execute(&mut *tx)
         .await?;
+    }
     tx.commit().await?;
+    Ok(fee)
+}
 
+async fn observe_book(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair: &PairRow,
+    max_staleness_ms: u64,
+) -> Result<(), BoxError> {
+    // A book refresh never issues a second pool query or labels a stale pool fresh.
+    let observation = pair_reserves::get_pair_reserves(pool, pair.id)
+        .await?
+        .ok_or("pool observation unavailable")?;
+    if observation.snapshot_at > Utc::now()
+        || Utc::now()
+            .signed_duration_since(observation.snapshot_at)
+            .num_milliseconds()
+            > max_staleness_ms as i64
+    {
+        return Err("pool observation stale for hybrid generation".into());
+    }
+    let height = observation
+        .block_height
+        .ok_or("unknown-height pool cannot form a compatible hybrid generation")?;
+    let fee_bps: i16 = sqlx::query_scalar(
+        "SELECT fee_bps FROM pair_fee_observations WHERE pair_id = $1 AND block_height = $2
+         AND observed_at <= NOW() AND observed_at >= NOW() - INTERVAL '60 seconds'",
+    )
+    .bind(pair.id)
+    .bind(height)
+    .fetch_optional(pool)
+    .await?
+    .ok_or("compatible cached fee unavailable for hybrid generation")?;
+    let mut orders = Vec::new();
+    for side in ["bid", "ask"] {
+        orders.extend(walk_resting_book_side(lcd, &pair.contract_address, side, height).await?);
+    }
+    let mut tx = pool.begin().await?;
+    if pair_reserves::upsert_hybrid_observation(&mut tx, &observation, fee_bps).await? {
+        resting_orders::replace_pair_resting_orders_in_tx(
+            &mut tx,
+            pair.id,
+            observation.block_height,
+            &orders,
+        )
+        .await?;
+    }
+    tx.commit().await?;
     Ok(())
+}
+
+/// Background-only capacity wait, bounded by the enclosing pair deadline.
+/// Preserve successful earlier phases and keep waiters in caller futures rather
+/// than an internal queue. Actual upstream/contract errors never retry here.
+async fn query_snapshot<T: DeserializeOwned>(
+    lcd: &LcdClient,
+    pair_address: &str,
+    query: &serde_json::Value,
+    height: Option<i64>,
+) -> Result<T, LcdError> {
+    // Also bound direct test/operator callers lacking a surrounding scheduled job.
+    // The production job's four-second deadline still bounds all phases together.
+    let deadline = Instant::now() + Duration::from_secs(4);
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(LcdError::AdmissionDeferred);
+        }
+        let request = async {
+            match height {
+                Some(height) => {
+                    lcd.query_contract_at_height_bounded(
+                        pair_address,
+                        query,
+                        height,
+                        BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
+                    )
+                    .await
+                }
+                None => {
+                    lcd.query_contract_bounded(
+                        pair_address,
+                        query,
+                        BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
+                    )
+                    .await
+                }
+            }
+        };
+        let result = tokio::time::timeout(remaining, request)
+            .await
+            .map_err(|_| LcdError::AllEndpointsFailed("snapshot query deadline exceeded".into()))?;
+        match result {
+            Err(LcdError::AdmissionDeferred) => {
+                tokio::time::sleep(
+                    Duration::from_millis(50)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                )
+                .await;
+            }
+            result => return result,
+        }
+    }
 }
 
 fn parse_reserve_amount(raw: &str) -> Result<BigDecimal, BoxError> {
@@ -314,14 +618,15 @@ async fn fetch_limit_order(
     lcd: &LcdClient,
     pair_addr: &str,
     order_id: u64,
+    height: i64,
 ) -> Result<Option<ChainLimitOrderRow>, BoxError> {
-    match lcd
-        .query_contract_bounded(
-            pair_addr,
-            &json!({ "limit_order": { "order_id": order_id } }),
-            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
-        )
-        .await
+    match query_snapshot(
+        lcd,
+        pair_addr,
+        &json!({ "limit_order": { "order_id": order_id } }),
+        Some(height),
+    )
+    .await
     {
         Ok(row) => Ok(row),
         Err(e) if lcd_query_missing_key(&e) => Ok(None),
@@ -334,14 +639,15 @@ async fn walk_resting_book_side(
     lcd: &LcdClient,
     pair_addr: &str,
     side_label: &str,
+    height: i64,
 ) -> Result<Vec<RestingOrderInput>, BoxError> {
-    let head: Option<u64> = lcd
-        .query_contract_bounded(
-            pair_addr,
-            &json!({ "order_book_head": { "side": side_label } }),
-            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
-        )
-        .await?;
+    let head: Option<u64> = query_snapshot(
+        lcd,
+        pair_addr,
+        &json!({ "order_book_head": { "side": side_label } }),
+        Some(height),
+    )
+    .await?;
 
     let mut current = head;
     let mut orders = Vec::new();
@@ -357,7 +663,7 @@ async fn walk_resting_book_side(
         if !seen.insert(oid) {
             return Err(format!("broken book link: cycle at order_id {oid}").into());
         }
-        let row_opt = fetch_limit_order(lcd, pair_addr, oid).await?;
+        let row_opt = fetch_limit_order(lcd, pair_addr, oid, height).await?;
         let Some(row) = row_opt else {
             return Err(format!("broken book link: limit_order {oid} missing").into());
         };
@@ -448,15 +754,95 @@ mod tests {
                     json!({ "order_id": 1, "owner": "terra1test", "side": "bid",
                         "price": "1", "remaining": "100", "next": 1 })
                 };
-                ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "123")
+                    .set_body_json(json!({ "data": data }))
             })
             .mount(&server)
             .await;
         let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
-        let error = walk_resting_book_side(&lcd, "terra1pair", "bid")
+        let error = walk_resting_book_side(&lcd, "terra1pair", "bid", 123)
             .await
             .unwrap_err();
         assert!(error.to_string().contains("cycle at order_id 1"));
+    }
+
+    #[tokio::test]
+    async fn snapshot_query_capacity_wait_is_bounded_for_direct_callers() {
+        use wiremock::matchers::{method, path_regex};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(method("GET"))
+            .and(path_regex("/smart/"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "900")
+                    .set_body_json(json!({"data":null}))
+                    .set_delay(Duration::from_secs(5)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            6000,
+            1000,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                concurrency: 1,
+                attempt_timeout_ms: 5000,
+                deadline_ms: 6000,
+                ..crate::lcd::ProviderPolicy::default()
+            },
+        );
+        let holder_lcd = lcd.clone();
+        let holder = tokio::spawn(async move {
+            holder_lcd
+                .query_contract_at_height_bounded::<serde_json::Value>(
+                    "terra1holder",
+                    &json!({"hold":{}}),
+                    900,
+                    BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
+                )
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if server
+                    .received_requests()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .any(|r| r.url.path().contains("/smart/"))
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            query_snapshot::<serde_json::Value>(&lcd, "terra1pair", &json!({"pool":{}}), Some(900)),
+        )
+        .await
+        .expect("direct snapshot query has its own four-second logical bound");
+        assert!(matches!(result, Err(LcdError::AdmissionDeferred)));
+        assert_eq!(
+            server
+                .received_requests()
+                .await
+                .unwrap()
+                .iter()
+                .filter(|r| r.url.path().contains("/smart/"))
+                .count(),
+            1,
+            "capacity wait never creates another upstream request"
+        );
+        assert!(!holder.is_finished());
+        holder.abort();
+        let _ = holder.await;
     }
 
     #[test]

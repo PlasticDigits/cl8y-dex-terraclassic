@@ -50,6 +50,7 @@ pub fn test_config() -> Config {
         api_ipv6_enabled: false,
         lcd_timeout_ms: 5000,
         lcd_cooldown_ms: 30000,
+        lcd_provider_policy: cl8y_dex_indexer::lcd::ProviderPolicy::default(),
         start_block: None,
         cors_origins: vec![
             "https://dex.cl8y.com".to_string(),
@@ -1173,11 +1174,12 @@ pub async fn build_test_app_with_oracle_prices_and_config(
     lunc_price: Option<bigdecimal::BigDecimal>,
     config: Config,
 ) -> Router {
-    let lcd = LcdClient::new(
+    let lcd = LcdClient::new_with_policy(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
         config.expected_chain_id.clone(),
+        config.lcd_provider_policy.clone(),
     );
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = ustc_price {

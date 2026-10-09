@@ -1,0 +1,68 @@
+{
+  "issue": 1453,
+  "status": "PARTIAL",
+  "observed_at_utc": "2026-10-09T07:26:14.478334+00:00",
+  "source_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "evidence_scope": "Read-only public health; optional non-preview Coolify config and bounded node identity/latest probes. No signing, configuration writes or database mutation.",
+  "bounds": {
+    "max_provider_endpoints": 8,
+    "max_response_bytes": 2097152,
+    "request_timeout_seconds": 5,
+    "max_http_reads": 18
+  },
+  "reason": "Point-in-time configuration/headers do not establish independently operated providers, smart-query availability, history support, production freshness or verified failover/recovery.",
+  "live_failover_acceptance": "SKIP: new implementation deployment and bounded live recovery require separate evidence.",
+  "deployed_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "expected_chain_id": "columbus-5",
+  "runtime_endpoint_count": 3,
+  "runtime_attestation": [
+    {
+      "endpoint_index": 0,
+      "verified": true,
+      "observed_chain_id": "columbus-5"
+    },
+    {
+      "endpoint_index": 1,
+      "verified": true,
+      "observed_chain_id": "columbus-5"
+    },
+    {
+      "endpoint_index": 2,
+      "verified": true,
+      "observed_chain_id": "columbus-5"
+    }
+  ],
+  "health_status": "PASS",
+  "configured_endpoint_count": 3,
+  "configuration_status": "PASS",
+  "configuration_scope": "Non-preview LCD/expected-chain allowlist; raw values and URLs omitted.",
+  "multiple_endpoints_configured": true,
+  "configured_expected_chain_id": "columbus-5",
+  "provider_probes": [
+    {
+      "endpoint_index": 0,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758092",
+      "block_time": "2026-10-09T07:26:11.501601+00:00",
+      "latest_status": "PASS"
+    },
+    {
+      "endpoint_index": 1,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758091",
+      "block_time": "2026-10-09T07:26:05.504290+00:00",
+      "latest_status": "PASS"
+    },
+    {
+      "endpoint_index": 2,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758093",
+      "block_time": "2026-10-09T07:26:17.478090+00:00",
+      "latest_status": "PASS"
+    }
+  ],
+  "unprobed_endpoint_count": 0
+}
