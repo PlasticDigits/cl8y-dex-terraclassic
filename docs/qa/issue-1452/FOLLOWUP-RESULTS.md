@@ -15,6 +15,8 @@ unchanged-source check. Production, device and complete issue acceptance remain
 separate. [Machine receipt](followup-local-results.json) records the exact source
 fingerprint, UTC times, commands, counts, generations, cache counters and latency.
 
+Verified code revision: `c455598c7c48dd709b49c24645486ec44175f2f4`. The receipt commit only updates documentation.
+
 Verification ran from **2026-10-09T13:30:54Z** through **13:36:47Z** on base
 `c131e63f6fcac6d5bcc85a524105c14ad6f46a9d` plus this follow-up's source. Fingerprint:
 `9497fd5c3555f1c318275f715b5b1ca424319971007321e7f94597ad48478343`.
