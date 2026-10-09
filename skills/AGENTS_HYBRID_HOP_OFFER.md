@@ -1,5 +1,17 @@
 # Agent skill: declared hybrid hop-offer partition (Forgejo #1280 / wrap #1264)
 
+## Current local quote contract (#1452)
+
+The local request path follows [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md) and the
+[current solver contract](../docs/route-solver.md#local-quote-contract-1452).
+Request-time LCD simulation, config/tier discovery, enrichment and fallback
+instructions below describe the historical implementation. Never restore them
+for a local quote cache miss or unsupported mode. Preserve positive floors,
+Policy A, actual caller spread constraints, exact-input/generation identity and
+reviewed signing snapshots. See [verification and explicit skips](../docs/qa/issue-1452/README.md)
+for supported implementation scope and acceptance evidence.
+
+
 Use when changing **router/pair declared `hybrid`**, indexer **`GET /route/solve` hybrid emission**, or dApp **submit preflight** for Pattern C splits.
 
 This is **construction drift**, not a request to drop the sum invariant. [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) separately tracks the pending omitted-parameter greedy default; that change must preserve this per-hop sum invariant. Current greedy rules live in [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md).

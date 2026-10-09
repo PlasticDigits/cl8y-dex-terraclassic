@@ -136,6 +136,11 @@ struct Endpoint {
 #[derive(Clone)]
 pub struct LcdClient {
     inner: Arc<LcdClientInner>,
+    ingestion_budget: Option<Arc<IngestionBudget>>,
+}
+struct IngestionBudget {
+    permits: Arc<tokio::sync::Semaphore>,
+    next_request: tokio::sync::Mutex<tokio::time::Instant>,
 }
 
 struct LcdClientInner {
@@ -180,6 +185,7 @@ impl LcdClient {
             .expect("failed to build reqwest client");
 
         Self {
+            ingestion_budget: None,
             inner: Arc::new(LcdClientInner {
                 endpoints: RwLock::new(endpoints),
                 expected_chain_id,
@@ -192,8 +198,28 @@ impl LcdClient {
         }
     }
 
+    /// A bounded background-only view sharing chain identity and namespace. All
+    /// quote workers share its two permits and aggregate four requests/second;
+    /// each provider failover attempt consumes the same pacing budget.
+    pub(crate) fn with_ingestion_budget(&self) -> Self {
+        let mut next = self.clone();
+        next.ingestion_budget = Some(Arc::new(IngestionBudget {
+            permits: Arc::new(tokio::sync::Semaphore::new(2)),
+            next_request: tokio::sync::Mutex::new(tokio::time::Instant::now()),
+        }));
+        next
+    }
     pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, LcdError> {
         self.get_with_body_limit(path, None).await
+    }
+
+    /// Bound background configuration responses before buffering or decoding them.
+    pub async fn get_bounded<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        max_bytes: usize,
+    ) -> Result<T, LcdError> {
+        self.get_with_body_limit(path, Some(max_bytes)).await
     }
 
     async fn get_with_body_limit<T: DeserializeOwned>(
@@ -226,6 +252,11 @@ impl LcdClient {
         max_bytes: Option<usize>,
         height: Option<i64>,
     ) -> Result<T, LcdError> {
+        let max_bytes = if self.ingestion_budget.is_some() {
+            Some(max_bytes.unwrap_or(65_536).min(65_536))
+        } else {
+            max_bytes
+        };
         let mut errors = Vec::new();
 
         let endpoint_count = {
@@ -253,6 +284,18 @@ impl LcdClient {
                 continue;
             }
 
+            let _ingestion_permit = if let Some(budget) = self.ingestion_budget.as_ref() {
+                let permit =
+                    budget.permits.clone().acquire_owned().await.map_err(|_| {
+                        LcdError::AllEndpointsFailed("Ingestion budget closed".into())
+                    })?;
+                let mut next = budget.next_request.lock().await;
+                tokio::time::sleep_until(*next).await;
+                *next = tokio::time::Instant::now() + Duration::from_millis(250);
+                Some(permit)
+            } else {
+                None
+            };
             let full_url = format!("{}{}", url, path);
             let log_path = lcd_log_path(path);
             let mut request = self.inner.client.get(&full_url);
@@ -1156,5 +1199,37 @@ mod tests {
             lcd.get_contract_code_id("terra1token").await.unwrap(),
             10184
         );
+    }
+}
+
+#[cfg(test)]
+mod local_ingestion_budget_tests {
+    use super::*;
+    use serde_json::Value;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    #[tokio::test]
+    async fn scheduled_quote_ingestion_paces_attempts_and_bounds_response_bytes() {
+        let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(wiremock::matchers::path("/observation"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"height":1})))
+            .mount(&server)
+            .await;
+        Mock::given(wiremock::matchers::path("/oversized"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("x".repeat(65_537)))
+            .mount(&server)
+            .await;
+        let client = LcdClient::new(vec![server.uri()], 1000, 1, "columbus-5");
+        client.require_verified_chain().await.unwrap();
+        let bounded = client.with_ingestion_budget();
+        let start = std::time::Instant::now();
+        let (a, b, c) = tokio::join!(
+            bounded.get::<Value>("/observation"),
+            bounded.get::<Value>("/observation"),
+            bounded.get::<Value>("/observation")
+        );
+        assert!(a.is_ok() && b.is_ok() && c.is_ok());
+        assert!(start.elapsed() >= Duration::from_millis(490));
+        assert!(bounded.get::<Value>("/oversized").await.is_err());
     }
 }

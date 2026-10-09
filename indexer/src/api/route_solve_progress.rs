@@ -1,8 +1,11 @@
-//! In-flight route-solve progress for advisory UI polling (GitLab #485).
+//! Local route-solve progress (#1452); historical registry is test-only.
 //! Progress is advisory only — not a quote. No estimated_amount_out. Opaque key = hybrid cache key.
 
+#[cfg(test)]
 use std::collections::HashMap;
+#[cfg(test)]
 use std::sync::Mutex;
+#[cfg(test)]
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::extract::{Query, State};
@@ -11,32 +14,41 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::api::best_execution::solver_version_for;
-use crate::api::route_solver::{
-    amount_cache_key, hybrid_cache_key, parse_progress_discount_bps, parse_quote_trader,
-    resolve_discount_bps, SolveRouteParams,
-};
+use crate::api::route_solver::SolveRouteParams;
 use crate::api::AppState;
-use crate::hybrid_limits::clamp_max_maker_fills;
 
+#[cfg(test)]
 const MAX_ENTRIES: usize = 256;
+#[cfg(test)]
 const ENTRY_TTL: Duration = Duration::from_secs(30);
+#[cfg(test)]
 const MAX_AGE: Duration = Duration::from_secs(120);
 
 /// Advisory solve stage (snake_case strings in JSON).
+#[cfg(test)]
 pub type SolveStage = &'static str;
 
+#[cfg(test)]
 pub const STAGE_IDLE: SolveStage = "idle";
+#[cfg(test)]
 pub const STAGE_GRAPH_LOAD: SolveStage = "graph_load";
+#[cfg(test)]
 pub const STAGE_ENUMERATING: SolveStage = "enumerating";
+#[cfg(test)]
 pub const STAGE_LOADING_MIRRORS: SolveStage = "loading_mirrors";
+#[cfg(test)]
 pub const STAGE_EVALUATING: SolveStage = "evaluating";
 /// Reserved for future hop-level router-sim milestones (API contract / docs).
 #[allow(dead_code)]
+#[cfg(test)]
 pub const STAGE_SIMULATING: SolveStage = "simulating";
+#[cfg(test)]
 pub const STAGE_ENRICHING: SolveStage = "enriching";
+#[cfg(test)]
 pub const STAGE_DONE: SolveStage = "done";
+#[cfg(test)]
 pub const STAGE_ERROR: SolveStage = "error";
+#[cfg(test)]
 pub const STAGE_CACHED: SolveStage = "cached";
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
@@ -50,14 +62,17 @@ pub struct SolveProgress {
 }
 
 #[derive(Clone)]
+#[cfg(test)]
 pub(crate) struct ProgressEntry {
     progress: SolveProgress,
     started_at: Instant,
     terminal_at: Option<Instant>,
 }
 
+#[cfg(test)]
 static REGISTRY: Mutex<Option<HashMap<String, ProgressEntry>>> = Mutex::new(None);
 
+#[cfg(test)]
 fn registry() -> std::sync::MutexGuard<'static, Option<HashMap<String, ProgressEntry>>> {
     let mut guard = REGISTRY.lock().expect("progress registry poisoned");
     if guard.is_none() {
@@ -66,6 +81,7 @@ fn registry() -> std::sync::MutexGuard<'static, Option<HashMap<String, ProgressE
     guard
 }
 
+#[cfg(test)]
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -73,6 +89,7 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+#[cfg(test)]
 pub(crate) fn progress_cleanup_locked(map: &mut HashMap<String, ProgressEntry>, now: Instant) {
     map.retain(|_, entry| {
         if let Some(term) = entry.terminal_at {
@@ -96,6 +113,7 @@ pub(crate) fn progress_cleanup_locked(map: &mut HashMap<String, ProgressEntry>, 
     }
 }
 
+#[cfg(test)]
 fn set_progress(
     map: &mut HashMap<String, ProgressEntry>,
     key: &str,
@@ -135,6 +153,7 @@ fn set_progress(
 }
 
 /// Begin tracking progress for a hybrid solve (key = hybrid cache key).
+#[cfg(test)]
 pub fn progress_begin(key: &str) {
     let mut guard = registry();
     let map = guard.as_mut().expect("registry init");
@@ -151,6 +170,7 @@ pub fn progress_begin(key: &str) {
 }
 
 /// Update in-flight progress.
+#[cfg(test)]
 pub fn progress_update(
     key: &str,
     stage: SolveStage,
@@ -164,6 +184,7 @@ pub fn progress_update(
 }
 
 /// Mark solve complete (terminal).
+#[cfg(test)]
 pub fn progress_complete(key: &str, cache_hit: bool) {
     let mut guard = registry();
     let map = guard.as_mut().expect("registry init");
@@ -177,6 +198,7 @@ pub fn progress_complete(key: &str, cache_hit: bool) {
 }
 
 /// Mark solve failed (terminal).
+#[cfg(test)]
 pub fn progress_fail(key: &str, label: &str) {
     let mut guard = registry();
     let map = guard.as_mut().expect("registry init");
@@ -184,6 +206,7 @@ pub fn progress_fail(key: &str, label: &str) {
 }
 
 /// Fetch current progress for a key (runs TTL/eviction cleanup).
+#[cfg(test)]
 pub fn progress_get(key: &str) -> Option<SolveProgress> {
     let mut guard = registry();
     let map = guard.as_mut().expect("registry init");
@@ -191,6 +214,7 @@ pub fn progress_get(key: &str) -> Option<SolveProgress> {
     map.get(key).map(|e| e.progress.clone())
 }
 
+#[cfg(test)]
 fn idle_progress() -> SolveProgress {
     SolveProgress {
         stage: STAGE_IDLE.into(),
@@ -217,77 +241,7 @@ pub async fn solve_route_progress(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
 ) -> Result<Json<SolveProgress>, (StatusCode, String)> {
-    let Some(amount_raw) = q
-        .amount_in
-        .as_ref()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-    else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_in is required for GET /api/v1/route/solve/progress".to_string(),
-        ));
-    };
-    let Ok(amount_u) = amount_raw.parse::<u128>() else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_in must be a non-negative integer".to_string(),
-        ));
-    };
-    if amount_u == 0 {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_in must be non-zero for route solve progress".to_string(),
-        ));
-    }
-
-    let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
-    let max_makers = clamp_max_maker_fills(q.max_maker_fills.unwrap_or(8));
-    let bucket = amount_cache_key(amount_u);
-    let discount_bps = match parse_progress_discount_bps(q.discount_bps)? {
-        Some(bps) => bps,
-        None => resolve_discount_bps(&state, &quote_trader).await,
-    };
-    let solver_version = solver_version_for(&state);
-    let cache_assets =
-        crate::api::best_execution::candidate_tax_addresses(&state, &q.token_in, &q.token_out)
-            .await?;
-    let taxes = crate::api::community_tax_rank::load_tax_rank_snapshot(
-        &state,
-        &q.token_in,
-        &q.token_out,
-        &cache_assets,
-        quote_trader
-            .trader
-            .as_deref()
-            .or(quote_trader.sender.as_deref()),
-    )
-    .await;
-    let tax_identity = format!(
-        "{}|{}",
-        state.lcd.chain_cache_namespace(),
-        taxes.cache_identity()
-    );
-    let bucket = if taxes
-        .by_addr
-        .values()
-        .any(|t| t.route_funding_version == Some(1))
-    {
-        amount_u
-    } else {
-        bucket
-    };
-    let ck = hybrid_cache_key(
-        solver_version,
-        &q.token_in,
-        &q.token_out,
-        bucket,
-        max_makers,
-        discount_bps,
-        &tax_identity,
-    );
-
-    Ok(Json(progress_get(&ck).unwrap_or_else(idle_progress)))
+    super::local_quote::progress(&state, &q).map(Json)
 }
 
 #[cfg(test)]

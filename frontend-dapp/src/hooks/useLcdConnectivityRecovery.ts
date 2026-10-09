@@ -8,13 +8,15 @@ export const LCD_HEALTH_QUERY_KEY = ['lcd-health-probe'] as const
  * Polls LCD reachability and invalidates React Query caches when the node recovers
  * so traders are not stuck behind a failed load until a tab switch ([GitLab #171](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/171)).
  */
-export function useLcdConnectivityRecovery() {
+export function useLcdConnectivityRecovery(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled !== false
   const queryClient = useQueryClient()
   const wasReachableRef = useRef<boolean | null>(null)
 
   const healthQuery = useQuery({
     queryKey: LCD_HEALTH_QUERY_KEY,
     queryFn: probeLcdReachability,
+    enabled,
     staleTime: 0,
     refetchInterval: LCD_CONNECTIVITY_RECOVERY_POLL_MS,
     refetchIntervalInBackground: true,
@@ -22,8 +24,8 @@ export function useLcdConnectivityRecovery() {
   })
 
   const isLcdReachable = healthQuery.data === true
-  const isLcdUnreachable = healthQuery.data === false
-  const isProbePending = healthQuery.isPending || healthQuery.isFetching
+  const isLcdUnreachable = enabled && healthQuery.data === false
+  const isProbePending = enabled && (healthQuery.isPending || healthQuery.isFetching)
 
   useEffect(() => {
     if (healthQuery.data === undefined) return
@@ -35,7 +37,7 @@ export function useLcdConnectivityRecovery() {
   }, [healthQuery.data, queryClient])
 
   const retryAll = () => {
-    void healthQuery.refetch()
+    if (enabled) void healthQuery.refetch()
     void queryClient.invalidateQueries()
   }
 

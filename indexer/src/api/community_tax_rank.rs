@@ -5,11 +5,16 @@
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(test)]
 use serde::Deserialize;
 
 use crate::api::route_solver::RouteHop;
+#[cfg(test)]
 use crate::api::AppState;
-use crate::db::queries::community_tokens::{self, CommunityTokenRow};
+#[cfg(test)]
+use crate::db::queries::community_tokens;
+use crate::db::queries::community_tokens::CommunityTokenRow;
+#[cfg(test)]
 use crate::lcd::LcdClient;
 
 /// Columbus-5 community-tax pin. Unmigrated wasm keeps Honest router hops.
@@ -106,6 +111,7 @@ impl TaxRankSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(test)]
 pub struct TaxRankResult {
     pub raw_out: u128,
     pub net_out: u128,
@@ -156,6 +162,7 @@ pub fn buy_split_net(raw_out: u128, buy_bps: u16) -> u128 {
 
 /// Buy split applies for pair-direct (1 hop) always, and for multi-hop only when
 /// that token's wasm taxes router hops (option 2). Honest 11611 hops stay raw.
+#[cfg(test)]
 pub fn buy_tax_applies(token_out_taxed: bool, hop_count: usize, router_hops_tax: bool) -> bool {
     if !token_out_taxed {
         return false;
@@ -167,6 +174,7 @@ pub fn buy_tax_applies(token_out_taxed: bool, hop_count: usize, router_hops_tax:
 /// boundaries between adjacent hops are one visit. Launch guards are stateful: v1
 /// previews cannot promise parity when the same capable token is visited twice (#1390),
 /// even with zero current rates or a manager/protocol exemption.
+#[cfg(test)]
 pub fn repeated_route_tax_asset<'a>(
     hops: &'a [RouteHop],
     snapshot: &TaxRankSnapshot,
@@ -191,6 +199,7 @@ pub fn repeated_route_tax_asset<'a>(
 
 /// Reject unresolved implementations and incompatible funding versions at every boundary.
 /// Supported v1 community intermediates remain eligible; ordinary implementations are attested.
+#[cfg(test)]
 pub fn path_sells_middle_tax_hop(
     hops: &[RouteHop],
     token_in: &str,
@@ -240,6 +249,7 @@ pub fn path_sells_middle_tax_hop(
     false
 }
 
+#[cfg(test)]
 pub fn score_path(
     raw_out: u128,
     hops: &[RouteHop],
@@ -309,6 +319,7 @@ pub fn score_path(
     }
 }
 
+#[cfg(test)]
 fn tax_kind_and_notes(
     token_out_tax: bool,
     token_in_tax: bool,
@@ -469,6 +480,7 @@ impl TaxRankSnapshot {
     }
 }
 
+#[cfg(test)]
 pub async fn load_tax_rank_snapshot(
     state: &AppState,
     token_in: &str,
@@ -491,6 +503,7 @@ pub async fn load_tax_rank_snapshot(
         })
 }
 
+#[cfg(test)]
 pub(crate) async fn try_load_tax_rank_snapshot(
     state: &AppState,
     token_in: &str,
@@ -602,6 +615,7 @@ pub(crate) async fn try_load_tax_rank_snapshot(
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg(test)]
 struct IsExemptLcd {
     #[serde(default)]
     manager: bool,
@@ -611,6 +625,7 @@ struct IsExemptLcd {
 
 /// LCD `IsProtocolExempt` also returns the manager-directory flag (#609).
 /// Unknown / LCD failure → fail closed (keep catalog bps).
+#[cfg(test)]
 async fn resolve_token_exempt(lcd: &LcdClient, token: &CataloguedTaxToken, trader: &str) -> bool {
     let query = serde_json::json!({"is_protocol_exempt":{"address":trader}});
     tokio::time::timeout(std::time::Duration::from_secs(3), async {
@@ -626,6 +641,7 @@ async fn resolve_token_exempt(lcd: &LcdClient, token: &CataloguedTaxToken, trade
     .is_some_and(|v| v.manager || (token.route_funding_version != Some(1) && v.protocol))
 }
 
+#[cfg(test)]
 pub fn extra_addrs_from_hops(hops: &[RouteHop]) -> Vec<String> {
     hops.iter()
         .flat_map(|h| [h.offer_token.clone(), h.ask_token.clone()])

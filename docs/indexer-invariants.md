@@ -1,5 +1,24 @@
 # Indexer — Invariants, Business Logic, and Security
 
+## Local quote observations (#1452)
+
+Current indexed quote display, preflight and confirmation consume the exact
+locally published route generation and positive per-hop/final floors. Requests
+must not trigger chain validation, tier/config lookup or router/pair simulation.
+The caller's actual protection setting participates in route selection and cache
+identity. Unsupported cached semantics block explicitly; 30% Expert behavior,
+nonwaivable ≥99% protection, stale-submit checks and reviewed operations remain.
+Do not recommend a smaller amount without a fresh quote proving it helps.
+
+[Current solver contract](route-solver.md#local-quote-contract-1452),
+[LQ1452 agent invariants](../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
+[agent checklist and skip policy](qa/issue-1452/README.md) and
+[measured implementation scope](qa/issue-1452/RESULTS.md) are the current
+references. Historical request-time LCD preflight/enrichment descriptions below
+are superseded for indexed local quotes. Source tests do not prove deployment
+or normal-transport browser latency.
+
+
 ## Listing-only native markets (#1437)
 
 | Invariant | Contract |

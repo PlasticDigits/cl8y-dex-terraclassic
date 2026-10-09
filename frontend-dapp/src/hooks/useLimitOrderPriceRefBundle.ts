@@ -15,11 +15,13 @@ import {
  */
 export function useLimitOrderPriceRefBundle(params: {
   pairAddr: string
+  chainEnabled?: boolean
   selectedPair: PairInfo | undefined
   indexerPair: IndexerPair | null | undefined
   latestTrade: IndexerTrade | null | undefined
 }) {
   const { pairAddr, selectedPair, indexerPair, latestTrade } = params
+  const chainEnabled = params.chainEnabled !== false
 
   const tapeRefOk = useMemo(() => hasResolvableTapeRef(latestTrade, indexerPair), [latestTrade, indexerPair])
 
@@ -34,7 +36,7 @@ export function useLimitOrderPriceRefBundle(params: {
   const chainDecimalsQuery = useQuery({
     queryKey: ['limitOrderPriceChainDecimals', pairAddr, selectedPair?.asset_infos[0], selectedPair?.asset_infos[1]],
     queryFn: () => resolvePairDecimalsForLimitPriceRefFromChain(selectedPair!),
-    enabled: needChainDecimals,
+    enabled: chainEnabled && needChainDecimals,
     staleTime: 300_000,
     retry: 1,
   })
@@ -44,7 +46,8 @@ export function useLimitOrderPriceRefBundle(params: {
   const poolForLimitPriceRefQuery = useQuery({
     queryKey: ['limitOrderPricePoolRef', pairAddr],
     queryFn: () => getPool(pairAddr),
-    enabled: pairAddr.startsWith('terra1') && !!selectedPair && !tapeRefOk && decimalsForPoolRef != null,
+    enabled:
+      chainEnabled && pairAddr.startsWith('terra1') && !!selectedPair && !tapeRefOk && decimalsForPoolRef != null,
     staleTime: 10_000,
     retry: 1,
   })

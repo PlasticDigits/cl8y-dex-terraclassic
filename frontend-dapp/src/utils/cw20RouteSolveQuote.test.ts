@@ -1,480 +1,215 @@
-import { assertRouteTaxFunding } from '@/services/terraclassic/routeTaxFunding'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { quoteCw20ViaRouteSolve, quoteCw20ExactOutputViaRouteSolve } from './cw20RouteSolveQuote'
-import * as indexerClient from '@/services/indexer/client'
-import * as router from '@/services/terraclassic/router'
-import { getPair } from '@/services/terraclassic/factory'
-import * as preflight from '@/services/terraclassic/swapRoutePreflight'
+import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
+import { queryContract } from '@/services/terraclassic/queries'
+import type { IndexerRouteSolveResponse } from '@/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { quoteCw20ExactOutputViaRouteSolve, quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
+import { assertLocalRouteSubmit } from './localRouteQuote'
 
-vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
-  assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
-  ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
-}))
-
-vi.mock('@/services/indexer/client', () => ({
-  getRouteSolve: vi.fn(),
-  getRouteSolveExactOutput: vi.fn(),
-}))
-
-vi.mock('@/services/terraclassic/router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/terraclassic/router')>()
-  return {
-    ...actual,
-    simulateMultiHopSwap: vi.fn(),
-  }
-})
-
-vi.mock('@/services/terraclassic/factory', () => ({ getPair: vi.fn() }))
-
-vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
-  enrichSwapOperationsWithHopMinReturns: vi.fn(async (operations: unknown[]) => operations),
-  preflightSwapRouteSpread: vi.fn().mockResolvedValue({
-    worstSpreadPercent: '0.10',
-    anyHopExceedsMaxSpread: false,
+vi.mock('@/services/indexer/client', () => ({ getRouteSolve: vi.fn(), getRouteSolveExactOutput: vi.fn() }))
+vi.mock('@/services/terraclassic/queries', () => ({
+  queryContract: vi.fn(() => {
+    throw new Error('RPC forbidden')
   }),
 }))
-
-describe('quoteCw20ViaRouteSolve (#501)', () => {
-  const from = 'terra1from00000000000000000000000000000001'
-  const to = 'terra1to00000000000000000000000000000001'
-  const pair = 'terra1pair00000000000000000000000000000001'
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(assertRouteTaxFunding).mockResolvedValue(undefined)
-  })
-
-  it('quotes via GET /route/solve and wallet simulate_swap_operations', async () => {
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: from,
-      token_out: to,
-      hops: [{ pair, offer_token: from, ask_token: to }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: from } },
-            ask_asset_info: { token: { contract_addr: to } },
-            hybrid: {
-              pool_input: '800000',
-              book_input: '200000',
-              max_maker_fills: 8,
-              book_start_hint: null,
-            },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '999999',
-      spot_amount_out: '1000000',
-      slippage_percent: '1.00',
-      intermediate_tokens: [from, to],
-    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '950000' })
-
-    const quoted = await quoteCw20ViaRouteSolve({
-      fromToken: from,
-      toToken: to,
-      simRaw: '1000000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 5,
-      maxSpreadStr: '0.05',
-      quoteTrader: { trader: 'terra1wallet000000000000000000000000001' },
-    })
-
-    expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(
-      from,
-      to,
-      '1000000',
-      expect.objectContaining({ maxMakerFills: 8, trader: 'terra1wallet000000000000000000000000001' })
-    )
-    expect(router.simulateMultiHopSwap).toHaveBeenCalled()
-    expect(preflight.enrichSwapOperationsWithHopMinReturns).toHaveBeenCalled()
-    expect(quoted).toMatchObject({
-      return_amount: '950000',
-      indexerQuoteKind: 'indexer_hybrid_lcd',
-    })
-    expect(quoted?.indexerOperations?.[0]?.terra_swap.hybrid).toEqual({
-      pool_input: '800000',
-      book_input: '200000',
-      max_maker_fills: 8,
-      book_start_hint: null,
-    })
-    // Wallet amount wins over indexer estimated_amount_out for receive.
-    expect(quoted?.return_amount).toBe('950000')
-    expect(quoted?.executeAmountOut).toBeUndefined()
-  })
-
-  it('strips interior hybrid on GET multihop before wallet sim (#1280 Policy A)', async () => {
-    const mid = 'terra1mid00000000000000000000000000000001'
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: from,
-      token_out: to,
-      hops: [
-        { pair, offer_token: from, ask_token: mid },
-        { pair: 'terra1pair2', offer_token: mid, ask_token: to },
-      ],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: from } },
-            ask_asset_info: { token: { contract_addr: mid } },
-            hybrid: {
-              pool_input: '800000',
-              book_input: '200000',
-              max_maker_fills: 8,
-              book_start_hint: null,
-            },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: mid } },
-            ask_asset_info: { token: { contract_addr: to } },
-            hybrid: {
-              pool_input: '10',
-              book_input: '10',
-              max_maker_fills: 8,
-              book_start_hint: null,
-            },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '999999',
-      intermediate_tokens: [from, mid, to],
-    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '950000' })
-
-    const quoted = await quoteCw20ViaRouteSolve({
-      fromToken: from,
-      toToken: to,
-      simRaw: '1000000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 5,
-      maxSpreadStr: '0.05',
-    })
-
-    expect(quoted?.indexerOperations?.[0]?.terra_swap.hybrid?.book_input).toBe('200000')
-    expect(quoted?.indexerOperations?.[1]?.terra_swap.hybrid).toBeUndefined()
-    const simOps = vi.mocked(router.simulateMultiHopSwap).mock.calls[0][1]
-    expect(simOps[1].terra_swap.hybrid).toBeUndefined()
-  })
-
-  it('shows buy-split net You Receive and keeps pre-tax execute amount (#615)', async () => {
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: from,
-      token_out: to,
-      hops: [{ pair, offer_token: from, ask_token: to }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: from } },
-            ask_asset_info: { token: { contract_addr: to } },
-            hybrid: null,
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '950000',
-      estimated_amount_out_net: '940500',
-      buy_tax_bps: 100,
-      tax_kind: 'buy',
-      intermediate_tokens: [from, to],
-    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '950000' })
-
-    const quoted = await quoteCw20ViaRouteSolve({
-      fromToken: from,
-      toToken: to,
-      simRaw: '1000000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 5,
-      maxSpreadStr: '0.05',
-    })
-
-    expect(quoted?.return_amount).toBe('940500')
-    expect(quoted?.executeAmountOut).toBe('950000')
-  })
-
-  it('returns null when indexer token_in/out disagree with the request', async () => {
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: from,
-      token_out: 'terra1other000000000000000000000000000001',
-      hops: [],
-      router_operations: [],
-    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
-
-    const quoted = await quoteCw20ViaRouteSolve({
-      fromToken: from,
-      toToken: to,
-      simRaw: '1000000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 5,
-      maxSpreadStr: '0.05',
-    })
-
-    expect(quoted).toBeNull()
-    expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
-  })
-
-  it('returns null when a production economic quote hops a gem (GitLab #562 A10)', async () => {
-    vi.stubEnv('VITE_NETWORK', 'mainnet')
-    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
-    const ruby = 'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc'
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: from,
-      token_out: to,
-      hops: [
-        { pair, offer_token: from, ask_token: ruby },
-        { pair: 'terra1pair2', offer_token: ruby, ask_token: to },
-      ],
-      router_operations: [],
-      intermediate_tokens: [from, ruby, to],
-    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
-
-    const quoted = await quoteCw20ViaRouteSolve({
-      fromToken: from,
-      toToken: to,
-      simRaw: '1000000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 5,
-      maxSpreadStr: '0.05',
-    })
-
-    expect(quoted).toBeNull()
-    expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
-    vi.unstubAllEnvs()
-  })
-})
-
-describe('exact-output selected route validation (#1376)', () => {
-  const from = 'terra1from'
-  const to = 'terra1to'
-  const request = {
-    fromToken: from,
-    toToken: to,
-    targetRaw: '100000000000000000000',
-    maxMakerFills: 8,
-    slippageTolerancePercent: 5,
-    maxSpreadStr: '0.05',
-    quoteTrader: { trader: 'terra1trader' },
-  }
-  const response = () => ({
+const from = 'terra1from'
+const mid = 'terra1middle'
+const to = 'terra1to'
+const trader = 'terra1trader'
+const input = {
+  fromToken: from,
+  toToken: to,
+  simRaw: '1000000',
+  maxMakerFills: 8,
+  slippageTolerancePercent: 5,
+  maxSpreadStr: '0.05',
+  quoteTrader: { trader },
+}
+function fixture(): IndexerRouteSolveResponse {
+  const hops = [
+    { pair: 'pair1', offer_token: from, ask_token: mid },
+    { pair: 'pair2', offer_token: mid, ask_token: to },
+  ]
+  const executionHops = hops.map((h, i) => ({
+    ...h,
+    offer_amount: i ? '990000' : '1000000',
+    return_amount: i ? '980000' : '990000',
+    pool_return_amount: i ? '980000' : '990000',
+    book_return_net: '0',
+    pool_input_actual: i ? '990000' : '1000000',
+    book_offer_consumed: '0',
+    spread_amount: '1000',
+    commission_amount: '1000',
+    min_return: i ? '931000' : '940500',
+  }))
+  return {
     token_in: from,
     token_out: to,
-    hops: [{ pair: 'terra1pair', offer_token: from, ask_token: to }],
-    router_operations: [
-      {
-        terra_swap: {
-          offer_asset_info: { token: { contract_addr: from } },
-          ask_asset_info: { token: { contract_addr: to } },
-        },
+    hops,
+    intermediate_tokens: [from, mid, to],
+    router_operations: hops.map((h, i) => ({
+      terra_swap: {
+        offer_asset_info: { token: { contract_addr: h.offer_token } },
+        ask_asset_info: { token: { contract_addr: h.ask_token } },
+        min_return: executionHops[i].min_return,
       },
-    ],
-    required_amount_in: '12649685215',
-    target_amount_out: request.targetRaw,
-    sizing_mode: 'pool_only_exact_output' as const,
-    fidelity_check: 'passed' as const,
-    spot_amount_out: '100000000005328338879',
-  })
+    })),
+    estimated_amount_out: '980000',
+    spot_amount_out: '1000000',
+    quote_kind: 'indexer_pool_db',
+    execution_metadata: {
+      version: 1,
+      generation: 'market-7',
+      input_amount: '1000000',
+      max_spread: '0.05',
+      trader,
+      observed_at_ms: Date.now() - 1000,
+      expires_at_ms: Date.now() + 10000,
+      policy: 'pool_only',
+      minimum_receive: '931000',
+      hops: executionHops,
+    },
+  }
+}
+function serve(idx = fixture()) {
+  vi.mocked(getRouteSolve).mockResolvedValue(idx)
+  return idx
+}
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(assertRouteTaxFunding).mockResolvedValue(undefined)
-    vi.mocked(getPair).mockResolvedValue({
-      contract_addr: 'terra1pair',
-      liquidity_token: 'terra1lp',
-      asset_infos: [{ token: { contract_addr: from } }, { token: { contract_addr: to } }],
+beforeEach(() => vi.clearAllMocks())
+describe('local executable route #1452', () => {
+  it('quotes, refreshes and prepares reviewed operations without any chain request', async () => {
+    serve()
+    const first = await quoteCw20ViaRouteSolve(input)
+    const refresh = await quoteCw20ViaRouteSolve(input)
+    expect(first).toEqual(refresh)
+    expect(first).toMatchObject({
+      return_amount: '980000',
+      routeSlippagePercent: '2.00',
+      executionMetadata: { generation: 'market-7' },
+      routePreflight: { anyHopExceedsMaxSpread: false },
     })
-    vi.mocked(indexerClient.getRouteSolveExactOutput).mockResolvedValue(response())
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '100000000005328338879' })
-  })
-
-  it('keeps the realistic 100 CL8Y selected offer and operations through wallet validation', async () => {
-    const quote = await quoteCw20ExactOutputViaRouteSolve(request)
-    expect(quote.offerAmount).toBe('12649685215')
-    expect(quote.return_amount).toBe('100000000005328338879')
-    expect(indexerClient.getRouteSolveExactOutput).toHaveBeenCalledWith(
+    expect(first!.indexerOperations.map((op) => op.terra_swap.min_return)).toEqual(['940500', '931000'])
+    assertLocalRouteSubmit(
+      first!.executionMetadata,
+      first!.indexerOperations,
+      input.simRaw,
+      input.maxSpreadStr,
+      trader,
+      '931000'
+    )
+    expect(getRouteSolve).toHaveBeenCalledWith(
       from,
       to,
-      request.targetRaw,
-      expect.objectContaining({ trader: 'terra1trader' })
+      input.simRaw,
+      expect.objectContaining({ maxSpread: '0.05', trader })
     )
-    expect(router.simulateMultiHopSwap).toHaveBeenCalledWith(
-      quote.offerAmount,
-      quote.indexerOperations,
-      request.quoteTrader
-    )
-    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(queryContract).not.toHaveBeenCalled()
   })
-
-  it('validates buy-tax net while preserving the pre-tax contract minimum base', async () => {
-    vi.mocked(indexerClient.getRouteSolveExactOutput).mockResolvedValue({
-      ...response(),
-      buy_tax_bps: 1000,
-      spot_amount_out: '111111111111111111111',
-    })
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '111111111111111111111' })
-    const quote = await quoteCw20ExactOutputViaRouteSolve(request)
-    expect(BigInt(quote.return_amount)).toBeGreaterThanOrEqual(BigInt(request.targetRaw))
-    expect(quote.executeAmountOut).toBe('111111111111111111111')
-  })
-
-  it.each([undefined, '0', '-1', '1e20', (1n << 128n).toString(), '9'.repeat(1000)])(
-    'rejects missing or malformed fair reference %s before wallet work',
-    async (spot) => {
-      vi.mocked(indexerClient.getRouteSolveExactOutput).mockResolvedValue({ ...response(), spot_amount_out: spot })
-      await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow('fair price reference')
-      expect(getPair).not.toHaveBeenCalled()
-      expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
+  it.each(['execution_metadata', 'estimated_amount_out'] as const)(
+    'rejects missing %s without live fallback',
+    async (key) => {
+      const idx = fixture()
+      delete idx[key]
+      serve(idx)
+      await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+      expect(queryContract).not.toHaveBeenCalled()
     }
   )
-
-  it('retains symmetric fair-price deviation for the unchanged hard retail protections', async () => {
-    vi.mocked(indexerClient.getRouteSolveExactOutput).mockResolvedValue({
-      ...response(),
-      spot_amount_out: '100000000005328338879000',
-    })
-    const quote = await quoteCw20ExactOutputViaRouteSolve(request)
-    expect(quote.routeSlippagePercent).toBe('99.90')
-  })
-
-  it('rejects insufficient fresh wallet output instead of trusting the server estimate', async () => {
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '99999999999999999999' })
-    await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow('cannot satisfy')
-  })
-
-  it('propagates provider gas rejection without executable output or an alternate solver retry (#1422)', async () => {
-    vi.mocked(router.simulateMultiHopSwap).mockRejectedValueOnce(
-      new Error('out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317')
-    )
-    await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow('out of gas')
-    expect(router.simulateMultiHopSwap).toHaveBeenCalledTimes(1)
-    expect(indexerClient.getRouteSolveExactOutput).toHaveBeenCalledTimes(1)
-    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
-    expect(preflight.preflightSwapRouteSpread).not.toHaveBeenCalled()
-  })
-
-  it.each(['drift', 'target', 'overflow', 'hybrid', 'disconnected', 'endpoint', 'intermediary', 'hop-limit'])(
-    'rejects forged or stale %s responses before wallet work',
-    async (kind) => {
-      const value = response()
-      if (kind === 'drift') value.fidelity_check = 'drift' as 'passed'
-      if (kind === 'target') value.target_amount_out = '1'
-      if (kind === 'overflow') value.required_amount_in = (1n << 128n).toString()
-      if (kind === 'hybrid')
-        Object.assign(value.router_operations[0].terra_swap, { hybrid: { pool_input: '1', book_input: '1' } })
-      if (kind === 'endpoint') value.hops[0].ask_token = 'terra1wrong'
-      if (kind === 'intermediary') value.hops.push({ pair: 'terra1pair2', offer_token: 'terra1wrong', ask_token: to })
-      if (kind === 'hop-limit') value.hops = Array(5).fill(value.hops[0])
-      if (kind === 'disconnected')
-        value.router_operations[0].terra_swap.offer_asset_info.token.contract_addr = 'terra1wrong'
-      vi.mocked(indexerClient.getRouteSolveExactOutput).mockResolvedValue(value)
-      await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow()
-      expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
+  it.each(['input_amount', 'max_spread', 'trader', 'sender', 'generation'] as const)(
+    'rejects another %s identity',
+    async (key) => {
+      const idx = fixture()
+      idx.execution_metadata![key] = key === 'generation' ? '' : 'wrong'
+      serve(idx)
+      await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
     }
   )
-})
-
-describe('all-tax net route quotes (#1381)', () => {
-  it('does not haircut an already-net router result and keeps gross input for one hop', async () => {
-    vi.mocked(assertRouteTaxFunding).mockResolvedValue(1)
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: 'terra1alpha',
-      token_out: 'terra1ask',
-      tax_kind: 'route_local_v1',
-      buy_tax_bps: 450,
-      hops: [{ pair: 'terra1pair', offer_token: 'terra1alpha', ask_token: 'terra1ask' }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: 'terra1alpha' } },
-            ask_asset_info: { token: { contract_addr: 'terra1ask' } },
-          },
-        },
-      ],
-    })
-    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '955000', taxFundingVersion: 1 })
-    const result = await quoteCw20ViaRouteSolve({
-      fromToken: 'terra1alpha',
-      toToken: 'terra1ask',
-      simRaw: '1010000',
-      maxMakerFills: 8,
-      slippageTolerancePercent: 1,
-      maxSpreadStr: '0.01',
-    })
-    expect(result).toMatchObject({ return_amount: '955000', taxFundingVersion: 1 })
-    expect(result?.executeAmountOut).toBeUndefined()
-    expect(router.simulateMultiHopSwap).toHaveBeenLastCalledWith(
-      '1010000',
-      expect.any(Array),
-      expect.objectContaining({ taxFundingVersion: 1 })
+  it.each([0, 1, 2])('blocks unsupported hybrid, weak floor and expired observations (%s)', async (mode) => {
+    const idx = fixture()
+    if (mode === 0)
+      (idx.router_operations[0] as { terra_swap: Record<string, unknown> }).terra_swap.hybrid = {
+        pool_input: '1000000',
+        book_input: '1',
+      }
+    if (mode === 1) {
+      idx.execution_metadata!.hops[0].min_return = '1'
+      ;(idx.router_operations[0] as { terra_swap: Record<string, unknown> }).terra_swap.min_return = '1'
+    }
+    if (mode === 2) idx.execution_metadata!.expires_at_ms = Date.now() - 1
+    serve(idx)
+    await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+  })
+  it('uses contract L9 denominator rather than adding spread to gross output', async () => {
+    const idx = fixture()
+    idx.execution_metadata!.hops[0].spread_amount = '51000'
+    serve(idx)
+    await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+  })
+  it('rejects corrupted propagation or operations and does not turn unknown reference into zero', async () => {
+    const idx = fixture()
+    delete idx.spot_amount_out
+    delete idx.slippage_percent
+    serve(idx)
+    await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+    idx.spot_amount_out = '1000000'
+    idx.execution_metadata!.hops[1].offer_amount = '990001'
+    serve(idx)
+    await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+  })
+  it('rejects a forged signing path, other actor, changed amount or expired review', async () => {
+    serve()
+    const q = (await quoteCw20ViaRouteSolve(input))!
+    const assert = (ops = q.indexerOperations, amount = input.simRaw, wallet = trader, now = Date.now()) =>
+      assertLocalRouteSubmit(q.executionMetadata, ops, amount, input.maxSpreadStr, wallet, '931000', now)
+    const forged = structuredClone(q.indexerOperations)
+    forged[0].terra_swap.ask_asset_info = { token: { contract_addr: 'terra1attacker' } }
+    expect(() => assert(forged)).toThrow('Quote unavailable')
+    expect(() => assert(q.indexerOperations, '1000001')).toThrow('Quote unavailable')
+    expect(() => assert(q.indexerOperations, input.simRaw, 'another')).toThrow('Quote unavailable')
+    expect(() => assert(q.indexerOperations, input.simRaw, trader, q.executionMetadata.expires_at_ms)).toThrow(
+      'Quote unavailable'
     )
   })
-})
-
-describe('authorized route identity (#1381)', () => {
-  it('rejects a versioned quote whose executable path pays a different receive token', async () => {
-    vi.mocked(assertRouteTaxFunding).mockClear()
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: 'terra1offer',
-      token_out: 'terra1wanted',
-      tax_kind: 'route_local_v1',
-      hops: [{ pair: 'terra1pair', offer_token: 'terra1offer', ask_token: 'terra1foreign' }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: 'terra1offer' } },
-            ask_asset_info: { token: { contract_addr: 'terra1foreign' } },
-          },
-        },
-      ],
-    })
-    await expect(
-      quoteCw20ViaRouteSolve({
-        fromToken: 'terra1offer',
-        toToken: 'terra1wanted',
-        simRaw: '1010000',
-        maxMakerFills: 8,
-        slippageTolerancePercent: 1,
-        maxSpreadStr: '0.01',
-      })
-    ).rejects.toThrow('receive token does not match')
-    expect(assertRouteTaxFunding).not.toHaveBeenCalled()
+  it.each([
+    [0.14, '0.0014'],
+    [0.29, '0.0029'],
+  ] as const)('preserves the actual custom %s%% constraint through quote validation', async (percent, spread) => {
+    const idx = fixture()
+    const atomics = BigInt(Math.round(percent * 100))
+    idx.execution_metadata!.max_spread = spread
+    for (const [i, hop] of idx.execution_metadata!.hops.entries()) {
+      hop.min_return = ((BigInt(hop.return_amount) * (10000n - atomics)) / 10000n).toString()
+      ;(idx.router_operations[i] as { terra_swap: { min_return: string } }).terra_swap.min_return = hop.min_return
+    }
+    idx.execution_metadata!.minimum_receive = idx.execution_metadata!.hops.at(-1)!.min_return
+    serve(idx)
+    const q = await quoteCw20ViaRouteSolve({ ...input, maxSpreadStr: spread, slippageTolerancePercent: percent })
+    expect(q?.minimumReceive).toBe(idx.execution_metadata!.minimum_receive)
+    expect(getRouteSolve).toHaveBeenCalledWith(from, to, input.simRaw, expect.objectContaining({ maxSpread: spread }))
   })
-  it('rejects disconnected funded operation segments before trusting a capability', async () => {
-    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
-      token_in: 'terra1offer',
-      token_out: 'terra1wanted',
-      tax_kind: 'route_local_v1',
-      hops: [
-        { pair: 'terra1pair1', offer_token: 'terra1offer', ask_token: 'terra1middle' },
-        { pair: 'terra1pair2', offer_token: 'terra1foreign', ask_token: 'terra1wanted' },
-      ],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: 'terra1offer' } },
-            ask_asset_info: { token: { contract_addr: 'terra1middle' } },
-          },
-        },
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: 'terra1foreign' } },
-            ask_asset_info: { token: { contract_addr: 'terra1wanted' } },
-          },
-        },
-      ],
-    })
-    await expect(
-      quoteCw20ViaRouteSolve({
-        fromToken: 'terra1offer',
-        toToken: 'terra1wanted',
-        simRaw: '1010000',
-        maxMakerFills: 8,
-        slippageTolerancePercent: 1,
-        maxSpreadStr: '0.01',
-      })
-    ).rejects.toThrow('operations do not match')
+  it('cancellation stops validation and never discovers or simulates a fallback', async () => {
+    serve()
+    const controller = new AbortController()
+    controller.abort()
+    await expect(quoteCw20ViaRouteSolve({ ...input, signal: controller.signal })).rejects.toThrow()
+    expect(queryContract).not.toHaveBeenCalled()
+  })
+  it('sizes exact net output from the same local snapshot with the selected spread', async () => {
+    const idx = fixture()
+    idx.sizing_mode = 'pool_only_exact_output'
+    idx.required_amount_in = '1000000'
+    idx.target_amount_out = '980000'
+    vi.mocked(getRouteSolveExactOutput).mockResolvedValue(idx)
+    const q = await quoteCw20ExactOutputViaRouteSolve({ ...input, targetRaw: '980000' })
+    expect(q.minimumReceive).toBe('980000')
+    expect(q.offerAmount).toBe('1000000')
+    expect(q.return_amount).toBe('980000')
+    expect(getRouteSolveExactOutput).toHaveBeenCalledWith(
+      from,
+      to,
+      '980000',
+      expect.objectContaining({ maxSpread: '0.05' })
+    )
+    expect(queryContract).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,5 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getUst1EffectiveSwap } from '@/services/terraclassic/ust1Window'
 import { getTokenBalance } from '@/services/terraclassic/queries'
+import { getUst1EffectiveSwap } from '@/services/terraclassic/ust1Window'
 import {
   isNativeWrapEnabled,
   isUst1WindowEnabled,
@@ -16,6 +14,8 @@ import {
   isUst1PayAsset,
   type SwapPayAcquireGuidance,
 } from '@/utils/swapPayAcquireGuidance'
+import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 const WRAPPED_PAY_ASSETS = new Set(Object.values(NATIVE_WRAPPED_PAIRS).filter(Boolean))
 
@@ -37,7 +37,7 @@ export function useSwapPayAcquireGuidance(input: {
   const windowQuery = useQuery({
     queryKey: ['ust1EffectiveSwap', UST1_WINDOW_CONTRACT_ADDRESS],
     queryFn: getUst1EffectiveSwap,
-    enabled: windowEnabled && payIsUst1,
+    enabled: false,
     staleTime: 15_000,
     refetchInterval: 30_000,
   })

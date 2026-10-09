@@ -1,6 +1,6 @@
+import type { SwapOperation } from '@/services/terraclassic/router'
 import type { AssetInfo, HybridSwapParams } from '@/types'
 import { tokenAssetInfo } from '@/types'
-import type { SwapOperation } from '@/services/terraclassic/router'
 
 function assetInfoFromIndexerJson(v: unknown): AssetInfo {
   if (!v || typeof v !== 'object') throw new Error('invalid offer_asset_info / ask_asset_info')
@@ -29,18 +29,12 @@ function hybridFromJson(h: unknown): HybridSwapParams | undefined {
     pool_input: pool,
     book_input: book,
     max_maker_fills: Number(o.max_maker_fills ?? 8),
-    book_start_hint:
-      o.book_start_hint === null || o.book_start_hint === undefined
-        ? null
-        : Number(o.book_start_hint),
+    book_start_hint: o.book_start_hint === null || o.book_start_hint === undefined ? null : Number(o.book_start_hint),
   }
 }
 
 /** Map indexer `router_operations` to wallet/router `SwapOperation[]` (must match `hops.length`). */
-export function swapOperationsFromIndexerResponse(
-  routerOperations: unknown[],
-  hopCount: number
-): SwapOperation[] {
+export function swapOperationsFromIndexerResponse(routerOperations: unknown[], hopCount: number): SwapOperation[] {
   if (!Array.isArray(routerOperations) || routerOperations.length !== hopCount) {
     throw new Error('router_operations must be an array with one entry per hop')
   }
@@ -57,6 +51,7 @@ export function swapOperationsFromIndexerResponse(
         offer_asset_info: offer,
         ask_asset_info: ask,
         ...(hybrid ? { hybrid } : {}),
+        ...(typeof ts.min_return === 'string' ? { min_return: ts.min_return } : {}),
       },
     })
   }

@@ -30,7 +30,7 @@ import {
   terraTxSignStallMessage,
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
-import { buildTerraClassicFee } from './terraGas'
+import { buildTerraClassicFee, totalGasLimitForExecuteMsgs } from './terraGas'
 import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
@@ -47,6 +47,8 @@ export type TerraBroadcastPhaseChangeContext = {
 }
 
 export type TerraBroadcastOptions = {
+  /** Local executable route preparation uses deterministic gas budgets, without transaction simulation. */
+  gasEstimation?: 'offline'
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
 }
 
@@ -295,7 +297,10 @@ export async function broadcastTerraExecuteContracts(
     memo: '',
   }
 
-  const { gasLimit } = await resolveBroadcastGasLimit(entries, walletAddress)
+  const gasLimit =
+    resolvedOptions?.gasEstimation === 'offline'
+      ? totalGasLimitForExecuteMsgs(entries)
+      : (await resolveBroadcastGasLimit(entries, walletAddress)).gasLimit
   const fee = buildTerraClassicFee(gasLimit)
 
   if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {

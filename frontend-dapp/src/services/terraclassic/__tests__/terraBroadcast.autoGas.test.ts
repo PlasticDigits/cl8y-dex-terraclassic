@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { broadcastTerraExecuteContracts } from '../terraBroadcast'
 import { installSwapGasReaderForTests, type SwapGasReadRequest, type SwapGasReader } from '../swapAutoGas'
 import { AUTO_GAS_FALLBACK_STEP, AUTO_GAS_STEP_TRANSPORT_LIMIT } from '@/utils/constants'
-import { sendHookExecuteSwapOperationsMsg } from '../terraGas'
+import { sendHookExecuteSwapOperationsMsg, totalGasLimitForExecuteMsgs } from '../terraGas'
 
 const mockBroadcastTx = vi.fn()
 const mockPollTx = vi.fn()
@@ -138,5 +138,25 @@ describe('broadcastTerraExecuteContracts auto gas (#1360)', () => {
       { contract: 'terra1wrapped', msg: sendHookExecuteSwapOperationsMsg([{ terra_swap: {} }]) },
     ])
     expect(signedGas()).toBe(1_800_000n)
+  })
+})
+
+describe('local reviewed route preparation (#1452)', () => {
+  it('signs the bounded offline gas budget without a chain simulation and keeps phase callbacks', async () => {
+    const reader = vi.fn(async () => {
+      throw new Error('RPC forbidden during route preparation')
+    })
+    installSwapGasReaderForTests(reader)
+    mockBroadcastTx.mockResolvedValue('OFFLINE')
+    mockPollTx.mockResolvedValue({ txResponse: { code: 0, rawLog: '', logs: [] } })
+    const phases = vi.fn()
+    await broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [twoHop], {
+      gasEstimation: 'offline',
+      onPhaseChange: phases,
+    })
+    expect(reader).not.toHaveBeenCalled()
+    expect(signedGas()).toBe(BigInt(totalGasLimitForExecuteMsgs([twoHop])))
+    expect(phases).toHaveBeenCalled()
+    expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
   })
 })

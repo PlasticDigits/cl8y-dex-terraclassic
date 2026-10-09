@@ -1,5 +1,17 @@
 # Swap / Trade sim quote refetch & Calculating… (GitLab #484, #496)
 
+## Current local quote contract (#1452)
+
+The local request path follows [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md) and the
+[current solver contract](../docs/route-solver.md#local-quote-contract-1452).
+Request-time LCD simulation, config/tier discovery, enrichment and fallback
+instructions below describe the historical implementation. Never restore them
+for a local quote cache miss or unsupported mode. Preserve positive floors,
+Policy A, actual caller spread constraints, exact-input/generation identity and
+reviewed signing snapshots. See [verification and explicit skips](../docs/qa/issue-1452/README.md)
+for supported implementation scope and acceptance evidence.
+
+
 Use this skill when changing **Swap** or **Trade market** sim `useQuery` options, receive-field loading copy, indexer `route/solve` timeouts, or anything that can leave the UI stuck on **Calculating…** / show a **stale You Receive** after pay changes.
 
 Companion: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) (route row + submit–quote alignment #356/#360). Product docs: [`docs/frontend.md`](../docs/frontend.md#submit-quote-alignment--calculating-ux).

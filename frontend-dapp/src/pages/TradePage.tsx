@@ -1,26 +1,38 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useWalletStore } from '@/hooks/useWallet'
-import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
-import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
-import { getPairPaused } from '@/services/terraclassic/pair'
-import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { PairSearchSelect, PairTokenLinks, RetryError, Skeleton } from '@/components/ui'
+import { LocalQuoteTokenMetadata } from '@/hooks/useTokenDisplayInfo'
+import PriceChart from '@/components/charts/PriceChart'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
-import PriceChart from '@/components/charts/PriceChart'
-import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
-import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
+import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { InvalidPairLinkNotice } from '@/components/trade/InvalidPairLinkNotice'
+import { OrderBookPanel } from '@/components/trade/OrderBookPanel'
 import { PairNotFoundLinkNotice } from '@/components/trade/PairNotFoundLinkNotice'
-import { TradePairSwitchStatus } from '@/components/trade/TradePairSwitchStatus'
+import { TradeDesktopWorkspace } from '@/components/trade/TradeDesktopWorkspace'
+import { TradeOrderTicket } from '@/components/trade/TradeOrderTicket'
 import { TradePageWorkspaceSkeleton } from '@/components/trade/TradePageWorkspaceSkeleton'
+import { TradePairSwitchStatus } from '@/components/trade/TradePairSwitchStatus'
+import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
+import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
+import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
+import { PairSearchSelect, PairTokenLinks, RetryError, Skeleton } from '@/components/ui'
 import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
+import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
-import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
+import { getAllPairsPaged, getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
+import { getPairPaused } from '@/services/terraclassic/pair'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import { assetInfoLabel, indexerPairToPairInfo, type IndexerPair } from '@/types'
+import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
+import { formatTime } from '@/utils/formatDate'
+import { getErrorMessage } from '@/utils/humanizeUserFacingError'
+import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
+import {
+  TRADE_INDEXER_OUTAGE_BANNER_LEAD,
+  TRADE_INDEXER_OUTAGE_BANNER_TAIL,
+  TRADE_INDEXER_OUTAGE_BANNER_TITLE,
+} from '@/utils/indexerTradeOutageCopy'
 import {
   firstCatalogPairAddress,
   isRetailHiddenTestPair,
@@ -28,15 +40,12 @@ import {
   pairInfoLegSymbols,
   retailExposeTestTokens,
 } from '@/utils/pairCatalogRank'
+import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
+import { resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTime } from '@/utils/formatDate'
-import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
-import {
-  TRADE_INDEXER_OUTAGE_BANNER_LEAD,
-  TRADE_INDEXER_OUTAGE_BANNER_TAIL,
-  TRADE_INDEXER_OUTAGE_BANNER_TITLE,
-} from '@/utils/indexerTradeOutageCopy'
-import { getErrorMessage } from '@/utils/humanizeUserFacingError'
+import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
+import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
+import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import {
   getInvalidTradePairRouteParam,
   getTradePageInvalidLinkNotice,
@@ -49,20 +58,8 @@ import {
   shouldAutoPickDefaultTradePair,
   shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
-import { parseTradeTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
-import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
-import { assetInfoLabel, type IndexerPair } from '@/types'
-import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
-import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
-import { resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
-import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
-import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
-import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
-import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
-import { TradeDesktopWorkspace } from '@/components/trade/TradeDesktopWorkspace'
+import { parseTradeTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
 import {
   TRADE_BOOK_VISIBLE_KEY,
   TRADE_TAPE_EXPANDED_KEY,
@@ -73,6 +70,9 @@ import {
   writeTradePanelExpanded,
   writeTradePanelVisible,
 } from '@/utils/tradeWorkspacePanels'
+import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
 
@@ -166,7 +166,7 @@ export default function TradePage() {
 
   const pairsQuery = useQuery({
     queryKey: ['allPairs'],
-    queryFn: () => getAllPairsPaginated(),
+    queryFn: async () => ({ pairs: (await getAllPairsPaged()).map(indexerPairToPairInfo) }),
     staleTime: 60_000,
   })
 
@@ -323,7 +323,7 @@ export default function TradePage() {
   const pausedQuery = useQuery({
     queryKey: ['pairPaused', pairAddr],
     queryFn: () => getPairPaused(pairAddr),
-    enabled: pairRouteReady,
+    enabled: false,
     staleTime: 15_000,
   })
   const isPairPaused = pausedQuery.data?.paused === true
@@ -505,172 +505,174 @@ export default function TradePage() {
   )
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1
-          className="text-lg font-bold uppercase tracking-wider font-heading"
-          style={{ color: 'var(--ink)' }}
-          data-testid="trade-page-heading"
-        >
-          Trade
-        </h1>
-      </div>
+    <LocalQuoteTokenMetadata.Provider value={true}>
+      <div className="space-y-3">
+        <div>
+          <h1
+            className="text-lg font-bold uppercase tracking-wider font-heading"
+            style={{ color: 'var(--ink)' }}
+            data-testid="trade-page-heading"
+          >
+            Trade
+          </h1>
+        </div>
 
-      <TradeOnboardingStrip />
+        <TradeOnboardingStrip />
 
-      {invalidLinkNotice && (
-        <InvalidPairLinkNotice
-          invalidParam={invalidLinkNotice}
-          pairSelectId={TRADE_PAIR_SELECT_ID}
-          onDismiss={clearLinkNotices}
-        />
-      )}
-
-      {unknownPairNotice && (
-        <PairNotFoundLinkNotice
-          unknownParam={unknownPairNotice}
-          pairSelectId={TRADE_PAIR_SELECT_ID}
-          onDismiss={clearLinkNotices}
-        />
-      )}
-
-      {indexerDown && (
-        <MarketDataServiceOutageBanner
-          layout="inline"
-          testId="trade-indexer-outage-banner"
-          title={TRADE_INDEXER_OUTAGE_BANNER_TITLE}
-          lead={TRADE_INDEXER_OUTAGE_BANNER_LEAD}
-          tail={TRADE_INDEXER_OUTAGE_BANNER_TAIL}
-        />
-      )}
-
-      <div className="shell-panel p-3" data-testid="trade-pair-select-panel">
-        <label className="label-glass mb-1 block" htmlFor={TRADE_PAIR_SELECT_ID}>
-          Pair
-        </label>
-        <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
-          <PairSearchSelect
-            id={TRADE_PAIR_SELECT_ID}
-            className="relative w-full max-w-xl shrink-0"
-            aria-label="Trading pair"
-            value={pairAddr}
-            factoryPairs={pairs}
-            emptyLabel="No pairs on factory"
-            onChange={onPairChange}
-            onOptionIntent={onPairPrefetchIntent}
-            selectedLabelOverride={displayPairMenuLabel}
+        {invalidLinkNotice && (
+          <InvalidPairLinkNotice
+            invalidParam={invalidLinkNotice}
+            pairSelectId={TRADE_PAIR_SELECT_ID}
+            onDismiss={clearLinkNotices}
           />
-        </LcdQueryGate>
-        {showTradeWorkspace && factoryPair ? (
-          <PairTokenLinks
-            pairAddress={factoryPair.contract_addr}
-            asset0={factoryPair.asset_infos[0]}
-            asset1={factoryPair.asset_infos[1]}
-            inverted={pairOrientation.inverted}
-            liquidityUsd={
-              indexerPairQuery.data?.pair_address === factoryPair.contract_addr
-                ? indexerPairQuery.data.liquidity_usd
-                : undefined
-            }
+        )}
+
+        {unknownPairNotice && (
+          <PairNotFoundLinkNotice
+            unknownParam={unknownPairNotice}
+            pairSelectId={TRADE_PAIR_SELECT_ID}
+            onDismiss={clearLinkNotices}
           />
-        ) : null}
-        {showTradeWorkspace && showLegacyGemNotice ? (
-          <p className="mt-2 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="trade-legacy-gem-notice">
-            Legacy noneconomic market.
-          </p>
-        ) : null}
-      </div>
+        )}
 
-      {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
-      {!showWorkspaceSkeleton && showTradeWorkspace && showPairSwitchLoading && (
-        <TradePairSwitchStatus pairLabel={displayPairMenuLabel ?? activePairMenuLabel} />
-      )}
+        {indexerDown && (
+          <MarketDataServiceOutageBanner
+            layout="inline"
+            testId="trade-indexer-outage-banner"
+            title={TRADE_INDEXER_OUTAGE_BANNER_TITLE}
+            lead={TRADE_INDEXER_OUTAGE_BANNER_LEAD}
+            tail={TRADE_INDEXER_OUTAGE_BANNER_TAIL}
+          />
+        )}
 
-      {/*
+        <div className="shell-panel p-3" data-testid="trade-pair-select-panel">
+          <label className="label-glass mb-1 block" htmlFor={TRADE_PAIR_SELECT_ID}>
+            Pair
+          </label>
+          <LcdQueryGate query={pairsQuery} loadingFallback={<Skeleton height="2.5rem" width="100%" />}>
+            <PairSearchSelect
+              id={TRADE_PAIR_SELECT_ID}
+              className="relative w-full max-w-xl shrink-0"
+              aria-label="Trading pair"
+              value={pairAddr}
+              factoryPairs={pairs}
+              emptyLabel="No pairs on factory"
+              onChange={onPairChange}
+              onOptionIntent={onPairPrefetchIntent}
+              selectedLabelOverride={displayPairMenuLabel}
+            />
+          </LcdQueryGate>
+          {showTradeWorkspace && factoryPair ? (
+            <PairTokenLinks
+              pairAddress={factoryPair.contract_addr}
+              asset0={factoryPair.asset_infos[0]}
+              asset1={factoryPair.asset_infos[1]}
+              inverted={pairOrientation.inverted}
+              liquidityUsd={
+                indexerPairQuery.data?.pair_address === factoryPair.contract_addr
+                  ? indexerPairQuery.data.liquidity_usd
+                  : undefined
+              }
+            />
+          ) : null}
+          {showTradeWorkspace && showLegacyGemNotice ? (
+            <p className="mt-2 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="trade-legacy-gem-notice">
+              Legacy noneconomic market.
+            </p>
+          ) : null}
+        </div>
+
+        {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
+        {!showWorkspaceSkeleton && showTradeWorkspace && showPairSwitchLoading && (
+          <TradePairSwitchStatus pairLabel={displayPairMenuLabel ?? activePairMenuLabel} />
+        )}
+
+        {/*
         Sub-desktop layout: single column <768px; tablet 768–1023px uses a 2-col top row
         (chart | order ticket) with order book + tape below — see docs/frontend.md § Trade page
         responsive layout (GitLab #146). Only one TradeOrderTicket mounts at a time (GitLab #178).
       */}
-      {!showWorkspaceSkeleton && showTradeWorkspace && !isTradeDesktopLayout && (
-        <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
-          <div className="min-h-[280px] md:col-span-2 md:row-start-2">
-            <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
-          </div>
-          <div
-            className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col md:max-h-[min(72vh,44rem)]"
-            data-testid="trade-sub-lg-ticket-col"
-          >
-            {tradeOrderTicket}
-          </div>
-          <div
-            className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col"
-            data-testid="trade-sub-lg-chart-col"
-          >
-            <TradeChartSlot {...chartSlotProps} />
-          </div>
-          <div className="card-glass !p-3 md:col-span-2 md:row-start-3">
-            <TradeWorkspaceDisclosure
-              title="Recent trades"
-              storageKey={TRADE_TAPE_EXPANDED_KEY}
-              defaultExpanded={false}
-              testId="trade-sub-lg-tape-disclosure"
+        {!showWorkspaceSkeleton && showTradeWorkspace && !isTradeDesktopLayout && (
+          <div className="lg:hidden grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="trade-sub-lg-workspace">
+            <div className="min-h-[280px] md:col-span-2 md:row-start-2">
+              <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
+            </div>
+            <div
+              className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col md:max-h-[min(72vh,44rem)]"
+              data-testid="trade-sub-lg-ticket-col"
             >
+              {tradeOrderTicket}
+            </div>
+            <div
+              className="min-h-[220px] md:min-h-[280px] md:col-start-1 md:row-start-1 flex flex-col"
+              data-testid="trade-sub-lg-chart-col"
+            >
+              <TradeChartSlot {...chartSlotProps} />
+            </div>
+            <div className="card-glass !p-3 md:col-span-2 md:row-start-3">
+              <TradeWorkspaceDisclosure
+                title="Recent trades"
+                storageKey={TRADE_TAPE_EXPANDED_KEY}
+                defaultExpanded={false}
+                testId="trade-sub-lg-tape-disclosure"
+              >
+                <TradeRecentTradesSection
+                  pairRouteReady={pairRouteReady}
+                  tradesQuery={tradesQuery}
+                  activePair={activePair}
+                  formatTimeFn={formatTime}
+                  skeletonHeight="6rem"
+                  hideHeading
+                  inverted={pairOrientation.inverted}
+                />
+              </TradeWorkspaceDisclosure>
+            </div>
+          </div>
+        )}
+
+        {!showWorkspaceSkeleton && showTradeWorkspace && isTradeDesktopLayout && (
+          <TradeDesktopWorkspace
+            bookVisible={bookVisible}
+            ticketVisible={ticketVisible}
+            tapeExpanded={desktopTapeExpanded}
+            onBookVisibleChange={persistBookVisible}
+            onTicketVisibleChange={persistTicketVisible}
+            onTapeExpandedChange={persistTapeExpanded}
+            book={<OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />}
+            chart={<TradeChartSlot {...chartSlotProps} />}
+            ticket={tradeOrderTicket}
+            tape={
               <TradeRecentTradesSection
                 pairRouteReady={pairRouteReady}
                 tradesQuery={tradesQuery}
                 activePair={activePair}
                 formatTimeFn={formatTime}
-                skeletonHeight="6rem"
+                skeletonHeight="5rem"
                 hideHeading
                 inverted={pairOrientation.inverted}
               />
-            </TradeWorkspaceDisclosure>
-          </div>
-        </div>
-      )}
+            }
+          />
+        )}
 
-      {!showWorkspaceSkeleton && showTradeWorkspace && isTradeDesktopLayout && (
-        <TradeDesktopWorkspace
-          bookVisible={bookVisible}
-          ticketVisible={ticketVisible}
-          tapeExpanded={desktopTapeExpanded}
-          onBookVisibleChange={persistBookVisible}
-          onTicketVisibleChange={persistTicketVisible}
-          onTapeExpandedChange={persistTapeExpanded}
-          book={<OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />}
-          chart={<TradeChartSlot {...chartSlotProps} />}
-          ticket={tradeOrderTicket}
-          tape={
-            <TradeRecentTradesSection
-              pairRouteReady={pairRouteReady}
-              tradesQuery={tradesQuery}
+        {address && showTradeWorkspace && (
+          <TradeWorkspaceDisclosure
+            title="Wallet swap history"
+            storageKey={TRADE_WALLET_HISTORY_EXPANDED_KEY}
+            defaultExpanded={false}
+            testId="trade-wallet-history-disclosure"
+            className="mt-3"
+          >
+            <WalletIndexerHistoryPanel
+              walletAddress={address}
+              pairAddress={pairAddr}
+              sections={['swaps']}
               activePair={activePair}
-              formatTimeFn={formatTime}
-              skeletonHeight="5rem"
-              hideHeading
               inverted={pairOrientation.inverted}
             />
-          }
-        />
-      )}
-
-      {address && showTradeWorkspace && (
-        <TradeWorkspaceDisclosure
-          title="Wallet swap history"
-          storageKey={TRADE_WALLET_HISTORY_EXPANDED_KEY}
-          defaultExpanded={false}
-          testId="trade-wallet-history-disclosure"
-          className="mt-3"
-        >
-          <WalletIndexerHistoryPanel
-            walletAddress={address}
-            pairAddress={pairAddr}
-            sections={['swaps']}
-            activePair={activePair}
-            inverted={pairOrientation.inverted}
-          />
-        </TradeWorkspaceDisclosure>
-      )}
-    </div>
+          </TradeWorkspaceDisclosure>
+        )}
+      </div>
+    </LocalQuoteTokenMetadata.Provider>
   )
 }

@@ -1,43 +1,23 @@
-import { assertRouteTaxFunding, ROUTE_TAX_FUNDING_UNAVAILABLE } from '@/services/terraclassic/routeTaxFunding'
-import { getPair } from '@/services/terraclassic/factory'
 import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import type { QuoteTraderOptions } from '@/services/terraclassic/pair'
-import { simulateMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
-import {
-  enrichSwapOperationsWithHopMinReturns,
-  preflightSwapRouteSpread,
-  type SwapRoutePreflightSpread,
-} from '@/services/terraclassic/swapRoutePreflight'
-import type { IndexerRouteQuoteKind, IndexerRouteSolveResponse, PairInfo } from '@/types'
-import { assetInfoLabel } from '@/types'
+import type { SwapOperation } from '@/services/terraclassic/router'
+import type { SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import type { IndexerRouteExecutionMetadata, IndexerRouteQuoteKind, IndexerRouteSolveResponse, PairInfo } from '@/types'
+import { assetInfoLabel, getWrappedEquivalent, isNativeDenom } from '@/types'
+import { isLocalQuoteRaw, LOCAL_ROUTE_UNAVAILABLE, validateLocalRouteQuote } from '@/utils/localRouteQuote'
+import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
-import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
-import { displayReceiveNet } from '@/utils/communityTaxNetOut'
-import {
-  assertHop0DeclaredHybridPartitionsOffer,
-  stripAllDeclaredHybrid,
-  stripInteriorDeclaredHybrid,
-} from '@/utils/hybridHopOfferPartition'
 
-/**
- * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
- * Shared by Swap and Trade market (GitLab #501 / always-on #596).
- *
- * Invariants:
- * - Receive **display** is wallet sim minus catalog buy split when indexer `buy_tax_bps` > 0 (#615).
- * - Submit `min_return` uses pre-tax wallet sim (`executeAmountOut`), not the net display.
- * - Submit must use returned `indexerOperations` (hop-0 `hybrid` after Policy A strip; #1280).
- * - Wrap/native execute hops never copy `hybrid` (#1264 / **H596-7** / #1218). Pass
- *   `omitAllHybrid: true` on wrap-enter / unwrap-exit so wallet sim matches pool-only submit.
- * - Returns `null` when token_in/out mismatch the request (caller falls back).
- * - Throws on indexer/wallet failure (caller catches for pool-only / Advanced fallback).
- */
+/** Observation-pinned indexed quote. Missing executable metadata never starts a chain lookup. */
 export type Cw20RouteSolveQuote = {
   return_amount: string
+  minimumReceive: string
+  executionMetadata: IndexerRouteExecutionMetadata
+  executionOperations: string
   taxFundingVersion?: 1
-  /** Pre-tax wallet sim for `min_return` when `return_amount` is post-buy-split (#615). */
+  /** Legacy display compatibility; local output and per-hop floors are already net. */
   executeAmountOut?: string
   spread_amount: string
   commission_amount: string
@@ -60,13 +40,15 @@ type RouteSolveQuoteInput = {
   maxSpreadStr: string
   quoteTrader?: QuoteTraderOptions
   signal?: AbortSignal
-  /** Strip hop-0 hybrid too so wrap-enter quote = pool-only execute (#1218 / **H596-7**). */
+  /** Request a pool-only plan; reject any unsupported hybrid instead of changing quoted operations. */
   omitAllHybrid?: boolean
 }
 
 export async function quoteCw20ViaRouteSolve(input: RouteSolveQuoteInput): Promise<Cw20RouteSolveQuote | null> {
   const idx = await getRouteSolve(input.fromToken, input.toToken, input.simRaw, {
     maxMakerFills: input.maxMakerFills,
+    poolOnly: input.omitAllHybrid || isNativeDenom(input.fromToken) || isNativeDenom(input.toToken),
+    maxSpread: input.maxSpreadStr,
     trader: input.quoteTrader?.trader,
     sender: input.quoteTrader?.sender,
     signal: input.signal,
@@ -89,6 +71,22 @@ async function validateRouteSolveQuote(
   } = input
 
   input.signal?.throwIfAborted()
+  if (
+    !idx ||
+    typeof idx.token_in !== 'string' ||
+    typeof idx.token_out !== 'string' ||
+    !Array.isArray(idx.hops) ||
+    !idx.hops.length ||
+    idx.hops.length > 4 ||
+    idx.hops.some(
+      (h) => !h || typeof h.offer_token !== 'string' || typeof h.ask_token !== 'string' || typeof h.pair !== 'string'
+    ) ||
+    (idx.intermediate_tokens != null &&
+      (!Array.isArray(idx.intermediate_tokens) || idx.intermediate_tokens.some((token) => typeof token !== 'string')))
+  ) {
+    throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+  }
+  assertLocalOperationSchema(idx.router_operations)
 
   const tin = idx.token_in.trim().toLowerCase()
   const tout = idx.token_out.trim().toLowerCase()
@@ -107,7 +105,7 @@ async function validateRouteSolveQuote(
   }
 
   const mapped = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-  let currentToken = tin
+  let currentToken = idx.execution_metadata?.wrapper?.wrap_input ? (getWrappedEquivalent(tin) ?? tin) : tin
   for (const [i, op] of mapped.entries()) {
     const offer = assetInfoLabel(op.terra_swap.offer_asset_info).trim().toLowerCase()
     const ask = assetInfoLabel(op.terra_swap.ask_asset_info).trim().toLowerCase()
@@ -120,20 +118,18 @@ async function validateRouteSolveQuote(
     }
     currentToken = ask
   }
-  if (currentToken !== tout) throw new Error('Route receive token does not match the quote. Refresh the quote.')
-  const ops = omitAllHybrid ? stripAllDeclaredHybrid(mapped) : stripInteriorDeclaredHybrid(mapped)
-  const fundingVersion = await assertRouteTaxFunding(ops, input.signal)
-  if ((idx.tax_funding_version === 1 || idx.tax_kind === 'route_local_v1') && fundingVersion !== 1) {
-    throw new Error(ROUTE_TAX_FUNDING_UNAVAILABLE)
-  }
-  const fundedTrader = { ...baseQuoteTrader, taxFundingVersion: fundingVersion }
-  const quoteTrader = input.signal ? { ...fundedTrader, signal: input.signal } : fundedTrader
-  if (!omitAllHybrid && fundingVersion !== 1) {
-    assertHop0DeclaredHybridPartitionsOffer(ops, simRaw)
-  }
-  const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerancePercent, quoteTrader)
-  const result = await simulateMultiHopSwap(simRaw, opsForQuote, quoteTrader)
-  const routePreflight = await preflightSwapRouteSpread(opsForQuote, simRaw, maxSpreadStr, quoteTrader)
+  const routeOut = idx.execution_metadata?.wrapper?.unwrap_output ? (getWrappedEquivalent(tout) ?? tout) : tout
+  if (currentToken !== routeOut) throw new Error('Route receive token does not match the quote. Refresh the quote.')
+  if (omitAllHybrid && mapped.some((op) => op.terra_swap.hybrid != null)) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+  const opsForQuote = mapped
+  const { metadata, routePreflight } = validateLocalRouteQuote(idx, opsForQuote, {
+    simRaw,
+    maxSpreadStr,
+    slippageTolerancePercent,
+    trader: baseQuoteTrader?.trader,
+    sender: baseQuoteTrader?.sender,
+    maxMakerFills: input.maxMakerFills,
+  })
   const intermediates =
     idx.intermediate_tokens?.length === idx.hops.length + 1
       ? idx.intermediate_tokens
@@ -148,17 +144,16 @@ async function validateRouteSolveQuote(
     )
   }
 
-  const rawWallet = result.amount
-  const buyBps = fundingVersion === 1 ? 0 : (idx.buy_tax_bps ?? 0)
-  const displayNet = displayReceiveNet(rawWallet, buyBps)
+  const displayNet = idx.estimated_amount_out!
 
   return {
     return_amount: displayNet,
-    taxFundingVersion: fundingVersion,
-    executeAmountOut: displayNet !== rawWallet ? rawWallet : undefined,
+    minimumReceive: metadata.minimum_receive,
+    executionMetadata: metadata,
+    executionOperations: JSON.stringify(opsForQuote),
     spread_amount: '0',
     commission_amount: '0',
-    routeSlippagePercent: resolveRouteSlippagePercent(result.amount, idx.spot_amount_out, idx.slippage_percent),
+    routeSlippagePercent: resolveRouteSlippagePercent(displayNet, idx.spot_amount_out, idx.slippage_percent),
     spotAmountOut: idx.spot_amount_out,
     indexerQuoteKind: idx.quote_kind,
     indexerOperations: opsForQuote,
@@ -168,14 +163,46 @@ async function validateRouteSolveQuote(
   }
 }
 
-function isPositiveUint128Raw(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length <= 39 &&
-    /^\d+$/.test(value) &&
-    BigInt(value) > 0n &&
-    BigInt(value) <= (1n << 128n) - 1n
-  )
+/** Reject unsupported controls before the compatibility mapper can omit them. */
+function assertLocalOperationSchema(operations: unknown): void {
+  const asset = (value: unknown) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const a = value as Record<string, unknown>
+    if (Object.keys(a).length !== 1 || !a.token || typeof a.token !== 'object' || Array.isArray(a.token)) return false
+    const token = a.token as Record<string, unknown>
+    return Object.keys(token).length === 1 && typeof token.contract_addr === 'string' && !!token.contract_addr
+  }
+  if (!Array.isArray(operations) || !operations.length || operations.length > 4)
+    throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+  for (const op of operations) {
+    if (!op || typeof op !== 'object' || Array.isArray(op) || Object.keys(op).length !== 1)
+      throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    const ts = (op as { terra_swap?: Record<string, unknown> }).terra_swap
+    if (
+      !ts ||
+      typeof ts !== 'object' ||
+      Array.isArray(ts) ||
+      Object.keys(ts).some((key) => !['offer_asset_info', 'ask_asset_info', 'min_return', 'hybrid'].includes(key)) ||
+      !asset(ts.offer_asset_info) ||
+      !asset(ts.ask_asset_info) ||
+      !isLocalQuoteRaw(ts.min_return)
+    )
+      throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    if (ts.hybrid != null) {
+      if (typeof ts.hybrid !== 'object' || Array.isArray(ts.hybrid)) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+      const h = ts.hybrid as Record<string, unknown>
+      if (
+        Object.keys(h).some(
+          (key) => !['pool_input', 'book_input', 'max_maker_fills', 'book_start_hint'].includes(key)
+        ) ||
+        !isLocalQuoteRaw(h.pool_input, false) ||
+        !isLocalQuoteRaw(h.book_input) ||
+        !Number.isSafeInteger(h.max_maker_fills) ||
+        h.book_start_hint != null
+      )
+        throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    }
+  }
 }
 
 /** Server selection + authoritative wallet validation of that exact offer/path. No browser search. */
@@ -185,21 +212,22 @@ export async function quoteCw20ExactOutputViaRouteSolve(
   const idx = await getRouteSolveExactOutput(input.fromToken, input.toToken, input.targetRaw, {
     trader: input.quoteTrader?.trader,
     sender: input.quoteTrader?.sender,
+    maxSpread: input.maxSpreadStr,
     signal: input.signal,
   })
   if (
-    idx.sizing_mode !== 'pool_only_exact_output' ||
+    !['pool_only_exact_output', 'local_pool_exact_output'].includes(idx.sizing_mode ?? '') ||
     idx.target_amount_out !== input.targetRaw ||
-    !isPositiveUint128Raw(idx.required_amount_in) ||
-    idx.fidelity_check !== 'passed'
+    !isLocalQuoteRaw(idx.required_amount_in)
   ) {
     throw new Error('Receive sizing returned an invalid or stale offer. Retry the quote.')
   }
   // Exact sizing must retain the global route reference used by the 5/30/99 protections.
-  if (!isPositiveUint128Raw(idx.spot_amount_out)) {
+  if (!isLocalQuoteRaw(idx.spot_amount_out)) {
     throw new Error('Receive sizing fair price reference is unavailable or invalid. Retry the quote.')
   }
-  if (!idx.hops.length || idx.hops.length > 4) throw new Error('Invalid receive route hop count')
+  if (!Array.isArray(idx.hops) || !idx.hops.length || idx.hops.length > 4)
+    throw new Error('Invalid receive route hop count')
   if (
     !Array.isArray(idx.router_operations) ||
     idx.router_operations.some((op) => {
@@ -213,7 +241,9 @@ export async function quoteCw20ExactOutputViaRouteSolve(
   )
     throw new Error('Unsupported receive route execution policy')
   const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-  let token = input.fromToken
+  let token = idx.execution_metadata?.wrapper?.wrap_input
+    ? (getWrappedEquivalent(input.fromToken) ?? input.fromToken)
+    : input.fromToken
   for (const [i, op] of ops.entries()) {
     const hop = idx.hops[i]
     if (
@@ -228,20 +258,15 @@ export async function quoteCw20ExactOutputViaRouteSolve(
     }
     token = hop.ask_token
   }
-  if (token !== input.toToken) throw new Error('Invalid receive route endpoint')
-  const indexerPairs: PairInfo[] = []
-  for (const [i, op] of ops.entries()) {
-    input.signal?.throwIfAborted()
-    const pair = await getPair(
-      [op.terra_swap.offer_asset_info, op.terra_swap.ask_asset_info],
-      ...(input.signal ? ([input.signal] as const) : ([] as const))
-    )
-    if (pair.contract_addr !== idx.hops[i].pair) throw new Error('Receive route pair is not the listed factory pair')
-    indexerPairs.push(pair)
-  }
+  if (token !== (idx.execution_metadata?.wrapper?.unwrap_output ? getWrappedEquivalent(input.toToken) : input.toToken))
+    throw new Error('Invalid receive route endpoint')
   const quote = await validateRouteSolveQuote({ ...input, simRaw: idx.required_amount_in, omitAllHybrid: true }, idx)
   if (!quote || BigInt(quote.return_amount) < BigInt(input.targetRaw)) {
     throw new Error('Fresh route output cannot satisfy the receive target. Retry the quote.')
   }
-  return { ...quote, indexerPairs, offerAmount: idx.required_amount_in }
+  return {
+    ...quote,
+    minimumReceive: BigInt(quote.minimumReceive) > BigInt(input.targetRaw) ? quote.minimumReceive : input.targetRaw,
+    offerAmount: idx.required_amount_in,
+  }
 }

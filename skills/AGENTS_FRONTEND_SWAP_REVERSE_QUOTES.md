@@ -1,5 +1,17 @@
 # Agent playbook: Swap receive sizing across solver and mapper routes (#1256 / #1376)
 
+## Current local quote contract (#1452)
+
+The local request path follows [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md) and the
+[current solver contract](../docs/route-solver.md#local-quote-contract-1452).
+Request-time LCD simulation, config/tier discovery, enrichment and fallback
+instructions below describe the historical implementation. Never restore them
+for a local quote cache miss or unsupported mode. Preserve positive floors,
+Policy A, actual caller spread constraints, exact-input/generation identity and
+reviewed signing snapshots. See [verification and explicit skips](../docs/qa/issue-1452/README.md)
+for supported implementation scope and acceptance evidence.
+
+
 Use when changing Swap's editable You Receive field, reverse quote routing, wrap fee/tax gross-ups, or reverse submit alignment.
 
 **Issue:** [#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256). **Invariants:** [docs/frontend.md](../docs/frontend.md#swap-reverse-quotes), **R1256-1–R1256-6**. **Review checklist:** [issue-1256 QA](../docs/qa/issue-1256/README.md).

@@ -16,6 +16,7 @@ use super::community_tax_rank::{CataloguedTaxToken, RouterHopTaxPolicy};
 use super::AppState;
 
 pub const DISCOVERY_TTL: Duration = Duration::from_secs(5);
+#[cfg(test)]
 pub const MAX_DISCOVERY_ASSETS: usize = 64;
 const MAX_CACHE_ENTRIES: usize = 512;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(3);
@@ -235,6 +236,7 @@ async fn discover_identity(
     }
 }
 
+#[cfg(test)]
 pub async fn router_funding_supported(state: &AppState) -> bool {
     let Some(router) = state.router_address.as_deref() else {
         return false;

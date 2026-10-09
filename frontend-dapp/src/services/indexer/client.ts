@@ -1,49 +1,49 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
+import type {
+  IndexerCandle,
+  IndexerHookEvent,
+  IndexerHubPriceEntry,
+  IndexerHubPricesResponse,
+  IndexerHybridHopInput,
+  IndexerLimitBookInsertHintsResponse,
+  IndexerLimitBookPageResponse,
+  IndexerLimitBookShallowResponse,
+  IndexerLimitCancellation,
+  IndexerLimitFill,
+  IndexerLimitPlacement,
+  IndexerLiquidityEvent,
+  IndexerOracleHistoryResponse,
+  IndexerOraclePriceResponse,
+  IndexerOracleTickerCatalogResponse,
+  IndexerOracleVenusVfdusd,
+  IndexerOrderBookHeadResponse,
+  IndexerOverview,
+  IndexerPair,
+  IndexerPairsListResponse,
+  IndexerPairSort,
+  IndexerPairStats,
+  IndexerPosition,
+  IndexerRouteSolveProgress,
+  IndexerRouteSolveResponse,
+  IndexerToken,
+  IndexerTokenDetail,
+  IndexerTrade,
+  IndexerTrader,
+  ProtocolFeeSeriesResponse,
+  ProtocolFeesResponse,
+  ProtocolLiquiditySeriesResponse,
+  ProtocolTopPairsResponse,
+  ProtocolVolumeDailyResponse,
+  ProtocolVolumeSeriesResponse,
+} from '@/types'
+import { parseHubPriceTicker } from '@/utils/hubPriceTicker'
 import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
 import { parseProtocolOracleTicker } from '@/utils/protocolOracleTicker'
-import { parseHubPriceTicker } from '@/utils/hubPriceTicker'
 import {
   isAllowlistedProtocolVolumeLimit,
   isProtocolVolumeGrain,
   type ProtocolVolumeGrain,
 } from '@/utils/protocolVolumeGrain'
-import type {
-  IndexerPair,
-  IndexerPairsListResponse,
-  IndexerPairSort,
-  IndexerCandle,
-  IndexerTrade,
-  IndexerPairStats,
-  IndexerOverview,
-  ProtocolFeesResponse,
-  ProtocolTopPairsResponse,
-  ProtocolVolumeDailyResponse,
-  ProtocolVolumeSeriesResponse,
-  ProtocolLiquiditySeriesResponse,
-  ProtocolFeeSeriesResponse,
-  IndexerTrader,
-  IndexerPosition,
-  IndexerToken,
-  IndexerTokenDetail,
-  IndexerHookEvent,
-  IndexerOraclePriceResponse,
-  IndexerOracleTickerCatalogResponse,
-  IndexerOracleHistoryResponse,
-  IndexerOracleVenusVfdusd,
-  IndexerHubPricesResponse,
-  IndexerHubPriceEntry,
-  IndexerHybridHopInput,
-  IndexerRouteSolveResponse,
-  IndexerRouteSolveProgress,
-  IndexerLimitFill,
-  IndexerLiquidityEvent,
-  IndexerLimitPlacement,
-  IndexerLimitCancellation,
-  IndexerOrderBookHeadResponse,
-  IndexerLimitBookInsertHintsResponse,
-  IndexerLimitBookShallowResponse,
-  IndexerLimitBookPageResponse,
-} from '@/types'
 
 export const INDEXER_URL = import.meta.env.VITE_INDEXER_URL || 'http://127.0.0.1:3001'
 
@@ -652,6 +652,8 @@ export interface GetRouteSolveOptions {
   /** @deprecated Hybrid optimization is default when `amountIn` is set; use `poolOnly` to opt out. */
   hybridOptimize?: boolean
   maxMakerFills?: number
+  /** Actual signed pair spread constraint, decimal ratio (#1452). */
+  maxSpread?: string
   /** Connected wallet for CL8Y fee-tier discounted quotes (GitLab #245). */
   trader?: string
   sender?: string
@@ -679,6 +681,7 @@ export async function getRouteSolve(
   if (options?.poolOnly) sp.set('pool_only', 'true')
   else if (options?.hybridOptimize === false) sp.set('hybrid_optimize', 'false')
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
+  if (options?.maxSpread != null) sp.set('max_spread', options.maxSpread)
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`, {
@@ -692,7 +695,7 @@ export async function getRouteSolveExactOutput(
   tokenIn: string,
   tokenOut: string,
   amountOut: string,
-  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal'>
+  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal' | 'maxSpread'>
 ): Promise<IndexerRouteSolveResponse> {
   const sp = new URLSearchParams({
     token_in: tokenIn.trim(),
@@ -700,6 +703,7 @@ export async function getRouteSolveExactOutput(
     amount_out: amountOut,
     pool_only: 'true',
   })
+  if (options?.maxSpread != null) sp.set('max_spread', options.maxSpread)
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
   return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`, {

@@ -1,5 +1,74 @@
 # Route solver — in-depth guide
 
+## Local quote contract (#1452)
+
+Current amount-sensitive GET `/route/solve`, `/best`, POST and progress requests
+consume immutable locally published observations. The separately scheduled
+worker owns chain identity, eligibility/configuration reads and mirror loading.
+Initial results, deeper search, reference pricing, refresh and frontend reviewed
+route preparation do not perform chain queries. An uninitialized or unsupported
+observation fails explicitly; requests cannot accelerate ingestion.
+
+Route selection scores checked integer output against the caller's `max_spread`
+constraint and emits positive per-hop `min_return` and final receive floors from
+that observation. Direct and one-intermediate candidates precede bounded local
+longer-path work. A useful baseline returns before deeper improvements. Cache
+identity includes exact input or target and market generation; responses cannot
+be linearly scaled or synchronously enriched by remote reference solves.
+
+This is a bounded heuristic, not a global optimum. L9 market spread, post-hook
+net floors and fair-reference deviation remain separate protections. Confirmed
+input, operations, floors, constraints and observation expiry are pinned until
+signing; refresh cannot silently substitute the reviewed transaction.
+
+Read [LQ1452 invariants](../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
+[agent verification instructions](qa/issue-1452/README.md) and
+[implemented scope and measured results](qa/issue-1452/RESULTS.md).
+Unsupported semantics and unavailable live checks remain explicit there. Local
+microbenchmarks never establish <250 ms production browser acceptance.
+Independent reserve/book generation and provider-feed recovery remain coordinated
+with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
+
+### Current work and observation budgets
+
+| Resource | Bound |
+| --- | --- |
+| Asset rows / discovered contract identities / pair rows | 2,048 / 512 / 512, deterministic order |
+| Indexed actor contexts | 128; unknown actors receive a conservative full-fee estimate, never wallet-specific approval |
+| Graph work / returned structural candidates | 16,384 edge visits / 1,024 paths, at most four hops |
+| Initial book alternatives | Pool-only, half-book and full-book on hop zero; compare emitted plans with L9 and material-pool checks |
+| Mirrored book rows | 500 per side per pair; excessive/invalid required mirrors fail explicitly |
+| Exact-output sizing | At most 64 pool candidates; checked integer inverse and local forward sufficiency, positive target floors |
+| Cached results / skeletons / namespaces / concurrent deeper jobs | 256 / 128 / 32 / 4; exact results, namespace/topology/freeze-bound skeletons, coalesced jobs with cleanup |
+| Configuration admission | Nonoverlapping 60 s cadence, 180 s pass deadline and validity ceiling; each pair check has a 6 s deadline |
+| Local reserve/reference publication | Nonoverlapping 2 s cadence and 2 s pass deadline; original observation times retained |
+| Wrapper observation | 10 s cadence, 8 s deadline, 20 s observation-age ceiling |
+| Quote-worker provider traffic | Two data-request permits, one aggregate request start every 250 ms; 64 KiB response ceiling, 32 KiB config and 8 KiB wrapper sublimits |
+
+The current admission pass validates its capped population before publication.
+A large population or slow providers can exhaust the 180 s initialization budget;
+this implementation does not yet have incremental configuration publication.
+Initialized representative fixtures and bounded failure are verified separately
+from that large-factory production behavior. Ordinary code identity, pair pins,
+hook configuration/order, registry wiring, known actors, references, books,
+reserves, wrapper semantics and local freeze membership invalidate generations.
+
+Community-tax forward settlement, hook-aware inverse, explicit manual split POST
+and direct zero-hop wrapper quotes are currently unsupported and fail explicitly.
+Known actor discounts apply only to pairs with the matching observed registry;
+unknown wallet blacklist/tier context cannot be represented as fresh approval.
+On-chain blacklist, launch, tax, wallet funding and positive settlement floors
+remain authoritative. See [remaining scope and receipts](qa/issue-1452/RESULTS.md).
+
+## Historical request solver reference
+
+The pipeline, top-five/32-path optimality scope, LCD budgets, 12/15/30/90-second
+TTL enrichment and live-query fallback descriptions below document the previous
+request implementation. They are superseded by the local quote contract for the
+current request path. Contract reverse-query/provider budgets remain applicable
+independently; do not relax them when replacing indexer quote arithmetic.
+
+
 ## Route launch guards (#1390)
 
 Logical routes visit the first offer and each ask once. Repeated route-tax-capable
@@ -25,7 +94,7 @@ in the historical sections below describe legacy deployments only. They are
 superseded for v1; direct-pair Sell/SendFrom compatibility remains unchanged.
 [QA evidence and agent checklist](./qa/issue-1381/README.md); `make verify-issue-1381`.
 
-Authoritative reference for contributors and integrators using **`GET` / `POST /api/v1/route/solve`**. The solver is **advisory**: on-chain **`max_spread`** / **`min_receive`** at execute time are authoritative. This document expands [ADR 0002](./adr/0002-global-best-execution-route-solver.md) (decision record) without changing its decisions.
+Authoritative reference for contributors and integrators using **`GET` / `POST /api/v1/route/solve`**. The solver is **advisory**: on-chain **`max_spread`** / **`min_receive`** at execute time are authoritative. This document expands [ADR 0002](./adr/0002-global-best-execution-route-solver.md) (decision record) with the current local quote contract above superseding request-time network work.
 
 Pair-direct integrators use this same best-execution API: optimized GET requires `amount_in`, and a one-hop pair-direct call must execute with that hop's returned `hybrid` params; omitting hybrid on a direct pair swap remains pool-only under the current contract ([I707 guide](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)).
 

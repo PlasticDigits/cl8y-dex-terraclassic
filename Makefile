@@ -2012,3 +2012,7 @@ verify-issue-1428:
 .PHONY: verify-issue-1437
 verify-issue-1437:
 	bash scripts/qa/verify-issue-1437.sh
+
+.PHONY: verify-issue-1452
+verify-issue-1452:
+	bash scripts/verify-issue-1452.sh

@@ -1,17 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { AssetInfo, IndexerToken } from '@/types'
 import { getTokens } from '@/services/indexer/client'
+import type { AssetInfo, IndexerToken } from '@/types'
 import {
-  getCachedTokenSymbol,
   fetchCW20TokenInfo,
+  getCachedTokenSymbol,
   getTokenLogoURI,
-  shortenAddress,
   isAddressLike,
+  shortenAddress,
   usablePoolAssetName,
 } from '@/utils/tokenDisplay'
 import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
 import { lookupByTokenId, registryProductSymbol } from '@/utils/tokenRegistry'
+import { useQuery } from '@tanstack/react-query'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+
+/** Quote surfaces resolve token labels from indexed metadata; they never initiate token_info RPC. */
+export const LocalQuoteTokenMetadata = createContext(false)
 
 export interface TokenDisplayInfo {
   displayLabel: string
@@ -35,6 +38,7 @@ export function indexerTokenForId(tokenId: string, list: IndexerToken[] | undefi
 }
 
 export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
+  const localOnly = useContext(LocalQuoteTokenMetadata)
   const tokenId = info ? ('token' in info ? info.token.contract_addr : info.native_token.denom) : ''
   const isCw20 = !!info && 'token' in info
 
@@ -59,7 +63,7 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
       return
     }
 
-    if (isCw20) {
+    if (isCw20 && !localOnly) {
       fetchCW20TokenInfo(tokenId).then((result) => {
         if (!stale && result?.symbol) setResolved(result.symbol)
       })
@@ -68,7 +72,7 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
     return () => {
       stale = true
     }
-  }, [tokenId, isCw20])
+  }, [tokenId, isCw20, localOnly])
 
   if (!tokenId) {
     return { displayLabel: '--', symbol: '', name: undefined, addressForBlockie: undefined, logoURI: undefined }

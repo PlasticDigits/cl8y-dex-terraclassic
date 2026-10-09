@@ -1,5 +1,17 @@
 # Indexer hybrid best execution + consolidated listing (GitLab #189, #209)
 
+## Current local quote contract (#1452)
+
+The local request path follows [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md) and the
+[current solver contract](../docs/route-solver.md#local-quote-contract-1452).
+Request-time LCD simulation, config/tier discovery, enrichment and fallback
+instructions below describe the historical implementation. Never restore them
+for a local quote cache miss or unsupported mode. Preserve positive floors,
+Policy A, actual caller spread constraints, exact-input/generation identity and
+reviewed signing snapshots. See [verification and explicit skips](../docs/qa/issue-1452/README.md)
+for supported implementation scope and acceptance evidence.
+
+
 ## Current funding-version rule (#1381)
 
 Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
