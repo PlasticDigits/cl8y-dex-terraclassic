@@ -1,0 +1,58 @@
+{
+  "number": 377,
+  "status": "success",
+  "commit": "c923aab01589e39ae46fa2e1859d6c6b44528b1a",
+  "started": 1791588364,
+  "finished": 1791589324,
+  "url": "https://ci.cl8y.com/repos/7/pipeline/377/1",
+  "steps": [
+    {
+      "name": "git",
+      "state": "success",
+      "started": 1791588364,
+      "finished": 1791588369
+    },
+    {
+      "name": "postgres",
+      "state": "success",
+      "started": 1791588369,
+      "finished": 1791589322
+    },
+    {
+      "name": "gitleaks",
+      "state": "success",
+      "started": 1791588375,
+      "finished": 1791588394
+    },
+    {
+      "name": "contracts",
+      "state": "success",
+      "started": 1791588394,
+      "finished": 1791588496
+    },
+    {
+      "name": "frontend",
+      "state": "success",
+      "started": 1791588496,
+      "finished": 1791588914
+    },
+    {
+      "name": "indexer-lib",
+      "state": "success",
+      "started": 1791588914,
+      "finished": 1791589083
+    },
+    {
+      "name": "indexer-postgres",
+      "state": "success",
+      "started": 1791589083,
+      "finished": 1791589318
+    },
+    {
+      "name": "functional-required",
+      "state": "success",
+      "started": 1791589318,
+      "finished": 1791589319
+    }
+  ]
+}
