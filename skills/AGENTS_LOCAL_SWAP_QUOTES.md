@@ -1,5 +1,8 @@
 # Local swap quotes (#1452)
 
+Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
+
+
 Apply when changing route discovery, quote caches, liquidity ingestion, reference
 pricing, refreshes, preflight or Swap/Trade signing. Issue:
 [#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452).
@@ -43,3 +46,11 @@ costs participate in gross-input fair deviation and cannot define their own
 reference to bypass the 99% guard. Source exceptions and unfinished acceptance
 are recorded in [RESULTS.md](../docs/qa/issue-1452/RESULTS.md); never equate a
 passing local verifier with complete issue or production acceptance.
+
+Known negative wallet contexts survive recency-census eviction. Each scheduled
+pass checks at most 120 recent and eight rotating historical wallets; at most
+2,048 contexts are retained. An explicit fresh unblock clears a block even when
+fee lookup fails. Capacity overflow must quarantine runtime quotes immediately,
+including cached responses, without evicting a block. Authoritative complete
+inventory is required for recovery; a skipped verification or partial census
+cannot clear this protection. This is not a human approval/reset task.

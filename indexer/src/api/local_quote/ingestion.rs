@@ -20,11 +20,80 @@ fn actor_context(
 ) -> Option<(u16, bool)> {
     match blocked {
         Some(true) => Some((0, true)),
-        Some(false) => discount.map(|bps| (bps, false)),
+        Some(false) => Some((discount.unwrap_or(0), false)),
         None => previous
             .filter(|(_, was_blocked)| *was_blocked)
             .map(|_| (0, true)),
     }
+}
+const MAX_ACTOR_CONTEXTS: usize = 2048;
+const RECENT_ACTORS: usize = 120;
+const HISTORICAL_BLOCK_REFRESH: usize = 8;
+fn retained_blocks(
+    previous: &HashMap<String, (u16, bool)>,
+) -> Result<HashMap<String, (u16, bool)>, sqlx::Error> {
+    let blocks = previous
+        .iter()
+        .filter(|(_, (_, blocked))| *blocked)
+        .map(|(address, _)| (address.clone(), (0, true)))
+        .collect::<HashMap<_, _>>();
+    if blocks.len() > MAX_ACTOR_CONTEXTS {
+        return Err(actor_capacity_error());
+    }
+    Ok(blocks)
+}
+fn actor_capacity_error() -> sqlx::Error {
+    sqlx::Error::Protocol("Local actor observation capacity exhausted".into())
+}
+/// Fees can fall back conservatively; an observed block is never a capacity victim.
+fn insert_actor(
+    actors: &mut HashMap<String, (u16, bool)>,
+    address: String,
+    context: (u16, bool),
+) -> Result<(), sqlx::Error> {
+    if !actors.contains_key(&address) && actors.len() >= MAX_ACTOR_CONTEXTS {
+        let victim = actors
+            .iter()
+            .filter(|(_, (_, blocked))| !*blocked)
+            .map(|(address, _)| address)
+            .min()
+            .cloned();
+        if let Some(victim) = victim {
+            actors.remove(&victim);
+        } else if context.1 {
+            return Err(actor_capacity_error());
+        } else {
+            return Ok(());
+        }
+    }
+    actors.insert(address, context);
+    Ok(())
+}
+/// Reserve eight observations for forgotten-but-still-blocked wallets. Rotation
+/// is per namespace and advances independently of request traffic or snapshot epochs.
+fn actor_refresh_addresses(
+    recent: Vec<String>,
+    previous: &HashMap<String, (u16, bool)>,
+    cursor: usize,
+) -> (Vec<String>, usize) {
+    let mut selected = recent.into_iter().take(RECENT_ACTORS).collect::<Vec<_>>();
+    let mut historical = previous
+        .iter()
+        .filter(|(address, (_, blocked))| *blocked && !selected.contains(address))
+        .map(|(address, _)| address.clone())
+        .collect::<Vec<_>>();
+    historical.sort();
+    if historical.is_empty() {
+        return (selected, 0);
+    }
+    let count = historical.len().min(HISTORICAL_BLOCK_REFRESH);
+    for offset in 0..count {
+        selected.push(historical[(cursor % historical.len() + offset) % historical.len()].clone());
+    }
+    (
+        selected,
+        (cursor % historical.len() + count) % historical.len(),
+    )
 }
 /// One scheduled observation pass, also used by integration fixtures. No request invokes it.
 /// Sequential admission has one outstanding provider operation and a per-pair timeout;
@@ -59,11 +128,10 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         local_reference_quote::ReferencePrices::observe(&state.pool, &all_assets, &state.hub_usd)
             .await?;
     let actor_addresses: Vec<String> = sqlx::query_scalar(
-        "SELECT address FROM traders ORDER BY last_trade_at DESC NULLS LAST,address LIMIT 128",
+        "SELECT address FROM traders ORDER BY last_trade_at DESC NULLS LAST,address LIMIT 120",
     )
     .fetch_all(&state.pool)
     .await?;
-    let mut actors = HashMap::new();
     let previous_actors = store()
         .lock()
         .unwrap()
@@ -71,6 +139,28 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         .get(&state.lcd.chain_cache_namespace())
         .map(|s| s.actors.clone())
         .unwrap_or_default();
+    let namespace = state.lcd.chain_cache_namespace();
+    let mut actors = match retained_blocks(&previous_actors) {
+        Ok(actors) => actors,
+        Err(error) => {
+            mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
+            return Err(error);
+        }
+    };
+    let actor_addresses = {
+        let mut g = store().lock().unwrap();
+        let cursor = g
+            .actor_refresh_cursors
+            .get(&namespace)
+            .copied()
+            .unwrap_or(0);
+        let (addresses, next) = actor_refresh_addresses(actor_addresses, &previous_actors, cursor);
+        if g.actor_refresh_cursors.len() < 32 || g.actor_refresh_cursors.contains_key(&namespace) {
+            g.actor_refresh_cursors.insert(namespace.clone(), next);
+        }
+        addresses
+    };
+    let mut actor_overflow = false;
     if let Some(factory) = state.factory_address.as_deref() {
         for address in actor_addresses {
             let verdict = query(
@@ -101,10 +191,16 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
             if let Some(context) =
                 actor_context(blocked, discount, previous_actors.get(&address).copied())
             {
-                actors.insert(address, context);
+                if insert_actor(&mut actors, address, context).is_err() {
+                    mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
+                    actor_overflow = true;
+                }
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
+    }
+    if actor_overflow {
+        return Err(actor_capacity_error());
     }
     for pair in all_pairs.into_iter().take(MAX_PAIRS) {
         if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&pair.contract_address) {
@@ -235,7 +331,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::actor_context;
+    use super::*;
 
     #[test]
     fn known_wallet_block_survives_missing_fee_and_failed_blacklist_refresh() {
@@ -249,7 +345,59 @@ mod tests {
             Some((250, false))
         );
         assert_eq!(actor_context(None, None, Some((250, false))), None);
-        assert_eq!(actor_context(Some(false), None, None), None);
+        assert_eq!(actor_context(Some(false), None, None), Some((0, false)));
+    }
+    #[test]
+    fn previous_block_absent_from_recent_census_is_retained_and_fresh_unblock_needs_no_fee() {
+        let previous = HashMap::from([
+            ("historical-block".into(), (250, true)),
+            ("old-fee".into(), (500, false)),
+        ]);
+        let mut actors = retained_blocks(&previous).unwrap();
+        assert_eq!(actors.get("historical-block"), Some(&(0, true)));
+        assert!(!actors.contains_key("old-fee"));
+        let context = actor_context(None, None, previous.get("historical-block").copied()).unwrap();
+        insert_actor(&mut actors, "historical-block".into(), context).unwrap();
+        assert!(actors["historical-block"].1);
+        let cleared =
+            actor_context(Some(false), None, previous.get("historical-block").copied()).unwrap();
+        insert_actor(&mut actors, "historical-block".into(), cleared).unwrap();
+        assert_eq!(actors["historical-block"], (0, false));
+    }
+    #[test]
+    fn historical_blocks_rotate_outside_recent_census_with_fixed_observation_budget() {
+        let previous = (0..20)
+            .map(|i| (format!("historical-{i:02}"), (0, true)))
+            .collect::<HashMap<_, _>>();
+        let recent = (0..120)
+            .map(|i| format!("recent-{i:03}"))
+            .collect::<Vec<_>>();
+        let mut seen = HashSet::new();
+        let mut cursor = 0;
+        for _ in 0..3 {
+            let (selected, next) = actor_refresh_addresses(recent.clone(), &previous, cursor);
+            assert_eq!(selected.len(), 128);
+            assert_eq!(&selected[..120], recent.as_slice());
+            seen.extend(selected[120..].iter().cloned());
+            cursor = next;
+        }
+        assert_eq!(seen.len(), 20);
+    }
+    #[test]
+    fn actor_capacity_never_evicts_blocks_and_new_block_overflow_declines_publication() {
+        let mut actors = (0..MAX_ACTOR_CONTEXTS)
+            .map(|i| (format!("blocked-{i:04}"), (0, true)))
+            .collect::<HashMap<_, _>>();
+        let original = actors.clone();
+        insert_actor(&mut actors, "unknown-fee".into(), (500, false)).unwrap();
+        assert_eq!(actors, original);
+        assert!(insert_actor(&mut actors, "new-block".into(), (0, true)).is_err());
+        assert_eq!(actors, original);
+        actors.insert("blocked-0000".into(), (0, false));
+        insert_actor(&mut actors, "new-block".into(), (0, true)).unwrap();
+        assert_eq!(actors.len(), MAX_ACTOR_CONTEXTS);
+        assert!(!actors.contains_key("blocked-0000"));
+        assert!(actors["new-block"].1);
     }
 }
 /// Scheduled wrapper observation pass; requests never call it.

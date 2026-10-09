@@ -1,5 +1,8 @@
 # Issue #1452: agent review and verification
 
+Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
+
+
 [#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452) requires
 local, executable, liquidity-aware swap quotes and consistent signing. Read
 [LQ1452-1–LQ1452-10](../../../skills/AGENTS_LOCAL_SWAP_QUOTES.md) and the

@@ -34,7 +34,7 @@ with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
 | Resource | Bound |
 | --- | --- |
 | Asset rows / discovered contract identities / pair rows | 2,048 / 512 / 512, deterministic order |
-| Indexed actor contexts | 128; unknown actors receive a conservative full-fee estimate, never wallet-specific approval |
+| Actor observations / retained contexts | 120 recent + 8 rotating historical observations per pass; 2,048 stored contexts, known blocks never evicted; unknown actors use full-fee estimates without wallet-specific approval |
 | Graph work / returned structural candidates | 16,384 edge visits / 1,024 paths, at most four hops |
 | Initial book alternatives | Pool-only, half-book and full-book on hop zero; compare emitted plans with L9 and material-pool checks |
 | Mirrored book rows | 500 per side per pair; excessive/invalid required mirrors fail explicitly |
@@ -53,7 +53,16 @@ from that large-factory production behavior. Ordinary code identity, pair pins,
 hook configuration/order, registry wiring, known actors, references, books,
 reserves, wrapper semantics and local freeze membership invalidate generations.
 
-Community-tax forward settlement, hook-aware inverse, explicit manual split POST
+A known block survives census omission and failed reads; an explicit fresh unblock
+clears it even if fee data is missing. Historical negatives rotate independently
+of request traffic. At the 2,048-context limit, fee contexts may be discarded,
+but losing a known block is forbidden. Overflow immediately quarantines local
+quotes, cache hits, topology and progress; the 32-namespace quarantine registry
+fails closed if it is exhausted. No reset based on a partial census is allowed.
+Recovery needs a complete authoritative block inventory, which is currently
+unavailable; this runtime capacity boundary is distinct from verification skips.
+
+Community-tax forward settlement, deducting-hook inverse, explicit manual split POST
 and direct zero-hop wrapper quotes are currently unsupported and fail explicitly.
 Known actor discounts apply only to pairs with the matching observed registry;
 unknown wallet blacklist/tier context cannot be represented as fresh approval.

@@ -1313,7 +1313,13 @@ pub fn quote_local_leg(
     book_input: u128,
     max_fills: u32,
 ) -> Result<LocalLegQuote, DbSimError> {
-    if book_input > offer || mirror.fee_bps > 10_000 || mirror.freshness != MirrorFreshness::Fresh {
+    if book_input > offer
+        || mirror.fee_bps > 10_000
+        || !matches!(
+            mirror.freshness,
+            MirrorFreshness::Fresh | MirrorFreshness::EmptyPool
+        )
+    {
         return Err(DbSimError::InvalidNumeric);
     }
     let (rin, rout) = if offer_token == mirror.asset_0_addr {
@@ -1338,10 +1344,17 @@ pub fn quote_local_leg(
     let pool_net = gross
         .checked_sub(commission)
         .ok_or(DbSimError::InvalidNumeric)?;
-    let ideal = (BigInt::from(actual) * BigInt::from(rout) / BigInt::from(rin))
-        .to_string()
-        .parse::<u128>()
-        .map_err(|_| DbSimError::InvalidNumeric)?;
+    // A fully filled pure-book swap never touches the AMM; the contract also
+    // skips its reserve checks and pool-spread division in that case. Any book
+    // remainder still passes through simulate_pool_leg and requires both reserves.
+    let ideal = if actual == 0 {
+        0
+    } else {
+        (BigInt::from(actual) * BigInt::from(rout) / BigInt::from(rin))
+            .to_string()
+            .parse::<u128>()
+            .map_err(|_| DbSimError::InvalidNumeric)?
+    };
     Ok(LocalLegQuote {
         return_amount: pool_net
             .checked_add(book.return_net)

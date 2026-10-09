@@ -48,10 +48,23 @@ struct Store {
     hits: u64,
     started: u64,
     next_config_epoch: u64,
+    actor_refresh_cursors: HashMap<String, usize>,
+    actor_capacity_exhausted: HashSet<String>,
+    actor_capacity_registry_exhausted: bool,
 }
 fn store() -> &'static Mutex<Store> {
     static STORE: OnceLock<Mutex<Store>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(Store::default()))
+}
+fn actor_capacity_unavailable(g: &Store, namespace: &str) -> bool {
+    g.actor_capacity_registry_exhausted || g.actor_capacity_exhausted.contains(namespace)
+}
+fn mark_actor_capacity_exhausted(g: &mut Store, namespace: &str) {
+    if g.actor_capacity_exhausted.len() < 32 || g.actor_capacity_exhausted.contains(namespace) {
+        g.actor_capacity_exhausted.insert(namespace.to_owned());
+    } else {
+        g.actor_capacity_registry_exhausted = true;
+    }
 }
 fn unavailable() -> Error {
     (
@@ -270,7 +283,10 @@ fn score_with_book(
     for (hop_index, (pair, offer_id, ask_id)) in path.iter().enumerate() {
         let mirror = s.mirrors.get(pair)?;
         if sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
-            || mirror.freshness != sim::MirrorFreshness::Fresh
+            || !matches!(
+                mirror.freshness,
+                sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
+            )
         {
             return None;
         }
@@ -284,7 +300,7 @@ fn score_with_book(
             } else {
                 return None;
             };
-        if rin == 0 || rout == 0 || mirror.fee_bps > 10_000 {
+        if mirror.fee_bps > 10_000 {
             return None;
         }
         let book_input = if hop_index == 0 { book_input } else { 0 };
@@ -316,7 +332,12 @@ fn score_with_book(
             return None;
         }
         let floor = wide_floor(net, SCALE - spread, SCALE)?.max(1);
-        if net == 0 || floor == 0 || sim::hop_sim_implausible(output, rin, rout, net) {
+        // Escrow-backed book output is independent of AMM reserves. Apply pool
+        // plausibility only to the amount actually exchanged against those reserves.
+        if net == 0
+            || floor == 0
+            || sim::hop_sim_implausible(leg.pool_input_actual, rin, rout, pool_net)
+        {
             return None;
         }
         hops.push(json!({"pair":pair,"offer_token":offer_token,"ask_token":ask_token,"offer_amount":output.to_string(),"return_amount":net.to_string(),"pool_return_amount":pool_net.to_string(),"book_return_net":leg.book_return_net.to_string(),"pool_input_actual":leg.pool_input_actual.to_string(),"book_offer_consumed":consumed.to_string(),"book_input_actual":consumed.to_string(),"spread_amount":market_spread.to_string(),"commission_amount":commission.to_string(),"min_return":floor.to_string()}));
@@ -664,7 +685,14 @@ pub async fn solve(
 }
 fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<Value>, Error> {
     let g = store().lock().unwrap();
-    let s = g.snapshots.get(namespace).ok_or_else(unavailable)?;
+    if actor_capacity_unavailable(&g, namespace) {
+        return Err(unavailable());
+    }
+    let s = g
+        .snapshots
+        .get(namespace)
+        .cloned()
+        .ok_or_else(unavailable)?;
     let resolve = |token: &str| -> Option<i32> {
         let mapped = g
             .wrappers
@@ -676,7 +704,10 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
     };
     let start = resolve(&q.token_in).ok_or_else(|| invalid("Unknown cached input identity"))?;
     let goal = resolve(&q.token_out).ok_or_else(|| invalid("Unknown cached output identity"))?;
-    let path = paths(s, start, goal, 4)
+    // Structural caching locks Store independently. Never enumerate while holding
+    // the registry guard; otherwise one topology request deadlocks every quote.
+    drop(g);
+    let path = paths(&s, start, goal, 4)
         .into_iter()
         .next()
         .ok_or_else(eligible_error)?;
@@ -684,6 +715,9 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
     let ops=path.iter().map(|(_,offer,ask)|json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":s.addresses[offer]}},"ask_asset_info":{"token":{"contract_addr":s.addresses[ask]}},"hybrid":null}})).collect::<Vec<_>>();
     let mut tokens = vec![q.token_in.clone()];
     tokens.extend(path.iter().map(|(_, _, ask)| s.addresses[ask].clone()));
+    if actor_capacity_unavailable(&store().lock().unwrap(), namespace) {
+        return Err(unavailable());
+    }
     Ok(Json(
         json!({"token_in":q.token_in,"token_out":q.token_out,"hops":hops,"intermediate_tokens":tokens,"router_operations":ops,"quote_kind":"indexer_route_only","estimated_amount_out":null,"solver_version":"local_v1"}),
     ))
@@ -692,6 +726,9 @@ async fn solve_local(
     namespace: &str,
     request: &route_solver::SolveRouteParams,
 ) -> Result<Json<Value>, Error> {
+    if actor_capacity_unavailable(&store().lock().unwrap(), namespace) {
+        return Err(unavailable());
+    }
     if request.amount_in.is_none() && request.amount_out.is_none() {
         return topology(namespace, request);
     }
@@ -813,6 +850,9 @@ async fn solve_local(
     let ck = key(namespace, &snapshot, request, spread);
     {
         let mut g = store().lock().unwrap();
+        if actor_capacity_unavailable(&g, namespace) {
+            return Err(unavailable());
+        }
         if let Some(body) = g
             .results
             .get(&ck)
@@ -911,6 +951,9 @@ async fn solve_local(
     .ok_or_else(eligible_error)?;
     {
         let mut g = store().lock().unwrap();
+        if actor_capacity_unavailable(&g, namespace) {
+            return Err(unavailable());
+        }
         if g.results.len() >= MAX_RESULTS {
             g.results.clear();
         }
@@ -921,12 +964,16 @@ async fn solve_local(
             let s = snapshot.clone();
             let baseline = candidate.clone();
             let native = native.clone();
+            let namespace = namespace.to_string();
             tokio::task::spawn_blocking(move || {
                 let _job = JobGuard(ck.clone());
                 let all = paths(&s, start, goal, 4);
                 let improved = select(&s, &all, amount, spread, book_allowed, maker_fills)
                     .filter(|c| c.output.saturating_sub(baseline.output) > baseline.output / 1000);
                 let mut g = store().lock().unwrap();
+                if actor_capacity_unavailable(&g, &namespace) {
+                    return;
+                }
                 if let Some(c) = improved {
                     if g.results.contains_key(&ck) {
                         if let Some(body) =
@@ -947,8 +994,17 @@ pub fn progress(
     state: &AppState,
     q: &route_solver::SolveRouteParams,
 ) -> Result<super::route_solve_progress::SolveProgress, Error> {
-    let ns = state.lcd.chain_cache_namespace();
+    progress_local(&state.lcd.chain_cache_namespace(), q)
+}
+fn progress_local(
+    namespace: &str,
+    q: &route_solver::SolveRouteParams,
+) -> Result<super::route_solve_progress::SolveProgress, Error> {
+    let ns = namespace.to_string();
     let g = store().lock().unwrap();
+    if actor_capacity_unavailable(&g, &ns) {
+        return Err(unavailable());
+    }
     let mut s = (**g.snapshots.get(&ns).ok_or_else(unavailable)?).clone();
     s.generation = admission_generation(&s);
     if matches!(q.token_in.as_str(), "uluna" | "uusd")
@@ -1073,6 +1129,77 @@ mod tests {
             sender: None,
             discount_bps: None,
         }
+    }
+    #[test]
+    fn topology_releases_registry_before_structural_cache_and_leaves_it_usable() {
+        let namespace = "1452-topology-registry-reentry";
+        let s = fixture();
+        initialize_for_test(
+            namespace.into(),
+            s.pairs,
+            s.addresses,
+            s.mirrors,
+            s.max_age_ms,
+        );
+        let mut discovery = request(1);
+        discovery.amount_in = None;
+        let first = topology(namespace, &discovery).unwrap();
+        let repeated = topology(namespace, &discovery).unwrap();
+        assert_eq!(
+            first.0["router_operations"],
+            repeated.0["router_operations"]
+        );
+        assert!(!first.0["hops"].as_array().unwrap().is_empty());
+        assert_eq!(first.0["quote_kind"], "indexer_route_only");
+        assert!(store().try_lock().is_ok());
+    }
+    #[tokio::test]
+    async fn actor_capacity_quarantine_blocks_warm_quotes_topology_and_progress() {
+        let namespace = "actor-capacity-quarantine-fixture";
+        let s = fixture();
+        initialize_for_test(
+            namespace.into(),
+            s.pairs,
+            s.addresses,
+            s.mirrors,
+            s.max_age_ms,
+        );
+        let q = request(10u128.pow(18));
+        assert!(solve_local(namespace, &q).await.is_ok());
+        {
+            let mut g = store().lock().unwrap();
+            mark_actor_capacity_exhausted(&mut g, namespace);
+        }
+        assert_eq!(
+            solve_local(namespace, &q).await.unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        assert_eq!(
+            topology(namespace, &q).unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        assert_eq!(
+            progress_local(namespace, &q).unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        let mut discovery = q.clone();
+        discovery.amount_in = None;
+        assert_eq!(
+            solve_local(namespace, &discovery).await.unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+    }
+    #[test]
+    fn actor_quarantine_namespaces_are_bounded_and_registry_overflow_fails_closed() {
+        let mut local = Store::default();
+        for i in 0..32 {
+            mark_actor_capacity_exhausted(&mut local, &format!("namespace-{i}"));
+        }
+        assert_eq!(local.actor_capacity_exhausted.len(), 32);
+        assert!(!local.actor_capacity_registry_exhausted);
+        mark_actor_capacity_exhausted(&mut local, "overflow-namespace");
+        assert_eq!(local.actor_capacity_exhausted.len(), 32);
+        assert!(actor_capacity_unavailable(&local, "overflow-namespace"));
     }
     #[test]
     fn quality_admission_compares_all_short_corridors_and_rejects_thin_protection() {
@@ -1239,6 +1366,109 @@ mod tests {
                     .unwrap(),
             amount
         );
+    }
+    fn direct_book_fixture(
+        reserve_0: u128,
+        reserve_1: u128,
+        escrow: u128,
+    ) -> (Snapshot, Vec<route_paths::PathHop>) {
+        let mut s = fixture();
+        let pair = "direct-book-leg".to_string();
+        let mut m = s.mirrors["pair7a"].clone();
+        m.asset_0_addr = "in18".into();
+        m.asset_1_addr = "out18".into();
+        m.reserve_0 = reserve_0;
+        m.reserve_1 = reserve_1;
+        m.freshness = if reserve_0 == 0 || reserve_1 == 0 {
+            sim::MirrorFreshness::EmptyPool
+        } else {
+            sim::MirrorFreshness::Fresh
+        };
+        m.bids = vec![crate::db::queries::resting_orders::RestingOrderRow {
+            pair_id: m.pair_id,
+            order_id: 1,
+            side: "bid".into(),
+            price: BigDecimal::from(1),
+            remaining: BigDecimal::from(escrow),
+            owner: None,
+            expires_at: None,
+        }];
+        s.mirrors.insert(pair.clone(), m);
+        (s, vec![(pair, 1, 2)])
+    }
+    #[test]
+    fn valid_book_escrow_can_deliver_more_than_the_pool_ask_reserve() {
+        let unit = 10u128.pow(18);
+        let input = 2 * unit;
+        let (s, path) = direct_book_fixture(10 * unit, unit, input);
+        // The AMM leg returns less than its reserve, while real maker escrow supplies
+        // most of the output. Treating the combined output as an AMM drain is wrong.
+        let mixed = score_with_book(&s, &path, input, SCALE / 20, unit, 8).unwrap();
+        assert!(mixed.output > unit);
+        assert!(
+            mixed.hops[0]["pool_return_amount"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap()
+                < unit
+        );
+        assert_eq!(mixed.hops[0]["pool_input_actual"], json!(unit.to_string()));
+        let winner = select(&s, &[path], input, SCALE / 20, true, 8).unwrap();
+        assert!(winner.output > mixed.output);
+        assert_eq!(winner.hops[0]["pool_input_actual"], json!("0"));
+        assert_eq!(
+            winner.operations[0]["terra_swap"]["hybrid"]["book_input"],
+            json!(input.to_string())
+        );
+        assert!(
+            winner.hops[0]["min_return"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap()
+                > 0
+        );
+    }
+    #[test]
+    fn fully_filled_pure_book_works_with_empty_pool_in_both_directions() {
+        let unit = 10u128.pow(18);
+        let input = 2 * unit;
+        let (s, path) = direct_book_fixture(0, 0, input);
+        let forward = score_with_book(&s, &path, input, SCALE / 20, input, 8).unwrap();
+        assert!(forward.output > 0);
+        assert_eq!(forward.hops[0]["pool_return_amount"], json!("0"));
+        assert_eq!(forward.hops[0]["spread_amount"], json!("0"));
+        let mut reverse = s.clone();
+        let m = reverse.mirrors.get_mut(&path[0].0).unwrap();
+        m.asks = m.bids.clone();
+        m.asks[0].side = "ask".into();
+        m.bids.clear();
+        let reverse_path = vec![(path[0].0.clone(), 2, 1)];
+        let backward =
+            score_with_book(&reverse, &reverse_path, input, SCALE / 20, input, 8).unwrap();
+        assert_eq!(backward.output, forward.output);
+        assert!(score(&s, &path, input, SCALE / 20).is_none());
+    }
+    #[test]
+    fn empty_pool_book_remainders_expired_escrow_and_zero_fill_budget_fail_safely() {
+        let unit = 10u128.pow(18);
+        let input = 2 * unit;
+        let (s, path) = direct_book_fixture(0, 0, unit);
+        assert!(score_with_book(&s, &path, input, SCALE / 20, input, 8).is_none());
+        assert!(matches!(
+            sim::quote_local_leg(&s.mirrors[&path[0].0], "in18", input, input, 8),
+            Err(sim::DbSimError::InsufficientLiquidity)
+        ));
+        let (mut filled, path) = direct_book_fixture(0, 0, input);
+        assert!(score_with_book(&filled, &path, input, SCALE / 20, input, 0).is_none());
+        assert!(score_with_book(&filled, &path, input, SCALE / 20, input / 2, 8).is_none());
+        filled.mirrors.get_mut(&path[0].0).unwrap().bids[0].expires_at =
+            Some(Utc::now().timestamp() - 1);
+        assert!(score_with_book(&filled, &path, input, SCALE / 20, input, 8).is_none());
+        filled.mirrors.get_mut(&path[0].0).unwrap().snapshot_at =
+            Utc::now() - chrono::Duration::seconds(21);
+        assert!(score_with_book(&filled, &path, input, SCALE / 20, input, 8).is_none());
     }
     #[test]
     fn cached_hooks_deduct_before_positive_floors_and_inverse_fails_explicitly() {

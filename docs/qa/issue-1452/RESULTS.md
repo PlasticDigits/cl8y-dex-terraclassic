@@ -1,5 +1,7 @@
 # Issue #1452 implementation evidence
 
+Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455), initial implementation commit `bf056511`.
+
 This record covers the `fix/issue-1452-local-quotes` worktree based on
 `b26b762c4a870251d780715eac6eea4e2db5c14e`, investigated 2026-10-09 UTC.
 Issue and comments were read with `bao-exec --only FORGEJO_PLASTICDIGTS_PAT -- fj`;
@@ -144,3 +146,46 @@ fee/blacklist data and atomically rejects reserve publications from older policy
 epochs; dedicated regressions pass. Overall PASS WITH SKIPS permits unavailable review tasks only;
 it never converts an executed failure or an incomplete acceptance criterion to
 PASS. Follow the [agent procedure](README.md) for future verification.
+
+
+## Final follow-up verification
+
+After independent review, book admission now checks only the AMM leg against
+AMM reserves. Escrow-backed output may exceed pool reserves; fully filled
+pure-book swaps work with empty AMMs, while any unfilled remainder still needs
+valid reserves. New tests cover both directions, insufficient/expired escrow,
+fill limits and positive floors. Known wallet blocks now survive exclusion from
+the recent census, rotate through bounded historical checks, and trigger
+immediate runtime quarantine rather than being lost at capacity. Quarantine
+cannot be waived by partial verification or a missing inventory. A final normal
+topology regression prevents holding the registry mutex during skeleton-cache
+lookup, which would otherwise deadlock the service.
+
+The same full command above was rerun and retested on the final follow-up
+source, starting **2026-10-09T10:44:08Z**, completed by **10:48:09Z**.
+Source fingerprint:
+`502a0c44bd26b04aed5f1ac7662e7fef84434341bf0515ced69971c3d4c9daeb`.
+**14 groups PASS, 0 FAIL, 0 source-check SKIP**; unchanged source throughout.
+Each run passed **613 library tests**, its manually executed discovery benchmark,
+**3 disposable-DB socket tests**, **181 frontend tests** and **40 controlled
+Chrome measurements**. Types, formatting and crosslinks passed.
+
+| Final measurement | First run | Retest |
+| --- | --- | --- |
+| 67 route-response misses: p50 / p95 / p99 / max | 2.279 / 2.355 / 2.381 / 12.584 ms | 2.214 / 2.296 / 2.313 / 11.937 ms |
+| 92 warm/concurrent: p50 / p95 / p99 / max | 0.797 / 46.521 / 46.554 / 46.926 ms | 0.781 / 44.951 / 44.957 / 45.324 ms |
+| Useful baseline / deeper improvement | 2.300 / 5.007 ms | 2.161 / 5.471 ms |
+| Browser desktop Swap / Trade maxima | 47.7 / 34.4 ms | 49.9 / 35.0 ms |
+| Browser phone Swap / Trade maxima | 57.2 / 36.5 ms | 46.0 / 37.1 ms |
+
+Every measured initialized result was strictly <250 ms. Quote-stage provider
+calls and browser chain attempts/page errors remained zero. Cold initialization,
+synthetic browser data, unavailable production/wallet/device acceptance and the
+unsupported implementation modes above remain separate. Populated-book SLA
+coverage is still narrower than its new functional arithmetic tests.
+
+Independent agent review confirmed book/L9/post-hook parity, monotonic policy
+publication, persistent negative contexts, bounded rotation and quarantine, and
+the topology lock correction. Detailed historical diagnostics are condensed to
+retain all samples/distributions/counters and slow traces; the current successful
+receipt retains full HTTP/resource timing. These follow-ups do not close #1452.
