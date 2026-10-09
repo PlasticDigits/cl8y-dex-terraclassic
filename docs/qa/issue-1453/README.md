@@ -1,6 +1,7 @@
 # Issue #1453 — reliable cached liquidity ingestion
 
 Issue and comments: [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
+Implementation: [PR #1454](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1454).
 Third-party agent contract: [LF1453-1–LF1453-10](../../../skills/AGENTS_LIQUIDITY_FEED.md).
 Completed local acceptance and test counts: [verification](verification.md).
 Related [Q1380](../../../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md),

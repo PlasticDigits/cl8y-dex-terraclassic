@@ -39,6 +39,12 @@
   "library_ignored_benchmarks": "Two existing ignored benchmarks in focused filters; discovery benchmark executed by verify-issue-1394.",
   "related_verifiers": [
     {
+      "issue": 1380,
+      "pass": 13,
+      "fail": 0,
+      "skip": 2
+    },
+    {
       "issue": 1394,
       "pass": 23,
       "fail": 0,
@@ -79,5 +85,7 @@
     "Host IPv6 loopback disabled by kernel.",
     "No isolated funded LP/outage controls supplied; existing shared chain was not mutated for QA."
   ],
-  "corrections_and_previous_failures": "See verification.md. Initial executed failures remain documented as failures; final runnable checks were fixed and retested."
+  "corrections_and_previous_failures": "See verification.md. Initial executed failures remain documented as failures; final runnable checks were fixed and retested.",
+  "implementation_commit": "b9809df5c31ad4cee875b27d5f609e83e3701adc",
+  "pull_request": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1454"
 }

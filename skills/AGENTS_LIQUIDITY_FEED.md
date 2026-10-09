@@ -11,6 +11,7 @@ Related contracts: [Q1380](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md),
 
 ## Invariants LF1453-1–LF1453-10
 
+Implementation: [PR #1454](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1454).
 Implementation acceptance and scoped results: [verification](../docs/qa/issue-1453/verification.md).
 
 1. **LF1453-1 — independent pool observation.** A validated successful pool read

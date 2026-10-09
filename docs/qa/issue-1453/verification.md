@@ -1,6 +1,8 @@
 # Issue #1453 implementation verification
 
 Issue: [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
+Implementation: [PR #1454](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1454),
+commit `b9809df5c31ad4cee875b27d5f609e83e3701adc`.
 Agent procedure and skip policy: [README](README.md).
 Invariants: [LF1453](../../../skills/AGENTS_LIQUIDITY_FEED.md).
 
