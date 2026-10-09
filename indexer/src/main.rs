@@ -248,11 +248,12 @@ async fn run_server() -> anyhow::Result<()> {
     let config = load_config_or_exit();
     startup::log_startup_config(&config);
 
-    let lcd_client = lcd::LcdClient::new(
+    let lcd_client = lcd::LcdClient::new_with_policy(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
         config.expected_chain_id.clone(),
+        config.lcd_provider_policy.clone(),
     );
     lcd_client.attest_endpoints().await?;
 

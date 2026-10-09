@@ -31,7 +31,10 @@ same-pair work is coalesced. Discovery response bodies are capped at 64 KiB and
 telemetry outcomes have fixed cardinality, exposed as client counter snapshots
 and poller aggregate logs every 100 processed blocks. The production getter waits
 125 ms between retryable admission attempts, rechecking DB persistence before LCD
-admission; known DB pairs bypass admission. Direct discovery preserves typed
+admission; known DB pairs bypass admission. The shared provider's typed
+`LcdError::AdmissionDeferred` also waits/rechecks rather than soft-skipping
+([#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453)); independent
+factory budgets do not imply independent HTTP capacity. Direct discovery preserves typed
 transient errors and counters without negative evidence. The production getter
 retains legacy warn-and-soft-skip behavior for transient failures; a later event
 can retry, but the failed event may be omitted. This fix does not change that
@@ -317,7 +320,7 @@ When adding a new query parameter that influences SQL or ordering:
 | Q1380-5 | Independent liquidity as-of retains the oldest used reserve/hub input time or original empty enumeration. Every overview response reads the bounded canonical liquidity row independently of its 60s volume/fee/census cache, preserves atomic publication fields and rejects older generations. Frontend expires current delta eligibility but retains the last qualified complete public amount for display with its original time retained internally; new qualified decreases/zero replace it. Before any complete total exists, the qualified partial fallback retains its plain amount and original internal time through expiry/outage/reload; newer partial decreases replace it and complete valuations take priority. Volume timestamps cannot freshen liquidity. Future timestamps are invalid; missing/stale quotes never become pegs. |
 | Q1380-6 | Each four-minute UTC source slot and each hour/day/month retains its terminal attempt, even unknown. No earlier valid sample is relabeled a close. Baselines first select nearest terminal then qualify fresh quality and matching identity, not counts. |
 | Q1380-7 | Legacy numbers lack quality provenance and remain unknown with canonical `liquidity_usd` null. A preserved positive value with solely `legacy_unqualified: 1` may be emitted separately as `reported_liquidity_usd` for frontend display; it never certifies freshness or supplies a comparable delta. Zeros, missing values and unreconciled/repaired gaps are not estimates. Fixed public anomaly hours have scoped idempotent unknown repair with original evidence retained; only affected terminal derived closes are invalidated. Never replace history with current TVL. |
-| Q1380-8 | Background reserve jobs, deadlines, book walks and cadence are bounded; failures retain prior reserve/book amounts and timestamp. Solver TTL is unchanged. Diagnostics expose cycle duration, latency/failure, reserve age and bounded valuation reason counts. |
+| Q1380-8 | Background reserve jobs, deadlines, book walks and cadence are bounded (LF1453: 8 pool/4 book jobs, 4s pair and head deadlines; the 4s head budget supersedes the former 2s probe so a healthy third endpoint remains reachable after two 1s failures); failed components retain their original amounts/time. LF1453 independently publishes successful pool-only reads while preserving separate atomic hybrid generations. Solver TTL is unchanged. Diagnostics expose cycle duration, latency/failure, reserve age and bounded valuation reason counts. |
 | Q1380-9 | Overview GET remains materialized O(1); history GET reads allowlisted bounded grain tables, no LCD/event/snapshot scan. Retail protocol history shows available canonical or reported numeric amounts uniformly; missing amounts are omitted without fake zeroes. Keyboard/tap tooltips contain only a readable date and USD amount. Quality and observation time stay internal; retail headlines show only plain USD amounts without quality markers, age text or an info control. Volume/Fees behavior and UTC retention remain. |
 
 Implementation: [PR #1382](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1382).
@@ -400,3 +403,18 @@ runtime/migration/QA roles, explicit loopback networking, pre-connection QA guar
 admin-marked QA identity and disposable process databases with strict history.
 [Runbook](runbooks/indexer-database-isolation.md) ·
 [agent verification](qa/issue-1396/README.md) · `make verify-issue-1396`.
+
+## Cached liquidity feed (#1453)
+
+[LF1453-1–LF1453-10](../skills/AGENTS_LIQUIDITY_FEED.md) define independent
+pool-only observations, separate compatible hybrid generations, bounded background
+refresh/provider admission, typed failure scope, monotonic heights/times, atomic
+Q1380 valuation and original stock history. Runtime never repairs/migrates;
+receipts remain redacted and local verification never establishes live redundancy
+or zero quote RPC. The latter remains coordinated with #1452.
+
+Run `make verify-issue-1453` and follow the
+[agent checklist and unavailable-check skip policy](qa/issue-1453/README.md).
+Related: [Q1380](#protocol-liquidity-quality-1380),
+[PD1394](../skills/AGENTS_PAIR_DISCOVERY_CACHE.md),
+[DB1396](../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md).

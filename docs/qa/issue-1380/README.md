@@ -150,3 +150,10 @@ LCD-wide health failure: it cannot cool down healthy pair queries on the same
 endpoint. Transport failures still use the existing bounded failover/cooldown.
 The LCD regression tests cover an oversized 200/500 response followed immediately
 by a healthy pair response on the same client.
+
+## Bounded producer recovery update (#1453)
+
+The background head-probe limit is now four seconds under
+[#1453](../issue-1453/README.md), superseding the former two-second Q1380 limit
+so two one-second failed endpoint attempts can still reach a healthy third
+provider. Pair deadlines remain four seconds and reserve TTL remains 20 seconds.

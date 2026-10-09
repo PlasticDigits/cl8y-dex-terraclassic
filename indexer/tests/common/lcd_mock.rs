@@ -484,7 +484,9 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
         } else {
             Value::Null
         };
-        ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+        ResponseTemplate::new(200)
+            .insert_header("x-cosmos-block-height", requested_height(req))
+            .set_body_json(json!({ "data": data }))
     };
 
     let server = start_ordinary_code_mock().await;
@@ -503,6 +505,15 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
             })))
             .mount(&server)
             .await;
+    } else {
+        // Delay the head beyond the caller's bounded probe. Cancellation opens
+        // the circuit; the dedicated height-none test uses immediate recovery.
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/cosmos/base/tendermint/v1beta1/blocks/latest$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "block": {"header": {"chain_id":"columbus-5", "height":"12345", "time":"2026-06-05T00:00:00Z"}}
+            })).set_delay(std::time::Duration::from_secs(3)))
+            .mount(&server).await;
     }
     server
 }
@@ -510,4 +521,14 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
 /// Base URL for [`LcdClient::new`](cl8y_dex_indexer::lcd::LcdClient::new) (no trailing slash).
 pub fn lcd_base_url(server: &MockServer) -> String {
     server.uri().trim_end_matches('/').to_string()
+}
+
+/// #1453 fixture providers explicitly honor pinned smart queries. This helper is
+/// test-only; production requires the upstream response header to attest height.
+pub fn requested_height(req: &Request) -> String {
+    req.url
+        .query_pairs()
+        .find(|(key, _)| key == "height")
+        .map(|(_, value)| value.into_owned())
+        .unwrap_or_else(|| "12345".to_string())
 }

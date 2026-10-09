@@ -50,6 +50,7 @@ mod tests {
             api_ipv6_enabled: false,
             lcd_timeout_ms: 5000,
             lcd_cooldown_ms: 30000,
+            lcd_provider_policy: crate::lcd::ProviderPolicy::default(),
             start_block: None,
             cors_origins: vec!["http://localhost:5173".to_string()],
             rate_limit_rps: 60,

@@ -26,16 +26,30 @@ async fn snapshot_populates_reserves_and_resting_book() {
     let seed = common::seed_db(&pool).await;
 
     let mock = common::lcd_mock::start_book_snapshot_mock(Some("12345")).await;
-    let lcd = LcdClient::new(
+    // This fixture verifies storage and FIFO semantics. Strict production and
+    // scaled deadlines are exercised by the failure/recovery fixtures below;
+    // give this functional walk scheduling margin on a shared build host.
+    let lcd = LcdClient::new_with_policy(
         vec![common::lcd_mock::lcd_base_url(&mock)],
         5000,
         30000,
         "columbus-5",
+        cl8y_dex_indexer::lcd::ProviderPolicy {
+            attempt_timeout_ms: 3000,
+            ..Default::default()
+        },
     );
 
-    book_snapshot::snapshot_all_pairs(&pool, &lcd)
-        .await
-        .expect("snapshot cycle");
+    book_snapshot::snapshot_all_pairs_with_limits(
+        &pool,
+        &lcd,
+        book_snapshot::SnapshotLimits {
+            pair_timeout: std::time::Duration::from_secs(10),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("snapshot cycle");
 
     let reserves = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
         .await
@@ -128,7 +142,7 @@ async fn snapshot_skips_failed_pair_and_keeps_prior_snapshot() {
                 } else {
                     json!(null)
                 };
-                ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+                ResponseTemplate::new(200).insert_header("x-cosmos-block-height", common::lcd_mock::requested_height(req)).set_body_json(json!({ "data": data }))
             } else {
                 ResponseTemplate::new(500).set_body_json(json!({ "message": "pool query failed" }))
             }
@@ -179,13 +193,20 @@ async fn snapshot_block_height_none_when_lcd_height_fails() {
     let lcd = LcdClient::new(
         vec![common::lcd_mock::lcd_base_url(&mock)],
         5000,
-        30000,
+        0, // Test-only immediate half-open recovery after the cancelled head probe.
         "columbus-5",
     );
 
-    book_snapshot::snapshot_all_pairs(&pool, &lcd)
-        .await
-        .expect("cycle completes without block height");
+    book_snapshot::snapshot_all_pairs_with_limits(
+        &pool,
+        &lcd,
+        book_snapshot::SnapshotLimits {
+            height_timeout: std::time::Duration::from_millis(50),
+            ..book_snapshot::SnapshotLimits::default()
+        },
+    )
+    .await
+    .expect("cycle completes without block height");
 
     let reserves = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
         .await
@@ -219,6 +240,27 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
     let captured_1 = bd(recorded_pool["assets"][1]["amount"].as_str().unwrap());
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
+    // Replay the fixture with its exact contract identities, never just amounts.
+    sqlx::query("UPDATE assets SET is_cw20=true, denom=NULL, contract_address=$2 WHERE id=$1")
+        .bind(seed.asset_0_id)
+        .bind(
+            recorded_pool["assets"][0]["info"]["token"]["contract_addr"]
+                .as_str()
+                .unwrap(),
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE assets SET contract_address=$2 WHERE id=$1")
+        .bind(seed.asset_1_id)
+        .bind(
+            recorded_pool["assets"][1]["info"]["token"]["contract_addr"]
+                .as_str()
+                .unwrap(),
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
     let slow_addr = "terra1slowbook";
     let slow_id: i32 = sqlx::query_scalar(
         "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
@@ -230,7 +272,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
     .fetch_one(&pool)
     .await
     .unwrap();
-    pair_reserves::upsert_pair_reserves(&pool, slow_id, &captured_0, &captured_1, 25, Some(1))
+    pair_reserves::upsert_pair_reserves(&pool, slow_id, &captured_0, &captured_1, 25, None)
         .await
         .unwrap();
     let prior = pair_reserves::get_pair_reserves(&pool, slow_id)
@@ -247,8 +289,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
             ResponseTemplate::new(200)
                 .set_body_json(json!({
                     "block": { "header": { "chain_id": "columbus-5", "height": "999", "time": "2026-10-04T00:00:00Z" } }
-                }))
-                .set_delay(Duration::from_secs(3)),
+                })),
         )
         .mount(&server)
         .await;
@@ -264,7 +305,12 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
             } else {
                 json!(null)
             };
-            let response = ResponseTemplate::new(200).set_body_json(json!({ "data": data }));
+            let response = ResponseTemplate::new(200)
+                .insert_header(
+                    "x-cosmos-block-height",
+                    common::lcd_mock::requested_height(req),
+                )
+                .set_body_json(json!({ "data": data }));
             if req.url.path().contains(slow_addr) && q.get("order_book_head").is_some() {
                 response.set_delay(Duration::from_secs(3))
             } else {
@@ -273,7 +319,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         })
         .mount(&server)
         .await;
-    let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
+    let lcd = LcdClient::new(vec![server.uri()], 5000, 0, "columbus-5");
     let budgets = SnapshotLimits {
         concurrency: 2,
         pair_timeout: Duration::from_millis(500),
@@ -313,20 +359,37 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(failed.snapshot_at, prior.snapshot_at);
+    assert!(
+        failed.snapshot_at > prior.snapshot_at,
+        "pool read survives book timeout"
+    );
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, slow_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        hybrid.snapshot_at, prior.snapshot_at,
+        "failed book never renews hybrid generation"
+    );
     assert_eq!(failed.reserve_0, captured_0);
     let healthy = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
         .await
         .unwrap()
         .unwrap();
     assert_eq!(
-        healthy.block_height, None,
-        "timed out height is never invented"
+        healthy.block_height,
+        Some(999),
+        "pool and book use the verified pinned height"
     );
 
     // Remove delays: unchanged positive LCD amounts recover naturally on the next cycle.
     server.reset().await;
     common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmos/base/tendermint/v1beta1/blocks/latest$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "block": {"header": {"chain_id":"columbus-5", "height":"999", "time":"2026-10-09T00:00:00Z"}}
+        }))).mount(&server).await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(move |req: &wiremock::Request| {
@@ -338,7 +401,12 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
             } else {
                 json!(null)
             };
-            ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
+            ResponseTemplate::new(200)
+                .insert_header(
+                    "x-cosmos-block-height",
+                    common::lcd_mock::requested_height(req),
+                )
+                .set_body_json(json!({ "data": data }))
         })
         .mount(&server)
         .await;
@@ -376,7 +444,7 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         )
         .mount(&server)
         .await;
-    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+    let lcd = LcdClient::new(vec![server.uri()], 1000, 1, "columbus-5");
     pair_discovery::sync_all_pairs(&pool, &lcd, "terra1factory")
         .await
         .unwrap();
@@ -385,6 +453,7 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         .unwrap()
         .is_none());
     server.reset().await;
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(
@@ -405,4 +474,865 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         .execute(&pool)
         .await
         .unwrap();
+}
+
+/// #1453: component failures preserve the independently committed pool and the
+/// prior compatible generation, including cold missing fees and delayed books.
+#[tokio::test]
+#[serial]
+async fn issue_1453_pool_success_survives_component_failures() {
+    use cl8y_dex_indexer::db::queries::pairs;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let pair = pairs::get_pair_by_address(&pool, &seed.pair_address)
+        .await
+        .unwrap()
+        .unwrap();
+    for (index, component) in ["get_fee_config", "bid", "ask", "timeout", "get_fee_config"]
+        .iter()
+        .enumerate()
+    {
+        sqlx::query("DELETE FROM pair_fee_observations")
+            .execute(&pool)
+            .await
+            .unwrap();
+        if index == 1 {
+            pair_reserves::upsert_pair_reserves(
+                &pool,
+                seed.pair_id,
+                &bd("1000"),
+                &bd("2000"),
+                25,
+                Some(100),
+            )
+            .await
+            .unwrap();
+        }
+        let before = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap();
+        let server = MockServer::start().await;
+        common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+        let component = component.to_string();
+        let amount = (1000 + index).to_string();
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+            .respond_with(move |req: &wiremock::Request| {
+                let q = common::lcd_mock::smart_query_from_request(req);
+                if q.get("pool").is_some() {
+                    return ResponseTemplate::new(200).insert_header("x-cosmos-block-height", common::lcd_mock::requested_height(req)).set_body_json(json!({"data": {
+                        "assets": [
+                            {"info": {"native_token": {"denom": "uluna"}}, "amount": amount},
+                            {"info": {"token": {"contract_addr": "terra1ustctoken"}}, "amount": "2000"}
+                        ], "total_share": "1"
+                    }}));
+                }
+                if (component == "get_fee_config" && q.get("get_fee_config").is_some())
+                    || q["order_book_head"]["side"].as_str() == Some(component.as_str()) {
+                    // Deterministic component rejection must not poison provider health.
+                    return ResponseTemplate::new(400).set_body_json(json!({"message":"query wasm contract failed: component unavailable"}));
+                }
+                if q.get("get_fee_config").is_some() {
+                    return ResponseTemplate::new(200).insert_header("x-cosmos-block-height", common::lcd_mock::requested_height(req)).set_body_json(json!({"data": {"fee_config":{"fee_bps":25,"treasury":"terra1treasury"}}}));
+                }
+                let response = ResponseTemplate::new(200).insert_header("x-cosmos-block-height", common::lcd_mock::requested_height(req)).set_body_json(json!({"data":null}));
+                if component == "timeout" { response.set_delay(Duration::from_secs(1)) } else { response }
+            }).mount(&server).await;
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+        let result = tokio::time::timeout(
+            if index == 3 {
+                Duration::from_millis(200)
+            } else {
+                Duration::from_secs(2)
+            },
+            book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(100 + index as i64)),
+        )
+        .await;
+        assert!(!matches!(result, Ok(Ok(()))), "component work must fail");
+        let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            current.reserve_0,
+            bd(&(1000 + index).to_string()),
+            "case {index}: {result:?}"
+        );
+        assert_eq!(current.block_height, Some(100 + index as i64));
+        assert!(
+            chrono::Utc::now()
+                .signed_duration_since(current.snapshot_at)
+                .num_seconds()
+                < 2
+        );
+        let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap();
+        assert_eq!(
+            hybrid.as_ref().map(|r| r.snapshot_at),
+            before.as_ref().map(|r| r.snapshot_at)
+        );
+        if index == 0 {
+            assert_eq!(current.fee_bps, -1, "unobserved fee is not quoted as zero");
+        }
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_monotonic_pool_and_hybrid_generations() {
+    use chrono::{Duration, Utc};
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    // Maximum raw Decimal remains within the contract's human price band for 6/18.
+    sqlx::query("UPDATE assets SET decimals=18 WHERE id=$1")
+        .bind(seed.asset_1_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let at = chrono::DateTime::from_timestamp_micros(
+        (Utc::now() - Duration::seconds(1)).timestamp_micros(),
+    )
+    .unwrap();
+    assert!(pair_reserves::upsert_pool_observation(
+        &pool,
+        seed.pair_id,
+        &bd("340282366920938463463374607431768211455"),
+        &bd("1"),
+        Some(200),
+        at
+    )
+    .await
+    .unwrap());
+    // Older response, regressed height, or unknown height cannot displace known data.
+    for (height, stamp) in [
+        (Some(200), at),
+        (Some(201), at - Duration::milliseconds(1)),
+        (Some(199), at + Duration::milliseconds(1)),
+        (None, at + Duration::milliseconds(2)),
+    ] {
+        assert!(!pair_reserves::upsert_pool_observation(
+            &pool,
+            seed.pair_id,
+            &bd("9"),
+            &bd("9"),
+            height,
+            stamp
+        )
+        .await
+        .unwrap());
+    }
+    let original = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(original.snapshot_at, at);
+    let mut tx = pool.begin().await.unwrap();
+    assert!(
+        pair_reserves::upsert_hybrid_observation(&mut tx, &original, 25)
+            .await
+            .unwrap()
+    );
+    resting_orders::replace_pair_resting_orders_in_tx(
+        &mut tx,
+        seed.pair_id,
+        original.block_height,
+        &[
+            resting_orders::RestingOrderInput {
+                order_id: 1,
+                side: "bid".to_string(),
+                price: bd("1000"),
+                remaining: bd("340282366920938463463374607431768211455"),
+                owner: None,
+                expires_at: None,
+            },
+            resting_orders::RestingOrderInput {
+                order_id: 2,
+                side: "ask".to_string(),
+                price: bd("340282366920938463463.374607431768211455"),
+                remaining: bd("1000000"),
+                owner: None,
+                expires_at: None,
+            },
+        ],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let book = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "bid")
+        .await
+        .unwrap();
+    assert_eq!(
+        book[0].remaining,
+        bd("340282366920938463463374607431768211455")
+    );
+    let asks = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "ask")
+        .await
+        .unwrap();
+    assert_eq!(
+        asks[0].price,
+        bd("340282366920938463463.374607431768211455")
+    );
+    assert!(pair_reserves::upsert_pool_observation(
+        &pool,
+        seed.pair_id,
+        &bd("2"),
+        &bd("3"),
+        Some(201),
+        at + Duration::milliseconds(10)
+    )
+    .await
+    .unwrap());
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        hybrid.reserve_0, original.reserve_0,
+        "hybrid keeps its independently versioned pool"
+    );
+    let mut old = original.clone();
+    old.block_height = Some(199);
+    let mut tx = pool.begin().await.unwrap();
+    assert!(!pair_reserves::upsert_hybrid_observation(&mut tx, &old, 25)
+        .await
+        .unwrap());
+    // Repeated same-reserve generation also cannot replace a newer book attempt.
+    assert!(
+        !pair_reserves::upsert_hybrid_observation(&mut tx, &original, 25)
+            .await
+            .unwrap()
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_pool_asset_spoof_preserves_original_observation() {
+    use cl8y_dex_indexer::db::queries::pairs;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    pair_reserves::upsert_pair_reserves(&pool, seed.pair_id, &bd("123"), &bd("456"), 25, Some(1))
+        .await
+        .unwrap();
+    let prior = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("x-cosmos-block-height", "2")
+                .set_body_json(json!({"data": {
+                    "assets": [
+                        {"info": {"native_token": {"denom": "spoofed"}}, "amount":"0"},
+                        {"info": {"token": {"contract_addr": "terra1ustctoken"}}, "amount":"0"}
+                    ], "total_share":"0"
+                }})),
+        )
+        .mount(&server)
+        .await;
+    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+    let pair = pairs::get_pair_by_address(&pool, &seed.pair_address)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(2))
+            .await
+            .is_err()
+    );
+    let after = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.reserve_0, prior.reserve_0);
+    assert_eq!(after.snapshot_at, prior.snapshot_at);
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_background_lanes_refresh_pool_while_book_stalls() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    let height_reads = Arc::new(AtomicUsize::new(200));
+    let heights = height_reads.clone();
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmos/base/tendermint/v1beta1/blocks/latest$"))
+        .respond_with(move |_req: &wiremock::Request| {
+            let height = heights.fetch_add(1, Ordering::SeqCst);
+            ResponseTemplate::new(200).set_body_json(json!({"block":{"header":{"chain_id":"columbus-5","height":height.to_string(),"time":"2026-10-09T00:00:00Z"}}}))
+        }).mount(&server).await;
+    let reads = Arc::new(AtomicUsize::new(0));
+    let counter = reads.clone();
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(move |req: &wiremock::Request| {
+            let q = common::lcd_mock::smart_query_from_request(req);
+            if q.get("pool").is_some() {
+                let amount = counter.fetch_add(1, Ordering::SeqCst) + 1;
+                return ResponseTemplate::new(200)
+                    .insert_header(
+                        "x-cosmos-block-height",
+                        common::lcd_mock::requested_height(req),
+                    )
+                    .set_body_json(json!({"data":{"assets":[
+                    {"info":{"native_token":{"denom":"uluna"}},"amount":amount.to_string()},
+                    {"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000"}
+                ],"total_share":"1"}}));
+            }
+            if q.get("get_fee_config").is_some() {
+                return ResponseTemplate::new(200)
+                    .insert_header(
+                        "x-cosmos-block-height",
+                        common::lcd_mock::requested_height(req),
+                    )
+                    .set_body_json(
+                        json!({"data":{"fee_config":{"fee_bps":25,"treasury":"terra1treasury"}}}),
+                    );
+            }
+            ResponseTemplate::new(200)
+                .insert_header(
+                    "x-cosmos-block-height",
+                    common::lcd_mock::requested_height(req),
+                )
+                .set_body_json(json!({"data":null}))
+                .set_delay(Duration::from_secs(2))
+        })
+        .mount(&server)
+        .await;
+    let lcd = LcdClient::new(vec![server.uri()], 3000, 1000, "columbus-5");
+    let task = tokio::spawn(book_snapshot::run_book_snapshot_loop(pool.clone(), lcd, 40));
+    tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            if reads.load(Ordering::SeqCst) >= 4 {
+                if let Some(row) = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+                    .await
+                    .unwrap()
+                {
+                    if row.fee_bps == 25 && row.block_height.is_some_and(|h| h >= 203) {
+                        break;
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("pool lane continues during slow book");
+    task.abort();
+    let _ = task.await;
+    assert!(pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(
+        pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .is_none(),
+        "unfinished book is not a hybrid generation"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_replica_lane_leadership_is_cancel_safe() {
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("300")).await;
+    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+    // Simulate another replica owning both lanes. No duplicate LCD writer may
+    // start, and releasing leadership must allow bounded scheduled recovery.
+    let mut leader = pool.begin().await.unwrap();
+    for key in [1_i32, 2] {
+        sqlx::query("SELECT pg_advisory_xact_lock(1453, $1)")
+            .bind(key)
+            .execute(&mut *leader)
+            .await
+            .unwrap();
+    }
+    let task = tokio::spawn(book_snapshot::run_book_snapshot_loop(
+        pool.clone(),
+        lcd.clone(),
+        40,
+    ));
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    assert!(
+        server.received_requests().await.unwrap().is_empty(),
+        "standby replica never touches LCD"
+    );
+    leader.rollback().await.unwrap();
+    // Allow one bounded head probe + pair job (4s each), with scheduler margin.
+    // A one-second expectation is stronger than the production ingestion budget.
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+                .await
+                .unwrap()
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("standby acquires released lane leadership");
+    task.abort();
+    let _ = task.await;
+    // Cancellation drops leadership transactions, so one-shot checks can run.
+    tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            let mut tx = pool.begin().await.unwrap();
+            let released: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(1453, 1)")
+                .fetch_one(&mut *tx)
+                .await
+                .unwrap();
+            tx.rollback().await.unwrap();
+            if released {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("cancelled pool leader releases advisory ownership");
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_delayed_fee_cannot_poison_newer_pool() {
+    use cl8y_dex_indexer::db::queries::pairs;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let pair = pairs::get_pair_by_address(&pool, &seed.pair_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(move |req: &wiremock::Request| {
+            let q = common::lcd_mock::smart_query_from_request(req);
+            let data = if q.get("pool").is_some() {
+                json!({"assets":[
+                    {"info":{"native_token":{"denom":"uluna"}},"amount":"1000"},
+                    {"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000"}
+                ],"total_share":"1"})
+            } else if q.get("get_fee_config").is_some() {
+                json!({"fee_config":{"fee_bps":25,"treasury":"terra1treasury"}})
+            } else {
+                json!(null)
+            };
+            let response = ResponseTemplate::new(200)
+                .insert_header(
+                    "x-cosmos-block-height",
+                    common::lcd_mock::requested_height(req),
+                )
+                .set_body_json(json!({"data":data}));
+            if q.get("get_fee_config").is_some() {
+                response.set_delay(Duration::from_millis(150))
+            } else {
+                response
+            }
+        })
+        .mount(&server)
+        .await;
+    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+    let task_pool = pool.clone();
+    let task = tokio::spawn(async move {
+        book_snapshot::snapshot_single_pair(&task_pool, &lcd, &pair, Some(200)).await
+    });
+    tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            let requests = server.received_requests().await.unwrap();
+            if requests.iter().any(|r| {
+                common::lcd_mock::smart_query_from_request(r)
+                    .get("get_fee_config")
+                    .is_some()
+            }) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let at = chrono::Utc::now();
+    assert!(pair_reserves::upsert_pool_observation(
+        &pool,
+        seed.pair_id,
+        &bd("3000"),
+        &bd("4000"),
+        Some(201),
+        at
+    )
+    .await
+    .unwrap());
+    assert!(
+        task.await.unwrap().is_err(),
+        "newer current pool requires its own compatible fee before hybrid eligibility"
+    );
+    let latest = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(latest.block_height, Some(201));
+    assert_eq!(latest.reserve_0, bd("3000"));
+    assert_eq!(
+        latest.fee_bps, -1,
+        "old height200 fee is not reused for height201 reserves"
+    );
+    assert!(
+        pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .is_none(),
+        "old fee never forms a hybrid with newer reserves"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn issue_1453_lost_backend_cancels_lane_and_recovers() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("300")).await;
+    let reads = Arc::new(AtomicUsize::new(0));
+    let counter = reads.clone();
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(move |req: &wiremock::Request| {
+            let q = common::lcd_mock::smart_query_from_request(req);
+            let mut first_pool = false;
+            let data = if q.get("pool").is_some() {
+                first_pool = counter.fetch_add(1, Ordering::SeqCst) == 0;
+                json!({"assets":[
+                    {"info":{"native_token":{"denom":"uluna"}},"amount":"1000"},
+                    {"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000"}
+                ],"total_share":"1"})
+            } else if q.get("get_fee_config").is_some() {
+                json!({"fee_config":{"fee_bps":25,"treasury":"terra1treasury"}})
+            } else {
+                json!(null)
+            };
+            let response = ResponseTemplate::new(200)
+                .insert_header(
+                    "x-cosmos-block-height",
+                    common::lcd_mock::requested_height(req),
+                )
+                .set_body_json(json!({"data":data}));
+            if first_pool {
+                response.set_delay(Duration::from_secs(2))
+            } else {
+                response
+            }
+        })
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    // Test-only immediate recovery isolates leadership cancellation from circuit
+    // cooldown, which is exercised independently by the provider tests.
+    let lcd = LcdClient::new(vec![server.uri()], 3000, 0, "columbus-5");
+    let active = tokio::spawn(book_snapshot::run_book_snapshot_loop(
+        pool.clone(),
+        lcd.clone(),
+        100,
+    ));
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while reads.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let standby = tokio::spawn(book_snapshot::run_book_snapshot_loop(
+        pool.clone(),
+        lcd.clone(),
+        100,
+    ));
+    // pg_locks covers the entire cluster. Check database and login in the same
+    // statement as termination so parallel binaries cannot kill each other's lanes.
+    let terminated: bool = sqlx::query_scalar(
+        "SELECT pg_terminate_backend(l.pid)
+         FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid
+         WHERE l.locktype='advisory' AND l.classid=1453 AND l.objid=1 AND l.granted
+           AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
+           AND a.datname=current_database() AND a.usename=current_user
+           AND l.pid<>pg_backend_pid() LIMIT 1",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(terminated);
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if let Some(row) = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+                .await
+                .unwrap()
+            {
+                if row.fee_bps == 25 {
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("live lane acquires released leadership and publishes compatible fee");
+    assert!(
+        reads.load(Ordering::SeqCst) >= 2,
+        "replacement read starts after leader loss"
+    );
+    active.abort();
+    standby.abort();
+    let _ = active.await;
+    let _ = standby.await;
+    tokio::time::timeout(Duration::from_millis(500), async {
+        loop {
+            if lcd
+                .provider_counters()
+                .await
+                .iter()
+                .all(|c| c.in_flight == 0)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("leadership cancellation releases outstanding provider permits");
+}
+
+/// #1453 the bounded head deadline must reach a healthy third endpoint after
+/// two attempt deadlines; otherwise successful pool reads cannot advance known height.
+#[tokio::test]
+#[serial]
+async fn issue_1453_third_provider_recovers_known_height_within_head_budget() {
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    pair_reserves::upsert_pair_reserves(&pool, seed.pair_id, &bd("999"), &bd("888"), 25, Some(699))
+        .await
+        .unwrap();
+    let original = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let first = MockServer::start().await;
+    let second = MockServer::start().await;
+    for server in [&first, &second] {
+        common::lcd_mock::mock_chain_identity(server, "columbus-5").await;
+        Mock::given(method("GET"))
+            .and(path_regex(
+                r"^/cosmos/base/tendermint/v1beta1/blocks/latest$",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"block":{"header":{
+                        "chain_id":"columbus-5","height":"700","time":"2026-10-09T00:00:00Z"
+                    }}}))
+                    .set_delay(Duration::from_millis(300)),
+            )
+            .mount(server)
+            .await;
+    }
+    let healthy = common::lcd_mock::start_book_snapshot_mock(Some("700")).await;
+    let lcd = LcdClient::new_with_policy(
+        vec![first.uri(), second.uri(), healthy.uri()],
+        1000,
+        1000,
+        "columbus-5",
+        ProviderPolicy {
+            attempt_timeout_ms: 100,
+            deadline_ms: 400,
+            ..ProviderPolicy::default()
+        },
+    );
+    book_snapshot::snapshot_all_pairs_with_limits(
+        &pool,
+        &lcd,
+        book_snapshot::SnapshotLimits {
+            concurrency: 2,
+            pair_timeout: Duration::from_millis(400),
+            height_timeout: Duration::from_millis(400),
+        },
+    )
+    .await
+    .unwrap();
+    let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.block_height, Some(700));
+    assert_eq!(current.reserve_0, bd("1000000"));
+    assert_eq!(current.fee_bps, 25);
+    assert!(current.snapshot_at > original.snapshot_at);
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(hybrid.block_height, Some(700));
+    for server in [&first, &second] {
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.path().ends_with("/blocks/latest"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.path().contains("/smart/"))
+                .count(),
+            0,
+            "failed head providers remain cooled down for pool/fee/book work"
+        );
+    }
+}
+
+/// #1453 healthy shared admission pressure must wait inside pair deadlines,
+/// rather than drain the pair list while the only provider permit is occupied.
+#[tokio::test]
+#[serial]
+async fn issue_1453_shared_provider_capacity_preserves_all_four_pairs() {
+    use base64::Engine;
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut ids = vec![seed.pair_id];
+    for index in 1..4 {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+             VALUES ($1,$2,$3,'terra1capacitylp',25) RETURNING id",
+        )
+        .bind(format!("terra1capacitypair{index}"))
+        .bind(seed.asset_0_id)
+        .bind(seed.asset_1_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        ids.push(id);
+    }
+    let active = Arc::new(AtomicUsize::new(0));
+    let maximum = Arc::new(AtomicUsize::new(0));
+    let in_flight = active.clone();
+    let max_flight = maximum.clone();
+    let app = axum::Router::new()
+        .route("/cosmos/base/tendermint/v1beta1/node_info", axum::routing::get(|| async {
+            axum::Json(json!({"default_node_info":{"network":"columbus-5"}}))
+        }))
+        .route("/cosmos/base/tendermint/v1beta1/blocks/latest", axum::routing::get(|| async {
+            axum::Json(json!({"block":{"header":{"chain_id":"columbus-5","height":"900","time":"2026-10-09T00:00:00Z"}}}))
+        }))
+        .fallback(axum::routing::get(move |uri: axum::http::Uri, request_headers: axum::http::HeaderMap| {
+            let active = in_flight.clone(); let maximum = max_flight.clone();
+            async move {
+                let now = active.fetch_add(1, Ordering::SeqCst) + 1;
+                maximum.fetch_max(now, Ordering::SeqCst);
+                let encoded = uri.path().split("/smart/").nth(1).unwrap();
+                let query: serde_json::Value = serde_json::from_slice(
+                    &base64::engine::general_purpose::STANDARD.decode(encoded).unwrap()).unwrap();
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                let data = if query.get("pool").is_some() {
+                    json!({"assets":[
+                        {"info":{"native_token":{"denom":"uluna"}},"amount":"1000"},
+                        {"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000"}
+                    ],"total_share":"1"})
+                } else if query.get("get_fee_config").is_some() {
+                    json!({"fee_config":{"fee_bps":25,"treasury":"terra1treasury"}})
+                } else { assert!(query.get("order_book_head").is_some()); json!(null) };
+                let mut response_headers = axum::http::HeaderMap::new();
+                response_headers.insert("x-cosmos-block-height", request_headers["x-cosmos-block-height"].clone());
+                active.fetch_sub(1, Ordering::SeqCst);
+                (response_headers, axum::Json(json!({"data":data})))
+            }
+        }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .unwrap();
+    });
+    let lcd = LcdClient::new_with_policy(
+        vec![url],
+        1000,
+        1000,
+        "columbus-5",
+        ProviderPolicy {
+            concurrency: 1,
+            ..ProviderPolicy::default()
+        },
+    );
+    book_snapshot::snapshot_all_pairs_with_limits(
+        &pool,
+        &lcd,
+        book_snapshot::SnapshotLimits {
+            concurrency: 4,
+            pair_timeout: Duration::from_secs(4),
+            height_timeout: Duration::from_secs(4),
+        },
+    )
+    .await
+    .unwrap();
+    for id in ids {
+        let raw = pair_reserves::get_pair_reserves(&pool, id)
+            .await
+            .unwrap()
+            .expect("every healthy pool observed");
+        let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, id)
+            .await
+            .unwrap()
+            .expect("every healthy empty book compatible");
+        assert_eq!(
+            (raw.reserve_0, raw.fee_bps, raw.block_height),
+            (bd("1000"), 25, Some(900))
+        );
+        assert_eq!(hybrid.block_height, Some(900));
+        assert_eq!(hybrid.snapshot_at, raw.snapshot_at);
+    }
+    let counters = lcd.provider_counters().await;
+    assert!(counters.iter().any(|c| c.concurrency_deferrals > 0));
+    assert!(counters.iter().all(|c| c.in_flight == 0 && c.failures == 0));
+    assert_eq!(
+        maximum.load(Ordering::SeqCst),
+        1,
+        "actual simultaneous provider data handlers remain bounded"
+    );
+    shutdown_tx.send(()).unwrap();
+    server.await.unwrap();
 }

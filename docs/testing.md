@@ -817,3 +817,13 @@ CG/GT feed/isolation, principal/custody and abuse cases.
 Regression targets: `make verify-issue-685 verify-issue-646 verify-issue-684 verify-issue-694 verify-issue-631 verify-issue-655`.
 
 #1354 source implementation adds `make verify-issue-1209` / `make verify-issue-1210` for pinned creation/invoice source parsing, disposable ledger/API/replay/catalog and allowlisted UI labels. See [source and live evidence](qa/issue-1354/verification.md) and [fee-ledger invariants](../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md). `backfill-defillama` history tests cover old corrections and retry without repricing. Live-only skips in #1354 must record reasons separately from executed diagnostic findings.
+
+## Cached liquidity feed (#1453)
+
+Run `make verify-issue-1453` to test and retest provider/book/valuation unit tests,
+disposable reserve/history/overview/discovery integrations and frontend retention
+regressions. Follow [LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and the
+[agent checklist](qa/issue-1453/README.md). Unavailable checks may remain explicit
+SKIP with overall PASS WITH SKIPS; executed failures remain FAIL. Source PASS
+cannot establish deployed provider health, historical chain reconstruction or
+#1452 zero quote RPC acceptance.

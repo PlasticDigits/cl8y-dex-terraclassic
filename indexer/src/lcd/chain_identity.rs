@@ -40,6 +40,7 @@ pub struct EndpointIdentity {
     pub verified: bool,
     pub last_error: Option<String>,
     pub checked_at: Option<String>,
+    pub provider: super::ProviderCounters,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema)]
@@ -76,6 +77,7 @@ impl LcdClient {
                 verified: ep.verified,
                 last_error: ep.identity_error.clone(),
                 checked_at: ep.identity_checked_at.clone(),
+                provider: ep.provider.counters(),
             })
             .collect();
         ChainIdentityHealth {
@@ -85,52 +87,78 @@ impl LcdClient {
         }
     }
 
-    /// Probe every endpoint at startup; proceed only when at least one independently verifies.
+    /// Probe configured endpoints under the same admission and deadline bounds as data reads.
     pub async fn attest_endpoints(&self) -> Result<(), LcdError> {
-        let count = self.inner.endpoints.read().await.len();
-        let mut verified = false;
-        let mut errors = Vec::new();
-        for idx in 0..count {
-            let url = self.inner.endpoints.read().await[idx].url.clone();
-            match self.attest_endpoint(idx, &url).await {
-                Ok(()) => verified = true,
-                Err(e) => errors.push(e.to_string()),
-            }
-        }
-        if verified {
-            Ok(())
-        } else {
-            Err(LcdError::AllEndpointsFailed(errors.join("; ")))
-        }
+        self.probe_identities(false).await
     }
 
     /// Used before serving previously computed quote/discovery caches as well as live reads.
     pub async fn require_verified_chain(&self) -> Result<(), LcdError> {
+        self.probe_identities(true).await
+    }
+
+    async fn probe_identities(&self, stop_on_success: bool) -> Result<(), LcdError> {
+        use std::time::{Duration, Instant};
         let count = self.inner.endpoints.read().await.len();
+        let deadline =
+            Instant::now() + Duration::from_millis(self.inner.provider_policy.deadline_ms);
+        let mut verified = false;
         let mut errors = Vec::new();
+        let mut attempts = 0;
+        let mut capacity_deferred = false;
         for idx in 0..count {
-            let (url, cooled) = {
-                let eps = self.inner.endpoints.read().await;
-                let ep = &eps[idx];
-                (
-                    ep.url.clone(),
-                    ep.cooldown_until
-                        .is_some_and(|at| at > std::time::Instant::now()),
-                )
-            };
-            if cooled {
-                continue;
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
             }
-            match self.attest_endpoint(idx, &url).await {
-                Ok(()) => return Ok(()),
-                Err(e) => errors.push(e.to_string()),
+            let ep = self.inner.endpoints.read().await[idx].clone();
+            let mut permit = match ep.provider.admit() {
+                Ok(permit) => permit,
+                Err(reason) => {
+                    capacity_deferred |= reason.is_capacity();
+                    continue;
+                }
+            };
+            attempts += 1;
+            let timeout = remaining.min(Duration::from_millis(
+                self.inner.provider_policy.attempt_timeout_ms,
+            ));
+            let outcome = tokio::time::timeout(timeout, self.attest_endpoint(idx, &ep.url)).await;
+            permit.completed();
+            match outcome {
+                Ok(Ok(())) => {
+                    permit.succeeded();
+                    verified = true;
+                    if stop_on_success {
+                        return Ok(());
+                    }
+                }
+                Ok(Err(e)) => errors.push(e.to_string()),
+                Err(_) => {
+                    self.mark_failed(idx).await;
+                    errors.push(format!("endpoint[{idx}] identity deadline exceeded"));
+                }
+            }
+            if attempts >= self.inner.provider_policy.max_attempts {
+                break;
             }
         }
-        Err(LcdError::AllEndpointsFailed(errors.join("; ")))
+        if verified {
+            Ok(())
+        } else if count > 0 && attempts == 0 && capacity_deferred {
+            Err(LcdError::AdmissionDeferred)
+        } else {
+            Err(LcdError::AllEndpointsFailed(if errors.is_empty() {
+                "no verified endpoint".into()
+            } else {
+                errors.join("; ")
+            }))
+        }
     }
 
     pub(super) async fn attest_endpoint(&self, idx: usize, url: &str) -> Result<(), LcdError> {
         let mut observed = None;
+        let mut retry_after = None;
         let result = async {
             let resp = self
                 .inner
@@ -138,6 +166,10 @@ impl LcdClient {
                 .get(format!("{url}{NODE_INFO_PATH}"))
                 .send()
                 .await?;
+            retry_after = super::provider_pool::retry_after(
+                resp.headers(),
+                std::time::Duration::from_millis(self.inner.provider_policy.max_backoff_ms),
+            );
             if !resp.status().is_success() {
                 return Err(LcdError::ChainIdentity(format!(
                     "endpoint[{idx}] node_info unavailable ({})",
@@ -184,11 +216,10 @@ impl LcdClient {
             _ => e.to_string(),
         });
         if result.is_err() {
-            ep.cooldown_until = Some(std::time::Instant::now() + self.inner.cooldown_duration);
+            ep.provider
+                .failed(self.inner.cooldown_duration, retry_after);
             tracing::warn!(endpoint_index = idx, expected_chain_id = %self.inner.expected_chain_id,
                 observed_chain_id = ?ep.observed_chain_id, "LCD endpoint quarantined: chain identity failed");
-        } else {
-            ep.cooldown_until = None;
         }
         result
     }

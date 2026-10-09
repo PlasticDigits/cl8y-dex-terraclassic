@@ -20,6 +20,172 @@ fn bd(s: &str) -> BigDecimal {
     BigDecimal::from_str(s).unwrap()
 }
 
+/// Exercise the actual producer/cache/publication boundary: a repeatedly failing
+/// primary and fee/book work must not remove an unchanged supported 6/18 pool.
+#[serial]
+#[tokio::test]
+async fn issue_1453_fixed_coverage_survives_failover_and_real_changes() {
+    use cl8y_dex_indexer::db::queries::{pair_reserves, pairs};
+    use cl8y_dex_indexer::indexer::book_snapshot;
+    use cl8y_dex_indexer::lcd::LcdClient;
+    use std::sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc,
+    };
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+    let lunc = insert_native(&pool, "uluna", "LUNC", 6).await;
+    let ust1 = insert_cw20(&pool, DEFAULT_HUB_UST1_ADDRESS, "UST1", 18).await;
+    let pair_id = insert_pair(&pool, "terra1feedfixture1453", lunc, ust1).await;
+    insert_oracle(&pool, "lunc", "0.5").await;
+    // A hub mark is eligible only with its independently observed USTC anchor.
+    insert_oracle(&pool, "ustc", "0.01").await;
+    sqlx::query(
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at, as_of, quality)
+        VALUES ('ust1', $1, 1, NOW(), NOW(), 'bounded_spot')",
+    )
+    .bind(ust1)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let pair = pairs::get_pair_by_address(&pool, "terra1feedfixture1453")
+        .await
+        .unwrap()
+        .unwrap();
+    let primary = MockServer::start().await;
+    let secondary = MockServer::start().await;
+    for server in [&primary, &secondary] {
+        common::lcd_mock::mock_chain_identity(server, "columbus-5").await;
+    }
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(ResponseTemplate::new(429).insert_header("Retry-After", "60"))
+        .mount(&primary)
+        .await;
+    let phase = Arc::new(AtomicU8::new(0));
+    let response_phase = phase.clone();
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(move |req: &wiremock::Request| {
+            let query = common::lcd_mock::smart_query_from_request(req);
+            if query.get("pool").is_none() {
+                return ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                    "message":"query wasm contract failed: fee unavailable"
+                }));
+            }
+            let (r0, r1) = match response_phase.load(Ordering::SeqCst) {
+                0 => ("2000000", "2000000000000000000"),
+                1 => ("1000000", "1000000000000000000"),
+                _ => ("0", "0"),
+            };
+            let height = req
+                .headers
+                .get("x-cosmos-block-height")
+                .unwrap()
+                .to_str()
+                .unwrap();
+            ResponseTemplate::new(200)
+                .insert_header("x-cosmos-block-height", height)
+                .set_body_json(serde_json::json!({"data":{
+                    "assets":[
+                        {"info":{"native_token":{"denom":"uluna"}},"amount":r0},
+                        {"info":{"token":{"contract_addr":DEFAULT_HUB_UST1_ADDRESS}},"amount":r1}
+                    ],"total_share":"1"
+                }}))
+        })
+        .mount(&secondary)
+        .await;
+    let lcd = LcdClient::new(
+        vec![primary.uri(), secondary.uri()],
+        1000,
+        1000,
+        "columbus-5",
+    );
+    let mut identity = None;
+    let mut generation = 0;
+    for height in 100..108 {
+        // Fee failure returns an error, after independently publishing the pool.
+        assert!(
+            book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(height))
+                .await
+                .is_err()
+        );
+        let rollup = protocol_tvl::refresh_protocol_liquidity(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            rollup.total_liquidity_usd,
+            Some(bd("3")),
+            "height={height}; quality={}; reasons={}",
+            rollup.quality.status,
+            rollup.quality.reasons
+        );
+        assert_eq!(rollup.quality.status, "fresh");
+        assert_eq!(rollup.priced_pair_count, 1);
+        assert!(rollup.quality.generation > generation);
+        generation = rollup.quality.generation;
+        if let Some(ref expected) = identity {
+            assert_eq!(&rollup.quality.coverage_identity, expected);
+        }
+        identity = Some(rollup.quality.coverage_identity);
+    }
+    let primary_queries = primary
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|r| r.url.path().contains("/smart/"))
+        .count();
+    assert_eq!(
+        primary_queries, 1,
+        "cooling primary is not hammered across cycles"
+    );
+    assert!(pair_reserves::get_hybrid_pair_reserves(&pool, pair_id)
+        .await
+        .unwrap()
+        .is_none());
+    let original = pair_reserves::get_pair_reserves(&pool, pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    // Price-only changes publish without any additional reserve query.
+    insert_oracle(&pool, "lunc", "1").await;
+    assert_eq!(
+        protocol_tvl::refresh_protocol_liquidity(&pool)
+            .await
+            .unwrap()
+            .total_liquidity_usd,
+        Some(bd("4"))
+    );
+    assert_eq!(
+        pair_reserves::get_pair_reserves(&pool, pair_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .snapshot_at,
+        original.snapshot_at
+    );
+    for (index, expected) in [(1, "2"), (2, "0")] {
+        phase.store(index, Ordering::SeqCst);
+        assert!(book_snapshot::snapshot_single_pair(
+            &pool,
+            &lcd,
+            &pair,
+            Some(108 + i64::from(index))
+        )
+        .await
+        .is_err());
+        let rollup = protocol_tvl::refresh_protocol_liquidity(&pool)
+            .await
+            .unwrap();
+        assert_eq!(rollup.quality.status, "fresh");
+        assert_eq!(rollup.total_liquidity_usd, Some(bd(expected)));
+    }
+}
+
 async fn insert_native(pool: &sqlx::PgPool, denom: &str, symbol: &str, decimals: i16) -> i32 {
     sqlx::query_scalar(
         "INSERT INTO assets (denom, is_cw20, name, symbol, decimals)

@@ -2012,3 +2012,8 @@ verify-issue-1428:
 .PHONY: verify-issue-1437
 verify-issue-1437:
 	bash scripts/qa/verify-issue-1437.sh
+
+# #1453: independent pool observations, provider admission and recovery; scoped evidence.
+.PHONY: verify-issue-1453
+verify-issue-1453:
+	bash scripts/qa/verify-issue-1453.sh

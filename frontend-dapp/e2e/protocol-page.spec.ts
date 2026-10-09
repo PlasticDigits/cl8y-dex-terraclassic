@@ -16,7 +16,8 @@ function bottom(b: Box) {
 async function mockProtocolVolumeSeries(page: Page) {
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
-    if (url.pathname !== '/api/v1/protocol/volume/daily') {
+    // Local Vite requests include /__dev/indexer before the public API path.
+    if (!url.pathname.endsWith('/api/v1/protocol/volume/daily')) {
       await route.fulfill({ status: 404, json: { error: 'Unavailable layout fixture' } })
       return
     }
@@ -45,7 +46,7 @@ async function selectProtocolVolumeGrain(page: Page, grain: 'hourly' | 'monthly'
   const response = page.waitForResponse((response) => {
     const url = new URL(response.url())
     return (
-      url.pathname === '/api/v1/protocol/volume/daily' &&
+      url.pathname.endsWith('/api/v1/protocol/volume/daily') &&
       url.searchParams.get('grain') === grain &&
       response.status() === 200
     )
