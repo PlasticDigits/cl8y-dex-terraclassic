@@ -83,7 +83,7 @@ private and excluded from Git. No shared database/chain data was changed.
   external namespace access and opt-in host IPv4 confinement pass. Fresh ACL
   probes run against their own ephemeral cluster.
 - Commit hooks (contract formatting/clippy, staged frontend checks and secret
-  scanning) pass. Full tracked-file gitleaks scan passes. No hosted CI was run.
+  scanning) pass. Full tracked-file gitleaks scan passes. No hosted CI was requested or awaited.
 
 The 11 failing frontend files are `TokenSearchSelect.test.tsx`,
 `SwapPage.acquireGuidance.test.tsx`, `SwapPage.feeDiscountRegistryBanner.test.tsx`,
@@ -114,3 +114,12 @@ GitLab mirror main are ancestors of the consolidated main. The three existing
 worktrees/checked-out branches belong to other issue workers and are retained;
 the temporary merge worktree, synthetic services, private env files and merged
 Renovate remote branch refs are cleaned up. Origin worker branches are preserved.
+
+
+Final consolidation audit: remote merge `4e84ee5e3b947714f33cbe5fe05a1e0fe734443e`
+contains all four PR heads and the resolved integration/evidence commits. Local
+main was pulled from origin, the GitLab main was already included, and all
+remaining local/remote refs are ancestors. There are zero open PRs and zero
+stashes. The final source fingerprint exactly matches the tested source. Both
+merged Renovate remote branches and the owned temporary integration worktree/
+branch are removed; original worker branches/worktrees remain clean and preserved.
