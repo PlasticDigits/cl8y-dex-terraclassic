@@ -94,5 +94,75 @@
       "host IPv6 disabled by kernel"
     ]
   },
-  "recorded_at": "2026-10-09T11:56:13.151302+00:00"
+  "recorded_at": "2026-10-09T11:56:13.151302+00:00",
+  "merged_main_revision": "4e84ee5e3b947714f33cbe5fe05a1e0fe734443e",
+  "final_source_matches_tested_source": true,
+  "final_ref_audit": [
+    {
+      "ref": "refs/heads/fix/issue-1452-local-quotes",
+      "sha": "30ae2024f667f3189d3acde0fca08556cb7b9e39",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/fix/issue-1453-liquidity-feed",
+      "sha": "91c26fa94f2b147209f9ff9111b2d66a0c41b1eb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "4e84ee5e3b947714f33cbe5fe05a1e0fe734443e",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/verify/issue-1354-defillama",
+      "sha": "09039309ee296061f6776ffd6550a65a2fac0cdb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/gitlab/main",
+      "sha": "c7f53aa7e31f0b4d1221a5beae24071ce640aca8",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "sha": "4e84ee5e3b947714f33cbe5fe05a1e0fe734443e",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/issue-1452-local-quotes",
+      "sha": "537561411cbb1911016f2149ed97f657ddda09b3",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/issue-1453-liquidity-feed",
+      "sha": "91c26fa94f2b147209f9ff9111b2d66a0c41b1eb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "sha": "4e84ee5e3b947714f33cbe5fe05a1e0fe734443e",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/verify/issue-1354-defillama",
+      "sha": "09039309ee296061f6776ffd6550a65a2fac0cdb",
+      "included_in_main": true
+    }
+  ],
+  "final_stashes": [],
+  "retained_worker_worktrees": [
+    {
+      "path": "/home/answorld/repos/worktrees/cl8y-dex-1354-defillama",
+      "status": "clean"
+    },
+    {
+      "path": "/home/answorld/repos/worktrees/cl8y-dex-1452-local-quotes",
+      "status": "clean"
+    },
+    {
+      "path": "/home/answorld/repos/worktrees/cl8y-dex-1453",
+      "status": "clean"
+    }
+  ],
+  "consolidation_audited_at": "2026-10-09T12:00:10.028597+00:00"
 }
