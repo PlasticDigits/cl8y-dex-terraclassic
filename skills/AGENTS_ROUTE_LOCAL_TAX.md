@@ -80,3 +80,6 @@ preview rejection. [Agent checks](../docs/qa/issue-1390/README.md):
 Router replacement, revocation and single-use settlement follow
 [RTTRUST1388-1–RTTRUST1388-10](AGENTS_ROUTER_TRUST_LIFECYCLE.md)
 and the [recovery runbook](../docs/runbooks/router-trust-1388.md).
+
+For the observation-only indexer implementation, use the [#1452 tax follow-up checklist](../docs/qa/issue-1452/FOLLOWUP-TAX.md).
+Its supported v1 arithmetic does not establish cooldown/AutoLP parity or deployment.

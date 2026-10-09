@@ -20,6 +20,90 @@ pub struct CachedHookPrices {
     // Preserve dispatch order and all config fields, including non-deducting LP
     // hooks. A governance/address/config change invalidates the quote generation.
     observation_identity: Vec<(String, Value)>,
+    inverse: std::collections::HashMap<String, HookInverse>,
+}
+
+/// Net(N) = quotient * retained_bps + net(remainder), with period 10,000.
+/// Multiple independent floors need not be monotone, so inverse sizing uses
+/// precomputed first-reaching residues rather than a binary search on net(N).
+#[derive(Debug, Clone)]
+struct HookInverse {
+    retained_bps: u128,
+    // A bounded immutable segment tree supports first-reaching residues after
+    // any AMM-reachable original amount, including nonmonotone collisions.
+    maxima: std::sync::Arc<[u16]>,
+}
+impl HookInverse {
+    const WIDTH: usize = 16_384;
+    fn build(fees: &[u16]) -> Option<Self> {
+        let total: u32 = fees.iter().map(|f| u32::from(*f)).sum();
+        let retained_bps = 10_000u32.checked_sub(total)? as u128;
+        let mut maxima = vec![0; Self::WIDTH * 2];
+        for r in 0..10_000u32 {
+            maxima[Self::WIDTH + r as usize] =
+                (r - fees.iter().map(|f| r * u32::from(*f) / 10_000).sum::<u32>()) as u16;
+        }
+        for node in (1..Self::WIDTH).rev() {
+            maxima[node] = maxima[node * 2].max(maxima[node * 2 + 1]);
+        }
+        Some(Self {
+            retained_bps,
+            maxima: maxima.into(),
+        })
+    }
+    fn first(
+        &self,
+        node: usize,
+        start: usize,
+        end: usize,
+        lower: usize,
+        target: u128,
+    ) -> Option<u128> {
+        if end <= lower || start >= 10_000 || u128::from(self.maxima[node]) < target {
+            return None;
+        }
+        if end - start == 1 {
+            return Some(start as u128);
+        }
+        let middle = start + (end - start) / 2;
+        self.first(node * 2, start, middle, lower, target)
+            .or_else(|| self.first(node * 2 + 1, middle, end, lower, target))
+    }
+    fn gross_from(&self, target: u128, lower: u128) -> Option<u128> {
+        if target == 0 {
+            return None;
+        }
+        let maximum = u128::from(self.maxima[1]);
+        let first_quotient = if target <= maximum {
+            0
+        } else {
+            if self.retained_bps == 0 {
+                return None;
+            }
+            let difference = target - maximum;
+            difference / self.retained_bps + u128::from(difference % self.retained_bps != 0)
+        };
+        let lower_quotient = lower / 10_000;
+        let mut quotient = first_quotient.max(lower_quotient);
+        let residue_start = if quotient == lower_quotient {
+            (lower % 10_000) as usize
+        } else {
+            0
+        };
+        let threshold = target.saturating_sub(quotient.checked_mul(self.retained_bps)?);
+        let residue = if let Some(residue) = self.first(1, 0, Self::WIDTH, residue_start, threshold)
+        {
+            residue
+        } else {
+            quotient = quotient.checked_add(1)?;
+            let threshold = target.saturating_sub(quotient.checked_mul(self.retained_bps)?);
+            self.first(1, 0, Self::WIDTH, 0, threshold)?
+        };
+        quotient.checked_mul(10_000)?.checked_add(residue)
+    }
+    fn gross(&self, target: u128) -> Option<u128> {
+        self.gross_from(target, 0)
+    }
 }
 
 fn address(value: &Value, field: &str) -> Result<String, &'static str> {
@@ -43,9 +127,6 @@ impl CachedHookPrices {
         &self.observation_identity
     }
 
-    pub fn has_deductions(&self, ask: &str) -> bool {
-        self.deductions.iter().any(|d| d.token == ask && d.bps > 0)
-    }
     /// Every configured hook must have a successful same-generation GetConfig.
     /// An absent response is an error, not an empty zero-fee policy.
     pub fn from_observation(hooks: &[(String, Value)]) -> Result<Self, &'static str> {
@@ -103,10 +184,52 @@ impl CachedHookPrices {
             };
             deductions.push(CachedHookDeduction { token, bps: fee });
         }
+        let tokens: HashSet<_> = deductions.iter().map(|d| d.token.clone()).collect();
+        let inverse = tokens
+            .into_iter()
+            .filter_map(|token| {
+                let fees = deductions
+                    .iter()
+                    .filter(|d| d.token == token)
+                    .map(|d| d.bps)
+                    .collect::<Vec<_>>();
+                HookInverse::build(&fees).map(|prices| (token, prices))
+            })
+            .collect();
         Ok(Self {
+            inverse,
             deductions,
             observation_identity: hooks.to_vec(),
         })
+    }
+
+    /// Minimal original post-commission output delivering the requested net.
+    /// Tables are prepared during observation, never by a quote request.
+    pub fn inverse_return(&self, ask: &str, target: u128) -> Result<u128, &'static str> {
+        if !self.deductions.iter().any(|d| d.token == ask) {
+            return (target > 0).then_some(target).ok_or("zero hook target");
+        }
+        self.inverse
+            .get(ask)
+            .and_then(|p| p.gross(target))
+            .ok_or("hook inverse unavailable")
+    }
+
+    pub fn inverse_return_from(
+        &self,
+        ask: &str,
+        target: u128,
+        lower: u128,
+    ) -> Result<u128, &'static str> {
+        if !self.deductions.iter().any(|d| d.token == ask) {
+            return (target > 0)
+                .then_some(target.max(lower))
+                .ok_or("zero hook target");
+        }
+        self.inverse
+            .get(ask)
+            .and_then(|p| p.gross_from(target, lower))
+            .ok_or("hook inverse unavailable")
     }
 
     pub fn net_return(&self, ask: &str, original: u128) -> Result<u128, &'static str> {
@@ -221,5 +344,71 @@ mod tests {
         );
         assert_ne!(a.observation_identity(), b.observation_identity());
         assert_ne!(a.observation_identity(), c.observation_identity());
+    }
+    #[test]
+    fn inverse_is_exact_across_nonmonotone_individual_floor_collisions() {
+        let prices = CachedHookPrices::from_observation(&[
+            ("a".into(), tax("ask", 3333)),
+            ("b".into(), tax("ask", 3333)),
+            ("c".into(), tax("ask", 3333)),
+        ])
+        .unwrap();
+        assert!(prices.net_return("ask", 4).unwrap() < prices.net_return("ask", 3).unwrap());
+        let mut maximum = 0;
+        for original in 1..100_000u128 {
+            let net = prices.net_return("ask", original).unwrap();
+            if net > maximum {
+                for target in maximum + 1..=net {
+                    assert_eq!(prices.inverse_return("ask", target).unwrap(), original);
+                }
+                maximum = net;
+            }
+        }
+        let single = CachedHookPrices::from_observation(&[("a".into(), tax("ask", 333))]).unwrap();
+        let gross = single.inverse_return("ask", 1_000_000).unwrap();
+        assert!(single.net_return("ask", gross).unwrap() >= 1_000_000);
+        assert!(single.net_return("ask", gross - 1).unwrap() < 1_000_000);
+        assert!(single.inverse_return("ask", u128::MAX).is_err());
+    }
+    #[test]
+    fn inverse_full_deduction_and_overdraw_fail_closed() {
+        let full = CachedHookPrices::from_observation(&[("a".into(), tax("ask", 10_000))]).unwrap();
+        assert!(full.inverse_return("ask", 1).is_err());
+        let rounding = CachedHookPrices::from_observation(&[
+            ("a".into(), tax("ask", 5000)),
+            ("b".into(), tax("ask", 5000)),
+        ])
+        .unwrap();
+        assert_eq!(rounding.inverse_return("ask", 1).unwrap(), 1);
+        assert!(rounding.inverse_return("ask", 2).is_err());
+        let overdraw = CachedHookPrices::from_observation(&[
+            ("a".into(), tax("ask", 10_000)),
+            ("b".into(), tax("ask", 1)),
+        ])
+        .unwrap();
+        assert!(overdraw.inverse_return("ask", 1).is_err());
+    }
+    #[test]
+    fn inverse_from_skips_unreachable_residues_without_assuming_monotone_net() {
+        let prices = CachedHookPrices::from_observation(&[
+            ("tax".into(), tax("ask", 2500)),
+            (
+                "burn".into(),
+                json!({"burn_token":"ask","burn_percentage_bps":2500}),
+            ),
+        ])
+        .unwrap();
+        for lower in 0..500u128 {
+            for target in 1..10 {
+                let expected = (lower..lower + 100)
+                    .find(|v| prices.net_return("ask", *v).unwrap() >= target)
+                    .unwrap();
+                assert_eq!(
+                    prices.inverse_return_from("ask", target, lower).unwrap(),
+                    expected
+                );
+            }
+        }
+        assert_eq!(prices.inverse_return_from("ask", 3, 4).unwrap(), 5);
     }
 }

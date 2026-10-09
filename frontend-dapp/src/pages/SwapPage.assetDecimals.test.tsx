@@ -1,3 +1,4 @@
+import { localMarketMocks } from '@/test/localMarketMocks'
 import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 vi.mock('@/utils/swapReceiveQuote', () => ({
   quoteSwapReceiveViaSolver: vi.fn().mockResolvedValue({
@@ -175,19 +176,19 @@ function seedPair(pay = TERRA_A, receive = TERRA_B) {
   ] as never)
 }
 
-describe('SwapPage unlisted CW20 decimals (#1255)', () => {
+let observedDecimals: number | null = 18
+describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
   beforeEach(() => {
     localStorage.clear()
     resetCw20TokenInfoInFlightForTests()
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    observedDecimals = 18
     seedPair()
     vi.mocked(queryContract).mockImplementation(queryContractTokenInfoImpl(18))
     vi.mocked(getTokenBalance).mockResolvedValue('1000000000000000000')
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unused'))
-    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no indexer pair'))
-    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
+    localMarketMocks(getAllPairsPaginated, { decimals: () => observedDecimals, output: () => '1000000000000000000' })
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -196,15 +197,16 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     vi.mocked(simulateSwap).mockClear()
   })
 
-  it('T1: unlisted factory CW20 token_info 18 → simulateSwap offer 10^18', async () => {
+  it('T1: unlisted factory CW20 indexed 18 → local quote offer 10^18', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(
       () => {
-        expect(simulateSwap).toHaveBeenCalled()
-        const offer = vi.mocked(simulateSwap).mock.calls[0][2]
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+        expect(simulateSwap).not.toHaveBeenCalled()
+        const offer = vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)?.[2]
         expect(offer).toBe('1000000000000000000')
       },
       { timeout: 5000 }
@@ -218,14 +220,16 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1.5')
     await waitFor(
       () => {
-        expect(simulateSwap).toHaveBeenCalled()
-        expect(vi.mocked(simulateSwap).mock.calls[0][2]).toBe('1500000000000000000')
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+        expect(simulateSwap).not.toHaveBeenCalled()
+        expect(vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)?.[2]).toBe('1500000000000000000')
       },
       { timeout: 5000 }
     )
   })
 
   it('T3: unlisted 6-dec typed 1 → 10^6', async () => {
+    observedDecimals = 6
     vi.mocked(queryContract).mockImplementation(queryContractTokenInfoImpl(6))
     vi.mocked(getTokenBalance).mockResolvedValue('1000000')
     const user = userEvent.setup()
@@ -234,14 +238,16 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(
       () => {
-        expect(simulateSwap).toHaveBeenCalled()
-        expect(vi.mocked(simulateSwap).mock.calls[0][2]).toBe('1000000')
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+        expect(simulateSwap).not.toHaveBeenCalled()
+        expect(vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)?.[2]).toBe('1000000')
       },
       { timeout: 5000 }
     )
   })
 
-  it('T7: decimals in flight → no simulateSwap', async () => {
+  it('T7: missing indexed decimals → no quote', async () => {
+    observedDecimals = null
     vi.mocked(queryContract).mockImplementation(
       () =>
         new Promise(() => {
@@ -266,7 +272,8 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     expect(pay.value).toBe('1')
   })
 
-  it('hostile token_info.decimals 255 → no quote', async () => {
+  it('hostile indexed decimals 255 → no quote', async () => {
+    observedDecimals = 255
     vi.mocked(queryContract).mockImplementation(queryContractTokenInfoImpl(255))
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)
@@ -288,8 +295,9 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(
       () => {
-        expect(simulateSwap).toHaveBeenCalled()
-        expect(vi.mocked(simulateSwap).mock.calls[0][2]).toBe('1000000000000000000')
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+        expect(simulateSwap).not.toHaveBeenCalled()
+        expect(vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)?.[2]).toBe('1000000000000000000')
       },
       { timeout: 5000 }
     )
@@ -309,8 +317,9 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(
       () => {
-        expect(simulateSwap).toHaveBeenCalled()
-        expect(vi.mocked(simulateSwap).mock.calls[0][2]).toBe('1000000')
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+        expect(simulateSwap).not.toHaveBeenCalled()
+        expect(vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)?.[2]).toBe('1000000')
       },
       { timeout: 5000 }
     )

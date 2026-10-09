@@ -48,11 +48,11 @@ socket_tests() {
     echo 'Missing isolated QA credentials; provision indexer/.env.qa or use an explicit DB skip reason.' >&2
     return 1
   fi
-  cargo test --locked --manifest-path indexer/Cargo.toml --test route_local_quotes_1452 -- --test-threads=1 --nocapture
+  cargo test --locked --manifest-path indexer/Cargo.toml --test route_local_quotes_1452 --test api_route_solve_db_hybrid --test api_route_solve --test api_route_exact_output --test api_route_tax_funding1381 --test api_health -- --test-threads=1 --nocapture
 }
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
-    src/utils/localRouteQuote.test.ts src/utils/cw20RouteSolveQuote.test.ts \
+    src/utils/localRouteQuote.test.ts src/utils/cw20RouteSolveQuote.test.ts src/utils/localWrapperOnlyQuote.test.ts \
     src/utils/quoteDebounce.test.ts src/utils/swapPayAcquireGuidance.test.ts \
     src/utils/directHybridQuote.test.ts src/utils/swapReceiveQuote.test.ts \
     src/hooks/useSubmitAlignedSimQuote.test.ts \
@@ -62,6 +62,13 @@ frontend() {
     src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx \
     src/components/trade/__tests__/TradeOrderTicket.invert.test.tsx \
     src/pages/SwapPage.test.tsx \
+    src/pages/SwapPage.acquireGuidance.test.tsx src/pages/SwapPage.assetDecimals.test.tsx \
+    src/pages/SwapPage.extraDebitSell.test.tsx src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx \
+    src/pages/SwapPage.queryParams.test.tsx src/pages/TradePage.test.tsx \
+    src/components/trade/__tests__/TradeMarketOrderPanel.acquireGuidance.test.tsx \
+    src/components/trade/__tests__/TradeMarketOrderPanel.extraDebitSell.test.tsx \
+    src/components/trade/__tests__/TradeMarketOrderPanel.slippagePresets.test.tsx \
+    src/services/terraclassic/__tests__/swapAutoGasFeeHint.test.tsx \
     src/components/trade/__tests__/TradeMarketOrderPanel.submitSnapshot.test.tsx
 }
 browser() { bash scripts/with-node.sh -- node scripts/qa/browser-local-quotes-1452.cjs; }

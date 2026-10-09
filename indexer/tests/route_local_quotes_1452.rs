@@ -140,6 +140,23 @@ async fn seed_reference_marks(pool: &PgPool, cl8y_price: i64) {
         .bind(CL8Y).bind(cl8y_price).execute(pool).await.unwrap();
 }
 
+const COLD_FIXTURE_HTTP_LIMIT: usize = 512;
+
+fn cold_fixture_lcd(endpoint: String) -> LcdClient {
+    // Cold configuration I/O is outside the initialized <250ms quote measurement.
+    // Use bounded five-second provider attempts rather than a 100ms loopback
+    // assumption; admission's own phase/pass deadlines remain unchanged.
+    let policy = cl8y_dex_indexer::lcd::ProviderPolicy {
+        // This test drains ~20 pairs, 12 assets, two actors and native mappings
+        // consecutively instead of using production's paced scheduled view.
+        // Account for that known cold population without changing runtime budgets.
+        burst: COLD_FIXTURE_HTTP_LIMIT as u32,
+        attempt_timeout_ms: 5_000,
+        deadline_ms: 5_000,
+        ..Default::default()
+    };
+    LcdClient::new_with_policy(vec![endpoint], 5_000, 1, "columbus-5", policy)
+}
 fn app_state(pool: PgPool, lcd: LcdClient) -> AppState {
     let mut config = common::test_config();
     config.router_address = Some("terra1routerfixture1452".into());
@@ -236,7 +253,7 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
             .unwrap();
     }
     let upstream = common::lcd_mock::start_ordinary_code_mock().await;
-    let lcd = LcdClient::new(vec![upstream.uri()], 100, 1, "columbus-5");
+    let lcd = cold_fixture_lcd(upstream.uri());
     let mut state = app_state(pool.clone(), lcd);
     state.wrap_mapper_address = Some("terra1mapperfixture1452".into());
     // Production ingestion is the sole network-enabled step. Requests below cannot ingest.
@@ -280,7 +297,7 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
         .await;
     seed_reference_marks(&pool, 100).await;
     let ingestion_started = Instant::now();
-    cl8y_dex_indexer::api::local_quote::ingest_once(&state)
+    cl8y_dex_indexer::api::local_quote::ingest_fixture(&state)
         .await
         .unwrap();
     Mock::given(method("GET"))
@@ -308,6 +325,36 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
         .await
         .unwrap();
     assert!(cl8y_dex_indexer::api::local_quote::refresh_wrapper(&state).await);
+    // Prove both admitted mappings before disabling providers. Zero-hop probes
+    // neither warm the measured executable route cache nor enqueue deeper jobs.
+    for (native, wrapped) in [("uluna", CLUNC), ("uusd", CUSTC)] {
+        let probe = serde_json::from_value(
+            json!({"token_in":native,"token_out":wrapped,"amount_in":"10000","max_spread":"0.05"}),
+        )
+        .unwrap();
+        let body = cl8y_dex_indexer::api::local_quote::solve(&state, &probe)
+            .await
+            .expect("cold fixture must initialize each native mapping before provider isolation")
+            .0;
+        assert_eq!(body["execution_metadata"]["policy"], "wrapper_only");
+        assert_eq!(
+            body["execution_metadata"]["wrapper"]["mapper"],
+            "terra1mapperfixture1452"
+        );
+        assert_eq!(body["execution_metadata"]["wrapper"]["input_token"], native);
+        assert_eq!(
+            body["execution_metadata"]["wrapper"]["output_token"],
+            wrapped
+        );
+        assert_eq!(body["estimated_amount_out_net"], "9900");
+    }
+
+    let cold_http_calls = upstream.received_requests().await.unwrap().len();
+    assert!(
+        cold_http_calls <= COLD_FIXTURE_HTTP_LIMIT,
+        "cold fixture exceeded its bounded provider envelope: {cold_http_calls}"
+    );
+    eprintln!("1452 cold fixture provider calls: {cold_http_calls} (bounded initialization only)");
     eprintln!("1452 independent cold ingestion and wrapper initialization: {:.3}ms (excluded from initialized request latency)",ingestion_started.elapsed().as_secs_f64()*1000.0);
     upstream.reset().await;
     Mock::given(method("GET"))
@@ -771,12 +818,9 @@ async fn scheduled_hook_observation_prices_each_deduction_once_without_quote_rpc
                 else { return ResponseTemplate::new(500) };
             ResponseTemplate::new(200).set_body_json(json!({"data":data}))
         }).mount(&upstream).await;
-    let state = app_state(
-        pool.clone(),
-        LcdClient::new(vec![upstream.uri()], 1_000, 1, "columbus-5"),
-    );
+    let state = app_state(pool.clone(), cold_fixture_lcd(upstream.uri()));
     seed_reference_marks(&pool, 1).await;
-    cl8y_dex_indexer::api::local_quote::ingest_once(&state)
+    cl8y_dex_indexer::api::local_quote::ingest_fixture(&state)
         .await
         .unwrap();
     sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()")

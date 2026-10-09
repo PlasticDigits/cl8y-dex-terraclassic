@@ -235,7 +235,7 @@ async fn health_reports_explicit_local_identity_without_upstream_io() {
     assert!(mock.received_requests().await.unwrap().is_empty());
 }
 
-/// #1392: wrong-chain quote access fails before DB/cache work; health retains the observation.
+/// #1392/#1452: scheduled attestation quarantines the provider; local requests never probe it.
 #[serial]
 #[tokio::test]
 async fn wrong_chain_quotes_fail_closed_before_db_and_health_exposes_quarantine() {
@@ -255,10 +255,25 @@ async fn wrong_chain_quotes_fail_closed_before_db_and_health_exposes_quarantine(
         .unwrap();
     let mut config = common::test_config();
     config.lcd_urls = vec![mock.uri()];
-    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    // Model the independently scheduled identity observation before request handling.
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(config.lcd_urls.clone(), 100, 1, "columbus-5");
+    assert!(lcd.attest_endpoints().await.is_err());
+    let observed = lcd.chain_identity_health().await;
+    assert_eq!(
+        observed.endpoints[0].observed_chain_id.as_deref(),
+        Some("localterra")
+    );
+    assert!(!observed.endpoints[0].verified);
+    assert_eq!(mock.received_requests().await.unwrap().len(), 1);
+    let state = common::local_quotes::state(pool, &config, lcd);
+    let app = cl8y_dex_indexer::api::build_router(state, &config);
     let server = TestServer::new(app);
     server
         .get("/api/v1/route/solve")
+        .await
+        .assert_status_bad_request();
+    server
+        .get("/api/v1/route/solve?token_in=terra1syntheticinput&token_out=terra1syntheticoutput&amount_in=1000000")
         .await
         .assert_status_service_unavailable();
     let body: Value = server.get("/health").await.json();

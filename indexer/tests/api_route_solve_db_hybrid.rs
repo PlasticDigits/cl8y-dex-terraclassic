@@ -27,8 +27,7 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_with_mirror(&pool).await;
     let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -38,16 +37,17 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v6_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     let kind = j["quote_kind"].as_str().unwrap_or("");
     assert!(
         kind == "indexer_pool_db" || kind == "indexer_hybrid_db",
         "unexpected quote_kind: {kind} notes={:?}",
         j["hybrid_notes"]
     );
-    assert_eq!(j["fidelity_check"], "passed");
+    assert_eq!(j["fidelity_check"], "skipped");
+    assert!(mock.received_requests().await.unwrap().is_empty());
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
-    assert!(j["db_hybrid_queries"].as_u64().unwrap_or(0) > 0);
+    assert_eq!(j["db_hybrid_queries"], 0);
 }
 
 #[serial]
@@ -57,8 +57,7 @@ async fn route_solve_db_hybrid_empty_book_skips_full_grid() {
     // seed_route_solve_with_mirror upserts reserves only — no resting orders.
     let seed = common::seed_route_solve_with_mirror(&pool).await;
     let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -66,13 +65,13 @@ async fn route_solve_db_hybrid_empty_book_skips_full_grid() {
         seed.token_a, seed.token_b
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v6_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     assert_eq!(j["quote_kind"], "indexer_pool_db");
     assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
     let db_q = j["db_hybrid_queries"].as_u64().unwrap_or(u64::MAX);
     // Full 1-hop grid is 17×3 (+ propagate) ≈ 50+; empty-book short-circuit stays tiny (#493).
     assert!(
-        db_q > 0 && db_q < 10,
+        db_q == 0,
         "empty-book cold solve must not run full 17×3 grid; db_hybrid_queries={db_q}"
     );
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
@@ -80,7 +79,7 @@ async fn route_solve_db_hybrid_empty_book_skips_full_grid() {
 
 #[serial]
 #[tokio::test]
-async fn route_solve_db_hybrid_live_book_still_grids() {
+async fn route_solve_db_hybrid_live_book_uses_bounded_local_scoring() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_with_mirror(&pool).await;
     seed_route_pair_bids(
@@ -97,8 +96,7 @@ async fn route_solve_db_hybrid_live_book_still_grids() {
     .await;
 
     let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -118,8 +116,8 @@ async fn route_solve_db_hybrid_live_book_still_grids() {
     );
     let db_q = j["db_hybrid_queries"].as_u64().unwrap_or(0);
     assert!(
-        db_q >= 17,
-        "live book must run the 17-point grid; db_hybrid_queries={db_q}"
+        db_q == 0,
+        "live book uses bounded local scoring without request DB queries; db_hybrid_queries={db_q}"
     );
     assert_eq!(hybrid_hits.load(std::sync::atomic::Ordering::SeqCst), 0);
 }
@@ -130,8 +128,7 @@ async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_zero_reserve_poison(&pool).await;
     let (mock, hybrid_hits) = lcd_mock::start_router_only_route_mock("8888888").await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     for path in [
@@ -147,13 +144,21 @@ async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
         let resp = server.get(&path).await;
         resp.assert_status_ok();
         let j: Value = resp.json();
-        assert_eq!(j["solver_version"], "global_v6_funded");
+        assert_eq!(j["solver_version"], "local_v1");
         assert_eq!(
             j["hops"].as_array().unwrap().len(),
             1,
             "direct funded pair must win over poisoned multi-hop path: {j:?}"
         );
-        assert_eq!(j["estimated_amount_out"], "8888888");
+        assert!(
+            j["estimated_amount_out"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap()
+                > 0
+        );
+        assert!(mock.received_requests().await.unwrap().is_empty());
     }
     // Poisoned multi-hop may trigger LCD fallback grid evals before skip; direct path must not need them.
     let _ = hybrid_hits;
@@ -161,14 +166,14 @@ async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
 
 #[serial]
 #[tokio::test]
-async fn route_solve_db_hybrid_fidelity_drift_downgrades() {
+async fn route_solve_db_hybrid_never_calls_remote_fidelity() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_with_mirror(&pool).await;
     // Router sim returns far less than mirror grid → drift guard.
     let (mock, _) = lcd_mock::start_router_only_route_mock("1").await;
     let mut cfg = db_hybrid_config(&mock);
     cfg.route_fidelity_drift_bps = 1;
-    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let app = common::local_quotes::app(pool, cfg).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -176,9 +181,17 @@ async fn route_solve_db_hybrid_fidelity_drift_downgrades() {
         seed.token_a, seed.token_b
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["fidelity_check"], "drift");
-    assert_eq!(j["quote_kind"], "indexer_hybrid_db_degraded");
-    assert_eq!(j["estimated_amount_out"], "1");
+    assert_eq!(j["fidelity_check"], "skipped");
+    assert_eq!(j["quote_kind"], "indexer_pool_db");
+    assert!(
+        j["estimated_amount_out"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 1
+    );
+    assert!(mock.received_requests().await.unwrap().is_empty());
 }
 
 /// Policy A strip vs fidelity: LCD sim of hop-0-only ops must compare to DB-sim of
@@ -290,8 +303,7 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
 
     let (mock, hybrid_hits) =
         lcd_mock::start_router_only_route_mock(&stripped_out.to_string()).await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -299,11 +311,12 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v6_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     assert_eq!(j["hops"].as_array().unwrap().len(), 2);
     let ops = j["router_operations"].as_array().unwrap();
     assert!(ops[1]["terra_swap"]["hybrid"].is_null());
-    assert_eq!(j["fidelity_check"], "passed");
+    assert_eq!(j["fidelity_check"], "skipped");
+    assert!(mock.received_requests().await.unwrap().is_empty());
     let kind = j["quote_kind"].as_str().unwrap_or("");
     assert!(
         kind == "indexer_hybrid_db" || kind == "indexer_pool_db",
@@ -450,10 +463,10 @@ async fn seed_pair_bids_at(
 
 #[serial]
 #[tokio::test]
-async fn route_solve_db_hybrid_book_start_hint_paths() {
+async fn route_solve_db_hybrid_book_scan_matches_emitted_plan_and_stale_fail_closed() {
     let pool = common::setup_pool().await;
 
-    // Live bid at head → hint equals that order id.
+    // Live head is consumed by the ordinary bounded scanner; hints stay absent.
     {
         let seed = common::seed_route_solve_with_mirror(&pool).await;
         seed_route_pair_bids(
@@ -470,12 +483,7 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         .await;
 
         let (mock, _) = lcd_mock::start_router_only_route_mock("8888888").await;
-        let app = common::build_test_app_with_price_and_config(
-            pool.clone(),
-            None,
-            db_hybrid_config(&mock),
-        )
-        .await;
+        let app = common::local_quotes::app(pool.clone(), db_hybrid_config(&mock)).await;
         let server = TestServer::new(app);
 
         let url = format!(
@@ -493,10 +501,11 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
                 > 0,
             "expected book leg; hybrid={hybrid:?}"
         );
-        assert_eq!(hybrid["book_start_hint"], 42);
+        assert_local_book_plan(&pool, &seed.token_a, 900000, &j).await;
+        assert!(mock.received_requests().await.unwrap().is_empty());
     }
 
-    // Expired head remains in the mirror; generated hint selects the first live order.
+    // Expired head counts as scan work and cannot change the executable plan output.
     {
         let seed = common::seed_route_solve_with_mirror(&pool).await;
         let now = chrono::Utc::now().timestamp();
@@ -524,12 +533,7 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         .await;
 
         let (mock, _) = lcd_mock::start_router_only_route_mock("8888888").await;
-        let app = common::build_test_app_with_price_and_config(
-            pool.clone(),
-            None,
-            db_hybrid_config(&mock),
-        )
-        .await;
+        let app = common::local_quotes::app(pool.clone(), db_hybrid_config(&mock)).await;
         let server = TestServer::new(app);
 
         let url = format!(
@@ -546,10 +550,11 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
                 .unwrap_or(0)
                 > 0
         );
-        assert_eq!(hybrid["book_start_hint"], 77);
+        assert_local_book_plan(&pool, &seed.token_a, 800000, &j).await;
+        assert!(mock.received_requests().await.unwrap().is_empty());
     }
 
-    // Stale mirror → omit hint (LCD fallback grid); book leg may still be non-zero.
+    // Stale required mirror fails closed; no request-time LCD fallback.
     {
         let seed = common::seed_route_solve_with_mirror(&pool).await;
         let pair_id = pair_id_for_route_pair(&pool).await;
@@ -574,14 +579,7 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         .expect("age reserves snapshot");
 
         let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
-        let mut cfg = db_hybrid_config(&mock);
-        // This legacy stale-mirror fixture deliberately exercises the request-time LCD
-        // grid retained until #1452. Its many attestation+simulation reads need an
-        // explicit, still bounded fixture budget; production defaults remain tight.
-        cfg.lcd_provider_policy.concurrency = 32;
-        cfg.lcd_provider_policy.requests_per_second = 1024;
-        cfg.lcd_provider_policy.burst = 1024;
-        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+        let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
         let server = TestServer::new(app);
 
         let url = format!(
@@ -589,30 +587,9 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
             seed.token_a, seed.token_b
         );
         let response = server.get(&url).await;
-        let health: Value = server.get("/health").await.json();
-        let provider = &health["chain_identity"]["endpoints"][0]["provider"];
-        // Diagnostic reproduction with the default budget recorded 66 successful
-        // attempts and 3 rate deferrals (no upstream/concurrency failures). Retain
-        // that distinction: this fixture tests hint omission, not admission failure.
-        assert_eq!(provider["rate_deferrals"], 0, "provider={provider}");
-        assert_eq!(provider["concurrency_deferrals"], 0, "provider={provider}");
-        assert_eq!(provider["failures"], 0, "provider={provider}");
-        assert!(provider["attempts"].as_u64().unwrap() * 2 > 128,
-            "legacy grid must exercise more HTTP units than the production burst; provider={provider}");
-        response.assert_status_ok();
-        let j: Value = response.json();
-        assert_eq!(j["quote_kind"], "indexer_hybrid_db_degraded");
-        assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
-        let hybrid = &j["router_operations"][0]["terra_swap"]["hybrid"];
-        if hybrid["book_input"]
-            .as_str()
-            .unwrap_or("0")
-            .parse::<u128>()
-            .unwrap_or(0)
-            > 0
-        {
-            assert!(hybrid["book_start_hint"].is_null());
-        }
+        // A stale required mirror fails closed; no legacy LCD-grid escape is permitted.
+        response.assert_status_unprocessable_entity();
+        assert!(mock.received_requests().await.unwrap().is_empty());
     }
 }
 
@@ -623,8 +600,7 @@ async fn route_solve_db_hybrid_skip_unusable_admits_honest_3hop() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_skip_unusable_drain(&pool).await;
     let (mock, _) = lcd_mock::start_router_only_route_mock("8888888").await;
-    let app =
-        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let app = common::local_quotes::app(pool, db_hybrid_config(&mock)).await;
     let server = TestServer::new(app);
 
     let url = format!(
@@ -634,7 +610,7 @@ async fn route_solve_db_hybrid_skip_unusable_admits_honest_3hop() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v6_funded");
+    assert_eq!(j["solver_version"], "local_v1");
     let hops = j["hops"].as_array().expect("hops");
     assert_eq!(
         hops.len(),
@@ -652,14 +628,72 @@ async fn route_solve_db_hybrid_skip_unusable_admits_honest_3hop() {
     );
     let considered = j["paths_considered"].as_u64().unwrap_or(0);
     assert!(
-        considered >= 1 && considered <= 5,
+        considered >= 1 && considered <= 512,
         "paths_considered should be scored usable paths, got {considered}"
     );
     assert!(
         j["optimality_scope"]
             .as_str()
             .unwrap_or("")
-            .contains("usable"),
+            .contains("eligible"),
         "optimality_scope must mention usable-path fill"
+    );
+}
+
+/// Independent DB simulator checks the emitted split, not an old router mock value.
+async fn assert_local_book_plan(pool: &sqlx::PgPool, token: &str, amount: u128, response: &Value) {
+    use cl8y_dex_indexer::api::db_orderbook_sim::{load_hop_mirror, simulate_hybrid_from_mirror};
+    use cl8y_dex_indexer::db::queries::{assets, pairs};
+    let pair = pairs::get_pair_by_address(pool, "terra1pairrouteabc")
+        .await
+        .unwrap()
+        .unwrap();
+    let addresses = assets::get_all_assets(pool)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter_map(|a| {
+            a.contract_address
+                .or(a.denom)
+                .map(|address| (a.id, address))
+        })
+        .collect();
+    let mirror = load_hop_mirror(
+        pool,
+        &pair.contract_address,
+        &addresses,
+        &pair,
+        60_000,
+        chrono::Utc::now().timestamp() as u64,
+    )
+    .await
+    .unwrap();
+    let hybrid = &response["router_operations"][0]["terra_swap"]["hybrid"];
+    assert!(hybrid["book_start_hint"].is_null());
+    let book = hybrid["book_input"]
+        .as_str()
+        .unwrap()
+        .parse::<u128>()
+        .unwrap();
+    let pool_input = hybrid["pool_input"]
+        .as_str()
+        .unwrap()
+        .parse::<u128>()
+        .unwrap();
+    assert_eq!(pool_input + book, amount);
+    let expected =
+        simulate_hybrid_from_mirror(&mirror, token, amount, pool_input, book, 8, 0, None).unwrap();
+    assert_eq!(response["estimated_amount_out"], expected.to_string());
+    assert_eq!(
+        response["execution_metadata"]["hops"][0]["min_return"],
+        response["router_operations"][0]["terra_swap"]["min_return"]
+    );
+    assert!(
+        response["execution_metadata"]["minimum_receive"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
     );
 }

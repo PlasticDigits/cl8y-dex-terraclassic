@@ -1,11 +1,18 @@
-import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
+import { getRouteSolve, getRouteSolveExactOutput, postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import type { QuoteTraderOptions } from '@/services/terraclassic/pair'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import type { SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
-import type { IndexerRouteExecutionMetadata, IndexerRouteQuoteKind, IndexerRouteSolveResponse, PairInfo } from '@/types'
+import type {
+  IndexerHybridHopInput,
+  IndexerRouteExecutionMetadata,
+  IndexerRouteQuoteKind,
+  IndexerRouteSolveResponse,
+  PairInfo,
+} from '@/types'
 import { assetInfoLabel, getWrappedEquivalent, isNativeDenom } from '@/types'
 import { isLocalQuoteRaw, LOCAL_ROUTE_UNAVAILABLE, validateLocalRouteQuote } from '@/utils/localRouteQuote'
+import { validateWrapperOnlyQuote } from '@/utils/localWrapperOnlyQuote'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
@@ -14,6 +21,7 @@ import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 export type Cw20RouteSolveQuote = {
   return_amount: string
   minimumReceive: string
+  executionBlocker?: string
   executionMetadata: IndexerRouteExecutionMetadata
   executionOperations: string
   taxFundingVersion?: 1
@@ -42,17 +50,25 @@ type RouteSolveQuoteInput = {
   signal?: AbortSignal
   /** Request a pool-only plan; reject any unsupported hybrid instead of changing quoted operations. */
   omitAllHybrid?: boolean
+  declaredHybrid?: (IndexerHybridHopInput | null)[]
 }
 
 export async function quoteCw20ViaRouteSolve(input: RouteSolveQuoteInput): Promise<Cw20RouteSolveQuote | null> {
-  const idx = await getRouteSolve(input.fromToken, input.toToken, input.simRaw, {
-    maxMakerFills: input.maxMakerFills,
-    poolOnly: input.omitAllHybrid || isNativeDenom(input.fromToken) || isNativeDenom(input.toToken),
-    maxSpread: input.maxSpreadStr,
-    trader: input.quoteTrader?.trader,
-    sender: input.quoteTrader?.sender,
-    signal: input.signal,
-  })
+  const idx = input.declaredHybrid
+    ? await postRouteSolve(input.fromToken, input.toToken, input.simRaw, input.declaredHybrid, {
+        maxSpread: input.maxSpreadStr,
+        trader: input.quoteTrader?.trader,
+        sender: input.quoteTrader?.sender,
+        signal: input.signal,
+      })
+    : await getRouteSolve(input.fromToken, input.toToken, input.simRaw, {
+        maxMakerFills: input.maxMakerFills,
+        poolOnly: input.omitAllHybrid || isNativeDenom(input.fromToken) || isNativeDenom(input.toToken),
+        maxSpread: input.maxSpreadStr,
+        trader: input.quoteTrader?.trader,
+        sender: input.quoteTrader?.sender,
+        signal: input.signal,
+      })
   return validateRouteSolveQuote(input, idx)
 }
 
@@ -71,6 +87,35 @@ async function validateRouteSolveQuote(
   } = input
 
   input.signal?.throwIfAborted()
+  if (idx?.execution_metadata?.policy === 'wrapper_only') {
+    if (idx.token_in !== fromToken || idx.token_out !== toToken || input.declaredHybrid)
+      throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    const metadata = validateWrapperOnlyQuote(idx, {
+      simRaw,
+      maxSpreadStr,
+      slippageTolerancePercent,
+      trader: baseQuoteTrader?.trader,
+      sender: baseQuoteTrader?.sender,
+    })
+    return {
+      return_amount: idx.estimated_amount_out!,
+      minimumReceive: metadata.minimum_receive,
+      executionMetadata: metadata,
+      executionOperations: '[]',
+      executionBlocker: idx.execution_blocker,
+      spread_amount: '0',
+      commission_amount: '0',
+      routeSlippagePercent: resolveRouteSlippagePercent(
+        idx.estimated_amount_out!,
+        idx.spot_amount_out,
+        idx.slippage_percent
+      ),
+      spotAmountOut: idx.spot_amount_out,
+      indexerQuoteKind: idx.quote_kind,
+      indexerOperations: [],
+      indexerIntermediateTokens: [fromToken, toToken],
+    }
+  }
   if (
     !idx ||
     typeof idx.token_in !== 'string' ||
@@ -121,6 +166,39 @@ async function validateRouteSolveQuote(
   const routeOut = idx.execution_metadata?.wrapper?.unwrap_output ? (getWrappedEquivalent(tout) ?? tout) : tout
   if (currentToken !== routeOut) throw new Error('Route receive token does not match the quote. Refresh the quote.')
   if (omitAllHybrid && mapped.some((op) => op.terra_swap.hybrid != null)) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+  if (input.declaredHybrid) {
+    if (mapped.length !== input.declaredHybrid.length || idx.execution_metadata?.policy !== 'declared_hybrid_manual')
+      throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    for (const [i, declared] of input.declaredHybrid.entries()) {
+      const actual = mapped[i].terra_swap.hybrid
+      if (declared == null) {
+        if (actual != null) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+        continue
+      }
+      if (!actual || !isLocalQuoteRaw(declared.pool_input, false) || !isLocalQuoteRaw(declared.book_input, false))
+        throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+      let pool = BigInt(declared.pool_input),
+        book = BigInt(declared.book_input)
+      if (idx.execution_metadata?.tax_funding_version === 1) {
+        const hop = idx.execution_metadata.hops[i]
+        if (!hop || !isLocalQuoteRaw(hop.offer_amount) || !isLocalQuoteRaw(hop.economic_offer_amount))
+          throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+        const gross = BigInt(hop.offer_amount),
+          economic = BigInt(hop.economic_offer_amount)
+        if (pool + book === gross) {
+          book = (economic * book) / gross
+          pool = economic - book
+        }
+      }
+      if (
+        BigInt(actual.pool_input) !== pool ||
+        BigInt(actual.book_input) !== book ||
+        actual.max_maker_fills !== declared.max_maker_fills ||
+        actual.book_start_hint != null
+      )
+        throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    }
+  }
   const opsForQuote = mapped
   const { metadata, routePreflight } = validateLocalRouteQuote(idx, opsForQuote, {
     simRaw,
@@ -150,6 +228,7 @@ async function validateRouteSolveQuote(
     return_amount: displayNet,
     minimumReceive: metadata.minimum_receive,
     executionMetadata: metadata,
+    taxFundingVersion: metadata.tax_funding_version,
     executionOperations: JSON.stringify(opsForQuote),
     spread_amount: '0',
     commission_amount: '0',
@@ -196,7 +275,7 @@ function assertLocalOperationSchema(operations: unknown): void {
           (key) => !['pool_input', 'book_input', 'max_maker_fills', 'book_start_hint'].includes(key)
         ) ||
         !isLocalQuoteRaw(h.pool_input, false) ||
-        !isLocalQuoteRaw(h.book_input) ||
+        !isLocalQuoteRaw(h.book_input, false) ||
         !Number.isSafeInteger(h.max_maker_fills) ||
         h.book_start_hint != null
       )
@@ -226,7 +305,10 @@ export async function quoteCw20ExactOutputViaRouteSolve(
   if (!isLocalQuoteRaw(idx.spot_amount_out)) {
     throw new Error('Receive sizing fair price reference is unavailable or invalid. Retry the quote.')
   }
-  if (!Array.isArray(idx.hops) || !idx.hops.length || idx.hops.length > 4)
+  if (
+    !Array.isArray(idx.hops) ||
+    ((!idx.hops.length || idx.hops.length > 4) && idx.execution_metadata?.policy !== 'wrapper_only')
+  )
     throw new Error('Invalid receive route hop count')
   if (
     !Array.isArray(idx.router_operations) ||
@@ -240,6 +322,11 @@ export async function quoteCw20ExactOutputViaRouteSolve(
     })
   )
     throw new Error('Unsupported receive route execution policy')
+  if (idx.execution_metadata?.policy === 'wrapper_only') {
+    const quote = await validateRouteSolveQuote({ ...input, simRaw: idx.required_amount_in, omitAllHybrid: true }, idx)
+    if (!quote || BigInt(quote.return_amount) < BigInt(input.targetRaw)) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+    return { ...quote, offerAmount: idx.required_amount_in }
+  }
   const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
   let token = idx.execution_metadata?.wrapper?.wrap_input
     ? (getWrappedEquivalent(input.fromToken) ?? input.fromToken)

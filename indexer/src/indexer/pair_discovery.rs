@@ -1169,8 +1169,10 @@ mod tests {
         let pool = unused_pool();
         let started = std::time::Instant::now();
         let mut deferred = 0;
+        let mut rejected_pair = None;
         for i in 0..200 {
-            let err = discover_new_pair(&pool, &lcd, FACTORY, &synthetic_address(i))
+            let pair = synthetic_address(i);
+            let err = discover_new_pair(&pool, &lcd, FACTORY, &pair)
                 .await
                 .unwrap_err();
             if matches!(
@@ -1178,8 +1180,14 @@ mod tests {
                 Some(DiscoverPairError::Deferred { .. })
             ) {
                 deferred += 1;
+            } else if matches!(
+                err.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::NotAPair { .. })
+            ) {
+                rejected_pair = Some(pair);
             }
         }
+        let rejected_pair = rejected_pair.expect("flood must produce a proven contract rejection");
         let requests = server.received_requests().await.unwrap();
         let hits = requests
             .iter()
@@ -1236,14 +1244,40 @@ mod tests {
             requests.len() <= (hits + 1) * 3 + 8,
             "bounded refill retries add only bounded identity admission work"
         );
-        // Cached rejects remain cheap after admission exhaustion.
-        let err = discover_new_pair(&pool, &lcd, FACTORY, &synthetic_address(0))
-            .await
-            .unwrap_err();
-        assert!(matches!(
-            err.downcast_ref::<DiscoverPairError>(),
-            Some(DiscoverPairError::RejectedCached { .. })
-        ));
+        // Cached rejects remain cheap after admission exhaustion. Use actual
+        // deterministic rejection evidence: a timed-out first HTTP request must
+        // remain retryable instead of being assumed to have populated the cache.
+        let err = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let err = discover_new_pair(&pool, &lcd, FACTORY, &rejected_pair)
+                    .await
+                    .unwrap_err();
+                // Returning cached evidence still requires chain identity. The
+                // preceding foreign-factory query can consume the last shared
+                // provider token; wait for its bounded refill rather than treating
+                // legitimate capacity pressure as a missing negative cache.
+                if matches!(
+                    err.downcast_ref::<LcdError>(),
+                    Some(LcdError::AdmissionDeferred)
+                ) {
+                    tokio::time::sleep(std::time::Duration::from_millis(125)).await;
+                    continue;
+                }
+                break err;
+            }
+        })
+        .await
+        .expect("shared provider refill restores cached rejection attestation");
+        assert!(
+            matches!(
+                err.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::RejectedCached {
+                    reason: RejectReason::NotAPair,
+                    ..
+                })
+            ),
+            "proven rejection must remain cached: {err}"
+        );
         let requests = server.received_requests().await.unwrap();
         assert_eq!(
             requests

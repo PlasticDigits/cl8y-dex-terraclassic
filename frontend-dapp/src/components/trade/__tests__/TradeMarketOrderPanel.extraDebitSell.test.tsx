@@ -1,3 +1,6 @@
+import { localQuote, localTaxQuote } from '@/test/localRouteFixtures'
+import { getConnectedWallet } from '@/services/terraclassic/wallet'
+import * as indexerClient from '@/services/indexer/client'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -99,7 +102,8 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   computeDirectHybridMinReturn: vi.fn().mockResolvedValue('900000'),
 }))
 
-vi.mock('@/services/terraclassic/transactions', () => ({
+vi.mock('@/services/terraclassic/transactions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/terraclassic/transactions')>()),
   executeCw20AllowanceThen: vi.fn(async (_a, _b, _c, _d, fn: () => Promise<string>) => fn()),
   estimateMarketPairSwapSequenceUlunaFeesTotal: vi.fn().mockReturnValue(1000000n),
 }))
@@ -137,6 +141,19 @@ import * as pair from '@/services/terraclassic/pair'
 
 describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
   beforeEach(() => {
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    vi.mocked(indexerClient.getTokens).mockResolvedValue(
+      selectedPair.asset_infos.map((a) => ({
+        contract_address: 'token' in a ? a.token.contract_addr : null,
+        denom: 'native_token' in a ? a.native_token.denom : null,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, constraints) =>
+      localQuote(from, to, amount, constraints)
+    )
     taxPreviewMock.debitRaw = null
     taxPreviewMock.fundingVersion = undefined
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -152,7 +169,7 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
     vi.useRealTimers()
   })
 
-  it('T9: typing full tax CW20 balance disables Market sell', async () => {
+  it('T9: typing above the authorized tax CW20 balance disables Market sell', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderWithProviders(
       <TradeMarketOrderPanel
@@ -163,14 +180,14 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
         isPaused={false}
       />
     )
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1.05')
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1.06')
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
     expect(screen.getByTestId('trade-market-submit')).toHaveTextContent(/insufficient balance/i)
     expect(pair.swap).not.toHaveBeenCalled()
   })
 
-  it('T10 (#1285 AC3): Honest LCD debit === declared at full balance disables Market sell', async () => {
+  it('T10: a stale LCD preview cannot waive the local wallet balance guard', async () => {
     taxPreviewMock.debitRaw = 1_050_000n
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderWithProviders(
@@ -182,14 +199,14 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
         isPaused={false}
       />
     )
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1.05')
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1.06')
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
     expect(screen.getByTestId('trade-market-submit')).toHaveTextContent(/insufficient balance/i)
     expect(pair.swap).not.toHaveBeenCalled()
   })
 
-  it('T9 Max: extra-debit cap is below full balance', async () => {
+  it('T9 Max: unsupported legacy context conservatively leaves tax room', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderWithProviders(
       <TradeMarketOrderPanel
@@ -200,7 +217,7 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
         isPaused={false}
       />
     )
-    await user.click(screen.getByTestId('limit-order-escrow-max'))
+    await user.click(await screen.findByTestId('limit-order-escrow-max'))
     const amount = screen.getByTestId('limit-order-escrow-amount-input') as HTMLInputElement
     expect(amount.value).toBe('1')
     expect(screen.getByTestId('trade-market-submit')).not.toHaveTextContent(/insufficient balance/i)
@@ -209,6 +226,20 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
 
 describe('Trade gross router input (#1381)', () => {
   it('Max keeps the full balance for a supported router quote', async () => {
+    vi.mocked(indexerClient.getTokens).mockResolvedValue(
+      selectedPair.asset_infos.map((a) => ({
+        contract_address: 'token' in a ? a.token.contract_addr : null,
+        denom: 'native_token' in a ? a.native_token.denom : null,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, constraints) =>
+      localTaxQuote(from, to, amount, constraints)
+    )
+
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     taxPreviewMock.fundingVersion = 1
     taxPreviewMock.debitRaw = null
     useWalletStore.setState({
@@ -226,7 +257,7 @@ describe('Trade gross router input (#1381)', () => {
         isPaused={false}
       />
     )
-    await user.click(screen.getByTestId('limit-order-escrow-max'))
+    await user.click(await screen.findByTestId('limit-order-escrow-max'))
     expect((screen.getByTestId('limit-order-escrow-amount-input') as HTMLInputElement).value).toBe('1.05')
     await waitFor(() =>
       expect(screen.getByTestId('trade-market-submit')).not.toHaveTextContent(/insufficient balance/i)

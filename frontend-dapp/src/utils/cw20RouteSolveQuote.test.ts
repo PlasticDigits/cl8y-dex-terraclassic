@@ -1,11 +1,15 @@
-import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
+import { getRouteSolve, getRouteSolveExactOutput, postRouteSolve } from '@/services/indexer/client'
 import { queryContract } from '@/services/terraclassic/queries'
 import type { IndexerRouteSolveResponse } from '@/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { quoteCw20ExactOutputViaRouteSolve, quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
 import { assertLocalRouteSubmit } from './localRouteQuote'
 
-vi.mock('@/services/indexer/client', () => ({ getRouteSolve: vi.fn(), getRouteSolveExactOutput: vi.fn() }))
+vi.mock('@/services/indexer/client', () => ({
+  getRouteSolve: vi.fn(),
+  getRouteSolveExactOutput: vi.fn(),
+  postRouteSolve: vi.fn(),
+}))
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn(() => {
     throw new Error('RPC forbidden')
@@ -31,6 +35,7 @@ function fixture(): IndexerRouteSolveResponse {
   ]
   const executionHops = hops.map((h, i) => ({
     ...h,
+    declared_hybrid: null,
     offer_amount: i ? '990000' : '1000000',
     return_amount: i ? '980000' : '990000',
     pool_return_amount: i ? '980000' : '990000',
@@ -211,5 +216,35 @@ describe('local executable route #1452', () => {
       expect.objectContaining({ maxSpread: '0.05' })
     )
     expect(queryContract).not.toHaveBeenCalled()
+  })
+})
+
+describe('explicit manual local split #1452', () => {
+  it('uses POST and retains the exact reviewed split without provider queries', async () => {
+    const idx = fixture()
+    const hybrid = { pool_input: '500000', book_input: '500000', max_maker_fills: 8, book_start_hint: null }
+    idx.execution_metadata!.policy = 'declared_hybrid_manual'
+    idx.execution_metadata!.hops[0].declared_hybrid = structuredClone(hybrid)
+    ;(idx.router_operations[0] as import('@/services/terraclassic/router').SwapOperation).terra_swap.hybrid = hybrid
+    vi.mocked(postRouteSolve).mockResolvedValue(idx)
+    const quote = await quoteCw20ViaRouteSolve({ ...input, declaredHybrid: [hybrid, null] })
+    expect(postRouteSolve).toHaveBeenCalledWith(
+      from,
+      to,
+      input.simRaw,
+      [hybrid, null],
+      expect.objectContaining({ maxSpread: '0.05', trader })
+    )
+    expect(quote!.indexerOperations[0].terra_swap.hybrid).toEqual(hybrid)
+    expect(getRouteSolve).not.toHaveBeenCalled()
+    expect(queryContract).not.toHaveBeenCalled()
+    // Server optimization must not replace the caller's explicit budget.
+    await expect(
+      quoteCw20ViaRouteSolve({
+        ...input,
+        declaredHybrid: [{ ...hybrid, book_input: '400000', pool_input: '600000' }, null],
+      })
+    ).rejects.toThrow('Quote unavailable')
+    assertLocalRouteSubmit(quote!.executionMetadata, quote!.indexerOperations, input.simRaw, '0.05', trader, '931000')
   })
 })

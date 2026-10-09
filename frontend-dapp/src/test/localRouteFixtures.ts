@@ -30,6 +30,7 @@ export function localQuote(
     offer_token: from,
     ask_token: to,
     offer_amount: amount,
+    declared_hybrid: null,
     return_amount: output,
     pool_return_amount: output,
     book_return_net: '0',
@@ -70,4 +71,47 @@ export function localQuote(
       hops: [hop],
     },
   }
+}
+/** Exact v1 funded sell, pair credit and output; suitable for wallet Max tests. */
+export function localTaxQuote(
+  from = LOCAL_FROM,
+  to = LOCAL_TO,
+  gross = '1050000',
+  options?: { trader?: string; sender?: string; maxSpread?: string },
+  sellBps = 500,
+  buyBps = 0,
+  postHookOutput = '1000000'
+): IndexerRouteSolveResponse {
+  const budget = BigInt(gross),
+    sellRate = BigInt(sellBps)
+  let lo = 0n,
+    hi = budget
+  while (lo < hi) {
+    const mid = lo + (hi - lo + 1n) / 2n
+    if (mid + (mid * sellRate) / 10000n <= budget) lo = mid
+    else hi = mid - 1n
+  }
+  const sellTax = (lo * sellRate) / 10000n
+  const postHook = BigInt(postHookOutput),
+    buyTax = (postHook * BigInt(buyBps)) / 10000n
+  const q = localQuote(from, to, gross, options, (postHook - buyTax).toString())
+  q.tax_kind = 'route_local_v1'
+  q.tax_funding_version = 1
+  q.router_hops_tax = true
+  q.sell_tax_bps = sellBps
+  q.buy_tax_bps = buyBps
+  q.estimated_amount_out_net = q.estimated_amount_out
+  q.execution_metadata!.tax_funding_version = 1
+  Object.assign(q.execution_metadata!.hops[0], {
+    economic_offer_amount: lo.toString(),
+    sell_tax_amount: sellTax.toString(),
+    sell_residue: (budget - lo - sellTax).toString(),
+    sell_tax_bps: sellBps,
+    buy_tax_bps: buyBps,
+    buy_tax_amount: buyTax.toString(),
+    post_hook_return_amount: postHookOutput,
+    pool_input_actual: lo.toString(),
+    pool_return_amount: postHookOutput,
+  })
+  return q
 }

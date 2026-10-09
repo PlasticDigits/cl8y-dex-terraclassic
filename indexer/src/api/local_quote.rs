@@ -32,11 +32,14 @@ struct Snapshot {
     max_age_ms: u64,
     hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
     config_expiry_ms: i64,
+    config_expiries: HashMap<String, i64>,
     config_epoch: u64,
     references: super::local_reference_quote::ReferencePrices,
     actors: HashMap<String, (u16, bool)>,
     discounted_pairs: HashSet<String>,
     policy_identity: String,
+    taxes: HashMap<String, tax::TokenObservation>,
+    tax_trader: Option<String>,
 }
 #[derive(Default)]
 struct Store {
@@ -134,10 +137,12 @@ fn publish(
     max_age_ms: u64,
     hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
     config_expiry_ms: i64,
+    config_expiries: HashMap<String, i64>,
     references: super::local_reference_quote::ReferencePrices,
     actors: HashMap<String, (u16, bool)>,
     discounted_pairs: HashSet<String>,
     policy_identity: String,
+    taxes: HashMap<String, tax::TokenObservation>,
     expected_config_epoch: Option<u64>,
 ) {
     let mut digest = Sha256::new();
@@ -182,6 +187,22 @@ fn publish(
     let mut discounted = discounted_pairs.iter().collect::<Vec<_>>();
     discounted.sort();
     digest.update(format!("{discounted:?}"));
+    let mut tax_fields = taxes.iter().collect::<Vec<_>>();
+    tax_fields.sort_by_key(|(address, _)| *address);
+    for (address, token) in tax_fields {
+        let mut registered = token.pairs.iter().collect::<Vec<_>>();
+        registered.sort();
+        digest.update(format!(
+            "{address}|{}|{}|{}|{}|{:?}|{registered:?}|{:?}|{}",
+            token.code_id,
+            token.buy_bps,
+            token.sell_bps,
+            token.observed_at_ms,
+            token.max_wallet,
+            token.actors,
+            token.policy_identity
+        ));
+    }
     digest.update(&policy_identity);
     let generation = format!("{:x}", digest.finalize());
     let ids = addresses.iter().map(|(id, a)| (a.clone(), *id)).collect();
@@ -195,11 +216,14 @@ fn publish(
         max_age_ms,
         hooks,
         config_expiry_ms,
+        config_expiries,
         config_epoch: expected_config_epoch.unwrap_or(0),
         references,
         actors,
         discounted_pairs,
         policy_identity,
+        taxes,
+        tax_trader: None,
     };
     let mut g = store().lock().unwrap();
     // A reserve pass may finish after admission publishes a new policy epoch.
@@ -238,12 +262,46 @@ pub fn initialize_for_test(
         max_staleness_ms,
         HashMap::new(),
         now_ms() + CONFIG_TTL_MS,
+        HashMap::new(),
         super::local_reference_quote::ReferencePrices::synthetic(addresses.keys().copied()),
         HashMap::new(),
         HashSet::new(),
         "synthetic".into(),
+        HashMap::new(),
         None,
     );
+}
+
+/// Synthetic fixture policy only; explicit setup never models production attestation.
+#[doc(hidden)]
+pub fn initialize_fixture_contexts(
+    namespace: &str,
+    actors: HashMap<String, (u16, bool)>,
+    discounted_pairs: HashSet<String>,
+) {
+    let mut registry = store().lock().unwrap();
+    let mut snapshot = (**registry
+        .snapshots
+        .get(namespace)
+        .expect("initialized fixture"))
+    .clone();
+    assert_eq!(snapshot.policy_identity, "synthetic");
+    assert!(actors.values().all(|(bps, _)| *bps <= 10_000));
+    snapshot.actors = actors;
+    snapshot.discounted_pairs = discounted_pairs;
+    let mut actor_fields = snapshot.actors.iter().collect::<Vec<_>>();
+    actor_fields.sort_by_key(|(a, _)| *a);
+    let mut discounted = snapshot.discounted_pairs.iter().collect::<Vec<_>>();
+    discounted.sort();
+    let mut hash = Sha256::new();
+    hash.update(format!(
+        "{}|{actor_fields:?}|{discounted:?}",
+        snapshot.generation
+    ));
+    snapshot.generation = format!("{:x}", hash.finalize());
+    registry
+        .snapshots
+        .insert(namespace.to_owned(), Arc::new(snapshot));
 }
 
 #[derive(Clone)]
@@ -272,8 +330,29 @@ fn score_with_book(
     book_input: u128,
     maker_fills: u32,
 ) -> Option<Candidate> {
+    score_with_plan(s, path, input, spread, book_input, maker_fills, None)
+}
+fn score_with_plan(
+    s: &Snapshot,
+    path: &[route_paths::PathHop],
+    input: u128,
+    spread: u128,
+    book_input: u128,
+    maker_fills: u32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Option<Candidate> {
+    if plan.is_some_and(|p| p.len() != path.len()) {
+        return None;
+    }
     if path.is_empty() || input == 0 {
         return None;
+    }
+    let mut visited = HashSet::new();
+    for id in std::iter::once(path[0].1).chain(path.iter().map(|hop| hop.2)) {
+        let asset = s.addresses.get(&id)?;
+        if s.taxes.contains_key(asset) && !visited.insert(asset) {
+            return None;
+        }
     }
     let mut output = input;
     let mut hops = Vec::new();
@@ -281,6 +360,14 @@ fn score_with_book(
     let mut oldest = now_ms();
     let mut block = None;
     for (hop_index, (pair, offer_id, ask_id)) in path.iter().enumerate() {
+        if s.config_expiries
+            .get(pair)
+            .copied()
+            .unwrap_or(s.config_expiry_ms)
+            <= now_ms()
+        {
+            return None;
+        }
         let mirror = s.mirrors.get(pair)?;
         if sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
             || !matches!(
@@ -303,18 +390,59 @@ fn score_with_book(
         if mirror.fee_bps > 10_000 {
             return None;
         }
-        let book_input = if hop_index == 0 { book_input } else { 0 };
+        let offer_tax = s.taxes.get(offer_token);
+        let ask_tax = s.taxes.get(ask_token);
+        let sell_bps = offer_tax.map_or(Some(0), |tax| {
+            tax.rates(s.tax_trader.as_deref(), pair)
+                .map(|rates| rates.0)
+        })?;
+        let buy_bps = ask_tax.map_or(Some(0), |tax| {
+            tax.rates(s.tax_trader.as_deref(), pair)
+                .map(|rates| rates.1)
+        })?;
+        let (economic_input, sell_tax, sell_residue) = tax::sell(output, sell_bps)?;
+        let (book_input, maker_fills) = if let Some(plan) = plan {
+            // Router accepts either exact economic budgets or the authorized gross
+            // ratio; rescale the latter identically to funded_hybrid.
+            modes::declared_split(plan[hop_index].as_ref(), economic_input).or_else(|| {
+                modes::declared_split(plan[hop_index].as_ref(), output).and_then(|(book, fills)| {
+                    Some((wide_floor(economic_input, book, output)?, fills))
+                })
+            })?
+        } else {
+            (
+                if hop_index == 0 {
+                    wide_floor(economic_input, book_input, output)?
+                } else {
+                    0
+                },
+                maker_fills,
+            )
+        };
         let leg =
-            sim::quote_local_leg(mirror, offer_token, output, book_input, maker_fills).ok()?;
+            sim::quote_local_leg(mirror, offer_token, economic_input, book_input, maker_fills)
+                .ok()?;
         let pool_net = leg.pool_return_amount;
         let commission = leg.commission_amount;
-        let net = s.hooks.get(pair).map_or(Some(leg.return_amount), |hooks| {
+        let post_hook = s.hooks.get(pair).map_or(Some(leg.return_amount), |hooks| {
             hooks.net_return(ask_token, leg.return_amount).ok()
         })?;
+        let (net, buy_tax) = tax::buy(post_hook, buy_bps)?;
+        // Bought intermediate proceeds stay in the authenticated router; only
+        // purchased rounding residue and final delivery credit the payer wallet.
+        if (hop_index + 1 == path.len()
+            && ask_tax.is_some_and(|tax| !tax.permits_credit(s.tax_trader.as_deref(), net)))
+            || (hop_index > 0
+                && sell_residue > 0
+                && offer_tax
+                    .is_some_and(|tax| !tax.permits_credit(s.tax_trader.as_deref(), sell_residue)))
+        {
+            return None;
+        }
         let gross = pool_net.checked_add(commission)?;
         let market_spread = leg.spread_amount;
         let denominator = gross.checked_add(leg.book_return_net)?;
-        let consumed = output.checked_sub(leg.pool_input_actual)?;
+        let consumed = economic_input.checked_sub(leg.pool_input_actual)?;
         let book_shortfall = if leg.pool_input_actual > 0 && consumed > 0 {
             wide_floor(pool_net, consumed, leg.pool_input_actual)?
                 .saturating_sub(leg.book_return_net)
@@ -328,7 +456,7 @@ fn score_with_book(
         {
             return None;
         }
-        if book_input > 0 && output > book_input && pool_net == 0 {
+        if book_input > 0 && economic_input > book_input && pool_net == 0 {
             return None;
         }
         let floor = wide_floor(net, SCALE - spread, SCALE)?.max(1);
@@ -340,8 +468,9 @@ fn score_with_book(
         {
             return None;
         }
-        hops.push(json!({"pair":pair,"offer_token":offer_token,"ask_token":ask_token,"offer_amount":output.to_string(),"return_amount":net.to_string(),"pool_return_amount":pool_net.to_string(),"book_return_net":leg.book_return_net.to_string(),"pool_input_actual":leg.pool_input_actual.to_string(),"book_offer_consumed":consumed.to_string(),"book_input_actual":consumed.to_string(),"spread_amount":market_spread.to_string(),"commission_amount":commission.to_string(),"min_return":floor.to_string()}));
-        operations.push(json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":offer_token}},"ask_asset_info":{"token":{"contract_addr":ask_token}},"hybrid":if book_input==0{Value::Null}else{json!({"pool_input":(output-book_input).to_string(),"book_input":book_input.to_string(),"max_maker_fills":maker_fills,"book_start_hint":null})},"min_return":floor.to_string()}}));
+        hops.push(json!({"pair":pair,"offer_token":offer_token,"ask_token":ask_token,"offer_amount":output.to_string(),"economic_offer_amount":economic_input.to_string(),"sell_tax_amount":sell_tax.to_string(),"sell_residue":sell_residue.to_string(),"sell_tax_bps":sell_bps,"buy_tax_bps":buy_bps,"buy_tax_amount":buy_tax.to_string(),"post_hook_return_amount":post_hook.to_string(),"return_amount":net.to_string(),"pool_return_amount":pool_net.to_string(),"book_return_net":leg.book_return_net.to_string(),"pool_input_actual":leg.pool_input_actual.to_string(),"book_offer_consumed":consumed.to_string(),"book_input_actual":consumed.to_string(),"spread_amount":market_spread.to_string(),"commission_amount":commission.to_string(),"min_return":floor.to_string()}));
+        operations.push(json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":offer_token}},"ask_asset_info":{"token":{"contract_addr":ask_token}},"hybrid":if book_input==0 && plan.is_none_or(|plan| plan[hop_index].is_none()){Value::Null}else{json!({"pool_input":(economic_input-book_input).to_string(),"book_input":book_input.to_string(),"max_maker_fills":maker_fills,"book_start_hint":null})},"min_return":floor.to_string()}}));
+        hops.last_mut()?["declared_hybrid"] = operations.last()?["terra_swap"]["hybrid"].clone();
         output = net;
         oldest = oldest.min(mirror.snapshot_at.timestamp_millis());
         if let Some(height) = mirror.block_height {
@@ -397,48 +526,87 @@ fn select(
         .reduce(|a, b| if better(&b, &a) { b } else { a })
 }
 
+fn inverse_pool_offer(rin: u128, rout: u128, fee_bps: u16, wanted: u128) -> Option<u128> {
+    if fee_bps >= 10_000 || wanted >= rout {
+        return None;
+    }
+    let (mut lo, mut hi) = (wanted, rout.checked_sub(1)?);
+    if hi - super::orderbook_sim::swap_fee_amount(hi, fee_bps) < wanted {
+        return None;
+    }
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if mid - super::orderbook_sim::swap_fee_amount(mid, fee_bps) >= wanted {
+            hi = mid;
+        } else {
+            lo = mid + 1;
+        }
+    }
+    let numerator = BigInt::from(rin) * BigInt::from(lo);
+    let denominator = BigInt::from(rout.checked_sub(lo)?);
+    ((numerator + &denominator - BigInt::from(1u8)) / denominator)
+        .to_string()
+        .parse()
+        .ok()
+}
 fn inverse_pool_path(s: &Snapshot, path: &[route_paths::PathHop], target: u128) -> Option<u128> {
     let mut wanted = target;
     for (pair, offer, ask) in path.iter().rev() {
-        // Unsupported hook-aware inverse is explicit; never target gross under a net label.
-        if s.hooks
-            .get(pair)
-            .is_some_and(|h| h.has_deductions(&s.addresses[ask]))
-        {
-            return None;
-        }
+        let offer_token = s.addresses.get(offer)?;
+        let ask_token = s.addresses.get(ask)?;
+        let sell_bps = s.taxes.get(offer_token).map_or(Some(0), |tax| {
+            tax.rates(s.tax_trader.as_deref(), pair)
+                .map(|rates| rates.0)
+        })?;
+        let buy_bps = s.taxes.get(ask_token).map_or(Some(0), |tax| {
+            tax.rates(s.tax_trader.as_deref(), pair)
+                .map(|rates| rates.1)
+        })?;
+        let post_hook_target = tax::inverse_buy(wanted, buy_bps)?;
+        let hooks = s.hooks.get(pair);
         let m = s.mirrors.get(pair)?;
-        let (rin, rout) = if s.addresses[offer] == m.asset_0_addr {
+        let (rin, rout) = if offer_token == &m.asset_0_addr {
             (m.reserve_0, m.reserve_1)
-        } else {
+        } else if offer_token == &m.asset_1_addr {
             (m.reserve_1, m.reserve_0)
+        } else {
+            return None;
         };
-        if m.fee_bps >= 10_000 || wanted >= rout {
-            return None;
-        }
-        // Find the smallest gross amount whose integer fee leaves the requested net.
-        let mut lo = wanted;
-        let mut hi = rout.checked_sub(1)?;
-        if hi - super::orderbook_sim::swap_fee_amount(hi, m.fee_bps) < wanted {
-            return None;
-        }
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
-            if mid - super::orderbook_sim::swap_fee_amount(mid, m.fee_bps) >= wanted {
-                hi = mid;
-            } else {
-                lo = mid + 1;
+        let mut lower = 0;
+        let mut funded = None;
+        // AMM integer output can jump over the first hook-qualified residue.
+        // Refine only beyond a failed reachable output: no smaller offer could
+        // reach the next threshold. This preserves successful minimality without
+        // assuming that several independent hook floors are monotone.
+        for _ in 0..64 {
+            let original_target = hooks.map_or(Some(post_hook_target.max(lower)), |h| {
+                if lower == 0 {
+                    h.inverse_return(ask_token, post_hook_target).ok()
+                } else {
+                    h.inverse_return_from(ask_token, post_hook_target, lower)
+                        .ok()
+                }
+            })?;
+            let economic = inverse_pool_offer(rin, rout, m.fee_bps, original_target)?;
+            let original = sim::quote_local_leg(m, offer_token, economic, 0, 8)
+                .ok()?
+                .return_amount;
+            let delivered =
+                hooks.map_or(Some(original), |h| h.net_return(ask_token, original).ok())?;
+            if delivered >= post_hook_target {
+                funded = Some(
+                    economic
+                        .checked_add(super::community_tax_rank::tax_amount(economic, sell_bps))?,
+                );
+                break;
             }
+            lower = original.checked_add(1)?;
         }
-        let numerator = BigInt::from(rin) * BigInt::from(lo);
-        let denominator = BigInt::from(rout.checked_sub(lo)?);
-        wanted = ((numerator + &denominator - BigInt::from(1u8)) / denominator)
-            .to_string()
-            .parse()
-            .ok()?;
+        wanted = funded?;
     }
     Some(wanted)
 }
+
 fn select_inverse(
     s: &Snapshot,
     paths: &[Vec<route_paths::PathHop>],
@@ -484,6 +652,13 @@ fn response(
             json!(floor.to_string());
     }
     let c = &candidate;
+    let route_tax = c.path.iter().any(|(_, offer, ask)| {
+        [offer, ask]
+            .iter()
+            .any(|id| s.taxes.contains_key(&s.addresses[id]))
+    });
+    let sell_bps = c.hops[0]["sell_tax_bps"].as_u64().unwrap_or(0);
+    let buy_bps = c.hops.last().unwrap()["buy_tax_bps"].as_u64().unwrap_or(0);
     let mut tokens = vec![q.token_in.clone()];
     let route_hops: Vec<_> = c
         .path
@@ -502,14 +677,30 @@ fn response(
         .oldest
         .saturating_add(s.max_age_ms as i64)
         .min(s.config_expiry_ms);
+    for (pair, offer, ask) in &c.path {
+        expires = expires.min(
+            s.config_expiries
+                .get(pair)
+                .copied()
+                .unwrap_or(s.config_expiry_ms),
+        );
+        for id in [offer, ask] {
+            if let Some(tax) = s.taxes.get(&s.addresses[id]) {
+                expires = expires.min(tax.observed_at_ms.saturating_add(CONFIG_TTL_MS));
+            }
+        }
+    }
     for id in [c.path[0].1, c.path.last().unwrap().2] {
         if let Some(price) = s.references.prices.get(&id) {
             expires = expires.min(price.as_of.timestamp_millis() + 20_000);
         }
     }
-    if !c.operations[0]["terra_swap"]["hybrid"].is_null() {
-        let mirror = &s.mirrors[&c.path[0].0];
-        let book = if s.addresses[&c.path[0].1] == mirror.asset_0_addr {
+    for (index, operation) in c.operations.iter().enumerate() {
+        if operation["terra_swap"]["hybrid"].is_null() {
+            continue;
+        }
+        let mirror = &s.mirrors[&c.path[index].0];
+        let book = if s.addresses[&c.path[index].1] == mirror.asset_0_addr {
             &mirror.bids
         } else {
             &mirror.asks
@@ -532,12 +723,12 @@ fn response(
         ))
     };
     json!({"token_in":q.token_in,"token_out":q.token_out,"hops":route_hops,"intermediate_tokens":tokens,
-        "quote_kind":if c.operations[0]["terra_swap"]["hybrid"].is_null(){"indexer_pool_db"}else{"indexer_hybrid_db"},"router_operations":c.operations,"estimated_amount_out":c.output.to_string(),"estimated_amount_out_net":c.output.to_string(),
-        "tax_kind":"none","buy_tax_bps":0,"sell_tax_bps":0,"router_hops_tax":false,"solver_version":"local_v1","paths_considered":count,
+        "quote_kind":if c.operations.iter().all(|op|op["terra_swap"]["hybrid"].is_null()){"indexer_pool_db"}else{"indexer_hybrid_db"},"router_operations":c.operations,"estimated_amount_out":c.output.to_string(),"estimated_amount_out_net":c.output.to_string(),
+        "tax_kind":if route_tax {"route_local_v1"} else {"none"},"buy_tax_bps":buy_bps,"sell_tax_bps":sell_bps,"router_hops_tax":route_tax,"tax_funding_version":if route_tax {json!(1)} else {Value::Null},"solver_version":"local_v1","paths_considered":count,
         "optimality_scope":"Best net output among bounded eligible local pool paths","lcd_hybrid_queries":0,"db_hybrid_queries":0,"fidelity_check":"skipped",
         "snapshot_age_ms":now_ms().saturating_sub(c.oldest),"snapshot_block_height":c.block,"spot_amount_out":c.spot.to_string(),"slippage_percent":impact,
         "required_amount_in":q.amount_out.as_ref().map(|_|input.to_string()),"target_amount_out":q.amount_out,"sizing_mode":q.amount_out.as_ref().map(|_|"local_pool_exact_output"),
-        "execution_metadata":{"version":1,"generation":s.generation,"input_amount":input.to_string(),"max_spread":spread_text,"trader":q.trader,"sender":q.sender,
+        "execution_metadata":{"version":1,"tax_funding_version":if route_tax {json!(1)} else {Value::Null},"generation":s.generation,"input_amount":input.to_string(),"max_spread":spread_text,"trader":q.trader,"sender":q.sender,
             "observed_at_ms":c.oldest,"expires_at_ms":expires,"policy":if c.operations[0]["terra_swap"]["hybrid"].is_null(){"pool_only"}else{"declared_hybrid_hop0"},"hops":c.hops,"minimum_receive":floor}})
 }
 
@@ -707,6 +898,14 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
     // Structural caching locks Store independently. Never enumerate while holding
     // the registry guard; otherwise one topology request deadlocks every quote.
     drop(g);
+    let mut s = (*s).clone();
+    s.pairs.retain(|pair| {
+        s.config_expiries
+            .get(&pair.contract_address)
+            .copied()
+            .unwrap_or(s.config_expiry_ms)
+            > now_ms()
+    });
     let path = paths(&s, start, goal, 4)
         .into_iter()
         .next()
@@ -725,6 +924,26 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
 async fn solve_local(
     namespace: &str,
     request: &route_solver::SolveRouteParams,
+) -> Result<Json<Value>, Error> {
+    solve_local_with_plan(namespace, request, None).await
+}
+pub async fn solve_post(
+    state: &AppState,
+    request: &route_solver::SolveRouteParams,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Result<Json<Value>, Error> {
+    if request.amount_in.is_none() || request.amount_out.is_some() {
+        return Err(invalid("POST requires amount_in; receive sizing uses GET"));
+    }
+    if plan.is_some_and(|p| p.is_empty() || p.len() > 4) {
+        return Err(invalid("hybrid_by_hop must declare one to four hops"));
+    }
+    solve_local_with_plan(&state.lcd.chain_cache_namespace(), request, plan).await
+}
+async fn solve_local_with_plan(
+    namespace: &str,
+    request: &route_solver::SolveRouteParams,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
 ) -> Result<Json<Value>, Error> {
     if actor_capacity_unavailable(&store().lock().unwrap(), namespace) {
         return Err(unavailable());
@@ -815,6 +1034,7 @@ async fn solve_local(
         }
     }
     let subject = request.trader.as_deref().or(request.sender.as_deref());
+    derived.tax_trader = subject.map(str::to_owned);
     let discount =
         if request.trader.is_some() && request.sender.is_some() && request.trader != request.sender
         {
@@ -839,6 +1059,15 @@ async fn solve_local(
     if snapshot.config_expiry_ms <= now_ms() {
         return Err(unavailable());
     }
+    if q.token_in == q.token_out {
+        if plan.is_some_and(|p| !p.is_empty()) {
+            return Err(invalid("Direct wrapper quotes have no pair split"));
+        }
+        let native = native.as_ref().ok_or_else(eligible_error)?;
+        return modes::wrapper_only(&snapshot, q, native, spread)
+            .map(Json)
+            .ok_or_else(eligible_error);
+    }
     let start = *snapshot
         .ids
         .get(q.token_in.trim())
@@ -847,7 +1076,13 @@ async fn solve_local(
         .ids
         .get(q.token_out.trim())
         .ok_or_else(|| invalid("token_out has no eligible cached identity"))?;
-    let ck = key(namespace, &snapshot, request, spread);
+    let mut ck = key(namespace, &snapshot, request, spread);
+    if let Some(plan) = plan {
+        ck.push_str(&format!(
+            "|manual:{}",
+            serde_json::to_string(plan).map_err(|_| invalid("Invalid declared split"))?
+        ));
+    }
     {
         let mut g = store().lock().unwrap();
         if actor_capacity_unavailable(&g, namespace) {
@@ -877,23 +1112,25 @@ async fn solve_local(
     let book_allowed =
         q.pool_only != Some(true) && q.hybrid_optimize != Some(false) && q.amount_out.is_none();
     let maker_fills = crate::hybrid_limits::clamp_max_maker_fills(q.max_maker_fills.unwrap_or(8));
+    let select_amount = |paths: &[Vec<route_paths::PathHop>], amount| {
+        if let Some(plan) = plan {
+            paths
+                .iter()
+                .filter_map(|p| {
+                    score_with_plan(&snapshot, p, amount, spread, 0, maker_fills, Some(plan))
+                })
+                .reduce(|a, b| if better(&b, &a) { b } else { a })
+        } else {
+            select(&snapshot, paths, amount, spread, book_allowed, maker_fills)
+        }
+    };
     let mut initial = paths(&snapshot, start, goal, 2);
     // An eligible longer baseline is prepared locally when endpoints have no short corridor.
     if initial.is_empty()
         || q.amount_in
             .as_ref()
             .and_then(|a| a.parse().ok())
-            .is_some_and(|amount| {
-                select(
-                    &snapshot,
-                    &initial,
-                    amount,
-                    spread,
-                    book_allowed,
-                    maker_fills,
-                )
-                .is_none()
-            })
+            .is_some_and(|amount| select_amount(&initial, amount).is_none())
     {
         initial = paths(&snapshot, start, goal, 4);
     }
@@ -906,15 +1143,7 @@ async fn solve_local(
             .ok_or_else(|| invalid("amount_in must be a positive Uint128"))?;
         (
             amount,
-            select(
-                &snapshot,
-                &initial,
-                amount,
-                spread,
-                book_allowed,
-                maker_fills,
-            )
-            .ok_or_else(eligible_error)?,
+            select_amount(&initial, amount).ok_or_else(eligible_error)?,
         )
     } else {
         let target = q
@@ -939,7 +1168,7 @@ async fn solve_local(
         }
         best.ok_or_else(eligible_error)?
     };
-    let body = final_response(
+    let mut body = final_response(
         &snapshot,
         q,
         &candidate,
@@ -949,6 +1178,12 @@ async fn solve_local(
         native.as_ref(),
     )
     .ok_or_else(eligible_error)?;
+    if plan.is_some() {
+        body["execution_metadata"]["policy"] = json!("declared_hybrid_manual");
+        body["optimality_scope"] = json!(
+            "Best net output among bounded eligible paths matching the exact declared splits"
+        );
+    }
     {
         let mut g = store().lock().unwrap();
         if actor_capacity_unavailable(&g, namespace) {
@@ -958,7 +1193,11 @@ async fn solve_local(
             g.results.clear();
         }
         g.results.insert(ck.clone(), body.clone());
-        if q.amount_in.is_some() && g.jobs.len() < MAX_JOBS && g.jobs.insert(ck.clone()) {
+        if plan.is_none()
+            && q.amount_in.is_some()
+            && g.jobs.len() < MAX_JOBS
+            && g.jobs.insert(ck.clone())
+        {
             g.started += 1;
             let q = q.clone();
             let s = snapshot.clone();
@@ -994,6 +1233,18 @@ pub fn progress(
     state: &AppState,
     q: &route_solver::SolveRouteParams,
 ) -> Result<super::route_solve_progress::SolveProgress, Error> {
+    if q.amount_in.is_some() == q.amount_out.is_some()
+        || q.amount_in
+            .as_deref()
+            .or(q.amount_out.as_deref())
+            .and_then(|a| a.parse::<u128>().ok())
+            .is_none_or(|a| a == 0)
+    {
+        return Err(invalid(
+            "Progress requires exactly one positive amount_in or amount_out",
+        ));
+    }
+    route_solver::parse_quote_trader(q.trader.clone(), q.sender.clone())?;
     progress_local(&state.lcd.chain_cache_namespace(), q)
 }
 fn progress_local(
@@ -1038,11 +1289,14 @@ fn progress_local(
     })
 }
 
+mod actor_inventory;
+mod admission;
 mod ingestion;
+mod modes;
 mod skeletons;
-pub use ingestion::{
-    cache_counters, ingest_once, refresh_reserves, refresh_wrapper, start_ingestion,
-};
+mod tax;
+pub use admission::{ingest_fixture, ingest_once};
+pub use ingestion::{cache_counters, refresh_reserves, refresh_wrapper, start_ingestion};
 
 #[cfg(test)]
 mod tests {
@@ -1107,15 +1361,18 @@ mod tests {
             max_age_ms: 20_000,
             hooks: HashMap::new(),
             config_expiry_ms: now_ms() + 180_000,
+            config_expiries: HashMap::new(),
             references: super::super::local_reference_quote::ReferencePrices::synthetic(
                 addresses.keys().copied(),
             ),
             actors: HashMap::new(),
             discounted_pairs: HashSet::new(),
             policy_identity: "synthetic".into(),
+            taxes: HashMap::new(),
+            tax_trader: None,
         }
     }
-    fn request(amount: u128) -> route_solver::SolveRouteParams {
+    pub(super) fn request(amount: u128) -> route_solver::SolveRouteParams {
         route_solver::SolveRouteParams {
             max_spread: Some("0.05".into()),
             token_in: "in18".into(),
@@ -1471,7 +1728,7 @@ mod tests {
         assert!(score_with_book(&filled, &path, input, SCALE / 20, input, 8).is_none());
     }
     #[test]
-    fn cached_hooks_deduct_before_positive_floors_and_inverse_fails_explicitly() {
+    fn cached_hooks_deduct_before_positive_floors_and_inverse_targets_delivered_net() {
         let mut s = fixture();
         let p = paths(&s, 1, 2, 2).pop().unwrap();
         let amount = 10u128.pow(18);
@@ -1498,7 +1755,9 @@ mod tests {
                 .unwrap()
                 > 0
         );
-        assert!(inverse_pool_path(&s, &p, 100).is_none());
+        let required = inverse_pool_path(&s, &p, 100).unwrap();
+        assert!(score(&s, &p, required, SCALE / 20).unwrap().output >= 100);
+        assert!(score(&s, &p, required - 1, SCALE / 20).is_none_or(|c| c.output < 100));
     }
     #[tokio::test]
     async fn fixed_snapshot_refresh_reuses_exact_amount_cache_without_reenrichment() {
@@ -1547,10 +1806,12 @@ mod tests {
                 s.max_age_ms,
                 s.hooks,
                 s.config_expiry_ms,
+                s.config_expiries.clone(),
                 s.references,
                 s.actors,
                 s.discounted_pairs,
                 s.policy_identity,
+                s.taxes,
                 expected,
             );
         };
@@ -1623,5 +1884,270 @@ mod tests {
         for bad in ["NaN", "1", "0.51", "-0.1", "0.0000000000000000001", "0.1e0"] {
             assert!(spread_atomics(Some(bad)).is_err());
         }
+    }
+    #[tokio::test]
+    async fn manual_split_post_prices_exact_controls_and_binds_cache_identity() {
+        let mut s = fixture();
+        let mut direct = s
+            .pairs
+            .iter()
+            .find(|p| p.contract_address == "pair7a")
+            .unwrap()
+            .clone();
+        direct.contract_address = "manual-direct".into();
+        direct.asset_1_id = 2;
+        let mut mirror = s.mirrors["pair7a"].clone();
+        mirror.asset_1_addr = "out18".into();
+        mirror.reserve_1 *= 10u128.pow(12);
+        s.mirrors.insert(direct.contract_address.clone(), mirror);
+        s.pairs.push(direct);
+        let path = paths(&s, 1, 2, 1).pop().unwrap();
+        let amount = 1_000_000_000_000_000_000u128;
+        initialize_for_test(
+            "manual1452".into(),
+            s.pairs.clone(),
+            s.addresses.clone(),
+            s.mirrors.clone(),
+            20_000,
+        );
+        let mut q = request(amount);
+        q.pool_only = Some(true);
+        let declared = route_solver::HybridHopJson {
+            pool_input: (amount / 2).to_string(),
+            book_input: (amount / 2).to_string(),
+            max_maker_fills: 17,
+            book_start_hint: None,
+        };
+        let body = solve_local_with_plan("manual1452", &q, Some(&[Some(declared.clone())]))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(
+            body["execution_metadata"]["policy"],
+            "declared_hybrid_manual"
+        );
+        assert_eq!(body["hops"][0]["pair"], path[0].0);
+        assert_eq!(
+            body["router_operations"][0]["terra_swap"]["hybrid"]["book_input"],
+            declared.book_input
+        );
+        assert_eq!(
+            body["router_operations"][0]["terra_swap"]["hybrid"]["max_maker_fills"],
+            17
+        );
+        // An empty book returns its unspent allocation to the pool exactly.
+        assert_eq!(
+            body["execution_metadata"]["hops"][0]["pool_input_actual"],
+            amount.to_string()
+        );
+        let mut other = declared.clone();
+        other.max_maker_fills = 18;
+        let changed = solve_local_with_plan("manual1452", &q, Some(&[Some(other)]))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(
+            changed["router_operations"][0]["terra_swap"]["hybrid"]["max_maker_fills"],
+            18
+        );
+        let mut invalid = declared;
+        invalid.pool_input = "1".into();
+        assert!(
+            solve_local_with_plan("manual1452", &q, Some(&[Some(invalid)]))
+                .await
+                .is_err()
+        );
+        assert!(
+            solve_local_with_plan("manual1452", &q, Some(&[None, None, None, None]))
+                .await
+                .is_err()
+        );
+        assert!(!store()
+            .lock()
+            .unwrap()
+            .jobs
+            .iter()
+            .any(|key| key.starts_with("manual1452")));
+    }
+    #[test]
+    fn manual_later_hop_split_matches_exact_previous_delivered_amount() {
+        let s = fixture();
+        let path = paths(&s, 1, 2, 2)
+            .into_iter()
+            .find(|p| p.len() == 2 && p[0].0 == "pair7a")
+            .unwrap();
+        let amount = 1_000_000_000_000_000_000u128;
+        let first = score(&s, &path, amount, SCALE / 20).unwrap();
+        let next = first.hops[0]["return_amount"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap();
+        let plan = [
+            None,
+            Some(route_solver::HybridHopJson {
+                pool_input: (next / 2).to_string(),
+                book_input: (next - next / 2).to_string(),
+                max_maker_fills: 9,
+                book_start_hint: None,
+            }),
+        ];
+        let c = score_with_plan(&s, &path, amount, SCALE / 20, 0, 8, Some(&plan)).unwrap();
+        assert!(c.operations[0]["terra_swap"]["hybrid"].is_null());
+        assert_eq!(
+            c.operations[1]["terra_swap"]["hybrid"]["max_maker_fills"],
+            9
+        );
+        assert_eq!(c.output, first.output);
+        assert!(score_with_plan(
+            &s,
+            &path,
+            amount + 1_000_000_000_000_000,
+            SCALE / 20,
+            0,
+            8,
+            Some(&plan)
+        )
+        .is_none());
+    }
+    #[tokio::test]
+    async fn zero_hop_wrapper_sizing_is_local_positive_and_explicitly_cannot_sign() {
+        use super::super::local_wrapper_quote::{NativeMapping, WrapperSnapshot};
+        let namespace = "zero-wrapper1452";
+        let s = fixture();
+        initialize_for_test(namespace.into(), s.pairs, s.addresses, s.mirrors, 20_000);
+        publish_wrapper(
+            namespace.into(),
+            WrapperSnapshot {
+                mapper: "mapper".into(),
+                treasury: "treasury".into(),
+                observed_at_ms: now_ms(),
+                mappings: HashMap::from([(
+                    "uluna".into(),
+                    NativeMapping {
+                        cw20: "in18".into(),
+                        maximum: None,
+                        used: 0,
+                        tax_cap: Some(100),
+                    },
+                )]),
+                fee_wrap_bps: 200,
+                fee_unwrap_bps: 50,
+                tax_atomics: Some(SCALE / 100),
+                router_unwrap_supported: true,
+            },
+        );
+        for (input, output) in [("uluna", "in18"), ("in18", "uluna")] {
+            let mut q = request(10_000);
+            q.token_in = input.into();
+            q.token_out = output.into();
+            let body = solve_local(namespace, &q).await.unwrap().0;
+            assert_eq!(body["hops"], json!([]));
+            assert_eq!(body["router_operations"], json!([]));
+            assert_eq!(body["execution_metadata"]["execution_supported"], false);
+            assert!(
+                body["execution_metadata"]["minimum_receive"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<u128>()
+                    .unwrap()
+                    > 0
+            );
+            q.amount_in = None;
+            q.amount_out = Some("9800".into());
+            q.pool_only = Some(true);
+            let inverse = solve_local(namespace, &q).await.unwrap().0;
+            assert!(
+                inverse["estimated_amount_out"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<u128>()
+                    .unwrap()
+                    >= 9800
+            );
+            assert_eq!(inverse["execution_metadata"]["execution_supported"], false);
+        }
+    }
+
+    #[test]
+    fn inverse_refines_when_mixed_decimal_pool_jumps_over_hook_qualified_residue() {
+        let mut s = fixture();
+        let m = s.mirrors.get_mut("pair7a").unwrap();
+        m.asset_1_addr = "out18".into();
+        m.reserve_0 = 1000;
+        m.reserve_1 = 5000;
+        m.fee_bps = 0;
+        s.hooks.insert(
+            "pair7a".into(),
+            super::super::local_hook_pricing::CachedHookPrices::from_observation(&[
+                (
+                    "tax".into(),
+                    json!({"recipient":"r","tax_token":"out18","tax_percentage_bps":2500}),
+                ),
+                (
+                    "burn".into(),
+                    json!({"burn_token":"out18","burn_percentage_bps":2500}),
+                ),
+            ])
+            .unwrap(),
+        );
+        let path = vec![("pair7a".into(), 1, 2)];
+        // First hook-qualified original3 is skipped by the pool: offer1 returns4,
+        // whose two coincident floors deliver2. Next reachable offer2 returns9.
+        assert_eq!(score(&s, &path, 1, SCALE / 2).unwrap().output, 2);
+        let (required, candidate) = select_inverse(&s, &[path.clone()], 3, SCALE / 2).unwrap();
+        assert_eq!(required, 2);
+        assert_eq!(candidate.output, 5);
+        assert!(score(&s, &path, required - 1, SCALE / 2).unwrap().output < 3);
+    }
+
+    #[test]
+    fn composed_hook_inverse_rejects_insufficient_candidate_and_preserves_healthy_alternate() {
+        let mut s = fixture();
+        {
+            let m = s.mirrors.get_mut("pair7a").unwrap();
+            m.reserve_0 = 1000;
+            m.reserve_1 = 6000;
+            m.fee_bps = 0;
+        }
+        {
+            let m = s.mirrors.get_mut("pair7b").unwrap();
+            m.reserve_0 = 1000;
+            m.reserve_1 = 1002;
+            m.fee_bps = 0;
+        }
+        s.hooks.insert(
+            "pair7b".into(),
+            super::super::local_hook_pricing::CachedHookPrices::from_observation(&[
+                (
+                    "tax".into(),
+                    json!({"recipient":"r","tax_token":"out18","tax_percentage_bps":2500}),
+                ),
+                (
+                    "burn".into(),
+                    json!({"burn_token":"out18","burn_percentage_bps":2500}),
+                ),
+            ])
+            .unwrap(),
+        );
+        let composed = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+        // The downstream minimum offer4 delivers3, but the upstream minimum
+        // input1 jumps to offer5, whose downstream coincident floors deliver2.
+        let inverse = inverse_pool_path(&s, &composed, 3).unwrap();
+        assert_eq!(inverse, 1);
+        assert_eq!(score(&s, &composed, inverse, SCALE / 2).unwrap().output, 2);
+        assert!(select_inverse(&s, &[composed.clone()], 3, SCALE / 2).is_none());
+        // A larger composed offer is feasible, but this unsupported candidate
+        // must never be mislabeled sufficient or guessed through linear scaling.
+        assert!(score(&s, &composed, 2, SCALE / 2).unwrap().output >= 3);
+        let mut alternate = s.mirrors["pair7b"].clone();
+        alternate.asset_0_addr = "in18".into();
+        s.mirrors.insert("healthy-direct".into(), alternate);
+        let healthy = vec![("healthy-direct".into(), 1, 2)];
+        let (required, candidate) =
+            select_inverse(&s, &[composed, healthy.clone()], 3, SCALE / 2).unwrap();
+        assert_eq!(candidate.path, healthy);
+        assert_eq!(required, 4);
+        assert_eq!(candidate.output, 3);
     }
 }

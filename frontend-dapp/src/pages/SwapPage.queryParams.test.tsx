@@ -1,3 +1,5 @@
+import { localQuote } from '@/test/localRouteFixtures'
+import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -156,6 +158,7 @@ import {
   simulateNativeSwap,
   simulateMultiHopSwap,
   executeNativeSwap,
+  executeMultiHopSwap,
 } from '@/services/terraclassic/router'
 import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 import { computeDirectHybridMinReturn } from '@/services/terraclassic/swapRoutePreflight'
@@ -226,6 +229,23 @@ function renderWithSearch(route = '/?from=LUNC&to=USTC') {
   return queryClient
 }
 
+function receiveFixture(from: string, to: string, offer: string, output: string, trader?: string) {
+  const q = localQuote(from, to, offer, { trader, maxSpread: '0.05' }, output)
+  return {
+    offerAmount: offer,
+    return_amount: output,
+    spotAmountOut: output,
+    spread_amount: '0',
+    commission_amount: '0',
+    routeSlippagePercent: '0.00',
+    indexerOperations: q.router_operations as never,
+    indexerIntermediateTokens: [from, to],
+    executionMetadata: q.execution_metadata,
+    executionOperations: JSON.stringify(q.router_operations),
+    routePreflight: { worstSpreadPercent: '0.00', anyHopExceedsMaxSpread: false },
+  }
+}
+
 describe('SwapPage receive amount (Forgejo #1256)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -258,6 +278,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
     seedFactoryTokens()
     vi.mocked(quoteSwapReceiveViaSolver).mockImplementation(async (input) => ({
+      ...receiveFixture(input.fromToken, input.toToken, '2000000', input.targetRaw, input.quoteTrader?.trader),
       offerAmount: '2000000',
       return_amount: input.targetRaw,
       spotAmountOut: receiveTax.buyBps ? '1000000' : input.targetRaw,
@@ -265,17 +286,16 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       executeAmountOut: receiveTax.buyBps ? '1000000' : undefined,
       spread_amount: '0',
       commission_amount: '0',
-      indexerOperations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: LISTED } },
-            ask_asset_info: { token: { contract_addr: UST1 } },
-          },
-        },
-      ],
-      indexerIntermediateTokens: [LISTED, UST1],
     }))
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unavailable'))
+    localMarketMocks(getAllPairsPaginated)
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue(
+      [LISTED, UST1, USTR].map((contract_address) => ({
+        contract_address,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
   })
 
   it('native receive typing stays visible immediately and updates pay plus output URL', async () => {
@@ -298,7 +318,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
   })
 
   it.each(['wrap', 'unwrap'] as const)(
-    'direct %s accepts output amount through the native reverse service',
+    'direct %s sizes locally without the legacy native reverse service',
     async (direction) => {
       vi.mocked(isDirectWrapUnwrap).mockReturnValue(direction)
       const from = direction === 'wrap' ? 'uluna' : UST1
@@ -308,7 +328,10 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       // Quote startup includes the production debounce and async token discovery;
       // a cold, bounded CI worker can exceed waitFor's default one-second window.
       await waitFor(
-        () => expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', from, to, expect.any(Array), undefined),
+        () =>
+          expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
+            expect.objectContaining({ targetRaw: '1500000', fromToken: from, toToken: to })
+          ),
         { timeout: 5_000 }
       )
       await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
@@ -356,12 +379,12 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(quoteSwapReceiveViaSolver).not.toHaveBeenCalled()
   })
 
-  it('native server-only receive sizing loads mapper configuration and preserves output intent', async () => {
+  it('native server-only receive sizing preserves output intent without mapper discovery', async () => {
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=100')
     await waitForSwapReady()
-    await waitFor(() => expect(queryWrapMapperConfig).toHaveBeenCalled())
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
     await waitFor(() =>
       expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(expect.objectContaining({ targetRaw: '100000000' }))
     )
@@ -369,8 +392,9 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('100')
   })
 
-  it('mapper configuration failure exposes a finite disconnected error', async () => {
+  it('local wrapper observation failure exposes a finite disconnected error', async () => {
     vi.mocked(queryWrapMapperConfig).mockRejectedValueOnce(new Error('LCD unavailable'))
+    vi.mocked(quoteSwapReceiveViaSolver).mockRejectedValueOnce(new Error('Wrapper configuration is unavailable'))
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=100')
@@ -379,7 +403,8 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       expect(screen.getByTestId('swap-receive-quote-retry-error')).toHaveTextContent('configuration is unavailable')
     )
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
-    expect(quoteSwapReceiveViaSolver).not.toHaveBeenCalled()
+    expect(quoteSwapReceiveViaSolver).toHaveBeenCalled()
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
     expect(screen.getByTestId('retry-error-button')).toBeEnabled()
   })
 
@@ -390,42 +415,23 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     const wallet = 'terra1wallet000000000000000000000000000001'
     useWalletStore.setState({ address: wallet, walletType: 'dev' })
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
-    vi.mocked(quoteSwapReceiveViaSolver).mockResolvedValue({
-      offerAmount: '2000000',
-      return_amount: '1000000',
-      spread_amount: '0',
-      commission_amount: '0',
-      indexerOperations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: LISTED } },
-            ask_asset_info: { token: { contract_addr: UST1 } },
-          },
-        },
-      ],
-      indexerPairs: [
-        {
-          contract_addr: 'terra1verifiedpair',
-          liquidity_token: 'terra1lp',
-          asset_infos: [{ token: { contract_addr: LISTED } }, { token: { contract_addr: UST1 } }],
-        },
-      ],
-    })
+    vi.mocked(quoteSwapReceiveViaSolver).mockResolvedValue(receiveFixture(LISTED, UST1, '2000000', '1000000', wallet))
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
     await waitForSwapReady()
     const submit = await screen.findByRole('button', { name: /^swap$/i })
     await waitFor(() => expect(submit).toBeEnabled())
     fireEvent.click(submit)
     await waitFor(() =>
-      expect(swap).toHaveBeenCalledWith(
+      expect(executeMultiHopSwap).toHaveBeenCalledWith(
         wallet,
         LISTED,
-        'terra1verifiedpair',
         '2000000',
-        undefined,
+        expect.any(Array),
         '0.05',
+        '950000',
         undefined,
-        expect.objectContaining({ minReturn: '950000' })
+        expect.any(Number),
+        expect.objectContaining({ generation: 'fixture1', minimum_receive: '950000' })
       )
     )
   })
@@ -566,7 +572,10 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
   })
 
   it('buy-tax receive target keeps the stronger fresh net floor with the reverse offer', async () => {
-    vi.mocked(computeDirectHybridMinReturn).mockResolvedValue('980000')
+    vi.mocked(computeDirectHybridMinReturn).mockResolvedValue('1')
+    vi.mocked(quoteSwapReceiveViaSolver).mockImplementation(async (input) =>
+      receiveFixture(input.fromToken, input.toToken, '2000000', '1031579', input.quoteTrader?.trader)
+    )
     receiveTax.buyBps = 1000
     seedCw20Route()
     const wallet = 'terra1wallet000000000000000000000000000001'
@@ -585,42 +594,30 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitFor(() => expect(submit).toBeEnabled())
     fireEvent.click(submit)
     await waitFor(() =>
-      expect(swap).toHaveBeenCalledWith(
+      expect(executeMultiHopSwap).toHaveBeenCalledWith(
         wallet,
         LISTED,
-        expect.any(String),
         '2000000',
-        undefined,
+        expect.any(Array),
         '0.05',
+        '980000',
         undefined,
-        expect.objectContaining({ deadline: expect.any(Number), minReturn: '980000' })
+        expect.any(Number),
+        expect.objectContaining({ generation: 'fixture1' })
       )
     )
   })
 
-  it('native output intent executes the reverse pay amount with the receive floor', async () => {
+  it('native output intent cannot sign operations without matching local wrapper metadata', async () => {
     const wallet = 'terra1wallet000000000000000000000000000001'
     useWalletStore.setState({ address: wallet, walletType: 'dev' })
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1')
     await waitForSwapReady()
     await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
-    const submit = await screen.findByRole('button', { name: /^swap$/i })
-    await waitFor(() => expect(submit).toBeEnabled())
-    fireEvent.click(submit)
-    await waitFor(() =>
-      expect(executeNativeSwap).toHaveBeenCalledWith(
-        wallet,
-        'uluna',
-        'uusd',
-        '2000000',
-        expect.any(Array),
-        '0.05',
-        '950000',
-        expect.any(Number),
-        expect.any(Array)
-      )
-    )
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+    expect(executeNativeSwap).not.toHaveBeenCalled()
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
   })
 
   it('reverse offers still enforce the connected wallet balance guard', async () => {
@@ -702,7 +699,15 @@ describe('SwapPage query params (GitLab #711)', () => {
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     seedFactoryTokens()
-    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+    localMarketMocks(getAllPairsPaginated)
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue(
+      [LISTED, UST1, USTR].map((contract_address) => ({
+        contract_address,
+        decimals: 6,
+        symbol: 'fixture',
+        token_type: 'cw20',
+      })) as never
+    )
   })
 
   it('AC1: /?from=uluna&to=<listed cw20> selects LUNC and that token', async () => {
@@ -720,6 +725,7 @@ describe('SwapPage query params (GitLab #711)', () => {
         asset_infos: [{ native_token: { denom: 'uluna' } }, { token: { contract_addr: UST1 } }],
       },
     ]
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
     let resolvePairs: (value: { pairs: typeof factoryPairs }) => void = () => {}
     vi.mocked(getAllPairsPaginated).mockImplementation(
       () =>
@@ -732,7 +738,9 @@ describe('SwapPage query params (GitLab #711)', () => {
     )
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
     expect(screen.getByText(/loading pairs/i)).toBeInTheDocument()
-    resolvePairs({ pairs: factoryPairs })
+    await act(async () => {
+      resolvePairs({ pairs: factoryPairs })
+    })
     await waitForSwapReady()
     expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
     expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
@@ -817,9 +825,12 @@ describe('SwapPage query params (GitLab #711)', () => {
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
     await waitForSwapReady()
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1'))
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
-    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
-    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
+      expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+    })
   })
 
   it('QS-1: /?from=UST1&to=USTR selects those tokens (mixed case inbound)', async () => {

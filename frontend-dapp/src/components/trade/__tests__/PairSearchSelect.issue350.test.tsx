@@ -86,7 +86,8 @@ describe('PairSearchSelect type+Enter (GitLab #350)', () => {
     await vi.advanceTimersByTimeAsync(PAIR_SEARCH_DEBOUNCE_MS + 50)
 
     await waitFor(() => {
-      expect(indexerClient.getPairs).toHaveBeenCalled()
+      expect(indexerClient.getPairs).toHaveBeenCalledWith(expect.objectContaining({ q: 'jade' }))
+      expect(screen.getByRole('option')).toHaveTextContent('000002')
     })
 
     await user.keyboard('{Enter}')

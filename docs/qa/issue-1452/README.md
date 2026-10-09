@@ -1,6 +1,6 @@
 # Issue #1452: agent review and verification
 
-Implementation: [draft PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455).
+Implementation: [merged PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455). Current implementation: [follow-up PR #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
 
 
 [#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452) requires
@@ -43,6 +43,9 @@ The related producer reliability work is
 | AC9 | Exercise absent/stale/unsupported/paused/frozen/blacklisted routes and dust/overflow. One accurate blocker/action must keep signing disabled. No arbitrary smaller-size advice, diagnostic chrome or live-query escape. |
 | AC10 | Run focused verification and retest; review current budget/optimality documentation and crosslinks from AGENTS.md, frontend/solver docs and applicable skills. |
 
+The [community-tax follow-up checklist](FOLLOWUP-TAX.md) covers local v1
+funding arithmetic, identity/cap observations and explicit cooldown/AutoLP limits.
+
 ## Explicit skip policy
 
 Agents may skip checks they cannot complete and mark the overall implementation
@@ -70,3 +73,22 @@ transactions for reproduction. Read-only probes of existing deployment establish
 its behavior only after confirming its revision; unpublished source cannot fix a
 live probe. Preserve contract/provider reverse budgets independently of local
 receive sizing.
+
+The follow-up [mode contract and focused agent checks](FOLLOWUP-MODES.md) cover
+deducting-hook inverse, exact manual POST budgets and direct zero-hop local
+wrapper arithmetic. Direct zero-hop signing remains explicitly blocked because
+the current external messages cannot enforce the reviewed receive floor.
+
+Current follow-up [verification receipts and issue criteria](FOLLOWUP-RESULTS.md)
+record the available checks and exact remaining scope.
+
+## Follow-up implementation review
+
+Review the [tax invariants and supported scope](FOLLOWUP-TAX.md),
+[exact modes and direct-wrapper signing limitation](FOLLOWUP-MODES.md), and
+[incremental ingestion and authoritative recovery](FOLLOWUP-INGESTION.md).
+The verifier now includes migrated forward, inverse, funded-tax, hybrid-book and health API regressions plus
+Swap/Trade URL, indexed decimal, wallet budget, acquisition and fee fixtures.
+Use the same explicit skip policy above for unavailable review steps; record
+PASS WITH SKIPS only when every executed assertion passes. Runtime guards,
+unimplemented semantics and failed assertions cannot become completed acceptance.

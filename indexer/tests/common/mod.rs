@@ -1,5 +1,6 @@
 mod database;
 pub mod lcd_mock;
+pub mod local_quotes;
 
 use std::fs::OpenOptions;
 use std::os::unix::io::AsRawFd;
