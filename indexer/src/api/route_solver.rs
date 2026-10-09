@@ -1,30 +1,43 @@
-//! Multihop route discovery and optional LCD simulation.
+//! Cached local executable quotes and topology discovery (#1452).
 //!
-//! - `GET /api/v1/route/solve`: **global best execution** when `amount_in` is set (top-K paths + joint hybrid, max **4 hops**; GitLab #209, #323).
-//!   Use `pool_only=true` for legacy pool-only ops (max **4 hops**). Without `amount_in`, returns route discovery only.
-//! - `GET /api/v1/route/solve/best`: **retail / Vyntrex best-execution alias** — same engine as default GET with `amount_in` (GitLab #189).
-//! - `POST /api/v1/route/solve`: BFS discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
+//! GET/POST/best/progress use initialized immutable observations maintained by
+//! scheduled ingestion. No request performs LCD attestation, simulation or
+//! configuration/reference discovery. Historical network-solver helpers below
+//! compile only for regression comparisons; they cannot be request fallbacks.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::VecDeque;
 use std::net::SocketAddr;
+#[cfg(test)]
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(test)]
+use std::time::Instant;
 
 use axum::extract::{ConnectInfo, Query, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
+#[cfg(test)]
 use sqlx::PgPool;
 
 use crate::api::hybrid_route_opt;
+#[cfg(test)]
 use crate::api::internal_err;
+#[cfg(test)]
 use crate::api::route_graph;
+#[cfg(test)]
 use crate::api::route_solve_progress;
 use crate::api::AppState;
-use crate::db::queries::{assets, pairs as db_pairs};
+use crate::db::queries::assets;
+#[cfg(test)]
+use crate::db::queries::pairs as db_pairs;
+#[cfg(test)]
 use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
 
 pub use hybrid_route_opt::HybridHopJson;
@@ -32,55 +45,63 @@ pub use hybrid_route_opt::HybridHopJson;
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
 /// TTL for `(trader, sender)` → `discount_bps` so progress polls do not LCD every tick (#694).
 pub const DISCOUNT_BPS_CACHE_TTL: Duration = ROUTE_CACHE_TTL;
+#[cfg(test)]
 const ROUTE_CACHE_TTL_DISTANT: Duration = Duration::from_secs(90);
+#[cfg(test)]
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
+#[cfg(test)]
 const DISCOUNT_BPS_CACHE_MAX_ENTRIES: usize = 512;
 /// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
 pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 4;
 /// Legacy pool-only GET escape hatch (`pool_only=true`).
+#[cfg(test)]
 const GET_POOL_ONLY_MAX_HOPS: usize = 4;
 /// Coarse bucketing for hybrid GET cache keys (reduces LCD load).
+#[cfg(test)]
 const AMOUNT_CACHE_BUCKET: u128 = 1_000_000;
 
-#[derive(Debug, Deserialize, Serialize, IntoParams, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, IntoParams, ToSchema)]
 pub struct SolveRouteParams {
+    /// Caller L9 execution constraint; local quote admission and signed floors share this value.
+    #[serde(default)]
+    pub max_spread: Option<String>,
     /// CW20 contract address (must match indexed `assets.contract_address`). See [route-solver glossary](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/route-solver.md#glossary).
     pub token_in: String,
     /// CW20 contract address for the output asset (indexed `assets.contract_address`).
     pub token_out: String,
-    /// Raw integer offer amount (optional). When set on GET (and `pool_only` is not true), runs **global_v1** best execution: top-5 paths, joint hybrid optimization, max **4 hops**. Required for `/route/solve/best`.
+    /// Exact raw integer offer amount; local executable ranking within four hops. Required for `/best` unless `amount_out` is provided. Omit both amounts for cached topology discovery.
     pub amount_in: Option<String>,
     /// Exact-output sizing: positive raw NET CW20 target. Mutually exclusive with amount_in.
-    /// Uses bounded fresh pool-only candidates; execution remains offer-in.
+    /// Uses bounded locally cached pool-only inverse candidates; execution remains offer-in. Unsupported inverse semantics fail explicitly.
     #[serde(default)]
     pub amount_out: Option<String>,
     /// Deprecated alias: `hybrid_optimize=false` or `pool_only=true` for pool-only routing.
     #[serde(default)]
     pub hybrid_optimize: Option<bool>,
-    /// Pool-only escape hatch: first BFS path, `hybrid: null` on every hop, max **4 hops** — skips the global optimizer. See `docs/route-solver.md`.
+    /// Disable book splits; compare bounded locally eligible pool paths within four hops.
     #[serde(default)]
     pub pool_only: Option<bool>,
     /// Per-hop `max_maker_fills` for hybrid GET optimization (default **8**); caps limit-book matches per hop.
     #[serde(default)]
     pub max_maker_fills: Option<u32>,
-    /// Optional beneficiary `terra1` wallet for CL8Y fee-tier discounted LCD quotes (GitLab #245). Omit for full-fee quotes. Cache keys include resolved `discount_tier`.
+    /// Optional beneficiary. Cached known fee context participates in ranking and identity; unknown context uses a conservative full-fee estimate. No request-time tier lookup.
     #[serde(default)]
     pub trader: Option<String>,
     /// Optional CW20 sender `terra1` address when it differs from `trader` (trusted router execute path).
     #[serde(default)]
     pub sender: Option<String>,
-    /// Progress-only (#694): skip LCD `GetDiscount` when the client already resolved bps.
+    /// Legacy progress hint. Local quotes never query GetDiscount during a request.
     /// Ignored by `/route/solve` quote math. Range `0..=10000`.
     #[serde(default)]
     pub discount_bps: Option<u16>,
 }
 
-/// JSON body for [`solve_route_post`]. Uses **first BFS path** (max **4 hops**); does **not** run `global_v1`. See `docs/route-solver.md#api-matrix-get-vs-post`.
+/// Local quote POST; explicit unsupported splits fail rather than using remote simulation.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SolveRoutePostBody {
     pub token_in: String,
     pub token_out: String,
-    /// Raw integer offer amount for optional router `simulate_swap_operations`.
+    /// Exact raw integer offer amount for locally cached arithmetic.
     pub amount_in: Option<String>,
     /// Exact-output is supported on GET only; providing this on POST is rejected.
     #[serde(default)]
@@ -125,6 +146,7 @@ pub enum FidelityCheck {
 }
 
 impl FidelityCheck {
+    #[cfg(test)]
     pub fn as_str(self) -> &'static str {
         match self {
             FidelityCheck::Passed => "passed",
@@ -134,6 +156,7 @@ impl FidelityCheck {
     }
 }
 
+#[cfg(test)]
 pub(crate) struct ResolvedRoute {
     pub token_in: String,
     pub token_out: String,
@@ -156,6 +179,7 @@ pub(crate) fn build_id_to_addr_map(
     (id_to_addr, addr_to_id)
 }
 
+#[cfg(test)]
 pub(crate) fn resolve_id(addr_to_id: &HashMap<String, i32>, token: &str) -> Option<i32> {
     let t = token.trim();
     if let Some(id) = addr_to_id.get(t) {
@@ -164,11 +188,13 @@ pub(crate) fn resolve_id(addr_to_id: &HashMap<String, i32>, token: &str) -> Opti
     addr_to_id.get(&t.to_lowercase()).copied()
 }
 
+#[cfg(test)]
 fn asset_info_json(addr: &str) -> serde_json::Value {
     json!({ "token": { "contract_addr": addr } })
 }
 
 /// BFS by hop count, max `max_hops` edges (matches router `MAX_HOPS`).
+#[cfg(test)]
 fn find_path(
     start: i32,
     goal: i32,
@@ -232,6 +258,7 @@ fn find_path(
     Some(out)
 }
 
+#[cfg(test)]
 fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usize {
     let mut n = 0;
     while u != start && n < 8 {
@@ -245,6 +272,53 @@ fn hop_count(prev: &HashMap<i32, (i32, String)>, start: i32, mut u: i32) -> usiz
     n
 }
 
+/// Locally checked observation and exact operations reviewed by the client.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct LocalExecutionMetadata {
+    pub version: u8,
+    pub generation: String,
+    pub input_amount: String,
+    pub max_spread: String,
+    pub trader: Option<String>,
+    pub sender: Option<String>,
+    pub observed_at_ms: i64,
+    pub expires_at_ms: i64,
+    pub policy: String,
+    pub hops: Vec<LocalExecutionHop>,
+    pub minimum_receive: String,
+    pub wrapper: Option<LocalExecutionWrapper>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct LocalExecutionHop {
+    pub pair: String,
+    pub offer_token: String,
+    pub ask_token: String,
+    pub offer_amount: String,
+    /// Delivered post-hook ask output; not the L9 pool return basis.
+    pub return_amount: String,
+    pub pool_return_amount: String,
+    pub book_return_net: String,
+    pub pool_input_actual: String,
+    pub book_offer_consumed: String,
+    pub spread_amount: String,
+    pub commission_amount: String,
+    pub min_return: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct LocalExecutionWrapper {
+    pub input_token: String,
+    pub output_token: String,
+    pub input_amount: String,
+    pub route_input_amount: String,
+    pub route_output_amount: String,
+    /// Router minimum basis after mapper fee and before native BankMsg burn tax.
+    pub minimum_receive_base: String,
+    pub wrap_input: bool,
+    pub unwrap_output: bool,
+    pub treasury: String,
+    pub mapper: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct RouteHop {
     pub pair: String,
@@ -254,6 +328,10 @@ pub struct RouteHop {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RouteSolveResponse {
+    /// Generation-pinned local execution evidence, positive floors and wrapper bindings.
+    /// Absent on topology-only responses and historical fixtures.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_metadata: Option<LocalExecutionMetadata>,
     /// Exact-output required raw CW20 offer; absent on offer-in/discovery responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_amount_in: Option<String>,
@@ -341,6 +419,7 @@ pub struct RouteSolveResponse {
     pub token_out_price_quote: Option<String>,
 }
 
+#[cfg(test)]
 pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String> {
     let mut v = vec![resolved.token_in.clone()];
     for h in &resolved.hops {
@@ -349,6 +428,7 @@ pub(crate) fn build_intermediate_tokens(resolved: &ResolvedRoute) -> Vec<String>
     v
 }
 
+#[cfg(test)]
 pub(crate) fn build_hops_and_ops(
     hops_raw: &[(String, i32, i32)],
     id_to_addr: &HashMap<i32, String>,
@@ -385,6 +465,7 @@ pub(crate) fn build_hops_and_ops(
     Ok((hops, ops))
 }
 
+#[cfg(test)]
 pub(crate) fn apply_hybrid_by_hop(
     mut ops: Vec<serde_json::Value>,
     hybrid_by_hop: &[Option<HybridHopJson>],
@@ -425,6 +506,7 @@ pub(crate) fn apply_hybrid_by_hop(
     Ok(ops)
 }
 
+#[cfg(test)]
 async fn resolve_route_with_max_hops(
     pool: &PgPool,
     namespace: &str,
@@ -465,6 +547,7 @@ async fn resolve_route_with_max_hops(
     })
 }
 
+#[cfg(test)]
 async fn resolve_route(
     pool: &PgPool,
     namespace: &str,
@@ -474,14 +557,17 @@ async fn resolve_route(
     resolve_route_with_max_hops(pool, namespace, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
 }
 
+#[cfg(test)]
 fn parse_amount_in(raw: Option<&String>) -> Option<&str> {
     raw.map(|s| s.trim()).filter(|s| !s.is_empty())
 }
 
+#[cfg(test)]
 fn get_pool_only_requested(q: &SolveRouteParams) -> bool {
     q.pool_only.unwrap_or(false) || q.hybrid_optimize == Some(false)
 }
 
+#[cfg(test)]
 fn get_pool_only_max_hops(q: &SolveRouteParams) -> usize {
     if get_pool_only_requested(q) {
         GET_POOL_ONLY_MAX_HOPS
@@ -490,6 +576,7 @@ fn get_pool_only_max_hops(q: &SolveRouteParams) -> usize {
     }
 }
 
+#[cfg(test)]
 fn should_run_hybrid_get(q: &SolveRouteParams, amount_raw: Option<&str>) -> bool {
     !get_pool_only_requested(q) && amount_raw.is_some()
 }
@@ -545,6 +632,7 @@ pub(crate) fn parse_quote_trader(
     Ok(hybrid_route_opt::QuoteTrader { trader, sender })
 }
 
+#[cfg(test)]
 pub(crate) async fn validate_route_tax(
     state: &AppState,
     hops: &[RouteHop],
@@ -572,6 +660,7 @@ pub(crate) async fn validate_route_tax(
     }
     Ok(taxes)
 }
+#[cfg(test)]
 fn apply_route_tax_fields(
     body: &mut RouteSolveResponse,
     taxes: &crate::api::community_tax_rank::TaxRankSnapshot,
@@ -592,6 +681,7 @@ fn apply_route_tax_fields(
     body.sell_tax_bps = Some(score.sell_tax_bps);
 }
 
+#[cfg(test)]
 pub(crate) async fn maybe_simulate(
     state: &AppState,
     amount_in: Option<&str>,
@@ -631,6 +721,7 @@ pub(crate) async fn maybe_simulate(
 
 /// Preserve deterministic on-chain rejection as an observable validation failure.
 /// Never expose LCD URLs, raw contract errors or trader addresses in the API response.
+#[cfg(test)]
 fn router_preview_error(error: &crate::lcd::LcdError) -> (StatusCode, String) {
     if matches!(error, crate::lcd::LcdError::QueryGasLimitExceeded(_)) {
         return (
@@ -648,6 +739,7 @@ fn router_preview_error(error: &crate::lcd::LcdError) -> (StatusCode, String) {
     )
 }
 
+#[cfg(test)]
 pub(crate) fn quote_kind_after_sim(
     estimated: &Option<String>,
     base: RouteQuoteKind,
@@ -668,6 +760,7 @@ pub(crate) fn quote_kind_after_sim(
     base
 }
 
+#[cfg(test)]
 struct CacheEntry {
     at: Instant,
     body: serde_json::Value,
@@ -675,11 +768,13 @@ struct CacheEntry {
     ttl: Duration,
 }
 
+#[cfg(test)]
 fn route_hybrid_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
     static CACHE: OnceLock<Mutex<HashMap<String, CacheEntry>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+#[cfg(test)]
 pub(crate) fn amount_cache_key(amount: u128) -> u128 {
     if amount <= AMOUNT_CACHE_BUCKET {
         amount
@@ -689,6 +784,7 @@ pub(crate) fn amount_cache_key(amount: u128) -> u128 {
 }
 
 /// Coarse bucket for hybrid GET cache keys — normal retail range 1–8 maps to default 8 (#324).
+#[cfg(test)]
 pub(crate) fn cache_key_maker_fills(max_maker_fills: u32) -> u32 {
     let m = clamp_max_maker_fills(max_maker_fills);
     if m <= 8 {
@@ -708,8 +804,10 @@ pub(crate) fn cache_key_maker_fills(max_maker_fills: u32) -> u32 {
 /// callers still share the cache. Tier comes from synced `traders.tier_id` when
 /// `registered` is true — no extra LCD call; absent/unknown/unregistered subject resolves to
 /// [`FULL_FEE_TIER_SENTINEL`].
+#[cfg(test)]
 pub const FULL_FEE_TIER_SENTINEL: i16 = -1;
 
+#[cfg(test)]
 pub(crate) async fn resolve_discount_tier(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
@@ -727,16 +825,19 @@ pub(crate) async fn resolve_discount_tier(
     }
 }
 
+#[cfg(test)]
 struct DiscountBpsCacheEntry {
     at: Instant,
     bps: u16,
 }
 
+#[cfg(test)]
 fn discount_bps_cache() -> &'static Mutex<HashMap<String, DiscountBpsCacheEntry>> {
     static CACHE: OnceLock<Mutex<HashMap<String, DiscountBpsCacheEntry>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+#[cfg(test)]
 fn discount_bps_cache_key(trader: &str, sender: &str) -> String {
     format!(
         "{}|{}",
@@ -745,6 +846,7 @@ fn discount_bps_cache_key(trader: &str, sender: &str) -> String {
     )
 }
 
+#[cfg(test)]
 fn discount_bps_cache_get(key: &str) -> Option<u16> {
     let Ok(guard) = discount_bps_cache().lock() else {
         return None;
@@ -757,6 +859,7 @@ fn discount_bps_cache_get(key: &str) -> Option<u16> {
     }
 }
 
+#[cfg(test)]
 fn discount_bps_cache_put(key: &str, bps: u16) {
     let Ok(mut guard) = discount_bps_cache().lock() else {
         return;
@@ -785,6 +888,7 @@ fn discount_bps_cache_put(key: &str, bps: u16) {
 
 /// Clear the `(trader, sender)` discount cache (integration tests).
 #[allow(dead_code)]
+#[cfg(test)]
 pub fn reset_discount_bps_cache() {
     if let Ok(mut guard) = discount_bps_cache().lock() {
         guard.clear();
@@ -792,6 +896,7 @@ pub fn reset_discount_bps_cache() {
 }
 
 /// Validate a client-supplied progress `discount_bps` (0..=10000).
+#[cfg(test)]
 pub(crate) fn parse_progress_discount_bps(
     raw: Option<u16>,
 ) -> Result<Option<u16>, (StatusCode, String)> {
@@ -809,6 +914,7 @@ pub(crate) fn parse_progress_discount_bps(
 
 /// On-chain `GetDiscount` discount_bps for mirror grid pricing — matches pair `HybridSimulation` / router sim (#319).
 /// Cached per `(trader, sender)` for [`DISCOUNT_BPS_CACHE_TTL`] so 1 Hz progress polls do not LCD every tick (#694).
+#[cfg(test)]
 pub(crate) async fn resolve_discount_bps(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
@@ -842,6 +948,7 @@ pub(crate) async fn resolve_discount_bps(
     bps
 }
 
+#[cfg(test)]
 async fn resolve_discount_bps_uncached(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
@@ -876,6 +983,7 @@ async fn resolve_discount_bps_uncached(
     )
 }
 
+#[cfg(test)]
 pub(crate) fn hybrid_cache_key(
     solver_version: &str,
     token_in: &str,
@@ -898,6 +1006,7 @@ pub(crate) fn hybrid_cache_key(
     )
 }
 
+#[cfg(test)]
 fn cache_ttl_for_hops(hop_count: usize) -> Duration {
     if hop_count >= 2 {
         ROUTE_CACHE_TTL_DISTANT
@@ -906,6 +1015,7 @@ fn cache_ttl_for_hops(hop_count: usize) -> Duration {
     }
 }
 
+#[cfg(test)]
 fn cache_get(key: &str) -> Option<(serde_json::Value, u128)> {
     let mut g = route_hybrid_cache().lock().ok()?;
     let e = g.get(key)?;
@@ -916,6 +1026,7 @@ fn cache_get(key: &str) -> Option<(serde_json::Value, u128)> {
     Some((e.body.clone(), e.amount_in))
 }
 
+#[cfg(test)]
 fn cache_put(key: String, body: serde_json::Value, amount_in: u128, ttl: Duration) {
     if let Ok(mut g) = route_hybrid_cache().lock() {
         let now = Instant::now();
@@ -937,6 +1048,7 @@ fn cache_put(key: String, body: serde_json::Value, amount_in: u128, ttl: Duratio
     }
 }
 
+#[cfg(test)]
 async fn execute_hybrid_route_solve(
     state: &AppState,
     token_in: &str,
@@ -1069,6 +1181,7 @@ async fn execute_hybrid_route_solve(
     Ok(Json(json_body))
 }
 
+#[cfg(test)]
 async fn exact_output_get(
     state: &AppState,
     q: &SolveRouteParams,
@@ -1109,30 +1222,19 @@ pub async fn solve_route_best(
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q, peer).await;
+        static ADMISSION: std::sync::OnceLock<
+            super::route_exact_output_admission::AdmissionController,
+        > = std::sync::OnceLock::new();
+        return ADMISSION
+            .get_or_init(Default::default)
+            .run(
+                super::route_exact_output_admission::client_key(peer),
+                Duration::from_secs(1),
+                super::local_quote::solve(&state, &q),
+            )
+            .await;
     }
-    let Some(amount_raw) = q
-        .amount_in
-        .as_ref()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-    else {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_in is required for GET /api/v1/route/solve/best".to_string(),
-        ));
-    };
-
-    let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
-    execute_hybrid_route_solve(
-        &state,
-        &q.token_in,
-        &q.token_out,
-        amount_raw,
-        q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
-        &quote_trader,
-    )
-    .await
+    super::local_quote::solve(&state, &q).await
 }
 
 /// Multihop route discovery (GET default **4 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
@@ -1157,117 +1259,19 @@ pub async fn solve_route(
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q, peer).await;
+        static ADMISSION: std::sync::OnceLock<
+            super::route_exact_output_admission::AdmissionController,
+        > = std::sync::OnceLock::new();
+        return ADMISSION
+            .get_or_init(Default::default)
+            .run(
+                super::route_exact_output_admission::client_key(peer),
+                Duration::from_secs(1),
+                super::local_quote::solve(&state, &q),
+            )
+            .await;
     }
-    let amount_raw = parse_amount_in(q.amount_in.as_ref());
-    let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
-
-    if q.hybrid_optimize == Some(true) && amount_raw.is_none() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_in is required when hybrid_optimize=true".to_string(),
-        ));
-    }
-
-    if should_run_hybrid_get(&q, amount_raw) {
-        return execute_hybrid_route_solve(
-            &state,
-            &q.token_in,
-            &q.token_out,
-            amount_raw.expect("checked above"),
-            q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
-            &quote_trader,
-        )
-        .await;
-    }
-
-    let max_hops = get_pool_only_max_hops(&q);
-    let resolved = resolve_route_with_max_hops(
-        &state.pool,
-        &state.lcd.chain_cache_namespace(),
-        &q.token_in,
-        &q.token_out,
-        max_hops,
-    )
-    .await?;
-    let taxes = if amount_raw.is_some() {
-        validate_route_tax(
-            &state,
-            &resolved.hops,
-            &resolved.token_in,
-            &resolved.token_out,
-            &quote_trader,
-        )
-        .await?
-    } else {
-        Default::default()
-    };
-    let estimated = maybe_simulate(&state, amount_raw, &resolved.ops, &quote_trader).await?;
-    if taxes.path_route_local(&resolved.hops) && amount_raw.is_some() && estimated.is_none() {
-        return Err((
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Route-local tax quote requires funded router simulation".into(),
-        ));
-    }
-
-    let quote_kind = quote_kind_after_sim(
-        &estimated,
-        if estimated.is_some() {
-            RouteQuoteKind::IndexerPoolLcd
-        } else {
-            RouteQuoteKind::IndexerRouteOnly
-        },
-    );
-
-    let intermediate_tokens = build_intermediate_tokens(&resolved);
-    let mut body = RouteSolveResponse {
-        required_amount_in: None,
-        target_amount_out: None,
-        sizing_mode: None,
-        snapshot_age_ms: None,
-        snapshot_block_height: None,
-        token_in: resolved.token_in,
-        token_out: resolved.token_out,
-        intermediate_tokens,
-        quote_kind,
-        hybrid_notes: None,
-        hops: resolved.hops,
-        router_operations: resolved.ops,
-        estimated_amount_out: estimated,
-        solver_version: None,
-        paths_considered: None,
-        optimality_scope: None,
-        lcd_hybrid_queries: None,
-        db_hybrid_queries: None,
-        fidelity_check: None,
-        mirror_max_block_lag: None,
-        search_truncated: None,
-        spot_amount_out: None,
-        slippage_percent: None,
-        token_in_price_quote: None,
-        token_out_price_quote: None,
-        estimated_amount_out_net: None,
-        tax_kind: None,
-        buy_tax_bps: None,
-        sell_tax_bps: None,
-        tax_notes: None,
-        router_hops_tax: None,
-    };
-
-    apply_route_tax_fields(&mut body, &taxes);
-    if let Some(amount_raw) = amount_raw {
-        crate::api::route_slippage::enrich_route_slippage(
-            &state,
-            &mut body,
-            amount_raw,
-            &quote_trader,
-            q.max_maker_fills.map(clamp_max_maker_fills).unwrap_or(8),
-            None,
-        )
-        .await;
-    }
-
-    Ok(Json(serde_json::to_value(body).map_err(internal_err)?))
+    super::local_quote::solve(&state, &q).await
 }
 
 /// Same discovery as GET (max 4 hops); optional `hybrid_by_hop` merges hybrid fields into `router_operations` before LCD simulation.
@@ -1287,115 +1291,30 @@ pub async fn solve_route_post(
     State(state): State<AppState>,
     Json(body): Json<SolveRoutePostBody>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if body.amount_out.is_some() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "amount_out is supported on GET only".into(),
-        ));
-    }
-    let quote_trader = parse_quote_trader(body.trader.clone(), body.sender.clone())?;
-    let resolved = resolve_route(
-        &state.pool,
-        &state.lcd.chain_cache_namespace(),
-        &body.token_in,
-        &body.token_out,
-    )
-    .await?;
-    let intermediate_tokens = build_intermediate_tokens(&resolved);
-    let ops = if let Some(ref hybrid) = body.hybrid_by_hop {
-        apply_hybrid_by_hop(resolved.ops, hybrid)?
-    } else {
-        resolved.ops
-    };
-
-    let taxes = if body.amount_in.is_some() {
-        validate_route_tax(
-            &state,
-            &resolved.hops,
-            &resolved.token_in,
-            &resolved.token_out,
-            &quote_trader,
-        )
-        .await?
-    } else {
-        Default::default()
-    };
-    let estimated = maybe_simulate(&state, body.amount_in.as_deref(), &ops, &quote_trader).await?;
-    if taxes.path_route_local(&resolved.hops) && body.amount_in.is_some() && estimated.is_none() {
-        return Err((
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Route-local tax quote requires funded router simulation".into(),
-        ));
-    }
-
-    let any_hybrid = body
+    if body
         .hybrid_by_hop
         .as_ref()
-        .map(|v| v.iter().any(|x| x.is_some()))
-        .unwrap_or(false);
-
-    let base_kind = if any_hybrid {
-        RouteQuoteKind::IndexerHybridLcd
-    } else if estimated.is_some() {
-        RouteQuoteKind::IndexerPoolLcd
-    } else {
-        RouteQuoteKind::IndexerRouteOnly
-    };
-    let quote_kind = quote_kind_after_sim(&estimated, base_kind);
-
-    let mut out = RouteSolveResponse {
-        required_amount_in: None,
-        target_amount_out: None,
-        sizing_mode: None,
-        snapshot_age_ms: None,
-        snapshot_block_height: None,
-        token_in: resolved.token_in,
-        token_out: resolved.token_out,
-        hops: resolved.hops,
-        intermediate_tokens,
-        quote_kind,
-        hybrid_notes: None,
-        router_operations: ops,
-        estimated_amount_out: estimated,
-        solver_version: None,
-        paths_considered: None,
-        optimality_scope: None,
-        lcd_hybrid_queries: None,
-        db_hybrid_queries: None,
-        fidelity_check: None,
-        mirror_max_block_lag: None,
-        search_truncated: None,
-        spot_amount_out: None,
-        slippage_percent: None,
-        token_in_price_quote: None,
-        token_out_price_quote: None,
-        estimated_amount_out_net: None,
-        tax_kind: None,
-        buy_tax_bps: None,
-        sell_tax_bps: None,
-        tax_notes: None,
-        router_hops_tax: None,
-    };
-
-    apply_route_tax_fields(&mut out, &taxes);
-    if let Some(ref amount_raw) = body.amount_in {
-        let max_maker_fills = body
-            .hybrid_by_hop
-            .as_ref()
-            .and_then(|hops| hops.iter().flatten().map(|h| h.max_maker_fills).max())
-            .unwrap_or(8);
-        crate::api::route_slippage::enrich_route_slippage(
-            &state,
-            &mut out,
-            amount_raw,
-            &quote_trader,
-            max_maker_fills,
-            None,
-        )
-        .await;
+        .is_some_and(|h| h.iter().any(Option::is_some))
+    {
+        return Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Declared hybrid execution is unavailable in local quote snapshots".into(),
+        ));
     }
-
-    Ok(Json(serde_json::to_value(out).map_err(internal_err)?))
+    let q = SolveRouteParams {
+        max_spread: None,
+        token_in: body.token_in,
+        token_out: body.token_out,
+        amount_in: body.amount_in,
+        amount_out: body.amount_out,
+        hybrid_optimize: None,
+        pool_only: Some(true),
+        max_maker_fills: None,
+        trader: body.trader,
+        sender: body.sender,
+        discount_bps: None,
+    };
+    super::local_quote::solve(&state, &q).await
 }
 
 #[cfg(test)]
@@ -1606,3 +1525,7 @@ mod cache_ttl_tests {
         assert_eq!(ROUTE_CACHE_TTL_DISTANT, Duration::from_secs(90));
     }
 }
+
+/// Compatibility reset: the historical discount cache is absent from production.
+#[cfg(not(test))]
+pub fn reset_discount_bps_cache() {}

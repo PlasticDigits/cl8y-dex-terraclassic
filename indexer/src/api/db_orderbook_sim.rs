@@ -1299,3 +1299,150 @@ mod tests {
         }
     }
 }
+
+/// Bounded, execution-aligned local hybrid leg details (#1452). Both pool and book
+/// use the existing integer matcher; expired/dust rows retain scan-budget costs.
+#[derive(Debug, Clone)]
+pub struct LocalLegQuote {
+    pub return_amount: u128,
+    pub pool_return_amount: u128,
+    pub commission_amount: u128,
+    pub spread_amount: u128,
+    pub book_return_net: u128,
+    pub pool_input_actual: u128,
+}
+pub fn quote_local_leg(
+    mirror: &HopMirror,
+    offer_token: &str,
+    offer: u128,
+    book_input: u128,
+    max_fills: u32,
+) -> Result<LocalLegQuote, DbSimError> {
+    if book_input > offer
+        || mirror.fee_bps > 10_000
+        || !matches!(
+            mirror.freshness,
+            MirrorFreshness::Fresh | MirrorFreshness::EmptyPool
+        )
+    {
+        return Err(DbSimError::InvalidNumeric);
+    }
+    let (rin, rout) = if offer_token == mirror.asset_0_addr {
+        (mirror.reserve_0, mirror.reserve_1)
+    } else if offer_token == mirror.asset_1_addr {
+        (mirror.reserve_1, mirror.reserve_0)
+    } else {
+        return Err(DbSimError::InvalidNumeric);
+    };
+    let book = if book_input == 0 {
+        BookSimResult::default()
+    } else if offer_token == mirror.asset_0_addr {
+        simulate_match_bids(&mirror.bids, book_input, max_fills, mirror.fee_bps, None)?
+    } else {
+        simulate_match_asks(&mirror.asks, book_input, max_fills, mirror.fee_bps, None)?
+    };
+    let actual = offer
+        .checked_sub(book.offer_consumed)
+        .ok_or(DbSimError::InvalidNumeric)?;
+    let gross = simulate_pool_leg(rin, rout, actual, 0)?;
+    let commission = swap_fee_amount(gross, mirror.fee_bps);
+    let pool_net = gross
+        .checked_sub(commission)
+        .ok_or(DbSimError::InvalidNumeric)?;
+    // A fully filled pure-book swap never touches the AMM; the contract also
+    // skips its reserve checks and pool-spread division in that case. Any book
+    // remainder still passes through simulate_pool_leg and requires both reserves.
+    let ideal = if actual == 0 {
+        0
+    } else {
+        (BigInt::from(actual) * BigInt::from(rout) / BigInt::from(rin))
+            .to_string()
+            .parse::<u128>()
+            .map_err(|_| DbSimError::InvalidNumeric)?
+    };
+    Ok(LocalLegQuote {
+        return_amount: pool_net
+            .checked_add(book.return_net)
+            .ok_or(DbSimError::InvalidNumeric)?,
+        pool_return_amount: pool_net,
+        commission_amount: commission,
+        spread_amount: ideal.saturating_sub(gross),
+        book_return_net: book.return_net,
+        pool_input_actual: actual,
+    })
+}
+
+/// Loads only the maximum contract-reachable 500 rows per side, in original DLL
+/// order, and reserves in the same database transaction. No request calls this.
+pub async fn load_local_mirror(
+    pool: &PgPool,
+    pair: &pairs::PairRow,
+    addresses: &HashMap<i32, String>,
+    max_age_ms: u64,
+) -> Result<HopMirror, DbSimError> {
+    let mut tx = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *tx)
+        .await?;
+    // Retain a compatible book generation at its original age when the independent
+    // pool lane advances. A stale/missing hybrid falls back to current pool-only data.
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&mut *tx, pair.id).await?;
+    let use_hybrid = hybrid
+        .as_ref()
+        .is_some_and(|r| !is_snapshot_stale(r.snapshot_at, max_age_ms));
+    let r = if use_hybrid {
+        hybrid.unwrap()
+    } else {
+        pair_reserves::get_pair_reserves(&mut *tx, pair.id)
+            .await?
+            .ok_or(DbSimError::MissingMirror)?
+    };
+    let reserve_0 = exact_u128(&r.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
+    let reserve_1 = exact_u128(&r.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
+    let fee_bps = u16::try_from(r.fee_bps)
+        .ok()
+        .filter(|b| *b <= 10_000)
+        .ok_or(DbSimError::InvalidNumeric)?;
+    // A book cannot be relabeled fresh merely because an independent reserve observation advanced.
+    let book_heights: (Option<i64>, Option<i64>) = sqlx::query_as(
+        "SELECT MIN(block_height), MAX(block_height) FROM resting_limit_orders WHERE pair_id=$1",
+    )
+    .bind(pair.id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let mut bids=sqlx::query_as::<_,resting_orders::RestingOrderRow>("SELECT pair_id,order_id,side,price,remaining,owner,expires_at FROM resting_limit_orders WHERE pair_id=$1 AND side='bid' ORDER BY walk_index ASC LIMIT 500").bind(pair.id).fetch_all(&mut *tx).await?;
+    let mut asks=sqlx::query_as::<_,resting_orders::RestingOrderRow>("SELECT pair_id,order_id,side,price,remaining,owner,expires_at FROM resting_limit_orders WHERE pair_id=$1 AND side='ask' ORDER BY walk_index ASC LIMIT 500").bind(pair.id).fetch_all(&mut *tx).await?;
+    if !use_hybrid
+        || (book_heights.0.is_some()
+            && (book_heights.0 != r.block_height || book_heights.1 != r.block_height))
+    {
+        bids.clear();
+        asks.clear();
+    }
+    tx.commit().await?;
+    Ok(HopMirror {
+        pair_id: pair.id,
+        asset_0_addr: addresses
+            .get(&pair.asset_0_id)
+            .ok_or(DbSimError::InvalidNumeric)?
+            .clone(),
+        asset_1_addr: addresses
+            .get(&pair.asset_1_id)
+            .ok_or(DbSimError::InvalidNumeric)?
+            .clone(),
+        reserve_0,
+        reserve_1,
+        fee_bps,
+        block_height: r.block_height,
+        snapshot_at: r.snapshot_at,
+        freshness: if reserve_0 == 0 || reserve_1 == 0 {
+            MirrorFreshness::EmptyPool
+        } else if is_snapshot_stale(r.snapshot_at, max_age_ms) {
+            MirrorFreshness::Stale
+        } else {
+            MirrorFreshness::Fresh
+        },
+        bids,
+        asks,
+    })
+}

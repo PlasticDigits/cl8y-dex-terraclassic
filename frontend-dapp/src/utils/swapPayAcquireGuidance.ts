@@ -12,8 +12,6 @@ import { vfdusdInForTargetUst1 } from '@/utils/ust1WindowMath'
 
 /** Same 5% confirm-again / size-warning threshold as Swap today (#293 / #497). */
 export const SWAP_FUNDED_HIGH_IMPACT_PCT = 5
-/** Conservative reduce: typed pay / this divisor, never above spendable. */
-export const SWAP_ACQUIRE_REDUCE_DIVISOR = 10n
 export const UST1_PAY_DECIMALS_DEFAULT = 6
 
 export const SWAP_ACQUIRE_GUIDE_UST1_PATH = '/ust1'
@@ -26,7 +24,7 @@ export const SWAP_ACQUIRE_COPY = {
     `You don't have ${payHuman} UST1. Deposit about ${vfdusdHuman} vFDUSD on UST1 (window max this tx).`,
   insufficientUst1OverWindow: 'The UST1 window cannot mint this size.',
   insufficientWrap: (symbol: string) => `You don't have enough ${symbol}.`,
-  highImpact: 'This size moves the pool. Try a smaller amount.',
+  highImpact: 'Review this quote before swapping.',
   guideUst1: 'Get UST1',
   guideWrap: 'Wrap',
 } as const
@@ -197,15 +195,6 @@ function ust1ShortfallGuidance(input: EvaluateSwapPayAcquireInput): SwapPayAcqui
   })
 }
 
-function fundedReduceToHuman(input: EvaluateSwapPayAcquireInput): string | null {
-  if (input.payRaw === null || input.payBalanceRaw === null) return null
-  if (input.payRaw <= 0n || input.payBalanceRaw <= 0n) return null
-  const tenth = input.payRaw / SWAP_ACQUIRE_REDUCE_DIVISOR
-  const capped = tenth < input.payBalanceRaw ? tenth : input.payBalanceRaw
-  if (capped <= 0n || capped >= input.payRaw) return null
-  return fromRawAmount(capped.toString(), input.payDecimals)
-}
-
 export function evaluateSwapPayAcquireGuidance(input: EvaluateSwapPayAcquireInput): SwapPayAcquireGuidance {
   void input.vfdusdBalanceRaw
   void input.hasSettledQuote
@@ -237,7 +226,6 @@ export function evaluateSwapPayAcquireGuidance(input: EvaluateSwapPayAcquireInpu
   if (funded && input.expectedSlippagePct != null && input.expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT) {
     return result('high_impact', {
       message: SWAP_ACQUIRE_COPY.highImpact,
-      reduceToHuman: fundedReduceToHuman(input),
     })
   }
 

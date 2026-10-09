@@ -1,16 +1,17 @@
+import { useWalletStore } from '@/hooks/useWallet'
+import { executeMultiHopSwap } from '@/services/terraclassic/router'
+import { renderWithProviders } from '@/test-utils'
+import { LOCAL_WALLET, localQuote, localTokens } from '@/test/localRouteFixtures'
+import type { PairInfo } from '@/types'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
 vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
   assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
   queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
   ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
 }))
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { renderWithProviders } from '@/test-utils'
-import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
-import { useWalletStore } from '@/hooks/useWallet'
-import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
-import type { PairInfo } from '@/types'
 
 const PAIR_ADDR = 'terra1pair00000000000000000000000000000001'
 const TERRA_A = 'terra1from00000000000000000000000000000001'
@@ -76,7 +77,8 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   computeDirectHybridMinReturn: vi.fn().mockResolvedValue('900000'),
 }))
 
-vi.mock('@/services/terraclassic/transactions', () => ({
+vi.mock('@/services/terraclassic/transactions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/terraclassic/transactions')>()),
   executeCw20AllowanceThen: vi.fn(async (_a, _b, _c, _d, fn: () => Promise<string>) => fn()),
   estimateMarketPairSwapSequenceUlunaFeesTotal: vi.fn().mockReturnValue(1000000n),
 }))
@@ -115,9 +117,9 @@ vi.mock('@/services/indexer/client', () => {
   }
 })
 
+import * as indexerClient from '@/services/indexer/client'
 import * as pair from '@/services/terraclassic/pair'
 import { simulateMultiHopSwap } from '@/services/terraclassic/router'
-import * as indexerClient from '@/services/indexer/client'
 
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn(), playSuccess: vi.fn(), playError: vi.fn() },
@@ -127,25 +129,17 @@ async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByTestId('trade-market-advanced-toggle'))
 }
 
-describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
+describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.clearAllMocks()
-    useWalletStore.setState({
-      address: 'terra1wallet000000000000000000000000001',
-      walletType: 'simulated',
-      error: null,
-    })
+    useWalletStore.setState({ address: LOCAL_WALLET, walletType: 'simulated', error: null })
+    vi.mocked(indexerClient.getTokens).mockResolvedValue(localTokens)
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+      localQuote(from, to, amount, options)
+    )
   })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('defaults to GET /route/solve (not POST) when book leg empty (#501 / #596)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
+  async function ready() {
+    const rendered = renderWithProviders(
       <TradeMarketOrderPanel
         pairAddr={PAIR_ADDR}
         selectedPair={selectedPair}
@@ -154,244 +148,78 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
         isPaused={false}
       />
     )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-
-    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
-    expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
-    expect(await screen.findByTestId('trade-market-quote')).toBeInTheDocument()
-    expect(screen.getByTestId('trade-market-expected-receive')).toBeInTheDocument()
-  })
-
-  it('has no hybrid opt-out toggle; Advanced still quotes via GET (#596)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    await openAdvanced(user)
-    expect(screen.queryByTestId('trade-market-hybrid-toggle')).not.toBeInTheDocument()
-    expect(screen.queryByRole('checkbox', { name: /best execution/i })).not.toBeInTheDocument()
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-
-    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
-    expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
-    expect(await screen.findByTestId('trade-market-quote-extras')).toHaveTextContent(/limit book \+ pool/i)
-  })
-
-  it('submits GET solver hybrid with max_maker_fills submit cap (#501 / #249)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
-
-    await user.click(screen.getByTestId('trade-market-submit'))
-    await waitFor(() => expect(pair.swap).toHaveBeenCalled())
-    const swapArgs = vi.mocked(pair.swap).mock.calls.at(-1)
-    expect(swapArgs?.[7]?.hybrid).toEqual({
-      pool_input: '800000',
-      book_input: '200000',
-      max_maker_fills: 8,
-      book_start_hint: null,
-    })
-  })
-
-  it('uses POST /route/solve only for Advanced manual book leg override (#501)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-    vi.mocked(indexerClient.postRouteSolve).mockResolvedValue({
-      token_in: TERRA_A,
-      token_out: TERRA_B,
-      hops: [{ pair: PAIR_ADDR, offer_token: TERRA_A, ask_token: TERRA_B }],
-      router_operations: [
-        {
-          terra_swap: {
-            offer_asset_info: { token: { contract_addr: TERRA_A } },
-            ask_asset_info: { token: { contract_addr: TERRA_B } },
-            hybrid: {
-              pool_input: '500000',
-              book_input: '500000',
-              max_maker_fills: 8,
-              book_start_hint: null,
-            },
-          },
-        },
-      ],
-      quote_kind: 'indexer_hybrid_lcd',
-      estimated_amount_out: '1000000',
-    } as Awaited<ReturnType<typeof indexerClient.postRouteSolve>>)
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
+    return rendered
+  }
+  it('quotes the default through local GET and the actual selected spread', async () => {
+    await ready()
+    expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(
+      TERRA_A,
+      TERRA_B,
+      '1000000',
+      expect.objectContaining({ maxSpread: '0.05', trader: LOCAL_WALLET })
     )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await openAdvanced(user)
-    await user.type(screen.getByTestId('trade-market-book-leg-input'), '0.5')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-
-    await waitFor(() => expect(indexerClient.postRouteSolve).toHaveBeenCalled())
+    expect(pair.simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+    expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
   })
-
-  it('disables market submit with quoting state while book leg differs from debounced hybrid quote', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    const amountInput = screen.getByTestId('limit-order-escrow-amount-input')
-    await user.type(amountInput, '10')
-    await openAdvanced(user)
-
-    const bookInput = screen.getByTestId('trade-market-book-leg-input')
-    await user.type(bookInput, '2')
-
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
-
-    await user.clear(bookInput)
-    await user.type(bookInput, '5')
-
+  it('signs precisely the reviewed single-hop router operations with positive floors', async () => {
+    await ready()
+    await userEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalled())
+    expect(vi.mocked(executeMultiHopSwap).mock.calls[0]).toEqual([
+      LOCAL_WALLET,
+      TERRA_A,
+      '1000000',
+      expect.arrayContaining([
+        expect.objectContaining({ terra_swap: expect.objectContaining({ min_return: '950000' }) }),
+      ]),
+      '0.05',
+      '950000',
+      undefined,
+      expect.any(Number),
+      expect.objectContaining({ generation: 'fixture1' }),
+    ])
+    expect(pair.swap).not.toHaveBeenCalled()
+  })
+  it('keeps the pay field stale until the correct raw quote arrives', async () => {
+    await ready()
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '10' } })
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
-
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await waitFor(() =>
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(TERRA_A, TERRA_B, '10000000', expect.anything())
+    )
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
   })
-
-  it('shows labeled pre-sign confirmation fields before market swap submit (GitLab #409 / SEC-D11)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-    await openAdvanced(user)
-
-    expect(await screen.findByTestId('trade-market-pre-submit-summary')).toBeInTheDocument()
+  it('rejects unsupported manual splits explicitly instead of simulating a fallback', async () => {
+    await ready()
+    await openAdvanced(userEvent.setup())
+    fireEvent.change(screen.getByTestId('trade-market-book-leg-input'), { target: { value: '0.1' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
+    await waitFor(() => expect(screen.getByTestId('trade-market-quote-error')).toHaveTextContent(/Clear the book leg/i))
+    expect(pair.simulateHybridSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('retains a useful receive through failed refresh with submit blocked', async () => {
+    const { queryClient } = await ready()
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new Error('Indexer API error: 503'))
+    await queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
+    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1')
+  })
+  it('keeps compact signing anchors and no hybrid opt-out', async () => {
+    await ready()
+    await openAdvanced(userEvent.setup())
+    expect(screen.queryByTestId('trade-market-hybrid-toggle')).not.toBeInTheDocument()
     expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Market swap')
-    expect(screen.getByTestId('swap-confirm-pair')).toHaveTextContent('→')
     expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('1')
-    expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('1')
-    expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
     expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
-    expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
+    expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
   })
-
-  it('shows retail-friendly disclosure on the market quote card (#414)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-    await openAdvanced(user)
-
-    const extras = await screen.findByTestId('trade-market-quote-extras')
-    expect(extras).toHaveTextContent(/Estimated output from limit book \+ pool/i)
-    expect(extras).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
-  })
-
-  it('surfaces hybrid min return copy in Advanced (#419 / #501 / #596)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    expect(screen.queryByTestId('trade-market-hybrid-min-return-notice')).not.toBeInTheDocument()
-    await openAdvanced(user)
-    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/min return/i)
-    expect(screen.getByTestId('trade-market-hybrid-min-return-notice')).toHaveTextContent(/indexer solver/i)
-  })
-
-  it('humanizes simulated quote failures instead of raw error text (#414)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
-    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
-    vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
-    vi.mocked(pair.simulateHybridSwap).mockRejectedValue(new Error('lcd fail'))
-    vi.mocked(pair.simulateSwap).mockRejectedValue(new Error('lcd fail'))
-
-    renderWithProviders(
-      <TradeMarketOrderPanel
-        pairAddr={PAIR_ADDR}
-        selectedPair={selectedPair}
-        pairs={[selectedPair]}
-        side="ask"
-        isPaused={false}
-      />
-    )
-
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
-
-    const err = await screen.findByTestId('trade-market-quote-error')
-    expect(err).toHaveTextContent(/reach the chain/i)
-    expect(err).not.toHaveTextContent(/lcd fail/i)
-  })
-
-  it('keeps deterministic route rejection closed instead of quoting a viable pool fallback (#1390)', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+  it('never quotes a live fallback after a deterministic route rejection', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new Error('Indexer API error: 422 Unprocessable Entity'))
-    vi.mocked(pair.simulateSwap).mockResolvedValue({
-      return_amount: '1000000',
-      spread_amount: '0',
-      commission_amount: '0',
-    })
     renderWithProviders(
       <TradeMarketOrderPanel
         pairAddr={PAIR_ADDR}
@@ -401,10 +229,9 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
         isPaused={false}
       />
     )
-    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
-    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await screen.findByTestId('trade-market-quote-error')
-    expect(screen.queryByTestId('trade-market-quote')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
     expect(pair.simulateSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
   })

@@ -206,6 +206,7 @@ function TradeOrderTicketContent({
   const headingWashCss = useTokenHeadingWash(headingTokenId, headingToken.logoURI)
 
   const { refToken1PerToken0, refSource, refResolutionLoading, refResolutionError } = useLimitOrderPriceRefBundle({
+    chainEnabled: orderTab === 'limit',
     pairAddr,
     selectedPair,
     indexerPair,
@@ -268,7 +269,7 @@ function TradeOrderTicketContent({
     makerPlacementFeeBps,
     feeLoading: limitFeeLoading,
     feeError: limitFeeError,
-  } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined)
+  } = useLimitOrderMakerFeeRates(pairAddr, address ?? undefined, { enabled: orderTab === 'limit' })
 
   const expectedReceiveHuman = useMemo(
     () =>
@@ -313,14 +314,14 @@ function TradeOrderTicketContent({
   const pausedQuery = useQuery({
     queryKey: ['pairPaused', pairAddr],
     queryFn: () => getPairPaused(pairAddr),
-    enabled: pairAddr.startsWith('terra1'),
+    enabled: orderTab === 'limit' && pairAddr.startsWith('terra1'),
     staleTime: 15_000,
   })
 
   const isPaused = pausedQuery.data?.paused === true
   const pairCodeIdFreeze = usePairCodeIdFreeze({
     pairAddress: pairAddr,
-    enabled: pairAddr.startsWith('terra1'),
+    enabled: orderTab === 'limit' && pairAddr.startsWith('terra1'),
   })
   const isPairCodeIdFrozen = pairCodeIdFreeze.isFrozen
 
@@ -333,7 +334,7 @@ function TradeOrderTicketContent({
     token0: token0Addr,
     token1: token1Addr,
     pairAddress: pairAddr,
-    enabled: pairAddr.startsWith('terra1'),
+    enabled: orderTab === 'limit' && pairAddr.startsWith('terra1'),
   })
   const isTradeBlocked = isPaused || isPairCodeIdFrozen || tradingBlacklist.blocked
 
@@ -646,13 +647,14 @@ function TradeOrderTicketContent({
   }
 
   useEffect(() => {
+    if (orderTab !== 'limit') return
     pairs.forEach((p) => {
       const a = assetInfoLabel(p.asset_infos[0])
       const b = assetInfoLabel(p.asset_infos[1])
       if (a.startsWith('terra1')) void fetchCW20TokenInfo(a)
       if (b.startsWith('terra1')) void fetchCW20TokenInfo(b)
     })
-  }, [pairs])
+  }, [pairs, orderTab])
 
   useEffect(() => {
     setLastIndexedOrderId(null)

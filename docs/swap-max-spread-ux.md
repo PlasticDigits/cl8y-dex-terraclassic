@@ -1,5 +1,24 @@
 # Swap max spread & price impact (dApp)
 
+## Local quote preflight (#1452)
+
+Current indexed quote display, preflight and confirmation consume the exact
+locally published route generation and positive per-hop/final floors. Requests
+must not trigger chain validation, tier/config lookup or router/pair simulation.
+The caller's actual protection setting participates in route selection and cache
+identity. Unsupported cached semantics block explicitly; 30% Expert behavior,
+nonwaivable ≥99% protection, stale-submit checks and reviewed operations remain.
+Do not recommend a smaller amount without a fresh quote proving it helps.
+
+[Current solver contract](route-solver.md#local-quote-contract-1452),
+[LQ1452 agent invariants](../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
+[agent checklist and skip policy](qa/issue-1452/README.md) and
+[measured implementation scope](qa/issue-1452/RESULTS.md) are the current
+references. Historical request-time LCD preflight/enrichment descriptions below
+are superseded for indexed local quotes. Source tests do not prove deployment
+or normal-transport browser latency.
+
+
 This document describes how the retail **Swap** page surfaces **price impact** and **max spread** checks so users are not surprised by thin-liquidity failures or unreadable chain errors.
 
 **Related:** GitLab issue [**#134**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134) · [**#158**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158) (single route row in swap trade summary) · [**#293**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293) (route-based expected slippage + Expert Mode retail guard) · [**#302**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/302) (same route row on `/trade` market quote — `trade-market-route-summary`) · [**#412**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/412) (unified **Slippage protection** retail label + transaction deadline in Swap Settings) · [**#497**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497) (default **Slippage protection** / route-impact guard **5%**) · [**#168**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/168) / [**#299**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299) (MEV / public mempool — docs-only, [`docs/frontend.md#swap-mev-posture`](./frontend.md#swap-mev-posture)) · [**#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197) (unified pool + hybrid `max_spread` — invariant **L9**, [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs)) · [**#273**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/273) (no-belief hybrid book-leg shortfall in spread numerator) · [**#307**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/307) (material declared pool leg when book leg present) · [**#334**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334) (pure-book execute requires `belief_price` or `min_return`) · pair `assert_max_spread` in [`smartcontracts/contracts/pair/src/contract.rs`](../../smartcontracts/contracts/pair/src/contract.rs) · frontend [`SwapPage.tsx`](../../frontend-dapp/src/pages/SwapPage.tsx) · route label helper [`swapRouteDisplay.ts`](../../frontend-dapp/src/utils/swapRouteDisplay.ts) · math [`swapMaxSpread.ts`](../../frontend-dapp/src/utils/swapMaxSpread.ts) · route slippage [`swapRouteSlippage.ts`](../../frontend-dapp/src/utils/swapRouteSlippage.ts) · retail copy [`slippageProtectionCopy.ts`](../../frontend-dapp/src/utils/slippageProtectionCopy.ts) · indexer [`route_slippage.rs`](../indexer/src/api/route_slippage.rs) · LCD preflight [`swapRoutePreflight.ts`](../../frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts) · tx copy [`humanizeTerraTxError.ts`](../../frontend-dapp/src/utils/humanizeTerraTxError.ts) · indexer + route LCD context: [`docs/indexer-invariants.md`](./indexer-invariants.md#frontend-expectations-read-path) · agent notes: [`skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](../skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) · [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) · [`skills/AGENTS_HYBRID_QUOTING.md`](../skills/AGENTS_HYBRID_QUOTING.md) · [`skills/AGENTS_MAX_SPREAD_HYBRID.md`](../skills/AGENTS_MAX_SPREAD_HYBRID.md)

@@ -1,13 +1,12 @@
-import { queryContract } from '@/services/terraclassic/queries'
-import { useQuery } from '@tanstack/react-query'
+import { useWalletStore } from '@/hooks/useWallet'
 import {
   queryCommunityTaxConfig,
   queryCommunityTaxIsExempt,
   queryTaxPreview,
 } from '@/services/terraclassic/communityTaxToken'
-import { useWalletStore } from '@/hooks/useWallet'
-import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
+import { queryContract } from '@/services/terraclassic/queries'
 import { effectiveBuyTaxBps } from '@/utils/communityTaxNetOut'
+import type { CommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import {
   classifyCommunityTaxQueryError,
   effectiveExtraDebitSellBps,
@@ -15,7 +14,8 @@ import {
   parseUintString,
   taxPreviewExecuteDebitRaw,
 } from '@/utils/taxPreviewMaxSpend'
-import type { CommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
+import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
+import { useQuery } from '@tanstack/react-query'
 
 export type CommunityTaxDetection = 'tax' | 'honest' | 'unresolved'
 
@@ -37,9 +37,9 @@ async function assertNoSupportedLegacyTaxApi(token: string): Promise<void> {
  * Trading discovery is independent of the Create Token feature configuration.
  * Previously observed tax remains protected after a failed config refetch.
  */
-export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
+export function useCommunityTaxSellBps(tokenAddr: string | null | undefined, options?: { enabled?: boolean }) {
   const wallet = useWalletStore((s) => s.address)
-  const enabled = !!tokenAddr && isValidTerraBech32Address(tokenAddr)
+  const enabled = options?.enabled !== false && !!tokenAddr && isValidTerraBech32Address(tokenAddr)
   const cfg = useQuery({
     queryKey: ['communityTaxSellBps', tokenAddr],
     queryFn: async () => {

@@ -808,11 +808,53 @@ export type IndexerRouteQuoteKind =
   | 'indexer_hybrid_db'
   | 'indexer_hybrid_db_degraded'
 
+/** Local observation-pinned executable quote (#1452); never authorizes live fallback. */
+export interface IndexerRouteExecutionMetadata {
+  version: 1
+  generation: string
+  input_amount: string
+  max_spread: string
+  trader?: string | null
+  sender?: string | null
+  observed_at_ms: number
+  expires_at_ms: number
+  policy: 'pool_only' | 'declared_hybrid_hop0'
+  tax_funding_version?: 1
+  minimum_receive: string
+  wrapper?: {
+    input_token: string
+    output_token: string
+    input_amount: string
+    route_input_amount: string
+    route_output_amount: string
+    minimum_receive_base: string
+    wrap_input: boolean
+    unwrap_output: boolean
+    treasury: string
+    mapper: string
+  }
+  hops: {
+    offer_token: string
+    ask_token: string
+    pair: string
+    offer_amount: string
+    return_amount: string
+    pool_return_amount: string
+    book_return_net: string
+    pool_input_actual: string
+    book_offer_consumed: string
+    spread_amount: string
+    commission_amount: string
+    min_return: string
+  }[]
+}
+
 export interface IndexerRouteSolveResponse {
+  execution_metadata?: IndexerRouteExecutionMetadata
   /** Exact-output sizing metadata (#1376); target is net CW20 raw units. */
   required_amount_in?: string
   target_amount_out?: string
-  sizing_mode?: 'pool_only_exact_output'
+  sizing_mode?: 'pool_only_exact_output' | 'local_pool_exact_output'
 
   token_in: string
   token_out: string

@@ -1,19 +1,20 @@
-import { queryContract } from './queries'
-import { executeTerraContract, executeTerraContractMulti } from './transactions'
-import type { QuoteTraderOptions } from './pair'
+import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
+import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
+import { assetInfoLabel, getWrappedEquivalent, isNativeDenom, tokenAssetInfo } from '@/types'
 import {
-  ROUTER_CONTRACT_ADDRESS,
   NATIVE_WRAPPED_PAIRS,
+  ROUTER_CONTRACT_ADDRESS,
   TREASURY_CONTRACT_ADDRESS,
   WRAP_MAPPER_CONTRACT_ADDRESS,
 } from '@/utils/constants'
-import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
-import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } from '@/types'
+import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
+import { assertLocalRouteSubmit } from '@/utils/localRouteQuote'
 import {
   fetchNativeTransferTaxParams,
   grossUlunaForTargetNet,
   netUlunaAfterTransferTaxAsync,
 } from '@/utils/nativeTransferTax'
+import { poolOnlyNativeExecuteOps } from '@/utils/nativeWrapRouteSolve'
 import {
   isGemTokenId,
   isTestPair,
@@ -21,10 +22,11 @@ import {
   pairInfoLegSymbols,
   retailExposeTestTokens,
 } from '@/utils/pairCatalogRank'
-import { netAfterWrapMapperFee, queryWrapMapperFeeBps, wrapGrossForNetCw20 } from './wrapMapper'
-import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
+import type { QuoteTraderOptions } from './pair'
+import { queryContract } from './queries'
 import { assertRouteTaxFunding } from './routeTaxFunding'
-import { poolOnlyNativeExecuteOps } from '@/utils/nativeWrapRouteSolve'
+import { executeTerraContract, executeTerraContractMulti } from './transactions'
+import { netAfterWrapMapperFee, queryWrapMapperFeeBps, wrapGrossForNetCw20 } from './wrapMapper'
 
 /** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
 export type NativeSwapSimResult = {
@@ -130,9 +132,12 @@ export async function executeMultiHopSwap(
   maxSpread: string,
   minimumReceive?: string,
   to?: string,
-  deadline?: number
+  deadline?: number,
+  localExecution?: import('@/types').IndexerRouteExecutionMetadata
 ): Promise<string> {
-  const taxFundingVersion = await assertRouteTaxFunding(operations)
+  if (localExecution)
+    assertLocalRouteSubmit(localExecution, operations, amount, maxSpread, walletAddress, minimumReceive)
+  const taxFundingVersion = localExecution ? undefined : await assertRouteTaxFunding(operations)
   if (taxFundingVersion !== 1) assertHop0DeclaredHybridPartitionsOffer(operations, amount)
   const swapMsg = btoa(
     JSON.stringify({
@@ -146,13 +151,13 @@ export async function executeMultiHopSwap(
       },
     })
   )
-  return executeTerraContract(walletAddress, inputTokenAddress, {
-    send: {
-      contract: ROUTER_CONTRACT_ADDRESS,
-      amount,
-      msg: swapMsg,
-    },
-  })
+  const msg = { send: { contract: ROUTER_CONTRACT_ADDRESS, amount, msg: swapMsg } }
+  return localExecution
+    ? executeTerraContract(walletAddress, inputTokenAddress, msg, undefined, {
+        ...getTerraBroadcastScopeOptions(),
+        gasEstimation: 'offline',
+      })
+    : executeTerraContract(walletAddress, inputTokenAddress, msg)
 }
 
 /**
@@ -505,4 +510,64 @@ export async function executeNativeSwap(
   }
 
   return executeTerraContract(walletAddress, fromToken, sendToRouterMsg)
+}
+
+/** Assemble the exact cached wrapper plan; broadcast still enforces its signed settlement floors. */
+export async function executeLocalNativeRoute(
+  walletAddress: string,
+  metadata: import('@/types').IndexerRouteExecutionMetadata,
+  operations: SwapOperation[],
+  maxSpread: string,
+  minimumReceive: string,
+  deadline?: number
+): Promise<string> {
+  const w = metadata.wrapper
+  if (
+    !w ||
+    w.treasury !== TREASURY_CONTRACT_ADDRESS ||
+    w.mapper !== WRAP_MAPPER_CONTRACT_ADDRESS ||
+    w.wrap_input !== isNativeDenom(w.input_token) ||
+    w.unwrap_output !== isNativeDenom(w.output_token) ||
+    w.input_amount !== metadata.input_amount ||
+    (w.wrap_input &&
+      assetInfoLabel(operations[0]?.terra_swap.offer_asset_info) !== getWrappedEquivalent(w.input_token)) ||
+    (w.unwrap_output &&
+      assetInfoLabel(operations.at(-1)!.terra_swap.ask_asset_info) !== getWrappedEquivalent(w.output_token))
+  ) {
+    throw new Error('Quote unavailable. Refresh the quote.')
+  }
+  assertLocalRouteSubmit(metadata, operations, w.input_amount, maxSpread, walletAddress, minimumReceive)
+  const wrappedInput = w.wrap_input ? getWrappedEquivalent(w.input_token)! : w.input_token
+  const broadcastOptions = { ...getTerraBroadcastScopeOptions(), gasEstimation: 'offline' as const }
+  const send = {
+    send: {
+      contract: ROUTER_CONTRACT_ADDRESS,
+      amount: w.route_input_amount,
+      msg: btoa(
+        JSON.stringify({
+          execute_swap_operations: {
+            operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
+            max_spread: maxSpread,
+            minimum_receive: minimumReceive,
+            deadline,
+            ...(w.unwrap_output ? { unwrap_output: true } : {}),
+          },
+        })
+      ),
+    },
+  }
+  return w.wrap_input
+    ? executeTerraContractMulti(
+        walletAddress,
+        [
+          {
+            contract: TREASURY_CONTRACT_ADDRESS,
+            msg: { wrap_deposit: {} },
+            coins: [{ denom: w.input_token, amount: w.input_amount }],
+          },
+          { contract: wrappedInput, msg: send },
+        ],
+        broadcastOptions
+      )
+    : executeTerraContract(walletAddress, wrappedInput, send, undefined, broadcastOptions)
 }

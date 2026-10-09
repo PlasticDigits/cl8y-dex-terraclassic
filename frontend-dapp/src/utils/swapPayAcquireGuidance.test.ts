@@ -1,7 +1,3 @@
-import { describe, expect, it } from 'vitest'
-import { UST1_RATE_SCALE } from '@/utils/ust1WindowMath'
-import { assertSecondaryMarketCopy } from '@/utils/ust1SecondaryMarket'
-import type { Ust1EffectiveSwapView } from '@/utils/ust1WindowGates'
 import {
   SWAP_ACQUIRE_COPY,
   SWAP_ACQUIRE_GUIDE_UST1_PATH,
@@ -12,6 +8,10 @@ import {
   isUst1PayAsset,
   type EvaluateSwapPayAcquireInput,
 } from '@/utils/swapPayAcquireGuidance'
+import { assertSecondaryMarketCopy } from '@/utils/ust1SecondaryMarket'
+import type { Ust1EffectiveSwapView } from '@/utils/ust1WindowGates'
+import { UST1_RATE_SCALE } from '@/utils/ust1WindowMath'
+import { describe, expect, it } from 'vitest'
 
 const UST1 = 'terra1ust100000000000000000000000000000000001'
 const CLUNC = 'terra1clunc0000000000000000000000000000000001'
@@ -161,7 +161,7 @@ describe('evaluateSwapPayAcquireGuidance (#678)', () => {
     expect(g.kind).toBe('insufficient_generic')
   })
 
-  it('funded high impact offers reduce never above balance', () => {
+  it('funded high impact never suggests an unverified smaller amount', () => {
     const g = evaluateSwapPayAcquireGuidance(
       base({
         payRaw: 10_000_000n,
@@ -171,7 +171,7 @@ describe('evaluateSwapPayAcquireGuidance (#678)', () => {
     )
     expect(g.kind).toBe('high_impact')
     expect(g.message).toBe(SWAP_ACQUIRE_COPY.highImpact)
-    expect(g.reduceToHuman).toBe('1')
+    expect(g.reduceToHuman).toBeNull()
   })
 
   it('does not treat ticker UST1 as the window token (T10)', () => {

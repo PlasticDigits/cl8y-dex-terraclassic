@@ -1,0 +1,293 @@
+{
+  "recorded_at": "2026-10-09T09:12:24.107Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; process/assets initialized; wallet disconnected; no broadcast; not production reference evidence",
+  "measurement": "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows"
+  ],
+  "quote_requests": 44,
+  "provider_requests": 0,
+  "receipts": [
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "samples_ms": [
+        49.7,
+        40.1,
+        38.7,
+        39.3,
+        39.9,
+        42.9,
+        45.4,
+        35.9,
+        39.3,
+        40.4
+      ],
+      "p50_ms": 39.9,
+      "p95_ms": 49.7,
+      "max_ms": 49.7,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "samples_ms": [
+        62.3,
+        37.6,
+        34.9,
+        35.8,
+        36.2,
+        34.7,
+        33.3,
+        32.7,
+        32.9,
+        33.7
+      ],
+      "p50_ms": 34.7,
+      "p95_ms": 62.3,
+      "max_ms": 62.3,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": []
+    },
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "samples_ms": [
+        1261.1,
+        55.6,
+        136.5,
+        134.9,
+        70.8,
+        49.9,
+        578,
+        47.6,
+        41.1,
+        41.1
+      ],
+      "p50_ms": 55.6,
+      "p95_ms": 1261.1,
+      "max_ms": 1261.1,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": [
+        {
+          "duration": 1261.0999999996275,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 6082.5,
+              "end": 7303.200000001118,
+              "server_received_at": 1791537106048,
+              "server_sent_at": 1791537106048,
+              "time_origin": 1791537099964.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 6083,
+              "fetch_start": 6083,
+              "request_start": 6083.800000000745,
+              "response_start": 6084.5,
+              "response_end": 7304.300000000745,
+              "duration": 1221.300000000745,
+              "connect_start": 6083,
+              "connect_end": 6083,
+              "transfer_size": 1968
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 578,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 8122.5,
+              "end": 8666.700000001118,
+              "server_received_at": 1791537108630,
+              "server_sent_at": 1791537108630,
+              "time_origin": 1791537099964.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 8123.200000001118,
+              "fetch_start": 8123.200000001118,
+              "request_start": 8665.10000000149,
+              "response_start": 8665.700000001118,
+              "response_end": 8666.60000000149,
+              "duration": 543.4000000003725,
+              "connect_start": 8123.200000001118,
+              "connect_end": 8123.200000001118,
+              "transfer_size": 1968
+            }
+          ],
+          "long_tasks": [
+            {
+              "start": 8134.60000000149,
+              "duration": 398
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "samples_ms": [
+        3147.8,
+        421.4,
+        40.6,
+        41.7,
+        37.1,
+        38.8,
+        1096.9,
+        33.9,
+        33.3,
+        39.6
+      ],
+      "p50_ms": 39.6,
+      "p95_ms": 3147.8,
+      "max_ms": 3147.8,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": [],
+      "diagnostic_trace_count": 10,
+      "slow_traces": [
+        {
+          "duration": 3147.7999999988824,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 25364.60000000149,
+              "end": 28479.700000001118,
+              "server_received_at": 1791537141688,
+              "server_sent_at": 1791537141688,
+              "time_origin": 1791537113672
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 25365.300000000745,
+              "fetch_start": 25365.300000000745,
+              "request_start": 28016,
+              "response_start": 28016.900000000373,
+              "response_end": 28479.300000000745,
+              "duration": 3114,
+              "connect_start": 25365.300000000745,
+              "connect_end": 25365.300000000745,
+              "transfer_size": 1968
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 421.40000000037253,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 28877.400000000373,
+              "end": 28915.400000000373,
+              "server_received_at": 1791537142552,
+              "server_sent_at": 1791537142552,
+              "time_origin": 1791537113672
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 28878.10000000149,
+              "fetch_start": 28878.10000000149,
+              "request_start": 28879,
+              "response_start": 28881.200000001118,
+              "response_end": 28914.60000000149,
+              "duration": 36.5,
+              "connect_start": 28878.10000000149,
+              "connect_end": 28878.10000000149,
+              "transfer_size": 1968
+            }
+          ],
+          "long_tasks": [
+            {
+              "start": 28527.900000000373,
+              "duration": 350
+            }
+          ]
+        },
+        {
+          "duration": 1096.9000000003725,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 29203.300000000745,
+              "end": 29207.800000000745,
+              "server_received_at": 1791537142877,
+              "server_sent_at": 1791537142877,
+              "time_origin": 1791537113672
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:42307/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 29204,
+              "fetch_start": 29204,
+              "request_start": 29204.900000000373,
+              "response_start": 29206.5,
+              "response_end": 29748,
+              "duration": 544,
+              "connect_start": 29204,
+              "connect_end": 29204,
+              "transfer_size": 1968
+            }
+          ],
+          "long_tasks": [
+            {
+              "start": 29748.200000001118,
+              "duration": 520
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "evidence_retention": "All sample durations/distributions, initialization and counters retained; detailed traces retained for >=250ms failures only. Latest browser-controlled.json retains full successful trace."
+}
