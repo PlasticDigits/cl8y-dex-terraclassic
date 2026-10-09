@@ -54,6 +54,15 @@ Review and reproducible verification:
    factory cannot consume another retained factory's admission budget. The
    production getter waits 125 ms between retryable admission attempts, checking
    the DB again before every attempt; it performs no LCD call until admitted.
+   Shared provider rate/concurrency/half-open admission exhaustion is the typed
+   `LcdError::AdmissionDeferred` and follows the same wait/DB-recheck policy
+   ([#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453)). Factory
+   budgets remain independent; provider HTTP capacity is intentionally shared.
+   Production discovery retains completed identity/pair/provenance/metadata
+   phases during capacity waits while holding its factory permit; restarting the
+   whole discovery can livelock a small provider burst. Recheck concurrent DB
+   persistence at every retry. Direct discovery returns capacity deferral promptly.
+   Actual attempted provider failures retain the existing transient policy.
    Already-persisted legitimate pairs bypass discovery admission. Waiting futures
    belong to callers; do not introduce an unbounded internal event queue. A flood
    may slow block progress, but admission pressure must not create an additional

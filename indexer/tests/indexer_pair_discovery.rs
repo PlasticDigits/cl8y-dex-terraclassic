@@ -531,3 +531,202 @@ async fn factory_transient_error_type_is_preserved_and_getter_retry_succeeds() {
     assert_eq!(counters.rejected_unlisted, 0);
     assert_eq!(counters.rejected_not_pair, 0);
 }
+
+/// #1453 provider budgets must defer discovery, never create a successfully
+/// skipped legitimate event or a negative cache entry.
+#[tokio::test]
+#[serial]
+async fn getter_retries_provider_admission_pressure_without_dropping_pair() {
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let pair = address(110);
+    let factory = address(111);
+    let holder = address(112);
+    let server = MockServer::start().await;
+    let f = factory.clone();
+    let p = pair.clone();
+    mount(&server, move |req| {
+        if common::lcd_mock::smart_query_from_request(req)
+            .get("hold")
+            .is_some()
+        {
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"data":{"held":true}}))
+                .set_delay(Duration::from_millis(500))
+        } else {
+            success_response(req, &f, &p)
+        }
+    })
+    .await;
+    let lcd = LcdClient::new_with_policy(
+        vec![server.uri()],
+        2000,
+        0,
+        "columbus-5",
+        ProviderPolicy {
+            concurrency: 1,
+            ..ProviderPolicy::default()
+        },
+    );
+    let holding_lcd = lcd.clone();
+    let holding = tokio::spawn(async move {
+        holding_lcd
+            .query_contract::<Value>(&holder, &json!({"hold":{}}))
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if server.received_requests().await.unwrap().iter().any(|r| {
+                common::lcd_mock::smart_query_from_request(r)
+                    .get("hold")
+                    .is_some()
+            }) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("background request holds the sole shared provider permit");
+    let waiting_pool = pool.clone();
+    let waiting_lcd = lcd.clone();
+    let waiting_pair = pair.clone();
+    let waiting_factory = factory.clone();
+    let getter = tokio::spawn(async move {
+        get_or_discover_pair(&waiting_pool, &waiting_lcd, &waiting_factory, &waiting_pair).await
+    });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if lcd
+                .provider_counters()
+                .await
+                .iter()
+                .any(|c| c.concurrency_deferrals > 0)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("getter encounters provider admission pressure");
+    assert!(
+        !getter.is_finished(),
+        "admission pressure cannot soft-skip a legitimate event"
+    );
+    holding.await.unwrap().unwrap();
+    let discovered = tokio::time::timeout(Duration::from_secs(3), getter)
+        .await
+        .expect("getter retries after provider capacity returns")
+        .unwrap()
+        .unwrap()
+        .expect("legitimate pair is persisted instead of discarded");
+    assert_eq!(discovered.contract_address, pair);
+    assert_persisted(&pool, &pair).await;
+    assert_eq!(lcd.pair_discovery_counters().discovered, 1);
+    assert_eq!(
+        smart_requests(&server).await,
+        5,
+        "one holder and four successful discovery queries"
+    );
+}
+
+/// A two-token burst must advance through phases instead of restarting identity
+/// and pair reads forever. Native/CW20 discovery includes metadata, fee and hooks.
+#[tokio::test]
+#[serial]
+async fn getter_preserves_discovery_phases_under_two_token_provider_burst() {
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let pair = address(113);
+    let factory = address(114);
+    let token = address(115);
+    let mut info = pair_info(&pair);
+    info["asset_infos"][1] = json!({"token":{"contract_addr":token}});
+    let server = MockServer::start().await;
+    let f = factory.clone();
+    let p = pair.clone();
+    let t = token.clone();
+    mount(&server, move |req| {
+        let q = common::lcd_mock::smart_query_from_request(req);
+        if q.get("pair").is_some() {
+            let data = if contract(req) == f {
+                json!({"pair":info})
+            } else {
+                assert_eq!(contract(req), p);
+                info.clone()
+            };
+            ResponseTemplate::new(200).set_body_json(json!({"data":data}))
+        } else if q.get("token_info").is_some() {
+            assert_eq!(contract(req), t);
+            ResponseTemplate::new(200).set_body_json(json!({"data":{
+                "name":"Fixture Token", "symbol":"FIX", "decimals":18, "total_supply":"1000000"
+            }}))
+        } else {
+            success_response(req, &f, &p)
+        }
+    })
+    .await;
+    let lcd = LcdClient::new_with_policy(
+        vec![server.uri()],
+        2000,
+        0,
+        "columbus-5",
+        ProviderPolicy {
+            requests_per_second: 16,
+            burst: 2,
+            ..ProviderPolicy::default()
+        },
+    );
+    let row = tokio::time::timeout(
+        Duration::from_secs(5),
+        get_or_discover_pair(&pool, &lcd, &factory, &pair),
+    )
+    .await
+    .expect("small provider burst must not livelock legitimate discovery")
+    .unwrap()
+    .expect("all phases eventually publish the legitimate pair");
+    assert_eq!(row.contract_address, pair);
+    assert_eq!(row.fee_bps, Some(30));
+    assert_eq!(row.hooks, vec![address(252)]);
+    let asset: (i16, String) =
+        sqlx::query_as("SELECT decimals, symbol FROM assets WHERE contract_address=$1")
+            .bind(&token)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(asset, (18, "FIX".to_string()));
+    let requests = server.received_requests().await.unwrap();
+    let smart: Vec<_> = requests
+        .iter()
+        .filter(|r| r.url.path().contains("/smart/"))
+        .collect();
+    assert_eq!(
+        smart.len(),
+        5,
+        "pair, factory, CW20 metadata, fee and hooks each queried once"
+    );
+    for key in ["pair", "token_info", "get_fee_config", "get_hooks"] {
+        let count = smart
+            .iter()
+            .filter(|r| {
+                common::lcd_mock::smart_query_from_request(r)
+                    .get(key)
+                    .is_some()
+            })
+            .count();
+        assert_eq!(
+            count,
+            if key == "pair" { 2 } else { 1 },
+            "successful phase {key} is retained during capacity waits"
+        );
+    }
+    assert!(lcd
+        .provider_counters()
+        .await
+        .iter()
+        .any(|c| c.rate_deferrals > 0));
+    assert_eq!(lcd.pair_discovery_counters().discovered, 1);
+}

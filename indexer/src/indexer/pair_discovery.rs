@@ -184,12 +184,71 @@ pub async fn sync_single_pair(
     lcd: &LcdClient,
     pair_info: &PairInfo,
 ) -> Result<PairRow, BoxError> {
+    sync_single_pair_with_capacity_wait(pool, lcd, pair_info, false).await
+}
+
+async fn sync_single_pair_with_capacity_wait(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    pair_info: &PairInfo,
+    wait: bool,
+) -> Result<PairRow, BoxError> {
     if crate::listing_id_guard::is_listing_only_id(&pair_info.contract_addr) {
         return Err(DiscoverPairError::InvalidAddress { field: "pair" }.into());
     }
-    let asset_0_id = asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[0]).await?;
-    let asset_1_id = asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[1]).await?;
+    let asset_0_id = retry_provider_capacity(pool, &pair_info.contract_addr, wait, || {
+        asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[0])
+    })
+    .await?;
+    let asset_1_id = retry_provider_capacity(pool, &pair_info.contract_addr, wait, || {
+        asset_resolver::resolve_asset(pool, lcd, &pair_info.asset_infos[1])
+    })
+    .await?;
 
+    let fee_query = serde_json::json!({"get_fee_config": {}});
+    let fee_bps: Option<i16> =
+        match retry_provider_capacity(pool, &pair_info.contract_addr, wait, || async {
+            lcd.query_contract::<FeeConfigResponse>(&pair_info.contract_addr, &fee_query)
+                .await
+                .map_err(|e| e.into())
+        })
+        .await
+        {
+            Ok(resp) => Some(resp.fee_config.fee_bps as i16),
+            Err(e) if e.downcast_ref::<PairAlreadyStored>().is_some() => return Err(e),
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to query fee config for {}: {}",
+                    pair_info.contract_addr,
+                    e
+                );
+                None
+            }
+        };
+
+    let hooks_query = serde_json::json!({"get_hooks": {}});
+    let hooks: Vec<String> =
+        match retry_provider_capacity(pool, &pair_info.contract_addr, wait, || async {
+            lcd.query_contract::<HooksResponse>(&pair_info.contract_addr, &hooks_query)
+                .await
+                .map_err(|e| e.into())
+        })
+        .await
+        {
+            Ok(resp) => resp.hooks,
+            Err(e) if e.downcast_ref::<PairAlreadyStored>().is_some() => return Err(e),
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to query hooks for {}: {}",
+                    pair_info.contract_addr,
+                    e
+                );
+                Vec::new()
+            }
+        };
+
+    // Publish the pair only after all provider-dependent phases settle, so a
+    // capacity retry cannot mistake our own unfinished insert for a winner.
     let pair_id = pairs::upsert_pair(
         pool,
         &pair_info.contract_addr,
@@ -201,42 +260,6 @@ pub async fn sync_single_pair(
         None,
     )
     .await?;
-
-    let fee_bps: Option<i16> = match lcd
-        .query_contract::<FeeConfigResponse>(
-            &pair_info.contract_addr,
-            &serde_json::json!({"get_fee_config": {}}),
-        )
-        .await
-    {
-        Ok(resp) => Some(resp.fee_config.fee_bps as i16),
-        Err(e) => {
-            tracing::warn!(
-                "Failed to query fee config for {}: {}",
-                pair_info.contract_addr,
-                e
-            );
-            None
-        }
-    };
-
-    let hooks: Vec<String> = match lcd
-        .query_contract::<HooksResponse>(
-            &pair_info.contract_addr,
-            &serde_json::json!({"get_hooks": {}}),
-        )
-        .await
-    {
-        Ok(resp) => resp.hooks,
-        Err(e) => {
-            tracing::warn!(
-                "Failed to query hooks for {}: {}",
-                pair_info.contract_addr,
-                e
-            );
-            Vec::new()
-        }
-    };
 
     pairs::update_pair_config(pool, pair_id, fee_bps, &hooks).await?;
 
@@ -294,7 +317,7 @@ pub(crate) async fn verify_factory_provenance(
 }
 
 /// Look up a pair or discover it with authoritative factory provenance.
-/// Admission pressure waits without skipping an event. Invalid/foreign pairs and
+/// Factory and shared-provider admission pressure wait without skipping an event. Invalid/foreign pairs and
 /// transient discovery soft-failures preserve the existing event skip policy;
 /// failures remain visible in warnings, fixed counters and the typed direct API.
 /// Waiting futures belong to callers, not an unbounded state queue.
@@ -311,17 +334,35 @@ pub async fn get_or_discover_pair(
         if let Some(p) = pairs::get_pair_by_address(pool, pair_contract_addr).await? {
             return Ok(Some(p));
         }
-        match discover_new_pair(pool, lcd, factory_addr, pair_contract_addr).await {
+        match discover_new_pair_with_capacity_wait(
+            pool,
+            lcd,
+            factory_addr,
+            pair_contract_addr,
+            true,
+        )
+        .await
+        {
             Ok(p) => return Ok(Some(p)),
+            Err(e) if e.downcast_ref::<PairAlreadyStored>().is_some() => {
+                return Ok(Some(
+                    e.downcast_ref::<PairAlreadyStored>().unwrap().0.clone(),
+                ));
+            }
             Err(e) if is_rejected_pair_error(&*e) => return Ok(None),
             Err(e)
                 if matches!(
+                    e.downcast_ref::<LcdError>(),
+                    Some(LcdError::AdmissionDeferred)
+                ) || matches!(
                     e.downcast_ref::<DiscoverPairError>(),
                     Some(DiscoverPairError::Deferred {
                         reason: "rate_limited" | "coalesced" | "in_flight"
                     })
                 ) =>
             {
+                // Recheck the DB at the top of every retry: another discovery
+                // may finish while shared provider capacity/refill is unavailable.
                 tokio::time::sleep(std::time::Duration::from_millis(125)).await;
             }
             Err(e)
@@ -352,13 +393,62 @@ pub async fn discover_new_pair(
     factory_addr: &str,
     pair_contract_addr: &str,
 ) -> Result<PairRow, BoxError> {
+    discover_new_pair_with_capacity_wait(pool, lcd, factory_addr, pair_contract_addr, false).await
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("pair concurrently persisted during provider admission wait")]
+struct PairAlreadyStored(PairRow);
+
+/// Retain each successful phase while provider capacity refills. Retrying the
+/// entire discovery can spend every small burst on identity/pair reads forever.
+/// Waiting remains caller-owned, and each retry rechecks concurrent persistence.
+async fn retry_provider_capacity<T, F, Fut>(
+    pool: &PgPool,
+    pair_address: &str,
+    wait: bool,
+    mut operation: F,
+) -> Result<T, BoxError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, BoxError>>,
+{
+    loop {
+        match operation().await {
+            Err(error)
+                if wait
+                    && matches!(
+                        error.downcast_ref::<LcdError>(),
+                        Some(LcdError::AdmissionDeferred)
+                    ) =>
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(125)).await;
+                if let Some(pair) = pairs::get_pair_by_address(pool, pair_address).await? {
+                    return Err(PairAlreadyStored(pair).into());
+                }
+            }
+            result => return result,
+        }
+    }
+}
+
+async fn discover_new_pair_with_capacity_wait(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    factory_addr: &str,
+    pair_contract_addr: &str,
+    wait: bool,
+) -> Result<PairRow, BoxError> {
     validate_discovery_address(factory_addr, "factory")?;
     validate_discovery_address(pair_contract_addr, "pair")?;
     let state = lcd.pair_discovery_state();
     let permit = match state.begin(factory_addr, pair_contract_addr) {
         Ok(permit) => permit,
         Err(BeginError::Cached(reason)) => {
-            lcd.require_verified_chain().await?;
+            retry_provider_capacity(pool, pair_contract_addr, wait, || async {
+                lcd.require_verified_chain().await.map_err(|e| e.into())
+            })
+            .await?;
             tracing::debug!(outcome = "cached_rejection", ?reason, "Pair discovery");
             return Err(DiscoverPairError::RejectedCached {
                 pair_address: pair_contract_addr.to_string(),
@@ -374,32 +464,39 @@ pub async fn discover_new_pair(
 
     // Admission bounds identity probes as well as contract queries. Cached negative
     // evidence is separately re-attested before it is returned above.
-    lcd.require_verified_chain().await?;
+    retry_provider_capacity(pool, pair_contract_addr, wait, || async {
+        lcd.require_verified_chain().await.map_err(|e| e.into())
+    })
+    .await?;
     tracing::debug!("Discovering new pair at {}", pair_contract_addr);
 
-    let pair_info: PairInfo = match lcd
-        .query_contract_bounded(
-            pair_contract_addr,
-            &serde_json::json!({"pair": {}}),
-            DISCOVERY_RESPONSE_BYTES,
-        )
+    let query = serde_json::json!({"pair": {}});
+    let pair_info: PairInfo =
+        match retry_provider_capacity(pool, pair_contract_addr, wait, || async {
+            lcd.query_contract_bounded(pair_contract_addr, &query, DISCOVERY_RESPONSE_BYTES)
+                .await
+                .map_err(|e| e.into())
+        })
         .await
-    {
-        Ok(info) => info,
-        Err(e) if lcd_err_is_not_a_pair_contract(&e) => {
-            state.insert_rejection(&permit, RejectReason::NotAPair);
-            state.record_outcome(DiscoveryOutcome::NotAPair);
-            tracing::debug!(outcome = "not_a_pair", "Pair discovery");
-            return Err(DiscoverPairError::NotAPair {
-                pair_address: pair_contract_addr.to_string(),
+        {
+            Ok(info) => info,
+            Err(e)
+                if e.downcast_ref::<LcdError>()
+                    .is_some_and(lcd_err_is_not_a_pair_contract) =>
+            {
+                state.insert_rejection(&permit, RejectReason::NotAPair);
+                state.record_outcome(DiscoveryOutcome::NotAPair);
+                tracing::debug!(outcome = "not_a_pair", "Pair discovery");
+                return Err(DiscoverPairError::NotAPair {
+                    pair_address: pair_contract_addr.to_string(),
+                }
+                .into());
             }
-            .into());
-        }
-        Err(e) => {
-            state.record_outcome(DiscoveryOutcome::Transient);
-            return Err(e.into());
-        }
-    };
+            Err(e) => {
+                state.record_outcome(DiscoveryOutcome::Transient);
+                return Err(e.into());
+            }
+        };
 
     if pair_info.contract_addr != pair_contract_addr {
         state.record_outcome(DiscoveryOutcome::Transient);
@@ -410,12 +507,14 @@ pub async fn discover_new_pair(
         .into());
     }
 
-    match verify_factory_provenance(
-        lcd,
-        factory_addr,
-        pair_contract_addr,
-        &pair_info.asset_infos,
-    )
+    match retry_provider_capacity(pool, pair_contract_addr, wait, || {
+        verify_factory_provenance(
+            lcd,
+            factory_addr,
+            pair_contract_addr,
+            &pair_info.asset_infos,
+        )
+    })
     .await
     {
         Ok(()) => {}
@@ -431,7 +530,7 @@ pub async fn discover_new_pair(
         }
     }
 
-    let row = sync_single_pair(pool, lcd, &pair_info)
+    let row = sync_single_pair_with_capacity_wait(pool, lcd, &pair_info, wait)
         .await
         .inspect_err(|_| {
             state.record_outcome(DiscoveryOutcome::Transient);
@@ -1093,10 +1192,31 @@ mod tests {
         );
         assert_eq!(hits + deferred, 200);
         assert!(hits <= 33 + (started.elapsed().as_secs_f64() * 8.0) as usize);
-        // A different factory receives its own fresh budget even on the same LCD.
-        let err = discover_new_pair(&pool, &lcd, &synthetic_address(250), ATTACKER_PAIR)
+        // A different factory retains an independent discovery budget. Provider
+        // HTTP admission is shared, so an exhausted provider burst may defer it
+        // briefly; bounded refill must allow recovery without widening defaults.
+        let other_factory = synthetic_address(250);
+        let err =
+            tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                loop {
+                    let err = discover_new_pair(&pool, &lcd, &other_factory, ATTACKER_PAIR)
+                        .await
+                        .unwrap_err();
+                    assert!(!matches!(err.downcast_ref::<DiscoverPairError>(),
+                    Some(DiscoverPairError::Deferred { reason: "rate_limited" | "in_flight" })),
+                    "one factory's flood cannot consume another factory's admission budget: {err}");
+                    if matches!(
+                        err.downcast_ref::<LcdError>(),
+                        Some(LcdError::AdmissionDeferred)
+                    ) {
+                        tokio::time::sleep(std::time::Duration::from_millis(125)).await;
+                        continue;
+                    }
+                    break err;
+                }
+            })
             .await
-            .unwrap_err();
+            .expect("shared provider refill restores independently admitted factory");
         assert!(
             matches!(
                 err.downcast_ref::<DiscoverPairError>(),
@@ -1113,8 +1233,8 @@ mod tests {
             hits + 1
         );
         assert!(
-            requests.len() <= (hits + 1) * 3 + 1,
-            "cached rejection adds at most one identity probe"
+            requests.len() <= (hits + 1) * 3 + 8,
+            "bounded refill retries add only bounded identity admission work"
         );
         // Cached rejects remain cheap after admission exhaustion.
         let err = discover_new_pair(&pool, &lcd, FACTORY, &synthetic_address(0))
@@ -1133,8 +1253,8 @@ mod tests {
             hits + 1
         );
         assert!(
-            requests.len() <= (hits + 1) * 3 + 1,
-            "cached rejection adds at most one identity probe"
+            requests.len() <= (hits + 1) * 3 + 8,
+            "bounded refill retries add only bounded identity admission work"
         );
     }
 }

@@ -1,0 +1,1764 @@
+{
+  "observed_at_utc": "2026-10-09T07:16:12.356781+00:00",
+  "base_url": "https://indexer.dex.cl8y.com/api/v1",
+  "reads": {
+    "overview": {
+      "status": "ok",
+      "payload": {
+        "total_liquidity_usd": "194838.94435142204530737700",
+        "liquidity_quality": "partial",
+        "liquidity_as_of": "2026-10-09T07:15:58.576776+00:00",
+        "liquidity_coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+        "liquidity_generation": 24453,
+        "liquidity_reasons": {
+          "advisory_hub_spot": 1,
+          "stale_reserve": 1,
+          "unsupported_identity": 11
+        },
+        "liquidity_max_age_seconds": 20,
+        "liquidity_change_24h_pct": null,
+        "liquidity_change_30d_pct": null,
+        "priced_pair_count": 10,
+        "unpriced_pair_count": 12,
+        "total_liquidity_usd_24h_ago": null,
+        "total_liquidity_usd_30d_ago": null
+      }
+    },
+    "hourly": {
+      "status": "ok",
+      "payload": {
+        "grain": "hourly",
+        "limit": 72,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_hour": "2026-10-06T08",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "247428.90108650084515328000",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T09",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "247874.19892086693567423700",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T10",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "249519.06783499049430734300",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T11",
+            "liquidity_usd": "250017.02775089549656850700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T11:59:46.289530+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 25,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T12",
+            "liquidity_usd": "249389.93957698127726285600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T12:59:46.134597+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 393,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T13",
+            "liquidity_usd": "248469.97039121402064745600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T13:59:51.018245+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 759,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T14",
+            "liquidity_usd": "249198.59476159266898484900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T14:59:50.841476+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 1124,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T15",
+            "liquidity_usd": "205592.60195239209400804100",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-06T15:59:46.244913+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 1489,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T16",
+            "liquidity_usd": "245670.57949720197598139800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T16:59:50.925530+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 1854,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T17",
+            "liquidity_usd": "246066.74495395327522103100",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T17:59:50.876843+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 2219,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T18",
+            "liquidity_usd": "245529.16252281068959240800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T18:59:48.064631+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 2585,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T19",
+            "liquidity_usd": "244155.30121258687960810700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T19:59:47.646757+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 2950,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T20",
+            "liquidity_usd": "245141.11468265359195266500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T20:59:47.794622+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 3315,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T21",
+            "liquidity_usd": "204083.47818767299397968100",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-06T21:59:41.528711+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 3680,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T22",
+            "liquidity_usd": "245117.01460001327887549100",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T22:59:51.912454+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 4046,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-06T23",
+            "liquidity_usd": "244919.07142600852358023900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T23:59:48.126931+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 4411,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T00",
+            "liquidity_usd": "245234.39689047779869916100",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T00:59:48.682625+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 4776,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T01",
+            "liquidity_usd": "241795.80824902156206010500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T01:59:42.277707+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 5135,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T02",
+            "liquidity_usd": "197505.87014037221304680100",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T02:59:50.039604+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 5501,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T03",
+            "liquidity_usd": "238708.21581268782696855900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T03:59:45.275575+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 5866,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T04",
+            "liquidity_usd": "235976.07521348460995275900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T04:59:36.240217+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 6231,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T05",
+            "liquidity_usd": "236773.31534822959722483500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T05:59:55.331664+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 6597,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T06",
+            "liquidity_usd": "236828.27203605066467161600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T06:59:55.447630+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 6962,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T07",
+            "liquidity_usd": "237245.36534390840126833700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T07:59:36.768558+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 7327,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T08",
+            "liquidity_usd": "196009.73544428551814207300",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T08:59:49.526139+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 7692,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T09",
+            "liquidity_usd": "235519.36923183227947654800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T09:59:47.291888+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 8057,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T10",
+            "liquidity_usd": "193640.00864792341617985800",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T10:59:41.911688+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 8422,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T11",
+            "liquidity_usd": "193206.14962712330719480500",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T11:59:42.870705+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 8786,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T12",
+            "liquidity_usd": "231912.12505253109408394000",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T12:59:39.574495+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 9151,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T13",
+            "liquidity_usd": "231392.92829564664435124500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T13:59:56.179485+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 9443,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T14",
+            "liquidity_usd": "231238.38504936527029124500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T14:59:46.168095+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 9808,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T15",
+            "liquidity_usd": "233308.41392841850532197400",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T15:59:37.428116+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 10173,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T16",
+            "liquidity_usd": "232257.74875594093455227800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T16:59:46.119189+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 10538,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T17",
+            "liquidity_usd": "232188.01839461104073098500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T17:59:56.152979+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 10904,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T18",
+            "liquidity_usd": "233065.79411597086954562000",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T18:59:47.986250+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 11269,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T19",
+            "liquidity_usd": "232482.53893235020591227800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T19:59:46.524713+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 11634,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T20",
+            "liquidity_usd": "194426.98833123220277781500",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T20:59:38.381683+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 11999,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T21",
+            "liquidity_usd": "195001.50024369867208552200",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-07T21:59:48.388415+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 12365,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T22",
+            "liquidity_usd": "234638.15363060681733693700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T22:59:46.280518+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 12730,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-07T23",
+            "liquidity_usd": "235438.92363688761389381600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T23:59:57.247753+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 13096,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T00",
+            "liquidity_usd": "236168.46928550784284266300",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T00:59:46.075144+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 13461,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T01",
+            "liquidity_usd": "196431.02392795273867463500",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T01:59:47.912864+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 13792,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T02",
+            "liquidity_usd": "196997.34923497058943108800",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T02:59:45.387462+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 14157,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T03",
+            "liquidity_usd": "236270.54654626319741292800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T03:59:44.107883+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 14523,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T04",
+            "liquidity_usd": "235508.33554110472192494200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T04:59:53.312370+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 14888,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T05",
+            "liquidity_usd": "234566.66202229530143835200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T05:59:46.043685+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 15227,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T06",
+            "liquidity_usd": "235717.55108304284589837600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T06:59:46.002107+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 15592,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T07",
+            "liquidity_usd": "196146.22885761195572287800",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T07:59:40.258484+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 15957,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T08",
+            "liquidity_usd": "236341.63574885059812804800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T08:59:46.075142+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 16322,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T09",
+            "liquidity_usd": "237705.27171970440595330500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T09:59:46.083699+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 16687,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T10",
+            "liquidity_usd": "235809.26700308620844421400",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T10:59:46.071671+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17052,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T11",
+            "liquidity_usd": "194976.20184973441206747100",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T11:59:48.310533+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17417,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T12",
+            "liquidity_usd": "194681.74093781528261826500",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T12:59:48.294883+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 17782,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T13",
+            "liquidity_usd": "195982.75435391949837253400",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T13:59:48.363953+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 18147,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T14",
+            "liquidity_usd": "240522.65059723685739400200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T14:59:46.050352+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 18512,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T15",
+            "liquidity_usd": "227444.32098926003586513900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T15:59:46.271139+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 18877,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T16",
+            "liquidity_usd": "227776.66735299348453124200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T16:59:46.618976+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 19242,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T17",
+            "liquidity_usd": "223915.91922000056422981900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T17:59:46.065122+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 19607,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T18",
+            "liquidity_usd": "189044.98209727976123412500",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T18:59:48.737384+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 19973,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T19",
+            "liquidity_usd": "190493.43885494484621833400",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-08T19:59:50.309041+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 20338,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T20",
+            "liquidity_usd": "230904.32631573775192042500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T20:59:46.842768+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 20703,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T21",
+            "liquidity_usd": "229822.17124281061304247200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T21:59:36.905216+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 21068,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T22",
+            "liquidity_usd": "231044.77282696435946640700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T22:59:47.108369+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 21433,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-08T23",
+            "liquidity_usd": "231254.96460512984014985200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T23:59:56.032657+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 21799,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T00",
+            "liquidity_usd": "229553.18076852824252237200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-09T00:59:46.416901+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 22164,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T01",
+            "liquidity_usd": "231147.81623949120077931700",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-09T01:59:36.963007+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 22529,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T02",
+            "liquidity_usd": "231057.47283133476575493500",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-09T02:59:46.056483+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 22894,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T03",
+            "liquidity_usd": "230956.11115594907583510800",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-09T03:59:46.031455+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 23259,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T04",
+            "liquidity_usd": "192944.88005953091877243100",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-09T04:59:40.790956+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 23624,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T05",
+            "liquidity_usd": "233987.72623266278076711300",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-09T05:59:55.986136+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 23990,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T06",
+            "liquidity_usd": "195367.29748763579913432300",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-09T06:59:48.609033+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 24355,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_hour": "2026-10-09T07",
+            "liquidity_usd": "194838.94435142204530737700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-09T07:15:58.576776+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 24453,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    },
+    "daily": {
+      "status": "ok",
+      "payload": {
+        "grain": "daily",
+        "limit": 35,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_day": "2026-09-05",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "119099.35930482934357406900",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-06",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "119552.53217393805284715900",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-07",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "120228.59019606158092922800",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-08",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "119673.01430580838818372700",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-09",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "116513.99996103533613398900",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-10",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "151032.40302051096515832900",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-11",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "156858.80704279207366702500",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-12",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "162875.61162247290321653200",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-13",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "159207.04201957396309128800",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-14",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "159782.75252166389210767300",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-15",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "153814.27095573132862734100",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-16",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "155384.58074026356918139100",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-17",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "145412.10789066088697030800",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-18",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "153468.28453613263888776500",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-19",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "153410.55482733080867873800",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-20",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "163858.23262515523392703500",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-21",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "162419.70281320540282480700",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-22",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "165681.14872363698966389000",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-23",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "157809.87214908334136005000",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-24",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "159936.29029264027958078700",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-25",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "168008.30585956478111279000",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-26",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "167313.32013974697874891500",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-27",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "167163.96956843831024772600",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-28",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "228799.12703249416985592700",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-29",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "227257.07690871885999556000",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-09-30",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "228042.02766439851261580300",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-01",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "230667.27954012213292091400",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-02",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "226542.62739742098525954000",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-03",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "247489.18357153102905355200",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-04",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "249312.63110733300776730300",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-05",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "249095.58736216141118837400",
+            "priced_pair_count": 11,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_day": "2026-10-06",
+            "liquidity_usd": "244919.07142600852358023900",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-06T23:59:48.126931+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 4411,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_day": "2026-10-07",
+            "liquidity_usd": "235438.92363688761389381600",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-07T23:59:57.247753+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 13096,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_day": "2026-10-08",
+            "liquidity_usd": "231254.96460512984014985200",
+            "priced_pair_count": 11,
+            "quality": "fresh",
+            "as_of": "2026-10-08T23:59:56.032657+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 21799,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "unsupported_identity": 11
+            }
+          },
+          {
+            "utc_day": "2026-10-09",
+            "liquidity_usd": "194838.94435142204530737700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-09T07:15:58.576776+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 24453,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    },
+    "monthly": {
+      "status": "ok",
+      "payload": {
+        "grain": "monthly",
+        "limit": 24,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_month": "2024-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2024-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-08",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-09",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-10",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2025-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "missing_bucket": 1
+            }
+          },
+          {
+            "utc_month": "2026-08",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "108728.32790458444612517700",
+            "priced_pair_count": 9,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_month": "2026-09",
+            "liquidity_usd": null,
+            "reported_liquidity_usd": "228042.02766439851261580300",
+            "priced_pair_count": 10,
+            "quality": "unknown",
+            "as_of": null,
+            "coverage_identity": "",
+            "generation": 0,
+            "reasons": {
+              "legacy_unqualified": 1
+            }
+          },
+          {
+            "utc_month": "2026-10",
+            "liquidity_usd": "194838.94435142204530737700",
+            "priced_pair_count": 10,
+            "quality": "partial",
+            "as_of": "2026-10-09T07:15:58.576776+00:00",
+            "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+            "generation": 24453,
+            "reasons": {
+              "advisory_hub_spot": 1,
+              "stale_reserve": 1,
+              "unsupported_identity": 11
+            }
+          }
+        ]
+      }
+    }
+  }
+}

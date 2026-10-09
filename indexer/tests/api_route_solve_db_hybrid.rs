@@ -566,7 +566,7 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         )
         .await;
         sqlx::query(
-            "UPDATE pair_reserves SET snapshot_at = NOW() - INTERVAL '1 hour' WHERE pair_id = $1",
+            "UPDATE hybrid_pair_reserves SET snapshot_at = NOW() - INTERVAL '1 hour' WHERE pair_id = $1",
         )
         .bind(pair_id)
         .execute(&pool)
@@ -574,15 +574,33 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         .expect("age reserves snapshot");
 
         let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
-        let app =
-            common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+        let mut cfg = db_hybrid_config(&mock);
+        // This legacy stale-mirror fixture deliberately exercises the request-time LCD
+        // grid retained until #1452. Its many attestation+simulation reads need an
+        // explicit, still bounded fixture budget; production defaults remain tight.
+        cfg.lcd_provider_policy.concurrency = 32;
+        cfg.lcd_provider_policy.requests_per_second = 1024;
+        cfg.lcd_provider_policy.burst = 1024;
+        let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
         let server = TestServer::new(app);
 
         let url = format!(
             "/api/v1/route/solve?token_in={}&token_out={}&amount_in=700000",
             seed.token_a, seed.token_b
         );
-        let j: Value = server.get(&url).await.json();
+        let response = server.get(&url).await;
+        let health: Value = server.get("/health").await.json();
+        let provider = &health["chain_identity"]["endpoints"][0]["provider"];
+        // Diagnostic reproduction with the default budget recorded 66 successful
+        // attempts and 3 rate deferrals (no upstream/concurrency failures). Retain
+        // that distinction: this fixture tests hint omission, not admission failure.
+        assert_eq!(provider["rate_deferrals"], 0, "provider={provider}");
+        assert_eq!(provider["concurrency_deferrals"], 0, "provider={provider}");
+        assert_eq!(provider["failures"], 0, "provider={provider}");
+        assert!(provider["attempts"].as_u64().unwrap() * 2 > 128,
+            "legacy grid must exercise more HTTP units than the production burst; provider={provider}");
+        response.assert_status_ok();
+        let j: Value = response.json();
         assert_eq!(j["quote_kind"], "indexer_hybrid_db_degraded");
         assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
         let hybrid = &j["router_operations"][0]["terra_swap"]["hybrid"];

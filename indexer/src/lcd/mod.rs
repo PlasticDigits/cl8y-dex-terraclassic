@@ -1,12 +1,17 @@
 mod chain_identity;
+mod provider_pool;
+pub use provider_pool::{ProviderCounters, ProviderPolicy};
 pub mod pair_discovery_state;
 pub mod types;
 #[cfg(test)]
 pub(crate) use chain_identity::mock_chain_identity;
 pub use chain_identity::{valid_chain_id, ChainIdentityHealth, EndpointIdentity};
 
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(test)]
+use std::time::Instant;
 
 use base64::Engine;
 use reqwest::Client;
@@ -59,6 +64,9 @@ fn lcd_log_path(path: &str) -> &'static str {
 pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
+    /// Shared provider admission must wait without successfully omitting a discovery event.
+    #[error("LCD provider admission deferred")]
+    AdmissionDeferred,
     #[error("Chain identity rejected: {0}")]
     ChainIdentity(String),
     /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`,
@@ -74,6 +82,13 @@ pub enum LcdError {
     Request(#[from] reqwest::Error),
     #[error("Deserialization error: {0}")]
     Deserialize(String),
+    /// Query-local schema/size rejection; never opens a provider circuit or discovery negative cache.
+    #[error("LCD pair response malformed: {0}")]
+    PairResponseMalformed(String),
+    #[error("LCD provider materially lagging")]
+    LaggingProvider,
+    #[error("LCD historical height unavailable")]
+    HistoricalHeightUnavailable,
     #[error("Base64 decode error: {0}")]
     Base64(String),
 }
@@ -109,7 +124,7 @@ fn is_deterministic_contract_query_reject(
 fn should_cooldown_endpoint(status: reqwest::StatusCode) -> bool {
     let code = status.as_u16();
     // Rate limits and gateway failures — back off this endpoint and try others.
-    code == 429 || code == 408 || code >= 502
+    code == 403 || code == 429 || code == 408 || code >= 500
 }
 
 fn is_query_gas_limit_exceeded(status: reqwest::StatusCode, path: &str, body: &str) -> bool {
@@ -126,7 +141,7 @@ fn is_query_gas_limit_exceeded(status: reqwest::StatusCode, path: &str, body: &s
 #[derive(Clone)]
 struct Endpoint {
     url: String,
-    cooldown_until: Option<Instant>,
+    provider: Arc<provider_pool::ProviderState>,
     observed_chain_id: Option<String>,
     verified: bool,
     identity_error: Option<String>,
@@ -142,6 +157,9 @@ struct LcdClientInner {
     endpoints: RwLock<Vec<Endpoint>>,
     client: Client,
     cooldown_duration: Duration,
+    provider_policy: ProviderPolicy,
+    next_endpoint: AtomicUsize,
+    latest_height: AtomicI64,
     discovery_namespace: usize,
     expected_chain_id: String,
     pair_discovery_state: Arc<PairDiscoveryState>,
@@ -154,6 +172,23 @@ impl LcdClient {
         cooldown_ms: u64,
         expected_chain_id: impl Into<String>,
     ) -> Self {
+        Self::new_with_policy(
+            urls,
+            timeout_ms,
+            cooldown_ms,
+            expected_chain_id,
+            ProviderPolicy::default(),
+        )
+    }
+
+    pub fn new_with_policy(
+        urls: Vec<String>,
+        timeout_ms: u64,
+        cooldown_ms: u64,
+        expected_chain_id: impl Into<String>,
+        provider_policy: ProviderPolicy,
+    ) -> Self {
+        let provider_policy = provider_policy.bounded();
         let expected_chain_id = expected_chain_id.into();
         assert!(
             valid_chain_id(&expected_chain_id),
@@ -161,11 +196,20 @@ impl LcdClient {
         );
         static NEXT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
+        // Duplicate URLs share a single slot and cannot multiply their provider budget.
+        let mut unique = std::collections::HashSet::new();
         let endpoints = urls
             .into_iter()
+            .map(|url| url.trim_end_matches('/').to_string())
+            .filter(|url| unique.insert(url.clone()))
+            .take(32)
             .map(|url| Endpoint {
+                provider: provider_pool::ProviderState::new(
+                    provider_policy.clone(),
+                    Duration::from_millis(cooldown_ms)
+                        .min(Duration::from_millis(provider_policy.max_backoff_ms)),
+                ),
                 url: url.trim_end_matches('/').to_string(),
-                cooldown_until: None,
                 observed_chain_id: None,
                 verified: false,
                 identity_error: None,
@@ -175,7 +219,9 @@ impl LcdClient {
 
         let client = Client::builder()
             .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_millis(timeout_ms))
+            .timeout(Duration::from_millis(
+                timeout_ms.max(1).min(provider_policy.attempt_timeout_ms),
+            ))
             .build()
             .expect("failed to build reqwest client");
 
@@ -184,7 +230,11 @@ impl LcdClient {
                 endpoints: RwLock::new(endpoints),
                 expected_chain_id,
                 client,
-                cooldown_duration: Duration::from_millis(cooldown_ms),
+                cooldown_duration: Duration::from_millis(cooldown_ms)
+                    .min(Duration::from_millis(provider_policy.max_backoff_ms)),
+                provider_policy,
+                next_endpoint: AtomicUsize::new(0),
+                latest_height: AtomicI64::new(0),
                 discovery_namespace: NEXT_NAMESPACE
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                 pair_discovery_state: Arc::new(PairDiscoveryState::default()),
@@ -226,200 +276,238 @@ impl LcdClient {
         max_bytes: Option<usize>,
         height: Option<i64>,
     ) -> Result<T, LcdError> {
+        tokio::time::timeout(
+            Duration::from_millis(self.inner.provider_policy.deadline_ms),
+            self.get_bounded_attempts(path, max_bytes, height),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(LcdError::AllEndpointsFailed(
+                "total deadline exceeded".into(),
+            ))
+        })
+    }
+
+    async fn get_bounded_attempts<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        max_bytes: Option<usize>,
+        height: Option<i64>,
+    ) -> Result<T, LcdError> {
+        let count = self.inner.endpoints.read().await.len();
+        if count == 0 {
+            return Err(LcdError::AllEndpointsFailed(
+                "no endpoints configured".into(),
+            ));
+        }
+        let start = self.inner.next_endpoint.fetch_add(1, Ordering::Relaxed) % count;
+        let mut attempts = 0;
         let mut errors = Vec::new();
-
-        let endpoint_count = {
-            let eps = self.inner.endpoints.read().await;
-            eps.len()
-        };
-
-        for idx in 0..endpoint_count {
-            let (url, is_cooled_down) = {
-                let eps = self.inner.endpoints.read().await;
-                let ep = &eps[idx];
-                let cooled = ep
-                    .cooldown_until
-                    .map(|t| Instant::now() < t)
-                    .unwrap_or(false);
-                (ep.url.clone(), cooled)
+        let mut local_error = None;
+        let mut capacity_deferred = false;
+        for offset in 0..count {
+            let idx = (start + offset) % count;
+            let ep = self.inner.endpoints.read().await[idx].clone();
+            let mut permit = match ep.provider.admit() {
+                Ok(permit) => permit,
+                Err(reason) => {
+                    capacity_deferred |= reason.is_capacity();
+                    continue;
+                }
             };
-
-            if is_cooled_down {
-                continue;
-            }
-
-            if let Err(e) = self.attest_endpoint(idx, &url).await {
-                errors.push(e.to_string());
-                continue;
-            }
-
-            let full_url = format!("{}{}", url, path);
-            let log_path = lcd_log_path(path);
-            let mut request = self.inner.client.get(&full_url);
-            if let Some(height) = height {
-                // Public LCD proxies may cache smart/bank URLs without varying
-                // on the height header. Give each historical height its own URL
-                // cache key, while still requiring an exact response header.
-                request = request
-                    .query(&[("height", height)])
-                    .header("x-cosmos-block-height", height.to_string());
-            }
-            match request.send().await {
-                Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_success() && height.is_some() {
-                        let served_height = resp
-                            .headers()
-                            .get("x-cosmos-block-height")
-                            .and_then(|h| h.to_str().ok())
-                            .and_then(|h| h.parse::<i64>().ok());
-                        if served_height != height {
-                            errors.push(format!(
-                                "endpoint[{idx}] historical query height was not confirmed"
-                            ));
-                            continue;
-                        }
-                    }
-                    let text = match max_bytes {
-                        Some(limit) => match bounded_response_text(resp, limit).await {
-                            Ok(body) => body,
-                            Err(e) => {
-                                errors.push(format!("endpoint[{idx}] {log_path}: {e}"));
-                                // A hostile contract's size/encoding rejection is local
-                                // to that query. It must not cool down healthy pair reads.
-                                if matches!(&e, LcdError::Request(_)) {
-                                    self.mark_failed(idx).await;
-                                }
-                                continue;
-                            }
-                        },
-                        None if status.is_success() => {
-                            resp.text().await.map_err(LcdError::Request)?
-                        }
-                        None => resp.text().await.unwrap_or_default(),
-                    };
-                    if !status.is_success() {
-                        let body = text;
-                        let body_snippet = body.chars().take(200).collect::<String>();
-                        if is_query_gas_limit_exceeded(status, path, &body) {
-                            tracing::debug!(
-                                endpoint_idx = idx,
-                                path = log_path,
-                                "LCD smart-query gas limit exceeded"
-                            );
-                            return Err(LcdError::QueryGasLimitExceeded(body_snippet));
-                        }
-                        if is_deterministic_contract_query_reject(status, path, &body) {
-                            // Expected on mainnet when foreign contracts emit compatible swap
-                            // events but reject our pair/factory queries. Do not WARN or retry
-                            // other LCD endpoints (same deterministic contract answer).
-                            tracing::debug!(
-                                endpoint_idx = idx,
-                                status = %status,
-                                path = log_path,
-                                body_snippet = %body_snippet,
-                                "LCD contract query rejected"
-                            );
-                            return Err(LcdError::ContractQueryRejected(body_snippet));
-                        }
-                        let msg =
-                            format!("endpoint[{idx}] {log_path} returned {status}: {body_snippet}");
-                        errors.push(msg);
-                        if status.as_u16() == 429 {
-                            // Public LCD mirrors rate-limit aggressively during catch-up.
-                            // Cool down and try the next endpoint; keep logs at debug.
-                            tracing::debug!(
-                                endpoint_idx = idx,
-                                status = %status,
-                                path = log_path,
-                                "LCD rate limited; cooling down endpoint"
-                            );
-                            self.mark_failed(idx).await;
-                            continue;
-                        }
-                        tracing::warn!(
-                            endpoint_idx = idx,
-                            status = %status,
-                            path = log_path,
-                            "LCD upstream returned non-success status"
-                        );
-                        tracing::debug!(
-                            endpoint_idx = idx,
-                            path = log_path,
-                            body_snippet = %body_snippet,
-                            "LCD upstream error detail"
-                        );
-                        // Transient gateway/timeouts — cool down. Other 4xx/500 contract
-                        // rejects keep the endpoint available for subsequent queries.
-                        if should_cooldown_endpoint(status) {
-                            self.mark_failed(idx).await;
-                        }
-                        continue;
-                    }
-                    // Node identity and block payload must agree independently (#1392).
-                    // Historical blocks retain their original timestamps; identity has no age exemption.
-                    if path.starts_with("/cosmos/base/tendermint/v1beta1/blocks/") {
-                        if let Err(e) =
-                            chain_identity::validate_block_chain(&text, self.expected_chain_id())
-                        {
-                            errors.push(format!("endpoint[{idx}]: {e}"));
-                            self.mark_failed(idx).await;
-                            let mut eps = self.inner.endpoints.write().await;
-                            eps[idx].identity_error = Some(e.to_string());
-                            continue;
-                        }
-                    }
-                    match serde_json::from_str::<T>(&text) {
-                        Ok(val) => return Ok(val),
-                        Err(e) => {
-                            let body_snippet = text.chars().take(200).collect::<String>();
-                            tracing::warn!(
-                                endpoint_idx = idx,
-                                path = log_path,
-                                "LCD response deserialization failed"
-                            );
-                            tracing::debug!(
-                                endpoint_idx = idx,
-                                path = log_path,
-                                error = %e,
-                                body_snippet = %body_snippet,
-                                "LCD deserialize error detail"
-                            );
-                            let msg = format!("endpoint[{idx}] {log_path} deserialize error: {e}");
-                            errors.push(msg);
-                            continue;
-                        }
-                    }
+            attempts += 1;
+            let outcome = tokio::time::timeout(
+                Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms),
+                self.query_endpoint::<T>(idx, &ep.url, path, max_bytes, height),
+            )
+            .await;
+            permit.completed();
+            match outcome {
+                Ok(Ok(value)) => {
+                    permit.succeeded();
+                    self.inner
+                        .next_endpoint
+                        .store((idx + 1) % count, Ordering::Relaxed);
+                    return Ok(value);
                 }
-                Err(e) => {
-                    tracing::warn!(
-                        endpoint_idx = idx,
-                        path = log_path,
-                        error = %e,
-                        "LCD request failed"
-                    );
-                    tracing::debug!(
-                        endpoint_idx = idx,
-                        path = log_path,
-                        error = %e,
-                        "LCD request failure detail"
-                    );
-                    let msg = format!("endpoint[{idx}] {log_path}: {e}");
-                    errors.push(msg);
+                Ok(Err(
+                    error @ (LcdError::ContractQueryRejected(_)
+                    | LcdError::QueryGasLimitExceeded(_)),
+                )) => {
+                    // Deterministic contract outcomes prove provider availability, including recovery.
+                    permit.succeeded();
+                    self.inner.next_endpoint.store(idx, Ordering::Relaxed);
+                    return Err(error);
+                }
+                Ok(Err(error @ LcdError::PairResponseMalformed(_))) => {
+                    permit.succeeded();
+                    errors.push(format!("endpoint[{idx}] query-local malformed response"));
+                    local_error = Some(error);
+                }
+                Ok(Err(error)) => errors.push(error.to_string()),
+                Err(_) => {
                     self.mark_failed(idx).await;
+                    errors.push(format!("endpoint[{idx}] attempt deadline exceeded"));
                 }
+            }
+            if attempts >= self.inner.provider_policy.max_attempts {
+                break;
             }
         }
-
+        if let Some(error) = local_error {
+            return Err(error);
+        }
+        if attempts == 0 && capacity_deferred {
+            return Err(LcdError::AdmissionDeferred);
+        }
+        if errors.is_empty() {
+            errors.push("all provider circuits open".into());
+        }
         Err(LcdError::AllEndpointsFailed(errors.join("; ")))
     }
 
+    async fn query_endpoint<T: DeserializeOwned>(
+        &self,
+        idx: usize,
+        url: &str,
+        path: &str,
+        max_bytes: Option<usize>,
+        height: Option<i64>,
+    ) -> Result<T, LcdError> {
+        self.attest_endpoint(idx, url).await?;
+        let mut request = self.inner.client.get(format!("{url}{path}"));
+        if let Some(height) = height {
+            request = request
+                .query(&[("height", height)])
+                .header("x-cosmos-block-height", height.to_string());
+        }
+        let response = match request.send().await {
+            Ok(response) => response,
+            Err(_) => {
+                self.mark_failed(idx).await;
+                return Err(LcdError::AllEndpointsFailed(format!(
+                    "endpoint[{idx}] transport unavailable"
+                )));
+            }
+        };
+        let status = response.status();
+        let retry_after = provider_pool::retry_after(
+            response.headers(),
+            Duration::from_millis(self.inner.provider_policy.max_backoff_ms),
+        );
+        let served_height = response
+            .headers()
+            .get("x-cosmos-block-height")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<i64>().ok());
+        if status.is_success() && height.is_some() && served_height != height {
+            self.mark_failed(idx).await;
+            return Err(LcdError::HistoricalHeightUnavailable);
+        }
+        // Every body is bounded, including errors and otherwise unbounded callers.
+        let text = match bounded_response_text(response, max_bytes.unwrap_or(4 * 1024 * 1024)).await
+        {
+            Ok(body) => body,
+            Err(LcdError::Request(_)) => {
+                self.mark_failed(idx).await;
+                return Err(LcdError::AllEndpointsFailed(format!(
+                    "endpoint[{idx}] body transport unavailable"
+                )));
+            }
+            Err(error) => {
+                // An oversized hostile contract-local body stays local. Explicit
+                // gateway/rate-limit status cannot evade quarantine by returning garbage.
+                let contract_local_500 = status.as_u16() == 500
+                    && path.starts_with("/cosmwasm/wasm/v1/contract/")
+                    && path.contains("/smart/");
+                if should_cooldown_endpoint(status) && !contract_local_500 {
+                    self.mark_failed_with_retry(idx, retry_after).await;
+                    return Err(LcdError::AllEndpointsFailed(format!(
+                        "endpoint[{idx}] HTTP {status}"
+                    )));
+                }
+                return Err(LcdError::PairResponseMalformed(error.to_string()));
+            }
+        };
+        if !status.is_success() {
+            let snippet = text.chars().take(200).collect::<String>();
+            if is_query_gas_limit_exceeded(status, path, &text) {
+                return Err(LcdError::QueryGasLimitExceeded(snippet));
+            }
+            if is_deterministic_contract_query_reject(status, path, &text) {
+                return Err(LcdError::ContractQueryRejected(snippet));
+            }
+            if should_cooldown_endpoint(status) {
+                self.mark_failed_with_retry(idx, retry_after).await;
+            }
+            tracing::debug!(endpoint_index = idx, status = %status, path = lcd_log_path(path), "LCD upstream unavailable");
+            return Err(LcdError::AllEndpointsFailed(format!(
+                "endpoint[{idx}] HTTP {status}"
+            )));
+        }
+        if path.starts_with("/cosmos/base/tendermint/v1beta1/blocks/") {
+            if let Err(error) =
+                chain_identity::validate_block_chain(&text, self.expected_chain_id())
+            {
+                self.mark_failed(idx).await;
+                self.inner.endpoints.write().await[idx].identity_error = Some(error.to_string());
+                return Err(error);
+            }
+        }
+        let value: T = serde_json::from_str(&text)
+            .map_err(|_| LcdError::PairResponseMalformed("response schema invalid".into()))?;
+        // Historical reads deliberately bypass live lag comparison. Their exact height
+        // header above is required, while the original historical time is preserved.
+        if height.is_none() {
+            let observed = if path.ends_with("/blocks/latest") {
+                serde_json::from_str::<serde_json::Value>(&text)
+                    .ok()
+                    .and_then(|v| {
+                        v.pointer("/block/header/height")
+                            .and_then(|h| h.as_str())
+                            .and_then(|h| h.parse::<i64>().ok())
+                    })
+            } else {
+                served_height
+            };
+            if let Some(observed) = observed {
+                let latest = self.inner.latest_height.load(Ordering::Relaxed);
+                if observed <= 0
+                    || observed.saturating_add(self.inner.provider_policy.max_height_lag) < latest
+                {
+                    self.mark_failed(idx).await;
+                    return Err(LcdError::LaggingProvider);
+                }
+                self.inner
+                    .latest_height
+                    .fetch_max(observed, Ordering::Relaxed);
+            }
+        }
+        Ok(value)
+    }
+
     async fn mark_failed(&self, idx: usize) {
-        let mut eps = self.inner.endpoints.write().await;
-        if let Some(ep) = eps.get_mut(idx) {
-            ep.cooldown_until = Some(Instant::now() + self.inner.cooldown_duration);
+        self.mark_failed_with_retry(idx, None).await;
+    }
+
+    async fn mark_failed_with_retry(&self, idx: usize, retry_after: Option<Duration>) {
+        let mut endpoints = self.inner.endpoints.write().await;
+        if let Some(ep) = endpoints.get_mut(idx) {
+            ep.provider
+                .failed(self.inner.cooldown_duration, retry_after);
             ep.verified = false;
         }
+    }
+
+    /// Fixed bounded endpoint-index counters, without addresses, URLs or response bodies.
+    pub async fn provider_counters(&self) -> Vec<ProviderCounters> {
+        self.inner
+            .endpoints
+            .read()
+            .await
+            .iter()
+            .map(|ep| ep.provider.counters())
+            .collect()
     }
 
     /// Process-local identity: isolates bounded discovery caches by LCD client/chain.
@@ -469,11 +557,38 @@ impl LcdClient {
             .await
     }
 
+    /// Pin all components of a background observation to an exact provider-confirmed height.
+    /// Unsupported history and proxies ignoring the height fail closed and remain retryable.
+    pub async fn query_contract_at_height_bounded<T: DeserializeOwned>(
+        &self,
+        contract_addr: &str,
+        query: &serde_json::Value,
+        height: i64,
+        max_bytes: usize,
+    ) -> Result<T, LcdError> {
+        if height <= 0 {
+            return Err(LcdError::HistoricalHeightUnavailable);
+        }
+        self.query_contract_request(contract_addr, query, Some(max_bytes), Some(height))
+            .await
+    }
+
     async fn query_contract_with_body_limit<T: DeserializeOwned>(
         &self,
         contract_addr: &str,
         query: &serde_json::Value,
         max_bytes: Option<usize>,
+    ) -> Result<T, LcdError> {
+        self.query_contract_request(contract_addr, query, max_bytes, None)
+            .await
+    }
+
+    async fn query_contract_request<T: DeserializeOwned>(
+        &self,
+        contract_addr: &str,
+        query: &serde_json::Value,
+        max_bytes: Option<usize>,
+        height: Option<i64>,
     ) -> Result<T, LcdError> {
         let query_bytes = serde_json::to_vec(query)
             .map_err(|e| LcdError::Deserialize(format!("Failed to serialize query: {}", e)))?;
@@ -484,10 +599,12 @@ impl LcdClient {
             contract_addr, query_b64
         );
 
-        let resp: SmartQueryResponse = self.get_with_body_limit(&path, max_bytes).await?;
+        let resp: SmartQueryResponse = self
+            .get_at_height_with_body_limit(&path, max_bytes, height)
+            .await?;
 
         serde_json::from_value(resp.data)
-            .map_err(|e| LcdError::Deserialize(format!("Failed to parse contract response: {}", e)))
+            .map_err(|_| LcdError::PairResponseMalformed("contract response schema invalid".into()))
     }
 
     /// Live wasm `ContractInfo` (code_id + admin) for community-tax attestation (#594).
@@ -1156,5 +1273,404 @@ mod tests {
             lcd.get_contract_code_id("terra1token").await.unwrap(),
             10184
         );
+    }
+}
+
+#[cfg(test)]
+mod provider_resilience_tests {
+    use super::*;
+    use serde_json::json;
+    use wiremock::matchers::{path, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    async fn payload(server: &MockServer, status: u16) {
+        Mock::given(path("/data"))
+            .respond_with(ResponseTemplate::new(status).set_body_json(json!({"ok": true})))
+            .mount(server)
+            .await;
+    }
+    async fn hits(server: &MockServer, at: &str) -> usize {
+        server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|r| r.url.path() == at)
+            .count()
+    }
+
+    #[tokio::test]
+    async fn provider_failures_open_circuit_and_preserve_healthy_failover() {
+        for status in [403, 429, 408, 500, 502, 503, 504] {
+            let primary = MockServer::start().await;
+            let secondary = MockServer::start().await;
+            for server in [&primary, &secondary] {
+                mock_chain_identity(server, "columbus-5").await;
+            }
+            payload(&primary, status).await;
+            payload(&secondary, 200).await;
+            let lcd = LcdClient::new(
+                vec![primary.uri(), secondary.uri()],
+                1000,
+                10_000,
+                "columbus-5",
+            );
+            for _ in 0..4 {
+                assert_eq!(
+                    lcd.get::<serde_json::Value>("/data").await.unwrap()["ok"],
+                    true
+                );
+            }
+            assert_eq!(
+                hits(&primary, "/data").await,
+                1,
+                "HTTP {status} repeated on quarantined provider"
+            );
+            assert_eq!(hits(&secondary, "/data").await, 4);
+            let counters = lcd.provider_counters().await;
+            assert_eq!(counters[0].failures, 1);
+            assert!(counters[0].circuit_open);
+            assert_eq!(counters[1].successes, 4);
+        }
+    }
+
+    #[tokio::test]
+    async fn bounded_retry_after_then_one_half_open_verified_recovery() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/data"))
+            .respond_with(
+                ResponseTemplate::new(429).insert_header("Retry-After", "999999999999999999999"),
+            )
+            .mount(&server)
+            .await;
+        let policy = ProviderPolicy {
+            max_backoff_ms: 40,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(vec![server.uri()], 1000, 0, "columbus-5", policy);
+        assert!(lcd.get::<serde_json::Value>("/data").await.is_err());
+        assert!(lcd.clone().get::<serde_json::Value>("/data").await.is_err());
+        assert_eq!(hits(&server, "/data").await, 1);
+        server.reset().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/data"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_millis(50)),
+            )
+            .mount(&server)
+            .await;
+        tokio::time::sleep(Duration::from_millis(45)).await;
+        let clone = lcd.clone();
+        let (a, b) = tokio::join!(
+            lcd.get::<serde_json::Value>("/data"),
+            clone.get::<serde_json::Value>("/data")
+        );
+        assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].recovery_probes, 1);
+        assert!(!counters[0].circuit_open);
+        assert_eq!(counters[0].in_flight, 0);
+        assert_eq!(hits(&server, "/data").await, 1);
+    }
+
+    #[tokio::test]
+    async fn slow_provider_timeout_fails_over_with_total_attempt_bound() {
+        let primary = MockServer::start().await;
+        let secondary = MockServer::start().await;
+        for server in [&primary, &secondary] {
+            mock_chain_identity(server, "columbus-5").await;
+        }
+        Mock::given(path("/data"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_secs(1)),
+            )
+            .mount(&primary)
+            .await;
+        payload(&secondary, 200).await;
+        let policy = ProviderPolicy {
+            attempt_timeout_ms: 100,
+            deadline_ms: 350,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(
+            vec![primary.uri(), secondary.uri()],
+            1000,
+            10_000,
+            "columbus-5",
+            policy,
+        );
+        let start = Instant::now();
+        assert!(lcd.get::<serde_json::Value>("/data").await.is_ok());
+        assert!(start.elapsed() < Duration::from_millis(350));
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    async fn healthy_rotation_and_clone_budgets_are_client_scoped() {
+        let a = MockServer::start().await;
+        let b = MockServer::start().await;
+        for server in [&a, &b] {
+            mock_chain_identity(server, "columbus-5").await;
+            payload(server, 200).await;
+        }
+        let policy = ProviderPolicy {
+            burst: 2,
+            requests_per_second: 1,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(
+            vec![a.uri(), a.uri(), b.uri()],
+            1000,
+            0,
+            "columbus-5",
+            policy.clone(),
+        );
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+        lcd.clone().get::<serde_json::Value>("/data").await.unwrap();
+        assert!(matches!(
+            lcd.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AdmissionDeferred)
+        ));
+        assert!(matches!(
+            lcd.require_verified_chain().await,
+            Err(LcdError::AdmissionDeferred)
+        ));
+        assert_eq!(hits(&a, "/data").await, 1);
+        assert_eq!(hits(&b, "/data").await, 1);
+        assert_eq!(lcd.provider_counters().await.len(), 2);
+        let independent = LcdClient::new_with_policy(vec![a.uri()], 1000, 0, "columbus-5", policy);
+        independent.get::<serde_json::Value>("/data").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn local_malformed_contract_does_not_quarantine_or_negative_cache() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path_regex("^/cosmwasm/"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("broken json"))
+            .mount(&server)
+            .await;
+        payload(&server, 200).await;
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 60_000, "columbus-5");
+        assert!(matches!(
+            lcd.query_contract::<serde_json::Value>("terra1broken", &json!({"pool":{}}))
+                .await,
+            Err(LcdError::PairResponseMalformed(_))
+        ));
+        assert_eq!(lcd.provider_counters().await[0].failures, 0);
+        assert!(!lcd.provider_counters().await[0].circuit_open);
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn lagging_live_height_and_unconfirmed_history_are_rejected() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/tip"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "1000")
+                    .set_body_json(json!({"ok":true})),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/behind"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "900")
+                    .set_body_json(json!({"ok":true})),
+            )
+            .mount(&server)
+            .await;
+        payload(&server, 200).await;
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 0, "columbus-5");
+        lcd.get::<serde_json::Value>("/tip").await.unwrap();
+        assert!(lcd.get::<serde_json::Value>("/behind").await.is_err());
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        assert!(lcd
+            .get_at_height::<serde_json::Value>("/data", 100)
+            .await
+            .is_err());
+        assert_eq!(lcd.provider_counters().await[0].failures, 2);
+        Mock::given(path("/historic"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "100")
+                    .set_body_json(json!({"ok":true})),
+            )
+            .mount(&server)
+            .await;
+        assert!(lcd
+            .get_at_height::<serde_json::Value>("/historic", 100)
+            .await
+            .is_ok());
+    }
+
+    #[tokio::test]
+    async fn total_deadline_cancellation_releases_shared_permit() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/data"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_secs(1)),
+            )
+            .mount(&server)
+            .await;
+        let policy = ProviderPolicy {
+            concurrency: 1,
+            deadline_ms: 40,
+            attempt_timeout_ms: 500,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(vec![server.uri()], 1000, 0, "columbus-5", policy);
+        assert!(lcd
+            .get::<serde_json::Value>("/data")
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("total deadline"));
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 0);
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        server.reset().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 200).await;
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+    }
+    #[tokio::test]
+    async fn pinned_contract_snapshot_fails_over_and_requires_exact_height() {
+        use wiremock::matchers::{header, query_param};
+        let unsupported = MockServer::start().await;
+        let good = MockServer::start().await;
+        for server in [&unsupported, &good] {
+            mock_chain_identity(server, "columbus-5").await;
+        }
+        for (server, response_height) in [(&unsupported, "322"), (&good, "321")] {
+            Mock::given(path_regex("^/cosmwasm/"))
+                .and(header("x-cosmos-block-height", "321"))
+                .and(query_param("height", "321"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .insert_header("x-cosmos-block-height", response_height)
+                        .set_body_json(json!({"data":{"reserve":"6000000"}})),
+                )
+                .mount(server)
+                .await;
+        }
+        let lcd = LcdClient::new(
+            vec![unsupported.uri(), good.uri()],
+            1000,
+            10_000,
+            "columbus-5",
+        );
+        let data: serde_json::Value = lcd
+            .query_contract_at_height_bounded("terra1pair", &json!({"pool":{}}), 321, 64 * 1024)
+            .await
+            .unwrap();
+        assert_eq!(data["reserve"], "6000000");
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        assert_eq!(lcd.provider_counters().await[1].successes, 1);
+        assert!(lcd
+            .query_contract_at_height_bounded::<serde_json::Value>(
+                "terra1pair",
+                &json!({"pool":{}}),
+                0,
+                64 * 1024
+            )
+            .await
+            .is_err());
+        assert_eq!(lcd.provider_counters().await[1].attempts, 1);
+        good.reset().await;
+        mock_chain_identity(&good, "columbus-5").await;
+        Mock::given(path_regex("^/cosmwasm/"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"data":{"reserve":"6000000"}})),
+            )
+            .mount(&good)
+            .await;
+        assert!(lcd
+            .query_contract_at_height_bounded::<serde_json::Value>(
+                "terra1pair",
+                &json!({"pool":{}}),
+                321,
+                64 * 1024
+            )
+            .await
+            .is_err());
+    }
+    #[tokio::test]
+    async fn oversized_rate_limit_body_cannot_evade_circuit() {
+        let bad = MockServer::start().await;
+        let good = MockServer::start().await;
+        for server in [&bad, &good] {
+            mock_chain_identity(server, "columbus-5").await;
+        }
+        Mock::given(path_regex("^/cosmwasm/"))
+            .respond_with(ResponseTemplate::new(429).set_body_string("x".repeat(65_537)))
+            .mount(&bad)
+            .await;
+        Mock::given(path_regex("^/cosmwasm/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data":{"ok":true}})))
+            .mount(&good)
+            .await;
+        let lcd = LcdClient::new(vec![bad.uri(), good.uri()], 1000, 60_000, "columbus-5");
+        let value: serde_json::Value = lcd
+            .query_contract_bounded("terra1pair", &json!({"pool":{}}), 65_536)
+            .await
+            .unwrap();
+        assert_eq!(value["ok"], true);
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        assert!(lcd.provider_counters().await[0].circuit_open);
+    }
+    #[tokio::test]
+    async fn attempted_failure_overrides_capacity_and_open_circuits_stay_transient() {
+        let healthy = MockServer::start().await;
+        let bad = MockServer::start().await;
+        for server in [&healthy, &bad] {
+            mock_chain_identity(server, "columbus-5").await;
+        }
+        payload(&healthy, 200).await;
+        payload(&bad, 503).await;
+        let policy = ProviderPolicy {
+            burst: 2,
+            requests_per_second: 1,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(
+            vec![healthy.uri(), bad.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            policy,
+        );
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+        assert!(matches!(
+            lcd.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].rate_deferrals, 1);
+        assert_eq!(counters[1].failures, 1);
+        let only_bad = LcdClient::new(vec![bad.uri()], 1000, 60_000, "columbus-5");
+        assert!(matches!(
+            only_bad.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert!(matches!(
+            only_bad.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert!(matches!(
+            only_bad.require_verified_chain().await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert_eq!(only_bad.provider_counters().await[0].attempts, 1);
     }
 }

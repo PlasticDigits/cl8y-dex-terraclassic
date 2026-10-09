@@ -1,0 +1,12 @@
+{
+  "issue": 1453,
+  "observed_at_utc": "2026-10-09T07:47:39.656344+00:00",
+  "evidence_scope": "Bounded read-only Coolify log availability audit; no raw log lines, actor identifiers, endpoint URLs or credentials retained.",
+  "status": "PARTIAL",
+  "bounded_log_rows_examined": 1000,
+  "oldest_observed_log_time_utc": "2026-10-09T07:24:17",
+  "newest_observed_log_time_utc": "2026-10-09T07:47:40",
+  "cited_04_utc_window_present": false,
+  "snapshot_failure_lines": 75,
+  "reason": "Bounded current log tail cannot reconstruct original per-pool reserve amounts and historical eligible prices; no evidence-supported repair established."
+}

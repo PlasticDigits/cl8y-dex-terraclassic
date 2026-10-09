@@ -126,6 +126,18 @@ permits unavailable checks to remain explicit skips while runnable checks pass;
 executed failures remain FAIL. Client namespaces are local isolation, not remote
 chain attestation or production acceptance.
 
+## Cached liquidity feed reliability
+
+For reserve/book ingestion, provider admission/failover, TVL publication or
+historical contribution reconciliation, apply
+[LF1453-1–LF1453-10](skills/AGENTS_LIQUIDITY_FEED.md)
+([#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453)).
+Run `make verify-issue-1453` and follow the
+[agent checklist and explicit skip policy](docs/qa/issue-1453/README.md).
+Pool-only observations survive book failures; hybrid generations remain compatible.
+Source verification does not establish active production redundancy, historical
+reconstruction or #1452 zero quote-triggered RPC acceptance.
+
 ## Indexer database isolation and QA safety
 
 Apply [DB1396-1–DB1396-10](skills/AGENTS_INDEXER_DATABASE_ISOLATION.md)

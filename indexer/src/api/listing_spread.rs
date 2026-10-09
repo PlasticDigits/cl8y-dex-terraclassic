@@ -29,12 +29,14 @@ pub fn listing_bid_ask(
 ) -> (String, String) {
     let last = last_price.filter(|p| **p > BigDecimal::zero());
     let mid = match (reserve_0, reserve_1) {
-        (Some(r0), Some(r1)) => human_quote_per_base_from_reserves(r0, r1, decimals_0, decimals_1),
+        (Some(r0), Some(r1)) if (0..=10_000).contains(&fee_bps) => {
+            human_quote_per_base_from_reserves(r0, r1, decimals_0, decimals_1)
+        }
         _ => None,
     };
 
     if let Some(center) = mid {
-        let bps = i64::from(fee_bps.max(0)).min(10_000);
+        let bps = i64::from(fee_bps);
         let ten_k = BigDecimal::from(10_000);
         let mut bid = &center * BigDecimal::from(10_000 - bps) / &ten_k;
         let mut ask = &center * BigDecimal::from(10_000 + bps) / &ten_k;
@@ -95,6 +97,28 @@ mod tests {
         let (bid, ask) = listing_bid_ask(Some(&last), None, None, 6, 6, 30);
         assert_eq!(bid, "0.95");
         assert_eq!(ask, "0.95");
+    }
+
+    #[test]
+    fn unknown_pool_fee_cannot_manufacture_zero_fee_spread() {
+        let last = bd("0.95");
+        for fee in [-1, 10_001] {
+            assert_eq!(
+                listing_bid_ask(
+                    Some(&last),
+                    Some(&bd("1000000")),
+                    Some(&bd("2000000")),
+                    6,
+                    6,
+                    fee
+                ),
+                ("0.95".into(), "0.95".into())
+            );
+        }
+        assert_eq!(
+            listing_bid_ask(None, Some(&bd("1000000")), Some(&bd("2000000")), 6, 6, -1),
+            ("0".into(), "0".into())
+        );
     }
 
     #[test]

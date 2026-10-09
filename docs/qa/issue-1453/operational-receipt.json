@@ -1,0 +1,61 @@
+{
+  "status": "PARTIAL",
+  "observed_at_utc": "2026-10-09T07:17:49.511806+00:00",
+  "source_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "deployed_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "evidence_scope": "Read-only Coolify production environment and public health; direct node_info/latest probes. No signing, service configuration change or production database mutation.",
+  "expected_chain_id": "columbus-5",
+  "runtime_attestation": [
+    {
+      "endpoint_index": 0,
+      "verified": true,
+      "observed_chain_id": "columbus-5",
+      "checked_at": "2026-10-09T07:17:49.345558882+00:00"
+    },
+    {
+      "endpoint_index": 1,
+      "verified": false,
+      "observed_chain_id": "columbus-5",
+      "checked_at": "2026-10-09T07:17:25.813778316+00:00"
+    },
+    {
+      "endpoint_index": 2,
+      "verified": true,
+      "observed_chain_id": "columbus-5",
+      "checked_at": "2026-10-09T07:17:48.504149794+00:00"
+    }
+  ],
+  "provider_probes": [
+    {
+      "endpoint_index": 0,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758006",
+      "block_time": "2026-10-09T07:17:39.237433606Z",
+      "latest_status": "PASS"
+    },
+    {
+      "endpoint_index": 1,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758006",
+      "block_time": "2026-10-09T07:17:39.237433606Z",
+      "latest_status": "PASS"
+    },
+    {
+      "endpoint_index": 2,
+      "observed_chain_id": "columbus-5",
+      "identity_status": "PASS",
+      "height": "30758007",
+      "block_time": "2026-10-09T07:17:45.197132869Z",
+      "latest_status": "PASS"
+    }
+  ],
+  "new_implementation_deployed": false,
+  "configured_endpoint_count": 3,
+  "configuration_scope": "Non-preview indexer application environment; endpoint values and credentials omitted.",
+  "multiple_endpoints_configured": true,
+  "live_failover_acceptance": "SKIP: deployed binary is pre-fix; independently operated endpoint health/failover and new circuit counters not established.",
+  "issue": 1453,
+  "reason": "Production configured endpoints and direct headers verified; this implementation has not been deployed and actual circuit/failover/independent operator scope remains unverified."
+}

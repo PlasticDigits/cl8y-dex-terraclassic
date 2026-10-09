@@ -1,0 +1,72 @@
+{
+  "status": "PARTIAL",
+  "observed_at_utc": "2026-10-09T07:16:12.356781+00:00",
+  "source_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "evidence_scope": "Public indexer hourly terminal observations and overview; full original API evidence retained in public-before.json. No historical chain reserves or USD marks were reconstructed.",
+  "window_utc": {
+    "start": "2026-10-09T03:00:00Z",
+    "end": "2026-10-09T06:00:00Z"
+  },
+  "observations": [
+    {
+      "utc_hour": "2026-10-09T03",
+      "liquidity_usd": "230956.11115594907583510800",
+      "priced_pair_count": 11,
+      "quality": "fresh",
+      "as_of": "2026-10-09T03:59:46.031455+00:00",
+      "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+      "generation": 23259,
+      "reasons": {
+        "advisory_hub_spot": 1,
+        "unsupported_identity": 11
+      }
+    },
+    {
+      "utc_hour": "2026-10-09T04",
+      "liquidity_usd": "192944.88005953091877243100",
+      "priced_pair_count": 10,
+      "quality": "partial",
+      "as_of": "2026-10-09T04:59:40.790956+00:00",
+      "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+      "generation": 23624,
+      "reasons": {
+        "advisory_hub_spot": 1,
+        "stale_reserve": 1,
+        "unsupported_identity": 11
+      }
+    },
+    {
+      "utc_hour": "2026-10-09T05",
+      "liquidity_usd": "233987.72623266278076711300",
+      "priced_pair_count": 11,
+      "quality": "fresh",
+      "as_of": "2026-10-09T05:59:55.986136+00:00",
+      "coverage_identity": "cbdb76a57ed5a1b5fe11763f480faff470620aaa23dc4092930c9c378ca7dcc7",
+      "generation": 23990,
+      "reasons": {
+        "advisory_hub_spot": 1,
+        "unsupported_identity": 11
+      }
+    }
+  ],
+  "additional_partial_hours": [
+    "2026-10-09T06",
+    "2026-10-09T07"
+  ],
+  "findings": {
+    "same_supported_coverage_identity": true,
+    "one_supported_pool_omitted_at_04": true,
+    "omission_reason": "stale_reserve",
+    "missing_pool_identity": "unknown",
+    "missing_contribution_usd": "unknown",
+    "actual_lp_withdrawal": "not established",
+    "historical_repair_applied": false
+  },
+  "repair_decision": "No repair: terminal partial value is original valid lower-bound evidence. Exact omitted pool, original raw reserves and original price marks are unavailable in public API; no backdating, current-price backfill or invented complete total.",
+  "skips": [
+    "Exact historical per-pool reconciliation requires original bounded ingestion/source records or independently chain-attested historical observations. Unknown contribution stays unknown."
+  ],
+  "issue": 1453,
+  "reason": "Coverage loss confirmed from original public terminal observations; missing pool/raw reserves/price marks unavailable, so exact contribution cannot be reconciled or repaired.",
+  "additional_evidence": "log-availability.json: bounded1,000-row production log tail audited; cited04:00UTCwindow absent. Original raw reserves and eligible price marks remain unavailable in collected bounded evidence."
+}
