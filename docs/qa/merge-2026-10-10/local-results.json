@@ -1,0 +1,194 @@
+{
+  "recorded_at": "2026-10-09T23:46:01.958134+00:00",
+  "primary_utc_start": "2026-10-09T23:12:25Z",
+  "initial_review_head": "53853c9fb508620a0312a634f08d9e786c39199a",
+  "final_review_head": "c923aab01589e39ae46fa2e1859d6c6b44528b1a",
+  "source_merge_commit": "c8b29eb0f7d07326a9745a444daff7ce76a8de4d",
+  "primary_source_fingerprint": "9497fd5c3555f1c318275f715b5b1ca424319971007321e7f94597ad48478343",
+  "verification": {
+    "1452": {
+      "command": "make verify-issue-1452",
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "skip_reasons": []
+    },
+    "1398": {
+      "command": "make verify-issue-1398",
+      "pass": 7,
+      "fail": 0,
+      "skip": 0,
+      "skip_reasons": []
+    },
+    "1399": {
+      "command": "make verify-issue-1399",
+      "pass": 8,
+      "fail": 0,
+      "skip": 0,
+      "skip_reasons": []
+    },
+    "1381": {
+      "command": "make verify-issue-1381",
+      "pass": 13,
+      "fail": 0,
+      "skip": 2,
+      "skip_reasons": [
+        "SKIP native wrap/unwrap: No existing LocalTerra public wrap-stack env supplied; use VERIFY_ISSUE_1381_WRAP_STACK_ENV",
+        "SKIP deployed capability and execution: No authorized coordinated migration/execution command supplied; follow the runbook"
+      ]
+    },
+    "1390": {
+      "command": "make verify-issue-1390",
+      "pass": 15,
+      "fail": 0,
+      "skip": 1,
+      "skip_reasons": [
+        "SKIP live execution: No execution command supplied; follow docs/qa/issue-1390/README.md"
+      ]
+    },
+    "1422": {
+      "command": "make verify-issue-1422",
+      "pass": 10,
+      "fail": 0,
+      "skip": 1,
+      "skip_reasons": [
+        "SKIP frozen before-fix regression: No independently reviewed pre-fix artifacts supplied"
+      ]
+    },
+    "1453": {
+      "command": "make verify-issue-1453",
+      "pass": 12,
+      "fail": 0,
+      "skip": 2,
+      "skip_reasons": [
+        "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+        "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope"
+      ]
+    },
+    "1396": {
+      "command": "make verify-issue-1396",
+      "pass": 28,
+      "fail": 0,
+      "skip": 2,
+      "skip_reasons": [
+        "SKIP: host IPv6 socket query: disabled by host kernel; IPv4 and confinement probes still run",
+        "SKIP default published-loopback query: The exact fresh Compose fixture accepts internal SQL but its published 127.0.0.1 port returns no response in bounded host probes; host Docker bridge path unavailable. The interrupted attempt is retained separately; internal TCP, external-namespace rejection and opt-in host-mode confinement still run.",
+        "SKIP host IPv6 query: loopback IPv6 is disabled by the host kernel",
+        "SKIP: default published-loopback query: The exact fresh Compose fixture accepts internal SQL but its published 127.0.0.1 port returns no response in bounded host probes; host Docker bridge path unavailable. The interrupted attempt is retained separately; internal TCP, external-namespace rejection and opt-in host-mode confinement still run.",
+        "SKIP default published-loopback query: The exact fresh Compose fixture accepts internal SQL but its published 127.0.0.1 port returns no response in bounded host probes; host Docker bridge path unavailable. The interrupted attempt is retained separately; internal TCP, external-namespace rejection and opt-in host-mode confinement still run.",
+        "SKIP host IPv6 query: loopback IPv6 is disabled by the host kernel"
+      ]
+    }
+  },
+  "frontend_unit": {
+    "command": "bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:unit",
+    "passed": 3097,
+    "failed": 0,
+    "files": 358
+  },
+  "contracts_workspace": {
+    "passed": 999,
+    "failed": 0
+  },
+  "historical_frontend_attempts": [
+    {
+      "passed": 3095,
+      "failed": 2,
+      "scope": "Initial asynchronous pair-picker and token-balance assertions"
+    },
+    {
+      "passed": 3095,
+      "failed": 2,
+      "scope": "Intermediate picker assertion expected symbols rather than abbreviated addresses; direction display race also exposed"
+    }
+  ],
+  "database_initial_attempt": {
+    "status": "INTERRUPTED",
+    "reason": "Exact Compose fixture internal SQL returned 1; published localhost probe returned no response. Initial make exited 2 after the owned unavailable wait was stopped. Final complete verifier uses its explicit bridge-host skip and retains all other checks."
+  },
+  "release_artifact_provenance": {
+    "status": "FAIL",
+    "command": "python3 scripts/ci/build-provenance.py --root /home/answorld/repos/cl8y-dex-terraclassic --verify /home/answorld/repos/cl8y-dex-terraclassic/smartcontracts/artifacts/build-provenance.json",
+    "first_mismatch": "source_commit",
+    "contract_source_inputs_checked": 170,
+    "contract_source_drift": 0,
+    "other_input_mismatches": [
+      "docker/frontend/Dockerfile",
+      "docker/indexer/Dockerfile",
+      "scripts/ci/build-indexer-release.sh"
+    ],
+    "output_mismatches": [
+      "cl8y_community_tax_token.wasm",
+      "cl8y_dex_pair.wasm"
+    ],
+    "current_outputs_match_tracked_checksums": true,
+    "followup_issue": 1456
+  },
+  "branch_inventory": [
+    {
+      "ref": "refs/heads/fix/issue-1452-followup",
+      "commit": "c923aab01589e39ae46fa2e1859d6c6b44528b1a",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/fix/issue-1452-local-quotes",
+      "commit": "30ae2024f667f3189d3acde0fca08556cb7b9e39",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/fix/issue-1453-liquidity-feed",
+      "commit": "91c26fa94f2b147209f9ff9111b2d66a0c41b1eb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/main",
+      "commit": "c8b29eb0f7d07326a9745a444daff7ce76a8de4d",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/heads/verify/issue-1354-defillama",
+      "commit": "09039309ee296061f6776ffd6550a65a2fac0cdb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/gitlab/main",
+      "commit": "c7f53aa7e31f0b4d1221a5beae24071ce640aca8",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "commit": "c8b29eb0f7d07326a9745a444daff7ce76a8de4d",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/issue-1452-followup",
+      "commit": "c923aab01589e39ae46fa2e1859d6c6b44528b1a",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/issue-1452-local-quotes",
+      "commit": "537561411cbb1911016f2149ed97f657ddda09b3",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/issue-1453-liquidity-feed",
+      "commit": "91c26fa94f2b147209f9ff9111b2d66a0c41b1eb",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "commit": "c8b29eb0f7d07326a9745a444daff7ce76a8de4d",
+      "included_in_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/verify/issue-1354-defillama",
+      "commit": "09039309ee296061f6776ffd6550a65a2fac0cdb",
+      "included_in_main": true
+    }
+  ],
+  "stash_count": 0,
+  "worker_worktrees_preserved": "worktree /home/answorld/repos/cl8y-dex-terraclassic\nHEAD c8b29eb0f7d07326a9745a444daff7ce76a8de4d\nbranch refs/heads/main\n\nworktree /home/answorld/repos/worktrees/cl8y-dex-1354-defillama\nHEAD 09039309ee296061f6776ffd6550a65a2fac0cdb\nbranch refs/heads/verify/issue-1354-defillama\n\nworktree /home/answorld/repos/worktrees/cl8y-dex-1452-followup\nHEAD c923aab01589e39ae46fa2e1859d6c6b44528b1a\nbranch refs/heads/fix/issue-1452-followup\n\nworktree /home/answorld/repos/worktrees/cl8y-dex-1452-local-quotes\nHEAD 30ae2024f667f3189d3acde0fca08556cb7b9e39\nbranch refs/heads/fix/issue-1452-local-quotes\n\nworktree /home/answorld/repos/worktrees/cl8y-dex-1453\nHEAD 91c26fa94f2b147209f9ff9111b2d66a0c41b1eb\nbranch refs/heads/fix/issue-1453-liquidity-feed\n\n",
+  "remaining_engineering_issue": 1459,
+  "remaining_operational_issue": 1456,
+  "deployed_acceptance_claimed": false
+}
