@@ -1336,3 +1336,261 @@ async fn issue_1453_shared_provider_capacity_preserves_all_four_pairs() {
     shutdown_tx.send(()).unwrap();
     server.await.unwrap();
 }
+
+/// Production reserve/book lanes must leave provider capacity for independently
+/// scheduled quote admission; publication keeps the producer's observation age.
+#[tokio::test]
+#[serial]
+async fn recovery1464_production_lanes_overlap_scheduled_admission() {
+    use base64::Engine;
+    use cl8y_dex_indexer::{api, lcd::ProviderPolicy};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let mut seed = common::seed_route_solve_with_mirror(&pool).await;
+    seed.token_a = "terra1fairnessaa000000000000000000000000".into();
+    seed.token_b = "terra1fairnessbb000000000000000000000000".into();
+    sqlx::query(
+        "UPDATE assets SET contract_address=$1 WHERE contract_address='terra1routesolveaaa'",
+    )
+    .bind(&seed.token_a)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE assets SET contract_address=$1 WHERE contract_address='terra1routesolvebbb'",
+    )
+    .bind(&seed.token_b)
+    .execute(&pool)
+    .await
+    .unwrap();
+    // Four pairs share just two ordinary CW20 assets; this exercises the actual
+    // production four-pool/two-book lanes without a larger policy fixture.
+    let (a, b): (i32, i32) = sqlx::query_as("SELECT asset_0_id,asset_1_id FROM pairs")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    for i in 1..4 {
+        let id: i32 = sqlx::query_scalar("INSERT INTO pairs(contract_address,asset_0_id,asset_1_id,lp_token,fee_bps) VALUES($1,$2,$3,'terra1capacitylp',30) RETURNING id")
+            .bind(format!("terra1fairnesspair{i}")).bind(a).bind(b).fetch_one(&pool).await.unwrap();
+        pair_reserves::upsert_pair_reserves(
+            &pool,
+            id,
+            &bd("10000000000000"),
+            &bd("10000000000000"),
+            30,
+            Some(900),
+        )
+        .await
+        .unwrap();
+    }
+    sqlx::query("UPDATE pair_reserves SET block_height=900")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE hybrid_pair_reserves SET block_height=900")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO pair_fee_observations(pair_id,fee_bps,block_height,observed_at) SELECT id,30,900,NOW() FROM pairs")
+        .execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW())")
+        .execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,1,NOW(),'custc' FROM assets WHERE symbol IN ('RTEA','RTEB')")
+        .execute(&pool).await.unwrap();
+    let active = Arc::new(AtomicUsize::new(0));
+    let maximum = Arc::new(AtomicUsize::new(0));
+    let pools = Arc::new(AtomicUsize::new(0));
+    let books = Arc::new(AtomicUsize::new(0));
+    let max_pools = Arc::new(AtomicUsize::new(0));
+    let max_books = Arc::new(AtomicUsize::new(0));
+    let overlap = Arc::new(AtomicUsize::new(0));
+    let requests = Arc::new(AtomicUsize::new(0));
+    // A deterministic gate demonstrates overlap without depending on slow fake
+    // responses or extending production provider/pair deadlines.
+    let (release_lanes, lane_release) = tokio::sync::watch::channel(false);
+    let app = axum::Router::new()
+        .route("/cosmos/base/tendermint/v1beta1/node_info", axum::routing::get(|| async { axum::Json(json!({"default_node_info":{"network":"columbus-5"}})) }))
+        .route("/cosmos/base/tendermint/v1beta1/blocks/latest", axum::routing::get(|| async { axum::Json(json!({"block":{"header":{"chain_id":"columbus-5","height":"900","time":"2026-10-10T00:00:00Z"}}})) }))
+        .fallback(axum::routing::get({
+            let (active,maximum,pools,books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
+            let (token_a,token_b) = (seed.token_a.clone(),seed.token_b.clone());
+            let (release_lanes,lane_release) = (release_lanes.clone(),lane_release.clone());
+            move |uri: axum::http::Uri, request_headers: axum::http::HeaderMap| {
+                let (active,maximum,pools,books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
+                let (token_a,token_b) = (token_a.clone(),token_b.clone());
+                let (release_lanes,mut lane_release) = (release_lanes.clone(),lane_release.clone());
+                async move {
+                    requests.fetch_add(1,Ordering::SeqCst);
+                    maximum.fetch_max(active.fetch_add(1,Ordering::SeqCst)+1,Ordering::SeqCst);
+                    let query = uri.path().split("/smart/").nth(1).map(|encoded| serde_json::from_slice::<serde_json::Value>(&base64::engine::general_purpose::STANDARD.decode(encoded).unwrap()).unwrap());
+                    let is_pool = query.as_ref().is_some_and(|q|q.get("pool").is_some());
+                    let is_book = query.as_ref().is_some_and(|q|q.get("order_book_head").is_some());
+                    if is_pool { max_pools.fetch_max(pools.fetch_add(1,Ordering::SeqCst)+1,Ordering::SeqCst); }
+                    if is_book { max_books.fetch_max(books.fetch_add(1,Ordering::SeqCst)+1,Ordering::SeqCst); }
+                    if query.is_none() && pools.load(Ordering::SeqCst)>0 && books.load(Ordering::SeqCst)>0 {
+                        overlap.fetch_add(1,Ordering::SeqCst);
+                        release_lanes.send_replace(true);
+                    }
+                    if (is_pool || is_book) && !*lane_release.borrow() {
+                        tokio::time::timeout(Duration::from_secs(2),lane_release.changed()).await.expect("scheduled metadata releases both lanes").unwrap();
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                    let body = if let Some(q) = query {
+                        let data = if is_pool {json!({"assets":[{"info":{"token":{"contract_addr":token_a}},"amount":"10000000000000"},{"info":{"token":{"contract_addr":token_b}},"amount":"10000000000000"}],"total_share":"1"})}
+                            else if is_book {json!(null)}
+                            else if q.get("get_fee_config").is_some() {json!({"fee_config":{"fee_bps":30,"treasury":"terra1treasury"}})}
+                            else if q.get("is_paused").is_some() {json!({"paused":false})}
+                            else if q.get("get_asset_code_ids").is_some() {json!({"code_ids":[10184,10184]})}
+                            else if q.get("blacklist_check").is_some() {json!({"blocked":false,"wallet_blacklisted":false,"pair_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[]})}
+                            else if q.get("is_code_id_whitelisted").is_some() {json!({"whitelisted":true})}
+                            else if q.get("get_hooks").is_some() {json!({"hooks":[]})}
+                            else if q.get("get_discount_registry").is_some() {json!({"registry":null})}
+                            else {panic!("unexpected fixture query: {q}")};
+                        json!({"data":data})
+                    } else {json!({"contract_info":{"code_id":"10184","admin":""}})};
+                    if is_pool {pools.fetch_sub(1,Ordering::SeqCst);}
+                    if is_book {books.fetch_sub(1,Ordering::SeqCst);}
+                    active.fetch_sub(1,Ordering::SeqCst);
+                    let mut headers = axum::http::HeaderMap::new();
+                    if let Some(height) = request_headers.get("x-cosmos-block-height") {headers.insert("x-cosmos-block-height",height.clone());}
+                    (headers,axum::Json(body))
+                }
+            }
+        }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let upstream = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let lcd = LcdClient::new_with_policy(
+        vec![endpoint],
+        2_500,
+        1,
+        "columbus-5",
+        ProviderPolicy {
+            burst: 256,
+            attempt_timeout_ms: 2_500,
+            deadline_ms: 8_000,
+            ..Default::default()
+        },
+    );
+    let liquidity = tokio::spawn(book_snapshot::run_book_snapshot_loop(
+        pool.clone(),
+        lcd.clone(),
+        10_000,
+    ));
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while pools.load(Ordering::SeqCst) < 4 || books.load(Ordering::SeqCst) < 2 {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .expect("actual production lanes overlap");
+    let mut config = common::test_config();
+    config.route_solver_db_hybrid = true;
+    let state = common::local_quotes::state(pool.clone(), &config, lcd.clone());
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let mut workers = api::local_quote::start_ingestion_with_cancel(state.clone(), cancel.clone());
+    let api_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let api_base = format!("http://{}", api_listener.local_addr().unwrap());
+    let api_server = tokio::spawn(async move {
+        axum::serve(api_listener, api::build_router(state, &config))
+            .await
+            .unwrap()
+    });
+    let client = reqwest::Client::new();
+    let quote_url = format!(
+        "{api_base}/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&max_spread=0.05",
+        seed.token_a, seed.token_b
+    );
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if client
+                .get(&quote_url)
+                .send()
+                .await
+                .unwrap()
+                .status()
+                .is_success()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("scheduled ordinary-token admission initializes useful quote");
+    let counters = lcd.provider_counters().await;
+    assert!(
+        counters.iter().all(|c| c.failures == 0),
+        "healthy overlapping observations succeed before explicit shutdown: {counters:?}"
+    );
+    cancel.cancel();
+    while workers.join_next().await.is_some() {}
+    liquidity.abort();
+    let _ = liquidity.await;
+    tokio::time::sleep(Duration::from_millis(450)).await;
+    let count = requests.load(Ordering::SeqCst);
+    let response = client.get(&quote_url).send().await.unwrap();
+    assert!(
+        response.status().is_success(),
+        "completed scheduled observations remain usable"
+    );
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert!(
+        body["estimated_amount_out_net"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
+    assert_eq!(
+        requests.load(Ordering::SeqCst),
+        count,
+        "API quote causes zero provider requests"
+    );
+    assert_eq!(max_pools.load(Ordering::SeqCst), 4);
+    assert_eq!(max_books.load(Ordering::SeqCst), 2);
+    assert!(maximum.load(Ordering::SeqCst) <= 8);
+    assert!(
+        overlap.load(Ordering::SeqCst) > 0,
+        "ordinary token metadata is read while both real liquidity lanes are active"
+    );
+    for row in cl8y_dex_indexer::db::queries::pairs::get_all_pairs(&pool)
+        .await
+        .unwrap()
+    {
+        let raw = pair_reserves::get_pair_reserves(&pool, row.id)
+            .await
+            .unwrap()
+            .unwrap();
+        let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, row.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(raw.block_height, Some(900));
+        assert_eq!(hybrid.block_height, Some(900));
+        assert!(
+            hybrid.snapshot_at <= raw.snapshot_at,
+            "book publication cannot renew pool observation time"
+        );
+        assert!(
+            chrono::Utc::now()
+                .signed_duration_since(raw.snapshot_at)
+                .num_seconds()
+                < 20
+        );
+    }
+    assert!(
+        lcd.provider_counters()
+            .await
+            .iter()
+            .all(|c| c.in_flight == 0),
+        "explicit shutdown releases even active upstream attempts"
+    );
+    api_server.abort();
+    upstream.abort();
+}

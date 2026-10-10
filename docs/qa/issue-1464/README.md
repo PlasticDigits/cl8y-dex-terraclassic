@@ -24,7 +24,7 @@ make verify-issue-1391  # reference/quorum propagation when scheduler changes
 
 The [focused verifier](../../../scripts/verify-issue-1464.sh) runs provider,
 checkpoint, token admission and oracle scheduler regressions twice, disposable socket/book/health
-fixtures twice, and evidence-tool/crosslink checks. It records revision, UTC times,
+fixtures twice, and evidence-tool/crosslink checks. The [tax recovery fixture](../../../indexer/tests/tax_admission_recovery_1464.rs) checks typed availability, required-policy and registered-pair negatives, manager revocation before a canceled balance read, and recovery. The [production-lane overlap fixture](../../../indexer/tests/book_snapshot_loop.rs) exercises actual pool/book/admission workers under one healthy provider with unchanged shared caps. It records revision, UTC times,
 commands and stage outcomes. The existing verifiers establish the broader protocol,
 browser/signing, discovery, attestation and real database privilege regressions.
 Repeat on stable final source if source changes during a run.
@@ -53,10 +53,13 @@ scope proven by its evidence; a synthetic test cannot check deployed acceptance.
 
 The [read-only probe](../../../scripts/qa/probe-issue-1464.py) uses the issue's
 four public token identities and exact ordinary/small raw amounts at 5% / 1% / 30%
-protection. LUNC requests set pool-only. Default: 24 requests (12 new connections,
-12 through one reused connection), paced at least 500 ms, each with a hard ten-second
+protection. LUNC requests set pool-only. Default: 24 requests (12 in the new-socket
+group and 12 in a connection-reuse group), paced at least 500 ms, each with a hard ten-second
 deadline and 2 MiB response bound. `--cycles` is capped at ten (240 total requests).
-No redirects/retries, signing, credentials or actor contexts. Receipt fields retain
+Actual transport is observed from socket identity before/after each request. The
+reuse group's first connection and any automatic reconnect are recorded as new;
+a pooled connection object alone is not proof of socket reuse. No redirects/retries,
+signing, credentials or actor contexts. Receipt fields retain
 only fixed route names, size class, status/usefulness and timing; raw responses and
 endpoint URLs are omitted. Supply the exact revision independently read from health.
 

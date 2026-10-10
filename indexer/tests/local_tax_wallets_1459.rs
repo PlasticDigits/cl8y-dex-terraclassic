@@ -181,9 +181,26 @@ async fn scheduled_uncensused_holders_keep_tax_identity_caps_blackout_and_zero_r
     // A terminal holder page resets the crawl; the next pass observes its first page.
     local_quote::ingest_once(&state).await.unwrap();
     local_quote::ingest_once(&state).await.unwrap();
-    local_quote::solve(&state, &quote(ELIGIBLE))
+    let recovered = local_quote::solve(&state, &quote(ELIGIBLE))
         .await
-        .expect("supported holder policy must recover after fresh scheduled observations");
+        .expect("supported holder policy must recover after fresh scheduled observations")
+        .0;
+    assert!(
+        recovered["estimated_amount_out_net"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
+    assert!(
+        recovered["execution_metadata"]["minimum_receive"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
     assert!(local_quote::solve(&state, &quote(SECOND_PAGE))
         .await
         .is_ok());

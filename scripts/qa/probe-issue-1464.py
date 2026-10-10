@@ -76,6 +76,13 @@ def distribution(values):
     }, "max_ms": round(ordered[-1], 3)}
 
 
+def request_transport(connection, path, headers):
+    """Observe socket reuse, including automatic reconnect on a pooled object."""
+    previous = connection.sock
+    connection.request("GET", path, headers=headers)
+    return "reused" if previous is not None and connection.sock is previous else "new"
+
+
 def probe(args):
     signal.signal(signal.SIGALRM, deadline)
     target = urlsplit(args.base_url)
@@ -94,11 +101,15 @@ def probe(args):
                     query = {"token_in": ASSETS[offer], "token_out": ASSETS[ask], "amount_in": amount, "max_spread": spread}
                     if offer == "LUNC":
                         query["pool_only"] = "true"
-                    row = {"cycle": cycle, "direction": f"{offer}->{ask}", "size": size, "spread": spread, "transport": transport}
+                    row = {"cycle": cycle, "direction": f"{offer}->{ask}", "size": size, "spread": spread,
+                           "connection_group": transport, "transport": "unobserved"}
                     start = time.monotonic()
                     try:
                         signal.setitimer(signal.ITIMER_REAL, 10)
-                        connection.request("GET", target.path.rstrip("/") + "/api/v1/route/solve?" + urlencode(query), headers={"User-Agent": "CL8Y-issue1464-read-only-probe/1"})
+                        row["transport"] = request_transport(
+                            connection, target.path.rstrip("/") + "/api/v1/route/solve?" + urlencode(query),
+                            {"User-Agent": "CL8Y-issue1464-read-only-probe/1"},
+                        )
                         response = connection.getresponse()
                         raw = response.read(MAX_BODY + 1)
                         row["status"] = response.status
@@ -110,7 +121,8 @@ def probe(args):
                         row["outcome"] = "useful" if row["useful"] else "unavailable_or_nonexecutable"
                         if row["useful"]:
                             meta = body["execution_metadata"]
-                            row["observation"] = {key: meta[key] for key in ("generation", "observed_at_ms", "expires_at_ms")}
+                            row["observation"] = {key: meta[key] for key in ("observed_at_ms", "expires_at_ms")}
+                            row["observation"]["generation_shape_valid"] = True
                     except (OSError, http.client.HTTPException):
                         row.update(status=None, useful=False, outcome="transport_error")
                         connection.close()

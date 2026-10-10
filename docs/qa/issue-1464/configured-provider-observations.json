@@ -1,7 +1,7 @@
 {
   "issue": 1464,
   "utc_observation_window": "2026-10-10 approximately 07:38 UTC",
-  "scope": "Read-only configured-provider/capability probes; no signing/broadcast; direct new connections from Korea, not production ingestion or useful quote latency",
+  "scope": "Bounded read-only provider/capability observations; no signing/broadcast. Client network path unverified; not production ingestion or useful quote latency.",
   "configured_provider_count": 3,
   "successful_point_in_time_attestation_count": 3,
   "successful_exact_height_pool_read_count": 3,
@@ -240,5 +240,6 @@
     "useful deployed quote output/latency",
     "zero request-triggered RPC counters",
     "full economic/historical acceptance"
-  ]
+  ],
+  "network_path": "unverified; operational location metadata omitted"
 }

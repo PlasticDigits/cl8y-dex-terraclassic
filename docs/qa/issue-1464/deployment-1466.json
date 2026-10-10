@@ -1,0 +1,299 @@
+{
+  "pipeline": 387,
+  "head": "2c222aa83cf463ccb04b0d4d649a60ae60bbdb00",
+  "status": "success",
+  "steps": [
+    {
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791628587,
+      "finished": 1791628607
+    },
+    {
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791628607,
+      "finished": 1791628708
+    },
+    {
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791628708,
+      "finished": 1791629122
+    },
+    {
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791629122,
+      "finished": 1791629291
+    },
+    {
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791629291,
+      "finished": 1791629568
+    },
+    {
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791629568,
+      "finished": 1791629569
+    }
+  ],
+  "hosted_logs": [
+    {
+      "step": "gitleaks",
+      "bytes": 11845,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "step": "contracts",
+      "bytes": 105053,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 102,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 567,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 81,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "step": "frontend",
+      "bytes": 173775,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "step": "indexer-lib",
+      "bytes": 117152,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 712,
+          "failed": 0,
+          "ignored": 1
+        }
+      ]
+    },
+    {
+      "step": "indexer-postgres",
+      "bytes": 107777,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1
+        },
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "step": "functional-required",
+      "bytes": 10728,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    }
+  ],
+  "merged_revision": "325ad4ec0938bdab68cedc3143d0aa0ef930cdf1",
+  "merge_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1466",
+  "deployment_utc_finished": "2026-10-10T11:14:54Z",
+  "production_acceptance": "FAIL: initial16/24 useful, later0/24; admission recovery is not sustained and regional latency exceeds250ms."
+}

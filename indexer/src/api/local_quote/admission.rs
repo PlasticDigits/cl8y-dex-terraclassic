@@ -30,6 +30,7 @@ struct Admission {
     actor_cursor: usize,
     enrollment_cursor: usize,
     holder_cursors: HashMap<String, Option<String>>,
+    wallet_actor_cursors: HashMap<String, usize>,
     tax_wallets: HashMap<String, tax::TokenObservation>,
     pairs: HashMap<String, PairObservation>,
 }
@@ -196,6 +197,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     if admission.policy_identity != policy_identity {
         admission.pairs.clear();
         admission.holder_cursors.clear();
+        admission.wallet_actor_cursors.clear();
         admission.policy_identity = policy_identity;
     }
     let live = all_pairs
@@ -240,6 +242,9 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     let live_assets = addresses.values().collect::<HashSet<_>>();
     admission
         .holder_cursors
+        .retain(|token, _| live_assets.contains(token));
+    admission
+        .wallet_actor_cursors
         .retain(|token, _| live_assets.contains(token));
     retain_wallet_ledgers(&mut admission.tax_wallets, &live_assets);
     let previous = ingestion::observed_actor_contexts(&namespace);
@@ -290,6 +295,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
     let mut tokens: HashMap<String, (u64, i64, Option<tax::TokenObservation>)> = HashMap::new();
     let mut attempted_tokens = HashSet::new();
+    let mut pending_wallet_tokens = HashSet::new();
     for i in selected.iter().copied() {
         let pair = &all_pairs[i];
         // A transient refresh failure does not erase still-fresh qualification.
@@ -358,7 +364,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                 admitted_pairs = admission.pairs.len(),
                 "Local quote admission stage"
             );
-            let unavailable = verdict.as_ref().err().is_some_and(|error| {
+            let mut unavailable = verdict.as_ref().err().is_some_and(|error| {
                 crate::indexer::block_indexer::is_retryable_availability(error)
             });
             let observation = match verdict
@@ -379,87 +385,41 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                         })
                         .map(|p| p.contract_address.clone())
                         .collect::<Vec<_>>();
-                    let mut tax_actors = actor_addresses
-                        .iter()
-                        .filter(|actor| actors.get(*actor).is_some_and(|(_, blocked)| !blocked))
-                        .filter_map(|actor| {
-                            actor_observed_at.get(actor).map(|at| (actor.clone(), *at))
-                        })
-                        .collect::<Vec<_>>();
-                    // Discover holders outside the trader census on the same scheduled
-                    // worker. Enumeration alone never authorizes a wallet: the factory
-                    // blacklist read and per-token identity/balance must also succeed.
-                    let cursor = admission
-                        .holder_cursors
-                        .get(address)
-                        .and_then(|v| v.as_deref());
-                    if let Some((holders, next)) = holder_page(state, address, cursor).await {
-                        admission.holder_cursors.insert(address.clone(), next);
-                        if let Some(factory) = state.factory_address.as_deref() {
-                            for actor in holders {
-                                let observed_at = now_ms();
-                                let blocked = query(state, factory,
-                                    json!({"blacklist_check":{"wallet":actor,"tokens":[],"pairs":[],"pair":null}}))
-                                    .await.and_then(|v| v["wallet_blacklisted"].as_bool());
-                                if blocked == Some(true) {
-                                    ingestion::publish_known_block(&namespace, &actor)?;
-                                } else if blocked == Some(false) {
-                                    ingestion::clear_known_block(&namespace, &actor);
-                                }
-                                if let Some(context) =
-                                    actor_context(blocked, None, previous.get(&actor).copied())
-                                {
-                                    if let Err(error) =
-                                        insert_actor(&mut actors, actor.clone(), context)
-                                    {
-                                        mark_actor_capacity_exhausted(
-                                            &mut store().lock().unwrap(),
-                                            &namespace,
-                                        );
-                                        return Err(error);
-                                    }
-                                    if blocked == Some(false) {
-                                        let at = actor_observed_at
-                                            .entry(actor.clone())
-                                            .or_insert(observed_at);
-                                        *at = (*at).min(observed_at);
-                                        if let Some((_, previous_at)) = tax_actors
-                                            .iter_mut()
-                                            .find(|(wallet, _)| wallet == &actor)
-                                        {
-                                            *previous_at = (*previous_at).min(*at);
-                                        } else {
-                                            tax_actors.push((actor, *at));
-                                        }
-                                    }
-                                }
+                    let previous_policy = admission
+                        .pairs
+                        .values()
+                        .filter(|pair| pair.expiry_ms > now_ms())
+                        .find_map(|pair| pair.taxes.get(address))
+                        .cloned();
+                    let required = bounded_pair_observation(
+                        tax::observe(state, &token, &related, previous_policy.as_ref()),
+                        Duration::from_secs(8),
+                    )
+                    .await;
+                    match required {
+                        Ok(mut obs) => {
+                            if !record_wallet_ledger(&mut admission.tax_wallets, address, &mut obs)
+                            {
+                                mark_tax_wallet_capacity_exhausted(
+                                    &mut store().lock().unwrap(),
+                                    &namespace,
+                                );
+                                return Err(sqlx::Error::Protocol(
+                                    "Local tax wallet ledger capacity exhausted".into(),
+                                ));
                             }
+                            pending_wallet_tokens.insert(address.clone());
+                            Some((obs.code_id, observed + CONFIG_TTL_MS, Some(obs)))
                         }
-                    }
-                    // Preserve newly observed negatives even if subsequent token reads
-                    // fail or the pass deadline cancels this admission slice.
-                    publish_admission(state, &namespace, &admission, &assets, &addresses, &actors)
-                        .await?;
-                    if let Some(mut obs) = tax::observe(state, &token, &related, &tax_actors).await
-                    {
-                        if !record_wallet_ledger(&mut admission.tax_wallets, address, &mut obs) {
-                            // Never evict a known protocol negative to admit a new asset.
-                            mark_tax_wallet_capacity_exhausted(
-                                &mut store().lock().unwrap(),
-                                &namespace,
+                        Err(reason) => {
+                            unavailable = reason == AdmissionFailure::Missing;
+                            tracing::debug!(
+                                phase = "token_policy",
+                                outcome = reason.label(),
+                                "Local quote admission stage"
                             );
-                            return Err(sqlx::Error::Protocol(
-                                "Local tax wallet ledger capacity exhausted".into(),
-                            ));
+                            None
                         }
-                        Some((obs.code_id, observed + CONFIG_TTL_MS, Some(obs)))
-                    } else {
-                        tracing::debug!(
-                            phase = "token_policy",
-                            outcome = "required_semantics_unavailable",
-                            "Local quote admission stage"
-                        );
-                        None
                     }
                 }
                 _ => None,
@@ -498,6 +458,20 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
             );
             continue;
         };
+        if [tax_a, tax_b]
+            .into_iter()
+            .flatten()
+            .any(|tax| !tax.pairs.contains(&pair.contract_address))
+        {
+            // A sibling's successful preview cannot renew this pair's missing
+            // required registration. Retain only any original fresh approval.
+            diagnostics::record(
+                &namespace,
+                &pair.contract_address,
+                Some(AdmissionFailure::Missing),
+            );
+            continue;
+        }
         let Some(factory) = state.factory_address.as_deref() else {
             continue;
         };
@@ -538,9 +512,215 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                 },
             );
         }
+        // Required static policy is useful before optional wallet work begins.
         publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
+        for address in [a, b] {
+            if !pending_wallet_tokens.remove(address) {
+                continue;
+            }
+            let Some((_, _, Some(static_observation))) = tokens.get(address).cloned() else {
+                continue;
+            };
+            let retained = enrich_wallets(
+                state,
+                &namespace,
+                &mut admission,
+                address,
+                &static_observation,
+                &actor_addresses,
+                &mut actor_observed_at,
+                &mut actors,
+                &previous,
+            )
+            .await?;
+            if !retained {
+                tokens.remove(address);
+                // Later pairs in this same slice cannot restore a policy whose
+                // authoritative enrichment recheck already invalidated it.
+                continue;
+            }
+            if let Some(current) = admission.tax_wallets.get(address) {
+                if let Some((_, _, Some(observation))) = tokens.get_mut(address) {
+                    observation.inherit_wallet_contexts(current);
+                }
+            }
+            publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
+        }
     }
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await
+}
+/// Revoke only an existing positive manager approval on completed negative flags.
+/// This runs before the actor's balance await, so cancellation cannot restore it.
+fn revoke_manager_context(
+    admission: &mut Admission,
+    namespace: &str,
+    token: &str,
+    actor: &str,
+    protocol: bool,
+    manager: bool,
+) -> bool {
+    if manager && !protocol {
+        return false;
+    }
+    let was_manager = admission
+        .tax_wallets
+        .get(token)
+        .and_then(|observation| observation.actors.get(actor))
+        .is_some_and(|observation| observation.manager && !observation.protocol)
+        || admission.pairs.values().any(|pair| {
+            pair.taxes
+                .get(token)
+                .and_then(|observation| observation.actors.get(actor))
+                .is_some_and(|observation| observation.manager && !observation.protocol)
+        });
+    if !was_manager {
+        return false;
+    }
+    if let Some(observation) = admission.tax_wallets.get_mut(token) {
+        observation.actors.remove(actor);
+    }
+    for pair in admission.pairs.values_mut() {
+        if let Some(observation) = pair.taxes.get_mut(token) {
+            observation.actors.remove(actor);
+        }
+    }
+    invalidate_asset_observations(admission, token);
+    invalidate_cached_asset(&mut store().lock().unwrap(), namespace, token);
+    true
+}
+
+async fn enrich_wallets(
+    state: &AppState,
+    namespace: &str,
+    admission: &mut Admission,
+    address: &str,
+    static_observation: &tax::TokenObservation,
+    actor_addresses: &[String],
+    actor_observed_at: &mut HashMap<String, i64>,
+    actors: &mut HashMap<String, (u16, bool)>,
+    previous: &HashMap<String, (u16, bool)>,
+) -> Result<bool, sqlx::Error> {
+    let started = std::time::Instant::now();
+    let mut enriched = static_observation.clone();
+    let Some(sinks) = tax::configured_sinks(&enriched) else {
+        invalidate_asset_observations(admission, address);
+        invalidate_cached_asset(&mut store().lock().unwrap(), namespace, address);
+        return Ok(false);
+    };
+    let mut tax_actors = actor_addresses
+        .iter()
+        .filter(|actor| actors.get(*actor).is_some_and(|(_, blocked)| !blocked))
+        .filter_map(|actor| actor_observed_at.get(actor).map(|at| (actor.clone(), *at)))
+        .collect::<Vec<_>>();
+    let cursor = admission
+        .wallet_actor_cursors
+        .get(address)
+        .copied()
+        .unwrap_or(0);
+    // Reserve four of the eight bounded observations for uncensused holders.
+    let (chosen, next) = selected_indices(tax_actors.len(), cursor, 4);
+    admission
+        .wallet_actor_cursors
+        .insert(address.to_owned(), next);
+    tax_actors = chosen
+        .into_iter()
+        .map(|index| tax_actors[index].clone())
+        .collect();
+    let mut revoked = false;
+    let work = async {
+        let cursor = admission
+            .holder_cursors
+            .get(address)
+            .and_then(|v| v.as_deref());
+        if let Some((holders, next)) = holder_page(state, address, cursor).await {
+            admission.holder_cursors.insert(address.to_owned(), next);
+            if let Some(factory) = state.factory_address.as_deref() {
+                for actor in holders {
+                    refresh_actor_context(namespace,&actor,actors,actor_observed_at,previous.get(&actor).copied(),
+                        async {query(state,factory,json!({"blacklist_check":{"wallet":actor,"tokens":[],"pairs":[],"pair":null}})).await.and_then(|v|v["wallet_blacklisted"].as_bool())},
+                        async {Some(0)}).await?;
+                    if actors.get(&actor).is_some_and(|(_, blocked)| !blocked) {
+                        if let Some(at) = actor_observed_at.get(&actor) {
+                            if let Some((_, old)) =
+                                tax_actors.iter_mut().find(|(wallet, _)| wallet == &actor)
+                            {
+                                *old = (*old).min(*at);
+                            } else {
+                                tax_actors.push((actor, *at));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (actor, factory_at) in tax_actors.iter().take(8) {
+            let observed = tax::observe_actor(state, address, actor, |protocol, manager| {
+                if revoke_manager_context(admission, namespace, address, actor, protocol, manager) {
+                    enriched.actors.remove(actor);
+                    revoked = true;
+                }
+            })
+            .await;
+            if let Some(mut observed) = observed {
+                observed.observed_at_ms = observed.observed_at_ms.min(*factory_at);
+                if sinks.contains(actor) {
+                    observed.protocol = true;
+                }
+                enriched.actors.insert(actor.clone(), observed);
+            }
+        }
+        Ok(())
+    };
+    let completed = actor_slice(work, Duration::from_secs(10)).await?;
+    if revoked {
+        // The current pass's static clone still carries the old qualification.
+        // Its caller must discard it; a fresh scheduled pass may recover anonymously.
+        tracing::debug!(
+            phase = "token_wallets",
+            completed,
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            outcome = "exemption_revoked",
+            "Local quote admission stage"
+        );
+        return Ok(false);
+    }
+    let checked = bounded_pair_observation(
+        tax::validate_static(state, address, static_observation),
+        Duration::from_secs(6),
+    )
+    .await;
+    tracing::debug!(
+        phase = "token_wallets",
+        completed,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        outcome = checked
+            .as_ref()
+            .map_or_else(|reason| reason.label(), |()| "supported"),
+        "Local quote admission stage"
+    );
+    match checked {
+        Ok(()) => {
+            if !record_wallet_ledger(&mut admission.tax_wallets, address, &mut enriched) {
+                mark_tax_wallet_capacity_exhausted(&mut store().lock().unwrap(), namespace);
+                return Err(sqlx::Error::Protocol(
+                    "Local tax wallet ledger capacity exhausted".into(),
+                ));
+            }
+            // Wallet timestamps enrich compatible policies without renewing any static time.
+            for pair in admission.pairs.values_mut() {
+                if let Some(observation) = pair.taxes.get_mut(address) {
+                    observation.inherit_wallet_contexts(&enriched);
+                }
+            }
+        }
+        Err(AdmissionFailure::Missing) => {} // New positive wallet approvals remain unpublished.
+        Err(_) => {
+            invalidate_asset_observations(admission, address);
+            invalidate_cached_asset(&mut store().lock().unwrap(), namespace, address);
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 async fn actor_slice(
     work: impl std::future::Future<Output = Result<(), sqlx::Error>>,

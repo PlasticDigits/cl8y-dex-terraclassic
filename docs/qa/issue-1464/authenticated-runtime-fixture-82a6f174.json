@@ -1,0 +1,60 @@
+{
+  "source_revision": "82a6f174e1c4ce2a2c6e48ab41c6a8a5f4433a39",
+  "source_fingerprint": "77b8c6f5b3fca1c94ffff9df2c19ca1456a4ba429d652a5446e8c77e36cf5678",
+  "started_at_utc": "2026-10-10T12:41:43.515660+00:00",
+  "scope": "Authenticated runtime LOGIN checks on a fresh independently owned loopback-only Postgres cluster; compiled current-source test binary invoked directly; no shared or production grants changed.",
+  "provisioning_attempts": [
+    {
+      "run": 1,
+      "status": "FAIL",
+      "runtime_tests_executed": 0,
+      "reason": "Owned fixture SQL provisioning failed before runtime tests; credentials/container cleaned."
+    },
+    {
+      "run": 2,
+      "status": "PASS",
+      "reason": "Waited for final Postgres initialization completion and readiness; verified empty runtime CONNECT baseline."
+    }
+  ],
+  "private_env_permissions": "0600",
+  "runs": [
+    {
+      "run": 1,
+      "started_at_utc": "2026-10-10T12:41:43.930752+00:00",
+      "duration_seconds": 1.299,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "run": 2,
+      "started_at_utc": "2026-10-10T12:41:45.290319+00:00",
+      "duration_seconds": 1.446,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "baseline": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 0
+  },
+  "command": "database_isolation --exact runtime_credential_rejects_schema_ddl_and_detects_database_create_grants --ignored --test-threads=1",
+  "compiled_binary_sha256": "78fe3058e169c7486bddf73dc2d46a272125c9499825fbecc8c8315627297d83",
+  "post_test_checks": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 2
+  },
+  "status": "PASS",
+  "cleanup": {
+    "owned_container_removed": true,
+    "generated_private_credentials_removed": true
+  },
+  "completed_at_utc": "2026-10-10T12:41:48.740899+00:00",
+  "schema_version": 1,
+  "production_acceptance": false
+}

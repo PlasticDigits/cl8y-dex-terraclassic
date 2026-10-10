@@ -4,6 +4,10 @@ Apply for provider scheduling, checkpoint retries, indexer/API supervision,
 local admission publication, quote blocker classification or useful-result latency.
 Issue: [#1464](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1464).
 First implementation: [merged #1465](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1465).
+Registered-token/reference follow-up: [merged #1466](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1466).
+Its [deployed trial](../docs/qa/issue-1464/deployment-1466.json) recovered initial
+quotes but did not sustain coverage. Capacity waiting and typed static tax admission
+are required before claiming the remaining production acceptance.
 Its [deployed receipt](../docs/qa/issue-1464/deployment-1465.json) records a successful
 rollout and failed useful-quote acceptance; use the current verification results,
 not merged status or liveness, to assess trading readiness.
@@ -46,3 +50,18 @@ Implementation: [readiness/supervision](../indexer/src/indexer/lifecycle.rs),
 [SQL-only trader accounting](../indexer/src/indexer/trader_tracker.rs) and
 [API lifecycle](../indexer/src/main.rs). Durable unsafe-height quarantine uses
 [failed-block state](../indexer/src/db/queries/state.rs) without a startup migration.
+
+Static tax admission precedes optional wallet enrichment. Typed provider loss
+preserves only original unexpired qualification; observed policy or registered-pair
+preview changes revoke it before later awaits. Completed manager=false or
+protocol=true flags revoke any existing manager exemption before balance awaits,
+including the current pass clone. New wallet positives require fresh flags/balance
+and unchanged static-policy recheck. The [tax cancellation regressions](../indexer/tests/tax_admission_recovery_1464.rs)
+cover these boundaries and recovery without quote-triggered RPC.
+
+
+Do not collect or publish operational location metadata. Label the client
+network path unverified and retain measured timing failures. See
+[HTTP/3 transport evidence](../docs/qa/issue-1464/verification.md#http3-reachability-and-transport-evidence).
+Confirm real socket/protocol reuse; health or handler-only timing never establishes
+useful quote latency. This rule also applies to agent notes and PR descriptions.

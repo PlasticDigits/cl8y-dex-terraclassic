@@ -1,0 +1,153 @@
+{
+  "schema": "cl8y-1464-admission-fairness-source-v1",
+  "base_revision": "325ad4ec0938bdab68cedc3143d0aa0ef930cdf1",
+  "source_fingerprint": "77b8c6f5b3fca1c94ffff9df2c19ca1456a4ba429d652a5446e8c77e36cf5678",
+  "utc_start": "2026-10-10T12:18:31Z",
+  "utc_end": "2026-10-10T12:22:49Z",
+  "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=<shared build cache only> make verify-issue-1464",
+  "scope": "Frozen worktree source, disposable per-process databases and real loopback sockets. Production coverage/transport, current-release settlement and historical rollout are separate.",
+  "stage_outcome": {
+    "pass": 11,
+    "fail": 0,
+    "skip": 2,
+    "overall": "PASS WITH SKIPS"
+  },
+  "first_and_retest_rust_groups": [
+    {
+      "passed": 66,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 75,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 66,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 75,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "reported_direction_loopback": {
+    "first_miss_n": 12,
+    "first_miss_max_ms": 2.861,
+    "first_hit_n": 12,
+    "first_hit_max_ms": 2.007,
+    "retest_miss_n": 12,
+    "retest_miss_max_ms": 2.83,
+    "retest_hit_n": 12,
+    "retest_hit_max_ms": 1.918,
+    "request_upstream_calls": 0
+  },
+  "meaningful_regressions": [
+    "Zero-attempt scheduled waits release permits under one unchanged logical deadline; actual-attempt/fatal budgets never reset.",
+    "Actual production pool4/book2/owned admission overlap under one healthy eight-slot provider; quota/rate and original timestamps unchanged.",
+    "Typed static availability retains original unexpired qualification; completed config/features/known-pair negatives invalidate before subsequent awaits.",
+    "Optional enrichment cannot delay static baseline; new positive contexts require full actor observation and unchanged static recheck.",
+    "Completed negative flags revoke prior manager exemption before delayed balance; cancellation and later pairs cannot restore; fresh pass recovers taxed nonexempt quote.",
+    "Actual socket identity distinguishes pooled-object reconnects from reused transport."
+  ],
+  "prerequisites": "Broader #1452/#1453/#1394/#1392/#1396/#1391 run serial on this frozen source before merge; exact outcomes are recorded in PR review evidence.",
+  "unverified": [
+    "Sustained deployed four-path useful coverage",
+    "Every normal-region initialized useful hit/miss and browser result below250ms",
+    "Current-release-attested funded settlement parity",
+    "Production historical/rollout acceptance in #1456"
+  ]
+}

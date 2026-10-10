@@ -329,7 +329,24 @@ impl LcdClient {
         let integrity_error = std::sync::Mutex::new(None);
         tokio::time::timeout(
             Duration::from_millis(self.inner.provider_policy.deadline_ms),
-            self.get_bounded_attempts(path, max_bytes, height, &attempted, &integrity_error),
+            async {
+                loop {
+                    let result = self
+                        .get_bounded_attempts(path, max_bytes, height, &attempted, &integrity_error)
+                        .await;
+                    if self.ingestion_budget.is_some()
+                        && attempted.load(Ordering::Relaxed) == 0
+                        && matches!(&result, Err(LcdError::AdmissionDeferred))
+                    {
+                        // Full-scan zero-attempt capacity denial only. All scan-owned
+                        // permits were dropped before this caller-owned wait; the
+                        // existing outer deadline also bounds every subsequent scan.
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                        continue;
+                    }
+                    return result;
+                }
+            },
         )
         .await
         .unwrap_or_else(|_| {
@@ -1862,6 +1879,150 @@ mod provider_resilience_tests {
         assert!(!counters.circuit_open);
         assert_eq!(hits(&server, "/data").await, 0);
         lcd.get::<serde_json::Value>("/data").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn recovery1464_background_capacity_wait_resumes_after_busy_healthy_provider() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 200).await;
+        Mock::given(path("/busy"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_millis(300)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            ProviderPolicy {
+                concurrency: 1,
+                deadline_ms: 1000,
+                attempt_timeout_ms: 800,
+                ..Default::default()
+            },
+        );
+        let foreground = lcd.clone();
+        let busy = tokio::spawn(async move { foreground.get::<serde_json::Value>("/busy").await });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while hits(&server, "/busy").await == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let background = lcd.with_ingestion_budget();
+        let budget = background.ingestion_budget.as_ref().unwrap().clone();
+        let pending = background.clone();
+        let task = tokio::spawn(async move {
+            pending.require_verified_chain().await?;
+            pending.get::<serde_json::Value>("/data").await
+        });
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        assert!(
+            !task.is_finished(),
+            "scheduled identity must wait instead of instant unavailable"
+        );
+        assert_eq!(
+            budget.permits.available_permits(),
+            2,
+            "capacity wait stores no ingestion lane permit"
+        );
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 1);
+        busy.await.unwrap().unwrap();
+        task.await.unwrap().unwrap();
+        assert_eq!(hits(&server, "/data").await, 1);
+        let counter = &lcd.provider_counters().await[0];
+        assert!(counter.concurrency_deferrals > 0);
+        assert_eq!(counter.in_flight, 0);
+        assert_eq!(counter.failures, 0);
+    }
+
+    #[tokio::test]
+    async fn recovery1464_background_capacity_deadline_and_cancel_add_no_attempt_penalty() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 200).await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            ProviderPolicy {
+                concurrency: 1,
+                deadline_ms: 120,
+                ..Default::default()
+            },
+        );
+        let mut held = lcd.inner.endpoints.read().await[0]
+            .provider
+            .admit()
+            .unwrap();
+        held.completed();
+        let background = lcd.with_ingestion_budget();
+        for identity in [true, false] {
+            let result = if identity {
+                background.require_verified_chain().await
+            } else {
+                background
+                    .get::<serde_json::Value>("/data")
+                    .await
+                    .map(|_| ())
+            };
+            assert!(matches!(result, Err(LcdError::AdmissionDeferred)));
+        }
+        let pending = background.clone();
+        let task = tokio::spawn(async move { pending.get::<serde_json::Value>("/data").await });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(
+            background
+                .ingestion_budget
+                .as_ref()
+                .unwrap()
+                .permits
+                .available_permits(),
+            2
+        );
+        assert_eq!(
+            lcd.provider_counters().await[0].attempts,
+            1,
+            "only preexisting holder admitted"
+        );
+        assert_eq!(lcd.provider_counters().await[0].failures, 0);
+        assert_eq!(server.received_requests().await.unwrap().len(), 0);
+        drop(held);
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    async fn recovery1464_background_attempted_failures_never_reset_attempt_budget() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 503).await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1000,
+            0,
+            "columbus-5",
+            ProviderPolicy {
+                max_attempts: 1,
+                deadline_ms: 1000,
+                ..Default::default()
+            },
+        );
+        let result = lcd
+            .with_ingestion_budget()
+            .get::<serde_json::Value>("/data")
+            .await;
+        assert!(matches!(result, Err(LcdError::AllEndpointsFailed(_))));
+        assert_eq!(hits(&server, "/data").await, 1);
+        assert_eq!(lcd.provider_counters().await[0].attempts, 1);
     }
 
     #[tokio::test]

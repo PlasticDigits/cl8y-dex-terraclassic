@@ -463,6 +463,12 @@ pacing slots; actual attempts still share finite rate/concurrency admission. Kno
 registered code IDs do not require redundant data-hash fallback. Independent
 ticker/hub timers preserve original timestamps, quorum and TTLs; optional wrapper
 output work cannot consume the publication margin for completed native input.
+Zero-attempt background capacity waiting remains inside the original logical
+deadline and holds no permits; real attempts never reset their work budget.
+Production pool/book concurrency is four/two under unchanged shared provider caps.
+Static supported tax policy publishes before optional wallet work. Typed completed
+availability can retain only original qualification times; observed semantic
+changes invalidate affected state, and positive wallet enrichment requires revalidation.
 
 Run `make verify-issue-1464` and the five prerequisite verifiers. Follow the
 [agent checklist/skip policy](qa/issue-1464/README.md),
@@ -470,3 +476,9 @@ Run `make verify-issue-1464` and the five prerequisite verifiers. Follow the
 [source/deployed receipt](qa/issue-1464/verification.md).
 Unavailable checks may be PASS WITH SKIPS; executed failures stay FAIL and missing
 production/history scope remains in #1456.
+
+For #1464, a completed manager=false or protocol=true observation revokes an
+existing manager exemption synchronously before any balance await. Remove it
+from the wallet ledger and pair copies, invalidate related qualification and the
+current admission pass, and recover only through fresh independent admission.
+See [the cancellation runbook](runbooks/indexer-provider-recovery.md).

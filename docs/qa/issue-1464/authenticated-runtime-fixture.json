@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "source_revision": "2c222aa83cf463ccb04b0d4d649a60ae60bbdb00",
+  "completed_at_utc": "2026-10-10T10:53:43.779566+00:00",
+  "scope": "Authenticated least-privilege runtime regression on an independently owned disposable Postgres cluster; no production/shared-cluster ACL mutation.",
+  "earlier_executed_runs": [
+    {
+      "run": 1,
+      "status": "FAIL",
+      "passed": 0,
+      "failed": 1,
+      "reason": "Existing shared QA cluster runtime login had CONNECT to an unrelated database; runtime authentication succeeded."
+    },
+    {
+      "run": 2,
+      "status": "FAIL",
+      "passed": 0,
+      "failed": 1,
+      "reason": "Existing shared QA cluster runtime login had CONNECT to an unrelated database; runtime authentication succeeded."
+    }
+  ],
+  "fixture_correction": {
+    "image": "postgres:16-alpine",
+    "fresh_cluster": true,
+    "ipv4_loopback_only": true,
+    "qa_role": "dedicated LOGIN/CREATEDB, non-superuser, no memberships",
+    "runtime_role": "dedicated least-privilege LOGIN, non-owner, no memberships",
+    "private_env_permissions": "0600",
+    "runtime_connectible_databases_before_tests": 0,
+    "shared_cluster_grants_edited": false
+  },
+  "command": "cargo test --locked --manifest-path indexer/Cargo.toml --test database_isolation runtime_credential_rejects_schema_ddl_and_detects_database_create_grants -- --ignored --exact --test-threads=1",
+  "credential_setup": "Use generated private fixture QA DSNs and runtime password; credentials are omitted from this receipt.",
+  "corrected_retests": [
+    {
+      "run": 1,
+      "status": "PASS",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "duration_seconds": 0.95
+    },
+    {
+      "run": 2,
+      "status": "PASS",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "duration_seconds": 0.97
+    }
+  ],
+  "verified": [
+    "Authenticated runtime connection and role/schema preflight",
+    "CREATE SCHEMA denied",
+    "CREATE TABLE denied",
+    "Migration-history SELECT denied",
+    "Injected database CREATE privilege detected and recovery verified",
+    "Unsafe SECURITY DEFINER execution privilege detected and recovery verified",
+    "Unrelated schema USAGE privilege detected and recovery verified",
+    "Temporary runtime CONNECT grants revoked"
+  ],
+  "post_test_checks": {
+    "independent_process_owned_child_databases": 2,
+    "runtime_connectible_databases_after_tests": 0
+  },
+  "cleanup": {
+    "owned_container_and_anonymous_volume_removed": true,
+    "generated_private_credentials_removed": true
+  },
+  "production_acceptance": false
+}
