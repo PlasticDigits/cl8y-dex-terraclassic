@@ -40,6 +40,7 @@ struct Snapshot {
     policy_identity: String,
     taxes: HashMap<String, tax::TokenObservation>,
     tax_trader: Option<String>,
+    protocol_actor_tokens: HashMap<String, HashSet<String>>,
 }
 #[derive(Default)]
 struct Store {
@@ -54,17 +55,31 @@ struct Store {
     actor_refresh_cursors: HashMap<String, usize>,
     actor_capacity_exhausted: HashSet<String>,
     actor_capacity_registry_exhausted: bool,
+    early_actor_blocks: HashMap<String, HashSet<String>>,
+    tax_wallet_capacity_exhausted: HashSet<String>,
+    pending_protocol_guards: protocol_guards::Pending,
 }
 fn store() -> &'static Mutex<Store> {
     static STORE: OnceLock<Mutex<Store>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(Store::default()))
 }
 fn actor_capacity_unavailable(g: &Store, namespace: &str) -> bool {
-    g.actor_capacity_registry_exhausted || g.actor_capacity_exhausted.contains(namespace)
+    g.actor_capacity_registry_exhausted
+        || g.actor_capacity_exhausted.contains(namespace)
+        || g.tax_wallet_capacity_exhausted.contains(namespace)
 }
 fn mark_actor_capacity_exhausted(g: &mut Store, namespace: &str) {
     if g.actor_capacity_exhausted.len() < 32 || g.actor_capacity_exhausted.contains(namespace) {
         g.actor_capacity_exhausted.insert(namespace.to_owned());
+    } else {
+        g.actor_capacity_registry_exhausted = true;
+    }
+}
+fn mark_tax_wallet_capacity_exhausted(g: &mut Store, namespace: &str) {
+    if g.tax_wallet_capacity_exhausted.len() < 32
+        || g.tax_wallet_capacity_exhausted.contains(namespace)
+    {
+        g.tax_wallet_capacity_exhausted.insert(namespace.to_owned());
     } else {
         g.actor_capacity_registry_exhausted = true;
     }
@@ -224,6 +239,7 @@ fn publish(
         policy_identity,
         taxes,
         tax_trader: None,
+        protocol_actor_tokens: HashMap::new(),
     };
     let mut g = store().lock().unwrap();
     // A reserve pass may finish after admission publishes a new policy epoch.
@@ -238,6 +254,12 @@ fn publish(
     if g.snapshots.len() >= 32 && !g.snapshots.contains_key(&namespace) {
         return;
     }
+    protocol_guards::clear_admitted_false(
+        &mut g,
+        &namespace,
+        &snapshot,
+        expected_config_epoch.is_none(),
+    );
     if expected_config_epoch.is_none() {
         g.next_config_epoch = g.next_config_epoch.saturating_add(1);
         snapshot.config_epoch = g.next_config_epoch;
@@ -344,7 +366,7 @@ fn score_with_plan(
     if plan.is_some_and(|p| p.len() != path.len()) {
         return None;
     }
-    if path.is_empty() || input == 0 {
+    if path.is_empty() || input == 0 || !protocol_guards::permits_path(s, path) {
         return None;
     }
     let mut visited = HashSet::new();
@@ -526,110 +548,6 @@ fn select(
         .reduce(|a, b| if better(&b, &a) { b } else { a })
 }
 
-fn inverse_pool_offer(rin: u128, rout: u128, fee_bps: u16, wanted: u128) -> Option<u128> {
-    if fee_bps >= 10_000 || wanted >= rout {
-        return None;
-    }
-    let (mut lo, mut hi) = (wanted, rout.checked_sub(1)?);
-    if hi - super::orderbook_sim::swap_fee_amount(hi, fee_bps) < wanted {
-        return None;
-    }
-    while lo < hi {
-        let mid = lo + (hi - lo) / 2;
-        if mid - super::orderbook_sim::swap_fee_amount(mid, fee_bps) >= wanted {
-            hi = mid;
-        } else {
-            lo = mid + 1;
-        }
-    }
-    let numerator = BigInt::from(rin) * BigInt::from(lo);
-    let denominator = BigInt::from(rout.checked_sub(lo)?);
-    ((numerator + &denominator - BigInt::from(1u8)) / denominator)
-        .to_string()
-        .parse()
-        .ok()
-}
-fn inverse_pool_path(s: &Snapshot, path: &[route_paths::PathHop], target: u128) -> Option<u128> {
-    let mut wanted = target;
-    for (pair, offer, ask) in path.iter().rev() {
-        let offer_token = s.addresses.get(offer)?;
-        let ask_token = s.addresses.get(ask)?;
-        let sell_bps = s.taxes.get(offer_token).map_or(Some(0), |tax| {
-            tax.rates(s.tax_trader.as_deref(), pair)
-                .map(|rates| rates.0)
-        })?;
-        let buy_bps = s.taxes.get(ask_token).map_or(Some(0), |tax| {
-            tax.rates(s.tax_trader.as_deref(), pair)
-                .map(|rates| rates.1)
-        })?;
-        let post_hook_target = tax::inverse_buy(wanted, buy_bps)?;
-        let hooks = s.hooks.get(pair);
-        let m = s.mirrors.get(pair)?;
-        let (rin, rout) = if offer_token == &m.asset_0_addr {
-            (m.reserve_0, m.reserve_1)
-        } else if offer_token == &m.asset_1_addr {
-            (m.reserve_1, m.reserve_0)
-        } else {
-            return None;
-        };
-        let mut lower = 0;
-        let mut funded = None;
-        // AMM integer output can jump over the first hook-qualified residue.
-        // Refine only beyond a failed reachable output: no smaller offer could
-        // reach the next threshold. This preserves successful minimality without
-        // assuming that several independent hook floors are monotone.
-        for _ in 0..64 {
-            let original_target = hooks.map_or(Some(post_hook_target.max(lower)), |h| {
-                if lower == 0 {
-                    h.inverse_return(ask_token, post_hook_target).ok()
-                } else {
-                    h.inverse_return_from(ask_token, post_hook_target, lower)
-                        .ok()
-                }
-            })?;
-            let economic = inverse_pool_offer(rin, rout, m.fee_bps, original_target)?;
-            let original = sim::quote_local_leg(m, offer_token, economic, 0, 8)
-                .ok()?
-                .return_amount;
-            let delivered =
-                hooks.map_or(Some(original), |h| h.net_return(ask_token, original).ok())?;
-            if delivered >= post_hook_target {
-                funded = Some(
-                    economic
-                        .checked_add(super::community_tax_rank::tax_amount(economic, sell_bps))?,
-                );
-                break;
-            }
-            lower = original.checked_add(1)?;
-        }
-        wanted = funded?;
-    }
-    Some(wanted)
-}
-
-fn select_inverse(
-    s: &Snapshot,
-    paths: &[Vec<route_paths::PathHop>],
-    target: u128,
-    spread: u128,
-) -> Option<(u128, Candidate)> {
-    let mut best = None;
-    for path in paths.iter().take(64) {
-        let Some(required) = inverse_pool_path(s, path, target) else {
-            continue;
-        };
-        if let Some(c) = score(s, path, required, spread) {
-            if c.output >= target
-                && best
-                    .as_ref()
-                    .is_none_or(|(amount, _): &(u128, Candidate)| required < *amount)
-            {
-                best = Some((required, c));
-            }
-        }
-    }
-    best
-}
 fn response(
     s: &Snapshot,
     q: &route_solver::SolveRouteParams,
@@ -687,6 +605,9 @@ fn response(
         for id in [offer, ask] {
             if let Some(tax) = s.taxes.get(&s.addresses[id]) {
                 expires = expires.min(tax.observed_at_ms.saturating_add(CONFIG_TTL_MS));
+                if let Some(actor_expiry) = tax.actor_expiry(s.tax_trader.as_deref()) {
+                    expires = expires.min(actor_expiry);
+                }
             }
         }
     }
@@ -750,14 +671,16 @@ fn wrapper_generation(market: &str, w: &super::local_wrapper_quote::WrapperSnaps
     mappings.sort_by_key(|(k, _)| *k);
     let mut hash = Sha256::new();
     hash.update(format!(
-        "{market}|{}|{}|{}|{}|{}|{:?}|{}|{mappings:?}",
+        "{market}|{}|{}|{}|{}|{}|{:?}|{}|{:?}|{:?}|{mappings:?}",
         w.mapper,
         w.treasury,
         w.observed_at_ms,
         w.fee_wrap_bps,
         w.fee_unwrap_bps,
         w.tax_atomics,
-        w.router_unwrap_supported
+        w.router_unwrap_supported,
+        w.mapper_floor_version,
+        w.treasury_floor_version
     ));
     format!("{:x}", hash.finalize())
 }
@@ -773,6 +696,32 @@ struct NativeContext {
     wrapper: super::local_wrapper_quote::WrapperSnapshot,
     wrap: bool,
     unwrap: bool,
+}
+/// Linearize result publication against independently observed guards and market
+/// generations. A request that started earlier cannot recreate a cleared cache.
+fn reviewed_snapshot_current(
+    g: &Store,
+    namespace: &str,
+    reviewed: &Snapshot,
+    native: Option<&NativeContext>,
+) -> bool {
+    if actor_capacity_unavailable(g, namespace) {
+        return false;
+    }
+    let Some(current) = g.snapshots.get(namespace) else {
+        return false;
+    };
+    if current.config_epoch != reviewed.config_epoch {
+        return false;
+    }
+    let mut generation = protocol_guards::generation(g, namespace, current);
+    if native.is_some() {
+        let Some(wrapper) = g.wrappers.get(namespace) else {
+            return false;
+        };
+        generation = wrapper_generation(&generation, wrapper);
+    }
+    generation == reviewed.generation
 }
 fn final_response(
     s: &Snapshot,
@@ -1009,15 +958,11 @@ async fn solve_local_with_plan(
         return Err(invalid("Receive sizing requires pool-only local execution"));
     }
     let spread = spread_atomics(q.max_spread.as_deref())?;
-    let mut snapshot = store()
-        .lock()
-        .unwrap()
-        .snapshots
-        .get(namespace)
-        .cloned()
-        .ok_or_else(unavailable)?;
-    let mut derived = (*snapshot).clone();
-    derived.generation = admission_generation(&derived);
+    let mut derived = {
+        let g = store().lock().unwrap();
+        let snapshot = g.snapshots.get(namespace).ok_or_else(unavailable)?;
+        protocol_guards::derive(&g, namespace, snapshot)
+    };
     for actor in [request.trader.as_deref(), request.sender.as_deref()]
         .into_iter()
         .flatten()
@@ -1050,7 +995,7 @@ async fn solve_local_with_plan(
         }
         mirror.fee_bps = sim::effective_fee_bps_from_discount_bps(mirror.fee_bps, discount);
     }
-    snapshot = Arc::new(derived);
+    let mut snapshot = Arc::new(derived);
     if let Some(n) = native.as_ref() {
         let mut derived = (*snapshot).clone();
         derived.generation = wrapper_generation(&derived.generation, &n.wrapper);
@@ -1064,9 +1009,15 @@ async fn solve_local_with_plan(
             return Err(invalid("Direct wrapper quotes have no pair split"));
         }
         let native = native.as_ref().ok_or_else(eligible_error)?;
-        return modes::wrapper_only(&snapshot, q, native, spread)
-            .map(Json)
-            .ok_or_else(eligible_error);
+        if !protocol_guards::permits_token(&snapshot, q.token_in.trim()) {
+            return Err(eligible_error());
+        }
+        let body = modes::wrapper_only(&snapshot, q, native, spread).ok_or_else(eligible_error)?;
+        let g = store().lock().unwrap();
+        if !reviewed_snapshot_current(&g, namespace, &snapshot, Some(native)) {
+            return Err(unavailable());
+        }
+        return Ok(Json(body));
     }
     let start = *snapshot
         .ids
@@ -1085,7 +1036,7 @@ async fn solve_local_with_plan(
     }
     {
         let mut g = store().lock().unwrap();
-        if actor_capacity_unavailable(&g, namespace) {
+        if !reviewed_snapshot_current(&g, namespace, &snapshot, native.as_ref()) {
             return Err(unavailable());
         }
         if let Some(body) = g
@@ -1186,7 +1137,7 @@ async fn solve_local_with_plan(
     }
     {
         let mut g = store().lock().unwrap();
-        if actor_capacity_unavailable(&g, namespace) {
+        if !reviewed_snapshot_current(&g, namespace, &snapshot, native.as_ref()) {
             return Err(unavailable());
         }
         if g.results.len() >= MAX_RESULTS {
@@ -1210,7 +1161,7 @@ async fn solve_local_with_plan(
                 let improved = select(&s, &all, amount, spread, book_allowed, maker_fills)
                     .filter(|c| c.output.saturating_sub(baseline.output) > baseline.output / 1000);
                 let mut g = store().lock().unwrap();
-                if actor_capacity_unavailable(&g, &namespace) {
+                if !reviewed_snapshot_current(&g, &namespace, &s, native.as_ref()) {
                     return;
                 }
                 if let Some(c) = improved {
@@ -1256,8 +1207,7 @@ fn progress_local(
     if actor_capacity_unavailable(&g, &ns) {
         return Err(unavailable());
     }
-    let mut s = (**g.snapshots.get(&ns).ok_or_else(unavailable)?).clone();
-    s.generation = admission_generation(&s);
+    let mut s = protocol_guards::derive(&g, &ns, g.snapshots.get(&ns).ok_or_else(unavailable)?);
     if matches!(q.token_in.as_str(), "uluna" | "uusd")
         || matches!(q.token_out.as_str(), "uluna" | "uusd")
     {
@@ -1293,6 +1243,11 @@ mod actor_inventory;
 mod admission;
 mod ingestion;
 mod modes;
+mod reverse;
+#[cfg(test)]
+use reverse::inverse_pool_path;
+use reverse::select_inverse;
+mod protocol_guards;
 mod skeletons;
 mod tax;
 pub use admission::{ingest_fixture, ingest_once};
@@ -1370,6 +1325,7 @@ mod tests {
             policy_identity: "synthetic".into(),
             taxes: HashMap::new(),
             tax_trader: None,
+            protocol_actor_tokens: HashMap::new(),
         }
     }
     pub(super) fn request(amount: u128) -> route_solver::SolveRouteParams {
@@ -1856,6 +1812,8 @@ mod tests {
                 fee_unwrap_bps: 0,
                 tax_atomics: None,
                 router_unwrap_supported: false,
+                mapper_floor_version: None,
+                treasury_floor_version: None,
             },
             wrap: true,
             unwrap: false,
@@ -2035,6 +1993,8 @@ mod tests {
                 fee_unwrap_bps: 50,
                 tax_atomics: Some(SCALE / 100),
                 router_unwrap_supported: true,
+                mapper_floor_version: None,
+                treasury_floor_version: None,
             },
         );
         for (input, output) in [("uluna", "in18"), ("in18", "uluna")] {
@@ -2067,6 +2027,53 @@ mod tests {
             );
             assert_eq!(inverse["execution_metadata"]["execution_supported"], false);
         }
+        let mut w = store().lock().unwrap().wrappers[namespace].clone();
+        // Direct unwrap uses the mapper, so unrelated router readiness cannot
+        // remove useful arithmetic or waive protocol capability admission.
+        w.router_unwrap_supported = false;
+        w.mapper_floor_version = Some(1);
+        publish_wrapper(namespace.into(), w.clone());
+        let mut q = request(10_000);
+        q.token_in = "in18".into();
+        q.token_out = "uluna".into();
+        let supported = solve_local(namespace, &q).await.unwrap().0;
+        assert_eq!(supported["execution_metadata"]["execution_supported"], true);
+        assert_eq!(
+            supported["execution_metadata"]["wrapper"]["floor_protocol_version"],
+            1
+        );
+        assert!(supported["execution_blocker"].is_null());
+        q.token_in = "uluna".into();
+        q.token_out = "in18".into();
+        let missing_treasury = solve_local(namespace, &q).await.unwrap().0;
+        assert_eq!(
+            missing_treasury["execution_metadata"]["execution_supported"],
+            false
+        );
+        w.treasury_floor_version = Some(1);
+        publish_wrapper(namespace.into(), w.clone());
+        let enabled = solve_local(namespace, &q).await.unwrap().0;
+        assert_eq!(enabled["execution_metadata"]["execution_supported"], true);
+        assert_ne!(
+            enabled["execution_metadata"]["generation"],
+            missing_treasury["execution_metadata"]["generation"]
+        );
+        w.mapper_floor_version = None;
+        publish_wrapper(namespace.into(), w.clone());
+        let withdrawn = solve_local(namespace, &q).await.unwrap().0;
+        assert_eq!(
+            withdrawn["execution_metadata"]["execution_supported"],
+            false
+        );
+        assert!(withdrawn["execution_metadata"]["wrapper"]["floor_protocol_version"].is_null());
+        assert_ne!(
+            withdrawn["execution_metadata"]["generation"],
+            enabled["execution_metadata"]["generation"]
+        );
+        w.mapper_floor_version = Some(1);
+        w.observed_at_ms = now_ms() - 20_001;
+        publish_wrapper(namespace.into(), w);
+        assert!(solve_local(namespace, &q).await.is_err());
     }
 
     #[test]
@@ -2102,7 +2109,7 @@ mod tests {
     }
 
     #[test]
-    fn composed_hook_inverse_rejects_insufficient_candidate_and_preserves_healthy_alternate() {
+    fn composed_hook_inverse_refines_insufficient_candidate_and_beats_healthy_alternate() {
         let mut s = fixture();
         {
             let m = s.mirrors.get_mut("pair7a").unwrap();
@@ -2136,18 +2143,23 @@ mod tests {
         let inverse = inverse_pool_path(&s, &composed, 3).unwrap();
         assert_eq!(inverse, 1);
         assert_eq!(score(&s, &composed, inverse, SCALE / 2).unwrap().output, 2);
-        assert!(select_inverse(&s, &[composed.clone()], 3, SCALE / 2).is_none());
-        // A larger composed offer is feasible, but this unsupported candidate
-        // must never be mislabeled sufficient or guessed through linear scaling.
-        assert!(score(&s, &composed, 2, SCALE / 2).unwrap().output >= 3);
+        let (required, candidate) = select_inverse(&s, &[composed.clone()], 3, SCALE / 2).unwrap();
+        assert_eq!(required, 2);
+        assert!(candidate.output >= 3);
+        assert!(
+            score(&s, &composed, required - 1, SCALE / 2)
+                .unwrap()
+                .output
+                < 3
+        );
         let mut alternate = s.mirrors["pair7b"].clone();
         alternate.asset_0_addr = "in18".into();
         s.mirrors.insert("healthy-direct".into(), alternate);
         let healthy = vec![("healthy-direct".into(), 1, 2)];
         let (required, candidate) =
-            select_inverse(&s, &[composed, healthy.clone()], 3, SCALE / 2).unwrap();
-        assert_eq!(candidate.path, healthy);
-        assert_eq!(required, 4);
-        assert_eq!(candidate.output, 3);
+            select_inverse(&s, &[composed.clone(), healthy], 3, SCALE / 2).unwrap();
+        assert_eq!(candidate.path, composed);
+        assert_eq!(required, 2);
+        assert!(candidate.output >= 3);
     }
 }

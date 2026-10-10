@@ -823,13 +823,31 @@ describe('SwapPage query params (GitLab #711)', () => {
 
   it('AC7: flip pay/receive after apply', async () => {
     const user = userEvent.setup()
-    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
+    function SearchProbe() {
+      return <span data-testid="swap-flip-search-probe">{useLocation().search}</span>
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    render(
+      <MemoryRouter initialEntries={[`/?from=uluna&to=${UST1}`]}>
+        <QueryClientProvider client={queryClient}>
+          <SearchProbe />
+          <SwapPage />
+        </QueryClientProvider>
+      </MemoryRouter>
+    )
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1'))
+    // Default selectors already show LUNC/UST1. Wait for actual inbound URL
+    // application, including canonical replacement, before testing its reversal.
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-flip-search-probe').textContent).toMatch(/from=LUNC/)
+      expect(screen.getByTestId('swap-flip-search-probe').textContent).toMatch(/to=UST1/)
+    })
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
       expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+      expect(screen.getByTestId('swap-flip-search-probe').textContent).toMatch(/from=UST1/)
+      expect(screen.getByTestId('swap-flip-search-probe').textContent).toMatch(/to=LUNC/)
     })
   })
 

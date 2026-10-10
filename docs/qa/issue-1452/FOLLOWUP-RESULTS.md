@@ -1,5 +1,11 @@
 # #1452 follow-up implementation and verification
 
+Current source coverage after #1458: [issue #1459 implementation and checklist](../issue-1459/README.md).
+The #1458 scope and receipts below are historical; #1459 supersedes the direct-wrapper
+protocol/signing limit, uncensused wallet admission and composed inverse rejection.
+Nonzero cooldown/AutoLP remains explicitly unsupported where required public state is absent.
+
+
 Implementation: [follow-up PR #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
 
 Related: [issue and comments](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452),
@@ -159,7 +165,8 @@ the final unchanged-source run above completed fully.
    fingerprint. Inspect arithmetic, zero-RPC, cache, expiry, plan and payload
    assertions. Run the available related verifiers listed above.
 3. Inspect exact signed funding-v1 messages and immutable manual budgets. Keep
-   zero-hop signing blocked; unknown actor/cooldown/AutoLP semantics cannot fall
+   legacy zero-hop signing blocked; review protected protocol signing under #1459.
+   Unknown actor/cooldown/AutoLP semantics cannot fall
    back to gross, wallet funding, live validation or weaker floors.
 4. Record revision/UTC, command, counts, generations, counters and all latency
    samples/maxima. Correct executed failures and retest before checking an item.

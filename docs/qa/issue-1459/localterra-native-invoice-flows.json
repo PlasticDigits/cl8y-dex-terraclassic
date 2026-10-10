@@ -1,0 +1,171 @@
+{
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "checks": [
+    {
+      "name": "invoice atomic rollback",
+      "status": "PASS",
+      "txhash": "BC4A9D886E70EF3CC516AE5A27E0310BBAEE506AFD72BE098815B5134724D4A6",
+      "gas_used": "3363399",
+      "authorized_gross": "53470550063747698249",
+      "invoice_raw": "50000000",
+      "quote": {
+        "amount": "50249973"
+      }
+    },
+    {
+      "name": "taxed route plus exact feature invoice",
+      "status": "PASS",
+      "txhash": "D6A3837963BC36D749E608930D5B2C2752445507CE1C58A66A337C6958C61DF4",
+      "gas_used": "3437638",
+      "authorized_gross": "53470550063747698249",
+      "invoice_raw": "50000000",
+      "quote": {
+        "amount": "50249973"
+      }
+    },
+    {
+      "name": "native wrap atomic rollback",
+      "status": "PASS",
+      "txhash": "B28C71C75C09BF6AB08182DA1C983BC4579DB9B7DAC0A68E9DC04AF405E133F4",
+      "gas_used": "4310319",
+      "authorized_native_gross": "1010000",
+      "route_gross": "989800",
+      "quote": {
+        "amount": "926479951705372165"
+      }
+    },
+    {
+      "name": "native wrap plus taxed intermediate",
+      "status": "PASS",
+      "txhash": "8DA50BA7221E25801B5661A71015CD07B4FDC23AC9A8EF07E37610B5BA547FA0",
+      "gas_used": "4679599",
+      "authorized_native_gross": "1010000",
+      "route_gross": "989800",
+      "quote": {
+        "amount": "926479951705372165"
+      }
+    },
+    {
+      "name": "taxed intermediate plus native unwrap",
+      "status": "PASS",
+      "txhash": "8F7E891B97CF2666EDF6DC6CCE05FC42ECBEC6E49D16CBCEECE16A8AD46161AB",
+      "gas_used": "3359054",
+      "authorized_gross": "1010000",
+      "wrapped_burn": "950356",
+      "mapper_minimum_receive": "945605",
+      "native_credit": "940877"
+    }
+  ],
+  "status": "PASS",
+  "receipts": [
+    {
+      "txhash": "AFEF5FB912639A91D1C76666E69F806C7417EBA0B19DB153307A81A4DBC18EF7",
+      "height": "619506",
+      "code": 0,
+      "gas_used": "179504"
+    },
+    {
+      "txhash": "0D7620B17D8E89A81443B95B81074E744B2E4905CDDA7A58BA64676B8E882BDC",
+      "height": "619509",
+      "code": 0,
+      "gas_used": "248759"
+    },
+    {
+      "txhash": "9FEFF027B4F39EB0AC1A8F158D4E4E89219B770FCE50ED4B330368F3141D950F",
+      "height": "619512",
+      "code": 0,
+      "gas_used": "138146"
+    },
+    {
+      "txhash": "BC4A9D886E70EF3CC516AE5A27E0310BBAEE506AFD72BE098815B5134724D4A6",
+      "height": "619538",
+      "code": 5,
+      "gas_used": "3363399"
+    },
+    {
+      "txhash": "D6A3837963BC36D749E608930D5B2C2752445507CE1C58A66A337C6958C61DF4",
+      "height": "619582",
+      "code": 0,
+      "gas_used": "3437638"
+    },
+    {
+      "txhash": "2B4DF00FC1AD1AC6158D1A511B2428FD5055606941B8A8CB16A8900160B87FC6",
+      "height": "619610",
+      "code": 0,
+      "gas_used": "129926"
+    },
+    {
+      "txhash": "66F3E90957A2DF1E859B1461A5ADEBC660B16E3E6BB78B92F36A8FAA1FE56A7A",
+      "height": "619617",
+      "code": 0,
+      "gas_used": "197796"
+    },
+    {
+      "txhash": "153063F078E974DB1926FE5F08E592235EBD8CFA5EFA352FA195158AEB7C4A7B",
+      "height": "619622",
+      "code": 0,
+      "gas_used": "308976"
+    },
+    {
+      "txhash": "78FAA08F4D06F59AB134EE2A1E8468923279B7D207E71652FF070107BEEB6381",
+      "height": "619629",
+      "code": 0,
+      "gas_used": "971248"
+    },
+    {
+      "txhash": "E1D240379E6326685B2E8DFAF734D88FB491F0A9E9EC5E5F673F295754156038",
+      "height": "619631",
+      "code": 0,
+      "gas_used": "144487"
+    },
+    {
+      "txhash": "E00080782BC2A050A65C143AEEBAEF6506626170F063C7488822119FEACED586",
+      "height": "619633",
+      "code": 0,
+      "gas_used": "144565"
+    },
+    {
+      "txhash": "893F0BD10AB950B1F8C8A91531E7CC0000732EF23552D2AFA4EE17F871DBD9DE",
+      "height": "619635",
+      "code": 0,
+      "gas_used": "942494"
+    },
+    {
+      "txhash": "7BC4CC94A37A995A3C34E2C8AB4EC6AB768ECA199B9E0137346E4C66E87EA41E",
+      "height": "619639",
+      "code": 0,
+      "gas_used": "179468"
+    },
+    {
+      "txhash": "B28C71C75C09BF6AB08182DA1C983BC4579DB9B7DAC0A68E9DC04AF405E133F4",
+      "height": "619669",
+      "code": 5,
+      "gas_used": "4310319"
+    },
+    {
+      "txhash": "8DA50BA7221E25801B5661A71015CD07B4FDC23AC9A8EF07E37610B5BA547FA0",
+      "height": "619717",
+      "code": 0,
+      "gas_used": "4679599"
+    },
+    {
+      "txhash": "037BE8F95696C8417456BDDE8ED86638218557E303BB239F0BB0A0FFA0EA24B7",
+      "height": "619742",
+      "code": 0,
+      "gas_used": "179468"
+    },
+    {
+      "txhash": "0F615C36F4A9398F105B167CC89FF4039037D4A5BCBCF2EA807641A47342BC94",
+      "height": "619744",
+      "code": 0,
+      "gas_used": "137191"
+    },
+    {
+      "txhash": "8F7E891B97CF2666EDF6DC6CCE05FC42ECBEC6E49D16CBCEECE16A8AD46161AB",
+      "height": "619777",
+      "code": 0,
+      "gas_used": "3359054"
+    }
+  ]
+}

@@ -35,8 +35,11 @@ and [RTROLL1381](AGENTS_ROUTE_TAX_ROLLOUT.md).
 6. **FRQ1422-6 — failure handling.** Preserve provider gas failures as observable
    deterministic quote errors. Clear stale executable Pay/operations while retaining
    Receive intent; never auto-retry, fan out endpoints, resend, raise limits or
-   silently substitute a weaker trade. Solver DB sizing still needs its own fresh
-   router forward preflight; it is a separately tested path, not reverse proof.
+   silently substitute a weaker trade. Historical network-backed solver DB sizing needs its own fresh router forward
+   preflight. The observation-only [#1452/#1459 engine](AGENTS_LOCAL_QUOTE_COVERAGE.md)
+   validates its full forward path locally; requests and signing never run router
+   preflight or provider queries. Neither local work counts nor local sufficiency
+   establish the separate provider gas envelope.
 7. **FRQ1422-7 — rollout truth.** The integrated #1422 baseline targets are router
    **1.4.0**, pair **1.21.0**, token **1.3.0**, factory **1.12.0**. Reconcile
    [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and

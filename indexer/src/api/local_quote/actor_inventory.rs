@@ -110,12 +110,15 @@ async fn observe(
 /// terminal page and layout proof are necessary before the atomic reset.
 pub(super) async fn recover(state: &AppState) -> bool {
     let namespace = state.lcd.chain_cache_namespace();
-    let expected_epoch = {
+    let (expected_epoch, expected_guard_epoch) = {
         let g = store().lock().unwrap();
         if !g.actor_capacity_exhausted.contains(&namespace) {
             return true;
         }
-        g.snapshots.get(&namespace).map(|s| s.config_epoch)
+        (
+            g.snapshots.get(&namespace).map(|s| s.config_epoch),
+            g.next_config_epoch,
+        )
     };
     let Some(factory) = state.factory_address.as_deref() else {
         return false;
@@ -127,12 +130,11 @@ pub(super) async fn recover(state: &AppState) -> bool {
     let Some(actors) = actors else {
         return false;
     };
-    apply_recovery(
-        &mut store().lock().unwrap(),
-        &namespace,
-        actors,
-        expected_epoch,
-    )
+    let mut g = store().lock().unwrap();
+    if g.next_config_epoch != expected_guard_epoch {
+        return false;
+    }
+    apply_recovery(&mut g, &namespace, actors, expected_epoch)
 }
 fn apply_recovery(
     g: &mut Store,
@@ -146,6 +148,11 @@ fn apply_recovery(
     if actors.len() > super::ingestion::MAX_ACTOR_CONTEXTS {
         return false;
     }
+    if g.early_actor_blocks.len() >= 32 && !g.early_actor_blocks.contains_key(namespace) {
+        g.actor_capacity_registry_exhausted = true;
+        return false;
+    }
+    let blocks = actors.keys().cloned().collect();
     if let Some(previous) = g.snapshots.get(namespace).cloned() {
         let mut snapshot = (*previous).clone();
         snapshot.actors = actors;
@@ -161,11 +168,12 @@ fn apply_recovery(
         g.next_config_epoch = g.next_config_epoch.saturating_add(1);
         snapshot.config_epoch = g.next_config_epoch;
         g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
-    } else if !actors.is_empty() {
-        // No snapshot to carry recovered negatives: ordinary admission must publish
-        // them before clearing quarantine.
-        return false;
+    } else {
+        // The complete inventory also supplies cold guards before any economic
+        // initialization. A partial scan never reaches this replacement.
+        g.next_config_epoch = g.next_config_epoch.saturating_add(1);
     }
+    g.early_actor_blocks.insert(namespace.to_owned(), blocks);
     g.results.clear();
     g.actor_capacity_exhausted.remove(namespace);
     true
@@ -247,6 +255,47 @@ mod tests {
         assert!(!current.actors.contains_key("terra1old"));
         assert_eq!(current.actors["terra1current"], (0, true));
         assert_ne!(current.generation, old_generation);
+    }
+    #[test]
+    fn complete_inventory_supplies_cold_guards_without_economic_initialization() {
+        let mut g = Store::default();
+        g.early_actor_blocks
+            .insert("cold-inventory".into(), HashSet::from(["old-block".into()]));
+        mark_actor_capacity_exhausted(&mut g, "cold-inventory");
+        assert!(apply_recovery(
+            &mut g,
+            "cold-inventory",
+            HashMap::from([("current-block".into(), (0, true))]),
+            None
+        ));
+        assert!(g.snapshots.is_empty());
+        assert_eq!(
+            g.early_actor_blocks["cold-inventory"],
+            HashSet::from(["current-block".into()])
+        );
+        assert!(!actor_capacity_unavailable(&g, "cold-inventory"));
+        assert!(g.next_config_epoch > 0);
+    }
+    #[test]
+    fn factory_inventory_cannot_clear_unrelated_tax_wallet_ledger_quarantine() {
+        let mut g = Store::default();
+        g.snapshots.insert(
+            "tax-ledger-overflow".into(),
+            Arc::new(super::super::tests::fixture()),
+        );
+        mark_actor_capacity_exhausted(&mut g, "tax-ledger-overflow");
+        mark_tax_wallet_capacity_exhausted(&mut g, "tax-ledger-overflow");
+        assert!(apply_recovery(
+            &mut g,
+            "tax-ledger-overflow",
+            HashMap::new(),
+            Some(0)
+        ));
+        assert!(!g.actor_capacity_exhausted.contains("tax-ledger-overflow"));
+        assert!(g
+            .tax_wallet_capacity_exhausted
+            .contains("tax-ledger-overflow"));
+        assert!(actor_capacity_unavailable(&g, "tax-ledger-overflow"));
     }
     #[tokio::test]
     async fn complete_pinned_height_provider_scan_and_missing_height_fail_closed() {

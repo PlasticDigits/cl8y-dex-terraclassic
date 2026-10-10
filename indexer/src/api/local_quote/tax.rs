@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 pub(super) struct ActorObservation {
+    pub observed_at_ms: i64,
     pub protocol: bool,
     pub manager: bool,
     pub balance: Option<u128>,
@@ -29,22 +30,90 @@ impl TokenObservation {
             || self.sell_bps != newer.sell_bps
             || self.max_wallet != newer.max_wallet
         {
+            let quarantined = self.observed_at_ms == 0 || newer.observed_at_ms == 0;
             if newer.observed_at_ms >= self.observed_at_ms {
-                *self = newer;
+                let previous = std::mem::replace(self, newer);
+                self.inherit_wallet_contexts(&previous);
+            } else {
+                // An older incompatible pair cannot rewrite current positive policy;
+                // retain its negatives unless a newer explicit observation cleared them.
+                self.merge_actor_observations(
+                    newer
+                        .actors
+                        .into_iter()
+                        .filter(|(_, actor)| actor.protocol)
+                        .collect(),
+                );
+            }
+            // Partial, unordered pair publication is never protocol-inventory recovery.
+            if quarantined {
+                self.observed_at_ms = 0;
             }
             return;
         }
         self.pairs.extend(newer.pairs);
-        if newer.observed_at_ms >= self.observed_at_ms {
-            self.actors.extend(newer.actors);
-        } else {
-            for (actor, observation) in newer.actors {
-                self.actors.entry(actor).or_insert(observation);
-            }
-        }
+        self.merge_actor_observations(newer.actors);
         self.observed_at_ms = self.observed_at_ms.min(newer.observed_at_ms);
     }
 
+    /// Wallet state is independent of pair slices. Carry original observations,
+    /// never previous registered pairs or configuration times. A policy change
+    /// drops positive approvals; a protocol negative needs an explicit fresh clear.
+    pub fn inherit_wallet_contexts(&mut self, previous: &Self) {
+        let compatible = self.policy_identity == previous.policy_identity
+            && self.code_id == previous.code_id
+            && self.buy_bps == previous.buy_bps
+            && self.sell_bps == previous.sell_bps
+            && self.max_wallet == previous.max_wallet;
+        let fresh = std::mem::take(&mut self.actors);
+        self.actors = previous
+            .actors
+            .iter()
+            .filter(|(_, observation)| {
+                observation.protocol || (compatible && observation.fresh_at(now_ms()))
+            })
+            .map(|(actor, observation)| (actor.clone(), observation.clone()))
+            .collect();
+        self.merge_actor_observations(fresh);
+        // Zero is the fail-closed capacity marker, never a configuration time.
+        // A partial page cannot prove that an omitted protocol negative cleared.
+        if previous.observed_at_ms == 0 {
+            self.observed_at_ms = 0;
+        }
+    }
+    fn merge_actor_observations(&mut self, observations: BTreeMap<String, ActorObservation>) {
+        for (actor, observation) in observations {
+            if self
+                .actors
+                .get(&actor)
+                .is_some_and(|old| old.observed_at_ms > observation.observed_at_ms)
+            {
+                continue;
+            }
+            if !self.actors.contains_key(&actor)
+                && self.actors.len() >= ingestion::MAX_ACTOR_CONTEXTS
+            {
+                // Protocol negatives survive eviction; exhaustion cannot authorize new wallets.
+                let victim = self
+                    .actors
+                    .iter()
+                    .filter(|(_, obs)| !obs.protocol)
+                    .min_by_key(|(address, obs)| (obs.observed_at_ms, *address))
+                    .map(|(address, _)| address.clone());
+                if let Some(victim) = victim {
+                    self.actors.remove(&victim);
+                } else if observation.protocol {
+                    self.observed_at_ms = 0;
+                } else {
+                    continue;
+                }
+            }
+            if self.actors.len() < ingestion::MAX_ACTOR_CONTEXTS || self.actors.contains_key(&actor)
+            {
+                self.actors.insert(actor, observation);
+            }
+        }
+    }
     pub fn rates(&self, actor: Option<&str>, pair: &str) -> Option<(u16, u16)> {
         if now_ms() < self.observed_at_ms
             || now_ms() - self.observed_at_ms >= CONFIG_TTL_MS
@@ -55,7 +124,7 @@ impl TokenObservation {
         let exempt = match actor {
             Some(actor) => {
                 let observed = self.actors.get(actor)?;
-                if observed.protocol {
+                if observed.protocol || !observed.fresh_at(now_ms()) {
                     return None;
                 }
                 observed.manager
@@ -68,14 +137,25 @@ impl TokenObservation {
             (self.sell_bps, self.buy_bps)
         })
     }
+    pub fn actor_expiry(&self, actor: Option<&str>) -> Option<i64> {
+        self.actors
+            .get(actor?)
+            .map(|observation| observation.observed_at_ms.saturating_add(CONFIG_TTL_MS))
+    }
     pub fn permits_credit(&self, actor: Option<&str>, amount: u128) -> bool {
         self.max_wallet.is_none_or(|max| {
             actor
                 .and_then(|a| self.actors.get(a))
+                .filter(|a| !a.protocol && a.fresh_at(now_ms()))
                 .and_then(|a| a.balance)
                 .and_then(|balance| balance.checked_add(amount))
                 .is_some_and(|new| new <= max)
         })
+    }
+}
+impl ActorObservation {
+    fn fresh_at(&self, at: i64) -> bool {
+        at >= self.observed_at_ms && at - self.observed_at_ms < CONFIG_TTL_MS
     }
 }
 pub(super) fn sell(gross: u128, bps: u16) -> Option<(u128, u128, u128)> {
@@ -131,6 +211,7 @@ pub(super) async fn observe_actor(
     token: &str,
     actor: &str,
 ) -> Option<ActorObservation> {
+    let observed_at_ms = now_ms();
     let flags = query(
         state,
         token,
@@ -141,11 +222,20 @@ pub(super) async fn observe_actor(
         return None;
     }
     let protocol = flags["protocol"].as_bool()? || actor == token;
+    if protocol {
+        protocol_guards::record(
+            &state.lcd.chain_cache_namespace(),
+            token,
+            actor,
+            observed_at_ms,
+        )?;
+    }
     let manager = flags["manager"].as_bool()?;
     let balance = query(state, token, json!({"balance":{"address":actor}}))
         .await
         .and_then(|v| v["balance"].as_str()?.parse().ok());
     Some(ActorObservation {
+        observed_at_ms,
         protocol,
         manager,
         balance,
@@ -176,7 +266,7 @@ pub(super) async fn observe(
     state: &AppState,
     token: &CataloguedTaxToken,
     pair_addresses: &[String],
-    actors: &[String],
+    actors: &[(String, i64)],
 ) -> Option<TokenObservation> {
     if token.route_funding_version != Some(1) || token.buy_bps > 10_000 || token.sell_bps > 10_000 {
         return None;
@@ -225,6 +315,14 @@ pub(super) async fn observe(
     }
     let sink_addresses = sinks.iter().cloned().collect::<HashSet<_>>();
     for address in sinks {
+        // A configured tax recipient cannot be the routed trader. Preserve that
+        // negative before any dependent sink/actor/config/code await can fail.
+        protocol_guards::record(
+            &state.lcd.chain_cache_namespace(),
+            &token.contract_address,
+            &address,
+            started,
+        )?;
         if address == router || pair_addresses.contains(&address) {
             return None;
         }
@@ -261,8 +359,11 @@ pub(super) async fn observe(
         return None;
     }
     let mut observed_actors = BTreeMap::new();
-    for actor in actors.iter().take(8) {
+    for (actor, factory_observed_at) in actors.iter().take(ingestion::MAX_TAX_ACTORS_PER_PASS) {
         if let Some(mut observation) = observe_actor(state, &token.contract_address, actor).await {
+            // Blacklist identity predates token flags/balance; later dependent reads
+            // cannot renew that earlier guard through a provider blackout.
+            observation.observed_at_ms = observation.observed_at_ms.min(*factory_observed_at);
             if sink_addresses.contains(actor) {
                 observation.protocol = true;
             }
@@ -309,6 +410,258 @@ pub(super) async fn observe(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn incompatible_pair_policy_merge_cannot_overwrite_protocol_capacity_quarantine_in_either_order(
+    ) {
+        let at = now_ms();
+        let quarantined = TokenObservation {
+            policy_identity: "current-policy".into(),
+            code_id: 2,
+            buy_bps: 250,
+            sell_bps: 500,
+            observed_at_ms: 0,
+            max_wallet: None,
+            pairs: HashSet::from(["pair".into()]),
+            actors: Default::default(),
+        };
+        let mut stale = quarantined.clone();
+        stale.policy_identity = "old-policy".into();
+        stale.code_id = 1;
+        stale.observed_at_ms = at;
+        stale.actors.insert(
+            "wallet".into(),
+            ActorObservation {
+                observed_at_ms: at,
+                protocol: false,
+                manager: true,
+                balance: Some(0),
+            },
+        );
+        let mut current_first = quarantined.clone();
+        current_first.merge(stale.clone());
+        assert_eq!(current_first.observed_at_ms, 0);
+        assert!(current_first.rates(Some("wallet"), "pair").is_none());
+        let mut old_first = stale;
+        old_first.merge(quarantined);
+        assert_eq!(old_first.observed_at_ms, 0);
+        assert!(old_first.rates(Some("wallet"), "pair").is_none());
+    }
+    #[test]
+    fn protocol_capacity_quarantine_survives_partial_wallet_pages_and_policy_changes() {
+        let at = now_ms();
+        let mut previous = TokenObservation {
+            policy_identity: "policy".into(),
+            code_id: 1,
+            buy_bps: 250,
+            sell_bps: 500,
+            observed_at_ms: at,
+            max_wallet: None,
+            pairs: HashSet::from(["pair".into()]),
+            actors: (0..ingestion::MAX_ACTOR_CONTEXTS)
+                .map(|i| {
+                    (
+                        format!("blocked-{i:04}"),
+                        ActorObservation {
+                            observed_at_ms: at,
+                            protocol: true,
+                            manager: false,
+                            balance: None,
+                        },
+                    )
+                })
+                .collect(),
+        };
+        previous.merge_actor_observations(BTreeMap::from([(
+            "overflow-protocol".into(),
+            ActorObservation {
+                observed_at_ms: at,
+                protocol: true,
+                manager: false,
+                balance: None,
+            },
+        )]));
+        assert_eq!(previous.observed_at_ms, 0);
+        assert_eq!(previous.actors.len(), ingestion::MAX_ACTOR_CONTEXTS);
+        let mut partial = previous.clone();
+        partial.observed_at_ms = at;
+        partial.actors = BTreeMap::from([(
+            "blocked-0000".into(),
+            ActorObservation {
+                observed_at_ms: at,
+                protocol: false,
+                manager: true,
+                balance: Some(0),
+            },
+        )]);
+        partial.inherit_wallet_contexts(&previous);
+        assert_eq!(partial.observed_at_ms, 0);
+        assert!(partial.rates(Some("blocked-0000"), "pair").is_none());
+        let mut changed = partial.clone();
+        changed.policy_identity = "new-policy".into();
+        changed.observed_at_ms = at;
+        changed.actors.clear();
+        changed.inherit_wallet_contexts(&partial);
+        assert_eq!(changed.observed_at_ms, 0);
+    }
+    #[test]
+    fn independent_wallet_ledger_survives_pair_pages_but_never_renews_time_or_mixes_policy() {
+        let at = now_ms();
+        let previous = TokenObservation {
+            policy_identity: "old-policy".into(),
+            code_id: 1,
+            buy_bps: 250,
+            sell_bps: 500,
+            observed_at_ms: at - 1000,
+            max_wallet: Some(100),
+            pairs: HashSet::from(["old-pair".into()]),
+            actors: BTreeMap::from([
+                (
+                    "page-one".into(),
+                    ActorObservation {
+                        observed_at_ms: at - 1000,
+                        protocol: false,
+                        manager: true,
+                        balance: Some(0),
+                    },
+                ),
+                (
+                    "old-protocol".into(),
+                    ActorObservation {
+                        observed_at_ms: at - CONFIG_TTL_MS,
+                        protocol: true,
+                        manager: false,
+                        balance: None,
+                    },
+                ),
+            ]),
+        };
+        let mut fresh = previous.clone();
+        fresh.observed_at_ms = at;
+        fresh.pairs = HashSet::from(["new-pair".into()]);
+        fresh.actors = BTreeMap::from([(
+            "page-two".into(),
+            ActorObservation {
+                observed_at_ms: at,
+                protocol: false,
+                manager: false,
+                balance: Some(10),
+            },
+        )]);
+        fresh.inherit_wallet_contexts(&previous);
+        assert_eq!(fresh.pairs, HashSet::from(["new-pair".into()]));
+        assert_eq!(fresh.observed_at_ms, at);
+        assert_eq!(fresh.actors["page-one"].observed_at_ms, at - 1000);
+        assert_eq!(fresh.actors.len(), 3);
+        let ledger = fresh.clone();
+        fresh.actors.clear(); // Terminal page/failed wallet read preserves old times.
+        fresh.inherit_wallet_contexts(&ledger);
+        assert_eq!(fresh.actors["page-one"].observed_at_ms, at - 1000);
+        let mut expired = ledger.clone();
+        expired.actors.get_mut("page-one").unwrap().observed_at_ms = at - CONFIG_TTL_MS;
+        fresh.actors.clear();
+        fresh.inherit_wallet_contexts(&expired);
+        assert!(!fresh.actors.contains_key("page-one"));
+        assert!(fresh.actors.contains_key("old-protocol"));
+        fresh.policy_identity = "changed-policy".into();
+        fresh.actors.clear();
+        fresh.inherit_wallet_contexts(&ledger);
+        assert_eq!(fresh.actors.len(), 1);
+        assert!(fresh.actors["old-protocol"].protocol);
+        let guarded = fresh.clone();
+        fresh.actors = BTreeMap::from([(
+            "old-protocol".into(),
+            ActorObservation {
+                observed_at_ms: at,
+                protocol: false,
+                manager: false,
+                balance: Some(0),
+            },
+        )]);
+        fresh.inherit_wallet_contexts(&guarded);
+        assert!(!fresh.actors["old-protocol"].protocol);
+    }
+    #[test]
+    fn wallet_identity_and_cap_observations_expire_independently_and_cannot_be_renewed_by_merge() {
+        let at = now_ms();
+        let mut token = TokenObservation {
+            policy_identity: "policy".into(),
+            code_id: 1,
+            buy_bps: 250,
+            sell_bps: 500,
+            observed_at_ms: at,
+            max_wallet: Some(100),
+            pairs: HashSet::from(["pair".into()]),
+            actors: BTreeMap::from([(
+                "wallet".into(),
+                ActorObservation {
+                    observed_at_ms: at - CONFIG_TTL_MS,
+                    protocol: false,
+                    manager: true,
+                    balance: Some(0),
+                },
+            )]),
+        };
+        assert!(token.rates(Some("wallet"), "pair").is_none());
+        assert!(!token.permits_credit(Some("wallet"), 1));
+        let mut newer = token.clone();
+        newer.observed_at_ms = at + 1;
+        newer.actors.clear(); // A failed actor read cannot make old approval fresh.
+        token.merge(newer);
+        assert_eq!(token.actor_expiry(Some("wallet")), Some(at));
+        assert!(token.rates(Some("wallet"), "pair").is_none());
+        token.actors.get_mut("wallet").unwrap().observed_at_ms = at + 10_000;
+        assert!(token.rates(Some("wallet"), "pair").is_none());
+        assert!(!token.permits_credit(Some("wallet"), 1));
+    }
+    #[test]
+    fn token_wallet_capacity_preserves_protocol_negatives_and_newest_independent_observations() {
+        let at = now_ms();
+        let mut token = TokenObservation {
+            policy_identity: "policy".into(),
+            code_id: 1,
+            buy_bps: 250,
+            sell_bps: 500,
+            observed_at_ms: at,
+            max_wallet: None,
+            pairs: HashSet::from(["pair".into()]),
+            actors: (0..ingestion::MAX_ACTOR_CONTEXTS)
+                .map(|i| {
+                    (
+                        format!("blocked-{i:04}"),
+                        ActorObservation {
+                            observed_at_ms: at,
+                            protocol: true,
+                            manager: false,
+                            balance: None,
+                        },
+                    )
+                })
+                .collect(),
+        };
+        let mut newer = token.clone();
+        newer.actors = BTreeMap::from([(
+            "new-wallet".into(),
+            ActorObservation {
+                observed_at_ms: at + 1,
+                protocol: false,
+                manager: true,
+                balance: Some(0),
+            },
+        )]);
+        token.merge(newer.clone());
+        assert_eq!(token.actors.len(), ingestion::MAX_ACTOR_CONTEXTS);
+        assert!(!token.actors.contains_key("new-wallet"));
+        token.actors.get_mut("blocked-0000").unwrap().protocol = false;
+        token.merge(newer);
+        assert_eq!(token.actors.len(), ingestion::MAX_ACTOR_CONTEXTS);
+        assert!(!token.actors.contains_key("blocked-0000"));
+        assert!(token.actors["new-wallet"].manager);
+        let mut older = token.clone();
+        older.actors.get_mut("new-wallet").unwrap().observed_at_ms = at - 1;
+        older.actors.get_mut("new-wallet").unwrap().manager = false;
+        token.merge(older);
+        assert!(token.actors["new-wallet"].manager);
+    }
     #[test]
     fn disabled_trading_cooldown_and_autolp_never_become_static_quote_approval() {
         let mut cfg = json!({"launch_guards":{"max_wallet":"100","cooldown_blocks":0,"trading_enabled":true}});
@@ -357,6 +710,7 @@ mod tests {
                 (
                     "manager".into(),
                     ActorObservation {
+                        observed_at_ms: now_ms(),
                         protocol: false,
                         manager: true,
                         balance: Some(90),
@@ -365,6 +719,7 @@ mod tests {
                 (
                     "protocol".into(),
                     ActorObservation {
+                        observed_at_ms: now_ms(),
                         protocol: true,
                         manager: false,
                         balance: Some(0),
@@ -400,6 +755,7 @@ mod route_tests {
                 (
                     "wallet".into(),
                     ActorObservation {
+                        observed_at_ms: now_ms(),
                         protocol: false,
                         manager: false,
                         balance: Some(0),
@@ -408,6 +764,7 @@ mod route_tests {
                 (
                     "manager".into(),
                     ActorObservation {
+                        observed_at_ms: now_ms(),
                         protocol: false,
                         manager: true,
                         balance: Some(0),
@@ -415,6 +772,37 @@ mod route_tests {
                 ),
             ]),
         }
+    }
+    #[test]
+    fn named_wallet_original_blacklist_expiry_bounds_response_and_cannot_survive_refresh() {
+        let mut snapshot = super::super::tests::fixture();
+        let path = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+        let input = 10u128.pow(18);
+        let mut token = observation(&snapshot, 250, 0);
+        let expiry = now_ms() + 5_000;
+        token.actors.get_mut("wallet").unwrap().observed_at_ms = expiry - CONFIG_TTL_MS;
+        snapshot.taxes.insert("in18".into(), token);
+        snapshot.tax_trader = Some("wallet".into());
+        let candidate = score(&snapshot, &path, input, SCALE / 20).unwrap();
+        let body = response(
+            &snapshot,
+            &super::super::tests::request(input),
+            &candidate,
+            input,
+            SCALE / 20,
+            1,
+        );
+        assert_eq!(body["execution_metadata"]["expires_at_ms"], expiry);
+        // Configuration remains fresh while the required wallet context expires.
+        snapshot
+            .taxes
+            .get_mut("in18")
+            .unwrap()
+            .actors
+            .get_mut("wallet")
+            .unwrap()
+            .observed_at_ms = now_ms() - CONFIG_TTL_MS;
+        assert!(score(&snapshot, &path, input, SCALE / 20).is_none());
     }
     #[test]
     fn taxed_intermediate_uses_only_preceding_net_and_boundary_specific_rates() {
@@ -598,6 +986,8 @@ mod wrapper_tests {
             fee_unwrap_bps: 0,
             tax_atomics: None,
             router_unwrap_supported: false,
+            mapper_floor_version: None,
+            treasury_floor_version: None,
         };
         let gross = wrapper.inverse_wrap(credit).unwrap();
         let mut original = super::super::tests::request(gross);

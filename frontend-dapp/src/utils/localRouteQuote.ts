@@ -277,6 +277,60 @@ export function validateLocalRouteQuote(
   }
 }
 
+/** Direct wrapper mutation guard: bind capability, direction, actor and the
+ * wallet receive floor. The external protocol measures actual recipient delta. */
+export function assertWrapperOnlySubmit(
+  metadata: IndexerRouteExecutionMetadata,
+  operations: SwapOperation[],
+  amount: string,
+  maxSpread: string,
+  trader: string,
+  minimumReceive: string | undefined,
+  nowMs = Date.now()
+): void {
+  const w = metadata.wrapper
+  if (
+    !w ||
+    metadata.version !== 1 ||
+    metadata.policy !== 'wrapper_only' ||
+    metadata.execution_supported !== true ||
+    w.floor_protocol_version !== 1 ||
+    !metadata.generation?.trim() ||
+    metadata.input_amount !== amount ||
+    metadata.max_spread !== maxSpread ||
+    (metadata.trader ?? '') !== trader ||
+    (metadata.sender != null && metadata.sender !== trader) ||
+    !Number.isSafeInteger(metadata.observed_at_ms) ||
+    !Number.isSafeInteger(metadata.expires_at_ms) ||
+    metadata.observed_at_ms > nowMs ||
+    metadata.expires_at_ms <= nowMs ||
+    metadata.expires_at_ms <= metadata.observed_at_ms ||
+    operations.length !== 0 ||
+    metadata.hops.length !== 0 ||
+    metadata.tax_funding_version != null ||
+    w.treasury !== TREASURY_CONTRACT_ADDRESS ||
+    w.mapper !== WRAP_MAPPER_CONTRACT_ADDRESS ||
+    !w.treasury ||
+    !w.mapper ||
+    w.input_amount !== amount ||
+    w.wrap_input === w.unwrap_output ||
+    w.wrap_input !== isNativeDenom(w.input_token) ||
+    w.unwrap_output !== isNativeDenom(w.output_token) ||
+    (w.wrap_input
+      ? getWrappedEquivalent(w.input_token) !== w.output_token
+      : getWrappedEquivalent(w.output_token) !== w.input_token) ||
+    !isLocalQuoteRaw(amount) ||
+    !isLocalQuoteRaw(w.route_input_amount) ||
+    w.route_input_amount !== w.route_output_amount ||
+    (w.wrap_input ? BigInt(w.route_input_amount) > BigInt(amount) : w.route_input_amount !== amount) ||
+    !isLocalQuoteRaw(metadata.minimum_receive) ||
+    !isLocalQuoteRaw(minimumReceive) ||
+    minimumReceive !== metadata.minimum_receive ||
+    BigInt(metadata.minimum_receive) > BigInt(w.route_output_amount)
+  )
+    reject()
+}
+
 /** Mutation-time snapshot guard; preserves the reviewed floors without refreshing the route. */
 export function assertLocalRouteSubmit(
   metadata: IndexerRouteExecutionMetadata,
@@ -287,6 +341,10 @@ export function assertLocalRouteSubmit(
   minimumReceive: string | undefined,
   nowMs = Date.now()
 ): void {
+  if (metadata.policy === 'wrapper_only') {
+    assertWrapperOnlySubmit(metadata, operations, amount, maxSpread, trader, minimumReceive, nowMs)
+    return
+  }
   if (
     metadata.version !== 1 ||
     metadata.execution_supported === false ||

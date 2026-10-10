@@ -26,6 +26,162 @@ pub(super) fn actor_context(
 pub(super) const MAX_ACTOR_CONTEXTS: usize = 2048;
 const RECENT_ACTORS: usize = 120;
 const HISTORICAL_BLOCK_REFRESH: usize = 8;
+pub(super) const MAX_TAX_ACTORS_PER_PASS: usize = 24;
+pub(super) const ENROLLED_ACTORS_PER_PASS: usize = 4;
+pub(super) const HOLDER_ACCOUNTS_PER_PASS: usize = 4;
+
+/// Negative observations protect warm quotes before any subsequent database or
+/// token enrichment await. A failed enrichment cannot leave the old approval
+/// visible, and an older reserve pass/inventory cannot restore it.
+pub(super) fn publish_known_block(namespace: &str, address: &str) -> Result<(), sqlx::Error> {
+    apply_known_block(&mut store().lock().unwrap(), namespace, address)
+}
+pub(super) fn clear_known_block(namespace: &str, address: &str) {
+    let mut g = store().lock().unwrap();
+    if let Some(blocks) = g.early_actor_blocks.get_mut(namespace) {
+        blocks.remove(address);
+    }
+}
+pub(super) fn observed_actor_contexts(namespace: &str) -> HashMap<String, (u16, bool)> {
+    let g = store().lock().unwrap();
+    let mut actors = g
+        .snapshots
+        .get(namespace)
+        .map(|s| s.actors.clone())
+        .unwrap_or_default();
+    if let Some(blocks) = g.early_actor_blocks.get(namespace) {
+        actors.extend(blocks.iter().map(|actor| (actor.clone(), (0, true))));
+    }
+    actors
+}
+fn apply_known_block(g: &mut Store, namespace: &str, address: &str) -> Result<(), sqlx::Error> {
+    if g.early_actor_blocks.len() >= 32 && !g.early_actor_blocks.contains_key(namespace) {
+        g.actor_capacity_registry_exhausted = true;
+        return Err(actor_capacity_error());
+    }
+    let blocks = g
+        .early_actor_blocks
+        .entry(namespace.to_owned())
+        .or_default();
+    if blocks.len() >= MAX_ACTOR_CONTEXTS && !blocks.contains(address) {
+        mark_actor_capacity_exhausted(g, namespace);
+        g.results.clear();
+        return Err(actor_capacity_error());
+    }
+    let newly_observed = blocks.insert(address.to_owned());
+    if newly_observed {
+        // Includes cold observations, so an older complete inventory scan can
+        // never clear a guard merely because initialization has not finished.
+        g.next_config_epoch = g.next_config_epoch.saturating_add(1);
+    }
+    let Some(previous) = g.snapshots.get(namespace).cloned() else {
+        // Keep the cold negative in the bounded ledger until a fresh explicit
+        // unblock or complete epoch-checked inventory clears it.
+        return Ok(());
+    };
+    if previous
+        .actors
+        .get(address)
+        .is_some_and(|(_, blocked)| *blocked)
+    {
+        return Ok(());
+    }
+    let mut snapshot = (*previous).clone();
+    if let Err(error) = insert_actor(&mut snapshot.actors, address.to_owned(), (0, true)) {
+        mark_actor_capacity_exhausted(g, namespace);
+        g.results.clear();
+        return Err(error);
+    }
+    if !newly_observed {
+        g.next_config_epoch = g.next_config_epoch.saturating_add(1);
+    }
+    snapshot.config_epoch = g.next_config_epoch;
+    snapshot.generation = format!(
+        "{:x}",
+        Sha256::digest(format!(
+            "{}|known-block|{address}|{}",
+            snapshot.generation, snapshot.config_epoch
+        ))
+    );
+    g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
+    // Old deeper jobs may only replace an extant cache entry. Clearing it also
+    // prevents progress polling from returning an earlier executable approval.
+    g.results.clear();
+    Ok(())
+}
+
+/// Operator-configured future buyers are ingested on the independent schedule,
+/// including wallets that have never traded or owned a community token. Invalid
+/// or oversized configuration fails admission instead of silently truncating it.
+pub(super) fn configured_wallets(raw: Option<&str>) -> Result<Vec<String>, sqlx::Error> {
+    let Some(raw) = raw else {
+        return Ok(Vec::new());
+    };
+    if raw.len() > MAX_ACTOR_CONTEXTS * 128 {
+        return Err(sqlx::Error::Protocol(
+            "Local wallet enrollment exceeds capacity".into(),
+        ));
+    }
+    let mut wallets = std::collections::BTreeSet::new();
+    for entry in raw
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+    {
+        if entry.len() > 128
+            || route_solver::parse_quote_trader(Some(entry.to_owned()), None).is_err()
+        {
+            return Err(sqlx::Error::Protocol(
+                "Invalid local wallet enrollment address".into(),
+            ));
+        }
+        wallets.insert(entry.to_owned());
+        if wallets.len() > MAX_ACTOR_CONTEXTS {
+            return Err(sqlx::Error::Protocol(
+                "Local wallet enrollment exceeds capacity".into(),
+            ));
+        }
+    }
+    Ok(wallets.into_iter().collect())
+}
+/// CW20 enumeration is a background discovery source, never evidence of tax or
+/// blacklist eligibility. Failed/malformed pages preserve the previous cursor.
+pub(super) async fn holder_page(
+    state: &AppState,
+    token: &str,
+    cursor: Option<&str>,
+) -> Option<(Vec<String>, Option<String>)> {
+    let page = query(
+        state,
+        token,
+        json!({"all_accounts": {
+            "start_after": cursor, "limit": HOLDER_ACCOUNTS_PER_PASS
+        }}),
+    )
+    .await?;
+    parse_holder_page(&page, cursor)
+}
+fn parse_holder_page(page: &Value, cursor: Option<&str>) -> Option<(Vec<String>, Option<String>)> {
+    let rows = page["accounts"].as_array()?;
+    if rows.len() > HOLDER_ACCOUNTS_PER_PASS {
+        return None;
+    }
+    let mut wallets = Vec::new();
+    let mut previous = cursor;
+    for row in rows {
+        let address = row.as_str()?;
+        if address.len() > 128
+            || previous.is_some_and(|before| address <= before)
+            || route_solver::parse_quote_trader(Some(address.to_owned()), None).is_err()
+        {
+            return None;
+        }
+        wallets.push(address.to_owned());
+        previous = Some(address);
+    }
+    let next = (wallets.len() == HOLDER_ACCOUNTS_PER_PASS).then(|| wallets.last().unwrap().clone());
+    Some((wallets, next))
+}
 pub(super) fn retained_blocks(
     previous: &HashMap<String, (u16, bool)>,
 ) -> Result<HashMap<String, (u16, bool)>, sqlx::Error> {
@@ -150,6 +306,114 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn known_block_publication_is_synchronous_and_invalidates_warm_approval_without_enrichment() {
+        let s = super::super::tests::fixture();
+        let old_generation = s.generation.clone();
+        let original_expiry = s.config_expiry_ms;
+        let mut g = Store::default();
+        g.snapshots.insert("negative-publish".into(), Arc::new(s));
+        let mut reviewed = (*g.snapshots["negative-publish"]).clone();
+        reviewed.generation = admission_generation(&reviewed);
+        assert!(reviewed_snapshot_current(
+            &g,
+            "negative-publish",
+            &reviewed,
+            None
+        ));
+        g.results.insert(
+            "warm-progress".into(),
+            json!({"estimated_amount_out":"100"}),
+        );
+        apply_known_block(&mut g, "negative-publish", "wallet").unwrap();
+        let current = &g.snapshots["negative-publish"];
+        assert_eq!(current.actors["wallet"], (0, true));
+        assert_ne!(current.generation, old_generation);
+        assert!(current.config_epoch > 0);
+        assert_eq!(current.config_expiry_ms, original_expiry);
+        assert!(g.results.is_empty());
+        assert!(
+            !reviewed_snapshot_current(&g, "negative-publish", &reviewed, None),
+            "in-flight quote cannot republish an approval computed before the block"
+        );
+        // There are no DB/network calls in this publication; subsequent worker
+        // failure/cancellation leaves the negative in the initialized snapshot.
+        let epoch = current.config_epoch;
+        apply_known_block(&mut g, "negative-publish", "wallet").unwrap();
+        assert_eq!(g.snapshots["negative-publish"].config_epoch, epoch);
+    }
+    #[test]
+    fn immediate_negative_capacity_exhaustion_quarantines_without_evicting_known_blocks() {
+        let mut s = super::super::tests::fixture();
+        s.actors = (0..MAX_ACTOR_CONTEXTS)
+            .map(|i| (format!("blocked-{i}"), (0, true)))
+            .collect();
+        let original = s.actors.clone();
+        let mut g = Store::default();
+        g.snapshots.insert("negative-overflow".into(), Arc::new(s));
+        g.results.insert("warm".into(), json!({}));
+        assert!(apply_known_block(&mut g, "negative-overflow", "new-block").is_err());
+        assert_eq!(g.snapshots["negative-overflow"].actors, original);
+        assert!(actor_capacity_unavailable(&g, "negative-overflow"));
+        assert!(g.results.is_empty());
+    }
+    #[test]
+    fn cold_negative_survives_cancelled_initialization_and_is_bounded() {
+        let mut g = Store::default();
+        apply_known_block(&mut g, "cold-negative", "wallet").unwrap();
+        assert!(g.snapshots.is_empty());
+        assert!(g.early_actor_blocks["cold-negative"].contains("wallet"));
+        assert!(g.next_config_epoch > 0);
+        g.early_actor_blocks.insert(
+            "full-cold".into(),
+            (0..MAX_ACTOR_CONTEXTS)
+                .map(|i| format!("blocked-{i}"))
+                .collect(),
+        );
+        assert!(apply_known_block(&mut g, "full-cold", "one-more").is_err());
+        assert_eq!(g.early_actor_blocks["full-cold"].len(), MAX_ACTOR_CONTEXTS);
+        assert!(actor_capacity_unavailable(&g, "full-cold"));
+    }
+
+    #[test]
+    fn configured_uncensused_wallets_are_bounded_validated_and_deduplicated() {
+        let first = "terra1000000000000000000000000000000000001";
+        let second = "terra1000000000000000000000000000000000002";
+        assert_eq!(configured_wallets(None).unwrap(), Vec::<String>::new());
+        assert_eq!(
+            configured_wallets(Some(&format!(" {second}, {first},{first}, "))).unwrap(),
+            vec![first, second]
+        );
+        assert!(configured_wallets(Some("untrusted-wallet")).is_err());
+        let oversized = (0..=MAX_ACTOR_CONTEXTS)
+            .map(|i| format!("terra1{i:038}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(configured_wallets(Some(&oversized)).is_err());
+    }
+    #[test]
+    fn holder_pagination_requires_bounded_strict_progress_and_restarts_completed_crawl() {
+        let accounts = (1..=4)
+            .map(|i| format!("terra1{i:038}"))
+            .collect::<Vec<_>>();
+        let (selected, next) = parse_holder_page(&json!({"accounts":accounts}), None).unwrap();
+        assert_eq!(selected, accounts);
+        assert_eq!(next.as_deref(), Some(accounts[3].as_str()));
+        assert_eq!(
+            parse_holder_page(&json!({"accounts":[]}), next.as_deref()),
+            Some((Vec::new(), None))
+        );
+        assert!(parse_holder_page(&json!({"accounts":[accounts[3]]}), next.as_deref()).is_none());
+        assert!(parse_holder_page(&json!({"accounts":[accounts[1], accounts[0]]}), None).is_none());
+        assert!(parse_holder_page(&json!({"accounts":[accounts[0], accounts[0]]}), None).is_none());
+        assert!(parse_holder_page(&json!({"accounts":["bad-address"]}), None).is_none());
+        assert!(parse_holder_page(
+            &json!({"accounts":[accounts[0], accounts[1], accounts[2], accounts[3], "extra"]}),
+            None
+        )
+        .is_none());
+        assert!(parse_holder_page(&json!({}), None).is_none());
+    }
     #[test]
     fn known_wallet_block_survives_missing_fee_and_failed_blacklist_refresh() {
         assert_eq!(actor_context(Some(true), None, None), Some((0, true)));

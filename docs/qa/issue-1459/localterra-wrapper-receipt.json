@@ -1,0 +1,146 @@
+{
+  "time_utc": "2026-10-10T00:15:11Z",
+  "chain": "localterra",
+  "codes": {
+    "treasury": {
+      "code_id": 79,
+      "sha256": "9223b22d5bb04ee06379a8d2c158a4b11da75d79ca4e2c37d9b17c65fe8da9b7"
+    },
+    "wrap_mapper": {
+      "code_id": 80,
+      "sha256": "65b9b952e7079198398abcf9d9d2973c31f59d88a5b3ba7d0ee7a3e094fae0bf"
+    },
+    "cw20_mintable": {
+      "code_id": 82,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "contracts": {
+    "treasury": "terra1wayu043gxysq5mc4k0qtwsmv3xd2yypr897g67n6l06gq75wtunsdqt5ck",
+    "mapper": "terra1tzmgfpf294l868exjmnf8yyg4fyrz8rm63lhzr9jkgwq5u8s86rqpte6vh",
+    "token": "terra1rsz2e7ks8cnrgn62auamwwcwq4vqve0sltc5nxjywz5ak95eyvnqc3txwt"
+  },
+  "wrap_gas_used": "459431",
+  "unwrap_gas_used": "500258",
+  "exact_floor_unwrap_gas_used": "500607",
+  "unwrap_nominal": 497500,
+  "unwrap_delivered": 495013,
+  "nonzero_bank_tax_observed": true,
+  "rollback": {
+    "wrap": true,
+    "unwrap": true,
+    "actual_net": true
+  },
+  "receipts": [
+    {
+      "txhash": "B943AA7D7480C4962A4DBD315BEEB9897B345286D95C9BF45D37CF9F58A97C27",
+      "height": "602454",
+      "code": 0,
+      "gas_used": "179523"
+    },
+    {
+      "txhash": "C06FC51690955DB876821B71C9671DB5B2E2EA8100221362B29FAB6012DBBCEC",
+      "height": "602456",
+      "code": 0,
+      "gas_used": "2232297"
+    },
+    {
+      "txhash": "D66B54C5A2EE1B8468A5735840CA52890E292D2DF90E91C2DF5DFBDDD80C7983",
+      "height": "602460",
+      "code": 0,
+      "gas_used": "175181"
+    },
+    {
+      "txhash": "0149A6C2444B9AF336E29FAE02FEAAC6A9097AD2858F655783F9CA4EF7E55C5E",
+      "height": "602467",
+      "code": 0,
+      "gas_used": "182661"
+    },
+    {
+      "txhash": "2E9707C668EDD7220EA7CD2D577215739015D9868559FAC5365FC89C076C127D",
+      "height": "602468",
+      "code": 0,
+      "gas_used": "181233"
+    },
+    {
+      "txhash": "D4B51B2D41D2B6E1264E5A92C9CB742A2448EE33606C3A8829095653E5CF4953",
+      "height": "602469",
+      "code": 0,
+      "gas_used": "131404"
+    },
+    {
+      "txhash": "686469772309F0AC38B33E97DE42294CE25C756BBEC58CCB1D9FE5A5B3C4F7E9",
+      "height": "602474",
+      "code": 0,
+      "gas_used": "272251"
+    },
+    {
+      "txhash": "4339B1772D8AB7D55E178EC62568E9AC4E2C10635500B086CA249503D220CF07",
+      "height": "602476",
+      "code": 0,
+      "gas_used": "133140"
+    },
+    {
+      "txhash": "B7E1DD3857E8B0AA5617EBD8481E524735C986D71DBD801A08154EBE6368C3E9",
+      "height": "602478",
+      "code": 0,
+      "gas_used": "132941"
+    },
+    {
+      "txhash": "077D7B389EB2464E2589B467C4C224AE86427AE59763BD42412D112081ADC4CA",
+      "height": "602479",
+      "code": 5,
+      "gas_used": "458273"
+    },
+    {
+      "txhash": "CB448869F384BD833349FF9230C0BD0611ECCFAEC73448F88ED0831A70D3C935",
+      "height": "602481",
+      "code": 0,
+      "gas_used": "459431"
+    },
+    {
+      "txhash": "9D0D2CC55213113B3135A8F68A7399AC18710F2BFE93764CFFD280B7142D32D7",
+      "height": "602484",
+      "code": 5,
+      "gas_used": "499659"
+    },
+    {
+      "txhash": "F7085AF3A7004782A6C01482863EB1016689890DF0255E3D36E9ED452E8D4BE4",
+      "height": "602492",
+      "code": 0,
+      "gas_used": "179215"
+    },
+    {
+      "txhash": "3F3893B0525F5C1DEBCAFD86041EF8BB4083DEECF0EB2BB348E09F17A3D1D47B",
+      "height": "602494",
+      "code": 0,
+      "gas_used": "500258"
+    },
+    {
+      "txhash": "33B52E412D8CAF76FD884A55193E45D672F270B6AB6B8224EFD075766B80B571",
+      "height": "602495",
+      "code": 0,
+      "gas_used": "459996"
+    },
+    {
+      "txhash": "FE39ABD6C2E4AECEA15BA13C51E090612B58F7760EAFC2DDF07E41D23D4E0EBB",
+      "height": "602506",
+      "code": 5,
+      "gas_used": "499450"
+    },
+    {
+      "txhash": "B57B2CD62920D82892FFBADF09F2A9BE9382A3EEE168146BF26BB4B5D9CD2967",
+      "height": "602517",
+      "code": 0,
+      "gas_used": "500607"
+    }
+  ],
+  "provenance": {
+    "driver_sha256": "2191a839ffea99b4ace5200d571dc2bf55c745b216cd5852f569b31d64f80973",
+    "fixture_helper_sha256": "d19069b7c704a404d6fae46fdc3ea23165efab08d746d63bb57bc0e9f0608d72",
+    "container": "cl8y-dex-functional1400-localterra-1",
+    "protocol_artifact_build": "cargo +1.83.0 build --locked --manifest-path contracts/Cargo.toml -p treasury -p wrap-mapper --lib --release --target wasm32-unknown-unknown",
+    "protocol_artifact_optimization": "Rust release library build; no wasm-opt; synthetic LocalTerra only",
+    "driver_revision_note": "Executed driver before metadata-only provenance fields were added; input artifact hashes are the recorded code SHA256 values"
+  }
+}

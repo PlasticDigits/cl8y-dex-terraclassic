@@ -1,5 +1,11 @@
 # Local community-tax quotes: follow-up scope
 
+Current source coverage after #1458: [issue #1459 implementation and checklist](../issue-1459/README.md).
+The #1458 scope and receipts below are historical; #1459 supersedes the direct-wrapper
+protocol/signing limit, uncensused wallet admission and composed inverse rejection.
+Nonzero cooldown/AutoLP remains explicitly unsupported where required public state is absent.
+
+
 Related: [#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452),
 [LQ1452](../../../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
 [RT1381](../../../skills/AGENTS_ROUTE_LOCAL_TAX.md),

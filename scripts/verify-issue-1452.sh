@@ -24,7 +24,7 @@ from pathlib import Path
 files=[]
 for root in ['indexer/src','indexer/tests','frontend-dapp/src']:
     files.extend(p for p in Path(root).rglob('*') if p.is_file())
-files.extend(Path(p) for p in ['indexer/Cargo.toml','indexer/Cargo.lock','frontend-dapp/package.json','frontend-dapp/package-lock.json','scripts/qa/browser-local-quotes-1452.cjs'])
+files.extend(Path(p) for p in ['indexer/Cargo.toml','indexer/Cargo.lock','frontend-dapp/package.json','frontend-dapp/package-lock.json','scripts/qa/browser-local-quotes-1452.cjs','scripts/qa/localterra-wrapper-floors-1459.py'])
 h=hashlib.sha256()
 for p in sorted(files):
     h.update(str(p).encode()+b'\0'+p.read_bytes()+b'\0')
@@ -48,7 +48,7 @@ socket_tests() {
     echo 'Missing isolated QA credentials; provision indexer/.env.qa or use an explicit DB skip reason.' >&2
     return 1
   fi
-  cargo test --locked --manifest-path indexer/Cargo.toml --test route_local_quotes_1452 --test api_route_solve_db_hybrid --test api_route_solve --test api_route_exact_output --test api_route_tax_funding1381 --test api_health -- --test-threads=1 --nocapture
+  cargo test --locked --manifest-path indexer/Cargo.toml --test route_local_quotes_1452 --test local_tax_wallets_1459 --test api_route_solve_db_hybrid --test api_route_solve --test api_route_exact_output --test api_route_tax_funding1381 --test api_health -- --test-threads=1 --nocapture
 }
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
@@ -59,6 +59,8 @@ frontend() {
     src/utils/slippageConstraint.test.ts \
     src/services/terraclassic/__tests__/transactions.test.ts \
     src/services/terraclassic/__tests__/terraBroadcast.autoGas.test.ts \
+    src/services/terraclassic/__tests__/terraGas.retailShapes.test.ts \
+    src/services/terraclassic/__tests__/swapAutoGas.test.ts \
     src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx \
     src/components/trade/__tests__/TradeOrderTicket.invert.test.tsx \
     src/pages/SwapPage.test.tsx \
@@ -85,6 +87,8 @@ required = {
     'skills/AGENTS_LOCAL_SWAP_QUOTES.md': [f'LQ1452-{i}' for i in range(1,11)],
     'docs/qa/issue-1452/README.md': [*(f'AC{i}' for i in range(1,11)), 'PASS WITH SKIPS', 'FAIL'],
     'docs/qa/issue-1452/RESULTS.md': ['Supported', 'SKIP'],
+    'skills/AGENTS_LOCAL_QUOTE_COVERAGE.md': [f'QC1459-{i}' for i in range(1,11)],
+    'docs/qa/issue-1459/README.md': ['C1', 'C2', 'C3', 'C4', 'PASS WITH SKIPS', 'FAIL'],
 }
 for filename, terms in required.items():
     body=Path(filename).read_text()
@@ -94,6 +98,7 @@ for module in ['local_quote', 'local_hook_pricing', 'local_wrapper_quote']:
     assert f'mod {module};' in Path('indexer/src/api/mod.rs').read_text(), module
     assert '#[test]' in Path(f'indexer/src/api/{module}.rs').read_text() or '#[tokio::test]' in Path(f'indexer/src/api/{module}.rs').read_text(), f'{module}: missing tests'
 assert '#[tokio::test]' in Path('indexer/tests/route_local_quotes_1452.rs').read_text()
+assert '#[tokio::test]' in Path('indexer/tests/local_tax_wallets_1459.rs').read_text()
 print('Current invariant/checklist/test crosslinks: PASS')
 PY
 }

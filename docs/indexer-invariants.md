@@ -437,3 +437,14 @@ Run `make verify-issue-1453` and follow the
 Related: [Q1380](#protocol-liquidity-quality-1380),
 [PD1394](../skills/AGENTS_PAIR_DISCOVERY_CACHE.md),
 [DB1396](../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md).
+
+## Extended local coverage (#1459)
+
+[QC1459](../skills/AGENTS_LOCAL_QUOTE_COVERAGE.md) and
+[the agent checklist](qa/issue-1459/README.md) specify capability-observed direct
+wrapper floors, scheduled uncensused wallet admission and bounded composed inverse.
+Capability lookup, configured-wallet rotation and CW20 holder pages belong to
+independent ingestion. Requests never trigger or enqueue discovery. Per-wallet
+identity/cap timestamps and capability changes bind expiry/generation; failed
+reads cannot erase known negative state. Whole-route forward validation preserves
+tax, cap, hook, market-spread and independent reference protection.

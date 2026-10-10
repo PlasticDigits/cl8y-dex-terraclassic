@@ -7,8 +7,8 @@ import { spreadMatchesSlippagePercent } from '@/utils/slippageConstraint'
 
 export const DIRECT_WRAPPER_FLOOR_UNSUPPORTED = 'Direct wrapping cannot enforce the reviewed receive floor'
 
-/** Local zero-pair arithmetic is useful for sizing; current external contracts
- * cannot sign its minimum receive, so this plan never authorizes a mutation. */
+/** Version 1 direct settlement is admitted only from independently observed
+ * capabilities. Legacy arithmetic remains explicitly nonexecutable. */
 export function validateWrapperOnlyQuote(
   idx: IndexerRouteSolveResponse,
   input: { simRaw: string; maxSpreadStr: string; slippageTolerancePercent: number; trader?: string; sender?: string },
@@ -26,9 +26,11 @@ export function validateWrapperOnlyQuote(
     !w ||
     m.version !== 1 ||
     m.policy !== 'wrapper_only' ||
-    m.execution_supported !== false ||
+    (m.execution_supported !== true && m.execution_supported !== false) ||
+    (m.execution_supported === true
+      ? w.floor_protocol_version !== 1 || idx.execution_blocker != null
+      : w.floor_protocol_version != null || idx.execution_blocker !== DIRECT_WRAPPER_FLOOR_UNSUPPORTED) ||
     idx.quote_kind !== 'indexer_wrapper_db' ||
-    idx.execution_blocker !== DIRECT_WRAPPER_FLOOR_UNSUPPORTED ||
     !m.generation?.trim() ||
     m.input_amount !== input.simRaw ||
     !isLocalQuoteRaw(input.simRaw) ||

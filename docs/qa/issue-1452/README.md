@@ -1,5 +1,11 @@
 # Issue #1452: agent review and verification
 
+Current source coverage after #1458: [issue #1459 implementation and checklist](../issue-1459/README.md).
+The #1458 scope and receipts below are historical; #1459 supersedes the direct-wrapper
+protocol/signing limit, uncensused wallet admission and composed inverse rejection.
+Nonzero cooldown/AutoLP remains explicitly unsupported where required public state is absent.
+
+
 Implementation: [merged PR #1455](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1455). Current implementation: [follow-up PR #1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
 
 
@@ -76,8 +82,8 @@ receive sizing.
 
 The follow-up [mode contract and focused agent checks](FOLLOWUP-MODES.md) cover
 deducting-hook inverse, exact manual POST budgets and direct zero-hop local
-wrapper arithmetic. Direct zero-hop signing remains explicitly blocked because
-the current external messages cannot enforce the reviewed receive floor.
+wrapper arithmetic. Legacy direct zero-hop signing remains explicitly blocked. The protected external
+protocol and conditional source support are documented in [#1459](../issue-1459/README.md).
 
 Current follow-up [verification receipts and issue criteria](FOLLOWUP-RESULTS.md)
 record the available checks and exact remaining scope.

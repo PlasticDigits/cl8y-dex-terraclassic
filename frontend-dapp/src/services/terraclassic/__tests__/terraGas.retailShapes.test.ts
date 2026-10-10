@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { UNWRAP_GAS_LIMIT } from '@/utils/constants'
+import { UNWRAP_GAS_LIMIT, DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS } from '@/utils/constants'
 import { RETAIL_COMBINED_ENVELOPE_FIXTURES, RETAIL_GAS_SHAPE_FIXTURES } from '../terraGasRetailInventory'
 import {
   BASE_GAS_LIMIT,
@@ -142,4 +142,12 @@ describe('unmapped gas fallback warn (GitLab #475)', () => {
     getGasLimitForTx({ increase_allowance: { spender: 'x', amount: '1' } })
     expect(warn).not.toHaveBeenCalled()
   })
+})
+
+it('version 1 direct wrapper floors use the wrapper offline envelope', () => {
+  expect(getGasLimitForTx({ wrap_deposit_with_minimum: { minimum_receive: '995000' } })).toBe(
+    WRAP_GAS_LIMIT + DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS
+  )
+  const msg = btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: '980000' } }))
+  expect(getGasLimitForTx({ send: { msg } })).toBe(UNWRAP_GAS_LIMIT + DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS)
 })

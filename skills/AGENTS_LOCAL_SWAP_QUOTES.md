@@ -65,7 +65,9 @@ in [FOLLOWUP-MODES.md](../docs/qa/issue-1452/FOLLOWUP-MODES.md). Hook inverse mu
 preserve independent rounding collisions; declared POST plans bind every exact
 hop budget/maker cap and cannot be replaced by deeper search. A `wrapper_only`
 result with `execution_supported:false` is useful arithmetic, never permission
-to send a floorless external wrap/unwrap transaction.
+to send a floorless external wrap/unwrap transaction. Version-1 direct signing
+and composed inverse/wallet coverage follow [QC1459](AGENTS_LOCAL_QUOTE_COVERAGE.md)
+and its [agent checklist](../docs/qa/issue-1459/README.md).
 
 Incremental configuration, per-pair expiry and epoch-checked authoritative inventory
 recovery follow [FOLLOWUP-INGESTION.md](../docs/qa/issue-1452/FOLLOWUP-INGESTION.md).

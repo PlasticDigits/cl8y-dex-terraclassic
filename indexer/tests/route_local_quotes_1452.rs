@@ -269,6 +269,8 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
                 json!({"wrapping_paused":false})
             } else if query.get("config").is_some() && request.url.path().contains("terra1routerfixture1452") {
                 json!({"wrap_mapper":"terra1mapperfixture1452"})
+            } else if query.get("execution_capabilities").is_some() {
+                json!({"direct_wrapper_floor_version":1})
             } else if query.get("denom_wrappers").is_some() {
                 json!({"wrappers":[{"denom":"uluna","wrapper":"terra1mapperfixture1452"},{"denom":"uusd","wrapper":"terra1mapperfixture1452"}]})
             } else if let Some(mapping) = query.get("denom_mapping") {
@@ -347,6 +349,12 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
             wrapped
         );
         assert_eq!(body["estimated_amount_out_net"], "9900");
+        assert_eq!(body["execution_metadata"]["execution_supported"], true);
+        assert_eq!(
+            body["execution_metadata"]["wrapper"]["floor_protocol_version"],
+            1
+        );
+        assert!(body["execution_blocker"].is_null());
     }
 
     let cold_http_calls = upstream.received_requests().await.unwrap().len();

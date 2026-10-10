@@ -154,6 +154,9 @@ export const WRAPPED_NATIVE_PAIRS: Record<string, string> = Object.fromEntries(
 
 /** Measured wrap_deposit ~301k on LocalTerra (#353). */
 export const WRAP_GAS_LIMIT = 400000
+/** Conservative reserve for two actual-balance reads, pending state and reply (#1459).
+ * Source envelope; protected protocol gas must be measured separately on chain. */
+export const DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS = 400_000
 /**
  * Router-mediated single-hop `execute_swap_operations` (native wrap path, CW20 send→router).
  * Direct-to-pair `swap` stays on {@link gasLimitForExecuteSwapOperations}(1) = 840k (#249).

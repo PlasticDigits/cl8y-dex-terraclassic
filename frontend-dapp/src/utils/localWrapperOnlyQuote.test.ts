@@ -141,3 +141,91 @@ describe('zero-hop local wrapper arithmetic #1452', () => {
     }
   })
 })
+
+describe('version 1 direct wrapper signing #1459', () => {
+  function executable(unwrap = false) {
+    const idx = fixture(unwrap)
+    idx.execution_metadata!.execution_supported = true
+    idx.execution_metadata!.wrapper!.floor_protocol_version = 1
+    idx.execution_blocker = null // Exact supported backend wire shape.
+    return idx
+  }
+  it.each([false, true])('serializes the exact reviewed wallet floor without RPC: unwrap=%s', async (unwrap) => {
+    const idx = executable(unwrap)
+    vi.mocked(getRouteSolve).mockResolvedValue(idx)
+    const quote = await quoteCw20ViaRouteSolve({ ...input, fromToken: idx.token_in, toToken: idx.token_out })
+    expect(quote!.executionBlocker).toBeUndefined()
+    expect(quote!.minimumReceive).toBe('9310')
+    expect(() =>
+      assertLocalRouteSubmit(quote!.executionMetadata, [], '10000', '0.05', 'terra1trader', '9310')
+    ).not.toThrow()
+    await executeLocalNativeRoute('terra1trader', quote!.executionMetadata!, [], '0.05', '9310')
+    expect(executeTerraContract).toHaveBeenCalledTimes(1)
+    if (unwrap) {
+      const call = vi.mocked(executeTerraContract).mock.calls[0]
+      expect(call[0]).toBe('terra1trader')
+      expect(call[1]).toBe('terra1wrapped')
+      const send = (call[2] as { send: { contract: string; amount: string; msg: string } }).send
+      expect(send.contract).toBe('terra1mapper')
+      expect(send.amount).toBe('10000')
+      expect(atob(send.msg)).toBe('{"unwrap_with_minimum":{"recipient":null,"minimum_receive":"9310"}}')
+      expect(call[3]).toBeUndefined()
+      expect(call[4]).toMatchObject({ gasEstimation: 'offline' })
+    } else {
+      expect(executeTerraContract).toHaveBeenCalledWith(
+        'terra1trader',
+        'terra1treasury',
+        { wrap_deposit_with_minimum: { minimum_receive: '9310' } },
+        [{ denom: 'uluna', amount: '10000' }],
+        expect.objectContaining({ gasEstimation: 'offline' })
+      )
+    }
+    expect(queryContract).not.toHaveBeenCalled()
+    expect(executeTerraContractMulti).not.toHaveBeenCalled()
+  })
+  it.each([false, true])(
+    'rejects capability downgrade, altered floor, actor and stale plan before broadcast: unwrap=%s',
+    async (unwrap) => {
+      for (const mutate of [
+        (idx: IndexerRouteSolveResponse) => {
+          delete idx.execution_metadata!.wrapper!.floor_protocol_version
+        },
+        (idx: IndexerRouteSolveResponse) => {
+          idx.execution_metadata!.execution_supported = false
+        },
+        (idx: IndexerRouteSolveResponse) => {
+          idx.execution_metadata!.expires_at_ms = Date.now() - 1
+        },
+        (idx: IndexerRouteSolveResponse) => {
+          idx.execution_metadata!.trader = 'terra1other'
+        },
+        (idx: IndexerRouteSolveResponse) => {
+          idx.execution_metadata!.wrapper!.mapper = 'terra1other'
+        },
+        (idx: IndexerRouteSolveResponse) => {
+          idx.execution_metadata!.wrapper!.input_amount = '9999'
+        },
+      ]) {
+        const idx = executable(unwrap)
+        mutate(idx)
+        await expect(
+          executeLocalNativeRoute('terra1trader', idx.execution_metadata!, [], '0.05', '9310')
+        ).rejects.toThrow()
+      }
+      for (const floor of ['0', '9309', '9400']) {
+        const idx = executable(unwrap)
+        await expect(
+          executeLocalNativeRoute('terra1trader', idx.execution_metadata!, [], '0.05', floor)
+        ).rejects.toThrow('Quote unavailable')
+      }
+      expect(executeTerraContract).not.toHaveBeenCalled()
+      expect(executeTerraContractMulti).not.toHaveBeenCalled()
+      expect(queryContract).not.toHaveBeenCalled()
+    }
+  )
+  it('rejects a capability claim combined with a legacy blocker', () => {
+    const idx = executable()
+    idx.execution_blocker = DIRECT_WRAPPER_FLOOR_UNSUPPORTED
+    expect(() => validateWrapperOnlyQuote(idx, { ...input, trader: 'terra1trader' })).toThrow('Quote unavailable')
+  })
+})

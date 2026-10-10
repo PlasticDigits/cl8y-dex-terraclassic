@@ -811,7 +811,7 @@ export type IndexerRouteQuoteKind =
 
 /** Local observation-pinned executable quote (#1452); never authorizes live fallback. */
 export interface IndexerRouteExecutionMetadata {
-  execution_supported?: false
+  execution_supported?: boolean
   version: 1
   generation: string
   input_amount: string
@@ -830,6 +830,7 @@ export interface IndexerRouteExecutionMetadata {
     route_input_amount: string
     route_output_amount: string
     minimum_receive_base: string
+    floor_protocol_version?: 1 | null
     wrap_input: boolean
     unwrap_output: boolean
     treasury: string
@@ -861,7 +862,7 @@ export interface IndexerRouteExecutionMetadata {
 }
 
 export interface IndexerRouteSolveResponse {
-  execution_blocker?: string
+  execution_blocker?: string | null
   execution_metadata?: IndexerRouteExecutionMetadata
   /** Exact-output sizing metadata (#1376); target is net CW20 raw units. */
   required_amount_in?: string
