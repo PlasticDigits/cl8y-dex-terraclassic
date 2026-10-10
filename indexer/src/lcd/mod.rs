@@ -98,7 +98,11 @@ pub enum LcdError {
 
 /// Preserve already observed typed integrity evidence before async metadata
 /// cleanup. Transport errors deliberately remain availability, not integrity.
-fn record_integrity_evidence(slot: &std::sync::Mutex<Option<LcdError>>, error: &LcdError) {
+fn record_integrity_evidence(
+    slot: &std::sync::Mutex<Option<LcdError>>,
+    error: &LcdError,
+    observer: Option<&(dyn Fn() + Send + Sync)>,
+) {
     let copied = match error {
         LcdError::ChainIdentity(message) => LcdError::ChainIdentity(message.clone()),
         LcdError::HistoricalHeightUnavailable => LcdError::HistoricalHeightUnavailable,
@@ -110,6 +114,11 @@ fn record_integrity_evidence(slot: &std::sync::Mutex<Option<LcdError>>, error: &
         }
         _ => return,
     };
+    // The owner must revoke retained qualifications before async provider cleanup.
+    // Availability and query-local below-frontier successes never reach this hook.
+    if let Some(observer) = observer {
+        observer();
+    }
     let mut retained = slot.lock().unwrap();
     if matches!(copied, LcdError::PairResponseMalformed(_))
         && matches!(
@@ -197,6 +206,7 @@ pub struct LcdClient {
     inner: Arc<LcdClientInner>,
     ingestion_budget: Option<Arc<IngestionBudget>>,
     scheduled_observation: bool,
+    safety_observer: Option<Arc<dyn Fn() + Send + Sync>>,
 }
 struct IngestionBudget {
     permits: Arc<tokio::sync::Semaphore>,
@@ -213,6 +223,24 @@ struct LcdClientInner {
     discovery_namespace: usize,
     expected_chain_id: String,
     pair_discovery_state: Arc<PairDiscoveryState>,
+}
+
+const LATEST_BLOCK_PATH: &str = "/cosmos/base/tendermint/v1beta1/blocks/latest";
+
+#[derive(Clone, Copy, Default)]
+struct RequestConstraints<'a> {
+    max_bytes: Option<usize>,
+    historical_height: Option<i64>,
+    minimum_latest_height: Option<i64>,
+    safety_observer: Option<&'a (dyn Fn() + Send + Sync)>,
+}
+
+// A valid response can be healthy yet ineligible for this caller's pool frontier.
+// Keep that distinction private: it neither quarantines providers nor resets
+// this operation's attempt count through an outer availability retry.
+enum EndpointOutcome<T> {
+    Accepted(T),
+    BelowMinimum,
 }
 
 impl LcdClient {
@@ -278,6 +306,7 @@ impl LcdClient {
         Self {
             ingestion_budget: None,
             scheduled_observation: false,
+            safety_observer: None,
             inner: Arc::new(LcdClientInner {
                 endpoints: RwLock::new(endpoints),
                 expected_chain_id,
@@ -292,6 +321,14 @@ impl LcdClient {
                 pair_discovery_state: Arc::new(PairDiscoveryState::default()),
             }),
         }
+    }
+
+    /// Fee observations can revoke retained qualifications immediately on known
+    /// unsafe evidence, even while provider metadata cleanup is blocked.
+    pub(crate) fn with_fee_safety_callback(&self, callback: Arc<dyn Fn() + Send + Sync>) -> Self {
+        let mut next = self.clone();
+        next.safety_observer = Some(callback);
+        next
     }
 
     /// This view shares all provider state and limits. Only scheduled ingestion
@@ -356,11 +393,26 @@ impl LcdClient {
         max_bytes: Option<usize>,
         height: Option<i64>,
     ) -> Result<T, LcdError> {
-        let max_bytes = if self.ingestion_budget.is_some() {
-            Some(max_bytes.unwrap_or(65_536).min(65_536))
-        } else {
-            max_bytes
-        };
+        self.get_with_constraints(
+            path,
+            RequestConstraints {
+                max_bytes,
+                historical_height: height,
+                minimum_latest_height: None,
+                safety_observer: self.safety_observer.as_deref(),
+            },
+        )
+        .await
+    }
+
+    async fn get_with_constraints<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        mut constraints: RequestConstraints<'_>,
+    ) -> Result<T, LcdError> {
+        if self.ingestion_budget.is_some() {
+            constraints.max_bytes = Some(constraints.max_bytes.unwrap_or(65_536).min(65_536));
+        }
         let attempted = AtomicUsize::new(0);
         let integrity_error = std::sync::Mutex::new(None);
         tokio::time::timeout(
@@ -368,7 +420,7 @@ impl LcdClient {
             async {
                 loop {
                     let result = self
-                        .get_bounded_attempts(path, max_bytes, height, &attempted, &integrity_error)
+                        .get_bounded_attempts(path, constraints, &attempted, &integrity_error)
                         .await;
                     if self.ingestion_budget.is_some()
                         && attempted.load(Ordering::Relaxed) == 0
@@ -401,8 +453,7 @@ impl LcdClient {
     async fn get_bounded_attempts<T: DeserializeOwned>(
         &self,
         path: &str,
-        max_bytes: Option<usize>,
-        height: Option<i64>,
+        constraints: RequestConstraints<'_>,
         attempted: &AtomicUsize,
         integrity_error: &std::sync::Mutex<Option<LcdError>>,
     ) -> Result<T, LcdError> {
@@ -459,8 +510,7 @@ impl LcdClient {
                     idx,
                     &ep.url,
                     path,
-                    max_bytes,
-                    height,
+                    constraints,
                     &mut permit,
                     integrity_error,
                 ),
@@ -470,12 +520,19 @@ impl LcdClient {
                 permit.completed();
             }
             match outcome {
-                Ok(Ok(value)) => {
+                Ok(Ok(EndpointOutcome::Accepted(value))) => {
                     permit.succeeded();
                     self.inner
                         .next_endpoint
                         .store((idx + 1) % count, Ordering::Relaxed);
                     return Ok(value);
+                }
+                Ok(Ok(EndpointOutcome::BelowMinimum)) => {
+                    // Successful chain-attested I/O still proves provider health.
+                    // A lower valid head cannot advance this pool frontier; try
+                    // an alternative inside the same attempts/deadline budget.
+                    permit.succeeded();
+                    errors.push(format!("endpoint[{idx}] latest height below query minimum"));
                 }
                 Ok(Err(
                     error @ (LcdError::ContractQueryRejected(_)
@@ -542,12 +599,17 @@ impl LcdClient {
         idx: usize,
         url: &str,
         path: &str,
-        max_bytes: Option<usize>,
-        height: Option<i64>,
+        constraints: RequestConstraints<'_>,
         permit: &mut provider_pool::ProviderPermit,
         integrity_error: &std::sync::Mutex<Option<LcdError>>,
-    ) -> Result<T, LcdError> {
-        self.attest_endpoint(idx, url, permit, integrity_error)
+    ) -> Result<EndpointOutcome<T>, LcdError> {
+        let RequestConstraints {
+            max_bytes,
+            historical_height: height,
+            minimum_latest_height,
+            safety_observer,
+        } = constraints;
+        self.attest_endpoint(idx, url, permit, integrity_error, safety_observer)
             .await?;
         let mut request = self.inner.client.get(format!("{url}{path}"));
         if let Some(height) = height {
@@ -582,7 +644,14 @@ impl LcdClient {
                 record_integrity_evidence(
                     integrity_error,
                     &LcdError::HttpRejected(status.as_u16()),
+                    safety_observer,
                 );
+            } else if wasm_not_found {
+                // Headers already reject this scoped fee observation. Keep the
+                // PD1394 body-based contract-absence classification unchanged.
+                if let Some(observer) = safety_observer {
+                    observer();
+                }
             }
         }
         // Unambiguous endpoint failures need no body. Preserve all HTTP 500
@@ -601,7 +670,11 @@ impl LcdClient {
             .and_then(|value| value.parse::<i64>().ok());
         if status.is_success() && height.is_some() && served_height != height {
             permit.quarantine_if_cancelled();
-            record_integrity_evidence(integrity_error, &LcdError::HistoricalHeightUnavailable);
+            record_integrity_evidence(
+                integrity_error,
+                &LcdError::HistoricalHeightUnavailable,
+                safety_observer,
+            );
             self.mark_failed(idx).await;
             return Err(LcdError::HistoricalHeightUnavailable);
         }
@@ -628,7 +701,9 @@ impl LcdClient {
                         "endpoint[{idx}] HTTP {status}"
                     )));
                 }
-                return Err(LcdError::PairResponseMalformed(error.to_string()));
+                let error = LcdError::PairResponseMalformed(error.to_string());
+                record_integrity_evidence(integrity_error, &error, safety_observer);
+                return Err(error);
             }
         };
         if !status.is_success() {
@@ -659,7 +734,7 @@ impl LcdClient {
                 chain_identity::validate_block_chain(&text, self.expected_chain_id())
             {
                 permit.quarantine_if_cancelled();
-                record_integrity_evidence(integrity_error, &error);
+                record_integrity_evidence(integrity_error, &error, safety_observer);
                 // Update failure and metadata under one guard. A second write
                 // await after recording could let cancellation count it again.
                 let mut endpoints = self.inner.endpoints.write().await;
@@ -674,13 +749,16 @@ impl LcdClient {
             Ok(historical) => historical,
             Err(error) => {
                 permit.quarantine_if_cancelled();
-                record_integrity_evidence(integrity_error, &error);
+                record_integrity_evidence(integrity_error, &error, safety_observer);
                 self.mark_failed(idx).await;
                 return Err(error);
             }
         };
-        let value: T = serde_json::from_str(&text)
-            .map_err(|_| LcdError::PairResponseMalformed("response schema invalid".into()))?;
+        let value: T = serde_json::from_str(&text).map_err(|_| {
+            let error = LcdError::PairResponseMalformed("response schema invalid".into());
+            record_integrity_evidence(integrity_error, &error, safety_observer);
+            error
+        })?;
         // Historical reads deliberately bypass live lag comparison. Their exact height
         // header above is required, while the original historical time is preserved.
         if height.is_none() && !historical_body {
@@ -708,8 +786,22 @@ impl LcdClient {
                     .latest_height
                     .fetch_max(observed, Ordering::Relaxed);
             }
+            if path == LATEST_BLOCK_PATH {
+                if let Some(minimum) = minimum_latest_height {
+                    let observed = observed.ok_or_else(|| {
+                        let error = LcdError::Deserialize(
+                            "latest block height is not a valid integer".into(),
+                        );
+                        record_integrity_evidence(integrity_error, &error, safety_observer);
+                        error
+                    })?;
+                    if observed < minimum {
+                        return Ok(EndpointOutcome::BelowMinimum);
+                    }
+                }
+            }
         }
-        Ok(value)
+        Ok(EndpointOutcome::Accepted(value))
     }
 
     async fn mark_failed(&self, idx: usize) {
@@ -799,6 +891,21 @@ impl LcdClient {
             .await
     }
 
+    /// Scoped producer hook with the canonical pinned query and body decoding.
+    /// The observer owns synchronous invalidation only; it grants no provider authority.
+    pub(crate) async fn query_contract_at_height_bounded_observed<T: DeserializeOwned>(
+        &self,
+        contract_addr: &str,
+        query: &serde_json::Value,
+        height: i64,
+        max_bytes: usize,
+        observer: Arc<dyn Fn() + Send + Sync>,
+    ) -> Result<T, LcdError> {
+        self.with_fee_safety_callback(observer)
+            .query_contract_at_height_bounded(contract_addr, query, height, max_bytes)
+            .await
+    }
+
     async fn query_contract_with_body_limit<T: DeserializeOwned>(
         &self,
         contract_addr: &str,
@@ -860,6 +967,37 @@ impl LcdClient {
     pub async fn get_latest_block_height_bounded(&self, max_bytes: usize) -> Result<i64, LcdError> {
         self.get_latest_block_height_with_body_limit(Some(max_bytes))
             .await
+    }
+
+    /// A scheduled pool read cannot use a head behind its already stored frontier.
+    /// This is a query-local constraint, not a different global lag/circuit policy.
+    pub(crate) async fn get_latest_block_height_bounded_at_least(
+        &self,
+        max_bytes: usize,
+        minimum_height: i64,
+    ) -> Result<i64, LcdError> {
+        if minimum_height < 0 {
+            return Err(LcdError::PairResponseMalformed(
+                "invalid minimum latest height".into(),
+            ));
+        }
+        let response: BlockResponse = self
+            .get_with_constraints(
+                LATEST_BLOCK_PATH,
+                RequestConstraints {
+                    max_bytes: Some(max_bytes),
+                    minimum_latest_height: Some(minimum_height),
+                    safety_observer: self.safety_observer.as_deref(),
+                    historical_height: None,
+                },
+            )
+            .await?;
+        response
+            .block
+            .header
+            .height
+            .parse::<i64>()
+            .map_err(|_| LcdError::Deserialize("latest block height is not a valid integer".into()))
     }
 
     async fn get_latest_block_height_with_body_limit(
@@ -1694,6 +1832,472 @@ mod provider_resilience_tests {
         lcd.get::<serde_json::Value>("/data").await.unwrap();
     }
 
+    async fn assert_fee_safety_callback_precedes_metadata_cleanup(identity_failure: bool) {
+        use std::sync::atomic::AtomicBool;
+        let server = MockServer::start().await;
+        let query = json!({"get_fee_config":{}});
+        let query_path = format!(
+            "/cosmwasm/wasm/v1/contract/terra1fixture/smart/{}",
+            base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&query).unwrap())
+        );
+        if identity_failure {
+            Mock::given(path(chain_identity::NODE_INFO_PATH))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_delay(Duration::from_millis(100))
+                        .set_body_json(json!({"default_node_info":{"network":"wrong-chain"}})),
+                )
+                .mount(&server)
+                .await;
+        } else {
+            mock_chain_identity(&server, "columbus-5").await;
+            Mock::given(path(query_path.as_str()))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_delay(Duration::from_millis(100))
+                        .insert_header("x-cosmos-block-height", "99")
+                        .set_body_json(json!({"data":{"fee_bps":30}})),
+                )
+                .mount(&server)
+                .await;
+        }
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1_000,
+            1_000,
+            "columbus-5",
+            ProviderPolicy {
+                max_attempts: 1,
+                ..Default::default()
+            },
+        );
+        let revoked = Arc::new(AtomicBool::new(false));
+        let callback: Arc<dyn Fn() + Send + Sync> = {
+            let revoked = revoked.clone();
+            Arc::new(move || {
+                revoked.store(true, Ordering::SeqCst);
+            })
+        };
+        let pending = {
+            let lcd = lcd.clone();
+            tokio::spawn(async move {
+                lcd.query_contract_at_height_bounded_observed::<serde_json::Value>(
+                    "terra1fixture",
+                    &query,
+                    100,
+                    16_384,
+                    callback,
+                )
+                .await
+            })
+        };
+        let awaited_path = if identity_failure {
+            chain_identity::NODE_INFO_PATH
+        } else {
+            &query_path
+        };
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while hits(&server, awaited_path).await == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        // The request has left all endpoint reads but cannot finish negative cleanup.
+        let held = lcd.inner.endpoints.read().await;
+        tokio::time::timeout(Duration::from_millis(500), async {
+            while !revoked.load(Ordering::SeqCst) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("known negative revokes cached qualification before cleanup lock");
+        assert!(
+            !pending.is_finished(),
+            "cleanup remains blocked after synchronous revocation"
+        );
+        drop(held);
+        let error = pending.await.unwrap().unwrap_err();
+        assert!(if identity_failure {
+            matches!(error, LcdError::ChainIdentity(_))
+        } else {
+            matches!(error, LcdError::HistoricalHeightUnavailable)
+        });
+    }
+
+    #[tokio::test]
+    async fn recovery1464_fee_safety_callback_revokes_before_identity_cleanup_await() {
+        assert_fee_safety_callback_precedes_metadata_cleanup(true).await;
+    }
+    #[tokio::test]
+    async fn recovery1464_fee_safety_callback_revokes_before_pinned_height_cleanup_await() {
+        assert_fee_safety_callback_precedes_metadata_cleanup(false).await;
+    }
+    #[tokio::test]
+    async fn recovery1464_fee_safety_callback_excludes_availability_and_valid_old_head() {
+        use std::sync::atomic::AtomicBool;
+        let server = MockServer::start().await;
+        mock_minimum_head(&server, "100", "columbus-5").await;
+        payload(&server, 503).await;
+        let lcd = minimum_head_client(
+            &[&server],
+            ProviderPolicy {
+                max_attempts: 1,
+                ..Default::default()
+            },
+        );
+        let revoked = Arc::new(AtomicBool::new(false));
+        let view = lcd.with_fee_safety_callback({
+            let revoked = revoked.clone();
+            Arc::new(move || {
+                revoked.store(true, Ordering::SeqCst);
+            })
+        });
+        assert!(matches!(
+            view.get_latest_block_height_bounded_at_least(16_384, 101)
+                .await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert!(
+            !revoked.load(Ordering::SeqCst),
+            "valid lower frontier is availability"
+        );
+        assert!(matches!(
+            view.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert!(!revoked.load(Ordering::SeqCst), "HTTP503 is availability");
+        assert!(
+            lcd.safety_observer.is_none(),
+            "scoped view leaves generic client unchanged"
+        );
+    }
+    #[tokio::test]
+    async fn recovery1464_fee_safety_callback_marks_malformed_envelope_without_quarantine() {
+        use std::sync::atomic::AtomicBool;
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/data"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("malformed"))
+            .mount(&server)
+            .await;
+        let lcd = minimum_head_client(
+            &[&server],
+            ProviderPolicy {
+                max_attempts: 1,
+                ..Default::default()
+            },
+        );
+        let revoked = Arc::new(AtomicBool::new(false));
+        let view = lcd.with_fee_safety_callback({
+            let revoked = revoked.clone();
+            Arc::new(move || {
+                revoked.store(true, Ordering::SeqCst);
+            })
+        });
+        assert!(matches!(
+            view.get::<serde_json::Value>("/data").await,
+            Err(LcdError::PairResponseMalformed(_))
+        ));
+        assert!(revoked.load(Ordering::SeqCst));
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert!(!counters[0].circuit_open);
+    }
+
+    fn minimum_head_response(height: &str, chain: &str) -> serde_json::Value {
+        json!({"block":{"header":{"height":height,"chain_id":chain,"time":"2026-01-01T00:00:00Z"}}})
+    }
+    async fn mock_minimum_head(server: &MockServer, height: &str, chain: &str) {
+        mock_chain_identity(server, "columbus-5").await;
+        Mock::given(path(LATEST_BLOCK_PATH))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(minimum_head_response(height, chain)),
+            )
+            .mount(server)
+            .await;
+    }
+    fn minimum_head_client(servers: &[&MockServer], policy: ProviderPolicy) -> LcdClient {
+        LcdClient::new_with_policy(
+            servers.iter().map(|server| server.uri()).collect(),
+            1000,
+            60_000,
+            "columbus-5",
+            policy,
+        )
+        .with_scheduled_observation()
+    }
+
+    #[tokio::test]
+    async fn recovery1464_minimum_head_uses_qualified_alternative_without_changing_generic_history()
+    {
+        let old = MockServer::start().await;
+        let current = MockServer::start().await;
+        mock_minimum_head(&old, "100", "columbus-5").await;
+        mock_minimum_head(&current, "102", "columbus-5").await;
+        let lcd = minimum_head_client(&[&old, &current], ProviderPolicy::default());
+        lcd.inner.latest_height.store(101, Ordering::Relaxed);
+        assert_eq!(
+            lcd.get_latest_block_height_bounded_at_least(16_384, 101)
+                .await
+                .unwrap(),
+            102
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters.iter().map(|c| c.attempts).sum::<u64>(), 2);
+        assert!(counters
+            .iter()
+            .all(|c| c.successes == 1 && c.failures == 0 && !c.circuit_open && c.in_flight == 0));
+        // The caller's floor never changes the established global twenty-block lag policy.
+        assert_eq!(
+            lcd.get_latest_block_height_bounded(16_384).await.unwrap(),
+            100
+        );
+        assert_eq!(lcd.inner.latest_height.load(Ordering::Relaxed), 102);
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/blocks/99"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "99")
+                    .set_body_json(minimum_head_response("99", "columbus-5")),
+            )
+            .mount(&current)
+            .await;
+        assert_eq!(
+            lcd.get_block_at_height(99)
+                .await
+                .unwrap()
+                .block
+                .header
+                .height,
+            "99"
+        );
+        assert_eq!(lcd.inner.latest_height.load(Ordering::Relaxed), 102);
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_equality_is_eligible() {
+        let server = MockServer::start().await;
+        mock_minimum_head(&server, "101", "columbus-5").await;
+        let lcd = minimum_head_client(&[&server], ProviderPolicy::default());
+        assert_eq!(
+            lcd.get_latest_block_height_bounded_at_least(16_384, 101)
+                .await
+                .unwrap(),
+            101
+        );
+        assert_eq!(lcd.provider_counters().await[0].attempts, 1);
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_all_old_respects_single_attempt_and_rate_budget() {
+        let first = MockServer::start().await;
+        let second = MockServer::start().await;
+        let third = MockServer::start().await;
+        for server in [&first, &second] {
+            mock_minimum_head(server, "100", "columbus-5").await;
+        }
+        mock_minimum_head(&third, "102", "columbus-5").await;
+        let lcd = minimum_head_client(
+            &[&first, &second, &third],
+            ProviderPolicy {
+                max_attempts: 2,
+                burst: 2,
+                requests_per_second: 1,
+                ..Default::default()
+            },
+        );
+        let result = lcd
+            .get_latest_block_height_bounded_at_least(16_384, 101)
+            .await;
+        assert!(matches!(result, Err(LcdError::AllEndpointsFailed(_))));
+        assert_eq!(hits(&first, LATEST_BLOCK_PATH).await, 1);
+        assert_eq!(hits(&second, LATEST_BLOCK_PATH).await, 1);
+        assert_eq!(
+            hits(&third, LATEST_BLOCK_PATH).await,
+            0,
+            "no attempt-budget reset can reach a third endpoint"
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters.iter().map(|c| c.attempts).sum::<u64>(), 2);
+        assert_eq!(counters.iter().map(|c| c.successes).sum::<u64>(), 2);
+        assert!(counters
+            .iter()
+            .all(|c| c.failures == 0 && !c.circuit_open && c.in_flight == 0));
+        // Valid but ineligible I/O spends the usual two-token provider charge.
+        for endpoint in &lcd.inner.endpoints.read().await[..2] {
+            assert!(matches!(
+                endpoint.provider.admit(),
+                Err(provider_pool::ProviderDenial::Rate)
+            ));
+        }
+        assert_eq!(
+            lcd.inner.latest_height.load(Ordering::Relaxed),
+            100,
+            "the database floor cannot seed invented global observed height"
+        );
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_real_failure_retains_quarantine_and_valid_alternative() {
+        let failed = MockServer::start().await;
+        let old = MockServer::start().await;
+        let current = MockServer::start().await;
+        mock_chain_identity(&failed, "columbus-5").await;
+        Mock::given(path(LATEST_BLOCK_PATH))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&failed)
+            .await;
+        mock_minimum_head(&old, "100", "columbus-5").await;
+        mock_minimum_head(&current, "101", "columbus-5").await;
+        let lcd = minimum_head_client(&[&failed, &old, &current], ProviderPolicy::default());
+        assert_eq!(
+            lcd.get_latest_block_height_bounded_at_least(16_384, 101)
+                .await
+                .unwrap(),
+            101
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 1);
+        assert!(counters[0].circuit_open);
+        assert_eq!(counters[1].failures, 0);
+        assert_eq!(counters[1].successes, 1);
+        assert!(!counters[1].circuit_open);
+        assert_eq!(counters[2].successes, 1);
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_integrity_is_not_hidden_by_old_heads_or_deadline() {
+        for malformed in [false, true] {
+            let bad = MockServer::start().await;
+            let old = MockServer::start().await;
+            mock_minimum_head(
+                &bad,
+                if malformed { "invalid" } else { "100" },
+                if malformed {
+                    "columbus-5"
+                } else {
+                    "localterra"
+                },
+            )
+            .await;
+            mock_minimum_head(&old, "100", "columbus-5").await;
+            let lcd = minimum_head_client(&[&bad, &old], ProviderPolicy::default());
+            let error = lcd
+                .get_latest_block_height_bounded_at_least(16_384, 101)
+                .await
+                .unwrap_err();
+            if malformed {
+                assert!(matches!(error, LcdError::Deserialize(_)));
+            } else {
+                assert!(matches!(error, LcdError::ChainIdentity(_)));
+            }
+            assert_eq!(lcd.provider_counters().await[1].successes, 1);
+            assert_eq!(lcd.provider_counters().await[1].failures, 0);
+        }
+        let wrong = MockServer::start().await;
+        let slow = MockServer::start().await;
+        mock_minimum_head(&wrong, "100", "localterra").await;
+        mock_chain_identity(&slow, "columbus-5").await;
+        Mock::given(path(LATEST_BLOCK_PATH))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(minimum_head_response("101", "columbus-5"))
+                    .set_delay(Duration::from_millis(500)),
+            )
+            .mount(&slow)
+            .await;
+        let lcd = minimum_head_client(
+            &[&wrong, &slow],
+            ProviderPolicy {
+                deadline_ms: 100,
+                attempt_timeout_ms: 1000,
+                ..Default::default()
+            },
+        );
+        assert!(matches!(
+            lcd.get_latest_block_height_bounded_at_least(16_384, 101)
+                .await,
+            Err(LcdError::ChainIdentity(_))
+        ));
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_missing_and_nonpositive_values_are_not_soft_success() {
+        for height in ["0", "-1"] {
+            let server = MockServer::start().await;
+            mock_minimum_head(&server, height, "columbus-5").await;
+            let lcd = minimum_head_client(&[&server], ProviderPolicy::default());
+            assert!(matches!(
+                lcd.get_latest_block_height_bounded_at_least(16_384, 101)
+                    .await,
+                Err(LcdError::AllEndpointsFailed(_))
+            ));
+            let counters = lcd.provider_counters().await;
+            assert_eq!(counters[0].successes, 0);
+            assert_eq!(counters[0].failures, 1);
+            assert!(
+                counters[0].circuit_open,
+                "nonpositive latest heads keep existing rejection/quarantine behavior"
+            );
+        }
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path(LATEST_BLOCK_PATH))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"block":{"header":{"chain_id":"columbus-5","time":"2026-01-01T00:00:00Z"}}}),
+            ))
+            .mount(&server)
+            .await;
+        let lcd = minimum_head_client(&[&server], ProviderPolicy::default());
+        let error = lcd
+            .get_latest_block_height_bounded_at_least(16_384, 101)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, LcdError::PairResponseMalformed(_)),
+            "missing height retains typed schema rejection"
+        );
+        assert!(!crate::indexer::block_indexer::is_retryable_availability(
+            &error
+        ));
+    }
+    #[tokio::test]
+    async fn recovery1464_minimum_head_ineligible_success_cannot_reset_concurrent_real_failure() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        let started = Arc::new(tokio::sync::Notify::new());
+        let notified = started.clone();
+        Mock::given(path(LATEST_BLOCK_PATH))
+            .respond_with(move |_: &wiremock::Request| {
+                notified.notify_one();
+                ResponseTemplate::new(200)
+                    .set_body_json(minimum_head_response("100", "columbus-5"))
+                    .set_delay(Duration::from_millis(150))
+            })
+            .mount(&server)
+            .await;
+        Mock::given(path("/failed"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let lcd = minimum_head_client(&[&server], ProviderPolicy::default());
+        let pending = lcd.clone();
+        let head = tokio::spawn(async move {
+            pending
+                .get_latest_block_height_bounded_at_least(16_384, 101)
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(1), started.notified())
+            .await
+            .unwrap();
+        assert!(lcd.get::<serde_json::Value>("/failed").await.is_err());
+        assert!(matches!(
+            head.await.unwrap(),
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].attempts, 2);
+        assert_eq!(counters[0].failures, 1);
+        assert_eq!(counters[0].successes, 1);
+        assert!(counters[0].circuit_open);
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
     #[tokio::test]
     async fn lagging_live_height_and_unconfirmed_history_are_rejected() {
         let server = MockServer::start().await;
@@ -1956,10 +2560,23 @@ mod provider_resilience_tests {
             assert_eq!(counters[0].successes, if local { 1 } else { 0 });
         }
     }
+    #[tokio::test]
+    async fn recovery1464_fee_safety_callback_contract_404_headers_precede_incomplete_body() {
+        assert_known_slow_http_error_quarantines_at(
+            404,
+            "/cosmwasm/wasm/v1/contract/fixture/smart/fixture",
+        )
+        .await;
+    }
     async fn assert_known_slow_http_error_quarantines(status: u16) {
+        assert_known_slow_http_error_quarantines_at(status, "/data").await;
+    }
+    async fn assert_known_slow_http_error_quarantines_at(status: u16, path_value: &str) {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let protocol_rejected =
             !should_cooldown_endpoint(reqwest::StatusCode::from_u16(status).unwrap());
+        let unclassified_contract_404 =
+            status == 404 && path_value.starts_with("/cosmwasm/wasm/v1/contract/");
         // Raw HTTP deliberately separates completed error headers from a body
         // that exceeds the caller budget. Wiremock delay would delay both.
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1998,10 +2615,16 @@ mod provider_resilience_tests {
                 ..Default::default()
             },
         );
-        let view = lcd.with_scheduled_observation();
+        let safety_called = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let view = lcd.with_scheduled_observation().with_fee_safety_callback({
+            let safety_called = safety_called.clone();
+            Arc::new(move || {
+                safety_called.store(true, Ordering::SeqCst);
+            })
+        });
         let result = tokio::time::timeout(
             Duration::from_millis(500),
-            view.get::<serde_json::Value>("/data"),
+            view.get::<serde_json::Value>(path_value),
         )
         .await;
         if status == 500 {
@@ -2013,12 +2636,19 @@ mod provider_resilience_tests {
             let error = result
                 .expect("known endpoint failure returns without awaiting its slow body")
                 .unwrap_err();
-            assert!(if protocol_rejected {
+            assert!(if unclassified_contract_404 {
+                matches!(error, LcdError::AllEndpointsFailed(_))
+            } else if protocol_rejected {
                 matches!(error,LcdError::HttpRejected(code) if code==status)
             } else {
                 matches!(error, LcdError::AllEndpointsFailed(_))
             });
         }
+        assert_eq!(
+            safety_called.load(Ordering::SeqCst),
+            protocol_rejected,
+            "permanent headers notify before the body arrives; outages do not notify"
+        );
         let counters = lcd.provider_counters().await;
         assert_eq!(
             (

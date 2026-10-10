@@ -1713,3 +1713,490 @@ async fn recovery1464_pair_deadline_cancellation_preserves_healthy_next_cycle() 
     );
     assert!(recovered[0].successes > first[0].successes);
 }
+
+/// A temporary full provider can defer the head read without producing an
+/// unknown-height pool generation once capacity returns inside the head budget.
+#[tokio::test]
+#[serial]
+async fn recovery1464_owned_workers_wait_for_head_capacity_and_publish_pinned_quotes() {
+    use base64::Engine;
+    use cl8y_dex_indexer::{api, lcd::ProviderPolicy};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let mut seed = common::seed_route_solve_with_mirror(&pool).await;
+    seed.token_a = "terra1headwaitaaa000000000000000000000000".into();
+    seed.token_b = "terra1headwaitbbb000000000000000000000000".into();
+    sqlx::query("UPDATE assets SET contract_address=$1 WHERE symbol='RTEA'")
+        .bind(&seed.token_a)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE assets SET contract_address=$1 WHERE symbol='RTEB'")
+        .bind(&seed.token_b)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // An expired hybrid cannot hide a poisoned current raw generation.
+    sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()-INTERVAL '30 seconds'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE hybrid_pair_reserves SET snapshot_at=NOW()-INTERVAL '30 seconds'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW())").execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,1,NOW(),'custc' FROM assets WHERE symbol IN ('RTEA','RTEB')").execute(&pool).await.unwrap();
+    let held = Arc::new(AtomicUsize::new(0));
+    let requests = Arc::new(AtomicUsize::new(0));
+    let unpinned_pools = Arc::new(AtomicUsize::new(0));
+    let (release_tx, release_rx) = tokio::sync::watch::channel(false);
+    let app = axum::Router::new().fallback(axum::routing::get({
+        let (held,requests,unpinned_pools)=(held.clone(),requests.clone(),unpinned_pools.clone());
+        let (a,b)=(seed.token_a.clone(),seed.token_b.clone());
+        move |uri:axum::http::Uri, request_headers:axum::http::HeaderMap| {
+            let (held,requests,unpinned_pools)=(held.clone(),requests.clone(),unpinned_pools.clone());
+            let (a,b)=(a.clone(),b.clone());let mut release=release_rx.clone();
+            async move {
+                requests.fetch_add(1,Ordering::SeqCst);
+                let body=if uri.path().ends_with("/node_info") {
+                    json!({"default_node_info":{"network":"columbus-5"}})
+                } else if uri.path().ends_with("/blocks/latest") {
+                    json!({"block":{"header":{"chain_id":"columbus-5","height":"900","time":"2026-10-11T00:00:00Z"}}})
+                } else if uri.path()=="/held" {
+                    held.fetch_add(1,Ordering::SeqCst);
+                    if !*release.borrow() {release.changed().await.unwrap();}
+                    json!({"ok":true})
+                } else if let Some(encoded)=uri.path().split("/smart/").nth(1) {
+                    let q:serde_json::Value=serde_json::from_slice(&base64::engine::general_purpose::STANDARD.decode(encoded).unwrap()).unwrap();
+                    let data=if q.get("pool").is_some() {
+                        if request_headers.get("x-cosmos-block-height").is_none() {unpinned_pools.fetch_add(1,Ordering::SeqCst);}
+                        json!({"assets":[{"info":{"token":{"contract_addr":a}},"amount":"10000000000000"},{"info":{"token":{"contract_addr":b}},"amount":"10000000000000"}],"total_share":"1"})
+                    } else if q.get("get_fee_config").is_some() {json!({"fee_config":{"fee_bps":30,"treasury":"terra1treasury"}})}
+                    else if q.get("order_book_head").is_some() {json!(null)}
+                    else if q.get("is_paused").is_some() {json!({"paused":false})}
+                    else if q.get("get_asset_code_ids").is_some() {json!({"code_ids":[10184,10184]})}
+                    else if q.get("blacklist_check").is_some() {json!({"blocked":false,"wallet_blacklisted":false,"pair_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[]})}
+                    else if q.get("is_code_id_whitelisted").is_some() {json!({"whitelisted":true})}
+                    else if q.get("get_hooks").is_some() {json!({"hooks":[]})}
+                    else if q.get("get_discount_registry").is_some() {json!({"registry":null})}
+                    else {panic!("unmodeled fixture query");};
+                    json!({"data":data})
+                } else {json!({"contract_info":{"code_id":"10184","admin":""}})};
+                let mut headers=axum::http::HeaderMap::new();
+                headers.insert("x-cosmos-block-height",axum::http::HeaderValue::from_static("900"));
+                (headers,axum::Json(body))
+            }
+        }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let upstream = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let lcd = LcdClient::new_with_policy(
+        vec![url],
+        2_500,
+        1_000,
+        "columbus-5",
+        ProviderPolicy {
+            attempt_timeout_ms: 2_500,
+            deadline_ms: 8_000,
+            ..Default::default()
+        },
+    );
+    let mut holders = tokio::task::JoinSet::new();
+    for _ in 0..8 {
+        let client = lcd.clone();
+        holders.spawn(async move { client.get::<serde_json::Value>("/held").await });
+    }
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while held.load(Ordering::SeqCst) < 8 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(lcd.provider_counters().await[0].in_flight, 8);
+    let liquidity = tokio::spawn(book_snapshot::run_book_snapshot_loop(
+        pool.clone(),
+        lcd.clone(),
+        10_000,
+    ));
+    // The initial book is stale and issues no provider call; the first new
+    // deferral is therefore the actual production pool head prelude.
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while lcd.provider_counters().await[0].concurrency_deferrals == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let released_at = chrono::Utc::now();
+    release_tx.send_replace(true);
+    while let Some(result) = holders.join_next().await {
+        result.unwrap().unwrap();
+    }
+    let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let first = tokio::time::timeout(Duration::from_secs(4), async {
+        loop {
+            let row = pair_reserves::get_pair_reserves(&pool, pair_id)
+                .await
+                .unwrap()
+                .unwrap();
+            if row.fee_bps == 30 && row.block_height == Some(900) {
+                break row;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("released provider supplies a pinned usable pool in the first cycle");
+    assert!(
+        first.snapshot_at < released_at,
+        "capacity wait must preserve the original pre-head timestamp"
+    );
+    assert_eq!(unpinned_pools.load(Ordering::SeqCst), 0);
+    let mut config = common::test_config();
+    config.route_solver_db_hybrid = true;
+    let state = common::local_quotes::state(pool.clone(), &config, lcd.clone());
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let mut workers = api::local_quote::start_ingestion_with_cancel(state.clone(), cancel.clone());
+    let api_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", api_listener.local_addr().unwrap());
+    let api_server = tokio::spawn(async move {
+        axum::serve(api_listener, api::build_router(state, &config))
+            .await
+            .unwrap()
+    });
+    let quote = format!(
+        "{base}/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&pool_only=true",
+        seed.token_a, seed.token_b
+    );
+    let client = reqwest::Client::new();
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, pair_id)
+                .await
+                .unwrap()
+                .unwrap();
+            if hybrid.block_height == Some(900)
+                && hybrid.snapshot_at >= first.snapshot_at
+                && client
+                    .get(&quote)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+                    .is_success()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("actual book and scheduled quote workers initialize compatible generation");
+    cancel.cancel();
+    while workers.join_next().await.is_some() {}
+    liquidity.abort();
+    let _ = liquidity.await;
+    let count = requests.load(Ordering::SeqCst);
+    let response = client.get(&quote).send().await.unwrap();
+    assert!(response.status().is_success());
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert!(
+        body["estimated_amount_out_net"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
+    assert!(
+        body["execution_metadata"]["minimum_receive"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
+    assert_eq!(
+        requests.load(Ordering::SeqCst),
+        count,
+        "cached request triggers zero provider RPC"
+    );
+    assert_eq!(unpinned_pools.load(Ordering::SeqCst), 0);
+    let counters = lcd.provider_counters().await;
+    assert_eq!(counters[0].failures, 0);
+    assert_eq!(counters[0].in_flight, 0);
+    api_server.abort();
+    upstream.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn recovery1464_head_floor_tries_valid_alternative_without_renewing_all_old_pools() {
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    use std::time::Duration;
+    for all_old in [false, true] {
+        let pool = common::setup_pool().await;
+        let seed = common::seed_db(&pool).await;
+        pair_reserves::upsert_pair_reserves(
+            &pool,
+            seed.pair_id,
+            &bd("7000"),
+            &bd("8000"),
+            25,
+            Some(110),
+        )
+        .await
+        .unwrap();
+        let prior = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .unwrap();
+        // Both endpoints can serve pinned111, but their cached latest envelopes
+        // can be below the last stored generation even inside the lag threshold.
+        let old = common::lcd_mock::start_book_snapshot_mock(Some("111")).await;
+        let alternative = common::lcd_mock::start_book_snapshot_mock(Some("111")).await;
+        for (server, height) in [(&old, 100), (&alternative, if all_old { 101 } else { 111 })] {
+            Mock::given(method("GET")).and(wiremock::matchers::path("/cosmos/base/tendermint/v1beta1/blocks/latest"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(json!({"block":{"header":{"chain_id":"columbus-5","height":height.to_string(),"time":"2026-10-11T00:00:00Z"}}})))
+                .with_priority(1).mount(server).await;
+        }
+        let lcd = LcdClient::new_with_policy(
+            vec![old.uri(), alternative.uri()],
+            2_500,
+            1_000,
+            "columbus-5",
+            ProviderPolicy {
+                attempt_timeout_ms: 2_500,
+                deadline_ms: 8_000,
+                ..Default::default()
+            },
+        );
+        let started = chrono::Utc::now();
+        book_snapshot::snapshot_all_pairs_with_limits(
+            &pool,
+            &lcd,
+            book_snapshot::SnapshotLimits {
+                height_timeout: Duration::from_secs(4),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let raw = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .unwrap();
+        if all_old {
+            assert_eq!(
+                (
+                    raw.reserve_0,
+                    raw.reserve_1,
+                    raw.fee_bps,
+                    raw.block_height,
+                    raw.snapshot_at
+                ),
+                (
+                    prior.reserve_0,
+                    prior.reserve_1,
+                    prior.fee_bps,
+                    prior.block_height,
+                    prior.snapshot_at
+                ),
+                "all-old heads cannot renew or replace a stored generation"
+            );
+        } else {
+            assert_eq!(
+                (raw.reserve_0, raw.reserve_1, raw.fee_bps, raw.block_height),
+                (bd("1000000"), bd("2000000"), 25, Some(111))
+            );
+            assert!(raw.snapshot_at >= started);
+            let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(hybrid.snapshot_at, raw.snapshot_at);
+        }
+        assert!(
+            lcd.provider_counters()
+                .await
+                .iter()
+                .all(|c| c.failures == 0),
+            "valid older heads are query-local outcomes, not provider outages"
+        );
+        for server in [&old, &alternative] {
+            assert_eq!(
+                server
+                    .received_requests()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .filter(|r| r.url.path().ends_with("/blocks/latest"))
+                    .count(),
+                1,
+                "head alternatives share one bounded scan, no cycle retry resets"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn recovery1464_cached_same_height_fee_reapplies_without_renewing_pool_time() {
+    use std::sync::Arc;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let pair = cl8y_dex_indexer::db::queries::pairs::get_pair_by_address(&pool, &seed.pair_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("900")).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let signal = started.clone();
+    Mock::given(method("GET")).and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
+        .and(|request:&wiremock::Request|common::lcd_mock::smart_query_from_request(request).get("pool").is_some())
+        .respond_with(move |_:&wiremock::Request| {
+            signal.notify_one();
+            ResponseTemplate::new(200).insert_header("x-cosmos-block-height","900")
+                .set_body_json(json!({"data":{"assets":[{"info":{"native_token":{"denom":"uluna"}},"amount":"1000000"},{"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000000"}],"total_share":"1"}}))
+                .set_delay(Duration::from_millis(150))
+        }).with_priority(1).mount(&server).await;
+    let lcd = LcdClient::new(vec![server.uri()], 2_500, 1_000, "columbus-5");
+    let worker_pool = pool.clone();
+    let worker_lcd = lcd.clone();
+    let worker = tokio::spawn(async move {
+        book_snapshot::snapshot_single_pair(&worker_pool, &worker_lcd, &pair, Some(900)).await
+    });
+    tokio::time::timeout(Duration::from_secs(1), started.notified())
+        .await
+        .unwrap();
+    // The fee becomes visible after the pool's original observation began, so
+    // raw upsert deliberately cannot copy it. The later cache hit must reapply.
+    sqlx::query("INSERT INTO pair_fee_observations(pair_id,fee_bps,observed_at,block_height) VALUES($1,25,NOW(),900)").bind(seed.pair_id).execute(&pool).await.unwrap();
+    worker.await.unwrap().unwrap();
+    let raw = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let fee_time: chrono::DateTime<chrono::Utc> =
+        sqlx::query_scalar("SELECT observed_at FROM pair_fee_observations WHERE pair_id=$1")
+            .bind(seed.pair_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!((raw.fee_bps, raw.block_height), (25, Some(900)));
+    assert!(
+        raw.snapshot_at < fee_time,
+        "cached fee publication cannot renew the pool's pre-response observation time"
+    );
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(hybrid.snapshot_at, raw.snapshot_at);
+    assert_eq!(
+        server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|r| common::lcd_mock::smart_query_from_request(r)
+                .get("get_fee_config")
+                .is_some())
+            .count(),
+        0,
+        "cached reapplication needs no redundant fee RPC"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn recovery1464_cached_fee_reapplication_rechecks_locked_current_fee_height() {
+    use std::sync::Arc;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let pair = cl8y_dex_indexer::db::queries::pairs::get_pair_by_address(&pool, &seed.pair_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("900")).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let signal = started.clone();
+    Mock::given(method("GET")).and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
+        .and(|request:&wiremock::Request|common::lcd_mock::smart_query_from_request(request).get("pool").is_some())
+        .respond_with(move |_:&wiremock::Request| {
+            signal.notify_one();
+            ResponseTemplate::new(200).insert_header("x-cosmos-block-height","900")
+                .set_body_json(json!({"data":{"assets":[{"info":{"native_token":{"denom":"uluna"}},"amount":"1000000"},{"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000000"}],"total_share":"1"}}))
+                .set_delay(Duration::from_millis(150))
+        }).with_priority(1).mount(&server).await;
+    let lcd = LcdClient::new(vec![server.uri()], 2_500, 1_000, "columbus-5");
+    let worker_pool = pool.clone();
+    let worker_lcd = lcd.clone();
+    let worker = tokio::spawn(async move {
+        book_snapshot::snapshot_single_pair(&worker_pool, &worker_lcd, &pair, Some(900)).await
+    });
+    tokio::time::timeout(Duration::from_secs(1), started.notified())
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO pair_fee_observations(pair_id,fee_bps,observed_at,block_height) VALUES($1,25,NOW(),900)").bind(seed.pair_id).execute(&pool).await.unwrap();
+    let mut update = pool.begin().await.unwrap();
+    sqlx::query("SELECT pair_id FROM pair_fee_observations WHERE pair_id=$1 FOR UPDATE")
+        .bind(seed.pair_id)
+        .fetch_one(&mut *update)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(2),async {
+        loop {
+            let blocked:i64=sqlx::query_scalar("SELECT COUNT(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE '%FOR SHARE%'").fetch_one(&pool).await.unwrap();
+            if blocked>0 {break;}
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    }).await.expect("cached reapplication waits on the fee row it must revalidate");
+    let before = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!((before.fee_bps, before.block_height), (-1, Some(900)));
+    sqlx::query("UPDATE pair_fee_observations SET block_height=901 WHERE pair_id=$1")
+        .bind(seed.pair_id)
+        .execute(&mut *update)
+        .await
+        .unwrap();
+    update.commit().await.unwrap();
+    assert!(
+        worker.await.unwrap().is_err(),
+        "a superseded cached fee is not a validated publication"
+    );
+    let after = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (after.fee_bps, after.block_height, after.snapshot_at),
+        (-1, Some(900), before.snapshot_at)
+    );
+    assert_eq!(
+        server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|r| common::lcd_mock::smart_query_from_request(r)
+                .get("get_fee_config")
+                .is_some())
+            .count(),
+        0
+    );
+}

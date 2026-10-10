@@ -25,7 +25,7 @@ make verify-issue-1391  # reference/quorum propagation when scheduler changes
 The [focused verifier](../../../scripts/verify-issue-1464.sh) runs provider,
 checkpoint, token admission and oracle scheduler regressions twice, disposable socket/book/health
 fixtures twice, and evidence-tool/crosslink checks. The [tax recovery fixture](../../../indexer/tests/tax_admission_recovery_1464.rs) checks typed availability, required-policy and registered-pair negatives, manager revocation before a canceled balance read, and recovery. The [production-lane overlap fixture](../../../indexer/tests/book_snapshot_loop.rs) exercises actual pool/book/admission workers under one healthy provider with unchanged shared caps. It records revision, UTC times,
-commands and stage outcomes. The existing verifiers establish the broader protocol,
+commands and stage outcomes. The [fee-generation state](../../../indexer/src/indexer/fee_phase.rs) and actual worker controls verify pending generation retention, original expiry, same-height fee completion, known-negative/maximum-fee invalidation and bounded ownership. Internal raw timestamp matching preserves PostgreSQL microseconds; public quote timestamps stay unchanged. The existing verifiers establish the broader protocol,
 browser/signing, discovery, attestation and real database privilege regressions.
 Repeat on stable final source if source changes during a run.
 

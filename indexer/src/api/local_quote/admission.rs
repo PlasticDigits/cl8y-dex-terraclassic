@@ -811,7 +811,8 @@ async fn publish_admission(
     // Membership and original deadlines must share one capture. A pair can
     // expire during the following reads; omitting its deadline would let the
     // request path fall back to a fresher sibling's global maximum expiry.
-    let config_expiries = fresh_config_expiries(&fresh);
+    let mut config_expiries = fresh_config_expiries(&fresh);
+    let mut pair_contexts = HashMap::new();
     let mut pairs = Vec::new();
     let mut mirrors = HashMap::new();
     let mut hooks = HashMap::new();
@@ -832,16 +833,53 @@ async fn publish_admission(
         }
         tax_observations.extend(obs.taxes.iter());
         identity.push(obs.identity.clone());
-        if let Ok(m) = sim::load_local_mirror(
-            &state.pool,
+        let mut token_policies = obs
+            .taxes
+            .iter()
+            .map(|(token, tax)| {
+                (
+                    token,
+                    tax.code_id,
+                    tax.buy_bps,
+                    tax.sell_bps,
+                    &tax.policy_identity,
+                )
+            })
+            .collect::<Vec<_>>();
+        token_policies.sort_by_key(|row| row.0);
+        let context = format!(
+            "{:x}",
+            Sha256::digest(format!(
+                "{:?}|{:?}|{}|{:?}|{:?}|{:?}|{}|{:?}|{:?}",
+                state.factory_address,
+                state.router_address,
+                obs.identity,
+                obs.asset_code_ids,
+                obs.asset_addresses,
+                (obs.pair.asset_0_id, obs.pair.asset_1_id),
+                obs.discounted,
+                token_policies,
+                obs.hooks.observation_identity()
+            ))
+        );
+        if let Some((mirror, retained_expiry)) = ingestion::load_qualified_mirror(
+            state,
             &obs.pair,
             addresses,
             state.book_snapshot_max_staleness_ms,
+            Some(&context),
         )
         .await
         {
-            mirrors.insert(obs.pair.contract_address.clone(), m);
+            if let Some(expiry) = retained_expiry {
+                config_expiries
+                    .entry(obs.pair.contract_address.clone())
+                    .and_modify(|at| *at = (*at).min(expiry))
+                    .or_insert(expiry);
+            }
+            mirrors.insert(obs.pair.contract_address.clone(), mirror);
         }
+        pair_contexts.insert(obs.pair.contract_address.clone(), context);
     }
     // Merge in chronological order: the shared oldest timestamp is conservative,
     // while the newest actor observation must win independent of HashMap order.
@@ -863,6 +901,7 @@ async fn publish_admission(
         hooks,
         expiry,
         config_expiries,
+        pair_contexts,
         local_reference_quote::ReferencePrices::observe(&state.pool, assets, &state.hub_usd)
             .await?,
         actors.clone(),

@@ -205,3 +205,22 @@ A caller deadline during lock contention must neither clear quarantine nor
 downgrade unsafe identity evidence to an availability retry. Own attempt timeout
 recording keeps its permit incomplete until the failure is recorded, so cancellation
 still records one failure. The LCD lock-contention regressions cover these boundaries.
+
+Pool/book logs now identify the lane, head outcome and head-capacity waits.
+An all-zero book cycle is not proof that pool ingestion failed. Diagnose older
+pool writes, incompatible fees and expired hybrid observations separately.
+The pool consumer selects a head at or above its stored live-pair frontier inside
+the existing four-second budget and provider attempt limits. Generic LCD lag
+policy and historical request semantics remain unchanged.
+
+[Fee-generation provenance](../../indexer/src/indexer/fee_phase.rs) distinguishes
+validated pending/transient work from unsafe or unknown states. Only a previously
+complete, still-fresh immutable tuple with matching current qualification may
+survive the pending window. Raw pool publication continues for valuation.
+Successful cached/new fee application uses the same locked current-height guard
+and never changes reserve timestamps. Inspect both publishers and cached/deeper
+results when verifying negative, cancellation and maximum-fee transitions.
+Also run the cold-namespace fixtures: qualification during a rejected fee request
+must stay unavailable, and a newly completed changed fee cannot borrow older
+hybrid economics. Unqualified guards allocate no retained mirrors or registry
+entries and cannot clear newer negative evidence.

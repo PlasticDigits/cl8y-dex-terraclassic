@@ -87,3 +87,28 @@ Lock contention followed by caller cancellation must retain quarantine and known
 typed integrity evidence; it must not turn a recorded negative into a neutral
 caller cancellation. Keep failure recording exactly once, including own attempt
 timeouts. See the [LCD regressions](../indexer/src/lcd/mod.rs).
+
+Pool head capacity waits are caller-owned within the original four-second bound.
+A pool head must meet the positive stored-height frontier of the current indexed
+pairs. Valid older heads are query-local ineligibility inside the same finite
+provider scan, not permission to reset attempts or seed shared chain height.
+
+Raw reserves still commit independently for valuation. Quote-ready complete
+reserves/fee/book tuples keep their own original height, time and expiry during
+explicit, validated pending fee generations. Unknown, expired, malformed, zero,
+SQL or known protocol evidence cannot enable retention. Never combine new
+reserves with old fees/books. Both reserve and admission publishers apply the
+same typed rule, current pair/policy/asset guards and monotonic publication.
+Known required-read negatives invalidate cached and deeper results before
+asynchronous cleanup; producer cancellation cannot leave perpetual eligibility.
+The bounded [fee phase state](../indexer/src/indexer/fee_phase.rs) and
+[owned worker regressions](../indexer/tests/book_snapshot_loop.rs) document this
+producer/consumer boundary. A newly validated changed fee supersedes old economics
+even if retention allocation was refused. Tombstones cannot disappear while an
+older original tuple or active producer could still restore eligibility.
+
+Cold/unqualified producers must own the non-retaining fee guard before raw SQL.
+Qualification arriving during a request does not excuse known rejection or
+cancellation. Load and validate current raw state before selecting an older hybrid;
+an incomplete or changed fee must never inherit its economics. Verify these races
+with [both publisher fixtures](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).

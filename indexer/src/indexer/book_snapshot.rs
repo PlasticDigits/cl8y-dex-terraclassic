@@ -184,6 +184,40 @@ enum SnapshotMode {
     Combined,
 }
 
+impl SnapshotMode {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Pool => "pool",
+            Self::Book => "book",
+            Self::Combined => "combined",
+        }
+    }
+}
+
+/// Wait only for zero-attempt provider capacity denial. The enclosing height
+/// deadline owns this future; no provider/lane permit survives these sleeps.
+async fn observe_head(
+    lcd: &LcdClient,
+    minimum_height: i64,
+    capacity_waits: &mut usize,
+) -> Result<i64, LcdError> {
+    loop {
+        match lcd
+            .get_latest_block_height_bounded_at_least(
+                BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES,
+                minimum_height,
+            )
+            .await
+        {
+            Err(LcdError::AdmissionDeferred) => {
+                *capacity_waits += 1;
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            result => return result,
+        }
+    }
+}
+
 /// One full snapshot pass over every indexed pair, with bounded concurrency and deadlines.
 pub async fn snapshot_all_pairs(pool: &PgPool, lcd: &LcdClient) -> Result<(), BoxError> {
     snapshot_all_pairs_with_limits(pool, lcd, SnapshotLimits::default()).await
@@ -241,25 +275,62 @@ async fn snapshot_cycle(
     // Every pinned read in this cycle keeps the head observation's original age;
     // queued tail jobs must not renew an old block with a later start timestamp.
     let cycle_observed_at = Utc::now();
+    // Use only currently indexed pairs, not orphaned reserve rows. Read the
+    // inventory and its original observations once, before selecting a head.
+    let mut pairs = pairs::get_all_pairs(pool).await?;
+    let ages = pair_reserves::get_all_pair_reserves(pool).await?;
+    let minimum_height = pairs
+        .iter()
+        .filter_map(|pair| ages.get(&pair.id).and_then(|row| row.block_height))
+        .filter(|height| *height > 0)
+        .max()
+        .unwrap_or(0);
+    let mut head_capacity_waits = 0;
+    let mut head_outcome = "skipped";
     let block_height = if matches!(mode, SnapshotMode::Book) {
         None
     } else {
         match tokio::time::timeout(
             limits.height_timeout,
-            lcd.get_latest_block_height_bounded(BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES),
+            observe_head(lcd, minimum_height, &mut head_capacity_waits),
         )
         .await
         {
-            Ok(Ok(h)) if h > 0 => Some(h),
-            outcome => {
-                tracing::warn!(?outcome, "Book snapshot: latest block height unavailable");
+            Ok(Ok(h)) if h > 0 => {
+                head_outcome = "observed";
+                Some(h)
+            }
+            Ok(Ok(_)) => {
+                head_outcome = "invalid_height";
+                None
+            }
+            Ok(Err(error)) => {
+                head_outcome = if crate::indexer::block_indexer::is_retryable_availability(&error) {
+                    "provider_error"
+                } else {
+                    "integrity_error"
+                };
+                tracing::warn!(
+                    lane = mode.label(),
+                    head_outcome,
+                    head_capacity_waits,
+                    "Book snapshot: latest block height unavailable"
+                );
+                None
+            }
+            Err(_) => {
+                head_outcome = "deadline";
+                tracing::warn!(
+                    lane = mode.label(),
+                    head_outcome,
+                    head_capacity_waits,
+                    "Book snapshot: latest block height unavailable"
+                );
                 None
             }
         }
     };
     // Oldest/missing observations first: slow work cannot always penalize the same tail.
-    let mut pairs = pairs::get_all_pairs(pool).await?;
-    let ages = pair_reserves::get_all_pair_reserves(pool).await?;
     pairs.sort_by_key(|p| ages.get(&p.id).map(|r| r.snapshot_at));
     let pair_count = pairs.len();
     let mut pending = pairs.into_iter();
@@ -329,6 +400,10 @@ async fn snapshot_cycle(
     .fetch_one(pool)
     .await?;
     tracing::info!(
+        lane = mode.label(),
+        head_outcome,
+        head_capacity_waits,
+        minimum_height,
         pair_count,
         refreshed_pair_count,
         failed_pair_count,
@@ -360,17 +435,36 @@ async fn observe_pool(
     block_height: Option<i64>,
     observed_at: chrono::DateTime<Utc>,
 ) -> Result<(), BoxError> {
+    let namespace = lcd.chain_cache_namespace();
+    let reject =
+        || crate::indexer::fee_phase::reject(&namespace, pair.id, block_height, observed_at);
     // Preserve observation start, never write completion time for a delayed reply.
     let query = json!({ "pool": {} });
     let response: PoolResponse =
-        query_snapshot(lcd, &pair.contract_address, &query, block_height).await?;
+        match query_snapshot(lcd, &pair.contract_address, &query, block_height).await {
+            Ok(response) => response,
+            Err(error) => {
+                if !crate::indexer::block_indexer::is_retryable_availability(&error) {
+                    reject();
+                }
+                return Err(error.into());
+            }
+        };
     for (asset_id, asset) in [
         (pair.asset_0_id, &response.assets[0]),
         (pair.asset_1_id, &response.assets[1]),
     ] {
-        let expected = assets::get_asset_by_id(pool, asset_id)
-            .await?
-            .ok_or("missing pair asset")?;
+        let expected = match assets::get_asset_by_id(pool, asset_id).await {
+            Ok(Some(expected)) => expected,
+            Ok(None) => {
+                reject();
+                return Err("missing pair asset".into());
+            }
+            Err(error) => {
+                reject();
+                return Err(error.into());
+            }
+        };
         let matches = match &asset.info {
             AssetInfo::NativeToken { denom } => {
                 !expected.is_cw20 && expected.denom.as_ref() == Some(denom)
@@ -380,11 +474,56 @@ async fn observe_pool(
             }
         };
         if !matches {
+            reject();
             return Err("pool asset identity/order does not match indexed pair".into());
         }
     }
-    let reserve_0 = parse_reserve_amount(&response.assets[0].amount)?;
-    let reserve_1 = parse_reserve_amount(&response.assets[1].amount)?;
+    let (reserve_0, reserve_1) = match (
+        parse_reserve_amount(&response.assets[0].amount),
+        parse_reserve_amount(&response.assets[1].amount),
+    ) {
+        (Ok(a), Ok(b)) => (a, b),
+        (Err(error), _) | (_, Err(error)) => {
+            reject();
+            return Err(error);
+        }
+    };
+    // Both strings passed Uint128 validation above; keep the exact raw identity
+    // in the bounded fee-phase proof before any reserve publication is visible.
+    let amounts = (
+        response.assets[0].amount.parse::<u128>()?,
+        response.assets[1].amount.parse::<u128>()?,
+    );
+    let guard = if let Some(height) = block_height.filter(|height| *height > 0) {
+        if amounts.0 > 0 && amounts.1 > 0 {
+            crate::indexer::fee_phase::begin(
+                &namespace,
+                pair.id,
+                (pair.asset_0_id, pair.asset_1_id),
+                height,
+                observed_at,
+                amounts,
+            )
+        } else {
+            reject();
+            None
+        }
+    } else {
+        reject();
+        None
+    };
+    let guard = block_height.map(|height| match guard {
+        Some(guard) => crate::indexer::fee_phase::ProducerFeeGuard::Qualified(guard),
+        None => crate::indexer::fee_phase::ProducerFeeGuard::Untracked(
+            crate::indexer::fee_phase::UntrackedFeeGuard::new(
+                &namespace,
+                pair.id,
+                (pair.asset_0_id, pair.asset_1_id),
+                height,
+                observed_at,
+            ),
+        ),
+    });
     if !pair_reserves::upsert_pool_observation(
         pool,
         pair.id,
@@ -398,12 +537,61 @@ async fn observe_pool(
         return Err("older or unknown-height pool observation rejected".into());
     }
     // A failed fee read is independent: the successfully committed pool survives.
-    // The pool lane owns fee refresh too, so books never duplicate fee queries or
-    // leave advancing pool generations indefinitely ineligible for pool quotes.
+    // A validated old complete quote may survive only the exact typed pending or
+    // availability phase; known/unknown negatives revoke it synchronously.
     if let Some(height) = block_height {
-        observed_fee(pool, lcd, pair, height).await?;
+        let guard = guard.expect("a pinned observation owns a fee safety guard");
+        let result = observed_fee(pool, lcd, pair, height, Some(guard.safety_callback())).await;
+        match &result {
+            Ok(fee) => guard.finish_validated_fee(*fee as u16),
+            Err(error)
+                if crate::indexer::block_indexer::is_retryable_availability(error.as_ref()) =>
+            {
+                guard.finish_transient()
+            }
+            Err(_) => guard.finish_negative(),
+        }
+        result?;
     }
     Ok(())
+}
+
+/// Apply only the still-current compatible fee row. Both cached and newly
+/// observed fees use this transaction guard; reserve height/time never change.
+async fn apply_compatible_fee(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    pair_id: i32,
+    height: i64,
+    fee: i16,
+) -> Result<u64, sqlx::Error> {
+    if !(0..=10_000).contains(&fee) {
+        return Err(sqlx::Error::Protocol("invalid pair fee_bps".into()));
+    }
+    // Lock the fee row before the reserve row, matching new-fee publication.
+    // A cached read cannot reapply a fee superseded while this transaction waits.
+    let current: Option<i16> = sqlx::query_scalar(
+        "SELECT fee_bps FROM pair_fee_observations
+         WHERE pair_id=$1 AND block_height=$2 AND fee_bps=$3
+           AND fee_bps BETWEEN 0 AND 10000
+           AND observed_at <= NOW() AND observed_at >= NOW()-INTERVAL '60 seconds'
+         FOR SHARE",
+    )
+    .bind(pair_id)
+    .bind(height)
+    .bind(fee)
+    .fetch_optional(&mut **tx)
+    .await?;
+    if current != Some(fee) {
+        return Ok(0);
+    }
+    let applied =
+        sqlx::query("UPDATE pair_reserves SET fee_bps=$3 WHERE pair_id=$1 AND block_height=$2")
+            .bind(pair_id)
+            .bind(height)
+            .bind(fee)
+            .execute(&mut **tx)
+            .await?;
+    Ok(applied.rows_affected())
 }
 
 /// Reuse fee configuration for the same pinned height for at most a minute.
@@ -413,6 +601,7 @@ async fn observed_fee(
     lcd: &LcdClient,
     pair: &PairRow,
     height: i64,
+    callback: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 ) -> Result<i16, BoxError> {
     let cached: Option<i16> = sqlx::query_scalar(
         "SELECT fee_bps FROM pair_fee_observations WHERE pair_id = $1 AND block_height = $2
@@ -423,37 +612,45 @@ async fn observed_fee(
     .fetch_optional(pool)
     .await?;
     if let Some(fee) = cached {
+        if !(0..=10_000).contains(&fee) {
+            if let Some(callback) = &callback {
+                callback();
+            }
+            return Err("invalid cached pair fee_bps".into());
+        }
+        let mut tx = pool.begin().await?;
+        if apply_compatible_fee(&mut tx, pair.id, height, fee).await? == 0 {
+            return Err("compatible cached fee changed before application".into());
+        }
+        tx.commit().await?;
         return Ok(fee);
     }
     let observed_at = Utc::now();
-    let response: FeeConfigResponse = query_snapshot(
+    let response: FeeConfigResponse = query_snapshot_observed(
         lcd,
         &pair.contract_address,
         &json!({ "get_fee_config": {} }),
         Some(height),
+        callback.clone(),
     )
     .await?;
     if response.fee_config.fee_bps > 10_000 {
+        if let Some(callback) = &callback {
+            callback();
+        }
         return Err("invalid pair fee_bps".into());
     }
     let fee = response.fee_config.fee_bps as i16;
     let mut tx = pool.begin().await?;
     // Admit monotonic fee observations first, then expose that same admitted fee
     // to pool-only quote consumers without changing their reserve timestamp.
-    let result = sqlx::query(
+    sqlx::query(
         "INSERT INTO pair_fee_observations VALUES ($1, $2, $3, $4)
          ON CONFLICT (pair_id) DO UPDATE SET fee_bps = EXCLUDED.fee_bps, observed_at = EXCLUDED.observed_at, block_height = EXCLUDED.block_height
          WHERE EXCLUDED.observed_at >= pair_fee_observations.observed_at AND EXCLUDED.block_height >= pair_fee_observations.block_height",
     ).bind(pair.id).bind(fee).bind(observed_at).bind(height).execute(&mut *tx).await?;
-    if result.rows_affected() == 1 {
-        sqlx::query(
-            "UPDATE pair_reserves SET fee_bps = $2 WHERE pair_id = $1 AND block_height = $3",
-        )
-        .bind(pair.id)
-        .bind(fee)
-        .bind(height)
-        .execute(&mut *tx)
-        .await?;
+    if apply_compatible_fee(&mut tx, pair.id, height, fee).await? == 0 {
+        return Err("compatible fee observation changed before application".into());
     }
     tx.commit().await?;
     Ok(fee)
@@ -516,6 +713,16 @@ async fn query_snapshot<T: DeserializeOwned>(
     query: &serde_json::Value,
     height: Option<i64>,
 ) -> Result<T, LcdError> {
+    query_snapshot_observed(lcd, pair_address, query, height, None).await
+}
+
+async fn query_snapshot_observed<T: DeserializeOwned>(
+    lcd: &LcdClient,
+    pair_address: &str,
+    query: &serde_json::Value,
+    height: Option<i64>,
+    callback: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
+) -> Result<T, LcdError> {
     // Also bound direct test/operator callers lacking a surrounding scheduled job.
     // The production job's four-second deadline still bounds all phases together.
     let deadline = Instant::now() + Duration::from_secs(4);
@@ -527,13 +734,24 @@ async fn query_snapshot<T: DeserializeOwned>(
         let request = async {
             match height {
                 Some(height) => {
-                    lcd.query_contract_at_height_bounded(
-                        pair_address,
-                        query,
-                        height,
-                        BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
-                    )
-                    .await
+                    if let Some(callback) = &callback {
+                        lcd.query_contract_at_height_bounded_observed(
+                            pair_address,
+                            query,
+                            height,
+                            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
+                            callback.clone(),
+                        )
+                        .await
+                    } else {
+                        lcd.query_contract_at_height_bounded(
+                            pair_address,
+                            query,
+                            height,
+                            BOOK_SNAPSHOT_RESPONSE_MAX_BYTES,
+                        )
+                        .await
+                    }
                 }
                 None => {
                     lcd.query_contract_bounded(
@@ -547,7 +765,7 @@ async fn query_snapshot<T: DeserializeOwned>(
         };
         let result = tokio::time::timeout(remaining, request)
             .await
-            .map_err(|_| LcdError::AllEndpointsFailed("snapshot query deadline exceeded".into()))?;
+            .map_err(|_| LcdError::PairResponseMalformed("incomplete snapshot query".into()))?;
         match result {
             Err(LcdError::AdmissionDeferred) => {
                 tokio::time::sleep(
@@ -704,6 +922,124 @@ async fn walk_resting_book_side(
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn recovery1464_head_capacity_deadline_and_cancel_leave_zero_attempt_penalties() {
+        use wiremock::matchers::path;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path("/held"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_secs(1)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            2_500,
+            1_000,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                concurrency: 1,
+                attempt_timeout_ms: 2_500,
+                deadline_ms: 8_000,
+                ..Default::default()
+            },
+        );
+        let held_lcd = lcd.clone();
+        let held = tokio::spawn(async move { held_lcd.get::<serde_json::Value>("/held").await });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                if server
+                    .received_requests()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .any(|r| r.url.path() == "/held")
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let mut waits = 0;
+        assert!(tokio::time::timeout(
+            Duration::from_millis(120),
+            observe_head(&lcd, 0, &mut waits)
+        )
+        .await
+        .is_err());
+        assert!(waits >= 2);
+        let waiting = lcd.clone();
+        let cancelled = tokio::spawn(async move { observe_head(&waiting, 0, &mut 0).await });
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        cancelled.abort();
+        assert!(cancelled.await.unwrap_err().is_cancelled());
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            (
+                counters[0].attempts,
+                counters[0].failures,
+                counters[0].caller_cancellations,
+                counters[0].in_flight
+            ),
+            (1, 0, 0, 1)
+        );
+        assert_eq!(
+            server
+                .received_requests()
+                .await
+                .unwrap()
+                .iter()
+                .filter(|r| r.url.path().ends_with("/blocks/latest"))
+                .count(),
+            0
+        );
+        held.await.unwrap().unwrap();
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 0);
+    }
+    #[tokio::test]
+    async fn recovery1464_head_real_availability_and_identity_failures_never_add_retries() {
+        use wiremock::matchers::path;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        for status in [200, 503] {
+            let server = MockServer::start().await;
+            Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+                .respond_with(
+                    ResponseTemplate::new(status)
+                        .set_body_json(json!({"default_node_info":{"network":"wrong-chain"}})),
+                )
+                .mount(&server)
+                .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![server.uri()],
+                500,
+                1_000,
+                "columbus-5",
+                crate::lcd::ProviderPolicy::default(),
+            );
+            let mut waits = 0;
+            let error = tokio::time::timeout(
+                Duration::from_millis(500),
+                observe_head(&lcd, 0, &mut waits),
+            )
+            .await
+            .unwrap()
+            .unwrap_err();
+            assert!(if status == 200 {
+                matches!(error, LcdError::ChainIdentity(_))
+            } else {
+                matches!(error, LcdError::AllEndpointsFailed(_))
+            });
+            assert_eq!(waits, 0);
+            assert_eq!(lcd.provider_counters().await[0].attempts, 1);
+            assert_eq!(server.received_requests().await.unwrap().len(), 1);
+        }
+    }
     #[test]
     fn reserve_amounts_accept_real_zero_and_reject_malformed_empty_signals() {
         for raw in ["0", "1", "340282366920938463463374607431768211455"] {

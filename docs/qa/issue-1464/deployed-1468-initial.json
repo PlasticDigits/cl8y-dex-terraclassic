@@ -1,0 +1,472 @@
+{
+  "issue": 1464,
+  "revision": "8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c",
+  "utc_start": "2026-10-10T15:59:55.455875+00:00",
+  "latency_budget_ms": 500,
+  "utc_end": "2026-10-10T16:00:22.600549+00:00",
+  "overall": "FAIL",
+  "useful_count": 23,
+  "request_count": 24,
+  "useful_latency": {
+    "samples": 23,
+    "p50_ms": 846.859,
+    "p95_ms": 901.311,
+    "p99_ms": 995.95,
+    "max_ms": 995.95
+  },
+  "useful_latency_by_transport": {
+    "new": {
+      "samples": 12,
+      "p50_ms": 861.58,
+      "p95_ms": 995.95,
+      "p99_ms": 995.95,
+      "max_ms": 995.95
+    },
+    "reused": {
+      "samples": 11,
+      "p50_ms": 286.507,
+      "p95_ms": 417.456,
+      "p99_ms": 417.456,
+      "max_ms": 417.456
+    }
+  },
+  "samples": [
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647981550,
+        "expires_at_ms": 1791648001550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 995.95,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647981550,
+        "expires_at_ms": 1791648001550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 846.859,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647981550,
+        "expires_at_ms": 1791648001550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 847.558,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647981550,
+        "expires_at_ms": 1791648001550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 892.255,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 884.297,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 901.311,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 856.608,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 861.133,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 861.58,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 894.507,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791647991549,
+        "expires_at_ms": 1791648011549,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 883.182,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "new",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 850.267,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "reused",
+      "transport": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 852.49,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 417.456,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 286.507,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 296.553,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 295.658,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 296.192,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 286.385,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 286.055,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648001550,
+        "expires_at_ms": 1791648021550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 285.232,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "spread": "0.05",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648011550,
+        "expires_at_ms": 1791648031550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 285.441,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.01",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648011550,
+        "expires_at_ms": 1791648031550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 284.674,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.30",
+      "connection_group": "reused",
+      "transport": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "observation": {
+        "observed_at_ms": 1791648011550,
+        "expires_at_ms": 1791648031550,
+        "generation_shape_valid": true
+      },
+      "elapsed_ms": 286.952,
+      "within_latency_budget": true
+    }
+  ],
+  "unverified": [
+    "deployed revision requires independent health receipt",
+    "cold initialization versus initialized cache hit/miss",
+    "regional RTT",
+    "desktop/phone browser",
+    "request upstream counters",
+    "settlement parity",
+    "bounded deployed outage trial"
+  ],
+  "scope": "public socket reads only; no signing, deployment, actor contexts, raw bodies or endpoint URLs retained"
+}

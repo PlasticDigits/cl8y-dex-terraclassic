@@ -1,0 +1,36 @@
+{
+  "source_base_revision": "8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c",
+  "rust_source_fingerprint": "d5462e9af22963c6a434521a1fdb87744d949560673889da263939d80240d12d",
+  "scope": "Targeted cold/unqualified fee guard and both scheduled quote publishers before the synthetic fixture namespace correction; no deployed acceptance inferred.",
+  "first_and_retest": [
+    {
+      "group": "fee-phase controls",
+      "passed": 11,
+      "failed": 0,
+      "runs": 2
+    },
+    {
+      "group": "scheduled-worker controls",
+      "passed": 7,
+      "failed": 0,
+      "runs": 2
+    }
+  ],
+  "earlier_controls": [
+    {
+      "group": "LCD constrained head and safety observer",
+      "passed": 93,
+      "failed": 0,
+      "ignored": 1,
+      "runs": 2
+    },
+    {
+      "group": "book/pool workers before final cold guard extension",
+      "passed": 22,
+      "failed": 0,
+      "runs": 2
+    }
+  ],
+  "status": "PASS",
+  "unchanged_targeted_rust_source": true
+}

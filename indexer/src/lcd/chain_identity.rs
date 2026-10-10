@@ -217,7 +217,7 @@ impl LcdClient {
             let timeout = remaining.min(attempt_timeout);
             let outcome = tokio::time::timeout(
                 timeout,
-                self.attest_endpoint(idx, &ep.url, &mut permit, &integrity_error),
+                self.attest_endpoint(idx, &ep.url, &mut permit, &integrity_error, None),
             )
             .await;
             if outcome.is_err() && timeout < attempt_timeout && permit.closed_cancel_is_neutral() {
@@ -281,6 +281,7 @@ impl LcdClient {
         url: &str,
         permit: &mut super::provider_pool::ProviderPermit,
         integrity_error: &std::sync::Mutex<Option<LcdError>>,
+        safety_observer: Option<&(dyn Fn() + Send + Sync)>,
     ) -> Result<(), LcdError> {
         let mut observed = None;
         let mut retry_after = None;
@@ -338,7 +339,7 @@ impl LcdClient {
             // Known negatives must survive cancellation while metadata cleanup
             // waits. The shared typed slot also prevents deadline downgrades.
             permit.quarantine_if_cancelled();
-            super::record_integrity_evidence(integrity_error, error);
+            super::record_integrity_evidence(integrity_error, error, safety_observer);
         }
         let mut eps = self.inner.endpoints.write().await;
         let ep = &mut eps[idx];
