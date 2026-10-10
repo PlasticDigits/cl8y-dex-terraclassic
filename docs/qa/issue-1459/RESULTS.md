@@ -1,5 +1,9 @@
 # Issue #1459 source results
 
+Implementation: [DEX PR #1463](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1463)
+and [companion ustr-cmm PR #62](https://git.cl8y.com/code/ustr-cmm/pulls/62).
+
+
 **PASS WITH SKIPS for local implementation verification.** All executed final
 checks pass. The local-quote verifier passed **14 groups, 0 failures, 0 skips**
 on unchanged sources, including its complete test/retest. The six applicable
@@ -7,6 +11,9 @@ verifiers total **87 passing groups, 0 failed groups, 5 explicit skips**.
 [Machine receipt](verification.json), [review checklist](README.md),
 [QC1459 invariants](../../../skills/AGENTS_LOCAL_QUOTE_COVERAGE.md), and
 [companion protocol PR #62](https://git.cl8y.com/code/ustr-cmm/pulls/62).
+
+Verified code revision: `d3d5c5505929ed1809212bb0a4c3d3baa3519549`; the
+subsequent receipt/crosslink commit changes documentation only.
 
 Source worktree: `fix/issue-1459-quote-semantics`, based on
 `736be444100ba84887a6619336c83d2848258884` plus the reviewed change.

@@ -1,5 +1,9 @@
 # Local quote coverage (#1459)
 
+Implementation: [DEX PR #1463](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1463)
+and [companion ustr-cmm PR #62](https://git.cl8y.com/code/ustr-cmm/pulls/62).
+
+
 Apply when changing direct native wrapper signing, scheduled tax-wallet admission
 or composed exact-output sizing. Issue: [#1459](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1459).
 Baseline: [#1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).

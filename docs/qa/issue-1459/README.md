@@ -1,5 +1,9 @@
 # Issue #1459 implementation and agent verification
 
+Implementation: [DEX PR #1463](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1463)
+and [companion ustr-cmm PR #62](https://git.cl8y.com/code/ustr-cmm/pulls/62).
+
+
 Issue and comments: [#1459](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1459).
 Baseline implementation: [#1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458).
 Invariants: [QC1459-1–QC1459-10](../../../skills/AGENTS_LOCAL_QUOTE_COVERAGE.md),
