@@ -1,0 +1,35 @@
+{
+  "scope": "Exact single production-origin firewall attachment; existing rules preserved. No other infrastructure changes.",
+  "apply": {
+    "mode": "apply",
+    "status": "actions_success_rules_verified",
+    "old_rule_count": 7,
+    "desired_rule_count": 8,
+    "action_count": 2,
+    "origin_and_direct_firewall_unique": true,
+    "direct_attachment_count": 1,
+    "label_selector_attachment_count": 0,
+    "additional_server_attachment_count": 0,
+    "existing_rules_preserved": true,
+    "only_udp443_delta": true,
+    "https_source_set_equal": true,
+    "backup_private_0600": true
+  },
+  "guard_tests": {
+    "first_pass": 14,
+    "retest_pass": 14,
+    "fail": 0
+  },
+  "verification": "Two actual forced h3 healthy responses; normal browser subsequently negotiated h3. Useful quote availability/latency is not established by health.",
+  "normal_reused_h2": {
+    "ttfb_ms": 289.682,
+    "total_ms": 292.552
+  },
+  "normal_reused_h3": {
+    "ttfb_ms": 279.785,
+    "total_ms": 282.2
+  },
+  "latency_acceptance": "FAIL on observed health path; no useful-quote pass inferred",
+  "rollback": "Private0600 backup contains exact original rule payload; rollback refuses changed rules/attachments and is not repeated automatically on API uncertainty.",
+  "network_path": "unverified; operational location metadata omitted"
+}

@@ -1,0 +1,61 @@
+{
+  "utc_start": "2026-10-10T12:39:23.152Z",
+  "scope": "Health only; normal browser wire timing, no quote/signing/infrastructure/headers mutation",
+  "health_request_budget": 2,
+  "quic_forced_client_only": true,
+  "samples": [
+    {
+      "sequence": 1,
+      "status": 200,
+      "protocol": "h3",
+      "reused": false,
+      "from_disk_cache": false,
+      "from_service_worker": false,
+      "alt_svc": null,
+      "request_ttfb_ms": 284.33799999999997,
+      "connect_phase_ms": 306.471,
+      "tls_phase_ms": 306.471,
+      "body_observed": true,
+      "json_object_valid": true,
+      "health_status_ok": true,
+      "git_sha_shape_valid": true,
+      "git_sha": "325ad4ec0938bdab68cedc3143d0aa0ef930cdf1",
+      "body_bytes": 1301,
+      "total_ms": 598.2870000007097,
+      "error_class": null,
+      "wire_error": null,
+      "cdp_response_event_to_body_event_delta_ms": -0.9260000006179325
+    },
+    {
+      "sequence": 2,
+      "status": 200,
+      "protocol": "h3",
+      "reused": false,
+      "from_disk_cache": false,
+      "from_service_worker": false,
+      "alt_svc": null,
+      "request_ttfb_ms": 279.62300000000005,
+      "connect_phase_ms": 293.665,
+      "tls_phase_ms": 293.665,
+      "body_observed": true,
+      "json_object_valid": true,
+      "health_status_ok": true,
+      "git_sha_shape_valid": true,
+      "git_sha": "325ad4ec0938bdab68cedc3143d0aa0ef930cdf1",
+      "body_bytes": 1301,
+      "total_ms": 575.1520000012533,
+      "error_class": null,
+      "wire_error": null,
+      "cdp_response_event_to_body_event_delta_ms": -0.27299999783281237
+    }
+  ],
+  "browser_version": "151.0.7922.137",
+  "utc_end": "2026-10-10T12:39:25.883Z",
+  "limitations": [
+    "Health timings do not establish useful quote availability or latency",
+    "Client QUIC forcing is diagnostic; normal browser selection reported separately",
+    "Header/body timestamps from CDP; no screenshots/rawbodies/actors retained",
+    "CDP responseReceived and loadingFinished eventtimestamps can be dispatchedoutoforder for smallbodies; their signed eventdelta is not physical header-to-body latency. Curl prior bodytail remainsseparate evidence."
+  ],
+  "network_path": "unverified; operational location metadata omitted"
+}

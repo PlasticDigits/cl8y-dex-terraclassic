@@ -132,12 +132,14 @@ pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_inter
                 continue;
             }
             let mut limits = SnapshotLimits::default();
-            // Leave headroom for pool reads under the default shared HTTP budget.
-            // Provider settings still independently bound admission; this is not
-            // a guaranteed reservation when operators configure a smaller budget.
-            if matches!(mode, SnapshotMode::Book) {
-                limits.concurrency = 4;
-            }
+            // Keep both production lanes below a single healthy provider's
+            // default eight slots, leaving admission/checkpoint headroom. Every
+            // caller still obeys the same configured shared provider limits.
+            limits.concurrency = if matches!(mode, SnapshotMode::Pool) {
+                4
+            } else {
+                2
+            };
             let cycle = snapshot_cycle(
                 &lane_pool,
                 &lane_lcd,

@@ -159,17 +159,44 @@ impl LcdClient {
     }
 
     async fn probe_identities(&self, stop_on_success: bool) -> Result<(), LcdError> {
-        use std::time::{Duration, Instant};
+        use std::time::Duration;
+        let deadline = tokio::time::Instant::now()
+            + Duration::from_millis(self.inner.provider_policy.deadline_ms);
+        loop {
+            let (result, attempts) = self.probe_identity_scan(stop_on_success, deadline).await;
+            if self.ingestion_budget.is_some()
+                && attempts == 0
+                && matches!(&result, Err(LcdError::AdmissionDeferred))
+                && tokio::time::Instant::now() < deadline
+            {
+                tokio::time::sleep(
+                    Duration::from_millis(50)
+                        .min(deadline.saturating_duration_since(tokio::time::Instant::now())),
+                )
+                .await;
+                if tokio::time::Instant::now() >= deadline {
+                    return result;
+                }
+                continue;
+            }
+            return result;
+        }
+    }
+
+    async fn probe_identity_scan(
+        &self,
+        stop_on_success: bool,
+        deadline: tokio::time::Instant,
+    ) -> (Result<(), LcdError>, usize) {
+        use std::time::Duration;
         let count = self.inner.endpoints.read().await.len();
-        let deadline =
-            Instant::now() + Duration::from_millis(self.inner.provider_policy.deadline_ms);
         let mut verified = false;
         let mut errors = Vec::new();
         let mut integrity_error = None;
         let mut attempts = 0;
         let mut capacity_deferred = false;
         for idx in 0..count {
-            let remaining = deadline.saturating_duration_since(Instant::now());
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
                 break;
             }
@@ -192,7 +219,7 @@ impl LcdClient {
                     permit.succeeded();
                     verified = true;
                     if stop_on_success {
-                        return Ok(());
+                        return (Ok(()), attempts);
                     }
                 }
                 Ok(Err(
@@ -213,7 +240,7 @@ impl LcdClient {
                 break;
             }
         }
-        if verified {
+        let result = if verified {
             Ok(())
         } else if let Some(error) = integrity_error {
             Err(error)
@@ -225,7 +252,8 @@ impl LcdClient {
             } else {
                 errors.join("; ")
             }))
-        }
+        };
+        (result, attempts)
     }
 
     pub(super) async fn attest_endpoint(&self, idx: usize, url: &str) -> Result<(), LcdError> {

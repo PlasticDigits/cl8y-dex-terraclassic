@@ -1,5 +1,4 @@
 {
-  "vantage": "Korea (operator/workspace location)",
   "utc_start": "2026-10-10T09:59:12.330Z",
   "utc_end": "2026-10-10T09:59:16.060Z",
   "scope": "Production browser origin document transport only; JavaScript disabled to avoid app/API polling; no UI/quote usefulness claim",
@@ -43,5 +42,6 @@
       "next_hop_protocol": "h2",
       "transfer_bytes": 1460
     }
-  ]
+  ],
+  "network_path": "unverified; operational location metadata omitted"
 }

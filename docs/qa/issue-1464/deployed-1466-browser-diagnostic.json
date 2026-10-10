@@ -1,0 +1,264 @@
+{
+  "revision": "325ad4ec0938bdab68cedc3143d0aa0ef930cdf1",
+  "utc_start": "2026-10-10T11:29:34.417Z",
+  "source": "actual production https://dex.cl8y.com; read-only disconnected Chromium profiles",
+  "samples": [
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 7731,
+      "numeric_dom": {
+        "pay_human": "1",
+        "receive_human": null,
+        "receive_raw_floor": null,
+        "receive_decimals": 18,
+        "receive_busy": false
+      },
+      "visible_indicators": {
+        "swap-slippage-blocked": false,
+        "swap-quote-only": false,
+        "swap-quote-unavailable": true,
+        "swap-quote-retry-error": false
+      },
+      "quote_diagnostics": [
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_body": null,
+          "error_class": "SyntaxError"
+        },
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_body": null,
+          "error_class": "SyntaxError"
+        }
+      ],
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "json_useful_count": 0,
+      "latest_json_economics": null,
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3766,
+      "numeric_dom": {
+        "pay_human": "100",
+        "receive_human": "0.904966",
+        "receive_raw_floor": "904966",
+        "receive_decimals": 6,
+        "receive_busy": false
+      },
+      "visible_indicators": {
+        "swap-slippage-blocked": false,
+        "swap-quote-only": true,
+        "swap-quote-unavailable": false,
+        "swap-quote-retry-error": false
+      },
+      "quote_diagnostics": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_body": {
+            "net_output_raw": "904966",
+            "input_amount_raw": "100000000",
+            "minimum_receive_raw": "633476",
+            "observed_at_ms": 1791631787077,
+            "expires_at_ms": 1791631807077,
+            "slippage_percent": "3.6758",
+            "hop_floors": [
+              "5443888971763080",
+              "633476"
+            ]
+          },
+          "error_class": null
+        },
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_body": {
+            "net_output_raw": "904966",
+            "input_amount_raw": "100000000",
+            "minimum_receive_raw": "633476",
+            "observed_at_ms": 1791631796988,
+            "expires_at_ms": 1791631816988,
+            "slippage_percent": "3.6262",
+            "hop_floors": [
+              "5443888971763080",
+              "633476"
+            ]
+          },
+          "error_class": null
+        }
+      ],
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        200,
+        200
+      ],
+      "json_useful_count": 2,
+      "latest_json_economics": {
+        "net_output_raw": "904966",
+        "fair_reference_output_raw": "939017",
+        "slippage_percent": "3.6262",
+        "fair_reference_slippage_recomputed_percent": 3.626238,
+        "hop_market_spread_raw": [
+          "382918638918",
+          "3"
+        ],
+        "minimum_receive_raw": "633476",
+        "hop_floors": [
+          "5443888971763080",
+          "633476"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791631796988,
+        "original_observation_age_ms": 14643,
+        "expires_at_ms": 1791631816988,
+        "remaining_validity_ms": 5357,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET",
+      "diagnostic_correction": {
+        "probe_rejected_normal_disconnected_quote_label": true,
+        "quote_only_label_expected_for_disconnected_profile": true,
+        "numeric_dom_matches_executable_net": true,
+        "validated_json_available": true,
+        "useful_dom_latency_captured": false
+      },
+      "corrected_availability_and_economics": "PASS exactnumericDOM plus executableJSON; latency UNMEASURED"
+    }
+  ],
+  "screenshots": false,
+  "signing": false,
+  "broadcast": false,
+  "browser_version": "151.0.7922.137",
+  "prohibited_write_attempts": 0,
+  "utc_end": "2026-10-10T11:30:14.903Z",
+  "useful_latency": {
+    "samples": 0,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "max_ms": null
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "phone": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "latency_by_connection": {
+    "new": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "overall": "FAIL",
+  "limitations": [
+    "Fresh disconnected contexts, no wallets/signing/broadcast; phone viewport on desktop Chromium, not cellular or physical device",
+    "Natural Chromium connection reuse observed through CDP; new-connection category may be empty because catalog reads initialize sockets",
+    "No screenshots, raw response bodies, actor identifiers/digests, generation digests or private endpoint URLs retained",
+    "Hop market spreads retain distinct output raw units; net fair-reference slippage includes costs and is not market spread",
+    "No production outage/disruption trial performed",
+    "Probe falsely rejected normal disconnected Quoteonlylabel; source acquireGuidanceShowsQuoteOnly returns disconnected_quote AND settled quote. Native diagnostic JSON+numericDOM actuallymatch. Input-to-DOM latency was not captured and cannotbe reconstructed. ALPHA503 remainsFAIL."
+  ]
+}

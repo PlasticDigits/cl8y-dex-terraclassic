@@ -1,5 +1,6 @@
 //! Scheduled observations and integer gross funding for supported community tokens.
 //! Unknown actor identity and unobservable stateful cooldowns never become tax-free quotes.
+use super::pair_admission::AdmissionFailure;
 use super::*;
 use crate::api::community_tax_rank::{sell_economic, tax_amount, CataloguedTaxToken};
 use std::collections::BTreeMap;
@@ -210,6 +211,7 @@ pub(super) async fn observe_actor(
     state: &AppState,
     token: &str,
     actor: &str,
+    mut observed_flags: impl FnMut(bool, bool),
 ) -> Option<ActorObservation> {
     let observed_at_ms = now_ms();
     let flags = query(
@@ -231,6 +233,9 @@ pub(super) async fn observe_actor(
         )?;
     }
     let manager = flags["manager"].as_bool()?;
+    // A completed exemption revocation cannot wait for optional balances.
+    // The caller may revoke prior approvals, but never publishes new positives here.
+    observed_flags(protocol, manager);
     let balance = query(state, token, json!({"balance":{"address":actor}}))
         .await
         .and_then(|v| v["balance"].as_str()?.parse().ok());
@@ -260,60 +265,172 @@ fn supported_guards(config: &Value, features: &Value) -> Option<Option<u128>> {
     }
     Some(None)
 }
+/// Recover only the supported configured sink identities, never caller labels.
+pub(super) fn configured_sinks(observation: &TokenObservation) -> Option<HashSet<String>> {
+    use serde::Deserialize;
+    let mut decoder = serde_json::Deserializer::from_str(&observation.policy_identity);
+    let config = Value::deserialize(&mut decoder).ok()?;
+    let features: Value = serde_json::from_str(
+        observation
+            .policy_identity
+            .strip_prefix(&format!("{config}|"))?,
+    )
+    .ok()?;
+    let configured = config["sinks"].as_array()?;
+    let mut sinks = HashSet::new();
+    if features["split_router"].as_bool()? && !configured.is_empty() {
+        for sink in configured {
+            match sink["kind"].as_str()? {
+                "treasury" => {
+                    sinks.insert(config["treasury"].as_str()?.to_owned());
+                }
+                "wallet" => {
+                    sinks.insert(sink["addr"].as_str()?.to_owned());
+                }
+                "burn" => {}
+                _ => return None,
+            }
+        }
+    } else {
+        sinks.insert(config["treasury"].as_str()?.to_owned());
+    }
+    Some(sinks)
+}
 /// Invoked only by independently scheduled ingestion. Discovery already attests immutable code
 /// and v1 router identity; this adds supported config, pair registration and actor observations.
+fn classify_required_error(error: crate::lcd::LcdError) -> AdmissionFailure {
+    if crate::indexer::block_indexer::is_retryable_availability(&error) {
+        AdmissionFailure::Missing
+    } else {
+        AdmissionFailure::Unsupported
+    }
+}
+async fn required_query(
+    state: &AppState,
+    address: &str,
+    value: Value,
+) -> Result<Value, AdmissionFailure> {
+    state
+        .lcd
+        .query_contract_bounded(address, &value, 32_768)
+        .await
+        .map_err(classify_required_error)
+}
+/// Positive wallet enrichment is published only after static identity revalidation.
+/// Successful changed/unsafe evidence returns immediately, before another await.
+pub(super) async fn validate_static(
+    state: &AppState,
+    token: &str,
+    expected: &TokenObservation,
+) -> Result<(), AdmissionFailure> {
+    let config = required_query(state, token, json!({"get_config":{}})).await?;
+    if !expected.policy_identity.starts_with(&format!("{config}|")) {
+        return Err(AdmissionFailure::Unsupported);
+    }
+    let features = required_query(state, token, json!({"get_features":{}})).await?;
+    if format!("{config}|{features}") != expected.policy_identity {
+        return Err(AdmissionFailure::Unsupported);
+    }
+    let code = state
+        .lcd
+        .get_contract_code_id(token)
+        .await
+        .map_err(classify_required_error)?;
+    if code != expected.code_id {
+        return Err(AdmissionFailure::Unsupported);
+    }
+    Ok(())
+}
 pub(super) async fn observe(
     state: &AppState,
     token: &CataloguedTaxToken,
     pair_addresses: &[String],
-    actors: &[(String, i64)],
-) -> Option<TokenObservation> {
+    previous: Option<&TokenObservation>,
+) -> Result<TokenObservation, AdmissionFailure> {
     if token.route_funding_version != Some(1) || token.buy_bps > 10_000 || token.sell_bps > 10_000 {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
     let started = now_ms();
-    let router = state.router_address.as_deref()?;
-    let router_config = query(state, router, json!({"config":{}})).await?;
+    let router = state
+        .router_address
+        .as_deref()
+        .ok_or(AdmissionFailure::Unsupported)?;
+    let router_config = required_query(state, router, json!({"config":{}})).await?;
     if router_config["funding_version"].as_u64() != Some(1)
         || router_config["factory"].as_str() != state.factory_address.as_deref()
     {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
-    let config = query(state, &token.contract_address, json!({"get_config":{}})).await?;
-    let features = query(state, &token.contract_address, json!({"get_features":{}})).await?;
+    let config = required_query(state, &token.contract_address, json!({"get_config":{}})).await?;
+    let config_changed = previous
+        .is_some_and(|previous| !previous.policy_identity.starts_with(&format!("{config}|")));
+    tracing::debug!(
+        phase = "tax_prior",
+        qualified = previous.is_some(),
+        config_changed,
+        "Local quote admission stage"
+    );
+    if config_changed {
+        return Err(AdmissionFailure::Unsupported);
+    }
+    let features =
+        required_query(state, &token.contract_address, json!({"get_features":{}})).await?;
+    if previous.is_some_and(|previous| previous.policy_identity != format!("{config}|{features}")) {
+        return Err(AdmissionFailure::Unsupported);
+    }
     if config["router"].as_str() != Some(router)
         || config["factory"].as_str() != state.factory_address.as_deref()
         || config["buy_bps"].as_u64() != Some(token.buy_bps.into())
         || config["sell_bps"].as_u64() != Some(token.sell_bps.into())
     {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
-    let max_wallet = supported_guards(&config, &features)?;
+    let max_wallet = supported_guards(&config, &features).ok_or(AdmissionFailure::Unsupported)?;
     // Reject tax sinks that could add unrelated router/pair balances. Conservatively
     // disallow protocol sinks; AutoLP execution is outside supported observations.
-    let configured_sinks = config["sinks"].as_array()?;
+    let configured_sinks = config["sinks"]
+        .as_array()
+        .ok_or(AdmissionFailure::Unsupported)?;
     if configured_sinks.len() > 4 {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
     let mut sinks = Vec::new();
-    if features["split_router"].as_bool()? && !configured_sinks.is_empty() {
+    if features["split_router"]
+        .as_bool()
+        .ok_or(AdmissionFailure::Unsupported)?
+        && !configured_sinks.is_empty()
+    {
         for sink in configured_sinks {
-            if sink["bps"].as_u64()? > 10_000 {
-                return None;
+            if sink["bps"].as_u64().ok_or(AdmissionFailure::Unsupported)? > 10_000 {
+                return Err(AdmissionFailure::Unsupported);
             }
-            match sink["kind"].as_str()? {
-                "treasury" => sinks.push(config["treasury"].as_str()?.to_owned()),
-                "wallet" => sinks.push(sink["addr"].as_str()?.to_owned()),
+            match sink["kind"].as_str().ok_or(AdmissionFailure::Unsupported)? {
+                "treasury" => sinks.push(
+                    config["treasury"]
+                        .as_str()
+                        .ok_or(AdmissionFailure::Unsupported)?
+                        .to_owned(),
+                ),
+                "wallet" => sinks.push(
+                    sink["addr"]
+                        .as_str()
+                        .ok_or(AdmissionFailure::Unsupported)?
+                        .to_owned(),
+                ),
                 "burn" => {}
                 // Sister threshold/settlement requires a richer local observation.
-                "auto_lp" => return None,
-                _ => return None,
+                "auto_lp" => return Err(AdmissionFailure::Unsupported),
+                _ => return Err(AdmissionFailure::Unsupported),
             }
         }
     } else {
-        sinks.push(config["treasury"].as_str()?.to_owned());
+        sinks.push(
+            config["treasury"]
+                .as_str()
+                .ok_or(AdmissionFailure::Unsupported)?
+                .to_owned(),
+        );
     }
-    let sink_addresses = sinks.iter().cloned().collect::<HashSet<_>>();
     for address in sinks {
         // A configured tax recipient cannot be the routed trader. Preserve that
         // negative before any dependent sink/actor/config/code await can fail.
@@ -322,81 +439,89 @@ pub(super) async fn observe(
             &token.contract_address,
             &address,
             started,
-        )?;
+        )
+        .ok_or(AdmissionFailure::Unsupported)?;
         if address == router || pair_addresses.contains(&address) {
-            return None;
+            return Err(AdmissionFailure::Unsupported);
         }
-        let flags = query(
+        let flags = required_query(
             state,
             &token.contract_address,
             json!({"is_protocol_exempt":{"address":address}}),
         )
         .await?;
-        if flags["address"].as_str() != Some(&address) || flags["protocol"].as_bool()? {
-            return None;
+        if flags["address"].as_str() != Some(&address)
+            || flags["protocol"]
+                .as_bool()
+                .ok_or(AdmissionFailure::Unsupported)?
+        {
+            return Err(AdmissionFailure::Unsupported);
         }
     }
     let mut pairs = HashSet::new();
+    let mut pending_failure = AdmissionFailure::Unsupported;
     for pair in pair_addresses.iter().take(MAX_PAIRS) {
-        if let Some(preview) = query(
+        match required_query(
             state,
             &token.contract_address,
             json!({"route_tax_preview":{"kind":"sell","amount":"0","trader":null,"pair":pair}}),
         )
         .await
         {
-            if preview["funding_version"].as_u64() == Some(1)
-                && preview["gross"] == "0"
-                && preview["economic"] == "0"
-                && preview["net"] == "0"
-                && preview["tax"] == "0"
+            Ok(preview)
+                if preview["funding_version"].as_u64() == Some(1)
+                    && preview["gross"] == "0"
+                    && preview["economic"] == "0"
+                    && preview["net"] == "0"
+                    && preview["tax"] == "0" =>
             {
                 pairs.insert(pair.clone());
+            }
+            Ok(_) | Err(AdmissionFailure::Unsupported | AdmissionFailure::Protected) => {
+                // A completed negative for a qualified pair revokes its old
+                // approval before any later alternative can lose its provider.
+                // Unknown alternatives may remain unsupported independently.
+                if previous.is_some_and(|old| old.pairs.contains(pair)) {
+                    return Err(AdmissionFailure::Unsupported);
+                }
+            }
+            Err(AdmissionFailure::Missing) => {
+                pending_failure = AdmissionFailure::Missing;
             }
         }
     }
     if pairs.is_empty() {
-        return None;
-    }
-    let mut observed_actors = BTreeMap::new();
-    for (actor, factory_observed_at) in actors.iter().take(ingestion::MAX_TAX_ACTORS_PER_PASS) {
-        if let Some(mut observation) = observe_actor(state, &token.contract_address, actor).await {
-            // Blacklist identity predates token flags/balance; later dependent reads
-            // cannot renew that earlier guard through a provider blackout.
-            observation.observed_at_ms = observation.observed_at_ms.min(*factory_observed_at);
-            if sink_addresses.contains(actor) {
-                observation.protocol = true;
-            }
-            observed_actors.insert(actor.clone(), observation);
-        }
+        return Err(pending_failure);
     }
     // Recheck capability/code after the dependent reads to reject migrations/rotation.
-    if query(state, &token.contract_address, json!({"get_config":{}})).await? != config
-        || query(state, &token.contract_address, json!({"get_features":{}})).await? != features
+    if required_query(state, &token.contract_address, json!({"get_config":{}})).await? != config
+        || required_query(state, &token.contract_address, json!({"get_features":{}})).await?
+            != features
     {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
-    let cap = query(
+    let cap = required_query(
         state,
         &token.contract_address,
         json!({"route_tax_capability":{}}),
     )
     .await?;
-    let code_id = u64::try_from(token.code_id?).ok()?;
+    let code_id = u64::try_from(token.code_id.ok_or(AdmissionFailure::Unsupported)?)
+        .map_err(|_| AdmissionFailure::Unsupported)?;
     if state
         .lcd
         .get_contract_code_id(&token.contract_address)
         .await
-        .ok()?
+        .map_err(classify_required_error)?
         != code_id
         || cap["funding_version"].as_u64() != Some(1)
         || cap["router"].as_str() != Some(router)
         || cap["buy_bps"].as_u64() != Some(token.buy_bps.into())
         || cap["sell_bps"].as_u64() != Some(token.sell_bps.into())
     {
-        return None;
+        return Err(AdmissionFailure::Unsupported);
     }
-    Some(TokenObservation {
+    Ok(TokenObservation {
         policy_identity: format!("{config}|{features}"),
         code_id,
         buy_bps: token.buy_bps,
@@ -404,7 +529,7 @@ pub(super) async fn observe(
         observed_at_ms: started,
         max_wallet,
         pairs,
-        actors: observed_actors,
+        actors: BTreeMap::new(),
     })
 }
 #[cfg(test)]

@@ -179,7 +179,7 @@ the full supported schema. Configured ordinary IDs include 6036/8266/10184; rout
 tax code 11713 is configured. CL8Y/USTR were observed at code 10184 and ALPHA at
 11713 with funding version 1, buy 450 bps and sell 100 bps. These observations do
 not imply an outstanding ALPHA migration, nor prove sustained failover or eligible
-quotes. Direct new-connection provider timing from Korea is separate from production
+quotes. New-client provider timing with network path unverified is separate from production
 ingestion deadlines and initialized useful quote performance.
 
 ## Merged and deployed #1465
@@ -236,14 +236,11 @@ measured reused HTTP/1.1 health TTFB 279.175–280.476 ms and HTTP/2
 measured approximately 283–284 ms request TTFB with JavaScript disabled. Those
 document reads do not certify quote performance.
 
-Observed TCP connection phases were about 134 ms, so the excess cannot be
-attributed solely to physical RTT. The existing path already exceeds the issue's
-250 ms target before useful output or UI work; backend microbenchmarks cannot
-waive it. HTTP/3 was advertised but not successfully measured. Read-only inventory
-found three Hcloud servers in Nuremberg and no existing Asian capacity; one other
-Coolify server's region remains unknown. The scoped Hcloud token exposed zero
-DNS zones, so no DNS authority for a regional cutover is established. No server,
-billing or DNS changes were made by these probes.
+Observed TCP connection phases were about134ms. These timings cannot establish
+a physical RTT or geographic minimum; the network path is unverified. Measured
+response timing exceeds250ms, and backend microbenchmarks cannot waive it.
+The original HTTP/3 reachability omission is resolved by the later guarded repair.
+No DNS authority for serving-placement changes is established by the scoped API.
 
 ## Follow-up live admission source verification
 
@@ -276,9 +273,112 @@ with bounded build parallelism. Hosted CI, deployment and useful live retest mus
 be recorded independently before checking their acceptance scope. Current #1465
 production failures remain FAIL; this source receipt does not establish rollout.
 
+## Deployed #1466 trial and remaining fairness defect
+
+[PR #1466](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1466) passed
+all six mandatory [CI jobs](https://ci.cl8y.com/repos/7/pipeline/387/1) on
+`2c222aa83cf463ccb04b0d4d649a60ae60bbdb00`, merged as
+`325ad4ec0938bdab68cedc3143d0aa0ef930cdf1` and finished rollout 11:14:54 UTC.
+[The receipt](deployment-1466.json) records 712 library tests and 84 Postgres
+tests passing, with source-scope omissions explicit. All six local prerequisite
+verifiers passed their runnable checks. Supplemental
+[identity observations](identity-1392-supplemental.json) and
+[authenticated runtime fixtures](authenticated-runtime-fixture.json) pass twice.
+The runtime test's earlier unrelated-QA-grant failure was corrected using a
+separate fresh cluster; shared/production ACLs were unchanged.
+
+The [first live corpus](deployed-1466-initial-quotes.json), 11:17:46–11:18:14,
+returned **16/24 executable quotes**: LUNC 6/6, CL8Y 5/6, USTR 5/6 and ALPHA 0/6.
+All useful socket timings exceeded 250 ms. Its legacy connection labels describe
+intended groups, including a new connection at the start of the reuse group;
+the corrected probe observes actual socket identity and automatic reconnect.
+The [next corpus](deployed-1466-unavailable-window.json), 11:19:39–11:20:06,
+returned **0/24, all 503**. Coverage was not sustained, so acceptance remains FAIL.
+
+Bounded diagnostics showed 306/338 token discovery outcomes were immediate
+provider availability/capacity loss; admitted pairs declined from seven to three
+as original 180 second qualification expired. Community discovery succeeded four
+times but dependent policy reads failed three times. The opaque optional policy
+result incorrectly invalidated fresh tax qualification on provider loss. No
+indexer halt/restart or unsafe checkpoint advance occurred in this window.
+The next fix uses bounded zero-attempt waiting, pool/book lane headroom and typed,
+static-first tax policy admission; it does not extend TTLs or provider quotas.
+
+The original browser probe wrongly rejected the normal disconnected **Quote only**
+label; its zero-useful conclusion for 200 responses is invalid. The actual 503s
+remain failures. A [corrected diagnostic](deployed-1466-browser-diagnostic.json)
+validated LUNC small/30%: DOM 0.904966 matched raw net 904966, final floor 633476
+and two positive hop floors, with displayed fair-reference deviation about 3.63%.
+ALPHA remained unavailable in that diagnostic. No timing pass is inferred from
+the invalid browser timer, and no product change was needed for that label.
+
+## Admission fairness and cancellation repair
+
+The [frozen source receipt](admission-fairness-source.json) records 11 passing
+stages, zero failures and two explicit source-scope omissions, with full first run
+and retest on the unchanged Rust fingerprint. Each run includes LCD 66+one ignored,
+recovery 25, local quote 75, discovery 11, oracle 27, ingestion 21, health 12,
+actual worker overlap 17, route sockets seven, tax recovery five and holder two
+passing tests. The four-path initialized socket corpus has 48 useful results,
+maximum miss 2.861 ms and maximum hit 2.007 ms, with exactly zero request RPC.
+Five bounded evidence/real reconnect tests also pass.
+
+Production pool/book lanes now use four/two concurrent tasks under the unchanged
+shared provider cap of eight. Only a scheduled full scan with zero actual attempts
+may wait 50 ms before retrying within the same original deadline. No permit is
+held during the wait and no quota/deadline/attempt budget is reset. Required static
+tax admission uses typed provider availability, publishes before optional wallet
+work, and retains original expiry on loss. Actual changed policy or a previously
+qualified pair's negative preview revokes related qualification immediately.
+
+Completed manager=false or protocol=true flags revoke prior manager exemption
+before awaiting balance; the 64 second delayed-balance regression checks immediate
+revocation, whole-pass cancellation and fresh nonexempt recovery. Optional actor
+work never publishes new positives without fresh flags/balance and unchanged
+required-policy recheck. Four recent actors and four uncensused holders share an
+eight-observation batch. The tax fixture uses a larger bounded **fixture-only**
+burst to avoid exhausting cold setup before its negative-read assertions; deployed
+rate/burst limits are unchanged and actual production overlap has separate proof.
+Earlier insufficient-fixture-budget, synthetic-address and overlap timing failures
+were repaired and rerun, including explicit negative-read witnesses and absence
+of capacity deferrals. No executed failure was converted to SKIP.
+
+Broader prerequisite verifiers run serial before merge. Their exact frozen-source
+counts and hosted exact-head job receipts are recorded in the PR review evidence.
+Production #1466 remains an executed FAIL until the replacement rollout is
+independently retested; source speed does not establish normal transport acceptance.
+
+## HTTP/3 reachability and transport evidence
+
+The existing origin advertised HTTP/3 and Traefik published UDP443, but its
+direct firewall allowed only TCP443. The [guarded repair](http3-firewall-repair.json)
+preserved all seven rules and appended only UDP443 using the same HTTPS source
+set, on one exact direct origin attachment. Fourteen mutation/refusal/rollback
+guard tests passed twice. Actions completed and the exact resulting rules were
+reread; private rollback state is retained separately.
+
+[Forced HTTP/3 health](http3-forced-health.json) succeeded twice.
+[Normal browser health](http3-normal-health.json) naturally changed from h2 to h3:
+reused total 292.552 ms versus 282.200 ms. This proves reachability and a small
+observed transport benefit; health is not useful quote acceptance and remains
+above250ms on this measured path. No unrelated infrastructure setting was changed.
+Traefik's [HTTP/3 documentation](https://doc.traefik.io/traefik/reference/install-configuration/entrypoints/#http3)
+requires UDP access for the configured entry point.
+
+The client network path remains unverified. Operational location metadata is
+omitted from receipts and review text. Actual timings and failures are retained;
+neither handler-only nor health timing can check AC6. Do not collect or publish
+workstation location, network exit location, timezone or identifying routing data.
+
+The [current-source runtime fixture](authenticated-runtime-fixture-82a6f174.json)
+passed twice on the frozen Rust fingerprint with two independently owned DBs,
+verified zero runtime CONNECT before and after, and full owned-resource cleanup.
+Its initial final-initialization readiness failure was repaired before successful
+fixture execution. No shared/production privileges changed.
+
 ## Remaining acceptance and skip scope
 
-- [ ] AC1 full live four-direction acceptance: #1465 is deployed/attested, but fails useful coverage.
+- [ ] AC1 full live four-direction acceptance: #1466 is deployed/attested, but fails sustained useful coverage.
 - [ ] AC4 production coverage before expiry across multiple cadence/recovery cycles.
 - [ ] AC6 initialized hit/miss useful latency under normal regional desktop/phone
   browser transport, first/later result and separately measured RTT/cold state.

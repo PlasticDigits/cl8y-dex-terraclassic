@@ -45,14 +45,16 @@ Cancellation releases owned work. Independent reserve, book, configuration, acto
 reference producers own chain reads; retail requests never enqueue network observations
 or accelerate cadence.
 
-External USTC/LUNC references have independent, nonoverlapping pollers with a
-1–10 second target interval (`ORACLE_POLL_INTERVAL_MS` is clamped for these
-quote-critical tickers). A slow FDUSD or CoinGecko request cannot postpone the
-other ticker's poll. USTC/LUNC CoinGecko reads retain a clock-based 60 second
-cadence; FDUSD retains its separate 30 second two-source cadence. Included source
-reads run concurrently, with at most eight outstanding HTTP reads across three
-tickers. Owned task sets cancel all polls with the indexer. Original poll-start
-timestamps remain conservative; HTTP/database delay cannot renew them.
+Scheduled clients may wait 50 ms and rescan only a completed, zero-attempt
+capacity denial, under the same logical request deadline. No provider/lane permit
+is held during that wait and no waiter queue is stored. An actual attempt or
+observed integrity failure retains the existing attempt/error bounds. Ordinary
+request clients do not acquire this scheduled view; quote paths remain local.
+Production pool/book lanes use four/two concurrent pair jobs, leaving headroom
+under the default shared eight-slot provider cap. Smaller configured provider
+limits still apply; this is not a guaranteed reservation or a larger quota.
+
+Client network path is unverified. Retain measured transport timing failures without geographical attribution; local compute and health cannot certify useful quote acceptance.
 
 Hub reference refresh targets 1–5 seconds with skipped missed ticks and no
 overlapping passes. Pool/book cadence and the existing 20 second local quote
@@ -64,6 +66,15 @@ its original expiry when a remote read fails transiently. Successful malformed/u
 schema or authoritative pause/blacklist/code/tax guard changes invalidate the affected
 pair immediately. Healthy unrelated pairs and known actor blocks remain intact;
 original expiry and compatible pool/hybrid generations are mandatory.
+Required community-token policy reads retain typed outcomes through router,
+configuration, features, sinks, registration and identity rechecks. Completed
+provider availability is missing evidence; observed malformed/unsupported or
+changed semantics invalidate related qualifications. A generic optional result
+must never turn a capacity deferral into authoritative unsupported state.
+Completed static policy and pair observations publish before optional holder and
+wallet enrichment. Named/max-wallet approvals still require fresh identity and
+balance observations plus unchanged static revalidation. Sink/protocol negatives
+remain synchronous, and no actor work renews static timestamps.
 Shared-token discovery retains prior qualified state only for typed provider
 availability/capacity; wrong-chain, malformed observations or changed code invalidate
 all affected admissions before later remote awaits. Token code identity remains pinned.
@@ -156,3 +167,19 @@ The [LocalTerra guard receipt](../qa/issue-1464/localterra-settlement-guards.jso
 records funded isolated tax/floor tests against existing checksum-bound artifacts.
 Its explicit provenance limitations prevent treating those passes as parity with
 the current local execution engine or as mainnet deployment acceptance.
+
+Completed actor flags revoke an existing manager exemption before the balance
+await. Cancellation cannot retain that positive exemption: invalidate related
+qualification and the current pass clone immediately. A later independent pass
+may recover anonymous static admission; named admission still needs fresh flags,
+balance and an unchanged required-policy recheck. No new positive wallet context
+is published from a partial refresh.
+
+
+Keep operational location metadata out of receipts, review text and agent
+reports. Label client network paths unverified; preserve measured timings and
+failures without geographical attribution. For advertised HTTP/3, confirm proxy
+UDP publication, exact origin firewall UDP443 reachability and actual negotiated
+h3 before benchmarking. The [HTTP/3 repair receipt](../qa/issue-1464/http3-firewall-repair.json)
+scopes the single-origin rule change and retained rollback. Health timing cannot
+certify useful quote acceptance.

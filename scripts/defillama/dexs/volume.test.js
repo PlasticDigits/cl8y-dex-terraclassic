@@ -49,7 +49,7 @@ test('wrong identities, clocks, catalogs and invalid counts reject', async () =>
     { ...daily, trade_count: 1.5 }, { ...daily, volume_usd: '0' }]) {
     await assert.rejects(getDailyVolume(ts, day, get(feed)))
   }
-  for (const patch of [{ grain: 'hourly' }, { timezone: 'Asia/Seoul' },
+  for (const patch of [{ grain: 'hourly' }, { timezone: 'REDACTED' },
     { methodology: 'listing' }, { series: {} }]) {
     await assert.rejects(getDailyVolume(ts, day, get(daily, { ...series, ...patch })))
   }

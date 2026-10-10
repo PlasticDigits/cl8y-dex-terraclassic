@@ -38,7 +38,7 @@ socket_tests() {
     echo 'Missing isolated QA control credentials; provision .env.qa or record unavailable DB reason.' >&2
     return 1
   fi
-  for suite in indexer_ingestion_hardening api_health book_snapshot_loop route_local_quotes_1452; do
+  for suite in indexer_ingestion_hardening api_health book_snapshot_loop route_local_quotes_1452 tax_admission_recovery_1464 local_tax_wallets_1459; do
     cargo_indexer test --test "$suite" -- --test-threads=1 --nocapture || failed=1
   done
   return "$failed"

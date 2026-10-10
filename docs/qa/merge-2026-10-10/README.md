@@ -1,4 +1,4 @@
-# PR consolidation, 2026-10-10 Seoul / 2026-10-09 UTC
+# PR consolidation, 2026-10-10
 
 PR [#1458](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1458) was the only open PR. It merged normally through `fj` at `c8b29eb0f7d07326a9745a444daff7ce76a8de4d` after available checks completed; no forced merge or branch-protection change was needed. Initial head was `53853c9fb508620a0312a634f08d9e786c39199a`. Reviewed integration head was `c923aab01589e39ae46fa2e1859d6c6b44528b1a`.
 
