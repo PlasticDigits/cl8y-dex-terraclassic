@@ -1,7 +1,8 @@
 //! Incremental scheduled configuration admission. Each completed observation can
 //! initialize quotes without waiting for a complete factory census.
 use super::ingestion::{
-    actor_context, actor_refresh_addresses, insert_actor, query, retained_blocks,
+    actor_context, actor_refresh_addresses, configured_wallets, holder_page, insert_actor, query,
+    retained_blocks, ENROLLED_ACTORS_PER_PASS,
 };
 use super::*;
 use crate::api::{
@@ -25,12 +26,92 @@ struct Admission {
     policy_identity: String,
     cursor: usize,
     actor_cursor: usize,
+    enrollment_cursor: usize,
+    holder_cursors: HashMap<String, Option<String>>,
+    tax_wallets: HashMap<String, tax::TokenObservation>,
     pairs: HashMap<String, PairObservation>,
 }
 type Admissions = HashMap<String, Arc<tokio::sync::Mutex<Admission>>>;
 fn admissions() -> &'static Mutex<Admissions> {
     static ADMISSIONS: OnceLock<Mutex<Admissions>> = OnceLock::new();
     ADMISSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+const MAX_TAX_WALLET_LEDGERS: usize = 2048;
+fn retain_wallet_ledgers(
+    ledgers: &mut HashMap<String, tax::TokenObservation>,
+    live_assets: &HashSet<&String>,
+) {
+    ledgers.retain(|token, observation| {
+        live_assets.contains(token)
+            || observation.observed_at_ms == 0
+            || observation.actors.values().any(|actor| actor.protocol)
+    });
+}
+fn record_wallet_ledger(
+    ledgers: &mut HashMap<String, tax::TokenObservation>,
+    token: &str,
+    observation: &mut tax::TokenObservation,
+) -> bool {
+    if !ledgers.contains_key(token) && ledgers.len() >= MAX_TAX_WALLET_LEDGERS {
+        return false;
+    }
+    if let Some(previous) = ledgers.get(token) {
+        observation.inherit_wallet_contexts(previous);
+    }
+    let mut wallet_ledger = observation.clone();
+    wallet_ledger.pairs.clear();
+    ledgers.insert(token.to_owned(), wallet_ledger);
+    true
+}
+/// Failed required asset semantics invalidate every related admission slice,
+/// including unselected pairs. Pool/book refresh failures use their own lanes.
+fn invalidate_asset_observations(admission: &mut Admission, asset: &str) {
+    admission.pairs.retain(|_, observation| {
+        observation.asset_addresses.0 != asset && observation.asset_addresses.1 != asset
+    });
+}
+fn invalidate_cached_asset(g: &mut Store, namespace: &str, asset: &str) {
+    let Some(previous) = g.snapshots.get(namespace).cloned() else {
+        return;
+    };
+    let mut snapshot = (*previous).clone();
+    snapshot.pairs.retain(|pair| {
+        snapshot
+            .addresses
+            .get(&pair.asset_0_id)
+            .is_none_or(|address| address != asset)
+            && snapshot
+                .addresses
+                .get(&pair.asset_1_id)
+                .is_none_or(|address| address != asset)
+    });
+    if snapshot.pairs.len() == previous.pairs.len() {
+        return;
+    }
+    let retained = snapshot
+        .pairs
+        .iter()
+        .map(|pair| pair.contract_address.clone())
+        .collect::<HashSet<_>>();
+    snapshot.mirrors.retain(|pair, _| retained.contains(pair));
+    snapshot.hooks.retain(|pair, _| retained.contains(pair));
+    snapshot
+        .config_expiries
+        .retain(|pair, _| retained.contains(pair));
+    snapshot
+        .discounted_pairs
+        .retain(|pair| retained.contains(pair));
+    g.next_config_epoch = g.next_config_epoch.saturating_add(1);
+    snapshot.config_epoch = g.next_config_epoch;
+    snapshot.generation = format!(
+        "{:x}",
+        Sha256::digest(format!(
+            "{}|required-asset-unavailable|{asset}|{}",
+            snapshot.generation, snapshot.config_epoch
+        ))
+    );
+    g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
+    g.results.clear();
 }
 fn selected_indices(len: usize, cursor: usize, budget: usize) -> (Vec<usize>, usize) {
     if len == 0 {
@@ -78,6 +159,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     );
     if admission.policy_identity != policy_identity {
         admission.pairs.clear();
+        admission.holder_cursors.clear();
         admission.policy_identity = policy_identity;
     }
     let live = all_pairs
@@ -101,17 +183,30 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     .await?;
     let (indices, next) = selected_indices(recent.len(), admission.actor_cursor, ACTORS_PER_PASS);
     admission.actor_cursor = next;
-    let recent = indices
+    let mut recent = indices
         .into_iter()
         .map(|i| recent[i].clone())
         .collect::<Vec<_>>();
-    let previous = store()
-        .lock()
-        .unwrap()
-        .snapshots
-        .get(&namespace)
-        .map(|s| s.actors.clone())
-        .unwrap_or_default();
+    let enrollment_raw = std::env::var("LOCAL_QUOTE_WALLETS").ok();
+    let enrolled = configured_wallets(enrollment_raw.as_deref())?;
+    let (indices, next) = selected_indices(
+        enrolled.len(),
+        admission.enrollment_cursor,
+        ENROLLED_ACTORS_PER_PASS,
+    );
+    admission.enrollment_cursor = next;
+    for i in indices {
+        if !recent.contains(&enrolled[i]) {
+            recent.push(enrolled[i].clone());
+        }
+    }
+    // Cursor memory follows the capped live asset inventory, independent of requests.
+    let live_assets = addresses.values().collect::<HashSet<_>>();
+    admission
+        .holder_cursors
+        .retain(|token, _| live_assets.contains(token));
+    retain_wallet_ledgers(&mut admission.tax_wallets, &live_assets);
+    let previous = ingestion::observed_actor_contexts(&namespace);
     let mut actors = retained_blocks(&previous).map_err(|e| {
         mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
         e
@@ -127,8 +222,10 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         g.actor_refresh_cursors.insert(namespace.clone(), next);
         selected
     };
+    let mut actor_observed_at = HashMap::new();
     if let Some(factory) = state.factory_address.as_deref() {
         for address in &actor_addresses {
+            let observed_at = now_ms();
             let blocked = query(
                 state,
                 factory,
@@ -136,6 +233,11 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
             )
             .await
             .and_then(|v| v["wallet_blacklisted"].as_bool());
+            if blocked == Some(true) {
+                ingestion::publish_known_block(&namespace, address)?;
+            } else if blocked == Some(false) {
+                ingestion::clear_known_block(&namespace, address);
+            }
             let discount = if blocked == Some(false) {
                 if let Some(registry) = state.fee_discount_address.as_deref() {
                     query(
@@ -155,6 +257,9 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
             };
             if let Some(context) = actor_context(blocked, discount, previous.get(address).copied())
             {
+                if blocked == Some(false) {
+                    actor_observed_at.insert(address.clone(), observed_at);
+                }
                 if let Err(error) = insert_actor(&mut actors, address.clone(), context) {
                     mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
                     return Err(error);
@@ -206,14 +311,94 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                         })
                         .map(|p| p.contract_address.clone())
                         .collect::<Vec<_>>();
-                    tax::observe(state, &token, &related, &actor_addresses)
-                        .await
-                        .map(|obs| (obs.code_id, observed + CONFIG_TTL_MS, Some(obs)))
+                    let mut tax_actors = actor_addresses
+                        .iter()
+                        .filter(|actor| actors.get(*actor).is_some_and(|(_, blocked)| !blocked))
+                        .filter_map(|actor| {
+                            actor_observed_at.get(actor).map(|at| (actor.clone(), *at))
+                        })
+                        .collect::<Vec<_>>();
+                    // Discover holders outside the trader census on the same scheduled
+                    // worker. Enumeration alone never authorizes a wallet: the factory
+                    // blacklist read and per-token identity/balance must also succeed.
+                    let cursor = admission
+                        .holder_cursors
+                        .get(address)
+                        .and_then(|v| v.as_deref());
+                    if let Some((holders, next)) = holder_page(state, address, cursor).await {
+                        admission.holder_cursors.insert(address.clone(), next);
+                        if let Some(factory) = state.factory_address.as_deref() {
+                            for actor in holders {
+                                let observed_at = now_ms();
+                                let blocked = query(state, factory,
+                                    json!({"blacklist_check":{"wallet":actor,"tokens":[],"pairs":[],"pair":null}}))
+                                    .await.and_then(|v| v["wallet_blacklisted"].as_bool());
+                                if blocked == Some(true) {
+                                    ingestion::publish_known_block(&namespace, &actor)?;
+                                } else if blocked == Some(false) {
+                                    ingestion::clear_known_block(&namespace, &actor);
+                                }
+                                if let Some(context) =
+                                    actor_context(blocked, None, previous.get(&actor).copied())
+                                {
+                                    if let Err(error) =
+                                        insert_actor(&mut actors, actor.clone(), context)
+                                    {
+                                        mark_actor_capacity_exhausted(
+                                            &mut store().lock().unwrap(),
+                                            &namespace,
+                                        );
+                                        return Err(error);
+                                    }
+                                    if blocked == Some(false) {
+                                        let at = actor_observed_at
+                                            .entry(actor.clone())
+                                            .or_insert(observed_at);
+                                        *at = (*at).min(observed_at);
+                                        if let Some((_, previous_at)) = tax_actors
+                                            .iter_mut()
+                                            .find(|(wallet, _)| wallet == &actor)
+                                        {
+                                            *previous_at = (*previous_at).min(*at);
+                                        } else {
+                                            tax_actors.push((actor, *at));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Preserve newly observed negatives even if subsequent token reads
+                    // fail or the pass deadline cancels this admission slice.
+                    publish_admission(state, &namespace, &admission, &assets, &addresses, &actors)
+                        .await?;
+                    if let Some(mut obs) = tax::observe(state, &token, &related, &tax_actors).await
+                    {
+                        if !record_wallet_ledger(&mut admission.tax_wallets, address, &mut obs) {
+                            // Never evict a known protocol negative to admit a new asset.
+                            mark_tax_wallet_capacity_exhausted(
+                                &mut store().lock().unwrap(),
+                                &namespace,
+                            );
+                            return Err(sqlx::Error::Protocol(
+                                "Local tax wallet ledger capacity exhausted".into(),
+                            ));
+                        }
+                        Some((obs.code_id, observed + CONFIG_TTL_MS, Some(obs)))
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             };
             if let Some(obs) = observation {
                 tokens.insert(address.clone(), obs);
+            } else {
+                invalidate_asset_observations(&mut admission, address);
+                // Synchronous invalidation precedes subsequent provider/database
+                // awaits, so a known unsupported mode cannot survive cancellation
+                // through another pair's old static approval or a warm cache.
+                invalidate_cached_asset(&mut store().lock().unwrap(), &namespace, address);
             }
         }
         let (Some((code_a, expiry_a, tax_a)), Some((code_b, expiry_b, tax_b))) =
@@ -366,6 +551,103 @@ pub async fn ingest_fixture(state: &AppState) -> Result<(), sqlx::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn required_asset_failure_removes_unselected_shared_pairs_and_preserves_other_corridors() {
+        let snapshot = super::super::tests::fixture();
+        let mut admission = Admission::default();
+        for pair in &snapshot.pairs {
+            admission.pairs.insert(
+                pair.contract_address.clone(),
+                PairObservation {
+                    pair: pair.clone(),
+                    asset_addresses: (
+                        snapshot.addresses[&pair.asset_0_id].clone(),
+                        snapshot.addresses[&pair.asset_1_id].clone(),
+                    ),
+                    expiry_ms: now_ms() + CONFIG_TTL_MS,
+                    hooks: local_hook_pricing::CachedHookPrices::from_observation(&[]).unwrap(),
+                    discounted: false,
+                    identity: "fixture".into(),
+                    taxes: HashMap::new(),
+                },
+            );
+        }
+        admission.pairs.remove("pair7a"); // Selected pair was removed before its asset read.
+        assert!(admission.pairs.contains_key("pair7b")); // Unselected shared-token pair.
+        invalidate_asset_observations(&mut admission, "middle76");
+        assert!(!admission.pairs.contains_key("pair7b"));
+        assert_eq!(admission.pairs.len(), 14);
+        assert!(admission.pairs.contains_key("pair0a"));
+        let namespace = "required-asset-failure";
+        let mut g = Store::default();
+        let reviewed = protocol_guards::derive(&g, namespace, &snapshot);
+        g.snapshots.insert(namespace.into(), Arc::new(snapshot));
+        g.results.insert(
+            "cached-unsupported-approval".into(),
+            json!({"approved":true}),
+        );
+        invalidate_cached_asset(&mut g, namespace, "middle76");
+        assert!(g.results.is_empty());
+        assert!(!reviewed_snapshot_current(&g, namespace, &reviewed, None));
+        let current = &g.snapshots[namespace];
+        assert_eq!(current.pairs.len(), 14);
+        assert!(!current.mirrors.contains_key("pair7b"));
+        let unrelated = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        assert!(score(current, &unrelated, 10u128.pow(16), SCALE / 20).is_some());
+    }
+    #[test]
+    fn wallet_ledger_registry_retains_inactive_negatives_and_refuses_capacity_eviction() {
+        let empty = tax::TokenObservation {
+            policy_identity: "policy".into(),
+            code_id: 1,
+            buy_bps: 0,
+            sell_bps: 0,
+            observed_at_ms: now_ms(),
+            max_wallet: None,
+            pairs: HashSet::from(["pair".into()]),
+            actors: Default::default(),
+        };
+        let mut negative = empty.clone();
+        negative.actors.insert(
+            "protocol".into(),
+            tax::ActorObservation {
+                observed_at_ms: now_ms(),
+                protocol: true,
+                manager: false,
+                balance: None,
+            },
+        );
+        let mut quarantine = empty.clone();
+        quarantine.observed_at_ms = 0;
+        let live = "live".to_owned();
+        let mut ledgers = HashMap::from([
+            (live.clone(), empty.clone()),
+            ("removed-positive".into(), empty.clone()),
+            ("removed-negative".into(), negative),
+            ("removed-quarantine".into(), quarantine),
+        ]);
+        retain_wallet_ledgers(&mut ledgers, &HashSet::from([&live]));
+        assert_eq!(ledgers.len(), 3);
+        assert!(!ledgers.contains_key("removed-positive"));
+        assert!(ledgers.contains_key("removed-negative"));
+        assert_eq!(ledgers["removed-quarantine"].observed_at_ms, 0);
+        let mut full = (0..MAX_TAX_WALLET_LEDGERS)
+            .map(|i| (format!("token-{i}"), empty.clone()))
+            .collect();
+        assert!(!record_wallet_ledger(
+            &mut full,
+            "new-token",
+            &mut empty.clone()
+        ));
+        assert_eq!(full.len(), MAX_TAX_WALLET_LEDGERS);
+        assert!(!full.contains_key("new-token"));
+        assert!(record_wallet_ledger(
+            &mut full,
+            "token-0",
+            &mut empty.clone()
+        ));
+        assert!(full["token-0"].pairs.is_empty());
+    }
     #[test]
     fn configuration_slices_cover_large_inventory_with_constant_pass_work() {
         let mut seen = HashSet::new();

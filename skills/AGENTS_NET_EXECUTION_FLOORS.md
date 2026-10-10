@@ -54,3 +54,7 @@ Related: [L9 market spread](./AGENTS_MAX_SPREAD_HYBRID.md),
 Pair 1.21.0 retains the reviewed router reverse-probe accounting. Keep
 [the reverse-query budget playbook](./AGENTS_REVERSE_QUERY_BUDGET.md) in sync with
 reviewed version changes; future unknown versions keep the conservative budget.
+
+Remaining observation-only quote coverage, explicit external wrapper floors and
+bounded composed inverse follow [QC1459](AGENTS_LOCAL_QUOTE_COVERAGE.md) and the
+[agent implementation checklist](../docs/qa/issue-1459/README.md).

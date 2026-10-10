@@ -1017,11 +1017,13 @@ export default function SwapPage() {
       const payRaw = submitPayRaw
       // Display min uses post-tax `return_amount`; router R3 checks post-fee pre-tax (#512).
       const submitMinReceived =
-        simData.executionMetadata?.wrapper != null
-          ? simData.executionMetadata.wrapper.minimum_receive_base
-          : simData.routerMinReceiveBase != null && simData.routerMinReceiveBase !== simData.return_amount
-            ? applySlippagePercentFloor(simData.routerMinReceiveBase, slippageTolerance)
-            : minReceived
+        simData.executionMetadata?.policy === 'wrapper_only'
+          ? simData.executionMetadata.minimum_receive
+          : simData.executionMetadata?.wrapper != null
+            ? simData.executionMetadata.wrapper.minimum_receive_base
+            : simData.routerMinReceiveBase != null && simData.routerMinReceiveBase !== simData.return_amount
+              ? applySlippagePercentFloor(simData.routerMinReceiveBase, slippageTolerance)
+              : minReceived
       const maxSpread = slippagePercentToMaxSpread(slippageTolerance)
 
       const idxOps = simData.indexerOperations

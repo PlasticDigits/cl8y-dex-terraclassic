@@ -128,7 +128,8 @@ export function messageUsesSwapAutoGas(msg: Record<string, unknown>): boolean {
     'execute_route_swap_operations' in msg ||
     'execute_swap_operations' in msg ||
     'swap' in msg ||
-    'wrap_deposit' in msg
+    'wrap_deposit' in msg ||
+    'wrap_deposit_with_minimum' in msg
   )
     return true
   const inner = sendHookInner(msg)
@@ -137,6 +138,7 @@ export function messageUsesSwapAutoGas(msg: Record<string, unknown>): boolean {
     'execute_route_swap_operations' in inner ||
     'execute_swap_operations' in inner ||
     'unwrap' in inner ||
+    'unwrap_with_minimum' in inner ||
     'swap' in inner
   )
 }

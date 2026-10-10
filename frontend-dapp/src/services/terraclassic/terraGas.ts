@@ -16,6 +16,7 @@ import {
   COMMUNITY_SKIM_GAS_LIMIT,
   COMMUNITY_REGISTER_PAIR_GAS_LIMIT,
   WRAP_GAS_LIMIT,
+  DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
   MIXED_HYBRID_ROUTER_HEADROOM_GAS,
   effectiveGasPriceUluna,
@@ -407,6 +408,7 @@ export function gasLimitForRouterExecuteSwapOperations(hops: number): number {
  * Shared by broadcast fee math and UI preflight sequence estimates (GitLab #127).
  */
 export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
+  if ('wrap_deposit_with_minimum' in executeMsg) return WRAP_GAS_LIMIT + DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
   }
@@ -493,6 +495,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
           return gasLimitForExecuteSwapOperations(1)
         }
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
+        if ('unwrap_with_minimum' in inner) return UNWRAP_GAS_LIMIT + DIRECT_WRAPPER_FLOOR_SETTLEMENT_GAS
         if ('unwrap' in inner) return UNWRAP_GAS_LIMIT
         if ('deposit' in inner || 'withdraw' in inner) return UST1_WINDOW_SEND_GAS_LIMIT
         if (isPayInvoiceHookInner(inner)) return PAY_INVOICE_SEND_GAS_LIMIT

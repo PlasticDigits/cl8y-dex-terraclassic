@@ -50,3 +50,7 @@ Run `make verify-issue-1390` and `make verify-issue-1381` using the dedicated
 worktree/test database. See the [QA checklist](../docs/qa/issue-1390/README.md)
 for contracts, solver, frontend, test-chain and deployment instructions. Repeat
 available tests after edits. Never widen a protocol control to avoid a check.
+
+Remaining observation-only quote coverage, explicit external wrapper floors and
+bounded composed inverse follow [QC1459](AGENTS_LOCAL_QUOTE_COVERAGE.md) and the
+[agent implementation checklist](../docs/qa/issue-1459/README.md).

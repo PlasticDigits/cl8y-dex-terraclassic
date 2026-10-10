@@ -50,11 +50,14 @@ function entriesFromMsgs(msgs: Array<{ msg: Record<string, unknown> }>): TerraEx
 export function estimateSwapNetworkFee(hints: SwapNetworkFeeHints): TerraClassicFeeEstimate {
   if (hints.isDirectUnwrap) {
     return estimateTerraClassicFeeForMsg({
-      send: { msg: btoa(JSON.stringify({ unwrap: { recipient: null } })) },
+      send: { msg: btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: '1' } })) },
     })
   }
 
-  if (hints.isDirectWrap || hints.needsWrapInput || hints.needsUnwrapOutput) {
+  if (hints.isDirectWrap) {
+    return estimateTerraClassicFeeForMsg({ wrap_deposit_with_minimum: { minimum_receive: '1' } })
+  }
+  if (hints.needsWrapInput || hints.needsUnwrapOutput) {
     return estimateTerraClassicFeeForEntries(entriesFromMsgs(nativeSwapFeeExecuteMsgs(hints)))
   }
 
@@ -122,7 +125,7 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
           send: {
             contract: WRAP_MAPPER_CONTRACT_ADDRESS,
             amount,
-            msg: btoa(JSON.stringify({ unwrap: { recipient: null } })),
+            msg: btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: minimum ?? '1' } })),
           },
         },
       },
@@ -134,7 +137,7 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
     return [
       {
         contract: TREASURY_CONTRACT_ADDRESS,
-        msg: { wrap_deposit: {} },
+        msg: { wrap_deposit_with_minimum: { minimum_receive: minimum ?? '1' } },
         coins: [{ denom, amount }],
       },
     ]

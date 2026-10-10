@@ -2670,3 +2670,14 @@ Transient service outages retain existing fallback behavior. The user sees
 “Route validation rejected this quote. Refresh the quote or choose another
 route.” [LG1390](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md) and
 [agent verification](qa/issue-1390/README.md) govern these paths.
+
+## Direct wrapper signing (#1459)
+
+Follow [QC1459](../skills/AGENTS_LOCAL_QUOTE_COVERAGE.md) and the
+[verification checklist](qa/issue-1459/README.md). A zero-hop estimate authorizes
+execution only when its fresh wrapper metadata advertises observed floor protocol
+version 1 and `execution_supported:true`. Pin its exact input, direction, actor,
+generation, expiry and positive wallet floor. Serialize explicit
+`wrap_deposit_with_minimum` / `unwrap_with_minimum` messages; unsupported external
+contracts reject those variants. Do not send floor fields on legacy messages or
+substitute unwrap's pre-bank-tax base floor. Preparation makes no chain queries.

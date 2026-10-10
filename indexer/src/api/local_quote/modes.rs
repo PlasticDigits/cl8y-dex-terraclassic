@@ -72,7 +72,7 @@ pub(super) fn wrapper_only(
     } else {
         let (_, net, _) = n
             .wrapper
-            .unwrap_output(&n.request.token_out, gross, now_ms())?;
+            .unwrap_output_direct(&n.request.token_out, gross, now_ms())?;
         (gross, net)
     };
     let target = n
@@ -92,7 +92,7 @@ pub(super) fn wrapper_only(
     let minimum_base = if n.unwrap {
         let needed = n.wrapper.inverse_unwrap(&n.request.token_out, floor)?;
         n.wrapper
-            .unwrap_output(&n.request.token_out, needed, now_ms())?
+            .unwrap_output_direct(&n.request.token_out, needed, now_ms())?
             .2
     } else {
         floor
@@ -115,8 +115,10 @@ pub(super) fn wrapper_only(
         .trim_end_matches('0')
         .trim_end_matches('.')
         .to_string();
-    let wrapper = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":route_amount.to_string(),"route_output_amount":route_amount.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper});
-    let metadata = json!({"version":1,"generation":s.generation,"input_amount":gross.to_string(),"max_spread":spread_text,"trader":n.request.trader,"sender":n.request.sender,"observed_at_ms":observed,"expires_at_ms":expires,"policy":"wrapper_only","hops":[],"minimum_receive":floor.to_string(),"wrapper":wrapper,"execution_supported":false});
+    let floor_protocol = n.wrapper.direct_floor_protocol(n.wrap);
+    let supported = floor_protocol.is_some();
+    let wrapper = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":route_amount.to_string(),"route_output_amount":route_amount.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper,"floor_protocol_version":floor_protocol});
+    let metadata = json!({"version":1,"generation":s.generation,"input_amount":gross.to_string(),"max_spread":spread_text,"trader":n.request.trader,"sender":n.request.sender,"observed_at_ms":observed,"expires_at_ms":expires,"policy":"wrapper_only","hops":[],"minimum_receive":floor.to_string(),"wrapper":wrapper,"execution_supported":supported});
     Some(json!({
         "token_in":n.request.token_in,"token_out":n.request.token_out,"hops":[],"router_operations":[],
         "intermediate_tokens":[n.request.token_in,n.request.token_out],"quote_kind":"indexer_wrapper_db",
@@ -126,6 +128,6 @@ pub(super) fn wrapper_only(
         "required_amount_in":n.request.amount_out.as_ref().map(|_|gross.to_string()),"target_amount_out":n.request.amount_out,
         "sizing_mode":n.request.amount_out.as_ref().map(|_|"local_pool_exact_output"),"paths_considered":0,"lcd_hybrid_queries":0,"db_hybrid_queries":0,
         "snapshot_age_ms":now_ms()-observed,"optimality_scope":"Exact direct native mapping; no pair route",
-        "execution_metadata":metadata,"execution_blocker":"Direct wrapping cannot enforce the reviewed receive floor"
+        "execution_metadata":metadata,"execution_blocker":if supported {serde_json::Value::Null}else{json!("Direct wrapping cannot enforce the reviewed receive floor")}
     }))
 }

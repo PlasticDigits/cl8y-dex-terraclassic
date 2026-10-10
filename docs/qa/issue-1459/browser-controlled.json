@@ -1,0 +1,1294 @@
+{
+  "recorded_at": "2026-10-10T01:38:15.975Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected; no broadcast; not production reference evidence",
+  "measurement": "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows"
+  ],
+  "quote_requests": 44,
+  "provider_requests": 0,
+  "receipts": [
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "initialization_ms": 1978,
+      "samples_ms": [
+        47.5,
+        43.4,
+        35.3,
+        34.2,
+        39.8,
+        46,
+        40.6,
+        39.3,
+        38.8,
+        43.4
+      ],
+      "traces": [
+        {
+          "duration": 47.5,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1802,
+              "end": 1812.0999999940395,
+              "server_received_at": 1791596287856,
+              "server_sent_at": 1791596287856,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1802.5999999940395,
+              "fetch_start": 1802.5999999940395,
+              "request_start": 1803.2000000029802,
+              "response_start": 1803.8999999910593,
+              "response_end": 1811.7000000029802,
+              "duration": 9.100000008940697,
+              "connect_start": 1802.5999999940395,
+              "connect_end": 1802.5999999940395,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 43.3999999910593,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1865.7000000029802,
+              "end": 1868.8999999910593,
+              "server_received_at": 1791596287919,
+              "server_sent_at": 1791596287919,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1866.2000000029802,
+              "fetch_start": 1866.2000000029802,
+              "request_start": 1866.7999999970198,
+              "response_start": 1867.2999999970198,
+              "response_end": 1875.0999999940395,
+              "duration": 8.899999991059303,
+              "connect_start": 1866.2000000029802,
+              "connect_end": 1866.2000000029802,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 35.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1922.2999999970198,
+              "end": 1925.8999999910593,
+              "server_received_at": 1791596287975,
+              "server_sent_at": 1791596287976,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1922.5999999940395,
+              "fetch_start": 1922.5999999940395,
+              "request_start": 1923.2000000029802,
+              "response_start": 1923.7000000029802,
+              "response_end": 1924.8999999910593,
+              "duration": 2.2999999970197678,
+              "connect_start": 1922.5999999940395,
+              "connect_end": 1922.5999999940395,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 34.20000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1970.2000000029802,
+              "end": 1973.8999999910593,
+              "server_received_at": 1791596288024,
+              "server_sent_at": 1791596288024,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1970.5999999940395,
+              "fetch_start": 1970.5999999940395,
+              "request_start": 1971.3999999910593,
+              "response_start": 1972,
+              "response_end": 1974,
+              "duration": 3.4000000059604645,
+              "connect_start": 1970.5999999940395,
+              "connect_end": 1970.5999999940395,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 39.79999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2020.2999999970198,
+              "end": 2026.7999999970198,
+              "server_received_at": 1791596288074,
+              "server_sent_at": 1791596288074,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2020.7999999970198,
+              "fetch_start": 2020.7999999970198,
+              "request_start": 2021.3999999910593,
+              "response_start": 2021.8999999910593,
+              "response_end": 2027,
+              "duration": 6.200000002980232,
+              "connect_start": 2020.7999999970198,
+              "connect_end": 2020.7999999970198,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 46,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2075.7000000029802,
+              "end": 2082.0999999940395,
+              "server_received_at": 1791596288129,
+              "server_sent_at": 1791596288129,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2076.2000000029802,
+              "fetch_start": 2076.2000000029802,
+              "request_start": 2077,
+              "response_start": 2077.3999999910593,
+              "response_end": 2087.2999999970198,
+              "duration": 11.099999994039536,
+              "connect_start": 2076.2000000029802,
+              "connect_end": 2076.2000000029802,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 40.6000000089407,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2135,
+              "end": 2141.2999999970198,
+              "server_received_at": 1791596288189,
+              "server_sent_at": 1791596288189,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2135.5,
+              "fetch_start": 2135.5,
+              "request_start": 2136.3999999910593,
+              "response_start": 2137,
+              "response_end": 2138.8999999910593,
+              "duration": 3.3999999910593033,
+              "connect_start": 2135.5,
+              "connect_end": 2135.5,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 39.30000001192093,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2190.5999999940395,
+              "end": 2195.8999999910593,
+              "server_received_at": 1791596288244,
+              "server_sent_at": 1791596288245,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2191,
+              "fetch_start": 2191,
+              "request_start": 2191.8999999910593,
+              "response_start": 2192.7000000029802,
+              "response_end": 2193.3999999910593,
+              "duration": 2.3999999910593033,
+              "connect_start": 2191,
+              "connect_end": 2191,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 38.79999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2244.5999999940395,
+              "end": 2250.2000000029802,
+              "server_received_at": 1791596288298,
+              "server_sent_at": 1791596288298,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2245.0999999940395,
+              "fetch_start": 2245.0999999940395,
+              "request_start": 2245.5999999940395,
+              "response_start": 2246.2000000029802,
+              "response_end": 2247.2000000029802,
+              "duration": 2.1000000089406967,
+              "connect_start": 2245.0999999940395,
+              "connect_end": 2245.0999999940395,
+              "transfer_size": 2025
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 43.3999999910593,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2301.8999999910593,
+              "end": 2306.3999999910593,
+              "server_received_at": 1791596288356,
+              "server_sent_at": 1791596288356,
+              "time_origin": 1791596286052.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2302.5999999940395,
+              "fetch_start": 2302.5999999940395,
+              "request_start": 2303.2999999970198,
+              "response_start": 2303.7999999970198,
+              "response_end": 2306.5,
+              "duration": 3.9000000059604645,
+              "connect_start": 2302.5999999940395,
+              "connect_end": 2302.5999999940395,
+              "transfer_size": 2029
+            }
+          ],
+          "long_tasks": []
+        }
+      ],
+      "p50_ms": 39.8,
+      "p95_ms": 47.5,
+      "max_ms": 47.5,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": []
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "initialization_ms": 2147,
+      "samples_ms": [
+        34.3,
+        33.3,
+        37,
+        33.8,
+        35.2,
+        36.7,
+        32.9,
+        32.6,
+        34.2,
+        35.1
+      ],
+      "traces": [
+        {
+          "duration": 34.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1948.0999999940395,
+              "end": 1951.2999999970198,
+              "server_received_at": 1791596290676,
+              "server_sent_at": 1791596290676,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1948.699999988079,
+              "fetch_start": 1948.699999988079,
+              "request_start": 1949.3999999910593,
+              "response_start": 1950.199999988079,
+              "response_end": 1951.2999999970198,
+              "duration": 2.6000000089406967,
+              "connect_start": 1948.699999988079,
+              "connect_end": 1948.699999988079,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 33.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1990.7999999970198,
+              "end": 1993.7999999970198,
+              "server_received_at": 1791596290718,
+              "server_sent_at": 1791596290718,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1991.199999988079,
+              "fetch_start": 1991.199999988079,
+              "request_start": 1991.8999999910593,
+              "response_start": 1992.699999988079,
+              "response_end": 1993.699999988079,
+              "duration": 2.5,
+              "connect_start": 1991.199999988079,
+              "connect_end": 1991.199999988079,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 37,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2033.7999999970198,
+              "end": 2037.2999999970198,
+              "server_received_at": 1791596290762,
+              "server_sent_at": 1791596290762,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2034.5,
+              "fetch_start": 2034.5,
+              "request_start": 2035.2999999970198,
+              "response_start": 2036.199999988079,
+              "response_end": 2037.199999988079,
+              "duration": 2.699999988079071,
+              "connect_start": 2034.5,
+              "connect_end": 2034.5,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 33.80000001192093,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2089,
+              "end": 2092,
+              "server_received_at": 1791596290816,
+              "server_sent_at": 1791596290816,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2089.699999988079,
+              "fetch_start": 2089.699999988079,
+              "request_start": 2090.2999999970198,
+              "response_start": 2090.8999999910593,
+              "response_end": 2091.7999999970198,
+              "duration": 2.1000000089406967,
+              "connect_start": 2089.699999988079,
+              "connect_end": 2089.699999988079,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 35.20000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2132.8999999910593,
+              "end": 2137,
+              "server_received_at": 1791596290860,
+              "server_sent_at": 1791596290860,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2133.5,
+              "fetch_start": 2133.5,
+              "request_start": 2134,
+              "response_start": 2134.5999999940395,
+              "response_end": 2136.8999999910593,
+              "duration": 3.3999999910593033,
+              "connect_start": 2133.5,
+              "connect_end": 2133.5,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 36.70000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2177.3999999910593,
+              "end": 2183,
+              "server_received_at": 1791596290905,
+              "server_sent_at": 1791596290905,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2178.0999999940395,
+              "fetch_start": 2178.0999999940395,
+              "request_start": 2178.5999999940395,
+              "response_start": 2179.0999999940395,
+              "response_end": 2182.8999999910593,
+              "duration": 4.799999997019768,
+              "connect_start": 2178.0999999940395,
+              "connect_end": 2178.0999999940395,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 32.8999999910593,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2231.199999988079,
+              "end": 2233.7999999970198,
+              "server_received_at": 1791596290958,
+              "server_sent_at": 1791596290958,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2231.7999999970198,
+              "fetch_start": 2231.7999999970198,
+              "request_start": 2232.3999999910593,
+              "response_start": 2232.8999999910593,
+              "response_end": 2233.5999999940395,
+              "duration": 1.7999999970197678,
+              "connect_start": 2231.7999999970198,
+              "connect_end": 2231.7999999970198,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 32.6000000089407,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2275.8999999910593,
+              "end": 2278.3999999910593,
+              "server_received_at": 1791596291003,
+              "server_sent_at": 1791596291003,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2276.5,
+              "fetch_start": 2276.5,
+              "request_start": 2277,
+              "response_start": 2277.5999999940395,
+              "response_end": 2278.199999988079,
+              "duration": 1.699999988079071,
+              "connect_start": 2276.5,
+              "connect_end": 2276.5,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 34.20000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2319.3999999910593,
+              "end": 2323,
+              "server_received_at": 1791596291047,
+              "server_sent_at": 1791596291047,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2320,
+              "fetch_start": 2320,
+              "request_start": 2320.699999988079,
+              "response_start": 2321.5999999940395,
+              "response_end": 2323.0999999940395,
+              "duration": 3.0999999940395355,
+              "connect_start": 2320,
+              "connect_end": 2320,
+              "transfer_size": 2025
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 35.1000000089407,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2362.3999999910593,
+              "end": 2367.5,
+              "server_received_at": 1791596291090,
+              "server_sent_at": 1791596291090,
+              "time_origin": 1791596288726.2
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2363.0999999940395,
+              "fetch_start": 2363.0999999940395,
+              "request_start": 2363.5999999940395,
+              "response_start": 2364.199999988079,
+              "response_end": 2364.7999999970198,
+              "duration": 1.7000000029802322,
+              "connect_start": 2363.0999999940395,
+              "connect_end": 2363.0999999940395,
+              "transfer_size": 2029
+            }
+          ],
+          "long_tasks": []
+        }
+      ],
+      "p50_ms": 34.2,
+      "p95_ms": 37,
+      "max_ms": 37,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": []
+    },
+    {
+      "surface": "Swap",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "initialization_ms": 1744,
+      "samples_ms": [
+        39,
+        38.2,
+        39.8,
+        41.6,
+        40.8,
+        40.3,
+        39.7,
+        43.7,
+        34.4,
+        38.1
+      ],
+      "traces": [
+        {
+          "duration": 39,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1570.5999999940395,
+              "end": 1574.7999999970198,
+              "server_received_at": 1791596292994,
+              "server_sent_at": 1791596292994,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1570.8999999910593,
+              "fetch_start": 1570.8999999910593,
+              "request_start": 1571.7000000029802,
+              "response_start": 1572.2000000029802,
+              "response_end": 1574,
+              "duration": 3.1000000089406967,
+              "connect_start": 1570.8999999910593,
+              "connect_end": 1570.8999999910593,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 38.20000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1620.5999999940395,
+              "end": 1624.5999999940395,
+              "server_received_at": 1791596293044,
+              "server_sent_at": 1791596293044,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1620.8999999910593,
+              "fetch_start": 1620.8999999910593,
+              "request_start": 1621.5999999940395,
+              "response_start": 1622.0999999940395,
+              "response_end": 1624.2999999970198,
+              "duration": 3.4000000059604645,
+              "connect_start": 1620.8999999910593,
+              "connect_end": 1620.8999999910593,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 39.80000001192093,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1674.3999999910593,
+              "end": 1680.7000000029802,
+              "server_received_at": 1791596293098,
+              "server_sent_at": 1791596293098,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1675,
+              "fetch_start": 1675,
+              "request_start": 1675.5999999940395,
+              "response_start": 1676.0999999940395,
+              "response_end": 1679.2999999970198,
+              "duration": 4.299999997019768,
+              "connect_start": 1675,
+              "connect_end": 1675,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 41.599999994039536,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1728.2999999970198,
+              "end": 1735.8999999910593,
+              "server_received_at": 1791596293152,
+              "server_sent_at": 1791596293152,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1728.8999999910593,
+              "fetch_start": 1728.8999999910593,
+              "request_start": 1729.5,
+              "response_start": 1730,
+              "response_end": 1731.5999999940395,
+              "duration": 2.7000000029802322,
+              "connect_start": 1728.8999999910593,
+              "connect_end": 1728.8999999910593,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 40.79999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1784.5,
+              "end": 1787.5999999940395,
+              "server_received_at": 1791596293208,
+              "server_sent_at": 1791596293208,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1785.0999999940395,
+              "fetch_start": 1785.0999999940395,
+              "request_start": 1785.7000000029802,
+              "response_start": 1786.2999999970198,
+              "response_end": 1788.2000000029802,
+              "duration": 3.1000000089406967,
+              "connect_start": 1785.0999999940395,
+              "connect_end": 1785.0999999940395,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 40.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1842.5,
+              "end": 1849.3999999910593,
+              "server_received_at": 1791596293266,
+              "server_sent_at": 1791596293266,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1843.2000000029802,
+              "fetch_start": 1843.2000000029802,
+              "request_start": 1844.0999999940395,
+              "response_start": 1844.5,
+              "response_end": 1846.7000000029802,
+              "duration": 3.5,
+              "connect_start": 1843.2000000029802,
+              "connect_end": 1843.2000000029802,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 39.70000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1899.5999999940395,
+              "end": 1905.5,
+              "server_received_at": 1791596293323,
+              "server_sent_at": 1791596293323,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1900.2000000029802,
+              "fetch_start": 1900.2000000029802,
+              "request_start": 1900.7000000029802,
+              "response_start": 1901.0999999940395,
+              "response_end": 1902.5999999940395,
+              "duration": 2.3999999910593033,
+              "connect_start": 1900.2000000029802,
+              "connect_end": 1900.2000000029802,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 43.70000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1953.7000000029802,
+              "end": 1959.2000000029802,
+              "server_received_at": 1791596293377,
+              "server_sent_at": 1791596293377,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1954.2999999970198,
+              "fetch_start": 1954.2999999970198,
+              "request_start": 1955,
+              "response_start": 1955.5,
+              "response_end": 1957.8999999910593,
+              "duration": 3.5999999940395355,
+              "connect_start": 1954.2999999970198,
+              "connect_end": 1954.2999999970198,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 34.400000005960464,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2013.0999999940395,
+              "end": 2016.5,
+              "server_received_at": 1791596293437,
+              "server_sent_at": 1791596293437,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2013.5,
+              "fetch_start": 2013.5,
+              "request_start": 2014.3999999910593,
+              "response_start": 2014.8999999910593,
+              "response_end": 2016.2999999970198,
+              "duration": 2.7999999970197678,
+              "connect_start": 2013.5,
+              "connect_end": 2013.5,
+              "transfer_size": 2025
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 38.1000000089407,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2057.0999999940395,
+              "end": 2062.7999999970198,
+              "server_received_at": 1791596293481,
+              "server_sent_at": 1791596293481,
+              "time_origin": 1791596291422.5
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&token_out=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2057.7999999970198,
+              "fetch_start": 2057.7999999970198,
+              "request_start": 2058.2999999970198,
+              "response_start": 2058.8999999910593,
+              "response_end": 2061.5999999940395,
+              "duration": 3.7999999970197678,
+              "connect_start": 2057.7999999970198,
+              "connect_end": 2057.7999999970198,
+              "transfer_size": 2029
+            }
+          ],
+          "long_tasks": []
+        }
+      ],
+      "p50_ms": 39.7,
+      "p95_ms": 43.7,
+      "max_ms": 43.7,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": []
+    },
+    {
+      "surface": "Trade",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "initialization_ms": 1792,
+      "samples_ms": [
+        35.3,
+        35.3,
+        34,
+        36.4,
+        34.2,
+        35,
+        33.3,
+        32.4,
+        33.3,
+        32.6
+      ],
+      "traces": [
+        {
+          "duration": 35.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1609.5,
+              "end": 1612.5,
+              "server_received_at": 1791596295446,
+              "server_sent_at": 1791596295446,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=2000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1610.1000000089407,
+              "fetch_start": 1610.1000000089407,
+              "request_start": 1610.7999999970198,
+              "response_start": 1611.4000000059605,
+              "response_end": 1612.2999999970198,
+              "duration": 2.199999988079071,
+              "connect_start": 1610.1000000089407,
+              "connect_end": 1610.1000000089407,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 35.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1655.5,
+              "end": 1658.5,
+              "server_received_at": 1791596295492,
+              "server_sent_at": 1791596295492,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=3000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1656.1000000089407,
+              "fetch_start": 1656.1000000089407,
+              "request_start": 1656.7999999970198,
+              "response_start": 1657.4000000059605,
+              "response_end": 1658.2000000029802,
+              "duration": 2.0999999940395355,
+              "connect_start": 1656.1000000089407,
+              "connect_end": 1656.1000000089407,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 34,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1702.4000000059605,
+              "end": 1705.4000000059605,
+              "server_received_at": 1791596295539,
+              "server_sent_at": 1791596295539,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=4000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1702.9000000059605,
+              "fetch_start": 1702.9000000059605,
+              "request_start": 1703.6000000089407,
+              "response_start": 1704.2000000029802,
+              "response_end": 1705.2000000029802,
+              "duration": 2.2999999970197678,
+              "connect_start": 1702.9000000059605,
+              "connect_end": 1702.9000000059605,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 36.400000005960464,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1746.6000000089407,
+              "end": 1751,
+              "server_received_at": 1791596295583,
+              "server_sent_at": 1791596295584,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=5000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1747.4000000059605,
+              "fetch_start": 1747.4000000059605,
+              "request_start": 1748,
+              "response_start": 1748.5,
+              "response_end": 1749.2999999970198,
+              "duration": 1.8999999910593033,
+              "connect_start": 1747.4000000059605,
+              "connect_end": 1747.4000000059605,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 34.20000000298023,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1790.7999999970198,
+              "end": 1793.6000000089407,
+              "server_received_at": 1791596295628,
+              "server_sent_at": 1791596295628,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=6000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1791.5,
+              "fetch_start": 1791.5,
+              "request_start": 1792,
+              "response_start": 1792.6000000089407,
+              "response_end": 1793.5,
+              "duration": 2,
+              "connect_start": 1791.5,
+              "connect_end": 1791.5,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 35,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1840.1000000089407,
+              "end": 1842.6000000089407,
+              "server_received_at": 1791596295677,
+              "server_sent_at": 1791596295677,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=7000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1840.7000000029802,
+              "fetch_start": 1840.7000000029802,
+              "request_start": 1841.2000000029802,
+              "response_start": 1841.7000000029802,
+              "response_end": 1842.5,
+              "duration": 1.7999999970197678,
+              "connect_start": 1840.7000000029802,
+              "connect_end": 1840.7000000029802,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 33.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1891.6000000089407,
+              "end": 1894.7000000029802,
+              "server_received_at": 1791596295729,
+              "server_sent_at": 1791596295729,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=8000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1892,
+              "fetch_start": 1892,
+              "request_start": 1892.7000000029802,
+              "response_start": 1893.7000000029802,
+              "response_end": 1894.5,
+              "duration": 2.5,
+              "connect_start": 1892,
+              "connect_end": 1892,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 32.3999999910593,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1935.2999999970198,
+              "end": 1937.7000000029802,
+              "server_received_at": 1791596295772,
+              "server_sent_at": 1791596295772,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=9000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1935.9000000059605,
+              "fetch_start": 1935.9000000059605,
+              "request_start": 1936.4000000059605,
+              "response_start": 1936.7999999970198,
+              "response_end": 1937.5,
+              "duration": 1.5999999940395355,
+              "connect_start": 1935.9000000059605,
+              "connect_end": 1935.9000000059605,
+              "transfer_size": 2014
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 33.29999999701977,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1980.6000000089407,
+              "end": 1984.2000000029802,
+              "server_received_at": 1791596295818,
+              "server_sent_at": 1791596295818,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=10000000&max_maker_fills=8&max_spread=0.05",
+              "start": 1981.1000000089407,
+              "fetch_start": 1981.1000000089407,
+              "request_start": 1981.7999999970198,
+              "response_start": 1982.9000000059605,
+              "response_end": 1984,
+              "duration": 2.8999999910593033,
+              "connect_start": 1981.1000000089407,
+              "connect_end": 1981.1000000089407,
+              "transfer_size": 2025
+            }
+          ],
+          "long_tasks": []
+        },
+        {
+          "duration": 32.6000000089407,
+          "visibility": "visible",
+          "fetch": [
+            {
+              "url": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2023.5,
+              "end": 2026.1000000089407,
+              "server_received_at": 1791596295860,
+              "server_sent_at": 1791596295860,
+              "time_origin": 1791596293835.7
+            }
+          ],
+          "resources": [
+            {
+              "name": "http://127.0.0.1:43845/api/v1/route/solve?token_in=terra1qgpqyqszqgpqyqszqgpqyqszqgpqyqsz9namy2&token_out=terra1qyqszqgpqyqszqgpqyqszqgpqyqszqgp5hm70u&amount_in=11000000&max_maker_fills=8&max_spread=0.05",
+              "start": 2024.1000000089407,
+              "fetch_start": 2024.1000000089407,
+              "request_start": 2024.7000000029802,
+              "response_start": 2025.2000000029802,
+              "response_end": 2026,
+              "duration": 1.8999999910593033,
+              "connect_start": 2024.1000000089407,
+              "connect_end": 2024.1000000089407,
+              "transfer_size": 2029
+            }
+          ],
+          "long_tasks": []
+        }
+      ],
+      "p50_ms": 34,
+      "p95_ms": 36.4,
+      "max_ms": 36.4,
+      "initial_blocked_chain_requests": 0,
+      "quote_triggered_chain_requests": 0,
+      "blocked_chain_urls": [],
+      "page_errors": []
+    }
+  ]
+}

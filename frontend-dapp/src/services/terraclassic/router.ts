@@ -524,9 +524,34 @@ export async function executeLocalNativeRoute(
   minimumReceive: string,
   deadline?: number
 ): Promise<string> {
-  if (metadata.execution_supported === false || metadata.policy === 'wrapper_only')
+  if (metadata.execution_supported === false)
     throw new Error('Direct wrapping cannot enforce the reviewed receive floor')
   const w = metadata.wrapper
+  if (metadata.policy === 'wrapper_only') {
+    assertLocalRouteSubmit(metadata, operations, metadata.input_amount, maxSpread, walletAddress, minimumReceive)
+    const broadcastOptions = { ...getTerraBroadcastScopeOptions(), gasEstimation: 'offline' as const }
+    return w!.wrap_input
+      ? executeTerraContract(
+          walletAddress,
+          w!.treasury,
+          { wrap_deposit_with_minimum: { minimum_receive: minimumReceive } },
+          [{ denom: w!.input_token, amount: w!.input_amount }],
+          broadcastOptions
+        )
+      : executeTerraContract(
+          walletAddress,
+          w!.input_token,
+          {
+            send: {
+              contract: w!.mapper,
+              amount: w!.input_amount,
+              msg: btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: minimumReceive } })),
+            },
+          },
+          undefined,
+          broadcastOptions
+        )
+  }
   if (
     !w ||
     w.treasury !== TREASURY_CONTRACT_ADDRESS ||

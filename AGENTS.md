@@ -795,3 +795,13 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](docs/runbooks/router-trust-1388.md); `make verify-issue-1388`.
 
 - [Reverse-query availability #1389](skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](docs/qa/issue-1389/README.md).
+
+## Remaining local quote coverage
+
+For direct-wrapper receive floors, independently scheduled uncensused tax wallets
+or composed inverse parity, apply [QC1459-1–QC1459-10](skills/AGENTS_LOCAL_QUOTE_COVERAGE.md)
+([#1459](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1459)).
+Run `make verify-issue-1452` and the applicable `1398`, `1381` and `1390` verifiers;
+use the [agent checklist and explicit skip policy](docs/qa/issue-1459/README.md).
+Compatible external protected message variants are required before direct signing.
+Unknown cooldown/AutoLP state stays unsupported; source support is separate from #1456 rollout.

@@ -1,5 +1,11 @@
 # Incremental admission and authoritative actor recovery
 
+Current source coverage after #1458: [issue #1459 implementation and checklist](../issue-1459/README.md).
+The #1458 scope and receipts below are historical; #1459 supersedes the direct-wrapper
+protocol/signing limit, uncensused wallet admission and composed inverse rejection.
+Nonzero cooldown/AutoLP remains explicitly unsupported where required public state is absent.
+
+
 Follow [LQ1452-1–LQ1452-10](../../../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
 [the solver contract](../../route-solver.md#local-quote-contract-1452), and
 [the agent verification procedure](README.md). This follow-up extends the

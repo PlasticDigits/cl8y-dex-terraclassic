@@ -37,6 +37,10 @@ pub async fn mock_tax_lcd(taxed: &str, version: Option<u16>, fail: bool) -> Mock
             else if q.get("config").is_some() {json!({"funding_version":1,"factory":"terra1factory"})}
             else if let Some(actor)=q.get("is_protocol_exempt") {json!({"address":actor["address"],"manager":false,"protocol":false})}
             else if q.get("balance").is_some() {json!({"balance":"0"})}
+            // Scheduled holder enumeration is independent of quote requests.
+            // This fixture has no enrolled holders; an unmodeled 500 would open
+            // the provider circuit and poison subsequent required admission.
+            else if q.get("all_accounts").is_some() {json!({"accounts":[]})}
             else if q.get("route_tax_preview").is_some() {json!({"funding_version":1,"gross":"0","economic":"0","tax":"0","net":"0"})}
             else if q.get("is_paused").is_some() {json!({"paused":false})}
             else if q.get("get_hooks").is_some() {json!({"hooks":[]})}
@@ -98,6 +102,13 @@ pub async fn app(pool: PgPool, cfg: Config, mock: &MockServer) -> axum::Router {
     let state = common::local_quotes::state(pool, &cfg, lcd);
     local_quote::ingest_fixture(&state).await.unwrap();
     let ingested = mock.received_requests().await.unwrap();
+    let counters = state.lcd.provider_counters().await;
+    assert!(
+        counters
+            .iter()
+            .all(|counter| counter.rate_deferrals == 0 && counter.concurrency_deferrals == 0),
+        "synthetic scheduled admission exceeded its provider budget: {counters:?}"
+    );
     assert!(
         !ingested.is_empty(),
         "fixture must exercise scheduled admission"

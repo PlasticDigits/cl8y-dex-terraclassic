@@ -47,6 +47,7 @@ async fn forward_tax_mock(
                 json!({"funding_version":1,"gross":"0","economic":"0","net":"0","tax":"0"})
             } else if let Some(flags)=q.get("is_protocol_exempt") {
                 json!({"address":flags["address"],"manager":exempt,"protocol":false})
+            } else if q.get("all_accounts").is_some() { json!({"accounts":[]})
             } else if q.get("balance").is_some() { json!({"balance":"0"})
             } else if q.get("is_paused").is_some() { json!({"paused":false})
             } else if q.get("get_hooks").is_some() { json!({"hooks":[]})
@@ -113,6 +114,10 @@ async fn observed_app_with_references(
     cl8y_dex_indexer::api::local_quote::ingest_fixture(&state)
         .await
         .unwrap();
+    let provider_counters = state.lcd.provider_counters().await;
+    assert!(provider_counters.iter().all(|counter| counter.rate_deferrals == 0
+        && counter.concurrency_deferrals == 0 && counter.circuit_deferrals == 0 && !counter.circuit_open),
+        "synthetic scheduled admission must finish without provider deferral/circuit poisoning: {provider_counters:?}");
     if let Some((input, output, actor)) = expected_actor {
         // A different receive target keeps the measured/API target cold while
         // proving the required actor observation before providers are disabled.

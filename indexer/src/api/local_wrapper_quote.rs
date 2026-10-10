@@ -26,6 +26,8 @@ pub struct WrapperSnapshot {
     pub fee_unwrap_bps: u16,
     pub tax_atomics: Option<u128>,
     pub router_unwrap_supported: bool,
+    pub mapper_floor_version: Option<u8>,
+    pub treasury_floor_version: Option<u8>,
 }
 fn raw(v: &Value) -> Option<u128> {
     v.as_str()?.parse().ok()
@@ -57,6 +59,12 @@ fn tax_rate(text: &str) -> Option<u128> {
     format!("{fraction:0<18}").parse().ok()
 }
 impl WrapperSnapshot {
+    /// Explicit message variants reject old deployments rather than allowing
+    /// serde's unknown-field handling to silently discard a reviewed floor.
+    pub fn direct_floor_protocol(&self, wrap: bool) -> Option<u8> {
+        (self.mapper_floor_version == Some(1) && (!wrap || self.treasury_floor_version == Some(1)))
+            .then_some(1)
+    }
     fn mapping(&self, denom: &str, amount: u128, now: i64) -> Option<&NativeMapping> {
         // Rate usage is conservatively retained until ingestion observes a reset.
         // Do not predict a chain window transition from browser/process wall time.
@@ -85,6 +93,15 @@ impl WrapperSnapshot {
         if !self.router_unwrap_supported {
             return None;
         }
+        self.unwrap_output_direct(denom, wrapped, now)
+    }
+    /// Direct mapper settlement does not depend on the DEX router configuration.
+    pub fn unwrap_output_direct(
+        &self,
+        denom: &str,
+        wrapped: u128,
+        now: i64,
+    ) -> Option<(String, u128, u128)> {
         let m = self.mapping(denom, wrapped, now)?;
         let base = net_fee(wrapped, self.fee_unwrap_bps)?;
         let tax = ratio(base, self.tax_atomics?, SCALE)?.min(m.tax_cap?);
@@ -114,6 +131,19 @@ impl WrapperSnapshot {
     }
 }
 
+fn floor_protocol(value: &Value) -> Option<u8> {
+    (value["direct_wrapper_floor_version"].as_u64() == Some(1)).then_some(1)
+}
+
+async fn observe_floor_protocol(state: &AppState, address: &str) -> Option<u8> {
+    let response = state
+        .lcd
+        .query_contract_bounded(address, &json!({"execution_capabilities":{}}), 1_024)
+        .await
+        .ok()?;
+    floor_protocol(&response)
+}
+
 /// Bounded scheduled observation. Two known native denoms only; no caller-supplied
 /// endpoint/address. Missing output tax data leaves native output unsupported,
 /// without discarding an independently valid input-wrap observation.
@@ -124,6 +154,7 @@ pub async fn observe(state: &AppState) -> Option<WrapperSnapshot> {
         .flatten()
 }
 async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
+    let started = std::time::Instant::now();
     let mapper = state.wrap_mapper_address.as_deref()?;
     let observed_at_ms = Utc::now().timestamp_millis();
     state.lcd.require_verified_chain().await.ok()?;
@@ -276,6 +307,21 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
     } else {
         (None, false)
     };
+    // Optional capability failures preserve useful arithmetic but never signing.
+    // This work has a separate deadline and shares the scheduled provider budget.
+    // Leave a small publication margin inside the outer eight-second deadline;
+    // slow optional reads must not discard completed arithmetic observations.
+    let remaining = std::time::Duration::from_millis(7_900)
+        .saturating_sub(started.elapsed())
+        .min(std::time::Duration::from_secs(2));
+    let floors = tokio::time::timeout(remaining, async {
+        (
+            observe_floor_protocol(state, mapper).await,
+            observe_floor_protocol(state, &treasury).await,
+        )
+    })
+    .await
+    .unwrap_or((None, None));
     Some(WrapperSnapshot {
         mapper: mapper.into(),
         treasury,
@@ -285,6 +331,8 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
         fee_unwrap_bps: unwrap,
         tax_atomics,
         router_unwrap_supported,
+        mapper_floor_version: floors.0,
+        treasury_floor_version: floors.1,
     })
 }
 
@@ -309,6 +357,8 @@ mod tests {
             fee_unwrap_bps: 200,
             tax_atomics: Some(15_000_000_000_000_000),
             router_unwrap_supported: true,
+            mapper_floor_version: None,
+            treasury_floor_version: None,
         }
     }
     #[test]
@@ -367,5 +417,44 @@ mod tests {
         for v in ["1.5", "-0.01", "0.nan", "0.1234567890123456789"] {
             assert!(tax_rate(v).is_none());
         }
+    }
+    #[test]
+    fn direct_floor_capability_requires_exact_supported_protocol_at_each_boundary() {
+        let mut s = fixture();
+        assert_eq!(s.direct_floor_protocol(true), None);
+        assert_eq!(s.direct_floor_protocol(false), None);
+        s.mapper_floor_version = Some(1);
+        assert_eq!(s.direct_floor_protocol(false), Some(1));
+        assert_eq!(s.direct_floor_protocol(true), None);
+        s.treasury_floor_version = Some(1);
+        assert_eq!(s.direct_floor_protocol(true), Some(1));
+        s.mapper_floor_version = Some(2);
+        assert_eq!(s.direct_floor_protocol(false), None);
+        for invalid in [
+            json!({}),
+            json!({"direct_wrapper_floor_version":true}),
+            json!({"direct_wrapper_floor_version":"1"}),
+            json!({"direct_wrapper_floor_version":0}),
+            json!({"direct_wrapper_floor_version":2}),
+        ] {
+            assert_eq!(floor_protocol(&invalid), None);
+        }
+        assert_eq!(
+            floor_protocol(&json!({"direct_wrapper_floor_version":1})),
+            Some(1)
+        );
+    }
+    #[test]
+    fn direct_unwrap_keeps_arithmetic_without_router_but_never_waives_tax_or_expiry() {
+        let mut s = fixture();
+        s.router_unwrap_supported = false;
+        assert!(s.unwrap_output("uluna", 10_000, 1000).is_none());
+        assert_eq!(
+            s.unwrap_output_direct("uluna", 10_000, 1000),
+            Some(("clunc".into(), 9653, 9800))
+        );
+        assert!(s.unwrap_output_direct("uluna", 10_000, 21_001).is_none());
+        s.tax_atomics = None;
+        assert!(s.unwrap_output_direct("uluna", 10_000, 1000).is_none());
     }
 }

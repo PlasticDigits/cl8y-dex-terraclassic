@@ -579,3 +579,17 @@ by deferred optimization. Native-to-own-wrapper mappings have zero pair hops
 and local receive sizing. They set `execution_supported:false`: the current
 external wrap/unwrap messages cannot sign the reviewed receive floor, so official
 submission remains blocked until a compatible contract protocol exists.
+
+## Remaining quote coverage (#1459)
+
+The [coverage invariants](../skills/AGENTS_LOCAL_QUOTE_COVERAGE.md) and
+[agent checklist](qa/issue-1459/README.md) extend #1458. Direct wrapper signing
+requires independently observed external floor protocol version 1 and explicit
+protected message variants. Legacy deployments keep estimates nonexecutable.
+Scheduled holder pagination and `LOCAL_QUOTE_WALLETS` extend wallet contexts beyond
+the trader census; identity, blacklist, caps and original expiry remain required.
+Cooldown/AutoLP remains explicitly unsupported where protocol state is absent.
+Composed pool inverse checks complete forward parity and advances first-hop
+pre-hook pool-output events under 64 paths/64 forward refinements/64 hop refinements
+and 512 shared hop probes per path. Successful evaluated inverses retain exact
+first-reaching economic input; budget exhaustion remains unavailable.

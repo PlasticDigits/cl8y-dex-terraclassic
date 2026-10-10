@@ -6,12 +6,33 @@ import {
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
 } from '@/utils/constants'
-import { estimateSwapNetworkFee } from '../swapNetworkFee'
+import { estimateSwapNetworkFee, swapAutoGasProbeEntries } from '../swapNetworkFee'
 import { estimateNativeSwapUlunaFeesTotal, nativeSwapFeeExecuteMsgs } from '../transactions'
 import { buildTerraClassicFee, gasLimitForRouterExecuteSwapOperations, totalGasLimitForExecuteMsgs } from '../terraGas'
 import { estimateTerraClassicFeeForEntries } from '../terraClassicFeeEstimate'
 
 describe('estimateSwapNetworkFee (GitLab #587)', () => {
+  it.each([false, true])('direct protected fee estimate binds the reviewed floor: unwrap=%s', (unwrap) => {
+    const hints = { isDirectWrap: !unwrap, isDirectUnwrap: unwrap, needsWrapInput: false, hopCount: 0 }
+    const entries = swapAutoGasProbeEntries({
+      hints,
+      payContract: unwrap ? 'terra1wrapped' : undefined,
+      payAmount: '10000',
+      nativeDenom: 'uluna',
+      maxSpread: '0.05',
+      minimumReceive: '9310',
+    })!
+    expect(estimateSwapNetworkFee(hints).gasLimit).toBe(unwrap ? 1_200_000 : 800_000)
+    expect(estimateSwapNetworkFee(hints).gasLimit).toBeGreaterThan(unwrap ? 500_607 : 459_434)
+    expect(totalGasLimitForExecuteMsgs(entries)).toBe(estimateSwapNetworkFee(hints).gasLimit)
+    if (unwrap) {
+      const send = entries[0].msg.send as { msg: string }
+      expect(JSON.parse(atob(send.msg))).toEqual({ unwrap_with_minimum: { recipient: null, minimum_receive: '9310' } })
+    } else {
+      expect(entries[0].msg).toEqual({ wrap_deposit_with_minimum: { minimum_receive: '9310' } })
+      expect(entries[0].coins).toEqual([{ denom: 'uluna', amount: '10000' }])
+    }
+  })
   it('fee denom is uluna for wrap+2hop', () => {
     const hints = { isDirectWrap: false, needsWrapInput: true, hopCount: 2 }
     const est = estimateSwapNetworkFee(hints)

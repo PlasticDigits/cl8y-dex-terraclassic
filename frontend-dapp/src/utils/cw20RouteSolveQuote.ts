@@ -102,7 +102,7 @@ async function validateRouteSolveQuote(
       minimumReceive: metadata.minimum_receive,
       executionMetadata: metadata,
       executionOperations: '[]',
-      executionBlocker: idx.execution_blocker,
+      executionBlocker: idx.execution_blocker ?? undefined,
       spread_amount: '0',
       commission_amount: '0',
       routeSlippagePercent: resolveRouteSlippagePercent(
