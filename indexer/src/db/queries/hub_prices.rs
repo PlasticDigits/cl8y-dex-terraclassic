@@ -594,7 +594,13 @@ pub async fn run_hub_usd_refresh_loop(
     lunc_price: crate::indexer::oracle::SharedPrice,
     interval: std::time::Duration,
 ) {
+    let mut timer = tokio::time::interval(interval.clamp(
+        std::time::Duration::from_secs(1),
+        std::time::Duration::from_secs(5),
+    ));
+    timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
+        timer.tick().await;
         let ustc = ustc_price.read().await.clone();
         let lunc = lunc_price.read().await.clone();
         if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
@@ -603,7 +609,6 @@ pub async fn run_hub_usd_refresh_loop(
         {
             tracing::warn!("Protocol liquidity refresh after hub USD failed: {}", e);
         }
-        tokio::time::sleep(interval).await;
     }
 }
 

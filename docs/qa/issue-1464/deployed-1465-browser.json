@@ -1,0 +1,563 @@
+{
+  "revision": "79ab27c1563ccb85667be86ff540325cac4e057b",
+  "utc_start": "2026-10-10T09:36:10.374Z",
+  "source": "actual production https://dex.cl8y.com; read-only disconnected Chromium profiles",
+  "samples": [
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 8361,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 8361,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 8361,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 6847,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 6847,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 6847,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 6332,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 6332,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 6332,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 7263,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 7263,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 7263,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 7722,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 7722,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 7722,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        422,
+        422
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 6040,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 6040,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 6040,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 6622,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 6622,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 6622,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 6772,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 6772,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 6772,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    }
+  ],
+  "screenshots": false,
+  "signing": false,
+  "broadcast": false,
+  "browser_version": "151.0.7922.137",
+  "prohibited_write_attempts": 0,
+  "utc_end": "2026-10-10T09:42:25.788Z",
+  "useful_latency": {
+    "samples": 0,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "max_ms": null
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "phone": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "latency_by_connection": {
+    "new": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "overall": "FAIL",
+  "limitations": [
+    "Fresh disconnected contexts, no wallets/signing/broadcast; phone viewport on desktop Chromium, not cellular or physical device",
+    "Natural Chromium connection reuse observed through CDP; new-connection category may be empty because catalog reads initialize sockets",
+    "No screenshots, raw response bodies, actor identifiers/digests or private endpoint URLs retained",
+    "No production outage/disruption trial performed"
+  ]
+}

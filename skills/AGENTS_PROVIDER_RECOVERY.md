@@ -3,6 +3,10 @@
 Apply for provider scheduling, checkpoint retries, indexer/API supervision,
 local admission publication, quote blocker classification or useful-result latency.
 Issue: [#1464](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1464).
+First implementation: [merged #1465](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1465).
+Its [deployed receipt](../docs/qa/issue-1464/deployment-1465.json) records a successful
+rollout and failed useful-quote acceptance; use the current verification results,
+not merged status or liveness, to assess trading readiness.
 
 | Invariant | Required behavior |
 |---|---|
@@ -21,6 +25,10 @@ Preserve [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md), [LF1453](AGENTS_LIQUIDITY_FEED.m
 [PD1394](AGENTS_PAIR_DISCOVERY_CACHE.md), [NET1392](AGENTS_CHAIN_ATTESTATION.md),
 [DB1396](AGENTS_INDEXER_DATABASE_ISOLATION.md), [NE1398](AGENTS_NET_EXECUTION_FLOORS.md),
 [RT1381](AGENTS_ROUTE_LOCAL_TAX.md) and [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md).
+For reference scheduling preserve [O1391](AGENTS_ORACLE_SAFETY.md): independent
+bounded ticker/hub timers, unchanged source quorum and expiry, original poll-start
+times, clock-based CoinGecko pacing and owned cancellation. A stale wrapper or
+missing reference is availability loss; fresh observed amount limits remain protection.
 
 Run `make verify-issue-1464`, then the existing #1452/#1453/#1394/#1392/#1396
 verifiers. Follow the [AC1–AC9 agent checklist](../docs/qa/issue-1464/README.md)

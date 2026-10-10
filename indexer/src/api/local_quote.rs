@@ -928,6 +928,9 @@ async fn solve_local_with_plan(
             .get(namespace)
             .cloned()
             .ok_or_else(unavailable)?;
+        if !w.is_fresh(now_ms()) {
+            return Err(unavailable());
+        }
         if wrap {
             let mapping = w.mappings.get(&q.token_in).ok_or_else(unavailable)?;
             if let Some(raw) = q.amount_in.as_ref() {
@@ -1028,6 +1031,16 @@ async fn solve_local_with_plan(
         let native = native.as_ref().ok_or_else(eligible_error)?;
         if !protocol_guards::permits_token(&snapshot, q.token_in.trim()) {
             return Err(eligible_error());
+        }
+        // Identity equality still requires an independent fresh reference. Its
+        // absence is an availability failure, not evidence about offer size.
+        let id = snapshot.ids.get(&q.token_in).ok_or_else(unavailable)?;
+        if snapshot
+            .references
+            .fair_output(*id, *id, 1, Utc::now())
+            .is_none()
+        {
+            return Err(unavailable());
         }
         let body = modes::wrapper_only(&snapshot, q, native, spread).ok_or_else(eligible_error)?;
         let g = store().lock().unwrap();
@@ -1149,7 +1162,22 @@ async fn solve_local_with_plan(
         considered,
         native.as_ref(),
     )
-    .ok_or_else(eligible_error)?;
+    .ok_or_else(|| {
+        if native
+            .as_ref()
+            .is_some_and(|n| !n.wrapper.is_fresh(now_ms()))
+        {
+            unavailable()
+        } else {
+            diagnostics::candidate_error(
+                namespace,
+                &snapshot,
+                std::slice::from_ref(&candidate.path),
+                start,
+                goal,
+            )
+        }
+    })?;
     if plan.is_some() {
         body["execution_metadata"]["policy"] = json!("declared_hybrid_manual");
         body["optimality_scope"] = json!(
@@ -2098,8 +2126,38 @@ mod tests {
         );
         w.mapper_floor_version = Some(1);
         w.observed_at_ms = now_ms() - 20_001;
+        publish_wrapper(namespace.into(), w.clone());
+        assert_eq!(
+            solve_local(namespace, &q).await.unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        w.observed_at_ms = now_ms() + 60_000;
+        publish_wrapper(namespace.into(), w.clone());
+        assert_eq!(
+            solve_local(namespace, &q).await.unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE
+        );
+        w.observed_at_ms = now_ms();
+        w.mappings.get_mut("uluna").unwrap().maximum = Some(9_999);
+        publish_wrapper(namespace.into(), w.clone());
+        assert_eq!(
+            solve_local(namespace, &q).await.unwrap_err().0,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "a fresh observed rate limit remains a protection failure"
+        );
+        w.mappings.get_mut("uluna").unwrap().maximum = None;
         publish_wrapper(namespace.into(), w);
-        assert!(solve_local(namespace, &q).await.is_err());
+        {
+            let mut g = store().lock().unwrap();
+            let mut missing = (*g.snapshots[namespace]).clone();
+            missing.references.prices.clear();
+            g.snapshots.insert(namespace.into(), Arc::new(missing));
+        }
+        assert_eq!(
+            solve_local(namespace, &q).await.unwrap_err().0,
+            StatusCode::SERVICE_UNAVAILABLE,
+            "a missing independent reference is not offer-size protection"
+        );
     }
 
     #[test]

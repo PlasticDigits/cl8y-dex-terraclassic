@@ -35,7 +35,9 @@ def main():
                      "--fees", "500000000uluna", "--broadcast-mode", "sync", "-y", "--output", "json")
         if result.get("code", 0):
             raise RuntimeError(f"LocalTerra check failed: {result.get('raw_log')}")
-        deadline = time.monotonic() + 30
+        # Inclusion reconciliation stays finite under shared CI host contention;
+        # an accepted transaction is never blindly rebroadcast after timeout.
+        deadline = time.monotonic() + 120
         while time.monotonic() < deadline:
             try:
                 included = query("tx", result["txhash"])
@@ -98,7 +100,8 @@ def main():
     ):
         infos = [{"token": {"contract_addr": tokens[t]}} for t in (ticker0, ticker1)]
         execute(factory, {"create_pair": {"asset_infos": infos}})
-        pair = smart(factory, {"pair": {"asset_infos": infos}})
+        pair_response = smart(factory, {"pair": {"asset_infos": infos}})
+        pair = pair_response.get("pair", pair_response)
         address = pair["contract_addr"]
         for ticker in (ticker0, ticker1):
             execute(tokens[ticker], {"increase_allowance": {"spender": address, "amount": "1000000000000000"}})
@@ -111,8 +114,10 @@ def main():
                 "pairs": {name: {**info, "pool": smart(info["address"], {"pool": {}})} for name, info in pairs.items()}}
     stages = [snapshot("before")]
     swap = base64.b64encode(json.dumps({"swap": {"max_spread": "0.5"}}).encode()).decode()
+    # Keep the deliberate reserve-shift attack below the unchanged 50% trade
+    # protection: exact half-reserve input exceeds it by integer rounding dust.
     execute(tokens["custc"], {"send": {"contract": pairs["ust1-custc"]["address"],
-                                     "amount": "100000000000", "msg": swap}})
+                                     "amount": "90000000000", "msg": swap}})
     stages.append(snapshot("canonical_reserve_shift"))
     lp = pairs["ustr-custc"]["lp_token"]
     balance = int(smart(lp, {"balance": {"address": wallet}})["balance"])

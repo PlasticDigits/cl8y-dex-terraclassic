@@ -45,6 +45,20 @@ Cancellation releases owned work. Independent reserve, book, configuration, acto
 reference producers own chain reads; retail requests never enqueue network observations
 or accelerate cadence.
 
+External USTC/LUNC references have independent, nonoverlapping pollers with a
+1–10 second target interval (`ORACLE_POLL_INTERVAL_MS` is clamped for these
+quote-critical tickers). A slow FDUSD or CoinGecko request cannot postpone the
+other ticker's poll. USTC/LUNC CoinGecko reads retain a clock-based 60 second
+cadence; FDUSD retains its separate 30 second two-source cadence. Included source
+reads run concurrently, with at most eight outstanding HTTP reads across three
+tickers. Owned task sets cancel all polls with the indexer. Original poll-start
+timestamps remain conservative; HTTP/database delay cannot renew them.
+
+Hub reference refresh targets 1–5 seconds with skipped missed ticks and no
+overlapping passes. Pool/book cadence and the existing 20 second local quote
+expiry remain unchanged. Faster scheduled observation is not a guarantee of
+availability: missing quorum, reserves or contained marks still fail closed.
+
 Scheduled configuration refresh retains a still-fresh validated pair observation with
 its original expiry when a remote read fails transiently. Successful malformed/unsupported
 schema or authoritative pause/blacklist/code/tax guard changes invalidate the affected
@@ -55,12 +69,33 @@ availability/capacity; wrong-chain, malformed observations or changed code inval
 all affected admissions before later remote awaits. Token code identity remains pinned.
 An incomplete outer discovery deadline fails closed because cancellation can hide
 an inner integrity result; only a completed typed outage may retain qualification.
+Discovery has an eight-second total budget. Immutable code IDs already positively
+registered as ordinary or routed-tax implementations need no data-hash fallback;
+otherwise a configured hash policy still requires bounded hash attestation. The
+code-details endpoint may include inline WASM larger than the background body
+limit: fetching it redundantly erased all production admission in
+[the #1465 deployed trial](../qa/issue-1464/configured-code-envelopes.json).
+This fix preserves the body limit, final code recheck, conflict rejection and
+capability/router/funding validation. Equal asset code IDs share one required
+whitelist read, since code registration is immutable.
+
+Actor refresh has a ten-second slice before pair discovery. Completed blacklist
+observations publish immediately: known blocks remain blocked, and a fresh
+authoritative unblock resets fees conservatively before an optional discount
+await. Partial cancellation does not renew observations or clear unobserved
+guards. Fixed stage/outcome/elapsed/count labels separate token discovery, token
+policy and actor pressure without recording addresses or private endpoints.
 
 Missing/stale required observations use the existing 503 recovery blocker; unsupported
 route semantics use 503 `Local execution quote unavailable for this route`; a complete
 fresh candidate that cannot satisfy execution/protection uses the existing 422
 selected-protection blocker. Internal reasons are fixed low-cardinality values.
 No smaller-size advice or relaxed taxes/hooks/floors substitutes for unavailable data.
+Native wrapper observations are checked for original freshness before applying
+amount-specific rate limits. Expired/future wrapper data and missing direct-wrapper
+references use the availability blocker; a fresh observed rate limit remains a
+protection rejection. Final response admission rechecks prerequisite classes so
+data expiry during computation cannot become an arbitrary size suggestion.
 
 Pair discovery propagates typed provider availability/integrity and database
 persistence errors to pending-block classification rather than successfully skipping

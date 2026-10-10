@@ -1,0 +1,282 @@
+{
+  "schema": "cl8y-1464-oracle-controls-v1",
+  "status": "PASS",
+  "scope": "Two fresh isolated LocalTerra fixture executions replayed through current Rust hub processor in disposable QA databases. Synthetic certified CEX control and advanced bootstrap fixture clock; not production oracle/deployment or full artifact source attestation.",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "shared_chain_reset": false,
+  "shared_chain_restart": false,
+  "isolated_ports_loopback_only": true,
+  "synthetic_cex_source_count": 2,
+  "bootstrap_fixture_clock_advanced_seconds": 61,
+  "trade_max_spread_unchanged": "0.5",
+  "manipulation_input_fraction": "0.45",
+  "artifacts": {
+    "cw20_mintable.wasm": {
+      "code_id": 1,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "matches_existing_build_provenance": false,
+      "provenance_sha256": null
+    },
+    "cl8y_dex_factory.wasm": {
+      "code_id": 2,
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "matches_existing_build_provenance": true,
+      "provenance_sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair.wasm": {
+      "code_id": 3,
+      "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "matches_existing_build_provenance": false,
+      "provenance_sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+    }
+  },
+  "passes": [
+    {
+      "pass": 1,
+      "fresh_isolated_fixture": true,
+      "chain_transaction_count": 19,
+      "stages": [
+        {
+          "stage": "before",
+          "recorded_at": "2026-10-10T10:28:56.901573+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "200000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "400000000000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        },
+        {
+          "stage": "canonical_reserve_shift",
+          "recorded_at": "2026-10-10T10:28:57.868584+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "689655173"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "290000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "400000000000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        },
+        {
+          "stage": "candidate_depth_loss",
+          "recorded_at": "2026-10-10T10:28:59.033927+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "689655173"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "290000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "100050"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "40020000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        }
+      ],
+      "rust_consumer_tests_passed": 2,
+      "controls": [
+        "bootstrap_requires_confirmed_observations",
+        "canonical_reserve_shift_suppresses_manipulated_UST1",
+        "independent_direct_USTR_stays_available",
+        "LP_depth_loss_rejects_switch_to_manipulated_anchor"
+      ]
+    },
+    {
+      "pass": 2,
+      "fresh_isolated_fixture": true,
+      "chain_transaction_count": 19,
+      "stages": [
+        {
+          "stage": "before",
+          "recorded_at": "2026-10-10T10:29:09.879905+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "200000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "400000000000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        },
+        {
+          "stage": "canonical_reserve_shift",
+          "recorded_at": "2026-10-10T10:29:11.186678+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "689655173"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "290000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "400000000000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        },
+        {
+          "stage": "candidate_depth_loss",
+          "recorded_at": "2026-10-10T10:29:12.729563+00:00",
+          "reserves": {
+            "ust1-custc": [
+              {
+                "asset": "ust1",
+                "raw_reserve": "689655173"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "290000000000"
+              }
+            ],
+            "ustr-custc": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "100050"
+              },
+              {
+                "asset": "custc",
+                "raw_reserve": "40020000"
+              }
+            ],
+            "ustr-ust1": [
+              {
+                "asset": "ustr",
+                "raw_reserve": "1000000000"
+              },
+              {
+                "asset": "ust1",
+                "raw_reserve": "1000000000"
+              }
+            ]
+          }
+        }
+      ],
+      "rust_consumer_tests_passed": 2,
+      "controls": [
+        "bootstrap_requires_confirmed_observations",
+        "canonical_reserve_shift_suppresses_manipulated_UST1",
+        "independent_direct_USTR_stays_available",
+        "LP_depth_loss_rejects_switch_to_manipulated_anchor"
+      ]
+    }
+  ],
+  "current_source_artifact_attestation": false,
+  "artifact_limitation": "Available pair hash differs from existing provenance; CW20 artifact has no provenance entry. Receipts validate actual checksum-bound fixture artifacts and current Rust processor, not a source-attested production release."
+}

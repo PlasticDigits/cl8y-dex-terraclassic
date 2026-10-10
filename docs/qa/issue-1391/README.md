@@ -20,7 +20,14 @@ quality atomically; legacy average rows alone do not certify a current quote.
 The current lookup rejects future observations and expires after **300 seconds**.
 New average history stores accepted source identities. Legacy samples remain explicitly unverified; historical repairs require certified averages within 300 seconds before the historical event, never an arbitrary old price or a symbol-spoofed wrap. Historical qualification does not mean current availability.
 
-`as_of`/`fetched_at` record completed local HTTP observation time, captured before database writes. They certify poll recency and source agreement, not authenticated exchange market age or fair value. A provider serving an old value with HTTP 200 and two agreeing replayed feeds can still pass; exchange timestamp authentication is outside this policy.
+`as_of`/`fetched_at` retain the original local poll-start time, captured before HTTP
+and database work. This conservative bound prevents a slow peer or write from
+renewing an earlier source response. It certifies poll recency and source agreement,
+not authenticated exchange market age or fair value. A provider serving an old
+value with HTTP 200 and two agreeing replayed feeds can still pass; exchange
+timestamp authentication is outside this policy. Independent bounded ticker and
+hub schedules follow [#1464 recovery](../../runbooks/indexer-provider-recovery.md);
+quorum and expiry policies remain unchanged.
 
 Ticker APIs publish `quality`, `as_of`, `age_seconds`, `max_age_seconds`,
 `source_count`, `quorum`, `source_policy`, and `accepted_sources`. Only `fresh`

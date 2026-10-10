@@ -88,6 +88,18 @@ async fn real_canonical_reserve_shift_and_lp_withdrawal_are_contained() {
         pairs.insert(name.clone(), id);
     }
     let oracle: BigDecimal = "0.005".parse().unwrap();
+    // Synthetic certified CEX control, separate from actual chain reserve receipts.
+    // The production processor requires this same quality/source quorum; a bare
+    // numeric argument cannot establish a trusted external anchor.
+    cl8y_dex_indexer::db::queries::oracle::record_observation(
+        &pool,
+        cl8y_dex_indexer::indexer::oracle::OracleTicker::Ustc,
+        Some(&oracle),
+        &["kucoin".into(), "mexc".into()],
+        "fresh",
+    )
+    .await
+    .unwrap();
     apply_stage(&pool, &stages[0], &pairs, &assets).await;
     let boot = hub_prices::refresh_hub_prices(&pool, &cfg, Some(&oracle), None)
         .await

@@ -19,10 +19,11 @@ make verify-issue-1453
 make verify-issue-1394
 make verify-issue-1392
 make verify-issue-1396
+make verify-issue-1391  # reference/quorum propagation when scheduler changes
 ```
 
 The [focused verifier](../../../scripts/verify-issue-1464.sh) runs provider,
-checkpoint and admission library regressions twice, disposable socket/book/health
+checkpoint, token admission and oracle scheduler regressions twice, disposable socket/book/health
 fixtures twice, and evidence-tool/crosslink checks. It records revision, UTC times,
 commands and stage outcomes. The existing verifiers establish the broader protocol,
 browser/signing, discovery, attestation and real database privilege regressions.

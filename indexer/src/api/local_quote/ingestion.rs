@@ -42,6 +42,37 @@ pub(super) fn clear_known_block(namespace: &str, address: &str) {
         blocks.remove(address);
     }
 }
+/// An authoritative unblock uses conservative fees immediately. Optional fee
+/// provider delay/cancellation cannot keep an old blacklist approval or discount.
+pub(super) fn publish_known_unblock(namespace: &str, address: &str) -> Result<(), sqlx::Error> {
+    let mut g = store().lock().unwrap();
+    if let Some(blocks) = g.early_actor_blocks.get_mut(namespace) {
+        blocks.remove(address);
+    }
+    let Some(previous) = g.snapshots.get(namespace).cloned() else {
+        return Ok(());
+    };
+    if previous.actors.get(address) == Some(&(0, false)) {
+        return Ok(());
+    }
+    let mut snapshot = (*previous).clone();
+    if let Err(error) = insert_actor(&mut snapshot.actors, address.to_owned(), (0, false)) {
+        mark_actor_capacity_exhausted(&mut g, namespace);
+        return Err(error);
+    }
+    g.next_config_epoch = g.next_config_epoch.saturating_add(1);
+    snapshot.config_epoch = g.next_config_epoch;
+    snapshot.generation = format!(
+        "{:x}",
+        Sha256::digest(format!(
+            "{}|known-unblock|{}",
+            snapshot.generation, snapshot.config_epoch
+        ))
+    );
+    g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
+    g.results.clear();
+    Ok(())
+}
 pub(super) fn observed_actor_contexts(namespace: &str) -> HashMap<String, (u16, bool)> {
     let g = store().lock().unwrap();
     let mut actors = g

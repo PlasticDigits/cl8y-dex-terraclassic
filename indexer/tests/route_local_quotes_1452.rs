@@ -241,6 +241,19 @@ fn report(label: &str, samples: &mut [f64]) {
 }
 
 async fn mount_supported_config_mock(upstream: &wiremock::MockServer, wrap_fee_bps: u16) {
+    mount_supported_config_mock_with_wrapper_delay(
+        upstream,
+        wrap_fee_bps,
+        std::time::Duration::ZERO,
+    )
+    .await;
+}
+
+async fn mount_supported_config_mock_with_wrapper_delay(
+    upstream: &wiremock::MockServer,
+    wrap_fee_bps: u16,
+    delay: std::time::Duration,
+) {
     Mock::given(method("GET"))
         .and(wiremock::matchers::path_regex(
             r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/",
@@ -277,10 +290,71 @@ async fn mount_supported_config_mock(upstream: &wiremock::MockServer, wrap_fee_b
             } else {
                 return ResponseTemplate::new(500);
             };
-            ResponseTemplate::new(200).set_body_json(json!({"data":data}))
+            let response = ResponseTemplate::new(200).set_body_json(json!({"data":data}));
+            if query.get("config").is_some()
+                || query.get("denom_wrappers").is_some()
+                || query.get("denom_mapping").is_some()
+                || query.get("rate_limit").is_some()
+            {
+                response.set_delay(delay)
+            } else {
+                response
+            }
         })
         .mount(upstream)
         .await;
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn recovery1464_slow_optional_wrapper_output_preserves_completed_native_input() {
+    let pool = common::setup_pool().await;
+    let upstream = common::lcd_mock::start_ordinary_code_mock().await;
+    mount_supported_config_mock_with_wrapper_delay(
+        &upstream,
+        100,
+        std::time::Duration::from_millis(900),
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path("/terra/tax/v1beta1/params"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"params":{"burn_tax_rate":"0.005"}}))
+                .set_delay(std::time::Duration::from_secs(5)),
+        )
+        .mount(&upstream)
+        .await;
+    let mut state = app_state(pool, cold_fixture_lcd(upstream.uri()));
+    state.wrap_mapper_address = Some("terra1mapperfixture1452".into());
+    let before = chrono::Utc::now().timestamp_millis();
+    assert!(
+        cl8y_dex_indexer::api::local_quote::refresh_wrapper(&state).await,
+        "slow optional output must not cancel completed native input"
+    );
+    cl8y_dex_indexer::api::local_quote::initialize_for_test(
+        state.lcd.chain_cache_namespace(),
+        Vec::new(),
+        std::collections::HashMap::from([(1, CLUNC.into()), (2, CUSTC.into())]),
+        std::collections::HashMap::new(),
+        20_000,
+    );
+    let request = serde_json::from_value(json!({
+        "token_in":"uluna", "token_out":CLUNC, "amount_in":"10000", "max_spread":"0.05"
+    }))
+    .unwrap();
+    let body = cl8y_dex_indexer::api::local_quote::solve(&state, &request)
+        .await
+        .unwrap()
+        .0;
+    let observed = body["execution_metadata"]["observed_at_ms"]
+        .as_i64()
+        .unwrap();
+    assert!(observed >= before);
+    assert!(chrono::Utc::now().timestamp_millis() - observed >= 6_000);
+    assert_eq!(body["estimated_amount_out_net"], "9900");
+    assert_eq!(body["execution_metadata"]["execution_supported"], false);
+    assert!(!body["execution_blocker"].is_null());
 }
 
 #[tokio::test]

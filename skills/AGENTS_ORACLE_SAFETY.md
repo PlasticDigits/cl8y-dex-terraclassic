@@ -26,6 +26,8 @@ results/revision: [verification](../docs/qa/issue-1391/verification.md).
    and live manipulation remain unverified until actually executed.
 
 Related: [external oracle](AGENTS_INDEXER_EXTERNAL_ORACLE.md),
+[independent reference scheduling](AGENTS_PROVIDER_RECOVERY.md) and its
+[bounded cadence runbook](../docs/runbooks/indexer-provider-recovery.md),
 [hub USD](AGENTS_INDEXER_HUB_USD.md),
 [local Postgres](AGENTS_LOCAL_POSTGRES_DEV.md),
 [UST1 LP actions](AGENTS_REBALANCE_MINT_UST1_LP.md),

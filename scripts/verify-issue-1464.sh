@@ -21,7 +21,7 @@ selected() {
 cargo_indexer() { cargo "$1" --locked --manifest-path indexer/Cargo.toml "${@:2}"; }
 library() {
   local failed=0 filter
-  for filter in lcd:: recovery1464 api::local_quote; do
+  for filter in lcd:: recovery1464 api::local_quote api::trading_tax_discovery indexer::oracle::; do
     cargo_indexer test --lib "$filter" -- --test-threads=1 || failed=1
   done
   return "$failed"

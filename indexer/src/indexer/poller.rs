@@ -287,7 +287,7 @@ async fn run_indexer_inner(
     let hub_pool = pool.clone();
     let hub_ustc = oracle_prices.ustc.clone();
     let hub_lunc = oracle_prices.lunc.clone();
-    let hub_interval = std::time::Duration::from_millis(snapshot_interval.max(1_000));
+    let hub_interval = std::time::Duration::from_millis(snapshot_interval.clamp(1_000, 5_000));
     spawn_worker(workers, &cancel, health, async move {
         crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
             hub_pool,

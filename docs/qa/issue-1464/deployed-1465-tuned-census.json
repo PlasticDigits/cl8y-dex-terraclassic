@@ -1,0 +1,155 @@
+{
+  "utc": "2026-10-10T09:56:39.705006+00:00",
+  "fixed_log_counts": {
+    "all provider circuits open": 31,
+    "LCD provider admission deferred": 2,
+    "Indexer task ended": 0,
+    "Indexer halted": 0,
+    "Indexer exited with error": 0,
+    "provider unavailable; retaining checkpoint": 24,
+    "Local quote admission unavailable": 0,
+    "Local quote admission exhausted pass budget": 0,
+    "Local reserve ingestion unavailable": 0,
+    "Unsafe block processing/state failure": 0,
+    "leadership_lost": 0,
+    "Local quote pair admission deferred": 0,
+    "Local quote candidate unavailable": 55
+  },
+  "cycles": [
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "22",
+      "failed_pair_count": "0",
+      "cycle_elapsed_ms": "3344",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "3344",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "14",
+      "failed_pair_count": "8",
+      "cycle_elapsed_ms": "4361",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "4361",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "22",
+      "failed_pair_count": "0",
+      "cycle_elapsed_ms": "3671",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "3671",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "17",
+      "failed_pair_count": "5",
+      "cycle_elapsed_ms": "6785",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "6785",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "0",
+      "failed_pair_count": "22",
+      "cycle_elapsed_ms": "1505",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "11505",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "20",
+      "failed_pair_count": "2",
+      "cycle_elapsed_ms": "9612",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "19612",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "0",
+      "failed_pair_count": "22",
+      "cycle_elapsed_ms": "1",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "20002",
+      "future_reserve_timestamp_count": "0"
+    },
+    {
+      "pair_count": "22",
+      "refreshed_pair_count": "0",
+      "failed_pair_count": "22",
+      "cycle_elapsed_ms": "3",
+      "missing_reserve_count": "0",
+      "max_reserve_age_ms": "20004",
+      "future_reserve_timestamp_count": "0"
+    }
+  ],
+  "diagnostics": [
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    },
+    {
+      "reason": "unsupported",
+      "candidates": "0",
+      "admitted_pairs": "0",
+      "mirrors": "0"
+    }
+  ],
+  "numeric_height_tail": [
+    "30774198",
+    "30774199",
+    "30774200",
+    "30774200",
+    "30774201",
+    "30774202",
+    "30774203",
+    "30774204",
+    "30774205",
+    "30774206"
+  ],
+  "bounded_log_bytes": 225959
+}

@@ -1,0 +1,47 @@
+{
+  "vantage": "Korea (operator/workspace location)",
+  "utc_start": "2026-10-10T09:59:12.330Z",
+  "utc_end": "2026-10-10T09:59:16.060Z",
+  "scope": "Production browser origin document transport only; JavaScript disabled to avoid app/API polling; no UI/quote usefulness claim",
+  "limitations": [
+    "Document response timings include proxy/serving work; TCP phase is not a guaranteed pure physical RTT",
+    "JavaScript disabled: no UI compute/quote execution measured",
+    "Natural browser new/reused connection state from CDP; no screenshots/wallet/signing/broadcast"
+  ],
+  "revision": "79ab27c1563ccb85667be86ff540325cac4e057b",
+  "useful_quote_samples": 0,
+  "samples": [
+    {
+      "sequence": 1,
+      "protocol": "h2",
+      "reused": false,
+      "from_disk_cache": false,
+      "from_service_worker": false,
+      "status": 200,
+      "dns_ms": 132.59999999962747,
+      "tcp_ms": 525.5,
+      "tls_ms": 447.59999999962747,
+      "request_ttfb_ms": 284.09999999962747,
+      "response_body_ms": 0.900000000372529,
+      "navigation_response_end_ms": 1392,
+      "next_hop_protocol": "h2",
+      "transfer_bytes": 1460
+    },
+    {
+      "sequence": 2,
+      "protocol": "h2",
+      "reused": true,
+      "from_disk_cache": false,
+      "from_service_worker": false,
+      "status": 200,
+      "dns_ms": 0,
+      "tcp_ms": 0,
+      "tls_ms": 0,
+      "request_ttfb_ms": 283,
+      "response_body_ms": 0.7999999988824129,
+      "navigation_response_end_ms": 284.8999999985099,
+      "next_hop_protocol": "h2",
+      "transfer_bytes": 1460
+    }
+  ]
+}
