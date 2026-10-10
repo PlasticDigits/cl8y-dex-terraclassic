@@ -593,3 +593,13 @@ Composed pool inverse checks complete forward parity and advances first-hop
 pre-hook pool-output events under 64 paths/64 forward refinements/64 hop refinements
 and 512 shared hop probes per path. Successful evaluated inverses retain exact
 first-reaching economic input; budget exhaustion remains unavailable.
+
+## Provider recovery and quote readiness (#1464)
+
+[PR1464](../skills/AGENTS_PROVIDER_RECOVERY.md) preserves local-only requests and
+exact execution constraints while independently scheduled indexing/provider recovery
+retains qualified fresh observations. `/health` is liveness; `/ready` is indexing
+readiness, not proof of trading coverage. Missing/stale/unsupported prerequisites
+remain an availability blocker; genuinely infeasible protected execution remains 422.
+See [recovery/readiness](runbooks/indexer-provider-recovery.md),
+[AC1–AC9 verification](qa/issue-1464/README.md) and `make verify-issue-1464`.

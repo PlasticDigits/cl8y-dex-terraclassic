@@ -4,6 +4,7 @@ use super::ingestion::{
     actor_context, actor_refresh_addresses, configured_wallets, holder_page, insert_actor, query,
     retained_blocks, ENROLLED_ACTORS_PER_PASS,
 };
+use super::pair_admission::{observe_pair, AdmissionFailure};
 use super::*;
 use crate::api::{
     community_tax_rank, local_hook_pricing, local_reference_quote, trading_tax_discovery,
@@ -15,6 +16,7 @@ const ACTORS_PER_PASS: usize = 8;
 struct PairObservation {
     pair: pairs::PairRow,
     asset_addresses: (String, String),
+    asset_code_ids: (u64, u64),
     expiry_ms: i64,
     hooks: local_hook_pricing::CachedHookPrices,
     discounted: bool,
@@ -65,6 +67,12 @@ fn record_wallet_ledger(
 }
 /// Failed required asset semantics invalidate every related admission slice,
 /// including unselected pairs. Pool/book refresh failures use their own lanes.
+fn asset_code_changed(admission: &Admission, asset: &str, code: u64) -> bool {
+    admission.pairs.values().any(|pair| {
+        (pair.asset_addresses.0 == asset && pair.asset_code_ids.0 != code)
+            || (pair.asset_addresses.1 == asset && pair.asset_code_ids.1 != code)
+    })
+}
 fn invalidate_asset_observations(admission: &mut Admission, asset: &str) {
     admission.pairs.retain(|_, observation| {
         observation.asset_addresses.0 != asset && observation.asset_addresses.1 != asset
@@ -113,6 +121,33 @@ fn invalidate_cached_asset(g: &mut Store, namespace: &str, asset: &str) {
     g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
     g.results.clear();
 }
+fn invalidate_pair_observation(admission: &mut Admission, namespace: &str, pair: &str) {
+    admission.pairs.remove(pair);
+    let mut g = store().lock().unwrap();
+    let Some(previous) = g.snapshots.get(namespace).cloned() else {
+        return;
+    };
+    if !previous.pairs.iter().any(|p| p.contract_address == pair) {
+        return;
+    }
+    let mut snapshot = (*previous).clone();
+    snapshot.pairs.retain(|p| p.contract_address != pair);
+    snapshot.mirrors.remove(pair);
+    snapshot.hooks.remove(pair);
+    snapshot.config_expiries.remove(pair);
+    snapshot.discounted_pairs.remove(pair);
+    g.next_config_epoch = g.next_config_epoch.saturating_add(1);
+    snapshot.config_epoch = g.next_config_epoch;
+    snapshot.generation = format!(
+        "{:x}",
+        Sha256::digest(format!(
+            "{}|pair-invalid|{}",
+            snapshot.generation, snapshot.config_epoch
+        ))
+    );
+    g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
+    g.results.clear();
+}
 fn selected_indices(len: usize, cursor: usize, budget: usize) -> (Vec<usize>, usize) {
     if len == 0 {
         return (Vec::new(), 0);
@@ -152,6 +187,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         sqlx::query_as("SELECT * FROM pairs ORDER BY contract_address LIMIT 512")
             .fetch_all(&state.pool)
             .await?;
+    diagnostics::inventory(&namespace, &all_pairs);
     let policy = community_tax_rank::RouterHopTaxPolicy::from_catalog(&state.community_tax);
     let policy_identity = format!(
         "{:?}|{:?}|{policy:?}",
@@ -271,11 +307,19 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     // cancellation of that work must not leave a known block in a warm cache.
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
     let mut tokens: HashMap<String, (u64, i64, Option<tax::TokenObservation>)> = HashMap::new();
+    let mut attempted_tokens = HashSet::new();
     for i in selected.iter().copied() {
         let pair = &all_pairs[i];
-        // Refresh replaces the old observation immediately; failed admission cannot extend it.
-        admission.pairs.remove(&pair.contract_address);
+        // A transient refresh failure does not erase still-fresh qualification.
+        // Original observation times remain unchanged; successful negative reads
+        // invalidate synchronously, before the next provider/database await.
         if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&pair.contract_address) {
+            diagnostics::record(
+                &namespace,
+                &pair.contract_address,
+                Some(AdmissionFailure::Protected),
+            );
+            invalidate_pair_observation(&mut admission, &namespace, &pair.contract_address);
             continue;
         }
         let (Some(a), Some(b)) = (
@@ -287,15 +331,37 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         if crate::indexer::defillama::is_columbus5_gem_address(a)
             || crate::indexer::defillama::is_columbus5_gem_address(b)
         {
+            diagnostics::record(
+                &namespace,
+                &pair.contract_address,
+                Some(AdmissionFailure::Unsupported),
+            );
+            invalidate_pair_observation(&mut admission, &namespace, &pair.contract_address);
             continue;
         }
         for address in [a, b] {
-            if tokens.contains_key(address) {
+            if !attempted_tokens.insert(address.clone()) {
                 continue;
             }
             let observed = now_ms();
-            let verdict = trading_tax_discovery::discover(state, address, &policy).await;
-            let observation = match verdict {
+            let previous_code = admission.pairs.values().find_map(|pair| {
+                if pair.asset_addresses.0 == *address {
+                    Some(pair.asset_code_ids.0)
+                } else if pair.asset_addresses.1 == *address {
+                    Some(pair.asset_code_ids.1)
+                } else {
+                    None
+                }
+            });
+            let verdict =
+                trading_tax_discovery::discover_scheduled(state, address, &policy, previous_code)
+                    .await;
+            let unavailable = verdict.as_ref().err().is_some_and(|error| {
+                crate::indexer::block_indexer::is_retryable_availability(error)
+            });
+            let observation = match verdict
+                .unwrap_or(trading_tax_discovery::TradingTax::Unavailable)
+            {
                 trading_tax_discovery::TradingTax::Ordinary {
                     code_id: Some(code),
                 } => Some((code as u64, observed + CONFIG_TTL_MS, None)),
@@ -392,8 +458,22 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                 _ => None,
             };
             if let Some(obs) = observation {
+                if asset_code_changed(&admission, address, obs.0) {
+                    invalidate_asset_observations(&mut admission, address);
+                    invalidate_cached_asset(&mut store().lock().unwrap(), &namespace, address);
+                }
                 tokens.insert(address.clone(), obs);
-            } else {
+            } else if !unavailable {
+                for related in all_pairs.iter().filter(|p| {
+                    addresses.get(&p.asset_0_id) == Some(address)
+                        || addresses.get(&p.asset_1_id) == Some(address)
+                }) {
+                    diagnostics::record(
+                        &namespace,
+                        &related.contract_address,
+                        Some(AdmissionFailure::Unsupported),
+                    );
+                }
                 invalidate_asset_observations(&mut admission, address);
                 // Synchronous invalidation precedes subsequent provider/database
                 // awaits, so a known unsupported mode cannot survive cancellation
@@ -404,30 +484,35 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         let (Some((code_a, expiry_a, tax_a)), Some((code_b, expiry_b, tax_b))) =
             (tokens.get(a), tokens.get(b))
         else {
+            diagnostics::record(
+                &namespace,
+                &pair.contract_address,
+                Some(AdmissionFailure::Missing),
+            );
             continue;
         };
         let Some(factory) = state.factory_address.as_deref() else {
             continue;
         };
         let started = now_ms();
-        let checked = tokio::time::timeout(Duration::from_secs(6),async {
-            let paused=query(state,&pair.contract_address,json!({"is_paused":{}})).await?;
-            let hooks=query(state,&pair.contract_address,json!({"get_hooks":{}})).await?;
-            let pins=query(state,&pair.contract_address,json!({"get_asset_code_ids":{}})).await?;
-            let blacklist=query(state,factory,json!({"blacklist_check":{"tokens":[a,b],"pairs":[pair.contract_address],"wallet":null,"pair":null}})).await?;
-            let wa=query(state,factory,json!({"is_code_id_whitelisted":{"code_id":code_a}})).await?;
-            let wb=query(state,factory,json!({"is_code_id_whitelisted":{"code_id":code_b}})).await?;
-            if paused["paused"].as_bool()!=Some(false) || pins["code_ids"]!=json!([code_a,code_b]) || !blacklist["blacklisted_tokens"].as_array().is_some_and(|v|v.is_empty()) || !blacklist["blacklisted_pairs"].as_array().is_some_and(|v|v.is_empty()) || wa["whitelisted"].as_bool()!=Some(true) || wb["whitelisted"].as_bool()!=Some(true) {return None;}
-            let hook_list=hooks["hooks"].as_array()?;
-            if hook_list.len()>8 {return None;}
-            let mut hook_obs=Vec::new();
-            for hook in hook_list {let addr=hook.as_str()?;hook_obs.push((addr.to_string(),query(state,addr,json!({"get_config":{}})).await?));}
-            let prices=local_hook_pricing::CachedHookPrices::from_observation(&hook_obs).ok()?;
-            let registry=query(state,&pair.contract_address,json!({"get_discount_registry":{}})).await;
-            let discounted=state.fee_discount_address.as_deref().is_some_and(|configured|registry.as_ref().and_then(|v|v["registry"].as_str())==Some(configured));
-            Some((prices,discounted,format!("{}|{pins}|{registry:?}",pair.contract_address)))
-        }).await.ok().flatten();
-        if let Some((hooks, discounted, identity)) = checked {
+        let checked = bounded_pair_observation(
+            observe_pair(state, pair, a, b, *code_a, *code_b, factory),
+            Duration::from_secs(6),
+        )
+        .await;
+        diagnostics::record(
+            &namespace,
+            &pair.contract_address,
+            checked.as_ref().err().copied(),
+        );
+        if let Err(reason) = checked.as_ref() {
+            tracing::debug!(
+                reason = reason.label(),
+                "Local quote pair admission deferred"
+            );
+            apply_pair_failure(&mut admission, &namespace, &pair.contract_address, *reason);
+        }
+        if let Ok((hooks, discounted, identity)) = checked {
             let taxes = [(a, tax_a), (b, tax_b)]
                 .into_iter()
                 .filter_map(|(a, t)| t.as_ref().map(|t| (a.clone(), t.clone())))
@@ -437,6 +522,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                 PairObservation {
                     pair: pair.clone(),
                     asset_addresses: (a.clone(), b.clone()),
+                    asset_code_ids: (*code_a, *code_b),
                     expiry_ms: (started + CONFIG_TTL_MS).min(*expiry_a).min(*expiry_b),
                     hooks,
                     discounted,
@@ -448,6 +534,27 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
     }
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await
+}
+async fn bounded_pair_observation<T>(
+    observation: impl std::future::Future<Output = Result<T, AdmissionFailure>>,
+    budget: Duration,
+) -> Result<T, AdmissionFailure> {
+    // Cancellation can hide already observed malformed/integrity evidence
+    // inside a later provider failover. Completed typed availability alone
+    // permits retention; an incomplete observation must invalidate.
+    tokio::time::timeout(budget, observation)
+        .await
+        .unwrap_or(Err(AdmissionFailure::Unsupported))
+}
+fn apply_pair_failure(
+    admission: &mut Admission,
+    namespace: &str,
+    pair: &str,
+    reason: AdmissionFailure,
+) {
+    if reason != AdmissionFailure::Missing {
+        invalidate_pair_observation(admission, namespace, pair);
+    }
 }
 fn fresh_observations(admission: &Admission, observed_at: i64) -> Vec<&PairObservation> {
     let mut fresh = admission
@@ -551,6 +658,68 @@ pub async fn ingest_fixture(state: &AppState) -> Result<(), sqlx::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_incomplete_pair_observation_invalidates_warm_qualification() {
+        let snapshot = super::super::tests::fixture();
+        let pair = snapshot.pairs[0].clone();
+        let namespace = "incomplete-pair-observation1464";
+        let original_generation = snapshot.generation.clone();
+        let mut admission = Admission::default();
+        admission.pairs.insert(
+            pair.contract_address.clone(),
+            PairObservation {
+                pair: pair.clone(),
+                asset_addresses: (
+                    snapshot.addresses[&pair.asset_0_id].clone(),
+                    snapshot.addresses[&pair.asset_1_id].clone(),
+                ),
+                asset_code_ids: (1, 1),
+                expiry_ms: now_ms() + CONFIG_TTL_MS,
+                hooks: local_hook_pricing::CachedHookPrices::from_observation(&[]).unwrap(),
+                discounted: false,
+                identity: "fixture".into(),
+                taxes: HashMap::new(),
+            },
+        );
+        store()
+            .lock()
+            .unwrap()
+            .snapshots
+            .insert(namespace.into(), Arc::new(snapshot));
+        let failure = bounded_pair_observation(
+            async {
+                tokio::time::sleep(Duration::from_secs(7)).await;
+                Ok::<(), AdmissionFailure>(())
+            },
+            Duration::from_secs(6),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(failure, AdmissionFailure::Unsupported);
+        apply_pair_failure(&mut admission, namespace, &pair.contract_address, failure);
+        assert!(admission.pairs.is_empty());
+        let g = store().lock().unwrap();
+        let current = &g.snapshots[namespace];
+        assert!(!current
+            .pairs
+            .iter()
+            .any(|p| p.contract_address == pair.contract_address));
+        assert!(!current.mirrors.contains_key(&pair.contract_address));
+        assert_ne!(current.generation, original_generation);
+        assert!(
+            current.pairs.iter().any(|p| p.contract_address == "pair7a"),
+            "unrelated fresh corridors remain available"
+        );
+        drop(g);
+        assert_eq!(
+            bounded_pair_observation(
+                async { Err::<(), _>(AdmissionFailure::Missing) },
+                Duration::from_secs(6)
+            )
+            .await,
+            Err(AdmissionFailure::Missing)
+        );
+    }
     #[test]
     fn required_asset_failure_removes_unselected_shared_pairs_and_preserves_other_corridors() {
         let snapshot = super::super::tests::fixture();
@@ -564,6 +733,7 @@ mod tests {
                         snapshot.addresses[&pair.asset_0_id].clone(),
                         snapshot.addresses[&pair.asset_1_id].clone(),
                     ),
+                    asset_code_ids: (1, 1),
                     expiry_ms: now_ms() + CONFIG_TTL_MS,
                     hooks: local_hook_pricing::CachedHookPrices::from_observation(&[]).unwrap(),
                     discounted: false,
@@ -572,6 +742,9 @@ mod tests {
                 },
             );
         }
+        assert!(!asset_code_changed(&admission, "middle76", 1));
+        assert!(asset_code_changed(&admission, "middle76", 2));
+        assert!(!asset_code_changed(&admission, "unknown", 2));
         admission.pairs.remove("pair7a"); // Selected pair was removed before its asset read.
         assert!(admission.pairs.contains_key("pair7b")); // Unselected shared-token pair.
         invalidate_asset_observations(&mut admission, "middle76");
@@ -670,6 +843,7 @@ mod tests {
         let observation = PairObservation {
             pair: pair.clone(),
             asset_addresses: ("in18".into(), "out18".into()),
+            asset_code_ids: (1, 1),
             expiry_ms: 180_000,
             hooks: local_hook_pricing::CachedHookPrices::from_observation(&[]).unwrap(),
             discounted: false,

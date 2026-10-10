@@ -47,7 +47,7 @@ pub async fn mock_tax_lcd(taxed: &str, version: Option<u16>, fail: bool) -> Mock
             else if q.get("get_asset_code_ids").is_some() {
                 let ids=if addr.ends_with("abc")||addr.ends_with("mpab") {[10184,11667]} else if addr.ends_with("bcd")||addr.ends_with("mpbc") {[11667,10184]} else {[10184,10184]};
                 json!({"code_ids":ids})
-            } else if q.get("blacklist_check").is_some() {json!({"wallet_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[]})}
+            } else if q.get("blacklist_check").is_some() {json!({"wallet_blacklisted":false,"pair_blacklisted":false,"blocked":false,"blacklisted_tokens":[],"blacklisted_pairs":[]})}
             else if q.get("is_code_id_whitelisted").is_some() {json!({"whitelisted":true})}
             else if q.get("get_discount_registry").is_some() {json!({"registry":null})}
             else {return ResponseTemplate::new(500).set_body_string("unexpected quote-triggered RPC");};

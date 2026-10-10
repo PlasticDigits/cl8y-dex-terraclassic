@@ -255,7 +255,22 @@ async fn run_server() -> anyhow::Result<()> {
         config.expected_chain_id.clone(),
         config.lcd_provider_policy.clone(),
     );
-    lcd_client.attest_endpoints().await?;
+    let indexer_health = indexer::lifecycle::IndexerHealth::default();
+    let attestation = tokio::select! {
+        biased;
+        _ = shutdown_signal() => return Ok(()),
+        result = lcd_client.attest_endpoints() => result,
+    };
+    if let Err(error) = attestation {
+        if indexer::block_indexer::is_retryable_availability(&error) {
+            indexer_health.unavailable(None);
+            tracing::warn!(
+                "Startup provider unavailable; serving unready until scheduled ingestion recovers"
+            );
+        } else {
+            return Err(error.into());
+        }
+    }
 
     let pool = PgPoolOptions::new()
         .max_connections(10)
@@ -302,6 +317,8 @@ async fn run_server() -> anyhow::Result<()> {
             config.fee_discount_address.as_deref(),
         );
 
+    let poller_health = indexer_health.clone();
+
     let indexer_pool = pool.clone();
     let indexer_lcd = lcd_client.clone();
     let indexer_config = config.clone();
@@ -310,7 +327,7 @@ async fn run_server() -> anyhow::Result<()> {
     let indexer_venus = venus_vfdusd.clone();
     let indexer_fee_discount_health = fee_discount_registry_health.clone();
     let indexer_handle = tokio::spawn(async move {
-        if let Err(e) = indexer::poller::run_indexer(
+        if let Err(e) = indexer::poller::run_indexer_with_health(
             indexer_pool,
             indexer_lcd,
             indexer_config,
@@ -318,6 +335,7 @@ async fn run_server() -> anyhow::Result<()> {
             indexer_oracle,
             indexer_venus,
             indexer_fee_discount_health,
+            poller_health,
         )
         .await
         {
@@ -331,14 +349,18 @@ async fn run_server() -> anyhow::Result<()> {
     let api_oracle = oracle_prices.clone();
     let api_venus = venus_vfdusd.clone();
     let api_fee_discount_health = fee_discount_registry_health.clone();
+    let api_indexer_health = indexer_health.clone();
+    let api_cancel = cancel.clone();
     let api_handle = tokio::spawn(async move {
-        if let Err(e) = api::serve(
+        if let Err(e) = api::serve_with_health(
             api_pool,
             api_lcd,
             api_config,
             api_oracle,
             api_venus,
             api_fee_discount_health,
+            api_indexer_health,
+            api_cancel,
         )
         .await
         {
@@ -346,15 +368,33 @@ async fn run_server() -> anyhow::Result<()> {
         }
     });
 
-    tokio::select! {
-        _ = indexer_handle => tracing::warn!("Indexer task ended"),
-        _ = api_handle => tracing::warn!("API task ended"),
-        _ = tokio::signal::ctrl_c() => {
-            tracing::info!("Shutdown signal received, stopping indexer...");
-            cancel.cancel();
-        }
-    }
+    indexer::lifecycle::supervise_tasks(
+        indexer_handle,
+        api_handle,
+        indexer_health,
+        cancel,
+        shutdown_signal(),
+    )
+    .await;
 
     tracing::info!("Shutdown complete");
     Ok(())
+}
+
+/// Containers normally send SIGTERM; local terminals send Ctrl-C.
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("install SIGTERM handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = terminate.recv() => {},
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }

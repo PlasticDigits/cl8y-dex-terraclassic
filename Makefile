@@ -2021,3 +2021,7 @@ verify-issue-1453:
 .PHONY: verify-issue-1452
 verify-issue-1452:
 	bash scripts/verify-issue-1452.sh
+
+.PHONY: verify-issue-1464
+verify-issue-1464:
+	bash scripts/verify-issue-1464.sh

@@ -99,3 +99,7 @@ integration fixture. Run failure/recovery tests twice, then follow the
 [checklist](../docs/qa/issue-1453/README.md). Production audits are read-only;
 record configured versus active endpoint count, chain/height evidence and deployed
 revision without secrets. Never equate a configured URL list with healthy failover.
+
+Provider lifecycle/fair scheduling and admission recovery also preserve
+[PR1464](AGENTS_PROVIDER_RECOVERY.md); [agent checklist](../docs/qa/issue-1464/README.md).
+Fresh pool retention does not certify executable configuration or live trading readiness.

@@ -1089,6 +1089,7 @@ pub async fn build_test_app_with_vfdusd(
         *oracle_prices.vfdusd.write().await = Some(price);
     }
     let state = AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices,
@@ -1144,6 +1145,7 @@ pub async fn build_test_app_with_venus(
         *venus_vfdusd.write().await = Some(snap);
     }
     let state = AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices,
@@ -1208,6 +1210,7 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         *oracle_prices.lunc.write().await = Some(price);
     }
     let state = AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices,

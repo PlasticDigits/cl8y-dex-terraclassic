@@ -20,6 +20,7 @@ const USTR: &str = "terra1ustrfixture145200000000000000000000";
 const CUSTC: &str = "terra1custcfixture145200000000000000000000";
 const CLUNC: &str = "terra1cluncfixture145200000000000000000000";
 const UST1: &str = "terra1ust1fixture145200000000000000000000";
+const ALPHA: &str = "terra1alphafixture14640000000000000000000";
 
 async fn asset(pool: &PgPool, address: &str, decimals: i16) -> i32 {
     sqlx::query_scalar(
@@ -162,6 +163,7 @@ fn app_state(pool: PgPool, lcd: LcdClient) -> AppState {
     config.router_address = Some("terra1routerfixture1452".into());
     config.route_solver_db_hybrid = true;
     AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices: cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new(),
@@ -238,33 +240,15 @@ fn report(label: &str, samples: &mut [f64]) {
     );
 }
 
-#[tokio::test]
-#[serial_test::serial]
-async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
-    let pool = common::setup_pool().await;
-    seed_market(&pool).await;
-    for byte in [1u8, 2u8] {
-        let actor =
-            bech32::encode("terra", [byte; 20].to_base32(), bech32::Variant::Bech32).unwrap();
-        sqlx::query("INSERT INTO traders(address,tier_id,registered) VALUES($1,255,false)")
-            .bind(actor)
-            .execute(&pool)
-            .await
-            .unwrap();
-    }
-    let upstream = common::lcd_mock::start_ordinary_code_mock().await;
-    let lcd = cold_fixture_lcd(upstream.uri());
-    let mut state = app_state(pool.clone(), lcd);
-    state.wrap_mapper_address = Some("terra1mapperfixture1452".into());
-    // Production ingestion is the sole network-enabled step. Requests below cannot ingest.
+async fn mount_supported_config_mock(upstream: &wiremock::MockServer, wrap_fee_bps: u16) {
     Mock::given(method("GET"))
         .and(wiremock::matchers::path_regex(
             r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/",
         ))
-        .respond_with(|request: &wiremock::Request| {
+        .respond_with(move |request: &wiremock::Request| {
             let query = common::lcd_mock::smart_query_from_request(request);
             let data = if query.get("config").is_some() && request.url.path().contains("terra1mapperfixture1452") {
-                json!({"paused":false,"treasury":"terra1treasuryfixture1452","fee_wrap_bps":100,"fee_unwrap_bps":100})
+                json!({"paused":false,"treasury":"terra1treasuryfixture1452","fee_wrap_bps":wrap_fee_bps,"fee_unwrap_bps":wrap_fee_bps})
             } else if query.get("config").is_some() && request.url.path().contains("terra1treasuryfixture1452") {
                 json!({"wrapping_paused":false})
             } else if query.get("config").is_some() && request.url.path().contains("terra1routerfixture1452") {
@@ -295,8 +279,210 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
             };
             ResponseTemplate::new(200).set_body_json(json!({"data":data}))
         })
+        .mount(upstream)
+        .await;
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn recovery1464_reported_direction_corpus_is_executable_fast_and_network_free() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    asset(&pool, "uluna", 6).await;
+    let clunc = asset(&pool, CLUNC, 6).await;
+    let custc = asset(&pool, CUSTC, 6).await;
+    let cl8y = asset(&pool, CL8Y, 18).await;
+    let ustr = asset(&pool, USTR, 18).await;
+    let alpha = asset(&pool, ALPHA, 6).await;
+    for (address, a, b, da, db) in [
+        ("terra1clunccustc1464", clunc, custc, 6, 6),
+        ("terra1cl8yustr1464", cl8y, ustr, 18, 18),
+        ("terra1ustrcustc1464", ustr, custc, 18, 6),
+        ("terra1alphacl8y1464", alpha, cl8y, 6, 18),
+    ] {
+        pair(
+            &pool,
+            address,
+            a,
+            b,
+            1_000_000 * 10u128.pow(da),
+            1_000_000 * 10u128.pow(db),
+        )
+        .await;
+    }
+    seed_reference_marks(&pool, 1).await;
+    let upstream = common::lcd_mock::start_ordinary_code_mock().await;
+    mount_supported_config_mock(&upstream, 0).await;
+    let mut state = app_state(pool.clone(), cold_fixture_lcd(upstream.uri()));
+    state.wrap_mapper_address = Some("terra1mapperfixture1452".into());
+    cl8y_dex_indexer::api::local_quote::ingest_fixture(&state)
+        .await
+        .unwrap();
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path("/terra/tax/v1beta1/params"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({"params":{"burn_tax_rate":"0.005"}})),
+        )
         .mount(&upstream)
         .await;
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path_regex(
+            r"^/terra/treasury/v1beta1/tax_caps/",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"tax_cap":"1000000"})))
+        .mount(&upstream)
+        .await;
+    // Independently scheduled fixture observations precede measured request traffic.
+    sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()")
+        .execute(&pool)
+        .await
+        .unwrap();
+    seed_reference_marks(&pool, 1).await;
+    cl8y_dex_indexer::api::local_quote::refresh_reserves(&state)
+        .await
+        .unwrap();
+    assert!(cl8y_dex_indexer::api::local_quote::refresh_wrapper(&state).await);
+    upstream.reset().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&upstream)
+        .await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, build_router(state, &common::test_config()))
+            .await
+            .unwrap()
+    });
+    let reused = reqwest::Client::new();
+    assert!(reused
+        .get(format!("{base}/health"))
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .is_success());
+    let corpus = [
+        ("uluna", CUSTC, "10000000000", "100000000"),
+        (CL8Y, USTR, "1000000000000000000", "10000000000000000"),
+        (USTR, CUSTC, "100000000000000000000", "1000000000000000000"),
+        (ALPHA, CL8Y, "1000000", "100000"),
+    ];
+    let mut misses = Vec::new();
+    let mut hits = Vec::new();
+    for (input, output, ordinary, small) in corpus {
+        for (amount, spread) in [(ordinary, "0.05"), (small, "0.01"), (small, "0.30")] {
+            let mut first = None;
+            // First result is a fresh connection/result miss; second is a reused hit.
+            for hit in [false, true] {
+                let fresh = reqwest::Client::new();
+                let client = if hit { &reused } else { &fresh };
+                let start = Instant::now();
+                let response = client
+                    .get(format!("{base}/api/v1/route/solve"))
+                    .query(&[
+                        ("token_in", input),
+                        ("token_out", output),
+                        ("amount_in", amount),
+                        ("max_spread", spread),
+                        ("pool_only", "true"),
+                    ])
+                    .send()
+                    .await
+                    .unwrap();
+                let status = response.status();
+                let text = response.text().await.unwrap();
+                assert_eq!(
+                    status,
+                    reqwest::StatusCode::OK,
+                    "{input}->{output} amount={amount} spread={spread}: {text}"
+                );
+                let body: Value = serde_json::from_str(&text).unwrap();
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                assert!(
+                    elapsed < 250.0,
+                    "1464 useful loopback sample took {elapsed:.3}ms"
+                );
+                let meta = &body["execution_metadata"];
+                assert_eq!(meta["input_amount"], amount);
+                assert!(!meta["generation"].as_str().unwrap().is_empty());
+                let now = chrono::Utc::now().timestamp_millis();
+                assert!(meta["observed_at_ms"].as_i64().unwrap() <= now);
+                assert!(meta["expires_at_ms"].as_i64().unwrap() > now);
+                for floor in [
+                    body["estimated_amount_out_net"].as_str().unwrap(),
+                    meta["minimum_receive"].as_str().unwrap(),
+                ] {
+                    assert!(floor.parse::<u128>().unwrap() > 0);
+                }
+                let ops = body["router_operations"].as_array().unwrap();
+                let hops = meta["hops"].as_array().unwrap();
+                assert!(!ops.is_empty());
+                assert_eq!(ops.len(), hops.len());
+                for (op, hop) in ops.iter().zip(hops) {
+                    assert!(
+                        op["terra_swap"]["min_return"]
+                            .as_str()
+                            .unwrap()
+                            .parse::<u128>()
+                            .unwrap()
+                            > 0
+                    );
+                    assert_eq!(op["terra_swap"]["min_return"], hop["min_return"]);
+                }
+                if input == "uluna" {
+                    assert_eq!(meta["wrapper"]["input_amount"], amount);
+                    assert_eq!(meta["wrapper"]["output_token"], CUSTC);
+                    assert_eq!(hops[0]["offer_token"], CLUNC);
+                }
+                if hit {
+                    let initial: Value = first.take().unwrap();
+                    assert_eq!(initial["router_operations"], body["router_operations"]);
+                    assert_eq!(initial["execution_metadata"], body["execution_metadata"]);
+                    hits.push(elapsed);
+                } else {
+                    first = Some(body);
+                    misses.push(elapsed);
+                }
+            }
+        }
+    }
+    report(
+        "1464 four directions new connection/result misses",
+        &mut misses,
+    );
+    report(
+        "1464 four directions reused connection/result hits",
+        &mut hits,
+    );
+    assert!(
+        upstream.received_requests().await.unwrap().is_empty(),
+        "measured corpus cannot invoke providers"
+    );
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
+    let pool = common::setup_pool().await;
+    seed_market(&pool).await;
+    for byte in [1u8, 2u8] {
+        let actor =
+            bech32::encode("terra", [byte; 20].to_base32(), bech32::Variant::Bech32).unwrap();
+        sqlx::query("INSERT INTO traders(address,tier_id,registered) VALUES($1,255,false)")
+            .bind(actor)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    let upstream = common::lcd_mock::start_ordinary_code_mock().await;
+    let lcd = cold_fixture_lcd(upstream.uri());
+    let mut state = app_state(pool.clone(), lcd);
+    state.wrap_mapper_address = Some("terra1mapperfixture1452".into());
+    // Production ingestion is the sole network-enabled step. Requests below cannot ingest.
+    mount_supported_config_mock(&upstream, 100).await;
     seed_reference_marks(&pool, 100).await;
     let ingestion_started = Instant::now();
     cl8y_dex_indexer::api::local_quote::ingest_fixture(&state)
@@ -942,4 +1128,113 @@ async fn local_mirror_preserves_hybrid_age_and_falls_back_to_independent_pool() 
     assert_eq!(current.reserve_0, 3000);
     assert_eq!(current.block_height, Some(1453));
     assert!(current.bids.is_empty() && current.asks.is_empty());
+}
+
+/// #1464: a scheduled transient read failure cannot discard fresh qualification,
+/// renew its observation time, or hide a subsequently observed pause in a warm cache.
+#[tokio::test]
+#[serial_test::serial]
+async fn transient_admission_refresh_preserves_original_times_then_known_pause_invalidates() {
+    use cl8y_dex_indexer::api::local_quote;
+    use std::sync::atomic::{AtomicU8, Ordering};
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let a = asset(&pool, CL8Y, 18).await;
+    let b = asset(&pool, USTR, 18).await;
+    pair(
+        &pool,
+        "terra1recovery1464",
+        a,
+        b,
+        10_000 * 10u128.pow(18),
+        10_000 * 10u128.pow(18),
+    )
+    .await;
+    seed_reference_marks(&pool, 1).await;
+    let upstream = common::lcd_mock::start_ordinary_code_mock().await;
+    let phase = Arc::new(AtomicU8::new(0));
+    let observed_phase = phase.clone();
+    Mock::given(method("GET"))
+        .and(wiremock::matchers::path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
+        .respond_with(move |request: &wiremock::Request| {
+            let query = common::lcd_mock::smart_query_from_request(request);
+            if observed_phase.load(Ordering::SeqCst) == 1 {
+                return ResponseTemplate::new(503);
+            }
+            let data = if query.get("is_paused").is_some() {
+                json!({"paused":observed_phase.load(Ordering::SeqCst) == 2})
+            } else if query.get("get_hooks").is_some() {
+                json!({"hooks":[]})
+            } else if query.get("get_asset_code_ids").is_some() {
+                json!({"code_ids":[10184,10184]})
+            } else if query.get("blacklist_check").is_some() {
+                json!({"blocked":false,"wallet_blacklisted":false,"pair_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[]})
+            } else if query.get("is_code_id_whitelisted").is_some() {
+                json!({"whitelisted":true})
+            } else if query.get("get_discount_registry").is_some() {
+                json!({"registry":null})
+            } else {
+                return ResponseTemplate::new(500);
+            };
+            ResponseTemplate::new(200).set_body_json(json!({"data":data}))
+        }).mount(&upstream).await;
+    let policy = cl8y_dex_indexer::lcd::ProviderPolicy {
+        burst: 1024,
+        max_backoff_ms: 1,
+        attempt_timeout_ms: 5_000,
+        deadline_ms: 5_000,
+        ..Default::default()
+    };
+    let lcd = LcdClient::new_with_policy(vec![upstream.uri()], 5_000, 1, "columbus-5", policy);
+    let state = app_state(pool.clone(), lcd);
+    local_quote::ingest_once(&state).await.unwrap();
+    let request = serde_json::from_value(json!({
+        "token_in": CL8Y, "token_out": USTR,
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.05", "pool_only": true
+    }))
+    .unwrap();
+    let original = local_quote::solve(&state, &request).await.unwrap().0;
+    phase.store(1, Ordering::SeqCst);
+    local_quote::ingest_once(&state).await.unwrap();
+    let preserved = local_quote::solve(&state, &request).await.unwrap().0;
+    for field in ["observed_at_ms", "expires_at_ms"] {
+        assert_eq!(
+            preserved["execution_metadata"][field], original["execution_metadata"][field],
+            "failed refresh must not renew {field}"
+        );
+    }
+    assert_eq!(
+        preserved["estimated_amount_out_net"],
+        original["estimated_amount_out_net"]
+    );
+    phase.store(2, Ordering::SeqCst);
+    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    local_quote::ingest_once(&state).await.unwrap();
+    assert_eq!(
+        local_quote::solve(&state, &request).await.unwrap_err().0,
+        axum::http::StatusCode::UNPROCESSABLE_ENTITY
+    );
+    phase.store(0, Ordering::SeqCst);
+    local_quote::ingest_once(&state).await.unwrap();
+    assert!(
+        local_quote::solve(&state, &request).await.is_ok(),
+        "fresh explicit recovery must restore quotes"
+    );
+    state.indexer_health.halt("reorg");
+    assert_eq!(
+        local_quote::solve(&state, &request).await.unwrap_err().0,
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    );
+    assert_eq!(
+        local_quote::progress(&state, &request).unwrap_err().0,
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    );
+    assert_eq!(
+        local_quote::solve_post(&state, &request, None)
+            .await
+            .unwrap_err()
+            .0,
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    );
 }

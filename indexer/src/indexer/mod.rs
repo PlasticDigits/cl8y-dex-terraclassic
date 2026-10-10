@@ -15,6 +15,7 @@ pub mod gt_event_reserves;
 pub mod hub_guard;
 pub mod hub_usd;
 pub mod invoice_fees;
+pub mod lifecycle;
 pub mod listing_exclude;
 pub mod listing_principal;
 pub mod oracle;

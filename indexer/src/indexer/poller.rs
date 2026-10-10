@@ -13,6 +13,10 @@ use super::{
 };
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
+use super::lifecycle::IndexerHealth;
+use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
+
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 pub async fn run_indexer(
@@ -23,6 +27,87 @@ pub async fn run_indexer(
     oracle_prices: oracle::OraclePriceHandles,
     venus_vfdusd: venus_vfdusd::SharedVenusVfdusd,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
+) -> Result<(), BoxError> {
+    run_indexer_with_health(
+        pool,
+        lcd,
+        config,
+        cancel,
+        oracle_prices,
+        venus_vfdusd,
+        fee_discount_registry_health,
+        IndexerHealth::default(),
+    )
+    .await
+}
+
+pub async fn run_indexer_with_health(
+    pool: PgPool,
+    lcd: LcdClient,
+    config: Config,
+    cancel: CancellationToken,
+    oracle_prices: oracle::OraclePriceHandles,
+    venus_vfdusd: venus_vfdusd::SharedVenusVfdusd,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
+    health: IndexerHealth,
+) -> Result<(), BoxError> {
+    let worker_cancel = cancel.child_token();
+    let mut workers = JoinSet::new();
+    let result = tokio::select! {
+        biased;
+        _ = worker_cancel.cancelled() => Ok(()),
+        result = run_indexer_inner(pool, lcd, config, worker_cancel.clone(), oracle_prices,
+            venus_vfdusd, fee_discount_registry_health, &health, &mut workers) => result,
+    };
+    if let Err(error) = &result {
+        let reason = error
+            .downcast_ref::<block_indexer::BlockIndexError>()
+            .map_or("indexing_failure", |error| {
+                if matches!(error, block_indexer::BlockIndexError::ReorgDetected { .. }) {
+                    "reorg"
+                } else {
+                    "block_integrity_failure"
+                }
+            });
+        health.halt(reason);
+    } else {
+        health.stopped();
+    }
+    worker_cancel.cancel();
+    workers.shutdown().await;
+    result
+}
+
+fn spawn_worker<F>(
+    workers: &mut JoinSet<()>,
+    cancel: &CancellationToken,
+    health: &IndexerHealth,
+    worker: F,
+) where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    let cancel = cancel.clone();
+    let halted = health.halt_token();
+    workers.spawn(async move {
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => {},
+            _ = halted.cancelled() => {},
+            _ = worker => {},
+        }
+    });
+}
+
+async fn run_indexer_inner(
+    pool: PgPool,
+    lcd: LcdClient,
+    config: Config,
+    cancel: CancellationToken,
+    oracle_prices: oracle::OraclePriceHandles,
+    venus_vfdusd: venus_vfdusd::SharedVenusVfdusd,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
+    health: &IndexerHealth,
+    workers: &mut JoinSet<()>,
 ) -> Result<(), BoxError> {
     // Dedicated session (not a pool checkout): advisory locks survive `PoolConnection` return.
     let mut lock_conn = sqlx::PgConnection::connect(&config.database_url).await?;
@@ -50,7 +135,28 @@ pub async fn run_indexer(
             }
         }
     }
-    let _poller_lock = lock_conn;
+    // The dedicated lock session is monitored even while the poller is awaiting a provider.
+    // Session loss latches unready and cancels owned work; bounded heartbeat detection
+    // can briefly overlap another writer, so this is not distributed exactly-once delivery.
+    let lock_health = health.clone();
+    let lock_cancel = cancel.clone();
+    spawn_worker(workers, &cancel, health, async move {
+        loop {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if !matches!(
+                tokio::time::timeout(
+                    Duration::from_millis(500),
+                    sqlx::query("SELECT 1").execute(&mut lock_conn)
+                )
+                .await,
+                Ok(Ok(_))
+            ) {
+                lock_health.halt("leadership_lost");
+                lock_cancel.cancel();
+                break;
+            }
+        }
+    });
 
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
@@ -78,7 +184,7 @@ pub async fn run_indexer(
     }
 
     let vol_pool = pool.clone();
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         volume_aggregator::run_volume_refresh_loop(vol_pool).await;
     });
 
@@ -86,7 +192,7 @@ pub async fn run_indexer(
     let tier_lcd = lcd.clone();
     let fee_addr = config.fee_discount_address.clone();
     let tier_reconcile_secs = config.tier_sync_reconcile_interval_secs;
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         trader_tracker::run_tier_reconcile_loop(tier_pool, tier_lcd, fee_addr, tier_reconcile_secs)
             .await;
     });
@@ -99,7 +205,7 @@ pub async fn run_indexer(
         let probe_lcd = lcd.clone();
         let probe_health = fee_discount_registry_health.clone();
         let probe_cancel = cancel.clone();
-        tokio::spawn(async move {
+        spawn_worker(workers, &cancel, health, async move {
             fee_discount_registry_health::run_fee_discount_registry_probe_loop(
                 probe_lcd,
                 fee_addr,
@@ -115,7 +221,7 @@ pub async fn run_indexer(
         let freeze_lcd = lcd.clone();
         let freeze_factory = config.factory_address.clone();
         let freeze_cancel = cancel.clone();
-        tokio::spawn(async move {
+        spawn_worker(workers, &cancel, health, async move {
             asset_code_id_freeze::run_code_id_freeze_probe_loop(
                 freeze_pool,
                 freeze_lcd,
@@ -131,7 +237,7 @@ pub async fn run_indexer(
         let tax_lcd = lcd.clone();
         let tax_cfg = config.clone();
         let tax_cancel = cancel.clone();
-        tokio::spawn(async move {
+        spawn_worker(workers, &cancel, health, async move {
             community_tokens::run_probe_loop(tax_pool, tax_lcd, tax_cfg, tax_cancel).await;
         });
     }
@@ -139,14 +245,14 @@ pub async fn run_indexer(
     let oracle_pool = pool.clone();
     let oracle_interval = config.oracle_poll_interval_ms;
     let oracle_handles = oracle_prices.clone();
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_handles).await;
     });
 
     let venus_pool = pool.clone();
     let venus_cfg = venus_vfdusd::VenusPollerConfig::from_indexer_config(&config);
     let venus_handle = venus_vfdusd.clone();
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         venus_vfdusd::run_venus_vfdusd_loop(venus_pool, venus_cfg, venus_handle).await;
     });
     let ustc_price = oracle_prices.ustc.clone();
@@ -155,7 +261,7 @@ pub async fn run_indexer(
         let backing_pool = pool.clone();
         let backing_lcd = lcd.clone();
         let backing_cancel = cancel.clone();
-        tokio::spawn(async move {
+        spawn_worker(workers, &cancel, health, async move {
             let mut interval = tokio::time::interval(Duration::from_secs(60));
             loop {
                 tokio::select! {
@@ -173,7 +279,7 @@ pub async fn run_indexer(
     let snapshot_pool = pool.clone();
     let snapshot_lcd = lcd.clone();
     let snapshot_interval = config.book_snapshot_interval_ms;
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         book_snapshot::run_book_snapshot_loop(snapshot_pool, snapshot_lcd, snapshot_interval).await;
     });
 
@@ -182,7 +288,7 @@ pub async fn run_indexer(
     let hub_ustc = oracle_prices.ustc.clone();
     let hub_lunc = oracle_prices.lunc.clone();
     let hub_interval = std::time::Duration::from_millis(snapshot_interval.max(1_000));
-    tokio::spawn(async move {
+    spawn_worker(workers, &cancel, health, async move {
         crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
             hub_pool,
             hub_cfg,
@@ -211,20 +317,28 @@ pub async fn run_indexer(
             break;
         }
 
-        let latest = match lcd.get_latest_block_height().await {
-            Ok(h) => h,
-            Err(e) => {
-                tracing::error!("Failed to get latest block height: {}", e);
-                tokio::select! {
-                    _ = tokio::time::sleep(Duration::from_millis(config.poll_interval_ms)) => {},
-                    _ = cancel.cancelled() => {
-                        tracing::info!("Indexer shutting down gracefully");
-                        break;
+        let latest = match block_indexer::retry_availability(
+            &cancel,
+            health,
+            Some(last_indexed.saturating_add(1)),
+            Duration::from_millis(config.poll_interval_ms),
+            || async {
+                lcd.get_latest_block_height().await.map_err(|source| {
+                    block_indexer::BlockIndexError::Lcd {
+                        height: last_indexed,
+                        source,
                     }
-                }
-                continue;
-            }
+                })
+            },
+        )
+        .await
+        {
+            Ok(h) => h,
+            Err(block_indexer::BlockIndexError::Cancelled) => return Ok(()),
+            Err(e) => return Err(e.into()),
         };
+
+        health.progress(last_indexed, latest);
 
         if last_indexed >= latest {
             tokio::select! {
@@ -243,7 +357,15 @@ pub async fn run_indexer(
                 return Ok(());
             }
 
-            match block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed).await {
+            match block_indexer::retry_availability(
+                &cancel,
+                health,
+                Some(height),
+                Duration::from_millis(config.poll_interval_ms),
+                || block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed),
+            )
+            .await
+            {
                 Ok(block_indexer::CheckpointVerify::Unchanged) => {}
                 Ok(block_indexer::CheckpointVerify::Resync { db_height }) => {
                     tracing::warn!(
@@ -254,6 +376,7 @@ pub async fn run_indexer(
                     last_indexed = db_height;
                     break;
                 }
+                Err(block_indexer::BlockIndexError::Cancelled) => return Ok(()),
                 Err(e) => {
                     if let block_indexer::BlockIndexError::ReorgDetected {
                         height,
@@ -261,6 +384,7 @@ pub async fn run_indexer(
                         canonical,
                     } = &e
                     {
+                        health.halt("reorg");
                         reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
                             *height,
                             stored.clone(),
@@ -272,20 +396,31 @@ pub async fn run_indexer(
                 }
             }
 
-            match block_indexer::index_block_with_retries(&pool, &lcd, &config, height, &ustc_price)
-                .await
+            match block_indexer::index_block_with_retries_cancel(
+                &pool,
+                &lcd,
+                &config,
+                height,
+                &ustc_price,
+                &cancel,
+                health,
+            )
+            .await
             {
                 Ok(_meta) => {
                     last_indexed = height;
+                    health.progress(last_indexed, latest);
                     if height % 100 == 0 {
                         tracing::info!(height, latest, discovery = ?lcd.pair_discovery_counters(), "Indexed block");
                     }
                 }
+                Err(block_indexer::BlockIndexError::Cancelled) => return Ok(()),
                 Err(block_indexer::BlockIndexError::ReorgDetected {
                     height: reorg_height,
                     stored,
                     canonical,
                 }) => {
+                    health.halt("reorg");
                     reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
                         reorg_height,
                         stored.clone(),
@@ -312,17 +447,7 @@ pub async fn run_indexer(
                     }
                     .into());
                 }
-                Err(e) => {
-                    tracing::error!(height, error = %e, "Unexpected block index error");
-                    tokio::select! {
-                        _ = tokio::time::sleep(Duration::from_secs(2)) => {},
-                        _ = cancel.cancelled() => {
-                            tracing::info!("Indexer shutting down gracefully");
-                            return Ok(());
-                        }
-                    }
-                    break;
-                }
+                Err(e) => return Err(e.into()),
             }
         }
 

@@ -33,6 +33,67 @@ pub(super) fn validate_block_chain(body: &str, expected: &str) -> Result<(), Lcd
     Ok(())
 }
 
+/// Verify explicit historical block and transaction filters in the body. Live
+/// response headers do not establish the height of a historical block/tx page.
+pub(super) fn validate_requested_height(body: &str, path: &str) -> Result<bool, LcdError> {
+    const BLOCKS: &str = "/cosmos/base/tendermint/v1beta1/blocks/";
+    let block_height = path
+        .strip_prefix(BLOCKS)
+        .filter(|height| *height != "latest");
+    let tx_height = if path.starts_with("/cosmos/tx/v1beta1/txs?") {
+        reqwest::Url::parse(&format!("http://lcd.invalid{path}"))
+            .ok()
+            .and_then(|url| {
+                url.query_pairs()
+                    .find(|(key, _)| key == "query")
+                    .and_then(|(_, query)| {
+                        query
+                            .split(" AND ")
+                            .find_map(|term| term.strip_prefix("tx.height=").map(str::to_owned))
+                    })
+            })
+    } else {
+        None
+    };
+    let Some(raw_height) = block_height.or(tx_height.as_deref()) else {
+        return Ok(false);
+    };
+    let wanted = raw_height
+        .parse::<i64>()
+        .ok()
+        .filter(|height| *height > 0)
+        .ok_or(LcdError::HistoricalHeightUnavailable)?;
+    let value: serde_json::Value =
+        serde_json::from_str(body).map_err(|_| LcdError::HistoricalHeightUnavailable)?;
+    let height =
+        |value: &serde_json::Value| value.as_str().and_then(|height| height.parse::<i64>().ok());
+    if block_height.is_some() {
+        if value.pointer("/block/header/height").and_then(height) != Some(wanted) {
+            return Err(LcdError::HistoricalHeightUnavailable);
+        }
+    } else if let Some(txs) = value.get("tx_responses").filter(|value| !value.is_null()) {
+        let txs = txs
+            .as_array()
+            .ok_or(LcdError::HistoricalHeightUnavailable)?;
+        if txs.iter().any(|tx| height(&tx["height"]) != Some(wanted)) {
+            return Err(LcdError::HistoricalHeightUnavailable);
+        }
+    } else {
+        // SDK 0.50 may return null for an empty result. Missing body/count is
+        // not proof of an empty economic block; accept only explicit zero.
+        let total = value
+            .get("total")
+            .filter(|value| !value.is_null())
+            .or_else(|| value.pointer("/pagination/total"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(|value| value.parse::<u64>().ok());
+        if total != Some(0) {
+            return Err(LcdError::HistoricalHeightUnavailable);
+        }
+    }
+    Ok(true)
+}
+
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct EndpointIdentity {
     pub endpoint_index: usize,
@@ -104,6 +165,7 @@ impl LcdClient {
             Instant::now() + Duration::from_millis(self.inner.provider_policy.deadline_ms);
         let mut verified = false;
         let mut errors = Vec::new();
+        let mut integrity_error = None;
         let mut attempts = 0;
         let mut capacity_deferred = false;
         for idx in 0..count {
@@ -133,6 +195,14 @@ impl LcdClient {
                         return Ok(());
                     }
                 }
+                Ok(Err(
+                    e @ (LcdError::ChainIdentity(_)
+                    | LcdError::Deserialize(_)
+                    | LcdError::HttpRejected(_)),
+                )) => {
+                    errors.push(format!("endpoint[{idx}] identity integrity rejected"));
+                    integrity_error = Some(e);
+                }
                 Ok(Err(e)) => errors.push(e.to_string()),
                 Err(_) => {
                     self.mark_failed(idx).await;
@@ -145,6 +215,8 @@ impl LcdClient {
         }
         if verified {
             Ok(())
+        } else if let Some(error) = integrity_error {
+            Err(error)
         } else if count > 0 && attempts == 0 && capacity_deferred {
             Err(LcdError::AdmissionDeferred)
         } else {
@@ -171,7 +243,10 @@ impl LcdClient {
                 std::time::Duration::from_millis(self.inner.provider_policy.max_backoff_ms),
             );
             if !resp.status().is_success() {
-                return Err(LcdError::ChainIdentity(format!(
+                if !super::should_cooldown_endpoint(resp.status()) {
+                    return Err(LcdError::HttpRejected(resp.status().as_u16()));
+                }
+                return Err(LcdError::AllEndpointsFailed(format!(
                     "endpoint[{idx}] node_info unavailable ({})",
                     resp.status()
                 )));
@@ -201,9 +276,9 @@ impl LcdClient {
         }
         .await;
         let result = result.map_err(|e| match e {
-            LcdError::Request(_) => {
-                LcdError::ChainIdentity(format!("endpoint[{idx}] node_info transport unavailable"))
-            }
+            LcdError::Request(_) => LcdError::AllEndpointsFailed(format!(
+                "endpoint[{idx}] node_info transport unavailable"
+            )),
             other => other,
         });
         let mut eps = self.inner.endpoints.write().await;
@@ -274,6 +349,32 @@ mod tests {
             .count()
     }
 
+    #[test]
+    fn recovery1464_missing_tx_body_cannot_become_an_empty_block() {
+        let path = "/cosmos/tx/v1beta1/txs?query=tx.height=41&page=1&limit=100";
+        for body in [
+            json!({}),
+            json!({"tx_responses":null}),
+            json!({"total":"1"}),
+            json!({"tx_responses":null,"total":"invalid"}),
+        ] {
+            assert!(matches!(
+                validate_requested_height(&body.to_string(), path),
+                Err(LcdError::HistoricalHeightUnavailable)
+            ));
+        }
+        for body in [
+            json!({"tx_responses":[]}),
+            json!({"tx_responses":null,"total":"0"}),
+            json!({"pagination":{"total":"0"}}),
+        ] {
+            assert_eq!(
+                validate_requested_height(&body.to_string(), path).unwrap(),
+                true
+            );
+        }
+    }
+
     #[tokio::test]
     async fn correct_and_explicit_local_chain_can_read() {
         for chain in ["columbus-5", "localterra"] {
@@ -330,6 +431,55 @@ mod tests {
         let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 0, "columbus-5");
         assert!(lcd.attest_endpoints().await.is_err());
         assert!(!lcd.chain_identity_health().await.endpoints[0].verified);
+    }
+
+    #[tokio::test]
+    async fn recovery1464_identity_outages_remain_retryable_and_integrity_stays_typed() {
+        let server = MockServer::start().await;
+        Mock::given(path(NODE_INFO_PATH))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let lcd = client(&server, "columbus-5");
+        assert!(matches!(
+            lcd.attest_endpoints().await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        assert!(matches!(
+            lcd.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
+        server.reset().await;
+        identity(
+            &server,
+            json!({"default_node_info":{"network":"localterra"}}),
+        )
+        .await;
+        assert!(matches!(
+            lcd.attest_endpoints().await,
+            Err(LcdError::ChainIdentity(_))
+        ));
+        assert!(matches!(
+            lcd.get::<serde_json::Value>("/data").await,
+            Err(LcdError::ChainIdentity(_))
+        ));
+        assert_eq!(data_hits(&server).await, 0);
+        server.reset().await;
+        identity(
+            &server,
+            json!({"default_node_info":{"network":"columbus-5"}}),
+        )
+        .await;
+        data(&server).await;
+        assert_eq!(
+            lcd.get::<serde_json::Value>("/data").await.unwrap()["answer"],
+            42
+        );
+        let unavailable = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 0, "columbus-5");
+        assert!(matches!(
+            unavailable.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AllEndpointsFailed(_))
+        ));
     }
 
     #[tokio::test]

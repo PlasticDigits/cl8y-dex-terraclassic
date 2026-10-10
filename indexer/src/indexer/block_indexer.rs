@@ -11,12 +11,21 @@ use crate::config::Config;
 use crate::db::queries::state;
 use crate::lcd::{BlockTxsResult, LcdClient, LcdError};
 
-use super::{oracle, parser};
+use super::{lifecycle::IndexerHealth, oracle, parser};
+use tokio_util::sync::CancellationToken;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
+/// Process-independent refusal of unsafe replay, using the existing failure ledger.
+/// Legacy generic provider failures never acquire this marker implicitly.
+pub const UNSAFE_BLOCK_FAILURE_PREFIX: &str = "unsafe_integrity_failure: ";
+
 #[derive(Debug, thiserror::Error)]
 pub enum BlockIndexError {
+    #[error("block indexing cancelled")]
+    Cancelled,
+    #[error("unsafe failure at block {height} requires reviewed accounting repair and explicit failure-marker clearance before replay")]
+    UnsafeFailurePending { height: i64 },
     #[error(
         "chain reorg detected at height {height}: stored hash {stored} != canonical {canonical}"
     )]
@@ -47,6 +56,68 @@ pub enum BlockIndexError {
         "block {height} failed after {attempts} attempts; indexer halted (see indexer_failed_blocks)"
     )]
     MaxRetriesExceeded { height: i64, attempts: u32 },
+}
+
+/// Only typed availability/capacity failures may bypass the fatal retry budget.
+/// Inspect parser cause chains without matching untrusted upstream error text.
+pub fn is_retryable_availability(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut cause = Some(error);
+    while let Some(error) = cause {
+        if let Some(lcd) = error.downcast_ref::<LcdError>() {
+            return matches!(
+                lcd,
+                LcdError::AdmissionDeferred
+                    | LcdError::AllEndpointsFailed(_)
+                    | LcdError::Request(_)
+                    | LcdError::LaggingProvider
+            );
+        }
+        if let Some(super::pair_discovery::DiscoverPairError::Deferred {
+            reason: "rate_limited" | "in_flight",
+        }) = error.downcast_ref::<super::pair_discovery::DiscoverPairError>()
+        {
+            return true;
+        }
+        cause = error.source();
+    }
+    false
+}
+
+/// Caller-owned retry scheduling; no detached work or queued requests. Cancellation drops
+/// the current provider operation/permit and preserves the checkpoint.
+pub async fn retry_availability<T, F, Fut>(
+    cancel: &CancellationToken,
+    health: &IndexerHealth,
+    pending_height: Option<i64>,
+    retry_delay: Duration,
+    mut operation: F,
+) -> Result<T, BlockIndexError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, BlockIndexError>>,
+{
+    loop {
+        let result = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(BlockIndexError::Cancelled),
+            result = operation() => result,
+        };
+        match result {
+            Err(ref error) if is_retryable_availability(error) => {
+                health.unavailable(pending_height);
+                tracing::warn!(
+                    pending_height,
+                    "Indexer provider unavailable; retaining checkpoint"
+                );
+                tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Err(BlockIndexError::Cancelled),
+                    _ = tokio::time::sleep(retry_delay.clamp(Duration::from_millis(50), Duration::from_secs(30))) => {}
+                }
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Result of the C3 hash guard. `Resync` is **not** a chain reorg — the DB cursor moved.
@@ -190,15 +261,121 @@ pub async fn index_block_with_retries(
     height: i64,
     ustc_price: &oracle::SharedPrice,
 ) -> Result<IndexedBlockMeta, BlockIndexError> {
+    index_block_with_retry_policy(pool, lcd, config, height, ustc_price, None).await
+}
+
+pub async fn index_block_with_retries_cancel(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    height: i64,
+    ustc_price: &oracle::SharedPrice,
+    cancel: &CancellationToken,
+    health: &IndexerHealth,
+) -> Result<IndexedBlockMeta, BlockIndexError> {
+    index_block_with_retry_policy(
+        pool,
+        lcd,
+        config,
+        height,
+        ustc_price,
+        Some((cancel, health)),
+    )
+    .await
+}
+
+async fn index_block_with_retry_policy(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    height: i64,
+    ustc_price: &oracle::SharedPrice,
+    lifecycle: Option<(&CancellationToken, &IndexerHealth)>,
+) -> Result<IndexedBlockMeta, BlockIndexError> {
+    // A fresh process must not forget that an earlier attempt left incomplete
+    // projections. Read before upstream work; only explicit reviewed repair and
+    // marker clearance permit replay. Old generic outage rows remain retryable.
+    let failed_message = sqlx::query_scalar::<_, String>(
+        "SELECT error_message FROM indexer_failed_blocks WHERE height = $1",
+    )
+    .bind(height)
+    .fetch_optional(pool);
+    let previous = if let Some((cancel, _)) = lifecycle {
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(BlockIndexError::Cancelled),
+            result = failed_message => result,
+        }
+    } else {
+        failed_message.await
+    };
+    let previous = match previous {
+        Ok(message) => message,
+        Err(source) => {
+            if let Some((_, health)) = lifecycle {
+                health.halt("block_integrity_failure");
+            }
+            return Err(BlockIndexError::State { height, source });
+        }
+    };
+    if previous
+        .as_deref()
+        .is_some_and(|message| message.starts_with(UNSAFE_BLOCK_FAILURE_PREFIX))
+    {
+        if let Some((_, health)) = lifecycle {
+            health.halt("block_integrity_failure");
+        }
+        return Err(BlockIndexError::UnsafeFailurePending { height });
+    }
     let max_retries = config.block_process_max_retries;
     let mut attempt = 0u32;
 
     loop {
         attempt += 1;
-        match index_block(pool, lcd, config, height, ustc_price).await {
+        let result = if let Some((cancel, health)) = lifecycle {
+            retry_availability(
+                cancel,
+                health,
+                Some(height),
+                Duration::from_millis(config.poll_interval_ms),
+                || index_block(pool, lcd, config, height, ustc_price),
+            )
+            .await
+        } else {
+            index_block(pool, lcd, config, height, ustc_price).await
+        };
+        match result {
+            Err(e @ BlockIndexError::Cancelled)
+            | Err(e @ BlockIndexError::UnsafeFailurePending { .. }) => return Err(e),
             Ok(meta) => return Ok(meta),
             Err(e @ BlockIndexError::ReorgDetected { .. }) => return Err(e),
             Err(e @ BlockIndexError::MaxRetriesExceeded { .. }) => return Err(e),
+            Err(e @ BlockIndexError::ProcessingFailed { .. })
+            | Err(e @ BlockIndexError::State { .. })
+                if !is_retryable_availability(&e) =>
+            {
+                // Economic projections span several SQL writes. A failed write may
+                // follow a persisted swap, whose replay guard intentionally skips
+                // additive projections. Never let automatic replay turn that partial
+                // state into a successful checkpoint; recovery must be explicit.
+                if let Some((_, health)) = lifecycle {
+                    health.halt("block_integrity_failure");
+                }
+                if let Err(db_err) = state::record_failed_block(
+                    pool,
+                    height,
+                    &format!("{UNSAFE_BLOCK_FAILURE_PREFIX}{e}"),
+                )
+                .await
+                {
+                    tracing::error!(height, error = %db_err, "Failed to record indexer_failed_blocks row");
+                }
+                tracing::error!(
+                    height,
+                    "Unsafe block processing/state failure; halting without automatic replay"
+                );
+                return Err(e);
+            }
             Err(e @ BlockIndexError::ProcessingFailed { .. })
             | Err(e @ BlockIndexError::Lcd { .. })
             | Err(e @ BlockIndexError::State { .. }) => {
@@ -236,7 +413,15 @@ pub async fn index_block_with_retries(
                     error = %msg,
                     "Block indexing failed; retrying"
                 );
-                tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                if let Some((cancel, _)) = lifecycle {
+                    tokio::select! {
+                        biased;
+                        _ = cancel.cancelled() => return Err(BlockIndexError::Cancelled),
+                        _ = tokio::time::sleep(Duration::from_millis(backoff_ms.min(30_000))) => {}
+                    }
+                } else {
+                    tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                }
             }
         }
     }
@@ -299,6 +484,182 @@ fn parse_rfc3339_utc(s: &str) -> Option<DateTime<Utc>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovery1464_availability_classification_preserves_integrity() {
+        for error in [
+            LcdError::AdmissionDeferred,
+            LcdError::AllEndpointsFailed("outage".into()),
+            LcdError::LaggingProvider,
+        ] {
+            let nested = BlockIndexError::ProcessingFailed {
+                height: 41,
+                source: error.into(),
+            };
+            assert!(is_retryable_availability(&nested));
+        }
+        for error in [
+            LcdError::ChainIdentity("wrong chain".into()),
+            LcdError::HistoricalHeightUnavailable,
+            LcdError::Deserialize("invalid".into()),
+            LcdError::PairResponseMalformed("malformed".into()),
+            LcdError::ContractQueryRejected("rejected".into()),
+            LcdError::QueryGasLimitExceeded("exhausted".into()),
+        ] {
+            assert!(!is_retryable_availability(&BlockIndexError::Lcd {
+                height: 41,
+                source: error
+            }));
+        }
+        assert!(!is_retryable_availability(
+            &super::super::pair_discovery::DiscoverPairError::Deferred {
+                reason: "factory_namespace_capacity",
+            }
+        ));
+        assert!(!is_retryable_availability(
+            &BlockIndexError::ProcessingFailed {
+                height: 41,
+                source: "accounting overflow".into()
+            }
+        ));
+        assert!(!is_retryable_availability(&BlockIndexError::State {
+            height: 41,
+            source: sqlx::Error::RowNotFound
+        }));
+        assert!(!is_retryable_availability(
+            &BlockIndexError::ReorgDetected {
+                height: 41,
+                stored: "A".into(),
+                canonical: "B".into()
+            }
+        ));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_deferrals_do_not_exhaust_same_height() {
+        let cancel = CancellationToken::new();
+        let health = IndexerHealth::default();
+        health.progress(40, 41);
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+        let result = retry_availability(
+            &cancel,
+            &health,
+            Some(41),
+            Duration::from_millis(50),
+            || {
+                let attempt = attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                async move {
+                    match attempt {
+                        0..=6 => Err(BlockIndexError::Lcd {
+                            height: 41,
+                            source: LcdError::AdmissionDeferred,
+                        }),
+                        7..=12 => Err(BlockIndexError::Lcd {
+                            height: 41,
+                            source: LcdError::AllEndpointsFailed("all circuits open".into()),
+                        }),
+                        _ => Ok(41),
+                    }
+                }
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(result, 41);
+        assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 14);
+        assert_eq!(
+            health.snapshot().checkpoint_height,
+            40,
+            "only successful checkpoint commit may advance readiness"
+        );
+        assert_eq!(health.snapshot().pending_height, Some(41));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_cancel_releases_inflight_operation_and_delay() {
+        struct Dropped(std::sync::Arc<std::sync::atomic::AtomicBool>);
+        impl Drop for Dropped {
+            fn drop(&mut self) {
+                self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let cancel = CancellationToken::new();
+        let canceller = cancel.clone();
+        let health = IndexerHealth::default();
+        let dropped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let dropped_operation = dropped.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+            canceller.cancel();
+        });
+        let error = retry_availability::<(), _, _>(
+            &cancel,
+            &health,
+            Some(41),
+            Duration::from_secs(30),
+            || {
+                let guard = Dropped(dropped_operation.clone());
+                async move {
+                    let _guard = guard;
+                    std::future::pending().await
+                }
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(error, BlockIndexError::Cancelled));
+        assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+
+        let cancel = CancellationToken::new();
+        let canceller = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+            canceller.cancel();
+        });
+        let began = tokio::time::Instant::now();
+        let error = retry_availability::<(), _, _>(
+            &cancel,
+            &health,
+            Some(41),
+            Duration::from_secs(30),
+            || async {
+                Err(BlockIndexError::Lcd {
+                    height: 41,
+                    source: LcdError::AdmissionDeferred,
+                })
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(error, BlockIndexError::Cancelled));
+        assert!(began.elapsed() < Duration::from_secs(1));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_reorg_and_accounting_errors_do_not_enter_availability_loop() {
+        let cancel = CancellationToken::new();
+        let health = IndexerHealth::default();
+        let attempts = std::sync::atomic::AtomicUsize::new(0);
+        let error = retry_availability::<(), _, _>(
+            &cancel,
+            &health,
+            Some(41),
+            Duration::from_secs(1),
+            || {
+                attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                async {
+                    Err(BlockIndexError::ProcessingFailed {
+                        height: 41,
+                        source: "accounting overflow".into(),
+                    })
+                }
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(error, BlockIndexError::ProcessingFailed { .. }));
+        assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
 
     #[test]
     fn parse_rfc3339_valid() {

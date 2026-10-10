@@ -69,3 +69,13 @@ prerequisites and evidence. The verifier runs synthetic failures and retests.
 Live probes must remain read-only. Do not modify mainnet state as an attestation
 test. Third-party agent players must apply these rules when using the buyback,
 LP, treasury rotation and shared `terrad-host` helpers.
+
+For transient provider lifecycle recovery preserve [PR1464](AGENTS_PROVIDER_RECOVERY.md).
+Wrong-chain/integrity rejection remains fatal, never retryable availability or success.
+[Recovery/readiness](../docs/runbooks/indexer-provider-recovery.md); `make verify-issue-1464`.
+
+Historical block/checkpoint routes and `tx.height`-filtered reads validate requested
+body heights before acceptance. Their verified historical height must not enter a
+live-tip lag rejection and falsely open circuits after a newer head was observed.
+Substituted body heights remain integrity failures; exact pinned smart-query header
+validation remains mandatory. Run the #1464 historical-body recovery regression.

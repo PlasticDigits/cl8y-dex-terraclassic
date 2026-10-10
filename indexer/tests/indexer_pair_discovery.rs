@@ -458,7 +458,7 @@ async fn getter_waits_for_coalesced_discovery_without_dropping_legitimate_pair()
 
 #[tokio::test]
 #[serial]
-async fn getter_transient_failure_soft_skips_and_direct_discovery_preserves_error() {
+async fn getter_provider_failure_propagates_and_direct_discovery_preserves_error() {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
     let pair = address(102);
@@ -469,10 +469,16 @@ async fn getter_transient_failure_soft_skips_and_direct_discovery_preserves_erro
     })
     .await;
     let lcd = client(&server);
-    assert!(get_or_discover_pair(&pool, &lcd, &factory, &pair)
+    let getter_error = get_or_discover_pair(&pool, &lcd, &factory, &pair)
         .await
-        .expect("foreign/transient discovery must not halt block indexing")
-        .is_none());
+        .expect_err(
+            "typed provider outage must keep the economic block pending, never successfully skip",
+        );
+    assert!(matches!(
+        getter_error.downcast_ref::<LcdError>(),
+        Some(LcdError::AllEndpointsFailed(_))
+    ));
+    assert!(cl8y_dex_indexer::indexer::block_indexer::is_retryable_availability(&*getter_error));
     assert_eq!(lcd.pair_discovery_counters().transient_failures, 1);
     assert_no_writes(&pool).await;
     assert_eq!(smart_requests(&server).await, 1);
@@ -484,6 +490,8 @@ async fn getter_transient_failure_soft_skips_and_direct_discovery_preserves_erro
     assert_no_writes(&pool).await;
     assert_eq!(smart_requests(&server).await, 2);
     assert_eq!(lcd.pair_discovery_counters().transient_failures, 2);
+    assert_eq!(lcd.pair_discovery_counters().cached_unlisted, 0);
+    assert_eq!(lcd.pair_discovery_counters().cached_not_pair, 0);
 }
 
 #[tokio::test]

@@ -101,8 +101,10 @@ matter. Do not promise every pool stays within 20 seconds simply from cadence.
 Measure actual deployed coverage and latency before checking AC2/AC4/AC6.
 Rate/concurrency admission pressure is a typed deferral. Pair discovery waits 125 ms
 and rechecks persistence before retrying; it cannot turn capacity pressure into a
-successfully skipped event. Actual upstream failures retain the documented legacy
-transient policy in PD1394.
+successfully skipped event. Typed upstream availability/integrity and discovery
+persistence failures now propagate to pending-block retry/halt under
+[PR1464](../../../skills/AGENTS_PROVIDER_RECOVERY.md). Only ambiguous foreign/non-pair
+contract-local responses retain PD1394's legacy skip scope.
 
 Liquidity publication is a separate cached-input transaction. Existing chart
 responses cache for 60 seconds and the frontend polls every 60 seconds. Record

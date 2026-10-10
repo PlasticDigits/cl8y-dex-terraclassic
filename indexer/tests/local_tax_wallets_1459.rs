@@ -101,7 +101,7 @@ async fn scheduled_uncensused_holders_keep_tax_identity_caps_blackout_and_zero_r
                 else if q.get("get_discount_registry").is_some() { json!({"registry":null}) }
                 else if q.get("is_code_id_whitelisted").is_some() { json!({"whitelisted":true}) }
                 else if q.get("get_asset_code_ids").is_some() { json!({"code_ids":[10184,11667]}) }
-                else if let Some(blacklist) = q.get("blacklist_check") { json!({"wallet_blacklisted":blacklist["wallet"]==BLOCKED,"blacklisted_tokens":[],"blacklisted_pairs":[],"blocked":false}) }
+                else if let Some(blacklist) = q.get("blacklist_check") { json!({"wallet_blacklisted":blacklist["wallet"]==BLOCKED,"pair_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[],"blocked":blacklist["wallet"]==BLOCKED}) }
                 else { return ResponseTemplate::new(500); };
             ResponseTemplate::new(200).set_body_json(json!({"data":data}))
         }).mount(&provider).await;

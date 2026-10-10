@@ -497,10 +497,24 @@ pub fn cache_counters() -> (u64, u64, usize, usize) {
 }
 /// Independent scheduled workers, each with one outstanding pass. Missed ticks skip;
 /// requests never enqueue, retry or accelerate ingestion.
-pub fn start_ingestion(mut state: AppState) {
+pub fn start_ingestion(state: AppState) {
+    let mut workers =
+        start_ingestion_with_cancel(state, tokio_util::sync::CancellationToken::new());
+    // Compatibility for callers explicitly owning process-lifetime ingestion.
+    workers.detach_all();
+}
+
+/// The API owns and joins these producers. Fatal indexing cancels in-flight passes
+/// through the health notification; transient provider availability does not.
+pub fn start_ingestion_with_cancel(
+    mut state: AppState,
+    cancel: tokio_util::sync::CancellationToken,
+) -> tokio::task::JoinSet<()> {
+    let halted = state.indexer_health.halt_token();
+    let mut workers = tokio::task::JoinSet::new();
     state.lcd = state.lcd.with_ingestion_budget();
     let wrapper_state = state.clone();
-    tokio::spawn(async move {
+    spawn_ingestion_worker(&mut workers, &cancel, &halted, async move {
         let mut timer = tokio::time::interval(Duration::from_secs(10));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -511,7 +525,7 @@ pub fn start_ingestion(mut state: AppState) {
         }
     });
     let reserves = state.clone();
-    tokio::spawn(async move {
+    spawn_ingestion_worker(&mut workers, &cancel, &halted, async move {
         let mut timer = tokio::time::interval(Duration::from_secs(2));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -523,7 +537,7 @@ pub fn start_ingestion(mut state: AppState) {
             }
         }
     });
-    tokio::spawn(async move {
+    spawn_ingestion_worker(&mut workers, &cancel, &halted, async move {
         let mut timer = tokio::time::interval(Duration::from_secs(2));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -538,6 +552,27 @@ pub fn start_ingestion(mut state: AppState) {
                 Ok(Err(e)) => tracing::warn!("Local quote admission unavailable: {e}"),
                 Err(_) => tracing::warn!("Local quote admission exhausted pass budget"),
             }
+        }
+    });
+    workers
+}
+
+fn spawn_ingestion_worker<F>(
+    workers: &mut tokio::task::JoinSet<()>,
+    cancel: &tokio_util::sync::CancellationToken,
+    halted: &tokio_util::sync::CancellationToken,
+    worker: F,
+) where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    let cancel = cancel.clone();
+    let halted = halted.clone();
+    workers.spawn(async move {
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => {},
+            _ = halted.cancelled() => {},
+            _ = worker => {},
         }
     });
 }

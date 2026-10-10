@@ -40,12 +40,13 @@ Review and reproducible verification:
    malformed responses, oversized responses, invalid input and admission
    deferral do not create negative entries. Never make a test pass by hiding a
    discovery failure or accepting an unlisted pair. Direct discovery preserves
-   typed errors and fixed transient counters. The production getter preserves
-   its legacy transient soft-skip policy: warn with the error and fixed outcome,
-   return `None`, and allow a later event to retry without poisoned evidence.
-   This existing policy can omit the failed event; this fix does not change the
-   ingestion policy or promise replay. Invalid factory configuration and permanent
-   admission deferrals remain distinct errors rather than transient soft skips.
+   typed errors and fixed transient counters. [PR1464](AGENTS_PROVIDER_RECOVERY.md)
+   supersedes the production getter's legacy skip for typed provider availability,
+   provider integrity and database persistence errors: propagate them so the pending
+   block retries or halts without omitting economic events. Ambiguous contract-local
+   foreign/non-pair responses retain their existing `None` policy and never poison
+   negative evidence. Invalid factory configuration and permanent admission deferrals
+   remain distinct errors rather than transient soft skips.
 7. **PD1394-7 — bounded work.** Each factory independently has a token bucket
    with a burst of 32 attempts and refill of eight attempts per second, with at
    most four concurrent discoveries. Coalesce simultaneous same-pair work.
@@ -62,7 +63,8 @@ Review and reproducible verification:
    phases during capacity waits while holding its factory permit; restarting the
    whole discovery can livelock a small provider burst. Recheck concurrent DB
    persistence at every retry. Direct discovery returns capacity deferral promptly.
-   Actual attempted provider failures retain the existing transient policy.
+   Actual attempted typed provider failures propagate to the block retry policy;
+   wrong-chain/integrity and persistence failures propagate to halt/retry classification.
    Already-persisted legitimate pairs bypass discovery admission. Waiting futures
    belong to callers; do not introduce an unbounded internal event queue. A flood
    may slow block progress, but admission pressure must not create an additional
@@ -105,3 +107,7 @@ DB/chain volumes. Keep all published test identities synthetic and omit secrets.
 Crosslinks: [testing](../docs/testing.md),
 [indexer invariants](../docs/indexer-invariants.md),
 [repository agent guide](../AGENTS.md).
+
+Provider lifecycle recovery preserves [PR1464](AGENTS_PROVIDER_RECOVERY.md):
+capacity deferral never advances a failed accounting checkpoint or poisons discovery.
+[Recovery checklist](../docs/qa/issue-1464/README.md); `make verify-issue-1464`.

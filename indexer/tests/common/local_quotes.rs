@@ -46,6 +46,7 @@ pub async fn app(pool: PgPool, config: Config) -> axum::Router {
 
 pub fn state(pool: PgPool, config: &Config, lcd: LcdClient) -> AppState {
     AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices: cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new(),
