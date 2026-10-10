@@ -1,0 +1,31 @@
+{
+  "schema": "cl8y-1464-known-negative-cancellation-v1",
+  "base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "rust_fingerprint": "ce877c360a9c4340e84bcb42be317b602d8b6cc2e81f7d60ee040719384efc4d",
+  "scope": "Targeted current-source held-lock cancellation controls; no deployment acceptance",
+  "command": "CARGO_BUILD_JOBS=2 cargo test --locked --lib recovery1464_scheduled -- --test-threads=1",
+  "passes": [
+    {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "elapsed_seconds": 10.46
+    },
+    {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "elapsed_seconds": 10.45
+    }
+  ],
+  "assertions": [
+    "Closed scheduled healthy cancellation remains neutral without rate refund or success",
+    "Known transport, HTTP and chain identity negatives retain quarantine during metadata lock contention",
+    "Generic and incomplete half-open cancellation keep quarantine",
+    "Known wrong or malformed identity remains typed across getter deadline",
+    "Clipped identity probe deadline preserves known typed integrity",
+    "Own attempt timeout remains failure when recording is cancelled; exactly one failure"
+  ],
+  "overall": "PASS",
+  "metadata_policy": "No credentials, raw bodies, actor identifiers, private endpoint URLs or operational location metadata"
+}

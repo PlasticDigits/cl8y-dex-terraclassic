@@ -1594,3 +1594,122 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
     api_server.abort();
     upstream.abort();
 }
+
+/// A healthy fallback whose own attempt budget is cut short by the pair's
+/// deadline must remain available to the next independently scheduled cycle.
+#[tokio::test]
+#[serial]
+async fn recovery1464_pair_deadline_cancellation_preserves_healthy_next_cycle() {
+    use cl8y_dex_indexer::lcd::ProviderPolicy;
+    use std::time::Duration;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let healthy = common::lcd_mock::start_book_snapshot_mock(Some("900")).await;
+    let bad = common::lcd_mock::start_book_snapshot_mock(Some("900")).await;
+    for (server, delay) in [(&healthy, 2_000), (&bad, 3_000)] {
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
+            .and(|request: &wiremock::Request| {
+                common::lcd_mock::smart_query_from_request(request)
+                    .get("pool")
+                    .is_some()
+            })
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("x-cosmos-block-height", "900")
+                    .set_body_json(json!({"data":{"assets":[
+                    {"info":{"native_token":{"denom":"uluna"}},"amount":"1000000"},
+                    {"info":{"token":{"contract_addr":"terra1ustctoken"}},"amount":"2000000"}
+                ],"total_share":"1"}}))
+                    .set_delay(Duration::from_millis(delay)),
+            )
+            .with_priority(1)
+            .mount(server)
+            .await;
+    }
+    // The successful head read begins on healthy index0, advancing the shared
+    // round-robin cursor to bad index1 for this pair's first pool attempt.
+    let lcd = LcdClient::new_with_policy(
+        vec![healthy.uri(), bad.uri()],
+        2_500,
+        5_000,
+        "columbus-5",
+        ProviderPolicy {
+            attempt_timeout_ms: 2_500,
+            deadline_ms: 8_000,
+            max_backoff_ms: 5_000,
+            ..Default::default()
+        },
+    );
+    let namespace = lcd.chain_cache_namespace();
+    book_snapshot::snapshot_all_pairs(&pool, &lcd)
+        .await
+        .unwrap();
+    assert!(
+        pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+            .await
+            .unwrap()
+            .is_none(),
+        "the cancelled fallback never publishes an incomplete observation"
+    );
+    let first = lcd.provider_counters().await;
+    assert_eq!(
+        (
+            first[0].failures,
+            first[0].caller_cancellations,
+            first[0].in_flight
+        ),
+        (0, 1, 0)
+    );
+    assert!(
+        !first[0].circuit_open,
+        "a 4s caller budget is not the healthy fallback's own 2.5s timeout"
+    );
+    assert!(first[1].circuit_open);
+    assert_eq!(
+        first[1].failures, 1,
+        "the first bad provider still reaches its real timeout"
+    );
+    let cycle_started = chrono::Utc::now();
+    book_snapshot::snapshot_all_pairs(&pool, &lcd)
+        .await
+        .unwrap();
+    let raw = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let hybrid = pair_reserves::get_hybrid_pair_reserves(&pool, seed.pair_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (raw.reserve_0, raw.reserve_1, raw.block_height),
+        (bd("1000000"), bd("2000000"), Some(900))
+    );
+    assert_eq!(
+        hybrid.snapshot_at, raw.snapshot_at,
+        "book publication preserves the original pool observation"
+    );
+    assert!(raw.snapshot_at >= cycle_started);
+    assert!(
+        chrono::Utc::now()
+            .signed_duration_since(raw.snapshot_at)
+            .num_seconds()
+            < 20
+    );
+    assert_eq!(
+        lcd.chain_cache_namespace(),
+        namespace,
+        "snapshot views retain the same provider/cache namespace"
+    );
+    let recovered = lcd.provider_counters().await;
+    assert_eq!(
+        (
+            recovered[0].failures,
+            recovered[0].caller_cancellations,
+            recovered[0].in_flight
+        ),
+        (0, 1, 0)
+    );
+    assert!(recovered[0].successes > first[0].successes);
+}

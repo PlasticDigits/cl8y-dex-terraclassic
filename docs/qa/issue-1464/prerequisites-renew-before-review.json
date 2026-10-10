@@ -1,0 +1,49 @@
+{
+  "schema": "cl8y-1464-prerequisites-v1",
+  "rust_fingerprint": "a8bbe4f8fa30b8420cd661f94d55669f509cf4d0762f3c0ff7ee10617022c608",
+  "scope": "Source verification before additional known-negative lock-contention repair; no deployed acceptance",
+  "results": {
+    "1452_initial": {
+      "pass": 13,
+      "fail": 1,
+      "skip": 0,
+      "failure": "controlled desktop browser maximum 1132.7 ms; cause unproven; immediate retest passed"
+    },
+    "1452_full_rerun": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "browser_case_maxima_ms": [
+        49.7,
+        35.3,
+        50.7,
+        62.2,
+        48.7,
+        35.0,
+        50.7,
+        37.2
+      ]
+    },
+    "1453": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 2
+    },
+    "1394": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    "1392": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 2
+    },
+    "1396": {
+      "pass": 28,
+      "fail": 0,
+      "skip": 3
+    }
+  },
+  "executed_failures_retained": true
+}

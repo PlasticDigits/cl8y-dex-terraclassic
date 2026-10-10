@@ -192,7 +192,7 @@ impl LcdClient {
         let count = self.inner.endpoints.read().await.len();
         let mut verified = false;
         let mut errors = Vec::new();
-        let mut integrity_error = None;
+        let integrity_error = std::sync::Mutex::new(None);
         let mut attempts = 0;
         let mut capacity_deferred = false;
         for idx in 0..count {
@@ -208,12 +208,28 @@ impl LcdClient {
                     continue;
                 }
             };
+            if self.scheduled_observation {
+                permit.scheduled_observation();
+            }
             attempts += 1;
-            let timeout = remaining.min(Duration::from_millis(
-                self.inner.provider_policy.attempt_timeout_ms,
-            ));
-            let outcome = tokio::time::timeout(timeout, self.attest_endpoint(idx, &ep.url)).await;
-            permit.completed();
+            let attempt_timeout =
+                Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms);
+            let timeout = remaining.min(attempt_timeout);
+            let outcome = tokio::time::timeout(
+                timeout,
+                self.attest_endpoint(idx, &ep.url, &mut permit, &integrity_error),
+            )
+            .await;
+            if outcome.is_err() && timeout < attempt_timeout && permit.closed_cancel_is_neutral() {
+                // The caller's remaining total budget is shorter than this
+                // closed provider's own attempt bound. Preserve its health;
+                // drop still charges admission and releases the shared slot.
+                errors.push(format!("endpoint[{idx}] identity total deadline exceeded"));
+                continue;
+            }
+            if outcome.is_ok() {
+                permit.completed();
+            }
             match outcome {
                 Ok(Ok(())) => {
                     permit.succeeded();
@@ -228,11 +244,13 @@ impl LcdClient {
                     | LcdError::HttpRejected(_)),
                 )) => {
                     errors.push(format!("endpoint[{idx}] identity integrity rejected"));
-                    integrity_error = Some(e);
+                    *integrity_error.lock().unwrap() = Some(e);
                 }
                 Ok(Err(e)) => errors.push(e.to_string()),
                 Err(_) => {
+                    permit.quarantine_if_cancelled();
                     self.mark_failed(idx).await;
+                    permit.completed();
                     errors.push(format!("endpoint[{idx}] identity deadline exceeded"));
                 }
             }
@@ -240,9 +258,10 @@ impl LcdClient {
                 break;
             }
         }
+        let retained_integrity = integrity_error.lock().unwrap().take();
         let result = if verified {
             Ok(())
-        } else if let Some(error) = integrity_error {
+        } else if let Some(error) = retained_integrity {
             Err(error)
         } else if count > 0 && attempts == 0 && capacity_deferred {
             Err(LcdError::AdmissionDeferred)
@@ -256,7 +275,13 @@ impl LcdClient {
         (result, attempts)
     }
 
-    pub(super) async fn attest_endpoint(&self, idx: usize, url: &str) -> Result<(), LcdError> {
+    pub(super) async fn attest_endpoint(
+        &self,
+        idx: usize,
+        url: &str,
+        permit: &mut super::provider_pool::ProviderPermit,
+        integrity_error: &std::sync::Mutex<Option<LcdError>>,
+    ) -> Result<(), LcdError> {
         let mut observed = None;
         let mut retry_after = None;
         let result = async {
@@ -309,6 +334,12 @@ impl LcdClient {
             )),
             other => other,
         });
+        if let Err(error) = &result {
+            // Known negatives must survive cancellation while metadata cleanup
+            // waits. The shared typed slot also prevents deadline downgrades.
+            permit.quarantine_if_cancelled();
+            super::record_integrity_evidence(integrity_error, error);
+        }
         let mut eps = self.inner.endpoints.write().await;
         let ep = &mut eps[idx];
         ep.identity_checked_at = Some(chrono::Utc::now().to_rfc3339());

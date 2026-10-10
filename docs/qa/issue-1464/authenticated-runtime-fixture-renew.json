@@ -1,0 +1,57 @@
+{
+  "source_base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "source_fingerprint": "a8bbe4f8fa30b8420cd661f94d55669f509cf4d0762f3c0ff7ee10617022c608",
+  "started_at_utc": "2026-10-10T14:50:06.736583+00:00",
+  "scope": "Authenticated runtime LOGIN checks on a fresh independently owned loopback-only Postgres cluster; compiled current-source test binary invoked directly; no shared or production grants changed.",
+  "provisioning_attempts": [
+    {
+      "run": 1,
+      "status": "PASS",
+      "runtime_tests_executed": 0,
+      "reason": "Fresh owned cluster waited for final initialization and readiness; actual CONNECT baseline checked before tests."
+    }
+  ],
+  "private_env_permissions": "0600",
+  "runs": [
+    {
+      "run": 1,
+      "started_at_utc": "2026-10-10T14:50:07.135291+00:00",
+      "duration_seconds": 1.34,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "run": 2,
+      "started_at_utc": "2026-10-10T14:50:08.541896+00:00",
+      "duration_seconds": 1.359,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "baseline": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 0
+  },
+  "command": "database_isolation --exact runtime_credential_rejects_schema_ddl_and_detects_database_create_grants --ignored --test-threads=1",
+  "compiled_binary_sha256": "eac2cf5854e29ab4ccb9c02b2a70332d39e71cb9968f2ccd70f3f383f74afd9c",
+  "post_test_checks": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 2
+  },
+  "status": "PASS",
+  "cleanup": {
+    "owned_container_removed": true,
+    "generated_private_credentials_removed": true,
+    "owned_fixture_resources_remaining": 0
+  },
+  "completed_at_utc": "2026-10-10T14:50:10.996495+00:00",
+  "schema_version": 1,
+  "production_acceptance": false,
+  "source_scope": "Frozen tested working-tree bytes at the recorded fingerprint; source_base_revision identifies its unchanged base commit."
+}

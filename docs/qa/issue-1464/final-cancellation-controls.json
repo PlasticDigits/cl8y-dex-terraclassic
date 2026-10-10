@@ -1,0 +1,29 @@
+{
+  "schema": "cl8y-1464-final-cancellation-controls-v1",
+  "base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "rust_fingerprint": "df4d090e6e043351ccc90d4939dcf5e25313376e3b94027b85b07edf841804c6",
+  "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=<build cache only> cargo test --locked --manifest-path indexer/Cargo.toml --lib recovery1464 -- --nocapture",
+  "passes": [
+    {
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "elapsed_seconds": 10.53
+    },
+    {
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "elapsed_seconds": 10.55
+    }
+  ],
+  "scope": "Final-source recovery and held-lock/stalled-body regressions; no deployed acceptance",
+  "review_corrections": [
+    "Latch known transport/HTTP/identity/height evidence before metadata awaits",
+    "Retain typed integrity across caller deadlines",
+    "Own attempt failure recording remains armed until complete",
+    "Wrong-block-chain quarantine and identity metadata share one write guard with no later await",
+    "Unambiguous noncooldown headers retain HttpRejected before a stalled body; HTTP500 and contract-path404 body policy unchanged"
+  ],
+  "overall": "PASS"
+}

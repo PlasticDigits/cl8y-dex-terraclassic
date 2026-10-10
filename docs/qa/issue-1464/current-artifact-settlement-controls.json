@@ -1,0 +1,274 @@
+{
+  "artifact_attestation": {
+    "artifacts": [
+      {
+        "artifact": "cl8y_community_tax_token.wasm",
+        "sha256": "64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15"
+      },
+      {
+        "artifact": "cl8y_dex_factory.wasm",
+        "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+      },
+      {
+        "artifact": "cl8y_dex_pair.wasm",
+        "sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+      },
+      {
+        "artifact": "cl8y_dex_router.wasm",
+        "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+      },
+      {
+        "artifact": "cw20_mintable.wasm",
+        "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+      }
+    ],
+    "build_scope": "One cold optimized DEX build and one cold locked external CW20 fixture build; no second same-revision cold-build reproducibility claim.",
+    "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+    "cold_executable_cache": true,
+    "current_source_verified": true,
+    "cw20_effective_lock_sha256": "0036b505b69397a4fb4609e6a18c0841a13b61e472424b31a691ded07d76c84b",
+    "cw20_fixture_provenance_sha256": "fb3b279c943584ed39996dcefc48de505bb34139776c108dcc2fc1afef667e37",
+    "cw20_lock_format_conversion": "4-to-3",
+    "cw20_locked_source_revision": "73a206b5c39c5bd8f9d3574bda32fc5ae8f52ec8",
+    "cw20_original_lock_sha256": "996ac4ee8b6229fcac06ee6227976dfa338804a29e497d98cfb2532dd071e8c6",
+    "independent_cold_build": true,
+    "lock_sha256": "e5880b7b27a929a1fd68fc803bceb13d7ece61c5194d630ca6644f05ecd07f23",
+    "optimized_outputs_matching_earlier_recorded_provenance": 13,
+    "source_sha256": "be34df2b3b4fdfc02c6d74ab9476b2f0eef46d4fa598eb0e63ab471fa51f1aa3",
+    "toolchain": "rustc 1.81.0 (eeb90cda1 2024-09-04)\ncargo 1.81.0 (2dbb1af80 2024-08-20)\nwasm-opt version 116",
+    "original_build_provenance_sha256": "f29465d57312893b37a8bbbca8bab41a964c086ddf412621954479192c88c1d8",
+    "public_build_provenance_sha256": "62bb8293aacebbda483d063bcc70f659df7becdd5d0ea1c3af51fe085ea64707"
+  },
+  "cleanup_verification_attempts": [
+    {
+      "reason": "Included two pre-existing optimizer volumes created before this task; no unrelated resource changed.",
+      "scope": "Initial global optimizer-prefix assertion",
+      "status": "FAIL"
+    },
+    {
+      "remaining_owned_resources": 0,
+      "runs": 2,
+      "scope": "Current-task resource timestamps and owned chain/database labels",
+      "status": "PASS",
+      "unrelated_resources_untouched": true
+    }
+  ],
+  "commands": {
+    "contract_build": "CARGO_BUILD_JOBS=2 OPTIMIZER_TIMEOUT_SECONDS=1200 bash smartcontracts/scripts/optimize.sh",
+    "fixture_build": "CARGO_BUILD_JOBS=2 OPTIMIZER_TIMEOUT_SECONDS=1200 python3 scripts/ci/build-locked-fixtures.py cw20 --artifacts smartcontracts/artifacts",
+    "oracle_chain": "python3 scripts/qa/localterra-oracle-1391.py --container <owned-chain> --cw20-code <verified-code> --factory-code <verified-code> --pair-code <verified-code> --output <private-file>",
+    "oracle_consumer": "ORACLE1391_CHAIN_RECEIPT=<private-file> <current compiled oracle_1391_chain_receipt> --test-threads=1",
+    "settlement": "python3 <private-readonly-pool-rollback-observer> --container <owned-chain> --artifacts <attested-artifacts> --evidence-file <private-file>; observer invokes unchanged scripts/qa/localterra-route-tax-1381.py"
+  },
+  "completed_at_utc": "2026-10-10T13:34:00.580123+00:00",
+  "optimizer_cleanup_verified": true,
+  "passes": [
+    {
+      "cleanup": {
+        "owned_chain_container_removed": true,
+        "owned_chain_volume_removed": true,
+        "owned_database_container_removed": true,
+        "private_credentials_removed": true
+      },
+      "completed_at_utc": "2026-10-10T13:30:36.741790+00:00",
+      "current_source_artifact_attestation": true,
+      "fresh_owned_chain": true,
+      "fresh_owned_database_cluster": true,
+      "host_chain_ports_published": 0,
+      "on_chain_code_checksums_verified": 5,
+      "oracle_controls": {
+        "bootstrap_fixture_clock_advanced_seconds": 61,
+        "chain_transactions": 19,
+        "consumer_test_scope": {
+          "common_database_url_guard_tests_passed": 1,
+          "hub_replay_tests_passed": 1
+        },
+        "consumer_tests_failed": 0,
+        "consumer_tests_passed": 2,
+        "controls": [
+          "bootstrap_requires_confirmed_observations",
+          "canonical_reserve_shift_suppresses_manipulated_UST1",
+          "independent_direct_USTR_stays_available",
+          "LP_depth_loss_rejects_manipulated_anchor"
+        ],
+        "stages": 3,
+        "status": "PASS",
+        "synthetic_cex_sources": 2
+      },
+      "pass": 1,
+      "settlement_controls": {
+        "assertions": [
+          "exact_net_receive",
+          "authorized_gross_budget",
+          "intermediate_wallet_not_used",
+          "router_dust_preserved",
+          "tax_collected",
+          "minimum_receive_plus_one_rejected",
+          "atomic_token_router_sink_supply_rollback",
+          "atomic_pool_reserves_and_lp_shares_rollback"
+        ],
+        "checks": [
+          {
+            "quoted_net_output_raw": "946429267575517734",
+            "reverse_gross_input_raw": "1009999020096990300",
+            "scenario": "zero intermediates",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "894890444760655030",
+            "reverse_gross_input_raw": "1009999060288001788",
+            "scenario": "multi tax intermediates",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "946421488752678839",
+            "reverse_gross_input_raw": "1009999100473034445",
+            "scenario": "owned dust and existing balances",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "994000246661929123",
+            "reverse_gross_input_raw": "1010000",
+            "scenario": "taxed initial gross",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "961650",
+            "reverse_gross_input_raw": "1009999140652088252",
+            "scenario": "taxed final buy",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "894880862313485362",
+            "reverse_gross_input_raw": "1009999180825163192",
+            "scenario": "minimum return rollback",
+            "status": "PASS"
+          }
+        ],
+        "expected_failed_transactions": 1,
+        "receipt_count": 56,
+        "scenarios_passed": 6,
+        "status": "PASS",
+        "successful_transactions": 55
+      },
+      "started_at_utc": "2026-10-10T13:27:10.026659+00:00",
+      "status": "PASS"
+    },
+    {
+      "cleanup": {
+        "owned_chain_container_removed": true,
+        "owned_chain_volume_removed": true,
+        "owned_database_container_removed": true,
+        "private_credentials_removed": true
+      },
+      "completed_at_utc": "2026-10-10T13:34:00.066973+00:00",
+      "current_source_artifact_attestation": true,
+      "fresh_owned_chain": true,
+      "fresh_owned_database_cluster": true,
+      "host_chain_ports_published": 0,
+      "on_chain_code_checksums_verified": 5,
+      "oracle_controls": {
+        "bootstrap_fixture_clock_advanced_seconds": 61,
+        "chain_transactions": 19,
+        "consumer_test_scope": {
+          "common_database_url_guard_tests_passed": 1,
+          "hub_replay_tests_passed": 1
+        },
+        "consumer_tests_failed": 0,
+        "consumer_tests_passed": 2,
+        "controls": [
+          "bootstrap_requires_confirmed_observations",
+          "canonical_reserve_shift_suppresses_manipulated_UST1",
+          "independent_direct_USTR_stays_available",
+          "LP_depth_loss_rejects_manipulated_anchor"
+        ],
+        "stages": 3,
+        "status": "PASS",
+        "synthetic_cex_sources": 2
+      },
+      "pass": 2,
+      "settlement_controls": {
+        "assertions": [
+          "exact_net_receive",
+          "authorized_gross_budget",
+          "intermediate_wallet_not_used",
+          "router_dust_preserved",
+          "tax_collected",
+          "minimum_receive_plus_one_rejected",
+          "atomic_token_router_sink_supply_rollback",
+          "atomic_pool_reserves_and_lp_shares_rollback"
+        ],
+        "checks": [
+          {
+            "quoted_net_output_raw": "946429267575517734",
+            "reverse_gross_input_raw": "1009999020096990300",
+            "scenario": "zero intermediates",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "894890444760655030",
+            "reverse_gross_input_raw": "1009999060288001788",
+            "scenario": "multi tax intermediates",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "946421488752678839",
+            "reverse_gross_input_raw": "1009999100473034445",
+            "scenario": "owned dust and existing balances",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "994000246661929123",
+            "reverse_gross_input_raw": "1010000",
+            "scenario": "taxed initial gross",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "961650",
+            "reverse_gross_input_raw": "1009999140652088252",
+            "scenario": "taxed final buy",
+            "status": "PASS"
+          },
+          {
+            "quoted_net_output_raw": "894880862313485362",
+            "reverse_gross_input_raw": "1009999180825163192",
+            "scenario": "minimum return rollback",
+            "status": "PASS"
+          }
+        ],
+        "expected_failed_transactions": 1,
+        "receipt_count": 56,
+        "scenarios_passed": 6,
+        "status": "PASS",
+        "successful_transactions": 55
+      },
+      "started_at_utc": "2026-10-10T13:30:37.412050+00:00",
+      "status": "PASS"
+    }
+  ],
+  "production_acceptance": false,
+  "read_only_rollback_observer_sha256": "db9ca77c2a806983730ad430e8a68fca6ed096a327067490b5816e48fa73f05f",
+  "reviewed_settlement_driver_sha256": "d19069b7c704a404d6fae46fdc3ea23165efab08d746d63bb57bc0e9f0608d72",
+  "rust_consumer_binary_sha256": "499037336c52cf9e643076118cdea8d7bade49a501f6a391bc8afb5aa7f0a02b",
+  "rust_source_fingerprint": "77b8c6f5b3fca1c94ffff9df2c19ca1456a4ba429d652a5446e8c77e36cf5678",
+  "schema": "cl8y-1464-current-artifact-parity-v1-public-v2",
+  "scope": "Source-attested current optimized artifacts on two fresh owned LocalTerra chains, independently owned disposable QA databases, actual funded tax/final minimum-receive settlement controls and current Rust hub consumer replay. Chain simulations are distinct from cached local quote-engine parity.",
+  "shared_resources_mutated": false,
+  "source_revision": "612f741af5c8ae1be39b9fa9401801dae91bf867",
+  "started_at_utc": "2026-10-10T13:27:09.565398+00:00",
+  "status": "PASS WITH SKIPS",
+  "synthetic_only": true,
+  "unverified": [
+    {
+      "criterion": "cached current local quote-engine versus actual settlement parity",
+      "reason": "Reviewed drivers quote through on-chain router simulations; no reusable cached current-engine settlement observer found. No new fixture architecture introduced.",
+      "status": "SKIP"
+    },
+    {
+      "criterion": "hooked per-hop floor and AutoLP full protocol coverage",
+      "reason": "These reviewed settlement fixtures use hook-free pools and final router minimum_receive; separate broader source tests do not establish artifact-level hooked/AutoLP execution coverage here.",
+      "status": "SKIP"
+    }
+  ],
+  "presentation_note": "Artifact labels and SHA-256 values use separate fields. Original and public provenance document checksums are distinct; attested artifact bytes are unchanged."
+}

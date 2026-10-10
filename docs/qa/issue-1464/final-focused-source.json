@@ -1,0 +1,132 @@
+{
+  "schema": "cl8y-1464-final-focused-source-v1",
+  "base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "rust_fingerprint": "df4d090e6e043351ccc90d4939dcf5e25313376e3b94027b85b07edf841804c6",
+  "utc_start": "2026-10-10T15:22:55Z",
+  "utc_end": "2026-10-10T15:28:39Z",
+  "command": "CARGO_BUILD_JOBS=2 make verify-issue-1464",
+  "pass": 11,
+  "fail": 0,
+  "skip": 2,
+  "overall": "PASS WITH SKIPS",
+  "current_accepted_budget_ms": 500,
+  "test_group_executions": [
+    {
+      "passed": 81,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 76,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 81,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 76,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "four_direction_loopback_summaries": [
+    "1452 loopback 1464 four directions new connection/result misses: n=12 p50=2.105ms p95=2.354ms p99=2.354ms max=2.631ms",
+    "1452 loopback 1464 four directions reused connection/result hits: n=12 p50=1.423ms p95=1.939ms p99=1.939ms max=2.002ms",
+    "1452 loopback 1464 four directions new connection/result misses: n=12 p50=1.962ms p95=2.355ms p99=2.355ms max=2.389ms",
+    "1452 loopback 1464 four directions reused connection/result hits: n=12 p50=1.248ms p95=1.816ms p99=1.816ms max=2.072ms"
+  ],
+  "scope": "Frozen full first/retest source and disposable sockets; deployed acceptance and full funded quote/settlement parity remain separate"
+}

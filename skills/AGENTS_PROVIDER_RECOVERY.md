@@ -6,8 +6,11 @@ Issue: [#1464](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1464).
 First implementation: [merged #1465](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1465).
 Registered-token/reference follow-up: [merged #1466](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1466).
 Its [deployed trial](../docs/qa/issue-1464/deployment-1466.json) recovered initial
-quotes but did not sustain coverage. Capacity waiting and typed static tax admission
-are required before claiming the remaining production acceptance.
+quotes but did not sustain coverage. Capacity waiting and typed static tax admission shipped in
+[merged #1467](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1467); its
+[deployed follow-up](../docs/qa/issue-1464/verification.md#deployed-1467-and-current-500-ms-target)
+still fails sustained availability and first-useful latency. Caller-budget and
+original-expiry repairs must retain the remaining deployed acceptance as unproven.
 Its [deployed receipt](../docs/qa/issue-1464/deployment-1465.json) records a successful
 rollout and failed useful-quote acceptance; use the current verification results,
 not merged status or liveness, to assess trading readiness.
@@ -22,7 +25,7 @@ not merged status or liveness, to assess trading readiness.
 | PR1464-6 | Internal rejection reasons use fixed low-cardinality classes. Missing/stale/unsupported observations fail closed with an availability blocker; genuine protected execution rejection remains a protection blocker. Never advise arbitrary smaller sizes for infrastructure loss. |
 | PR1464-7 | Quote, best, POST, progress, reference, refresh, preflight and reviewed-route preparation trigger zero RPC/LCD/network validation. Only independently scheduled producers acquire observations; traffic cannot accelerate their cadence. |
 | PR1464-8 | Exact integer gross debit, route-local tax funding, positive post-hook/hop/final floors, pause/freeze/blacklist and refund ownership remain mandatory. Actor/amount/mode/funding/namespace/generation cache isolation and reviewed signing context remain intact; ≥99% protection is nonwaivable. |
-| PR1464-9 | Count useful executable results separately from errors/loading/topology. Every representative initialized hit and result miss must be strictly <250 ms; report p50/p95/p99/max and sample counts, new/reused socket/browser transport, cold state and regional RTT independently. An executed latency failure remains FAIL. |
+| PR1464-9 | Count useful executable results separately from errors/loading/topology. The currently accepted temporary target is ≤500 ms for representative initialized useful hits/misses; the original <250 ms target is deferred. Report p50/p95/p99/max and sample counts, new/reused socket/browser transport and cold state independently, without operational location metadata. An executed latency failure remains FAIL. |
 | PR1464-10 | Finish feasible checks and retest. Unavailable operational/device/fixture evidence may be SKIP with overall PASS WITH SKIPS, exact prerequisite/reason/revision/UTC scope and unchecked criteria. Executed failures stay FAIL until fixed and rerun. Source acceptance never closes missing deployment evidence in #1456. |
 
 Preserve [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md), [LF1453](AGENTS_LIQUIDITY_FEED.md),
@@ -65,3 +68,22 @@ network path unverified and retain measured timing failures. See
 [HTTP/3 transport evidence](../docs/qa/issue-1464/verification.md#http3-reachability-and-transport-evidence).
 Confirm real socket/protocol reuse; health or handler-only timing never establishes
 useful quote latency. This rule also applies to agent notes and PR descriptions.
+
+
+Scheduled caller cancellation is not provider failure: for a trusted independently
+scheduled observation, release an incomplete closed-provider attempt without
+success, failure reset or rate refund. Generic cancellations and incomplete
+half-open probes still quarantine; observed HTTP/transport and the provider's
+own attempt timeout still quarantine. Keep the same shared client state, caps,
+attestation and deadlines. Record caller_cancellations separately.
+
+Capture published pair membership and each original configuration expiry together
+before any database await. A pair crossing expiry during publication must fail
+closed independently; it cannot inherit a fresh sibling's global maximum deadline.
+The [score regression](../indexer/src/api/local_quote/admission.rs) covers this race.
+
+Latch known provider negatives before any asynchronous metadata/failure recording.
+Lock contention followed by caller cancellation must retain quarantine and known
+typed integrity evidence; it must not turn a recorded negative into a neutral
+caller cancellation. Keep failure recording exactly once, including own attempt
+timeouts. See the [LCD regressions](../indexer/src/lcd/mod.rs).

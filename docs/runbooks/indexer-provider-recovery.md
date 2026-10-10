@@ -183,3 +183,25 @@ UDP publication, exact origin firewall UDP443 reachability and actual negotiated
 h3 before benchmarking. The [HTTP/3 repair receipt](../qa/issue-1464/http3-firewall-repair.json)
 scopes the single-origin rule change and retained rollback. Health timing cannot
 certify useful quote acceptance.
+
+
+When a pair's4s caller budget expires after a failed2.5s first attempt, it can
+cancel a still-healthy fallback before that provider's own timeout. Trusted
+scheduled observations record caller_cancellations and release that closed slot
+without fabricating success or opening a new circuit. Generic requests, half-open
+recovery, observed upstream errors and actual provider timeouts retain quarantine.
+Completed HTTP failures are classified before a slow error body can obscure them;
+contract-local500 rejection/gas classification remains separate. Shared rate,
+concurrency, attestation, byte/deadline caps and original freshness stay intact.
+
+The current useful-result latency target is500ms, accepted temporarily.
+Retain older250ms verdicts as historical scope; do not erase failures or substitute
+a successful retry's fast fetch time for the whole first-useful completion time.
+
+Known HTTP, transport or identity failures must disable neutral cancellation
+synchronously before awaiting provider metadata locks. Copy already-known typed
+integrity evidence into the getter's retained error slot before cleanup awaits.
+A caller deadline during lock contention must neither clear quarantine nor
+downgrade unsafe identity evidence to an availability retry. Own attempt timeout
+recording keeps its permit incomplete until the failure is recorded, so cancellation
+still records one failure. The LCD lock-contention regressions cover these boundaries.

@@ -83,6 +83,11 @@ def request_transport(connection, path, headers):
     return "reused" if previous is not None and connection.sock is previous else "new"
 
 
+def measurement_pass(is_useful, elapsed_ms, budget_ms):
+    # Error completion is never acceptance; compare before rounding evidence.
+    return is_useful and math.isfinite(elapsed_ms) and 0 <= elapsed_ms <= budget_ms
+
+
 def probe(args):
     signal.signal(signal.SIGALRM, deadline)
     target = urlsplit(args.base_url)
@@ -129,7 +134,11 @@ def probe(args):
                         connection = None
                     finally:
                         signal.setitimer(signal.ITIMER_REAL, 0)
-                    row["elapsed_ms"] = round((time.monotonic() - start) * 1000, 3)
+                    elapsed_ms = (time.monotonic() - start) * 1000
+                    row["elapsed_ms"] = round(elapsed_ms, 3)
+                    row["within_latency_budget"] = measurement_pass(
+                        row["useful"], elapsed_ms, args.latency_budget_ms,
+                    )
                     rows.append(row)
                     if transport == "new" and connection is not None:
                         connection.close()
@@ -137,9 +146,10 @@ def probe(args):
                     time.sleep(args.interval)
         if connection is not None:
             connection.close()
-    failed = any(not row["useful"] or row["elapsed_ms"] >= 250 for row in rows)
+    failed = any(not row["within_latency_budget"] for row in rows)
     return {
         "issue": 1464, "revision": args.revision, "utc_start": started,
+        "latency_budget_ms": args.latency_budget_ms,
         "utc_end": datetime.now(timezone.utc).isoformat(), "overall": "FAIL" if failed else "PASS WITH SKIPS",
         "useful_count": sum(row["useful"] for row in rows), "request_count": len(rows),
         "useful_latency": distribution([row["elapsed_ms"] for row in rows if row["useful"]]),
@@ -155,11 +165,15 @@ def main():
     parser.add_argument("--base-url", default="https://indexer.dex.cl8y.com")
     parser.add_argument("--cycles", type=int, default=1, help="1..10 cycles per connection mode; 24..240 requests")
     parser.add_argument("--interval", type=float, default=0.5, help="0.5..10 seconds between requests")
+    parser.add_argument("--latency-budget-ms", type=int, default=500,
+                        help="1..500 ms; current accepted temporary target is 500 ms")
     parser.add_argument("--revision", required=True, help="independently observed deployed revision")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if not 1 <= args.cycles <= 10 or not 0.5 <= args.interval <= 10 or not math.isfinite(args.interval):
         parser.error("cycles/interval exceed finite read budget")
+    if not 1 <= args.latency_budget_ms <= 500:
+        parser.error("latency budget exceeds the currently accepted 500 ms target")
     if len(args.revision) != 40 or any(c not in "0123456789abcdef" for c in args.revision):
         parser.error("revision must be a lowercase 40-character commit SHA")
     try:

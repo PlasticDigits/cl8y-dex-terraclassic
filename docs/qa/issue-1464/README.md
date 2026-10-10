@@ -43,7 +43,7 @@ scope proven by its evidence; a synthetic test cannot check deployed acceptance.
 | [ ] | AC3: fatal integrity/cancellation | Inject checkpoint mismatch/reorg, parser/accounting/database permanent failure independently. Assert progress halts with truthful readiness, no successful skip and no availability downgrade. Cancel retries, shutdown and leadership loss; assert tasks/permits release and workers join. |
 | [ ] | AC4: bounded independent observation recovery | Run provider/book/admission regressions twice. Inject unrelated fee/bid/ask/token/actor phase failures while a healthy alternative remains. Check original times and generation, finite request/rate/in-flight/half-open counts, no stale relabeling and rebuilt coverage before actual expiry. Compare deployed coverage across multiple freshness cycles; local cadence alone cannot certify it. |
 | [ ] | AC5: accurate blockers | Test missing versus stale versus unsupported versus genuine amount/protection failure and final-response admission separately. Inspect fixed internal reason counters and the single appropriate public blocker. Infrastructure loss must not become a size suggestion; diagnostics must omit actor data/private endpoints. |
-| [ ] | AC6: strictly <250 ms useful output | Run real initialized socket hits/misses and production-build desktop/phone browser corpus. Count only validated positive executable results. Record sample count, p50/p95/p99/max, first/later result, cold initialization, new/reused connections and regional RTT separately. Every initialized representative sample must be <250 ms. Any measured miss of the threshold remains FAIL until corrected and rerun. |
+| [ ] | AC6: current temporary ≤500 ms useful output | Run real initialized socket hits/misses and production-build desktop/phone browser corpus. Count only validated positive executable results. Record sample count, p50/p95/p99/max, first/later result, cold initialization, new/reused connections and transport RTT separately. The currently accepted temporary target is ≤500 ms. The original <250 ms target is deferred; preserve its historical results separately. Any measured miss of the threshold remains FAIL until corrected and rerun. |
 | [ ] | AC7: zero request RPC | Run counting/throwing-provider fixtures across GET, best, POST, progress, reference, refresh, confirmation/preflight and reviewed-route preparation. Assert exactly zero network calls, including cache miss/outage/deeper job and concurrent traffic. Independently measure scheduled cadence/finite work; do not subtract unexplained background calls from total counters. |
 | [ ] | AC8: isolation/signing races | Run existing #1452 frontend/cache/socket suites. Vary amount/direction/mode/actor/tier/spread/maker cap/funding/namespace/generation and same-key bursts. Exercise refresh/reversal/disconnect/confirmation/deeper-result race; unchanged reviewed operations/floors and nonwaivable ≥99% guard. Check canceled jobs coalesce/clean up within bounds. |
 | [ ] | AC9: verifier/docs/deployed sustained trial | Run focused and all five prerequisite verifiers, fix executed failures and retest. Review PR1464 and all crosslinks. Read-only deployed corpus must confirm revision, useful coverage and sustained multiple admission/freshness cycles, plus bounded agent-owned read-only outage/recovery evidence. Keep missing #1456 rollout/history scope open. |
@@ -65,7 +65,7 @@ endpoint URLs are omitted. Supply the exact revision independently read from hea
 
 ```sh
 python3 scripts/qa/probe-issue-1464.py \
-  --revision <40-character-deployed-SHA> --cycles 1 \
+  --revision <40-character-deployed-SHA> --cycles 1 --latency-budget-ms 500 \
   --output /tmp/issue-1464-public-corpus.json
 ```
 
@@ -73,8 +73,8 @@ The tool rejects nonpositive/missing/mismatched operations/floors, wrong input/d
 noninteger raw strings, unsupported/blocked execution, floors above net output, absent
 bounded generation and expired/future observations. It reports useful-only distributions per transport.
 It exits unsuccessfully when any expected quote is unavailable/nonexecutable or
-any useful socket sample is ≥250 ms. Even a passing corpus is PASS WITH SKIPS:
-it cannot prove cache hit/miss initialization, isolated backend compute, regional RTT,
+any useful socket sample exceeds the selected budget (default 500 ms; maximum 500 ms). Error completion never passes. The original 250 ms improvement target is deferred by explicit user direction. Even a passing corpus is PASS WITH SKIPS:
+it cannot prove cache hit/miss initialization, isolated backend compute, transport RTT,
 browser transport, settlement parity, request RPC counts or an outage trial.
 
 ## Skip policy and receipt
