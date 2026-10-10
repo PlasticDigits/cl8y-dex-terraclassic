@@ -369,19 +369,26 @@ impl LcdClient {
             // Background pacing owns only its lane permit. Acquire provider capacity
             // after the wait: queued work must neither starve checkpoint reads nor
             // open a healthy provider's circuit when its caller is cancelled.
-            let _ingestion_permit = if let Some(budget) = self.ingestion_budget.as_ref() {
-                let permit =
-                    budget.permits.clone().acquire_owned().await.map_err(|_| {
+            let (_ingestion_permit, admission) =
+                if let Some(budget) = self.ingestion_budget.as_ref() {
+                    let lane = budget.permits.clone().acquire_owned().await.map_err(|_| {
                         LcdError::AllEndpointsFailed("Ingestion budget closed".into())
                     })?;
-                let mut next = budget.next_request.lock().await;
-                tokio::time::sleep_until(*next).await;
-                *next = tokio::time::Instant::now() + Duration::from_millis(250);
-                Some(permit)
-            } else {
-                None
-            };
-            let mut permit = match ep.provider.admit() {
+                    let mut next = budget.next_request.lock().await;
+                    tokio::time::sleep_until(*next).await;
+                    // No provider permit exists during the pacing await. Serialize
+                    // this synchronous admission/charge so only actual attempts
+                    // advance the shared rate budget; denied circuits/capacity do
+                    // not spend another 250ms before trying a healthy alternative.
+                    let admission = ep.provider.admit();
+                    if admission.is_ok() {
+                        *next = tokio::time::Instant::now() + Duration::from_millis(250);
+                    }
+                    (Some(lane), admission)
+                } else {
+                    (None, ep.provider.admit())
+                };
+            let mut permit = match admission {
                 Ok(permit) => permit,
                 Err(reason) => {
                     capacity_deferred |= reason.is_capacity();
@@ -1857,6 +1864,53 @@ mod provider_resilience_tests {
         lcd.get::<serde_json::Value>("/data").await.unwrap();
     }
 
+    #[tokio::test]
+    async fn recovery1464_circuit_skips_charge_only_actual_background_attempts() {
+        let first = MockServer::start().await;
+        let second = MockServer::start().await;
+        let healthy = MockServer::start().await;
+        mock_chain_identity(&healthy, "columbus-5").await;
+        payload(&healthy, 200).await;
+        let lcd = LcdClient::new_with_policy(
+            vec![first.uri(), second.uri(), healthy.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            ProviderPolicy {
+                deadline_ms: 400,
+                ..Default::default()
+            },
+        );
+        {
+            let endpoints = lcd.inner.endpoints.read().await;
+            endpoints[0].provider.failed(Duration::from_secs(60), None);
+            endpoints[1].provider.failed(Duration::from_secs(60), None);
+        }
+        let background = lcd.with_ingestion_budget();
+        let mut samples = Vec::new();
+        for _ in 0..2 {
+            let started = std::time::Instant::now();
+            background.get::<serde_json::Value>("/data").await.unwrap();
+            samples.push(started.elapsed());
+        }
+        assert!(
+            samples
+                .iter()
+                .all(|elapsed| *elapsed < Duration::from_millis(400)),
+            "denied circuits cannot consume the entire provider deadline"
+        );
+        assert!(
+            samples[1] >= Duration::from_millis(200),
+            "successful attempts must still obey shared pacing"
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].attempts, 0);
+        assert_eq!(counters[1].attempts, 0);
+        assert_eq!(counters[2].attempts, 2);
+        assert_eq!(counters[2].failures, 0);
+        assert_eq!(counters[2].in_flight, 0);
+        assert_eq!(hits(&healthy, "/data").await, 2);
+    }
     #[tokio::test]
     async fn pinned_contract_snapshot_fails_over_and_requires_exact_height() {
         use wiremock::matchers::{header, query_param};

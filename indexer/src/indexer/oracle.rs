@@ -106,8 +106,37 @@ fn build_oracle_http_client() -> Client {
         .expect("failed to build oracle HTTP client")
 }
 
-fn include_coingecko_on_tick(tick_count: u64) -> bool {
-    tick_count % 2 == 0
+const COINGECKO_INTERVAL: Duration = Duration::from_secs(60);
+const FDUSD_INTERVAL: Duration = Duration::from_secs(30);
+
+fn ticker_interval(ticker: OracleTicker, configured_ms: u64) -> Duration {
+    if ticker == OracleTicker::Vfdusd {
+        FDUSD_INTERVAL
+    } else {
+        Duration::from_millis(configured_ms.clamp(1_000, 10_000))
+    }
+}
+
+/// One outstanding poll per ticker. Clock-based CoinGecko pacing does not
+/// increase its traffic when the independently scheduled CEX cadence changes.
+async fn run_ticker_schedule<F, Fut>(ticker: OracleTicker, period: Duration, mut poll: F)
+where
+    F: FnMut(bool) -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    let mut timer = tokio::time::interval(period);
+    timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    // Preserve the original default first CoinGecko poll at the second 30s tick.
+    let mut next_coingecko = tokio::time::Instant::now() + FDUSD_INTERVAL;
+    loop {
+        timer.tick().await;
+        let now = tokio::time::Instant::now();
+        let coingecko = ticker == OracleTicker::Vfdusd || now >= next_coingecko;
+        if coingecko {
+            next_coingecko = now + COINGECKO_INTERVAL;
+        }
+        poll(coingecko).await;
+    }
 }
 
 pub fn new_shared_price() -> SharedPrice {
@@ -291,18 +320,23 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: Oracle
     // indexing leaves no detached timer retaining these shared handles.
     let _expiry_worker = start_price_expiry(prices.clone());
 
-    let interval = Duration::from_millis(poll_interval_ms);
-    let mut tick_count: u64 = 0;
-
-    loop {
-        tick_count += 1;
-        let fetch_coingecko = include_coingecko_on_tick(tick_count);
-
-        for ticker in OracleTicker::ALL {
-            poll_ticker(&client, &pool, &prices, ticker, fetch_coingecko).await;
-        }
-
-        tokio::time::sleep(interval).await;
+    let mut workers = tokio::task::JoinSet::new();
+    for ticker in OracleTicker::ALL {
+        let client = client.clone();
+        let pool = pool.clone();
+        let prices = prices.clone();
+        workers.spawn(async move {
+            run_ticker_schedule(
+                ticker,
+                ticker_interval(ticker, poll_interval_ms),
+                |coingecko| poll_ticker(&client, &pool, &prices, ticker, coingecko),
+            )
+            .await;
+        });
+    }
+    // JoinSet is caller-owned: cancellation drops and aborts all three polls.
+    if let Some(result) = workers.join_next().await {
+        tracing::error!(failed = result.is_err(), "Oracle scheduled worker ended");
     }
 }
 
@@ -313,10 +347,10 @@ async fn poll_ticker(
     ticker: OracleTicker,
     fetch_coingecko: bool,
 ) {
-    let results = fetch_all_sources(client, ticker, fetch_coingecko).await;
-    // Local HTTP observation time, never an invented exchange trade timestamp.
-    // DB delays must not renew the freshness of a completed poll.
+    // Conservative original poll start; a slow peer or DB write must not make
+    // earlier completed source responses appear freshly observed.
     let as_of = Utc::now();
+    let results = fetch_all_sources(client, ticker, fetch_coingecko).await;
 
     for (source, result) in &results {
         match result {
@@ -419,28 +453,30 @@ async fn fetch_all_sources(
     ticker: OracleTicker,
     include_coingecko: bool,
 ) -> Vec<(&'static str, Result<f64, OracleError>)> {
-    let mexc = fetch_mexc(client, ticker);
-    let kucoin_symbol = ticker.kucoin_symbol();
-
-    let (kc_res, mx_res) = if kucoin_symbol.is_some() {
-        let kucoin = fetch_kucoin(client, ticker);
-        let (kc, mx) = tokio::join!(kucoin, mexc);
-        (Some(kc), mx)
-    } else {
-        // KuCoin has no FDUSD pair — skip rather than abort the tick (GitLab #550).
-        (None, mexc.await)
+    let kucoin = async {
+        if ticker.kucoin_symbol().is_some() {
+            Some(fetch_kucoin(client, ticker).await)
+        } else {
+            None
+        }
     };
-
+    let coingecko = async {
+        if include_coingecko || ticker == OracleTicker::Vfdusd {
+            Some(fetch_coingecko(client, ticker).await)
+        } else {
+            None
+        }
+    };
+    // At most three source calls per ticker, eight across all supported tickers.
+    // Slow CoinGecko no longer adds a second sequential 10s timeout to a poll.
+    let (kc, mx, cg) = tokio::join!(kucoin, fetch_mexc(client, ticker), coingecko);
     let mut results = Vec::with_capacity(3);
-    if let Some(kc) = kc_res {
-        results.push(("kucoin", kc));
+    if let Some(result) = kc {
+        results.push(("kucoin", result));
     }
-    results.push(("mexc", mx_res));
-
-    // FDUSD has only two providers: skipping CoinGecko would intentionally lose quorum.
-    if include_coingecko || ticker == OracleTicker::Vfdusd {
-        let cg_res = fetch_coingecko(client, ticker).await;
-        results.push(("coingecko", cg_res));
+    results.push(("mexc", mx));
+    if let Some(result) = cg {
+        results.push(("coingecko", result));
     }
 
     results
@@ -1000,12 +1036,118 @@ mod tests {
         }
     }
 
-    #[test]
-    fn coingecko_polls_on_alternate_ticks_only() {
-        assert!(!include_coingecko_on_tick(1));
-        assert!(include_coingecko_on_tick(2));
-        assert!(!include_coingecko_on_tick(3));
-        assert!(include_coingecko_on_tick(4));
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_oracle_clock_cadence_preserves_coingecko_and_fdusd_limits() {
+        use std::sync::Mutex;
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let start = tokio::time::Instant::now();
+        let mut workers = tokio::task::JoinSet::new();
+        for ticker in OracleTicker::ALL {
+            let events = events.clone();
+            workers.spawn(run_ticker_schedule(
+                ticker,
+                ticker_interval(ticker, 30_000),
+                move |cg| {
+                    events
+                        .lock()
+                        .unwrap()
+                        .push((ticker, cg, start.elapsed().as_secs()));
+                    async {}
+                },
+            ));
+        }
+        for _ in 0..=120 {
+            tokio::task::yield_now().await;
+            tokio::time::advance(Duration::from_secs(1)).await;
+        }
+        workers.shutdown().await;
+        let events = events.lock().unwrap();
+        for ticker in [OracleTicker::Ustc, OracleTicker::Lunc] {
+            assert_eq!(
+                events
+                    .iter()
+                    .filter(|(t, cg, _)| *t == ticker && *cg)
+                    .map(|(_, _, at)| *at)
+                    .collect::<Vec<_>>(),
+                vec![30, 90]
+            );
+            assert!(events
+                .iter()
+                .filter(|(t, _, _)| *t == ticker)
+                .map(|(_, _, at)| *at)
+                .collect::<Vec<_>>()
+                .windows(2)
+                .all(|times| times[1] - times[0] == 10));
+        }
+        assert_eq!(
+            events
+                .iter()
+                .filter(|(t, _, _)| *t == OracleTicker::Vfdusd)
+                .map(|(_, cg, at)| {
+                    assert!(*cg);
+                    *at
+                })
+                .collect::<Vec<_>>(),
+            vec![0, 30, 60, 90, 120]
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_slow_ticker_does_not_delay_peers_or_overlap_and_drop_cancels() {
+        use std::sync::atomic::AtomicUsize;
+        let active = Arc::new(AtomicUsize::new(0));
+        let normal = Arc::new(AtomicUsize::new(0));
+        struct Guard(Arc<AtomicUsize>);
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                self.0.fetch_sub(1, Ordering::SeqCst);
+            }
+        }
+        let mut workers = tokio::task::JoinSet::new();
+        let slow = active.clone();
+        workers.spawn(run_ticker_schedule(
+            OracleTicker::Vfdusd,
+            FDUSD_INTERVAL,
+            move |_| {
+                assert_eq!(
+                    slow.fetch_add(1, Ordering::SeqCst),
+                    0,
+                    "one outstanding job per ticker"
+                );
+                let guard = Guard(slow.clone());
+                async move {
+                    let _guard = guard;
+                    tokio::time::sleep(Duration::from_secs(50)).await;
+                }
+            },
+        ));
+        for ticker in [OracleTicker::Ustc, OracleTicker::Lunc] {
+            let count = normal.clone();
+            workers.spawn(run_ticker_schedule(
+                ticker,
+                ticker_interval(ticker, 30_000),
+                move |_| {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    async {}
+                },
+            ));
+        }
+        for _ in 0..21 {
+            tokio::task::yield_now().await;
+            tokio::time::advance(Duration::from_secs(1)).await;
+        }
+        assert_eq!(
+            normal.load(Ordering::SeqCst),
+            6,
+            "both healthy tickers publish at0/10/20 while peer waits"
+        );
+        assert_eq!(active.load(Ordering::SeqCst), 1);
+        workers.shutdown().await;
+        assert_eq!(
+            active.load(Ordering::SeqCst),
+            0,
+            "owned cancellation drops in-flight poll resources"
+        );
     }
 
     #[tokio::test]

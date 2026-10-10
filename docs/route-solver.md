@@ -601,5 +601,9 @@ exact execution constraints while independently scheduled indexing/provider reco
 retains qualified fresh observations. `/health` is liveness; `/ready` is indexing
 readiness, not proof of trading coverage. Missing/stale/unsupported prerequisites
 remain an availability blocker; genuinely infeasible protected execution remains 422.
+Native freshness is qualified before amount-specific wrapper rate protection;
+missing direct-wrapper references are availability loss. Optional output/capability
+observation consumes only the remaining bounded publication budget, preserving
+completed native-input arithmetic while unavailable signing capabilities stay blocked.
 See [recovery/readiness](runbooks/indexer-provider-recovery.md),
 [AC1–AC9 verification](qa/issue-1464/README.md) and `make verify-issue-1464`.

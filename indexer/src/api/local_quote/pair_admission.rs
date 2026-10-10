@@ -90,7 +90,10 @@ pub(super) async fn observe_pair(
     allowed_pins(&pins, [code_a, code_b])?;
     let blacklist = required(state, factory, json!({"blacklist_check":{"tokens":[a,b],"pairs":[pair.contract_address],"wallet":null,"pair":null}})).await?;
     allowed_blacklist(&blacklist)?;
-    for code in [code_a, code_b] {
+    for code in [Some(code_a), (code_b != code_a).then_some(code_b)]
+        .into_iter()
+        .flatten()
+    {
         let whitelist = required(
             state,
             factory,

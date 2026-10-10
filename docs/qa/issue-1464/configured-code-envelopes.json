@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-10T10:09:35.250940+00:00",
+  "deployed_git_sha": "79ab27c1563ccb85667be86ff540325cac4e057b",
+  "read_only": true,
+  "background_response_budget_bytes": 65536,
+  "observations": [
+    {
+      "configured_provider_index": 2,
+      "code_id": 10184,
+      "http_status": 200,
+      "observed_prefix_bytes": 65537
+    },
+    {
+      "configured_provider_index": 2,
+      "code_id": 11713,
+      "http_status": 200,
+      "observed_prefix_bytes": 65537
+    }
+  ]
+}

@@ -182,9 +182,103 @@ not imply an outstanding ALPHA migration, nor prove sustained failover or eligib
 quotes. Direct new-connection provider timing from Korea is separate from production
 ingestion deadlines and initialized useful quote performance.
 
+## Merged and deployed #1465
+
+[PR #1465](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1465) passed
+all six mandatory [hosted CI steps](https://ci.cl8y.com/repos/7/pipeline/385/1)
+on `f664f3df4b1010057f38086925306a617cfbf246`, then merged normally as
+`79ab27c1563ccb85667be86ff540325cac4e057b`. The indexer rollout finished
+2026-10-10 09:31:08 UTC; public health confirmed that merge revision.
+The [deployment receipt](deployment-1465.json) distinguishes successful rollout
+from **failed trading acceptance**.
+
+The [first deployed socket corpus](deployed-1465-first.json) returned **0/24 useful**.
+Fresh disconnected [production desktop/phone browser checks](deployed-1465-browser.json)
+returned **0/12 useful per viewport**. No transaction was signed or broadcast.
+Useful latency sample counts remain zero; error completion times cannot certify
+fast useful quotes. Logs showed checkpoint progress and no repeated indexer exits,
+while every quote corridor remained unavailable.
+
+A second rollout of the same revision finished 09:50:07 UTC with bounded runtime
+settings: attempt timeout 2,500 ms, request deadline 8,000 ms, circuit cooldown
+1,000 ms and maximum backoff 5,000 ms. Shared rate/concurrency limits, original
+timestamps, TTLs and execution protection were unchanged. Selective fixed-label
+admission diagnostics were enabled. The [cold post-rollout corpus](deployed-1465-tuned-cold.json)
+still returned **0/24 useful**. This cold probe does not establish initialized
+acceptance. Later diagnostics reported zero admitted pairs and unsupported
+pre-pair prerequisites, so deployment success and provider tuning alone did not
+resolve the live defect. These executed failures remain FAIL pending a corrected
+release and successful deployed retest.
+The [warm post-tuning corpus](deployed-1465-tuned-warm.json), 09:58:50–09:59:19 UTC,
+also returned **0/24 useful**. The [fixed-label cycle census](deployed-1465-tuned-census.json)
+records successful 22/22 reserve cycles with original ages below the unchanged
+expiry, alongside zero admitted pairs. This separates reserve recovery from the
+remaining token/configuration prerequisite failure. Later public hub reads recovered
+bounded USTR/UST1 marks; unavailable reference snapshots were not a permanent
+contract or migration limitation.
+
+At 10:09:35 UTC, a bounded [configured code-envelope probe](configured-code-envelopes.json)
+confirmed successful code-details responses for ordinary 10184 and routed-tax
+11713 exceeded the worker's 65,536 byte body limit: the endpoint also returns
+inline WASM. Production configured a hash fallback, causing redundant code-detail
+reads even for positive code-ID registrations. That reproducibly rejected all
+known tokens before pair validation. The follow-up skips only those redundant
+hash reads; unknown code/hash attestations and body limits remain mandatory.
+
+### Serving transport limit
+
+Separate [bounded transport reads](deployed-1465-transport.json) measured reused
+HTTP/2 health/oracle/error TTFB 278.759–297.261 ms. These contain **zero useful
+quote samples**. [Protocol comparison](deployed-1465-protocol-comparison.json)
+measured reused HTTP/1.1 health TTFB 279.175–280.476 ms and HTTP/2
+289.481–289.940 ms; one HTTP/1.1 body completed after 1,353 ms and remains recorded.
+[Production-origin browser document reads](deployed-1465-browser-transport.json)
+measured approximately 283–284 ms request TTFB with JavaScript disabled. Those
+document reads do not certify quote performance.
+
+Observed TCP connection phases were about 134 ms, so the excess cannot be
+attributed solely to physical RTT. The existing path already exceeds the issue's
+250 ms target before useful output or UI work; backend microbenchmarks cannot
+waive it. HTTP/3 was advertised but not successfully measured. Read-only inventory
+found three Hcloud servers in Nuremberg and no existing Asian capacity; one other
+Coolify server's region remains unknown. The scoped Hcloud token exposed zero
+DNS zones, so no DNS authority for a regional cutover is established. No server,
+billing or DNS changes were made by these probes.
+
+## Follow-up live admission source verification
+
+The [frozen-source receipt](live-ingestion-source.json) records the follow-up
+`make verify-issue-1464` first run and retest: **11 passing stages, zero failures,
+two explicit source-scope skips**, ending 10:29:38 UTC. It covers the exact oversized
+code-envelope regression, denied-provider pacing, bounded actor preparation,
+independent ticker scheduling, original wrapper freshness and slow optional output
+publication. Real disposable checkpoint/health/book/socket cases pass twice;
+four-direction useful socket results remain below 250 ms with zero request RPC.
+The initial private-module test compilation error was corrected through public
+refresh/solve APIs. An earlier book deadline failure under overlapping disk-heavy
+verification passed on retest and again after serialization. The initial
+changed-source fingerprint failure was corrected by repeating unchanged final
+source; these earlier failures were not relabeled SKIP.
+
+Two fresh, funded [isolated LocalTerra oracle controls](localterra-oracle-controls.json)
+and both current Rust receipt replays pass. Each fixture executed 19 transactions
+and captured three reserve stages without resetting/restarting the shared chain.
+The controls use actual chain reserves plus an explicitly synthetic certified
+CEX quorum/bootstrap clock. The driver now accepts current nested factory responses,
+keeps its reserve-shift attack below the unchanged 50% protection after integer
+rounding, and reconciles an accepted transaction under a finite 120 second deadline
+without rebroadcast. Earlier fixture rounding/inclusion failures were corrected
+and successfully rerun. Artifact provenance limitations remain explicit; this is
+not current-release settlement or production acceptance.
+
+The broader #1452/#1453/#1394/#1392/#1396 and oracle #1391 verifiers are rerun
+with bounded build parallelism. Hosted CI, deployment and useful live retest must
+be recorded independently before checking their acceptance scope. Current #1465
+production failures remain FAIL; this source receipt does not establish rollout.
+
 ## Remaining acceptance and skip scope
 
-- [ ] AC1 full live four-direction acceptance: updated revision is not deployed/attested.
+- [ ] AC1 full live four-direction acceptance: #1465 is deployed/attested, but fails useful coverage.
 - [ ] AC4 production coverage before expiry across multiple cadence/recovery cycles.
 - [ ] AC6 initialized hit/miss useful latency under normal regional desktop/phone
   browser transport, first/later result and separately measured RTT/cold state.

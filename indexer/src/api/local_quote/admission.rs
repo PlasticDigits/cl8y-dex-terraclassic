@@ -259,50 +259,32 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         selected
     };
     let mut actor_observed_at = HashMap::new();
-    if let Some(factory) = state.factory_address.as_deref() {
-        for address in &actor_addresses {
-            let observed_at = now_ms();
-            let blocked = query(
-                state,
-                factory,
-                json!({"blacklist_check":{"wallet":address,"tokens":[],"pairs":[],"pair":null}}),
-            )
-            .await
-            .and_then(|v| v["wallet_blacklisted"].as_bool());
-            if blocked == Some(true) {
-                ingestion::publish_known_block(&namespace, address)?;
-            } else if blocked == Some(false) {
-                ingestion::clear_known_block(&namespace, address);
-            }
-            let discount = if blocked == Some(false) {
-                if let Some(registry) = state.fee_discount_address.as_deref() {
-                    query(
-                        state,
-                        registry,
-                        json!({"get_discount":{"trader":address,"sender":address}}),
-                    )
-                    .await
-                    .and_then(|v| v["discount_bps"].as_u64())
-                    .filter(|d| *d <= 10_000)
-                    .map(|d| d as u16)
-                } else {
-                    Some(0)
-                }
-            } else {
-                None
-            };
-            if let Some(context) = actor_context(blocked, discount, previous.get(address).copied())
-            {
-                if blocked == Some(false) {
-                    actor_observed_at.insert(address.clone(), observed_at);
-                }
-                if let Err(error) = insert_actor(&mut actors, address.clone(), context) {
-                    mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
-                    return Err(error);
-                }
+    let actors_started = std::time::Instant::now();
+    let actor_work = async {
+        if let Some(factory) = state.factory_address.as_deref() {
+            for address in &actor_addresses {
+                refresh_actor_context(
+                    &namespace, address, &mut actors, &mut actor_observed_at,
+                    previous.get(address).copied(),
+                    async { query(state, factory, json!({"blacklist_check":{"wallet":address,"tokens":[],"pairs":[],"pair":null}})).await.and_then(|v| v["wallet_blacklisted"].as_bool()) },
+                    async {
+                        if let Some(registry) = state.fee_discount_address.as_deref() {
+                            query(state, registry, json!({"get_discount":{"trader":address,"sender":address}})).await.and_then(|v| v["discount_bps"].as_u64()).filter(|d| *d<=10_000).map(|d| d as u16)
+                        } else { Some(0) }
+                    },
+                ).await?;
             }
         }
-    }
+        Ok::<_, sqlx::Error>(())
+    };
+    let completed = actor_slice(actor_work, Duration::from_secs(10)).await?;
+    tracing::debug!(
+        phase = "actors",
+        completed,
+        elapsed_ms = actors_started.elapsed().as_millis() as u64,
+        observed = actor_observed_at.len(),
+        "Local quote admission stage"
+    );
     // Publish newly observed wallet guards before slow token/pair discovery;
     // cancellation of that work must not leave a known block in a warm cache.
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
@@ -353,9 +335,29 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                     None
                 }
             });
+            let token_started = std::time::Instant::now();
             let verdict =
                 trading_tax_discovery::discover_scheduled(state, address, &policy, previous_code)
                     .await;
+            let outcome = match &verdict {
+                Ok(trading_tax_discovery::TradingTax::Ordinary { .. }) => "ordinary",
+                Ok(trading_tax_discovery::TradingTax::Community(_)) => "community",
+                Ok(trading_tax_discovery::TradingTax::Unsupported) => "unsupported",
+                Ok(trading_tax_discovery::TradingTax::Unavailable) => "unavailable",
+                Err(error) if crate::indexer::block_indexer::is_retryable_availability(error) => {
+                    "provider_unavailable"
+                }
+                Err(crate::lcd::LcdError::PairResponseMalformed(_)) => "malformed_or_incomplete",
+                Err(crate::lcd::LcdError::ChainIdentity(_)) => "chain_identity",
+                Err(_) => "required_semantics_rejected",
+            };
+            tracing::debug!(
+                phase = "token_discovery",
+                outcome,
+                elapsed_ms = token_started.elapsed().as_millis() as u64,
+                admitted_pairs = admission.pairs.len(),
+                "Local quote admission stage"
+            );
             let unavailable = verdict.as_ref().err().is_some_and(|error| {
                 crate::indexer::block_indexer::is_retryable_availability(error)
             });
@@ -452,6 +454,11 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                         }
                         Some((obs.code_id, observed + CONFIG_TTL_MS, Some(obs)))
                     } else {
+                        tracing::debug!(
+                            phase = "token_policy",
+                            outcome = "required_semantics_unavailable",
+                            "Local quote admission stage"
+                        );
                         None
                     }
                 }
@@ -534,6 +541,47 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
     }
     publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await
+}
+async fn actor_slice(
+    work: impl std::future::Future<Output = Result<(), sqlx::Error>>,
+    budget: Duration,
+) -> Result<bool, sqlx::Error> {
+    match tokio::time::timeout(budget, work).await {
+        Ok(result) => result.map(|()| true),
+        Err(_) => Ok(false),
+    }
+}
+async fn refresh_actor_context(
+    namespace: &str,
+    address: &str,
+    actors: &mut HashMap<String, (u16, bool)>,
+    observed: &mut HashMap<String, i64>,
+    previous: Option<(u16, bool)>,
+    blacklist: impl std::future::Future<Output = Option<bool>>,
+    discount: impl std::future::Future<Output = Option<u16>>,
+) -> Result<(), sqlx::Error> {
+    let observed_at = now_ms();
+    let blocked = blacklist.await;
+    if blocked == Some(true) {
+        ingestion::publish_known_block(namespace, address)?;
+    } else if blocked == Some(false) {
+        ingestion::publish_known_unblock(namespace, address)?;
+        // Preserve this completed authoritative guard before optional fees await.
+        observed.insert(address.to_owned(), observed_at);
+        insert_actor(actors, address.to_owned(), (0, false))?;
+    }
+    let fee = if blocked == Some(false) {
+        discount.await
+    } else {
+        None
+    };
+    if let Some(context) = actor_context(blocked, fee, previous) {
+        if let Err(error) = insert_actor(actors, address.to_owned(), context) {
+            mark_actor_capacity_exhausted(&mut store().lock().unwrap(), namespace);
+            return Err(error);
+        }
+    }
+    Ok(())
 }
 async fn bounded_pair_observation<T>(
     observation: impl std::future::Future<Output = Result<T, AdmissionFailure>>,
@@ -658,6 +706,78 @@ pub async fn ingest_fixture(state: &AppState) -> Result<(), sqlx::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test(start_paused = true)]
+    async fn recovery1464_bounded_actor_slice_preserves_guards_and_pair_progress() {
+        let namespace = "actor-prelude-budget1464";
+        let mut snapshot = super::super::tests::fixture();
+        snapshot.actors.insert("cleared".into(), (0, true));
+        let expiry = snapshot.config_expiry_ms;
+        store()
+            .lock()
+            .unwrap()
+            .snapshots
+            .insert(namespace.into(), Arc::new(snapshot));
+        ingestion::publish_known_block(namespace, "cleared").unwrap();
+        let mut actors = HashMap::from([("cleared".into(), (0, true))]);
+        let mut observed = HashMap::new();
+        let started = tokio::time::Instant::now();
+        let completed = actor_slice(
+            async {
+                refresh_actor_context(
+                    namespace,
+                    "blocked",
+                    &mut actors,
+                    &mut observed,
+                    None,
+                    async { Some(true) },
+                    async { panic!("blocked wallet cannot query discount") },
+                )
+                .await?;
+                refresh_actor_context(
+                    namespace,
+                    "cleared",
+                    &mut actors,
+                    &mut observed,
+                    Some((0, true)),
+                    async { Some(false) },
+                    async {
+                        tokio::time::sleep(Duration::from_secs(64)).await;
+                        Some(500)
+                    },
+                )
+                .await?;
+                Ok(())
+            },
+            Duration::from_secs(10),
+        )
+        .await
+        .unwrap();
+        assert!(!completed);
+        assert_eq!(started.elapsed(), Duration::from_secs(10));
+        assert_eq!(actors["blocked"], (0, true));
+        assert_eq!(actors["cleared"], (0, false));
+        assert!(observed.contains_key("cleared"));
+        let g = store().lock().unwrap();
+        let current = &g.snapshots[namespace];
+        assert_eq!(current.actors["blocked"], (0, true));
+        assert_eq!(current.actors["cleared"], (0, false));
+        assert!(g.early_actor_blocks[namespace].contains("blocked"));
+        assert!(!g.early_actor_blocks[namespace].contains("cleared"));
+        assert_eq!(
+            current.config_expiry_ms, expiry,
+            "actor observations cannot renew configuration"
+        );
+        assert!(
+            score(
+                current,
+                &[("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)],
+                10u128.pow(16),
+                SCALE / 20
+            )
+            .is_some(),
+            "slow optional fees must leave time for useful pair quotes"
+        );
+    }
     #[tokio::test(start_paused = true)]
     async fn recovery1464_incomplete_pair_observation_invalidates_warm_qualification() {
         let snapshot = super::super::tests::fixture();

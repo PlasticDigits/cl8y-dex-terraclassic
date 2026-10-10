@@ -1,0 +1,121 @@
+{
+  "issue": 1464,
+  "base_revision": "79ab27c1563ccb85667be86ff540325cac4e057b",
+  "source_fingerprint": "cb5571b5b89d7ef128da11949a0c761e06bbe272dea0c6b433e3063db8893d7b",
+  "command": "make verify-issue-1464",
+  "utc_end": "2026-10-10T10:29:38Z",
+  "stage_counts": {
+    "pass": 11,
+    "fail": 0,
+    "skip": 2
+  },
+  "overall": "PASS WITH SKIPS",
+  "skips": [
+    "Focused verifier has source/socket scope; deployed useful/browser/region/sustained recovery evidence remains separate.",
+    "Funded settlement parity is a separate LocalTerra check."
+  ],
+  "test_runs": [
+    {
+      "passed": 63,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 75,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 63,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 75,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "useful_fixture_reports": [
+    "1452 loopback 1464 four directions new connection/result misses: n=12 p50=2.303ms p95=2.919ms p99=2.919ms max=3.021ms",
+    "1452 loopback 1464 four directions reused connection/result hits: n=12 p50=1.524ms p95=1.819ms p99=1.819ms max=2.135ms",
+    "1452 loopback 1464 four directions new connection/result misses: n=12 p50=2.535ms p95=2.630ms p99=2.630ms max=3.108ms",
+    "1452 loopback 1464 four directions reused connection/result hits: n=12 p50=1.571ms p95=1.871ms p99=1.871ms max=1.976ms"
+  ],
+  "earlier_corrections": [
+    "Wrapper integration regression initially attempted to access a private module; corrected to the public refresh/solve APIs and passed.",
+    "One healthy-book deadline assertion failed under overlapping build/QA disk pressure; retest and the frozen-source verifier passed after serialization.",
+    "The initial focused run detected source changes while exact envelope/LocalTerra fixtures were being completed; repeated on unchanged final source."
+  ],
+  "scope": "Local source/socket evidence only; this does not erase failed #1465 deployed probes."
+}

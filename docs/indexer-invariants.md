@@ -458,6 +458,11 @@ with original expiry. Request paths remain local-only; execution floors, taxes,
 refund ownership and reviewed signing context remain mandatory. API liveness and
 indexing readiness do not establish useful trading coverage. Every representative
 initialized useful result must be strictly <250 ms under socket/browser transport.
+Provider circuits/capacity rejected before an attempt do not spend background
+pacing slots; actual attempts still share finite rate/concurrency admission. Known
+registered code IDs do not require redundant data-hash fallback. Independent
+ticker/hub timers preserve original timestamps, quorum and TTLs; optional wrapper
+output work cannot consume the publication margin for completed native input.
 
 Run `make verify-issue-1464` and the five prerequisite verifiers. Follow the
 [agent checklist/skip policy](qa/issue-1464/README.md),

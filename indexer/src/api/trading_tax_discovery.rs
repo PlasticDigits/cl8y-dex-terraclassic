@@ -19,7 +19,7 @@ pub const DISCOVERY_TTL: Duration = Duration::from_secs(5);
 #[cfg(test)]
 pub const MAX_DISCOVERY_ASSETS: usize = 64;
 const MAX_CACHE_ENTRIES: usize = 512;
-const QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+const QUERY_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[derive(Clone, Debug)]
 pub enum TradingTax {
@@ -72,6 +72,11 @@ fn registered(code_id: i64, hash: Option<&str>, policy: &RouterHopTaxPolicy) -> 
     policy.route_tax_code_ids.contains(&code_id)
         || hash.is_some_and(|h| policy.route_tax_data_hashes.contains(h))
 }
+fn needs_data_hash(code_id: i64, policy: &RouterHopTaxPolicy) -> bool {
+    !policy.tax_free_code_ids.contains(&code_id)
+        && !policy.route_tax_code_ids.contains(&code_id)
+        && !policy.route_tax_data_hashes.is_empty()
+}
 fn compatible(cap: &Capability, router: Option<&str>) -> bool {
     cap.funding_version == 1
         && cap.router.as_deref() == router
@@ -120,11 +125,21 @@ async fn discover_detailed(
     policy: &RouterHopTaxPolicy,
     previous_code: Option<u64>,
 ) -> Result<TradingTax, crate::lcd::LcdError> {
+    discover_with_budget(lcd, router, addr, policy, previous_code, QUERY_TIMEOUT).await
+}
+async fn discover_with_budget(
+    lcd: &crate::lcd::LcdClient,
+    router: Option<&str>,
+    addr: &str,
+    policy: &RouterHopTaxPolicy,
+    previous_code: Option<u64>,
+    budget: Duration,
+) -> Result<TradingTax, crate::lcd::LcdError> {
     use crate::lcd::LcdError;
     if !addr.starts_with("terra1") {
         return Ok(TradingTax::Ordinary { code_id: None });
     }
-    let result = tokio::time::timeout(QUERY_TIMEOUT, async {
+    let result = tokio::time::timeout(budget, async {
         lcd.require_verified_chain().await?;
         let _permit = discovery_semaphore()
             .acquire()
@@ -140,7 +155,10 @@ async fn discover_detailed(
         }
         let code_id = i64::try_from(code)
             .map_err(|_| LcdError::PairResponseMalformed("invalid token code identity".into()))?;
-        let hash = if !policy.route_tax_data_hashes.is_empty() {
+        // A positively registered immutable code identity already attests this
+        // implementation. Hash fallback is necessary only for otherwise
+        // unregistered codes; failed redundant hash reads cannot erase coverage.
+        let hash = if needs_data_hash(code_id, policy) {
             Some(
                 lcd.get_code_data_hash(code)
                     .await?
@@ -454,6 +472,68 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn recovery1464_registered_ordinary_avoids_redundant_hash_under_circuit_pressure() {
+        use std::sync::atomic::Ordering::SeqCst;
+        let (healthy, instance, _) = synthetic_lcd().await;
+        instance.code.store(101, SeqCst);
+        // Production code envelopes contain inline WASM and exceed the scheduled
+        // 64KiB response limit. Known positive identity must not download them.
+        wiremock::Mock::given(wiremock::matchers::path("/cosmwasm/wasm/v1/code/101"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
+                "code_info":{"code_id":"101","data_hash":"abcdef"},
+                "data":"A".repeat(70*1024)
+            })))
+            .with_priority(1)
+            .mount(&healthy)
+            .await;
+        let first = wiremock::MockServer::start().await;
+        let second = wiremock::MockServer::start().await;
+        let lcd = crate::lcd::LcdClient::new_with_policy(
+            vec![first.uri(), second.uri(), healthy.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                deadline_ms: 8000,
+                attempt_timeout_ms: 2500,
+                max_attempts: 3,
+                ..Default::default()
+            },
+        );
+        // Open failed endpoints through normal shared provider outcomes.
+        for server in [&first, &second] {
+            wiremock::Mock::given(wiremock::matchers::method("GET"))
+                .respond_with(wiremock::ResponseTemplate::new(503))
+                .mount(server)
+                .await;
+        }
+        wiremock::Mock::given(wiremock::matchers::path("/force_outage"))
+            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({"ok":true})))
+            .mount(&healthy)
+            .await;
+        lcd.get::<serde_json::Value>("/force_outage").await.unwrap();
+        let mut policy = synthetic_policy();
+        policy.route_tax_data_hashes.insert("abcdef".into());
+        assert!(!needs_data_hash(101, &policy));
+        assert!(!needs_data_hash(202, &policy));
+        assert!(needs_data_hash(303, &policy));
+        let background = lcd.with_ingestion_budget();
+        for _ in 0..2 {
+            assert!(matches!(
+                discover_detailed(&background, Some(ROUTER), TOKEN, &policy, Some(101)).await,
+                Ok(TradingTax::Ordinary { code_id: Some(101) })
+            ));
+        }
+        let requests = healthy.received_requests().await.unwrap();
+        assert!(
+            !requests
+                .iter()
+                .any(|request| request.url.path().starts_with("/cosmwasm/wasm/v1/code/")),
+            "immutable positive code registration does not depend on redundant hash RPC"
+        );
+        assert_eq!(instance.capability_queries.load(SeqCst), 0);
+    }
+    #[tokio::test]
     async fn recovery1464_scheduled_discovery_retains_only_typed_provider_outages() {
         use crate::lcd::LcdError;
         use std::sync::atomic::Ordering::SeqCst;
@@ -549,9 +629,16 @@ mod tests {
             )
             .mount(&second)
             .await;
-        let error = discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(101))
-            .await
-            .unwrap_err();
+        let error = discover_with_budget(
+            &lcd,
+            Some(ROUTER),
+            TOKEN,
+            &policy,
+            Some(101),
+            Duration::from_secs(3),
+        )
+        .await
+        .unwrap_err();
         assert!(matches!(
             error,
             crate::lcd::LcdError::PairResponseMalformed(_)

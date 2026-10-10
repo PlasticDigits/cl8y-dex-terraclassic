@@ -1,0 +1,57 @@
+{
+  "issue": 1464,
+  "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1465",
+  "implementation_commit": "f664f3df4b1010057f38086925306a617cfbf246",
+  "merged_revision": "79ab27c1563ccb85667be86ff540325cac4e057b",
+  "hosted_ci": {
+    "pipeline": "https://ci.cl8y.com/repos/7/pipeline/385/1",
+    "result": "PASS",
+    "mandatory_steps": 6
+  },
+  "deployments": [
+    {
+      "utc_start": "2026-10-10T09:26:32Z",
+      "utc_finished": "2026-10-10T09:31:08Z",
+      "result": "finished",
+      "compiler_errors": 0,
+      "public_health_revision_confirmed": true
+    },
+    {
+      "utc_start": "2026-10-10T09:46:13Z",
+      "utc_finished": "2026-10-10T09:50:07Z",
+      "result": "finished",
+      "compiler_errors": 0,
+      "public_health_revision_confirmed": true,
+      "runtime_overrides": {
+        "LCD_ATTEMPT_TIMEOUT_MS": 2500,
+        "LCD_DEADLINE_MS": 8000,
+        "LCD_COOLDOWN_MS": 1000,
+        "LCD_MAX_BACKOFF_MS": 5000,
+        "selective_admission_diagnostics": "debug"
+      }
+    }
+  ],
+  "production_trading_acceptance": "FAIL",
+  "initial_api_useful": {
+    "samples": 24,
+    "useful": 0
+  },
+  "desktop_useful": {
+    "samples": 12,
+    "useful": 0
+  },
+  "phone_useful": {
+    "samples": 12,
+    "useful": 0
+  },
+  "tuned_cold_api_useful": {
+    "samples": 24,
+    "useful": 0
+  },
+  "limitations": [
+    "No useful production latency samples; error response time is not quote performance.",
+    "Cold tuned probe is not a sustained initialized corpus.",
+    "No mainnet signing or broadcast.",
+    "No runtime migrations, privilege widening, production reserve seeding or TTL changes."
+  ]
+}

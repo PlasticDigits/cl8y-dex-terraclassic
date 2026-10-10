@@ -59,6 +59,10 @@ fn tax_rate(text: &str) -> Option<u128> {
     format!("{fraction:0<18}").parse().ok()
 }
 impl WrapperSnapshot {
+    /// Availability is independent of amount-specific rate/fee protection.
+    pub(crate) fn is_fresh(&self, now: i64) -> bool {
+        now >= self.observed_at_ms && now - self.observed_at_ms <= 20_000
+    }
     /// Explicit message variants reject old deployments rather than allowing
     /// serde's unknown-field handling to silently discard a reviewed floor.
     pub fn direct_floor_protocol(&self, wrap: bool) -> Option<u8> {
@@ -68,7 +72,7 @@ impl WrapperSnapshot {
     fn mapping(&self, denom: &str, amount: u128, now: i64) -> Option<&NativeMapping> {
         // Rate usage is conservatively retained until ingestion observes a reset.
         // Do not predict a chain window transition from browser/process wall time.
-        if now < self.observed_at_ms || now - self.observed_at_ms > 20_000 || amount == 0 {
+        if !self.is_fresh(now) || amount == 0 {
             return None;
         }
         let m = self.mappings.get(denom)?;
@@ -260,7 +264,10 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
     }
     // Native input does not depend on bank-tax endpoints or router unwrap support.
     // Optional output work has its own subdeadline and cannot discard valid input.
-    let output = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    let remaining = std::time::Duration::from_millis(7_900)
+        .saturating_sub(started.elapsed())
+        .min(std::time::Duration::from_secs(2));
+    let output = tokio::time::timeout(remaining, async {
         let tax: Option<Value> = state
             .lcd
             .get_bounded("/terra/tax/v1beta1/params", 8_192)
