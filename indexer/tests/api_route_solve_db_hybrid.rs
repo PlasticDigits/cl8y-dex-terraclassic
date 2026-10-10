@@ -587,8 +587,11 @@ async fn route_solve_db_hybrid_book_scan_matches_emitted_plan_and_stale_fail_clo
             seed.token_a, seed.token_b
         );
         let response = server.get(&url).await;
-        // A stale required mirror fails closed; no legacy LCD-grid escape is permitted.
-        response.assert_status_unprocessable_entity();
+        // Stale indexed input is infrastructure unavailability, independent of trade protection.
+        response.assert_status_service_unavailable();
+        assert!(response
+            .text()
+            .contains("refresh after indexed data recovers"));
         assert!(mock.received_requests().await.unwrap().is_empty());
     }
 }

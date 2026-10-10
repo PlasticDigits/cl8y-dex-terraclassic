@@ -1,0 +1,117 @@
+{
+  "schema": "cl8y-1464-localterra-settlement-guards-v1",
+  "status": "PASS",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "scope": "Actual available artifact route-tax settlement guards, repeated in fresh isolated fixtures; this does not establish current local-quote engine parity, browser latency, production deployment or full release acceptance.",
+  "shared_chain_reset": false,
+  "shared_contract_mutations": false,
+  "driver": "scripts/qa/localterra-route-tax-1381.py",
+  "driver_sha256": "d19069b7c704a404d6fae46fdc3ea23165efab08d746d63bb57bc0e9f0608d72",
+  "artifact_provenance_source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+  "current_source_artifact_attestation": false,
+  "artifact_attestation_limitation": "Pair and community-tax token artifact hashes differ from the existing build provenance; mintable artifact has no build-provenance record. Do not promote these receipts to source-attested current engine acceptance.",
+  "passes": [
+    {
+      "pass": 1,
+      "utc_start": "2026-10-10T07:22:17.338970+00:00",
+      "utc_end": "2026-10-10T07:26:02.065723+00:00",
+      "receipt_count": 40,
+      "successful_transaction_count": 39,
+      "expected_failed_transaction_count": 1,
+      "first_height": 660325,
+      "last_height": 660501,
+      "fresh_isolated_fixture": true,
+      "checksum_verified_code_reuse": false,
+      "checks": [
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "quoted_net_output_raw": "994008008974015052",
+          "reverse_gross_input_raw": "1010000",
+          "assertions": [
+            "exact_net_receive",
+            "authorized_gross_budget",
+            "intermediate_wallet_not_used",
+            "router_dust_preserved",
+            "tax_collected"
+          ]
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "quoted_net_output_raw": "894892438757075466",
+          "reverse_gross_input_raw": "1009999020096990300",
+          "assertions": [
+            "minimum_receive_plus_one_rejected",
+            "atomic_token_router_sink_supply_rollback"
+          ]
+        }
+      ]
+    },
+    {
+      "pass": 2,
+      "utc_start": "2026-10-10T07:29:07.290152+00:00",
+      "utc_end": "2026-10-10T07:30:22.057492+00:00",
+      "receipt_count": 35,
+      "successful_transaction_count": 34,
+      "expected_failed_transaction_count": 1,
+      "first_height": 660538,
+      "last_height": 660702,
+      "fresh_isolated_fixture": true,
+      "checksum_verified_code_reuse": true,
+      "checks": [
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "quoted_net_output_raw": "994008008974015052",
+          "reverse_gross_input_raw": "1010000",
+          "assertions": [
+            "exact_net_receive",
+            "authorized_gross_budget",
+            "intermediate_wallet_not_used",
+            "router_dust_preserved",
+            "tax_collected"
+          ]
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "quoted_net_output_raw": "894892438757075466",
+          "reverse_gross_input_raw": "1009999020096990300",
+          "assertions": [
+            "minimum_receive_plus_one_rejected",
+            "atomic_token_router_sink_supply_rollback"
+          ]
+        }
+      ]
+    }
+  ],
+  "artifacts": {
+    "cl8y_dex_factory.wasm": {
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "matches_existing_build_provenance": true,
+      "provenance_sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "cl8y_dex_pair.wasm": {
+      "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "matches_existing_build_provenance": false,
+      "provenance_sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+    },
+    "cl8y_dex_router.wasm": {
+      "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "matches_existing_build_provenance": true,
+      "provenance_sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+    },
+    "cw20_mintable.wasm": {
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "matches_existing_build_provenance": false,
+      "provenance_sha256": null
+    },
+    "cl8y_community_tax_token.wasm": {
+      "sha256": "837ea195e571a0081cccdad580fe200211ca4f57c2124ce762e8b28d4417c3e5",
+      "matches_existing_build_provenance": false,
+      "provenance_sha256": "64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15"
+    }
+  }
+}

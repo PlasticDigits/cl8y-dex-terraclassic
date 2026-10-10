@@ -448,3 +448,20 @@ independent ingestion. Requests never trigger or enqueue discovery. Per-wallet
 identity/cap timestamps and capability changes bind expiry/generation; failed
 reads cannot erase known negative state. Whole-route forward validation preserves
 tax, cap, hook, market-spread and independent reference protection.
+
+## Provider recovery and useful quote readiness (#1464)
+
+[PR1464-1–PR1464-10](../skills/AGENTS_PROVIDER_RECOVERY.md) require exact pending
+checkpoint recovery, separate indexing/serving lifecycle, visible integrity halts,
+shared bounded provider admission and independent still-fresh admission observations
+with original expiry. Request paths remain local-only; execution floors, taxes,
+refund ownership and reviewed signing context remain mandatory. API liveness and
+indexing readiness do not establish useful trading coverage. Every representative
+initialized useful result must be strictly <250 ms under socket/browser transport.
+
+Run `make verify-issue-1464` and the five prerequisite verifiers. Follow the
+[agent checklist/skip policy](qa/issue-1464/README.md),
+[recovery/readiness runbook](runbooks/indexer-provider-recovery.md) and
+[source/deployed receipt](qa/issue-1464/verification.md).
+Unavailable checks may be PASS WITH SKIPS; executed failures stay FAIL and missing
+production/history scope remains in #1456.

@@ -46,6 +46,7 @@ struct Snapshot {
 struct Store {
     skeletons: skeletons::SkeletonCache,
     snapshots: HashMap<String, Arc<Snapshot>>,
+    admission_inventory: HashMap<String, diagnostics::Inventory>,
     wrappers: HashMap<String, super::local_wrapper_quote::WrapperSnapshot>,
     results: HashMap<String, Value>,
     jobs: HashSet<String>,
@@ -820,8 +821,21 @@ pub async fn solve(
     state: &AppState,
     q: &route_solver::SolveRouteParams,
 ) -> Result<Json<Value>, Error> {
+    require_safe_indexing(state)?;
     let namespace = state.lcd.chain_cache_namespace();
-    solve_local(&namespace, q).await
+    let quote = solve_local(&namespace, q).await;
+    require_safe_indexing(state)?;
+    quote
+}
+fn require_safe_indexing(state: &AppState) -> Result<(), Error> {
+    use crate::indexer::lifecycle::IndexerStatus;
+    if matches!(
+        state.indexer_health.snapshot().status,
+        IndexerStatus::Halted | IndexerStatus::Stopped
+    ) {
+        return Err(unavailable());
+    }
+    Ok(())
 }
 fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<Value>, Error> {
     let g = store().lock().unwrap();
@@ -887,7 +901,10 @@ pub async fn solve_post(
     if plan.is_some_and(|p| p.is_empty() || p.len() > 4) {
         return Err(invalid("hybrid_by_hop must declare one to four hops"));
     }
-    solve_local_with_plan(&state.lcd.chain_cache_namespace(), request, plan).await
+    require_safe_indexing(state)?;
+    let quote = solve_local_with_plan(&state.lcd.chain_cache_namespace(), request, plan).await;
+    require_safe_indexing(state)?;
+    quote
 }
 async fn solve_local_with_plan(
     namespace: &str,
@@ -1094,7 +1111,9 @@ async fn solve_local_with_plan(
             .ok_or_else(|| invalid("amount_in must be a positive Uint128"))?;
         (
             amount,
-            select_amount(&initial, amount).ok_or_else(eligible_error)?,
+            select_amount(&initial, amount).ok_or_else(|| {
+                diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal)
+            })?,
         )
     } else {
         let target = q
@@ -1117,7 +1136,9 @@ async fn solve_local_with_plan(
             considered += longer.len().min(64);
             best = select_inverse(&snapshot, &longer, target, spread);
         }
-        best.ok_or_else(eligible_error)?
+        best.ok_or_else(|| {
+            diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal)
+        })?
     };
     let mut body = final_response(
         &snapshot,
@@ -1195,6 +1216,7 @@ pub fn progress(
             "Progress requires exactly one positive amount_in or amount_out",
         ));
     }
+    require_safe_indexing(state)?;
     route_solver::parse_quote_trader(q.trader.clone(), q.sender.clone())?;
     progress_local(&state.lcd.chain_cache_namespace(), q)
 }
@@ -1241,8 +1263,10 @@ fn progress_local(
 
 mod actor_inventory;
 mod admission;
+mod diagnostics;
 mod ingestion;
 mod modes;
+mod pair_admission;
 mod reverse;
 #[cfg(test)]
 use reverse::inverse_pool_path;
@@ -1251,7 +1275,9 @@ mod protocol_guards;
 mod skeletons;
 mod tax;
 pub use admission::{ingest_fixture, ingest_once};
-pub use ingestion::{cache_counters, refresh_reserves, refresh_wrapper, start_ingestion};
+pub use ingestion::{
+    cache_counters, refresh_reserves, refresh_wrapper, start_ingestion, start_ingestion_with_cancel,
+};
 
 #[cfg(test)]
 mod tests {

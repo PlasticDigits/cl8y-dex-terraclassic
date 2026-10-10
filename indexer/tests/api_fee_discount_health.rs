@@ -27,6 +27,7 @@ async fn build_app_with_health(
     );
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     let state = AppState {
+        indexer_health: Default::default(),
         pool,
         lcd,
         oracle_prices,

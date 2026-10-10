@@ -31,3 +31,10 @@ Cross-links: [ingestion hardening](AGENTS_INDEXER_INGESTION_HARDENING.md),
 [fee hop identity](AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md),
 [Postgres](AGENTS_LOCAL_POSTGRES_DEV.md),
 [reorg recovery](../docs/runbooks/indexer-reorg-replay-dedup.md).
+
+Provider/partial-write recovery also preserves [PR1464](AGENTS_PROVIDER_RECOVERY.md).
+Positive raw fee recording requires its resolved asset row; database lookup errors
+must propagate rather than silently omit the fee. Optional USD valuation remains
+separate. Nonavailability processing/state failure halts with a durable unsafe marker;
+repair incomplete projections before explicitly clearing it and replaying. See the
+[recovery runbook](../docs/runbooks/indexer-provider-recovery.md).

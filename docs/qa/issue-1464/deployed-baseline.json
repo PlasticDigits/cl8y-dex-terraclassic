@@ -1,0 +1,308 @@
+{
+  "issue": 1464,
+  "revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+  "utc_start": "2026-10-10T07:04:14.707337+00:00",
+  "utc_end": "2026-10-10T07:04:42.159987+00:00",
+  "overall": "FAIL",
+  "useful_count": 0,
+  "request_count": 24,
+  "useful_latency": {
+    "samples": 0,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "max_ms": null
+  },
+  "useful_latency_by_transport": {
+    "new": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "samples": [
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 852.136
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 860.149
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 884.863
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 867.945
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "new",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 855.651
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 852.095
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 859.316
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 1423.853
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 865.41
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 878.859
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 846.968
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "new",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 878.171
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "reused",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 886.374
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "reused",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 289.597
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "reused",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 291.034
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "reused",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.85
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "reused",
+      "status": 422,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.601
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "reused",
+      "status": 502,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.77
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 289.909
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.208
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 289.137
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "spread": "0.05",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 289.935
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.01",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.533
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "spread": "0.30",
+      "transport": "reused",
+      "status": 503,
+      "useful": false,
+      "outcome": "unavailable_or_nonexecutable",
+      "elapsed_ms": 290.668
+    }
+  ],
+  "unverified": [
+    "deployed revision requires independent health receipt",
+    "cold initialization versus initialized cache hit/miss",
+    "regional RTT",
+    "desktop/phone browser",
+    "request upstream counters",
+    "settlement parity",
+    "bounded deployed outage trial"
+  ],
+  "scope": "public socket reads only; no signing, deployment, actor contexts, raw bodies or endpoint URLs retained"
+}

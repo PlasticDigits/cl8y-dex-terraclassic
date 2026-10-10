@@ -125,6 +125,8 @@ pub struct TickerMapCache {
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
+    /// Indexing readiness is independent of API liveness and quote eligibility.
+    pub indexer_health: crate::indexer::lifecycle::IndexerHealth,
     pub lcd: LcdClient,
     /// External CEX/USD reference prices (USTC, LUNC, CEX FDUSD under path `vfdusd`).
     /// USTC is also used for volume USD. Do not treat `vfdusd` as Terra CW20 vFDUSD (#580).
@@ -411,6 +413,7 @@ pub async fn find_pair_by_ticker(
         cmc::cmc_orderbook,
         cmc::cmc_trades,
         health,
+        ready,
         fee_discount_health::get_fee_discount_health,
         compliance::blacklist_check,
     ),
@@ -529,6 +532,31 @@ pub async fn find_pair_by_ticker(
     )
 )]
 struct ApiDoc;
+
+/// Read only the process-owned lifecycle observation. No database or provider probing.
+#[utoipa::path(
+    get,
+    path = "/ready",
+    responses(
+        (status = 200, description = "Indexer caught up to its last observed head; quote coverage is independently qualified.", body = crate::indexer::lifecycle::IndexerHealthSnapshot),
+        (status = 503, description = "Indexer starting, catching up, provider unavailable or integrity halted.", body = crate::indexer::lifecycle::IndexerHealthSnapshot),
+    ),
+    tag = "Health"
+)]
+async fn ready(
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> (
+    StatusCode,
+    axum::Json<crate::indexer::lifecycle::IndexerHealthSnapshot>,
+) {
+    let snapshot = state.indexer_health.snapshot();
+    let status = if snapshot.ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (status, axum::Json(snapshot))
+}
 
 /// Cheap liveness with the last observed chain identity; `git_sha` is omitted when invalid.
 #[derive(Serialize, ToSchema)]
@@ -657,6 +685,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
 
     let api_router = Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route(
             "/api/v1/health/fee-discount",
             get(fee_discount_health::get_fee_discount_health),
@@ -896,10 +925,34 @@ pub async fn serve(
     venus_vfdusd: SharedVenusVfdusd,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    serve_with_health(
+        pool,
+        lcd,
+        config,
+        oracle_prices,
+        venus_vfdusd,
+        fee_discount_registry_health,
+        crate::indexer::lifecycle::IndexerHealth::default(),
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .await
+}
+
+pub async fn serve_with_health(
+    pool: PgPool,
+    lcd: LcdClient,
+    config: Config,
+    oracle_prices: OraclePriceHandles,
+    venus_vfdusd: SharedVenusVfdusd,
+    fee_discount_registry_health: FeeDiscountRegistryHealth,
+    indexer_health: crate::indexer::lifecycle::IndexerHealth,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
     let factory_address = Some(config.factory_address.clone());
     let state = AppState {
         pool,
+        indexer_health,
         lcd,
         oracle_prices,
         venus_vfdusd,
@@ -916,7 +969,8 @@ pub async fn serve(
         hub_usd: crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
         community_tax: crate::config::CommunityTaxCatalogConfig::from_indexer_config(&config),
     };
-    local_quote::start_ingestion(state.clone());
+    let mut ingestion_workers =
+        local_quote::start_ingestion_with_cancel(state.clone(), cancel.clone());
     let app = build_router(state, &config);
 
     let addr = format!("{}:{}", config.api_bind, config.api_port);
@@ -928,11 +982,14 @@ pub async fn serve(
 
     let listener = bind_api_listener(&config.api_bind, config.api_port, config.api_ipv6_enabled)?;
 
-    axum::serve(
+    let result = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await?;
+    .with_graceful_shutdown(cancel.cancelled_owned())
+    .await;
+    ingestion_workers.shutdown().await;
+    result?;
 
     Ok(())
 }

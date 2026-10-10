@@ -61,7 +61,7 @@ async fn forward_tax_mock(
                 };
                 json!({"code_ids":[code(suffix.0),code(suffix.1)]})
             } else if q.get("blacklist_check").is_some() {
-                json!({"wallet_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[],"blocked":false})
+                json!({"wallet_blacklisted":false,"pair_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":[],"blocked":false})
             } else if q.get("get_discount").is_some() {
                 json!({"discount_bps":if discounted {5000}else{0}})
             } else { return ResponseTemplate::new(500); };
@@ -394,7 +394,11 @@ async fn route_exact_output_validation_fails_closed_and_rejects_modes() {
         "/api/v1/route/solve?token_in={}&token_out={}&amount_out=1000000",
         seed.token_a, seed.token_b
     );
-    server.get(&url).await.assert_status_unprocessable_entity();
+    // The deliberately malformed pin/hooks/blacklist fixture is unavailable,
+    // not evidence that the requested amount violated protection.
+    let malformed = server.get(&url).await;
+    malformed.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    assert!(!malformed.text().contains("required_amount_in"));
     server
         .get(&format!("{url}&amount_in=100"))
         .await
@@ -420,7 +424,17 @@ async fn route_exact_output_stale_empty_and_infeasible_are_finite() {
         .execute(&pool)
         .await
         .unwrap();
-    let mock = lcd_mock::start_smart_query_data_mock(json!({"amount":"1000000"})).await;
+    let mock = forward_mock(
+        vec![(
+            seed.token_a.clone(),
+            seed.token_b.clone(),
+            10_000_000_000_000,
+            10_000_000_000_000,
+            30,
+        )],
+        false,
+    )
+    .await;
     let server = TestServer::new(observed_app(pool, config(&mock), &mock).await);
     let resp = server
         .get(&format!(
@@ -428,8 +442,8 @@ async fn route_exact_output_stale_empty_and_infeasible_are_finite() {
             seed.token_a, seed.token_b
         ))
         .await;
-    resp.assert_status_unprocessable_entity();
-    assert!(resp.text().contains("No eligible route"));
+    resp.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    assert!(resp.text().contains("indexed data recovers"));
     assert!(mock
         .received_requests()
         .await
@@ -568,7 +582,7 @@ async fn route_exact_output_paused_and_blacklisted_paths_cannot_quote() {
             }).respond_with(move |request:&Request| {
                 let q=lcd_mock::smart_query_from_request(request);
                 let data=if q.get("is_paused").is_some(){json!({"paused":paused})}
-                else {json!({"wallet_blacklisted":false,"blacklisted_tokens":[],"blacklisted_pairs":if paused {json!([])}else{json!(["terra1pairrouteabc"])}})};
+                else {json!({"wallet_blacklisted":false,"pair_blacklisted":!paused,"blocked":!paused,"blacklisted_tokens":[],"blacklisted_pairs":if paused {json!([])}else{json!(["terra1pairrouteabc"])}})};
                 ResponseTemplate::new(200).set_body_json(json!({"data":data}))
             }).with_priority(1).mount(&mock).await;
         let server = TestServer::new(observed_app(pool, config(&mock), &mock).await);
@@ -770,8 +784,8 @@ async fn route_exact_output_present_standard_reference_unavailable_fails_closed(
             seed.token_a, seed.token_b
         ))
         .await;
-    resp.assert_status_unprocessable_entity();
-    assert!(resp.text().contains("No eligible route"));
+    resp.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    assert!(resp.text().contains("indexed data recovers"));
     assert!(mock
         .received_requests()
         .await

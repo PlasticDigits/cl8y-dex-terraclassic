@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## Provider recovery and live quote readiness
+
+For checkpoint/provider recovery, indexer/API supervision, quote admission loss or
+useful-result latency, apply [PR1464-1–PR1464-10](skills/AGENTS_PROVIDER_RECOVERY.md)
+([#1464](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1464)).
+Run `make verify-issue-1464` and follow the [agent checklist and explicit skip policy](docs/qa/issue-1464/README.md).
+Transient provider failures retain the checkpoint and API state. Integrity failures
+halt unsafe indexing and remain visible through readiness. Unavailable acceptance
+checks may be explicit SKIP with overall PASS WITH SKIPS; executed failures remain
+FAIL. Deployment/history follow-up stays in #1456.
+
 ## Local swap quotes
 
 For route selection, quote latency/caching, reference pricing, refresh/preflight

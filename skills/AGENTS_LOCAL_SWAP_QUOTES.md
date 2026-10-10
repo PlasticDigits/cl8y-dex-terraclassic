@@ -73,3 +73,8 @@ Incremental configuration, per-pair expiry and epoch-checked authoritative inven
 recovery follow [FOLLOWUP-INGESTION.md](../docs/qa/issue-1452/FOLLOWUP-INGESTION.md).
 Publish completed scheduled observations before further work; request traffic must
 never advance the slice cursor or reset quarantine.
+
+Provider lifecycle/admission recovery and useful-result latency: preserve
+[PR1464](AGENTS_PROVIDER_RECOVERY.md), run `make verify-issue-1464` and follow
+[AC1–AC9](../docs/qa/issue-1464/README.md). No availability fix may introduce
+request RPC, renew stale observations or weaken reviewed execution/signing guards.

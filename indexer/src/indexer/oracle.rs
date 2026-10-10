@@ -264,6 +264,18 @@ impl OracleTicker {
     }
 }
 
+fn start_price_expiry(prices: OraclePriceHandles) -> tokio::task::JoinSet<()> {
+    let mut workers = tokio::task::JoinSet::new();
+    workers.spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            prices.expire(Utc::now()).await;
+        }
+    });
+    workers
+}
+
 pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: OraclePriceHandles) {
     let client = build_oracle_http_client();
 
@@ -275,14 +287,9 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: Oracle
         }
     }
     // Expire independently of upstream request duration and configured poll interval.
-    let expiry_prices = prices.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(1));
-        loop {
-            interval.tick().await;
-            expiry_prices.expire(Utc::now()).await;
-        }
-    });
+    // Dropping the caller's poller future also aborts its expiry child; fatal
+    // indexing leaves no detached timer retaining these shared handles.
+    let _expiry_worker = start_price_expiry(prices.clone());
 
     let interval = Duration::from_millis(poll_interval_ms);
     let mut tick_count: u64 = 0;
@@ -612,6 +619,26 @@ fn coingecko_body_asks_for_user_agent(body: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn recovery1464_dropped_oracle_owner_aborts_expiry_child() {
+        let prices = super::OraclePriceHandles::new();
+        let retained = std::sync::Arc::downgrade(&prices.accepted_at);
+        let workers = super::start_price_expiry(prices);
+        tokio::task::yield_now().await;
+        assert!(
+            retained.upgrade().is_some(),
+            "running expiry owns its price handles"
+        );
+        drop(workers);
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while retained.upgrade().is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("cancelled oracle must release its forever timer and handles");
+    }
+
     use super::*;
 
     #[test]

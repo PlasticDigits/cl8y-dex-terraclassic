@@ -316,10 +316,39 @@ pub(crate) async fn verify_factory_provenance(
     Ok(())
 }
 
+/// Provider loss, unsafe chain evidence and database errors must reach the
+/// block retry/halt boundary. Ambiguous foreign contract responses retain their
+/// existing pair-local soft-skip policy; no error-text matching is involved.
+fn must_preserve_discovery_error(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut cause = Some(error);
+    while let Some(error) = cause {
+        if error.downcast_ref::<sqlx::Error>().is_some() {
+            return true;
+        }
+        if let Some(error) = error.downcast_ref::<LcdError>() {
+            return matches!(
+                error,
+                LcdError::AllEndpointsFailed(_)
+                    | LcdError::AdmissionDeferred
+                    | LcdError::Request(_)
+                    | LcdError::LaggingProvider
+                    | LcdError::ChainIdentity(_)
+                    | LcdError::HistoricalHeightUnavailable
+                    | LcdError::Deserialize(_)
+                    | LcdError::Base64(_)
+                    | LcdError::HttpRejected(_)
+            );
+        }
+        cause = error.source();
+    }
+    false
+}
+
 /// Look up a pair or discover it with authoritative factory provenance.
 /// Factory and shared-provider admission pressure wait without skipping an event. Invalid/foreign pairs and
-/// transient discovery soft-failures preserve the existing event skip policy;
-/// failures remain visible in warnings, fixed counters and the typed direct API.
+/// ambiguous contract-local responses preserve the existing event skip policy.
+/// Provider outages, unsafe chain evidence and database errors propagate so
+/// indexing cannot advance past an omitted economic event (#1464).
 /// Waiting futures belong to callers, not an unbounded state queue.
 pub async fn get_or_discover_pair(
     pool: &PgPool,
@@ -376,6 +405,7 @@ pub async fn get_or_discover_pair(
             {
                 return Err(e);
             }
+            Err(e) if must_preserve_discovery_error(&*e) => return Err(e),
             Err(e) => {
                 // Preserve availability for compatible foreign events whose contract
                 // response is ambiguous. Do not turn their soft-failure into a new
@@ -640,6 +670,29 @@ mod tests {
             })
             .mount(server)
             .await;
+    }
+
+    #[test]
+    fn recovery1464_discovery_provider_integrity_and_database_failures_are_not_event_skips() {
+        for error in [
+            LcdError::AllEndpointsFailed("outage".into()),
+            LcdError::AdmissionDeferred,
+            LcdError::LaggingProvider,
+            LcdError::ChainIdentity("wrong chain".into()),
+            LcdError::HistoricalHeightUnavailable,
+            LcdError::Deserialize("malformed identity envelope".into()),
+            LcdError::Base64("malformed envelope".into()),
+            LcdError::HttpRejected(400),
+        ] {
+            assert!(must_preserve_discovery_error(&error));
+        }
+        assert!(must_preserve_discovery_error(&sqlx::Error::RowNotFound));
+        for error in [
+            LcdError::PairResponseMalformed("ambiguous foreign response".into()),
+            LcdError::ContractQueryRejected("unknown variant pair".into()),
+        ] {
+            assert!(!must_preserve_discovery_error(&error));
+        }
     }
 
     #[tokio::test]

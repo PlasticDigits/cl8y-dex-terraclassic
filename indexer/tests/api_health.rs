@@ -287,3 +287,82 @@ async fn wrong_chain_quotes_fail_closed_before_db_and_health_exposes_quarantine(
         "health must not reprobe quarantined providers"
     );
 }
+
+/// #1464: readiness remains a local lifecycle observation while API liveness survives halt.
+#[tokio::test]
+async fn recovery1464_ready_is_local_and_truthful_through_outage_recovery_and_halt() {
+    let mock = wiremock::MockServer::start().await;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://localhost/unused")
+        .unwrap();
+    let mut config = common::test_config();
+    config.lcd_urls = vec![mock.uri()];
+    let lcd = cl8y_dex_indexer::lcd::LcdClient::new(config.lcd_urls.clone(), 100, 1, "columbus-5");
+    let state = common::local_quotes::state(pool, &config, lcd);
+    let health = state.indexer_health.clone();
+    let app = cl8y_dex_indexer::api::build_router(state, &config);
+    let server = TestServer::new(app);
+    server
+        .get("/ready")
+        .await
+        .assert_status_service_unavailable();
+    health.progress(40, 41);
+    server
+        .get("/ready")
+        .await
+        .assert_status_service_unavailable();
+    health.unavailable(Some(41));
+    let outage = server.get("/ready").await;
+    outage.assert_status_service_unavailable();
+    assert_eq!(outage.json::<Value>()["status"], "provider_unavailable");
+    assert_eq!(outage.json::<Value>()["checkpoint_height"], 40);
+    health.progress(41, 41);
+    let ready = server.get("/ready").await;
+    ready.assert_status_ok();
+    assert_eq!(ready.json::<Value>()["ready"], true);
+    health.halt("reorg");
+    health.progress(42, 42);
+    let halted = server.get("/ready").await;
+    halted.assert_status_service_unavailable();
+    assert_eq!(halted.json::<Value>()["status"], "halted");
+    assert_eq!(halted.json::<Value>()["reason"], "reorg");
+    server.get("/health").await.assert_status_ok();
+    assert!(
+        mock.received_requests().await.unwrap().is_empty(),
+        "readiness must not probe providers or the database"
+    );
+}
+
+#[tokio::test]
+async fn recovery1464_halted_and_cancelled_ingestion_workers_join_without_upstream_work() {
+    for halted in [false, true] {
+        let mock = wiremock::MockServer::start().await;
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/unused")
+            .unwrap();
+        let mut config = common::test_config();
+        config.lcd_urls = vec![mock.uri()];
+        let lcd =
+            cl8y_dex_indexer::lcd::LcdClient::new(config.lcd_urls.clone(), 100, 1, "columbus-5");
+        let state = common::local_quotes::state(pool, &config, lcd);
+        let cancel = tokio_util::sync::CancellationToken::new();
+        if halted {
+            state.indexer_health.halt("reorg");
+        } else {
+            cancel.cancel();
+        }
+        let mut workers =
+            cl8y_dex_indexer::api::local_quote::start_ingestion_with_cancel(state, cancel);
+        let mut joined = 0;
+        while let Some(result) =
+            tokio::time::timeout(std::time::Duration::from_secs(1), workers.join_next())
+                .await
+                .unwrap()
+        {
+            result.unwrap();
+            joined += 1;
+        }
+        assert_eq!(joined, 3);
+        assert!(mock.received_requests().await.unwrap().is_empty());
+    }
+}

@@ -42,7 +42,11 @@ in these diagnostics.
 Replay keeps the existing unique keys. Swap ordinals include rejected swap emissions;
 pinned fee ordinals include zero/rejected fee actions. Replaying unchanged input
 cannot shift later valid identities or double-count positions/fees. LCD/DB failures
-still retry and halt under the existing block policy. This change does not introduce
+follow [PR1464](../../../skills/AGENTS_PROVIDER_RECOVERY.md): typed provider availability
+retains the pending height; unsafe nonavailability processing/database/state failure
+halts immediately with a durable marker, preventing automatic replay from hiding
+partial projections. Required positive-fee asset lookup failures propagate; optional
+USD valuation remains separate. This change does not introduce
 atomic block transactions or retroactively certify historical coerced rows.
 Existing liquidity and hook uniqueness keys still coalesce repeated valid actions
 on the same pair/contract and action kind within one transaction. This PR fixes
@@ -51,8 +55,9 @@ identities to those two ledgers is a separate schema change.
 
 The migration widens parked `remaining_escrow` to `NUMERIC(56,18)` so all supported
 38-digit raw amounts fit. It preserves the old scale and any historical fractional
-evidence without rounding. New events only store integers. SQLx applies it on indexer
-startup. Raw trader fees widen to `NUMERIC(78,18)` and realized trader/position P&L
+evidence without rounding. New events only store integers. Under
+[DB1396](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md), a separate one-shot
+migrator applies schema changes; runtime never migrates. Raw trader fees widen to `NUMERIC(78,18)` and realized trader/position P&L
 to `NUMERIC(114,18)`, covering raw products and cumulative accounting, so valid
 large quantities cannot fail after source rows insert. Optional USD fits checks
 include PostgreSQL rounding to scale before integer precision validation. Raw
@@ -68,7 +73,7 @@ positions/rollups still require their existing rebuild or snapshot recovery.
 
 1. Record UTC time and `git rev-parse HEAD`. Read the issue/comments, A1395 and the
    playbook. Use synthetic identities and an isolated Postgres database in
-   `indexer/.env`; never point tests at production. Follow
+   `indexer/.env.qa` with per-process disposable child databases; never point tests at production. Follow
    [local Postgres setup](../../../skills/AGENTS_LOCAL_POSTGRES_DEV.md) if unavailable.
 2. Run `make verify-issue-1395`. The command runs the library suite, new parser and
    Postgres regressions twice, related block/fee/evidence/volume/position suites,

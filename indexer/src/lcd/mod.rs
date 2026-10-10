@@ -89,6 +89,9 @@ pub enum LcdError {
     LaggingProvider,
     #[error("LCD historical height unavailable")]
     HistoricalHeightUnavailable,
+    /// A nonretryable HTTP protocol rejection, without response bodies or URLs.
+    #[error("LCD HTTP protocol rejected ({0})")]
+    HttpRejected(u16),
     #[error("Base64 decode error: {0}")]
     Base64(String),
 }
@@ -105,6 +108,21 @@ fn is_deterministic_contract_query_reject(
     path: &str,
     body: &str,
 ) -> bool {
+    if status.as_u16() == 404 && path.starts_with("/cosmwasm/wasm/v1/contract/") {
+        // A verified Cosmos not-found envelope is pair-local. A proxy's arbitrary
+        // 404 body cannot establish permanent contract absence.
+        return serde_json::from_str::<serde_json::Value>(body)
+            .ok()
+            .is_some_and(|value| {
+                let message = value["message"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+                value["code"].as_u64() == Some(5)
+                    && message.contains("contract")
+                    && (message.contains("not found") || message.contains("no such contract"))
+            });
+    }
     if status.as_u16() != 500 {
         return false;
     }
@@ -307,15 +325,23 @@ impl LcdClient {
         } else {
             max_bytes
         };
+        let attempted = AtomicUsize::new(0);
+        let integrity_error = std::sync::Mutex::new(None);
         tokio::time::timeout(
             Duration::from_millis(self.inner.provider_policy.deadline_ms),
-            self.get_bounded_attempts(path, max_bytes, height),
+            self.get_bounded_attempts(path, max_bytes, height, &attempted, &integrity_error),
         )
         .await
         .unwrap_or_else(|_| {
-            Err(LcdError::AllEndpointsFailed(
-                "total deadline exceeded".into(),
-            ))
+            if let Some(error) = integrity_error.lock().unwrap().take() {
+                Err(error)
+            } else if attempted.load(Ordering::Relaxed) == 0 {
+                Err(LcdError::AdmissionDeferred)
+            } else {
+                Err(LcdError::AllEndpointsFailed(
+                    "total deadline exceeded".into(),
+                ))
+            }
         })
     }
 
@@ -324,6 +350,8 @@ impl LcdClient {
         path: &str,
         max_bytes: Option<usize>,
         height: Option<i64>,
+        attempted: &AtomicUsize,
+        integrity_error: &std::sync::Mutex<Option<LcdError>>,
     ) -> Result<T, LcdError> {
         let count = self.inner.endpoints.read().await.len();
         if count == 0 {
@@ -334,20 +362,13 @@ impl LcdClient {
         let start = self.inner.next_endpoint.fetch_add(1, Ordering::Relaxed) % count;
         let mut attempts = 0;
         let mut errors = Vec::new();
-        let mut local_error = None;
         let mut capacity_deferred = false;
         for offset in 0..count {
             let idx = (start + offset) % count;
             let ep = self.inner.endpoints.read().await[idx].clone();
-            let mut permit = match ep.provider.admit() {
-                Ok(permit) => permit,
-                Err(reason) => {
-                    capacity_deferred |= reason.is_capacity();
-                    continue;
-                }
-            };
-            // Pace every background failover attempt inside the total deadline.
-            // Do not charge pacing waits to a provider's network timeout.
+            // Background pacing owns only its lane permit. Acquire provider capacity
+            // after the wait: queued work must neither starve checkpoint reads nor
+            // open a healthy provider's circuit when its caller is cancelled.
             let _ingestion_permit = if let Some(budget) = self.ingestion_budget.as_ref() {
                 let permit =
                     budget.permits.clone().acquire_owned().await.map_err(|_| {
@@ -360,7 +381,15 @@ impl LcdClient {
             } else {
                 None
             };
+            let mut permit = match ep.provider.admit() {
+                Ok(permit) => permit,
+                Err(reason) => {
+                    capacity_deferred |= reason.is_capacity();
+                    continue;
+                }
+            };
             attempts += 1;
+            attempted.fetch_add(1, Ordering::Relaxed);
             let outcome = tokio::time::timeout(
                 Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms),
                 self.query_endpoint::<T>(idx, &ep.url, path, max_bytes, height),
@@ -387,9 +416,29 @@ impl LcdClient {
                 Ok(Err(error @ LcdError::PairResponseMalformed(_))) => {
                     permit.succeeded();
                     errors.push(format!("endpoint[{idx}] query-local malformed response"));
-                    local_error = Some(error);
+                    // Retain query-local malformed evidence across a later total
+                    // deadline as well; repeated bad bodies are not availability.
+                    let mut retained = integrity_error.lock().unwrap();
+                    if !matches!(
+                        *retained,
+                        Some(LcdError::ChainIdentity(_) | LcdError::HistoricalHeightUnavailable)
+                    ) {
+                        *retained = Some(error);
+                    }
                 }
-                Ok(Err(error)) => errors.push(error.to_string()),
+                Ok(Err(
+                    error @ (LcdError::ChainIdentity(_)
+                    | LcdError::HistoricalHeightUnavailable
+                    | LcdError::Deserialize(_)
+                    | LcdError::Base64(_)
+                    | LcdError::HttpRejected(_)),
+                )) => {
+                    // Still try a qualified alternative, but preserve unsafe evidence if
+                    // none succeeds. Lifecycle recovery must not mistake it for an outage.
+                    errors.push(format!("endpoint[{idx}] integrity rejected"));
+                    *integrity_error.lock().unwrap() = Some(error);
+                }
+                Ok(Err(_)) => errors.push(format!("endpoint[{idx}] provider unavailable")),
                 Err(_) => {
                     self.mark_failed(idx).await;
                     errors.push(format!("endpoint[{idx}] attempt deadline exceeded"));
@@ -399,7 +448,7 @@ impl LcdClient {
                 break;
             }
         }
-        if let Some(error) = local_error {
+        if let Some(error) = integrity_error.lock().unwrap().take() {
             return Err(error);
         }
         if attempts == 0 && capacity_deferred {
@@ -480,12 +529,19 @@ impl LcdClient {
                 return Err(LcdError::QueryGasLimitExceeded(snippet));
             }
             if is_deterministic_contract_query_reject(status, path, &text) {
-                return Err(LcdError::ContractQueryRejected(snippet));
+                return Err(LcdError::ContractQueryRejected(if status.as_u16() == 404 {
+                    "contract not found".into()
+                } else {
+                    snippet
+                }));
             }
             if should_cooldown_endpoint(status) {
                 self.mark_failed_with_retry(idx, retry_after).await;
             }
             tracing::debug!(endpoint_index = idx, status = %status, path = lcd_log_path(path), "LCD upstream unavailable");
+            if !should_cooldown_endpoint(status) {
+                return Err(LcdError::HttpRejected(status.as_u16()));
+            }
             return Err(LcdError::AllEndpointsFailed(format!(
                 "endpoint[{idx}] HTTP {status}"
             )));
@@ -499,11 +555,18 @@ impl LcdClient {
                 return Err(error);
             }
         }
+        let historical_body = match chain_identity::validate_requested_height(&text, path) {
+            Ok(historical) => historical,
+            Err(error) => {
+                self.mark_failed(idx).await;
+                return Err(error);
+            }
+        };
         let value: T = serde_json::from_str(&text)
             .map_err(|_| LcdError::PairResponseMalformed("response schema invalid".into()))?;
         // Historical reads deliberately bypass live lag comparison. Their exact height
         // header above is required, while the original historical time is preserved.
-        if height.is_none() {
+        if height.is_none() && !historical_body {
             let observed = if path.ends_with("/blocks/latest") {
                 serde_json::from_str::<serde_json::Value>(&text)
                     .ok()
@@ -1538,10 +1601,10 @@ mod provider_resilience_tests {
         lcd.get::<serde_json::Value>("/tip").await.unwrap();
         assert!(lcd.get::<serde_json::Value>("/behind").await.is_err());
         assert_eq!(lcd.provider_counters().await[0].failures, 1);
-        assert!(lcd
-            .get_at_height::<serde_json::Value>("/data", 100)
-            .await
-            .is_err());
+        assert!(matches!(
+            lcd.get_at_height::<serde_json::Value>("/data", 100).await,
+            Err(LcdError::HistoricalHeightUnavailable)
+        ));
         assert_eq!(lcd.provider_counters().await[0].failures, 2);
         Mock::given(path("/historic"))
             .respond_with(
@@ -1589,6 +1652,211 @@ mod provider_resilience_tests {
         payload(&server, 200).await;
         lcd.get::<serde_json::Value>("/data").await.unwrap();
     }
+    #[tokio::test]
+    async fn recovery1464_historical_block_and_tx_body_heights_cannot_be_substituted() {
+        let wrong = MockServer::start().await;
+        let good = MockServer::start().await;
+        for server in [&wrong, &good] {
+            mock_chain_identity(server, "columbus-5").await;
+            Mock::given(path("/tip"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .insert_header("x-cosmos-block-height", "1000")
+                        .set_body_json(json!({"ok":true})),
+                )
+                .mount(server)
+                .await;
+        }
+        for (server, served) in [(&wrong, "42"), (&good, "41")] {
+            Mock::given(path("/cosmos/base/tendermint/v1beta1/blocks/41"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .insert_header("x-cosmos-block-height", served)
+                        .set_body_json(json!({
+                    "block_id":{"hash":"canonical"}, "block":{"header":{
+                        "chain_id":"columbus-5","height":served,"time":"2026-10-10T00:00:00Z"}}})),
+                )
+                .mount(server)
+                .await;
+            Mock::given(path("/cosmos/tx/v1beta1/txs"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .insert_header("x-cosmos-block-height", served)
+                        .set_body_json(json!({
+                    "tx_responses":[{"height":served,"txhash":"fixture"}],"total":"1"})),
+                )
+                .mount(server)
+                .await;
+        }
+        let lcd = LcdClient::new(vec![wrong.uri(), good.uri()], 1000, 60_000, "columbus-5");
+        assert_eq!(lcd.get_block_hash(41).await.unwrap(), "canonical");
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        let unsafe_lcd = LcdClient::new(vec![wrong.uri()], 1000, 0, "columbus-5");
+        unsafe_lcd.get::<serde_json::Value>("/tip").await.unwrap();
+        assert!(matches!(
+            unsafe_lcd.get_block_hash(41).await,
+            Err(LcdError::HistoricalHeightUnavailable)
+        ));
+        assert!(matches!(
+            unsafe_lcd.get_block_txs(41, 100, 2).await,
+            Err(LcdError::HistoricalHeightUnavailable)
+        ));
+        let safe = LcdClient::new(vec![good.uri()], 1000, 0, "columbus-5");
+        safe.get::<serde_json::Value>("/tip").await.unwrap();
+        assert_eq!(safe.get_block_hash(41).await.unwrap(), "canonical");
+        let page = safe.get_block_txs(41, 100, 2).await.unwrap();
+        assert_eq!(page.txs.len(), 1);
+        assert_eq!(page.txs[0].height, "41");
+        assert_eq!(
+            safe.provider_counters().await[0].failures,
+            0,
+            "validated history cannot trip the live-height lag circuit"
+        );
+    }
+
+    #[tokio::test]
+    async fn recovery1464_contract_absence_is_local_and_other_http_rejections_are_permanent() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        Mock::given(path_regex("^/cosmwasm/wasm/v1/contract/"))
+            .respond_with(ResponseTemplate::new(404).set_body_json(json!({
+                "code":5,"message":"contract not found: untrusted payload"})))
+            .mount(&server)
+            .await;
+        Mock::given(path("/bad"))
+            .respond_with(ResponseTemplate::new(400).set_body_string("untrusted payload"))
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 60_000, "columbus-5");
+        let absent = lcd
+            .query_contract::<serde_json::Value>("terra1absent", &json!({"pair":{}}))
+            .await;
+        assert!(
+            matches!(absent, Err(LcdError::ContractQueryRejected(ref message)) if message == "contract not found")
+        );
+        assert!(matches!(
+            lcd.get::<serde_json::Value>("/bad").await,
+            Err(LcdError::HttpRejected(400))
+        ));
+        assert_eq!(lcd.provider_counters().await[0].failures, 0);
+        assert!(!lcd.provider_counters().await[0].circuit_open);
+    }
+
+    #[tokio::test]
+    async fn recovery1464_total_deadline_preserves_observed_integrity_failure() {
+        let wrong = MockServer::start().await;
+        let slow = MockServer::start().await;
+        mock_chain_identity(&wrong, "localterra").await;
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_secs(1)),
+            )
+            .mount(&slow)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![wrong.uri(), slow.uri()],
+            1000,
+            0,
+            "columbus-5",
+            ProviderPolicy {
+                deadline_ms: 100,
+                attempt_timeout_ms: 1000,
+                ..Default::default()
+            },
+        );
+        assert!(
+            matches!(
+                lcd.get::<serde_json::Value>("/data").await,
+                Err(LcdError::ChainIdentity(_))
+            ),
+            "deadline cannot erase wrong-chain evidence"
+        );
+        assert_eq!(
+            lcd.provider_counters()
+                .await
+                .iter()
+                .map(|p| p.in_flight)
+                .sum::<usize>(),
+            0
+        );
+        assert_eq!(hits(&wrong, "/data").await, 0);
+        assert_eq!(hits(&slow, "/data").await, 0);
+    }
+
+    #[tokio::test]
+    async fn background_pacing_wait_does_not_hold_or_penalize_provider_capacity() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 200).await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            ProviderPolicy {
+                concurrency: 1,
+                ..Default::default()
+            },
+        );
+        let background = lcd.with_ingestion_budget();
+        let budget = background.ingestion_budget.as_ref().unwrap().clone();
+        *budget.next_request.lock().await = tokio::time::Instant::now() + Duration::from_secs(5);
+        let pending =
+            tokio::spawn(async move { background.get::<serde_json::Value>("/data").await });
+        // Observe an acquired background lane before checking provider state.
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while budget.permits.available_permits() == 2 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(lcd.provider_counters().await[0].in_flight, 0);
+        assert_eq!(lcd.provider_counters().await[0].attempts, 0);
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+        pending.abort();
+        assert!(pending.await.unwrap_err().is_cancelled());
+        assert_eq!(budget.permits.available_permits(), 2);
+        let counters = &lcd.provider_counters().await[0];
+        assert_eq!(counters.in_flight, 0);
+        assert_eq!(counters.failures, 0);
+        assert!(!counters.circuit_open);
+        assert_eq!(hits(&server, "/data").await, 1);
+    }
+
+    #[tokio::test]
+    async fn background_pacing_deadline_does_not_open_healthy_circuit() {
+        let server = MockServer::start().await;
+        mock_chain_identity(&server, "columbus-5").await;
+        payload(&server, 200).await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            1000,
+            60_000,
+            "columbus-5",
+            ProviderPolicy {
+                deadline_ms: 40,
+                ..Default::default()
+            },
+        );
+        let background = lcd.with_ingestion_budget();
+        let budget = background.ingestion_budget.as_ref().unwrap().clone();
+        *budget.next_request.lock().await = tokio::time::Instant::now() + Duration::from_secs(5);
+        assert!(matches!(
+            background.get::<serde_json::Value>("/data").await,
+            Err(LcdError::AdmissionDeferred)
+        ));
+        assert_eq!(budget.permits.available_permits(), 2);
+        let counters = &lcd.provider_counters().await[0];
+        assert_eq!(counters.attempts, 0);
+        assert_eq!(counters.failures, 0);
+        assert!(!counters.circuit_open);
+        assert_eq!(hits(&server, "/data").await, 0);
+        lcd.get::<serde_json::Value>("/data").await.unwrap();
+    }
+
     #[tokio::test]
     async fn pinned_contract_snapshot_fails_over_and_requires_exact_height() {
         use wiremock::matchers::{header, query_param};

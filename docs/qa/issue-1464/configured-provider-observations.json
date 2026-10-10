@@ -1,0 +1,244 @@
+{
+  "issue": 1464,
+  "utc_observation_window": "2026-10-10 approximately 07:38 UTC",
+  "scope": "Read-only configured-provider/capability probes; no signing/broadcast; direct new connections from Korea, not production ingestion or useful quote latency",
+  "configured_provider_count": 3,
+  "successful_point_in_time_attestation_count": 3,
+  "successful_exact_height_pool_read_count": 3,
+  "providers": [
+    {
+      "provider_index": 0,
+      "identity": {
+        "status": 200,
+        "ms": 1583.78,
+        "served_height": "30772799",
+        "expected_chain": true
+      },
+      "latest": {
+        "status": 200,
+        "ms": 1115.84,
+        "served_height": null
+      },
+      "pairs": {
+        "status": 200,
+        "ms": 662.23,
+        "served_height": "30772800"
+      },
+      "pool_latest": {
+        "status": 200,
+        "ms": 490.61,
+        "served_height": "30772800"
+      },
+      "pool_pinned": {
+        "status": 200,
+        "ms": 486.52,
+        "served_height": "30772800",
+        "requested_height": "30772800"
+      },
+      "blacklist": {
+        "status": 200,
+        "ms": 492.09,
+        "served_height": null,
+        "field_types": {
+          "blocked": "bool",
+          "wallet_blacklisted": "bool",
+          "pair_blacklisted": "bool",
+          "blacklisted_tokens": "list",
+          "blacklisted_pairs": "list"
+        }
+      }
+    },
+    {
+      "provider_index": 1,
+      "identity": {
+        "status": 200,
+        "ms": 2112.01,
+        "served_height": "30772800",
+        "expected_chain": true
+      },
+      "latest": {
+        "status": 200,
+        "ms": 1846.02,
+        "served_height": "30772799"
+      },
+      "pairs": {
+        "status": 200,
+        "ms": 1290.57,
+        "served_height": "30772801"
+      },
+      "pool_latest": {
+        "status": 200,
+        "ms": 1438.5,
+        "served_height": "30772801"
+      },
+      "pool_pinned": {
+        "status": 200,
+        "ms": 1281.71,
+        "served_height": "30772799",
+        "requested_height": "30772799"
+      },
+      "blacklist": {
+        "status": 200,
+        "ms": 1354.5,
+        "served_height": "30772802",
+        "field_types": {
+          "blocked": "bool",
+          "wallet_blacklisted": "bool",
+          "pair_blacklisted": "bool",
+          "blacklisted_tokens": "list",
+          "blacklisted_pairs": "list"
+        }
+      }
+    },
+    {
+      "provider_index": 2,
+      "identity": {
+        "status": 200,
+        "ms": 900.72,
+        "served_height": "30772802",
+        "expected_chain": true
+      },
+      "latest": {
+        "status": 200,
+        "ms": 944.38,
+        "served_height": "30772802"
+      },
+      "pairs": {
+        "status": 200,
+        "ms": 465.21,
+        "served_height": "30772802"
+      },
+      "pool_latest": {
+        "status": 200,
+        "ms": 623.64,
+        "served_height": "30772802"
+      },
+      "pool_pinned": {
+        "status": 200,
+        "ms": 567.82,
+        "served_height": "30772802",
+        "requested_height": "30772802"
+      },
+      "blacklist": {
+        "status": 200,
+        "ms": 587.49,
+        "served_height": "30772803",
+        "field_types": {
+          "blocked": "bool",
+          "wallet_blacklisted": "bool",
+          "pair_blacklisted": "bool",
+          "blacklisted_tokens": "list",
+          "blacklisted_pairs": "list"
+        }
+      }
+    }
+  ],
+  "capabilities": [
+    {
+      "configuration": {
+        "COMMUNITY_TAX_CODE_ID": "11713",
+        "COMMUNITY_TAX_OPTION2_CODE_IDS": "11619",
+        "TRADING_ROUTE_TAX_CODE_IDS": "11713",
+        "TRADING_TAX_FREE_CODE_IDS": "6036,8266,10184",
+        "BOOK_SNAPSHOT_INTERVAL_MS": null,
+        "LCD_ATTEMPT_TIMEOUT_MS": null,
+        "LCD_TIMEOUT_MS": null,
+        "LCD_DEADLINE_MS": null
+      }
+    },
+    {
+      "token": "CL8Y",
+      "identity": {
+        "status": 200,
+        "ms": 496.89,
+        "served_height": null
+      },
+      "code_id": "10184",
+      "capability": {
+        "outcome": "HTTPError",
+        "status": 500,
+        "ms": 507.43
+      },
+      "config": {
+        "outcome": "HTTPError",
+        "status": 500,
+        "ms": 678.38
+      }
+    },
+    {
+      "token": "USTR",
+      "identity": {
+        "status": 200,
+        "ms": 489.66,
+        "served_height": null
+      },
+      "code_id": "10184",
+      "capability": {
+        "outcome": "HTTPError",
+        "status": 500,
+        "ms": 682.41
+      },
+      "config": {
+        "outcome": "HTTPError",
+        "status": 500,
+        "ms": 509.8
+      }
+    },
+    {
+      "token": "ALPHA",
+      "identity": {
+        "status": 200,
+        "ms": 490.65,
+        "served_height": null
+      },
+      "code_id": "11713",
+      "capability": {
+        "status": 200,
+        "ms": 661.4,
+        "served_height": null,
+        "fields": {
+          "funding_version": 1,
+          "buy_bps": 450,
+          "sell_bps": 100
+        }
+      },
+      "config": {
+        "status": 200,
+        "ms": 503.64,
+        "served_height": null,
+        "fields": {
+          "buy_bps": 450,
+          "sell_bps": 100
+        }
+      }
+    },
+    {
+      "token": "ALPHA",
+      "additional_public_observations": {
+        "status": 200,
+        "features": {
+          "auto_v2_lp": false,
+          "launch_guards": false,
+          "split_router": false,
+          "exemption_directory": false
+        },
+        "launch_guards_config": null
+      }
+    }
+  ],
+  "findings": [
+    "All three configured endpoints attest columbus-5 and return exact requested-height pool response headers.",
+    "Factory blacklist schema has bool blocked/wallet_blacklisted/pair_blacklisted and list blacklisted_tokens/blacklisted_pairs.",
+    "CL8Y/USTR observed code 10184 is configured ordinary; generic capability/config query errors do not establish an ordinary-token incompatibility.",
+    "ALPHA observed code 11713 matches configured routed-tax support; capability funding_version=1 buy_bps=450 sell_bps=100. No outstanding ALPHA migration is inferred.",
+    "ALPHA AutoLP, launch guards, split router and exemption directory observed disabled, launch-guard config null; no AutoLP/cooldown recovery follow-up inferred."
+  ],
+  "unverified": [
+    "new implementation deployment",
+    "sustained provider independence/failover/recovery",
+    "production ingestion deadlines and coverage before expiry",
+    "useful deployed quote output/latency",
+    "zero request-triggered RPC counters",
+    "full economic/historical acceptance"
+  ]
+}

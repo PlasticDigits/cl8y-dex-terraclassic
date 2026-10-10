@@ -90,24 +90,60 @@ async fn discover_with_lcd(
     addr: &str,
     policy: &RouterHopTaxPolicy,
 ) -> TradingTax {
+    discover_detailed(lcd, router, addr, policy, None)
+        .await
+        .unwrap_or(TradingTax::Unavailable)
+}
+
+/// Scheduled admission needs typed failures to retain observations only for
+/// provider availability, never wrong-chain, malformed or changed identities.
+pub(crate) async fn discover_scheduled(
+    state: &AppState,
+    addr: &str,
+    policy: &RouterHopTaxPolicy,
+    previous_code: Option<u64>,
+) -> Result<TradingTax, crate::lcd::LcdError> {
+    discover_detailed(
+        &state.lcd,
+        state.router_address.as_deref(),
+        addr,
+        policy,
+        previous_code,
+    )
+    .await
+}
+
+async fn discover_detailed(
+    lcd: &crate::lcd::LcdClient,
+    router: Option<&str>,
+    addr: &str,
+    policy: &RouterHopTaxPolicy,
+    previous_code: Option<u64>,
+) -> Result<TradingTax, crate::lcd::LcdError> {
+    use crate::lcd::LcdError;
     if !addr.starts_with("terra1") {
-        return TradingTax::Ordinary { code_id: None };
+        return Ok(TradingTax::Ordinary { code_id: None });
     }
-    if lcd.require_verified_chain().await.is_err() {
-        invalidate_instance(lcd.cache_namespace(), addr);
-        return TradingTax::Unavailable;
-    }
-    // Code identity is live, not TTL-cached. A migration must invalidate even a tax-free
-    // verdict immediately. Capability/rates retain their bounded TTL only within that identity.
     let result = tokio::time::timeout(QUERY_TIMEOUT, async {
-        let _permit = discovery_semaphore().acquire().await.ok()?;
-        let code = lcd.get_contract_code_id(addr).await.ok()?;
-        let code_id = i64::try_from(code).ok()?;
+        lcd.require_verified_chain().await?;
+        let _permit = discovery_semaphore()
+            .acquire()
+            .await
+            .map_err(|_| LcdError::AdmissionDeferred)?;
+        let code = lcd.get_contract_code_id(addr).await?;
+        // Return immediately: an unavailable subsequent capability/pin read must
+        // never hide a successfully observed migration behind old qualification.
+        if previous_code.is_some_and(|previous| previous != code) {
+            return Err(LcdError::PairResponseMalformed(
+                "observed token code identity changed".into(),
+            ));
+        }
+        let code_id = i64::try_from(code)
+            .map_err(|_| LcdError::PairResponseMalformed("invalid token code identity".into()))?;
         let hash = if !policy.route_tax_data_hashes.is_empty() {
             Some(
                 lcd.get_code_data_hash(code)
-                    .await
-                    .ok()?
+                    .await?
                     .trim()
                     .trim_start_matches("0x")
                     .to_ascii_lowercase(),
@@ -131,13 +167,18 @@ async fn discover_with_lcd(
                         || (candidate.code_id == code_id && candidate.data_hash == hash))
             });
             if let Some((_, value)) = cache.get(&key) {
-                return Some(value.clone());
+                return Ok(value.clone());
             }
         }
         let value = discover_identity(lcd, router, addr, code_id, hash, policy).await?;
-        // Do not attest a response returned across a migration with the prior implementation.
-        if lcd.get_contract_code_id(addr).await.ok()? != code {
-            return None;
+        if matches!(value, TradingTax::Unsupported) {
+            // Already observed negative evidence must survive any later outage.
+            return Ok(value);
+        }
+        if lcd.get_contract_code_id(addr).await? != code {
+            return Err(LcdError::PairResponseMalformed(
+                "token code identity changed during observation".into(),
+            ));
         }
         if let Ok(mut cache) = cache().lock() {
             cache.retain(|_, (at, _)| at.elapsed() < DISCOVERY_TTL);
@@ -145,23 +186,28 @@ async fn discover_with_lcd(
                 if let Some(oldest) = cache
                     .iter()
                     .min_by_key(|(_, (at, _))| *at)
-                    .map(|(k, _)| k.clone())
+                    .map(|(key, _)| key.clone())
                 {
                     cache.remove(&oldest);
                 }
             }
             cache.insert(key, (Instant::now(), value.clone()));
         }
-        Some(value)
+        Ok(value)
     })
-    .await;
-    match result.ok().flatten() {
-        Some(value) => value,
-        None => {
-            invalidate_instance(lcd.cache_namespace(), addr);
-            TradingTax::Unavailable
-        }
+    .await
+    .unwrap_or_else(|_| {
+        // Cancellation may hide integrity evidence already observed inside a
+        // still-running provider failover. Only completed typed availability
+        // errors can preserve qualification; an incomplete census fails closed.
+        Err(LcdError::PairResponseMalformed(
+            "incomplete token observation".into(),
+        ))
+    });
+    if result.is_err() {
+        invalidate_instance(lcd.cache_namespace(), addr);
     }
+    result
 }
 
 async fn discover_identity(
@@ -171,12 +217,12 @@ async fn discover_identity(
     code_id: i64,
     hash: Option<String>,
     policy: &RouterHopTaxPolicy,
-) -> Option<TradingTax> {
+) -> Result<TradingTax, crate::lcd::LcdError> {
     if policy.tax_free_code_ids.contains(&code_id) && policy.route_tax_code_ids.contains(&code_id) {
-        return Some(TradingTax::Unsupported); // Conflicting registrations never waive tax.
+        return Ok(TradingTax::Unsupported); // Conflicting registrations never waive tax.
     }
     if policy.tax_free_code_ids.contains(&code_id) {
-        return Some(TradingTax::Ordinary {
+        return Ok(TradingTax::Ordinary {
             code_id: Some(code_id),
         });
     }
@@ -184,12 +230,11 @@ async fn discover_identity(
     if trusted {
         let cap: Capability = lcd
             .query_contract(addr, &json!({"route_tax_capability":{}}))
-            .await
-            .ok()?;
+            .await?;
         if !compatible(&cap, router) {
-            return Some(TradingTax::Unsupported);
+            return Ok(TradingTax::Unsupported);
         }
-        return Some(TradingTax::Community(CataloguedTaxToken {
+        return Ok(TradingTax::Community(CataloguedTaxToken {
             contract_address: addr.into(),
             code_id: Some(code_id),
             data_hash: hash,
@@ -206,7 +251,7 @@ async fn discover_identity(
         .await
     {
         Ok(config) if config.buy_bps <= 10_000 && config.sell_bps <= 10_000 => {
-            Some(TradingTax::Community(CataloguedTaxToken {
+            Ok(TradingTax::Community(CataloguedTaxToken {
                 contract_address: addr.into(),
                 code_id: Some(code_id),
                 data_hash: hash,
@@ -216,7 +261,7 @@ async fn discover_identity(
                 route_funding_version: None,
             }))
         }
-        Ok(_) => Some(TradingTax::Unsupported),
+        Ok(_) => Ok(TradingTax::Unsupported),
         Err(crate::lcd::LcdError::ContractQueryRejected(_)) => {
             // Actual legacy fee APIs must not be waived merely because get_config rejects.
             // Until a separate audited implementation is registered, both known legacy fee
@@ -227,12 +272,12 @@ async fn discover_identity(
                     .await
                     .is_ok()
                 {
-                    return Some(TradingTax::Unsupported);
+                    return Ok(TradingTax::Unsupported);
                 }
             }
-            Some(TradingTax::Unsupported)
+            Ok(TradingTax::Unsupported)
         }
-        Err(_) => None,
+        Err(error) => Err(error),
     }
 }
 
@@ -406,6 +451,119 @@ mod tests {
         policy.tax_free_code_ids.insert(101);
         policy.route_tax_code_ids.insert(202);
         policy
+    }
+
+    #[tokio::test]
+    async fn recovery1464_scheduled_discovery_retains_only_typed_provider_outages() {
+        use crate::lcd::LcdError;
+        use std::sync::atomic::Ordering::SeqCst;
+        let (server, instance, lcd) = synthetic_lcd().await;
+        let policy = synthetic_policy();
+        instance.code.store(101, SeqCst);
+        assert!(matches!(
+            discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, None).await,
+            Ok(TradingTax::Ordinary { code_id: Some(101) })
+        ));
+        instance.fail_identity.store(true, SeqCst);
+        let malformed = discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(101))
+            .await
+            .unwrap_err();
+        assert!(!crate::indexer::block_indexer::is_retryable_availability(
+            &malformed
+        ));
+        instance.fail_identity.store(false, SeqCst);
+        instance.code.store(202, SeqCst);
+        assert!(matches!(
+            discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(101)).await,
+            Err(LcdError::PairResponseMalformed(_))
+        ));
+        assert_eq!(
+            instance.capability_queries.load(SeqCst),
+            0,
+            "observed code change invalidates before capability I/O"
+        );
+        instance.migrate_during_capability.store(true, SeqCst);
+        assert!(matches!(
+            discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(202)).await,
+            Err(LcdError::PairResponseMalformed(_))
+        ));
+        server.reset().await;
+        wiremock::Mock::given(wiremock::matchers::method("GET"))
+            .respond_with(wiremock::ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let failure = discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(202))
+            .await
+            .unwrap_err();
+        assert!(crate::indexer::block_indexer::is_retryable_availability(
+            &failure
+        ));
+    }
+
+    #[tokio::test]
+    async fn recovery1464_outer_discovery_deadline_cannot_hide_inner_integrity_failure() {
+        use std::sync::atomic::Ordering::SeqCst;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let (first, instance, _) = synthetic_lcd().await;
+        instance.code.store(101, SeqCst);
+        let second = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&second, "columbus-5").await;
+        Mock::given(method("GET"))
+            .and(path(format!("/cosmwasm/wasm/v1/contract/{TOKEN}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "contract_info":{"code_id":"101"}
+            })))
+            .mount(&second)
+            .await;
+        let lcd = crate::lcd::LcdClient::new_with_policy(
+            vec![first.uri(), second.uri()],
+            5_000,
+            1,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                attempt_timeout_ms: 5_000,
+                deadline_ms: 5_000,
+                ..Default::default()
+            },
+        );
+        let policy = synthetic_policy();
+        assert!(matches!(
+            discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(101)).await,
+            Ok(TradingTax::Ordinary { code_id: Some(101) })
+        ));
+        assert!(cache()
+            .lock()
+            .unwrap()
+            .keys()
+            .any(|key| key.namespace == lcd.cache_namespace() && key.address == TOKEN));
+        first.reset().await;
+        crate::lcd::mock_chain_identity(&first, "wrong-chain").await;
+        second.reset().await;
+        Mock::given(method("GET"))
+            .and(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_secs(4)),
+            )
+            .mount(&second)
+            .await;
+        let error = discover_detailed(&lcd, Some(ROUTER), TOKEN, &policy, Some(101))
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            crate::lcd::LcdError::PairResponseMalformed(_)
+        ));
+        assert!(!crate::indexer::block_indexer::is_retryable_availability(
+            &error
+        ));
+        assert!(!cache()
+            .lock()
+            .unwrap()
+            .keys()
+            .any(|key| key.namespace == lcd.cache_namespace() && key.address == TOKEN));
     }
 
     #[tokio::test]

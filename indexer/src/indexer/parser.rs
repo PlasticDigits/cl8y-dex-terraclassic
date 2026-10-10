@@ -776,8 +776,6 @@ async fn process_swap(
 
     trader_tracker::update_trader_on_swap(
         pool,
-        lcd,
-        config.fee_discount_address.as_deref(),
         &swap.sender,
         &swap.offer_amount,
         volume_usd.as_ref(),
@@ -852,9 +850,9 @@ async fn ingest_protocol_fee(
     if *amount_raw <= BigDecimal::from(0) {
         return Ok(());
     }
-    let Some(asset) = assets::get_asset_by_id(pool, asset_id).await.ok().flatten() else {
-        return Ok(());
-    };
+    let asset = assets::get_asset_by_id(pool, asset_id)
+        .await?
+        .ok_or("positive protocol fee requires stored asset metadata")?;
     let ustc_usd = ustc_price.read().await.clone();
     let lunc_usd = db_oracle::get_latest_average_price(pool, oracle::OracleTicker::Lunc)
         .await

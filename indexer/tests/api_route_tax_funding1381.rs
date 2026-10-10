@@ -115,14 +115,14 @@ async fn failed_discovery_and_untrusted_spoofed_capability_never_waive_tax() {
                 seed.token_a, seed.token_c
             ))
             .await;
-        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
         assert!(!response.text().contains("estimated_amount_out"));
         let response = server
             .post("/api/v1/route/solve")
             .json(&json!({"token_in":seed.token_a,"token_out":seed.token_c,"amount_in":"1010000"}))
             .await;
         // Request failures depend only on published unsupported observations, never provider cooldown.
-        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
         assert_no_request_rpc(&mock).await;
     }
 }
@@ -142,7 +142,7 @@ async fn legacy_middle_tax_and_incompatible_funding_versions_are_rejected() {
                 seed.token_a, seed.token_c
             ))
             .await;
-        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
         assert_no_request_rpc(&mock).await;
     }
 }
