@@ -90,6 +90,7 @@ pub const BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES: usize = 1_048_576;
 /// reserves; the book lane consumes those observations and publishes hybrids.
 /// Slow books cannot postpone the next successful pool read.
 pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_interval_ms: u64) {
+    let lcd = lcd.with_scheduled_observation();
     let run_lane = |lane_pool: PgPool, lane_lcd: LcdClient, mode| async move {
         let mut ticker = tokio::time::interval(Duration::from_millis(snapshot_interval_ms.max(1)));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -194,9 +195,10 @@ pub async fn snapshot_all_pairs_with_limits(
     lcd: &LcdClient,
     limits: SnapshotLimits,
 ) -> Result<(), BoxError> {
+    let lcd = lcd.with_scheduled_observation();
     snapshot_cycle(
         pool,
-        lcd,
+        &lcd,
         limits,
         SnapshotMode::Combined,
         BOOK_SNAPSHOT_MAX_STALENESS_MS,

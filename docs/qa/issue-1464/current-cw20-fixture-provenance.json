@@ -1,0 +1,14 @@
+{
+  "artifacts": {
+    "cw20_mintable.wasm": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+  },
+  "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+  "cache_policy": "fresh-executable-target",
+  "lock_format_conversion": "4-to-3",
+  "lock_sha256": "0036b505b69397a4fb4609e6a18c0841a13b61e472424b31a691ded07d76c84b",
+  "schema": "cl8y-external-fixture-v1",
+  "source_commit": "73a206b5c39c5bd8f9d3574bda32fc5ae8f52ec8",
+  "source_lock_sha256": "996ac4ee8b6229fcac06ee6227976dfa338804a29e497d98cfb2532dd071e8c6",
+  "source_repository": "https://github.com/PlasticDigits/cw20-mintable",
+  "toolchain": "rustc 1.81.0 (eeb90cda1 2024-09-04)\ncargo 1.81.0 (2dbb1af80 2024-08-20)\nwasm-opt version 116"
+}

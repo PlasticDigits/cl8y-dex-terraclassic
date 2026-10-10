@@ -96,6 +96,32 @@ pub enum LcdError {
     Base64(String),
 }
 
+/// Preserve already observed typed integrity evidence before async metadata
+/// cleanup. Transport errors deliberately remain availability, not integrity.
+fn record_integrity_evidence(slot: &std::sync::Mutex<Option<LcdError>>, error: &LcdError) {
+    let copied = match error {
+        LcdError::ChainIdentity(message) => LcdError::ChainIdentity(message.clone()),
+        LcdError::HistoricalHeightUnavailable => LcdError::HistoricalHeightUnavailable,
+        LcdError::Deserialize(message) => LcdError::Deserialize(message.clone()),
+        LcdError::Base64(message) => LcdError::Base64(message.clone()),
+        LcdError::HttpRejected(status) => LcdError::HttpRejected(*status),
+        LcdError::PairResponseMalformed(message) => {
+            LcdError::PairResponseMalformed(message.clone())
+        }
+        _ => return,
+    };
+    let mut retained = slot.lock().unwrap();
+    if matches!(copied, LcdError::PairResponseMalformed(_))
+        && matches!(
+            *retained,
+            Some(LcdError::ChainIdentity(_) | LcdError::HistoricalHeightUnavailable)
+        )
+    {
+        return;
+    }
+    *retained = Some(copied);
+}
+
 /// CosmWasm LCD returns HTTP 500 for smart-query contract errors. Same answer on
 /// every LCD — not an upstream outage (GitLab #493).
 ///
@@ -170,6 +196,7 @@ struct Endpoint {
 pub struct LcdClient {
     inner: Arc<LcdClientInner>,
     ingestion_budget: Option<Arc<IngestionBudget>>,
+    scheduled_observation: bool,
 }
 struct IngestionBudget {
     permits: Arc<tokio::sync::Semaphore>,
@@ -250,6 +277,7 @@ impl LcdClient {
 
         Self {
             ingestion_budget: None,
+            scheduled_observation: false,
             inner: Arc::new(LcdClientInner {
                 endpoints: RwLock::new(endpoints),
                 expected_chain_id,
@@ -266,11 +294,19 @@ impl LcdClient {
         }
     }
 
+    /// This view shares all provider state and limits. Only scheduled ingestion
+    /// may avoid quarantining a closed provider when its caller budget expires;
+    /// HTTP/transport/own attempt failures and half-open probes still quarantine.
+    pub(crate) fn with_scheduled_observation(&self) -> Self {
+        let mut next = self.clone();
+        next.scheduled_observation = true;
+        next
+    }
     /// A bounded background-only view sharing chain identity and namespace. All
     /// quote workers share its two permits and aggregate four requests/second;
     /// each provider failover attempt consumes the same pacing budget.
     pub(crate) fn with_ingestion_budget(&self) -> Self {
-        let mut next = self.clone();
+        let mut next = self.with_scheduled_observation();
         next.ingestion_budget = Some(Arc::new(IngestionBudget {
             permits: Arc::new(tokio::sync::Semaphore::new(2)),
             next_request: tokio::sync::Mutex::new(tokio::time::Instant::now()),
@@ -412,14 +448,27 @@ impl LcdClient {
                     continue;
                 }
             };
+            if self.scheduled_observation {
+                permit.scheduled_observation();
+            }
             attempts += 1;
             attempted.fetch_add(1, Ordering::Relaxed);
             let outcome = tokio::time::timeout(
                 Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms),
-                self.query_endpoint::<T>(idx, &ep.url, path, max_bytes, height),
+                self.query_endpoint::<T>(
+                    idx,
+                    &ep.url,
+                    path,
+                    max_bytes,
+                    height,
+                    &mut permit,
+                    integrity_error,
+                ),
             )
             .await;
-            permit.completed();
+            if outcome.is_ok() {
+                permit.completed();
+            }
             match outcome {
                 Ok(Ok(value)) => {
                     permit.succeeded();
@@ -464,7 +513,11 @@ impl LcdClient {
                 }
                 Ok(Err(_)) => errors.push(format!("endpoint[{idx}] provider unavailable")),
                 Err(_) => {
+                    // The provider's own attempt deadline proves failure. Keep
+                    // drop armed until async recording completes exactly once.
+                    permit.quarantine_if_cancelled();
                     self.mark_failed(idx).await;
+                    permit.completed();
                     errors.push(format!("endpoint[{idx}] attempt deadline exceeded"));
                 }
             }
@@ -491,8 +544,11 @@ impl LcdClient {
         path: &str,
         max_bytes: Option<usize>,
         height: Option<i64>,
+        permit: &mut provider_pool::ProviderPermit,
+        integrity_error: &std::sync::Mutex<Option<LcdError>>,
     ) -> Result<T, LcdError> {
-        self.attest_endpoint(idx, url).await?;
+        self.attest_endpoint(idx, url, permit, integrity_error)
+            .await?;
         let mut request = self.inner.client.get(format!("{url}{path}"));
         if let Some(height) = height {
             request = request
@@ -502,6 +558,7 @@ impl LcdClient {
         let response = match request.send().await {
             Ok(response) => response,
             Err(_) => {
+                permit.quarantine_if_cancelled();
                 self.mark_failed(idx).await;
                 return Err(LcdError::AllEndpointsFailed(format!(
                     "endpoint[{idx}] transport unavailable"
@@ -513,12 +570,38 @@ impl LcdClient {
             response.headers(),
             Duration::from_millis(self.inner.provider_policy.max_backoff_ms),
         );
+        if !status.is_success() {
+            // A cancelled negative body cannot become neutral provider health.
+            // Completed contract/gas bodies retain their original local policy.
+            permit.quarantine_if_cancelled();
+            let wasm_not_found =
+                status.as_u16() == 404 && path.starts_with("/cosmwasm/wasm/v1/contract/");
+            if !should_cooldown_endpoint(status) && !wasm_not_found {
+                // The protocol rejection is known from headers, even if its
+                // body/metadata cleanup never completes before this deadline.
+                record_integrity_evidence(
+                    integrity_error,
+                    &LcdError::HttpRejected(status.as_u16()),
+                );
+            }
+        }
+        // Unambiguous endpoint failures need no body. Preserve all HTTP 500
+        // body classification, including legacy classic/non-smart outcomes.
+        if should_cooldown_endpoint(status) && status.as_u16() != 500 {
+            self.mark_failed_with_retry(idx, retry_after).await;
+            tracing::debug!(endpoint_index = idx, status = %status, path = lcd_log_path(path), "LCD upstream unavailable");
+            return Err(LcdError::AllEndpointsFailed(format!(
+                "endpoint[{idx}] HTTP {status}"
+            )));
+        }
         let served_height = response
             .headers()
             .get("x-cosmos-block-height")
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.parse::<i64>().ok());
         if status.is_success() && height.is_some() && served_height != height {
+            permit.quarantine_if_cancelled();
+            record_integrity_evidence(integrity_error, &LcdError::HistoricalHeightUnavailable);
             self.mark_failed(idx).await;
             return Err(LcdError::HistoricalHeightUnavailable);
         }
@@ -527,6 +610,7 @@ impl LcdClient {
         {
             Ok(body) => body,
             Err(LcdError::Request(_)) => {
+                permit.quarantine_if_cancelled();
                 self.mark_failed(idx).await;
                 return Err(LcdError::AllEndpointsFailed(format!(
                     "endpoint[{idx}] body transport unavailable"
@@ -574,14 +658,23 @@ impl LcdClient {
             if let Err(error) =
                 chain_identity::validate_block_chain(&text, self.expected_chain_id())
             {
-                self.mark_failed(idx).await;
-                self.inner.endpoints.write().await[idx].identity_error = Some(error.to_string());
+                permit.quarantine_if_cancelled();
+                record_integrity_evidence(integrity_error, &error);
+                // Update failure and metadata under one guard. A second write
+                // await after recording could let cancellation count it again.
+                let mut endpoints = self.inner.endpoints.write().await;
+                let endpoint = &mut endpoints[idx];
+                endpoint.provider.failed(self.inner.cooldown_duration, None);
+                endpoint.verified = false;
+                endpoint.identity_error = Some(error.to_string());
                 return Err(error);
             }
         }
         let historical_body = match chain_identity::validate_requested_height(&text, path) {
             Ok(historical) => historical,
             Err(error) => {
+                permit.quarantine_if_cancelled();
+                record_integrity_evidence(integrity_error, &error);
                 self.mark_failed(idx).await;
                 return Err(error);
             }
@@ -607,6 +700,7 @@ impl LcdClient {
                 if observed <= 0
                     || observed.saturating_add(self.inner.provider_policy.max_height_lag) < latest
                 {
+                    permit.quarantine_if_cancelled();
                     self.mark_failed(idx).await;
                     return Err(LcdError::LaggingProvider);
                 }
@@ -1644,6 +1738,744 @@ mod provider_resilience_tests {
             .is_ok());
     }
 
+    #[tokio::test]
+    async fn recovery1464_scheduled_pair_budget_does_not_quarantine_healthy_fallback() {
+        // The real production budgets: a 2.5s bad attempt leaves only 1.5s
+        // of a 4s pair budget for a healthy endpoint needing 2s. Generic caller
+        // cancellation still quarantines; scheduled cancellation is neutral.
+        for scheduled in [false, true] {
+            let bad = MockServer::start().await;
+            let healthy = MockServer::start().await;
+            for server in [&bad, &healthy] {
+                mock_chain_identity(server, "columbus-5").await;
+            }
+            for (server, delay) in [(&bad, 3_000), (&healthy, 2_000)] {
+                Mock::given(path("/data"))
+                    .respond_with(
+                        ResponseTemplate::new(200)
+                            .set_body_json(json!({"ok":true}))
+                            .set_delay(Duration::from_millis(delay)),
+                    )
+                    .mount(server)
+                    .await;
+            }
+            let lcd = LcdClient::new_with_policy(
+                vec![bad.uri(), healthy.uri()],
+                2_500,
+                5_000,
+                "columbus-5",
+                ProviderPolicy {
+                    attempt_timeout_ms: 2_500,
+                    deadline_ms: 8_000,
+                    max_backoff_ms: 5_000,
+                    ..Default::default()
+                },
+            );
+            let view = if scheduled {
+                lcd.with_scheduled_observation()
+            } else {
+                lcd.clone()
+            };
+            assert!(std::sync::Arc::ptr_eq(&view.inner, &lcd.inner));
+            assert_eq!(view.chain_cache_namespace(), lcd.chain_cache_namespace());
+            assert!(tokio::time::timeout(
+                Duration::from_secs(4),
+                view.get::<serde_json::Value>("/data")
+            )
+            .await
+            .is_err());
+            let counters = lcd.provider_counters().await;
+            assert_eq!(counters[0].failures, 1);
+            assert!(counters[0].circuit_open);
+            assert_eq!(counters[1].in_flight, 0);
+            assert_eq!(counters[1].failures, if scheduled { 0 } else { 1 });
+            assert_eq!(
+                counters[1].caller_cancellations,
+                if scheduled { 1 } else { 0 }
+            );
+            assert_eq!(
+                counters[1].successes, 0,
+                "cancellation never fabricates provider success"
+            );
+            if scheduled {
+                assert!(!counters[1].circuit_open);
+                assert_eq!(
+                    view.get::<serde_json::Value>("/data").await.unwrap()["ok"],
+                    true
+                );
+                assert_eq!(lcd.provider_counters().await[1].failures, 0);
+            } else {
+                assert!(counters[1].circuit_open);
+                assert!(view
+                    .get::<serde_json::Value>("/data")
+                    .await
+                    .unwrap_err()
+                    .to_string()
+                    .contains("all provider circuits open"));
+            }
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_identity_caller_deadline_is_neutral_but_own_timeout_is_not() {
+        let server = MockServer::start().await;
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_millis(300)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            500,
+            1_000,
+            "columbus-5",
+            ProviderPolicy {
+                attempt_timeout_ms: 500,
+                deadline_ms: 100,
+                ..Default::default()
+            },
+        );
+        assert!(lcd
+            .with_scheduled_observation()
+            .require_verified_chain()
+            .await
+            .is_err());
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            (
+                counters[0].failures,
+                counters[0].caller_cancellations,
+                counters[0].in_flight
+            ),
+            (0, 1, 0)
+        );
+        assert!(!counters[0].circuit_open);
+        assert!(
+            lcd.require_verified_chain().await.is_err(),
+            "plain caller retains original cancellation quarantine"
+        );
+        assert_eq!(lcd.provider_counters().await[0].failures, 1);
+        let slow = MockServer::start().await;
+        mock_chain_identity(&slow, "columbus-5").await;
+        Mock::given(path("/data"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_millis(300)),
+            )
+            .mount(&slow)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![slow.uri()],
+            100,
+            1_000,
+            "columbus-5",
+            ProviderPolicy {
+                attempt_timeout_ms: 100,
+                deadline_ms: 1_000,
+                ..Default::default()
+            },
+        );
+        assert!(lcd
+            .with_scheduled_observation()
+            .get::<serde_json::Value>("/data")
+            .await
+            .is_err());
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            (
+                counters[0].failures,
+                counters[0].caller_cancellations,
+                counters[0].in_flight
+            ),
+            (1, 0, 0)
+        );
+        assert!(counters[0].circuit_open);
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_slow_error_body_cannot_hide_completed_http_failure() {
+        assert_known_slow_http_error_quarantines(503).await;
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_noncontract_500_body_cancellation_retains_quarantine() {
+        assert_known_slow_http_error_quarantines(500).await;
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_protocol_rejection_headers_survive_slow_body_deadline() {
+        for status in [400, 401, 404] {
+            assert_known_slow_http_error_quarantines(status).await;
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_completed_protocol_rejections_preserve_wasm_not_found_policy() {
+        for (status, path_value, body, local) in [
+            (400, "/data", "rejected", false),
+            (401, "/data", "rejected", false),
+            (404, "/data", "rejected", false),
+            (
+                404,
+                "/cosmwasm/wasm/v1/contract/fixture",
+                r#"{"code":5,"message":"contract not found"}"#,
+                true,
+            ),
+        ] {
+            let server = MockServer::start().await;
+            mock_chain_identity(&server, "columbus-5").await;
+            Mock::given(path(path_value))
+                .respond_with(ResponseTemplate::new(status).set_body_string(body))
+                .mount(&server)
+                .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![server.uri()],
+                500,
+                1_000,
+                "columbus-5",
+                ProviderPolicy::default(),
+            );
+            let error = lcd
+                .with_scheduled_observation()
+                .get::<serde_json::Value>(path_value)
+                .await
+                .unwrap_err();
+            assert!(if local {
+                matches!(error, LcdError::ContractQueryRejected(_))
+            } else {
+                matches!(error,LcdError::HttpRejected(code) if code==status)
+            });
+            let counters = lcd.provider_counters().await;
+            assert_eq!(
+                (
+                    counters[0].failures,
+                    counters[0].caller_cancellations,
+                    counters[0].in_flight
+                ),
+                (0, 0, 0)
+            );
+            assert_eq!(counters[0].successes, if local { 1 } else { 0 });
+        }
+    }
+    async fn assert_known_slow_http_error_quarantines(status: u16) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let protocol_rejected =
+            !should_cooldown_endpoint(reqwest::StatusCode::from_u16(status).unwrap());
+        // Raw HTTP deliberately separates completed error headers from a body
+        // that exceeds the caller budget. Wiremock delay would delay both.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            for identity in [true, false] {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut byte = [0u8; 1];
+                    stream.read_exact(&mut byte).await.unwrap();
+                    request.push(byte[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break;
+                    }
+                    assert!(request.len() < 8192);
+                }
+                if identity {
+                    let body = r#"{"default_node_info":{"network":"columbus-5"}}"#;
+                    stream.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len()).as_bytes()).await.unwrap();
+                } else {
+                    stream.write_all(format!("HTTP/1.1 {status} Failure\r\nContent-Length: 4\r\nRetry-After: 1\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    let _ = stream.write_all(b"fail").await;
+                }
+            }
+        });
+        let lcd = LcdClient::new_with_policy(
+            vec![endpoint],
+            2_500,
+            1_000,
+            "columbus-5",
+            ProviderPolicy {
+                attempt_timeout_ms: 2_500,
+                deadline_ms: if protocol_rejected { 100 } else { 4_000 },
+                ..Default::default()
+            },
+        );
+        let view = lcd.with_scheduled_observation();
+        let result = tokio::time::timeout(
+            Duration::from_millis(500),
+            view.get::<serde_json::Value>("/data"),
+        )
+        .await;
+        if status == 500 {
+            assert!(
+                result.is_err(),
+                "ambiguous500 retains body classification until caller cancellation"
+            );
+        } else {
+            let error = result
+                .expect("known endpoint failure returns without awaiting its slow body")
+                .unwrap_err();
+            assert!(if protocol_rejected {
+                matches!(error,LcdError::HttpRejected(code) if code==status)
+            } else {
+                matches!(error, LcdError::AllEndpointsFailed(_))
+            });
+        }
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            (
+                counters[0].failures,
+                counters[0].caller_cancellations,
+                counters[0].in_flight
+            ),
+            (1, 0, 0)
+        );
+        assert!(counters[0].circuit_open);
+        server.abort();
+        let _ = server.await;
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_completed_nonsmart_500_preserves_legacy_contract_rejection() {
+        for (path_value, body) in [
+            ("/cosmos/bank/v1beta1/balances/fixture", "pair not found"),
+            (
+                "/cosmwasm/wasm/v1/contract/fixture",
+                "query wasm contract failed: denied",
+            ),
+        ] {
+            let server = MockServer::start().await;
+            mock_chain_identity(&server, "columbus-5").await;
+            Mock::given(path(path_value))
+                .respond_with(ResponseTemplate::new(500).set_body_string(body))
+                .mount(&server)
+                .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![server.uri()],
+                500,
+                1_000,
+                "columbus-5",
+                ProviderPolicy::default(),
+            );
+            let error = lcd
+                .with_scheduled_observation()
+                .get::<serde_json::Value>(path_value)
+                .await
+                .unwrap_err();
+            assert!(matches!(error, LcdError::ContractQueryRejected(_)));
+            let counters = lcd.provider_counters().await;
+            assert_eq!(
+                (
+                    counters[0].successes,
+                    counters[0].failures,
+                    counters[0].caller_cancellations,
+                    counters[0].in_flight
+                ),
+                (1, 0, 0, 0)
+            );
+            assert!(!counters[0].circuit_open);
+        }
+    }
+    fn identity_http(status: u16, body: &str) -> String {
+        format!("HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",body.len())
+    }
+    async fn identity_contention_fixture(
+        response: Option<String>,
+        data_gate: Option<(tokio::sync::oneshot::Receiver<()>, Option<String>)>,
+    ) -> (
+        String,
+        tokio::task::JoinHandle<()>,
+        Arc<tokio::sync::Notify>,
+    ) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let data_started = Arc::new(tokio::sync::Notify::new());
+        let started = data_started.clone();
+        let server = tokio::spawn(async move {
+            let count = if data_gate.is_some() { 2 } else { 1 };
+            let mut gate = data_gate;
+            for index in 0..count {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut byte = [0u8; 1];
+                    stream.read_exact(&mut byte).await.unwrap();
+                    request.push(byte[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break;
+                    }
+                    assert!(request.len() < 8192);
+                }
+                if index == 0 {
+                    if let Some(response) = &response {
+                        stream.write_all(response.as_bytes()).await.unwrap();
+                    }
+                } else {
+                    started.notify_one();
+                    let (release, response) = gate.take().unwrap();
+                    let _ = release.await;
+                    if let Some(response) = response {
+                        stream.write_all(response.as_bytes()).await.unwrap();
+                    }
+                    // None closes without headers to prove transport failure.
+                }
+            }
+        });
+        (endpoint, server, data_started)
+    }
+    async fn metadata_writer_is_pending(lcd: &LcdClient) {
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while lcd.inner.endpoints.try_read().is_ok() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("metadata writer queues behind retained read guard");
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_known_identity_negatives_quarantine_before_metadata_cleanup() {
+        for half_open in [false, true] {
+            for response in [
+                Some(identity_http(503, "fail")),
+                Some(identity_http(
+                    200,
+                    r#"{"default_node_info":{"network":"wrong-chain"}}"#,
+                )),
+                None,
+            ] {
+                let (endpoint, server, _) = identity_contention_fixture(response, None).await;
+                let lcd = LcdClient::new_with_policy(
+                    vec![endpoint],
+                    1_000,
+                    1_000,
+                    "columbus-5",
+                    ProviderPolicy {
+                        attempt_timeout_ms: 1_000,
+                        deadline_ms: 2_000,
+                        ..Default::default()
+                    },
+                );
+                let guard = lcd.inner.endpoints.read().await;
+                let provider = guard[0].provider.clone();
+                if half_open {
+                    provider.failed(Duration::ZERO, None);
+                }
+                let view = lcd.with_scheduled_observation();
+                let task = tokio::spawn(async move { view.require_verified_chain().await });
+                metadata_writer_is_pending(&lcd).await;
+                assert_eq!(provider.counters().in_flight, 1);
+                task.abort();
+                assert!(task.await.unwrap_err().is_cancelled());
+                let counters = provider.counters();
+                assert_eq!(
+                    (
+                        counters.failures,
+                        counters.caller_cancellations,
+                        counters.in_flight
+                    ),
+                    (if half_open { 2 } else { 1 }, 0, 0)
+                );
+                assert!(counters.circuit_open);
+                assert!(!counters.half_open);
+                drop(guard);
+                server.abort();
+                let _ = server.await;
+            }
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_known_transport_failure_quarantines_before_metadata_cleanup() {
+        for half_open in [false, true] {
+            let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+            let (endpoint, server, started) = identity_contention_fixture(
+                Some(identity_http(
+                    200,
+                    r#"{"default_node_info":{"network":"columbus-5"}}"#,
+                )),
+                Some((release_rx, None)),
+            )
+            .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![endpoint],
+                1_000,
+                1_000,
+                "columbus-5",
+                ProviderPolicy {
+                    attempt_timeout_ms: 1_000,
+                    deadline_ms: 2_000,
+                    ..Default::default()
+                },
+            );
+            if half_open {
+                lcd.inner.endpoints.read().await[0]
+                    .provider
+                    .failed(Duration::ZERO, None);
+            }
+            let view = lcd.with_scheduled_observation();
+            let task = tokio::spawn(async move { view.get::<serde_json::Value>("/data").await });
+            tokio::time::timeout(Duration::from_secs(1), started.notified())
+                .await
+                .unwrap();
+            let guard = lcd.inner.endpoints.read().await;
+            let provider = guard[0].provider.clone();
+            release_tx.send(()).unwrap();
+            metadata_writer_is_pending(&lcd).await;
+            task.abort();
+            assert!(task.await.unwrap_err().is_cancelled());
+            let counters = provider.counters();
+            assert_eq!(
+                (
+                    counters.failures,
+                    counters.caller_cancellations,
+                    counters.in_flight
+                ),
+                (if half_open { 2 } else { 1 }, 0, 0)
+            );
+            assert!(counters.circuit_open);
+            assert!(!counters.half_open);
+            drop(guard);
+            server.abort();
+            let _ = server.await;
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_typed_identity_survives_outer_deadline_and_cleanup_contention()
+    {
+        for half_open in [false, true] {
+            for body in [
+                r#"{"default_node_info":{"network":"wrong-chain"}}"#,
+                "{malformed",
+            ] {
+                let (endpoint, server, _) =
+                    identity_contention_fixture(Some(identity_http(200, body)), None).await;
+                let lcd = LcdClient::new_with_policy(
+                    vec![endpoint],
+                    1_000,
+                    1_000,
+                    "columbus-5",
+                    ProviderPolicy {
+                        attempt_timeout_ms: 1_000,
+                        deadline_ms: 100,
+                        ..Default::default()
+                    },
+                );
+                let guard = lcd.inner.endpoints.read().await;
+                let provider = guard[0].provider.clone();
+                if half_open {
+                    provider.failed(Duration::ZERO, None);
+                }
+                let view = lcd.with_scheduled_observation();
+                let task =
+                    tokio::spawn(async move { view.get::<serde_json::Value>("/data").await });
+                metadata_writer_is_pending(&lcd).await;
+                let error = tokio::time::timeout(Duration::from_secs(1), task)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap_err();
+                assert!(
+                    matches!(error, LcdError::ChainIdentity(_)),
+                    "known integrity cannot become retryable availability at caller deadline"
+                );
+                let counters = provider.counters();
+                assert_eq!(
+                    (
+                        counters.failures,
+                        counters.caller_cancellations,
+                        counters.in_flight
+                    ),
+                    (if half_open { 2 } else { 1 }, 0, 0)
+                );
+                assert!(counters.circuit_open);
+                drop(guard);
+                server.abort();
+                let _ = server.await;
+            }
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_identity_probe_preserves_known_integrity_after_clipped_deadline(
+    ) {
+        for half_open in [false, true] {
+            let (endpoint, server, _) = identity_contention_fixture(
+                Some(identity_http(
+                    200,
+                    r#"{"default_node_info":{"network":"wrong-chain"}}"#,
+                )),
+                None,
+            )
+            .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![endpoint],
+                1_000,
+                1_000,
+                "columbus-5",
+                ProviderPolicy {
+                    attempt_timeout_ms: 1_000,
+                    deadline_ms: 100,
+                    ..Default::default()
+                },
+            );
+            let guard = lcd.inner.endpoints.read().await;
+            let provider = guard[0].provider.clone();
+            if half_open {
+                provider.failed(Duration::ZERO, None);
+            }
+            let view = lcd.with_scheduled_observation();
+            let task = tokio::spawn(async move { view.require_verified_chain().await });
+            metadata_writer_is_pending(&lcd).await;
+            // Let the probe's clipped deadline cancel attestation cleanup. Its
+            // typed slot must survive the subsequent failed-attempt recording.
+            tokio::time::sleep(Duration::from_millis(130)).await;
+            drop(guard);
+            let error = tokio::time::timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap_err();
+            assert!(matches!(error, LcdError::ChainIdentity(_)));
+            let counters = provider.counters();
+            assert_eq!(
+                (
+                    counters.failures,
+                    counters.caller_cancellations,
+                    counters.in_flight
+                ),
+                (if half_open { 2 } else { 1 }, 0, 0)
+            );
+            server.abort();
+            let _ = server.await;
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_wrong_block_chain_metadata_updates_once_before_queued_reader() {
+        for half_open in [false, true] {
+            let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+            let block = r#"{"block":{"header":{"chain_id":"wrong-chain","height":"42","time":"2026-10-11T00:00:00Z"}}}"#;
+            let (endpoint, server, started) = identity_contention_fixture(
+                Some(identity_http(
+                    200,
+                    r#"{"default_node_info":{"network":"columbus-5"}}"#,
+                )),
+                Some((release_rx, Some(identity_http(200, block)))),
+            )
+            .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![endpoint],
+                1_000,
+                1_000,
+                "columbus-5",
+                ProviderPolicy {
+                    attempt_timeout_ms: 1_000,
+                    deadline_ms: 200,
+                    ..Default::default()
+                },
+            );
+            if half_open {
+                lcd.inner.endpoints.read().await[0]
+                    .provider
+                    .failed(Duration::ZERO, None);
+            }
+            let view = lcd.with_scheduled_observation();
+            let task = tokio::spawn(async move {
+                view.get::<serde_json::Value>("/cosmos/base/tendermint/v1beta1/blocks/latest")
+                    .await
+            });
+            tokio::time::timeout(Duration::from_secs(1), started.notified())
+                .await
+                .unwrap();
+            let guard = lcd.inner.endpoints.read().await;
+            let provider = guard[0].provider.clone();
+            release_tx.send(()).unwrap();
+            metadata_writer_is_pending(&lcd).await;
+            // Queue a reader behind the first failure writer. With two writes,
+            // it would acquire between them and block identity-error cleanup
+            // until the caller deadline counted an already recorded failure.
+            let reader_started = Arc::new(tokio::sync::Notify::new());
+            let queued = reader_started.clone();
+            let (acquired_tx, acquired_rx) = tokio::sync::oneshot::channel();
+            let (unlock_tx, unlock_rx) = tokio::sync::oneshot::channel();
+            let reader_lcd = lcd.clone();
+            let reader = tokio::spawn(async move {
+                queued.notify_one();
+                let guard = reader_lcd.inner.endpoints.read().await;
+                let _ = acquired_tx.send((guard[0].verified, guard[0].identity_error.is_some()));
+                let _ = unlock_rx.await;
+                drop(guard);
+            });
+            reader_started.notified().await;
+            drop(guard);
+            let metadata = tokio::time::timeout(Duration::from_secs(1), acquired_rx)
+                .await
+                .unwrap()
+                .unwrap();
+            let error = tokio::time::timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap_err();
+            assert!(matches!(error, LcdError::ChainIdentity(_)));
+            let counters = provider.counters();
+            assert_eq!((counters.failures,counters.caller_cancellations,counters.in_flight),(if half_open {2} else {1},0,0),"typed wrong-block failure is counted exactly once while a subsequent reader remains held");
+            assert_eq!(
+                metadata,
+                (false, true),
+                "failure/verification/identity metadata update together"
+            );
+            unlock_tx.send(()).unwrap();
+            reader.await.unwrap();
+            server.abort();
+            let _ = server.await;
+        }
+    }
+    #[tokio::test]
+    async fn recovery1464_scheduled_own_timeout_recording_stays_armed_until_metadata_cleanup() {
+        for half_open in [false, true] {
+            let (endpoint, server, _) = identity_contention_fixture(
+                Some(identity_http(
+                    200,
+                    r#"{"default_node_info":{"network":"columbus-5"}}"#,
+                )),
+                None,
+            )
+            .await;
+            let lcd = LcdClient::new_with_policy(
+                vec![endpoint],
+                100,
+                1_000,
+                "columbus-5",
+                ProviderPolicy {
+                    attempt_timeout_ms: 100,
+                    deadline_ms: 180,
+                    ..Default::default()
+                },
+            );
+            let guard = lcd.inner.endpoints.read().await;
+            let provider = guard[0].provider.clone();
+            if half_open {
+                provider.failed(Duration::ZERO, None);
+            }
+            let view = lcd.with_scheduled_observation();
+            let task = tokio::spawn(async move { view.get::<serde_json::Value>("/data").await });
+            metadata_writer_is_pending(&lcd).await;
+            assert!(tokio::time::timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap()
+                .is_err());
+            let counters = provider.counters();
+            assert_eq!(
+                (
+                    counters.failures,
+                    counters.caller_cancellations,
+                    counters.in_flight
+                ),
+                (if half_open { 2 } else { 1 }, 0, 0)
+            );
+            assert!(counters.circuit_open);
+            drop(guard);
+            server.abort();
+            let _ = server.await;
+        }
+    }
     #[tokio::test]
     async fn total_deadline_cancellation_releases_shared_permit() {
         let server = MockServer::start().await;

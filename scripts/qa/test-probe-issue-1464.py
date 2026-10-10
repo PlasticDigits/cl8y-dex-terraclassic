@@ -76,6 +76,14 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(stats["max_ms"], 300)
         self.assertEqual(stats["p99_ms"], 300)
 
+    def test_current_budget_keeps_fast_errors_and_unrounded_tail_failures_out(self):
+        self.assertTrue(probe.measurement_pass(True, 500, 500))
+        self.assertFalse(probe.measurement_pass(False, 1, 500))
+        self.assertFalse(probe.measurement_pass(True, 500.00001, 500))
+        self.assertFalse(probe.measurement_pass(True, -1, 500))
+        self.assertFalse(probe.measurement_pass(True, float("nan"), 500))
+        self.assertFalse(probe.measurement_pass(True, float("inf"), 500))
+
     def test_unsupported_wrong_direction_and_noninteger_evidence_never_count(self):
         for key, value in (("token_in", "other"), ("token_out", "other"), ("execution_supported", False),
                            ("execution_blocker", "unsupported"), ("estimated_amount_out_net", True),

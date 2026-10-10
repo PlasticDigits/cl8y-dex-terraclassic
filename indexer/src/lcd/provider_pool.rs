@@ -47,6 +47,8 @@ pub struct ProviderCounters {
     pub attempts: u64,
     pub successes: u64,
     pub failures: u64,
+    /// Trusted scheduled callers ended a closed-provider attempt before its own timeout.
+    pub caller_cancellations: u64,
     pub rate_deferrals: u64,
     pub concurrency_deferrals: u64,
     pub circuit_deferrals: u64,
@@ -137,6 +139,7 @@ impl ProviderState {
             provider: Arc::clone(self),
             probe,
             completed: false,
+            cancel_closed_neutrally: false,
             failure_generation: state.counters.failures,
         })
     }
@@ -191,9 +194,23 @@ pub(super) struct ProviderPermit {
     provider: Arc<ProviderState>,
     probe: bool,
     completed: bool,
+    cancel_closed_neutrally: bool,
     failure_generation: u64,
 }
 impl ProviderPermit {
+    /// Only trusted scheduled observations may distinguish their caller budget
+    /// from a provider timeout. Half-open probes always retain quarantine.
+    pub fn scheduled_observation(&mut self) {
+        self.cancel_closed_neutrally = !self.probe;
+    }
+    /// Non-success headers are known negative evidence even when classifying
+    /// their body is cancelled. Completed contract-local outcomes still succeed.
+    pub fn quarantine_if_cancelled(&mut self) {
+        self.cancel_closed_neutrally = false;
+    }
+    pub fn closed_cancel_is_neutral(&self) -> bool {
+        self.cancel_closed_neutrally
+    }
     pub fn completed(&mut self) {
         self.completed = true;
     }
@@ -211,12 +228,16 @@ impl ProviderPermit {
 }
 impl Drop for ProviderPermit {
     fn drop(&mut self) {
-        if !self.completed {
-            // Outer total deadlines and caller cancellation must not leave a slow provider
-            // immediately available for a thundering herd of replacement reads.
+        if !self.completed && !self.cancel_closed_neutrally {
+            // Generic caller cancellation and incomplete recovery probes retain
+            // quarantine. Scheduled caller budgets can expire before a healthy
+            // closed provider's own timeout; that proves no provider failure.
             self.provider.failed(self.provider.base_backoff, None);
         }
         let mut state = self.provider.state.lock().unwrap();
+        if !self.completed && self.cancel_closed_neutrally {
+            state.counters.caller_cancellations += 1;
+        }
         state.counters.in_flight -= 1;
         if self.probe {
             state.half_open = false;
@@ -322,6 +343,62 @@ mod tests {
         drop(probe);
         assert!(provider.admit_at(now + Duration::from_millis(2)).is_err());
         assert_eq!(provider.counters().failures, 2);
+        assert_eq!(provider.counters().in_flight, 0);
+        assert!(provider.counters().circuit_open);
+    }
+    #[test]
+    fn recovery1464_scheduled_closed_cancellation_keeps_health_and_spent_rate_budget() {
+        let provider = ProviderState::new(
+            ProviderPolicy {
+                concurrency: 1,
+                burst: 2,
+                requests_per_second: 1,
+                ..Default::default()
+            },
+            Duration::from_secs(1),
+        );
+        let now = Instant::now();
+        let mut permit = provider.admit_at(now).unwrap();
+        permit.scheduled_observation();
+        drop(permit);
+        let counters = provider.counters();
+        assert_eq!(
+            (
+                counters.attempts,
+                counters.successes,
+                counters.failures,
+                counters.caller_cancellations,
+                counters.in_flight
+            ),
+            (1, 0, 0, 1, 0)
+        );
+        assert!(!counters.circuit_open);
+        assert!(
+            matches!(provider.admit_at(now), Err(ProviderDenial::Rate)),
+            "cancelled work does not refund its upstream admission"
+        );
+    }
+    #[test]
+    fn recovery1464_scheduled_cancel_preserves_concurrent_failure_and_half_open_quarantine() {
+        let provider = ProviderState::new(ProviderPolicy::default(), Duration::from_secs(1));
+        let now = Instant::now();
+        let mut permit = provider.admit_at(now).unwrap();
+        permit.scheduled_observation();
+        provider.failed_at(Duration::from_secs(1), None, now);
+        drop(permit);
+        assert_eq!(provider.counters().failures, 1);
+        assert_eq!(provider.counters().successes, 0);
+        assert_eq!(provider.counters().caller_cancellations, 1);
+        assert!(provider.counters().circuit_open);
+        let mut recovery = provider.admit_at(now + Duration::from_secs(2)).unwrap();
+        recovery.scheduled_observation();
+        drop(recovery);
+        assert_eq!(
+            provider.counters().failures,
+            2,
+            "incomplete half-open recovery remains an actual failure"
+        );
+        assert_eq!(provider.counters().caller_cancellations, 1);
         assert_eq!(provider.counters().in_flight, 0);
         assert!(provider.counters().circuit_open);
     }

@@ -482,3 +482,10 @@ existing manager exemption synchronously before any balance await. Remove it
 from the wallet ledger and pair copies, invalidate related qualification and the
 current admission pass, and recover only through fresh independent admission.
 See [the cancellation runbook](runbooks/indexer-provider-recovery.md).
+
+
+For #1464, trusted scheduled observation cancellation releases a closed-provider
+permit neutrally and records caller_cancellations. It never refunds admitted work,
+declares success or closes a concurrent failure. Generic cancellation and
+incomplete half-open recovery retain quarantine; completed upstream failures and
+the provider's own timeout remain failures. See the [recovery runbook](runbooks/indexer-provider-recovery.md).

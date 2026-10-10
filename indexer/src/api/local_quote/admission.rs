@@ -793,9 +793,9 @@ fn fresh_observations(admission: &Admission, observed_at: i64) -> Vec<&PairObser
     fresh.sort_by(|a, b| a.pair.contract_address.cmp(&b.pair.contract_address));
     fresh
 }
-fn fresh_config_expiries(admission: &Admission, at: i64) -> HashMap<String, i64> {
-    fresh_observations(admission, at)
-        .into_iter()
+fn fresh_config_expiries(observations: &[&PairObservation]) -> HashMap<String, i64> {
+    observations
+        .iter()
         .map(|obs| (obs.pair.contract_address.clone(), obs.expiry_ms))
         .collect()
 }
@@ -808,6 +808,10 @@ async fn publish_admission(
     actors: &HashMap<String, (u16, bool)>,
 ) -> Result<(), sqlx::Error> {
     let fresh = fresh_observations(admission, now_ms());
+    // Membership and original deadlines must share one capture. A pair can
+    // expire during the following reads; omitting its deadline would let the
+    // request path fall back to a fresher sibling's global maximum expiry.
+    let config_expiries = fresh_config_expiries(&fresh);
     let mut pairs = Vec::new();
     let mut mirrors = HashMap::new();
     let mut hooks = HashMap::new();
@@ -858,7 +862,7 @@ async fn publish_admission(
         state.book_snapshot_max_staleness_ms,
         hooks,
         expiry,
-        fresh_config_expiries(admission, now_ms()),
+        config_expiries,
         local_reference_quote::ReferencePrices::observe(&state.pool, assets, &state.hub_usd)
             .await?,
         actors.clone(),
@@ -1161,6 +1165,72 @@ mod tests {
         );
         assert!(fresh_observations(&admission, 180_000).is_empty());
         assert_eq!(admission.pairs[&pair.contract_address].expiry_ms, 180_000);
+    }
+    #[test]
+    fn recovery1464_publication_keeps_captured_expiry_across_reads_and_fails_closed_independently()
+    {
+        let mut snapshot = super::super::tests::fixture();
+        let completed_at = now_ms();
+        let old_expiry = completed_at - 1000;
+        let mut admission = Admission::default();
+        for pair in &snapshot.pairs {
+            admission.pairs.insert(
+                pair.contract_address.clone(),
+                PairObservation {
+                    pair: pair.clone(),
+                    asset_addresses: (
+                        snapshot.addresses[&pair.asset_0_id].clone(),
+                        snapshot.addresses[&pair.asset_1_id].clone(),
+                    ),
+                    asset_code_ids: (1, 1),
+                    expiry_ms: if pair.contract_address == "pair0a" {
+                        old_expiry
+                    } else {
+                        completed_at + CONFIG_TTL_MS
+                    },
+                    hooks: local_hook_pricing::CachedHookPrices::from_observation(&[]).unwrap(),
+                    discounted: false,
+                    identity: "fixture".into(),
+                    taxes: HashMap::new(),
+                },
+            );
+        }
+        // Capture before the oldest pair expires; mirror reads finish later.
+        let captured = fresh_observations(&admission, old_expiry - 1);
+        assert_eq!(captured.len(), snapshot.pairs.len());
+        assert_eq!(
+            fresh_observations(&admission, completed_at).len(),
+            captured.len() - 1
+        );
+        snapshot.pairs = captured
+            .iter()
+            .map(|observation| observation.pair.clone())
+            .collect();
+        snapshot.config_expiry_ms = captured
+            .iter()
+            .map(|observation| observation.expiry_ms)
+            .max()
+            .unwrap();
+        snapshot.config_expiries = fresh_config_expiries(&captured);
+        assert_eq!(
+            snapshot.config_expiries.len(),
+            snapshot.pairs.len(),
+            "every captured qualification retains its original deadline after awaits"
+        );
+        assert_eq!(snapshot.config_expiries["pair0a"], old_expiry);
+        let expired = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        assert!(
+            super::super::score(&snapshot, &expired, 10u128.pow(16), SCALE / 20).is_none(),
+            "an expired captured pair must not inherit the fresh sibling's global expiry"
+        );
+        let fresh = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+        let candidate = super::super::score(&snapshot, &fresh, 10u128.pow(16), SCALE / 20)
+            .expect("independently fresh sibling remains executable");
+        assert!(candidate.output > 0);
+        assert_eq!(
+            admission.pairs["pair0a"].expiry_ms, old_expiry,
+            "publication never rewrites the observed static deadline"
+        );
     }
     #[test]
     fn expired_unrelated_pair_does_not_disable_fresh_route_and_route_floor_pins_its_expiry() {

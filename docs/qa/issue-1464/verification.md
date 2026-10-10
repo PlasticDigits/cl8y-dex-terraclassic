@@ -376,20 +376,144 @@ verified zero runtime CONNECT before and after, and full owned-resource cleanup.
 Its initial final-initialization readiness failure was repaired before successful
 fixture execution. No shared/production privileges changed.
 
+## Deployed #1467 and current 500 ms target
+
+[PR #1467](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1467) passed
+all six mandatory [CI jobs](https://ci.cl8y.com/repos/7/pipeline/392/1) on
+612f741af5c8ae1be39b9fa9401801dae91bf867, merged as
+ef1cf3995f2e725b8c3847ca9a5504b454a8ec89, and finished rollout13:32:16UTC.
+Public health attested that exact merge. The [cold trial](deployed-1467-cold.json)
+returned22/24 useful quotes, including ALPHA6/6. The later
+[warmed trial](deployed-1467-warm-economics.json) fell to3/24. The corrected
+[desktop/phone browser](deployed-1467-browser.json) returned22/24 useful scenarios,
+all200 shapes valid, but six503 attempts and two unavailable scenarios.
+Its first-useful median349.7ms and maximum11956.5ms retain retry tails.
+No subsequent successful fast fetch replaces the entire first-useful completion.
+
+The user accepted 500 ms temporarily and deferred tighter latency improvement.
+At that current target, the browser has17/24 passing useful scenarios, with
+availability and slow tails still FAIL. Older 250 ms verdicts are retained as
+historical scope; their thresholds were not silently rewritten. The current
+bounded helper defaults to 500 ms, cannot select a looser budget, and tests usefulness
+and unrounded timing before acceptance. Operational location metadata is omitted.
+
+## Caller-budget cancellation and original deadline repair
+
+The [frozen source receipt](caller-budget-source.json) records11PASS/0FAIL/2SKIP
+with full first/retest and unchanged Rust fingerprint. Per run: LCD73+one ignored,
+recovery33, local quote76, discovery11, oracle27, ingestion21, health12,
+book18, route7, tax5 and holder2 all pass. The cache benchmark separately passes
+twice. Four-path loopback has48 useful samples, maximum miss3.458ms/hit2.193ms
+and exactly zero request RPC. Six evidence/transport/budget tests pass.
+
+Real four-second pair fixtures reproduce a failed2.5s first provider followed
+by a healthy2s fallback. Caller cancellation previously quarantined both providers;
+a trusted scheduled view now releases the closed fallback neutrally, charges
+admission, records caller_cancellations and permits the next original-timestamp
+observation. Same shared state/caps, no success or refund, no extra attestation
+or HTTP, no deadline/TTL increase. Generic cancellation, incomplete half-open
+recovery and real failures keep quarantine. Non-success headers preserve default
+cancellation quarantine while ambiguous bodies remain unread; completed500
+contract/gas/classic outcomes retain their exact previous classification.
+
+A separate publication race could capture a still-fresh pair, cross its expiry
+during mirror database reads, then omit its deadline and use a fresh sibling's
+global maximum. Per-pair deadlines are now captured from the same pair membership
+before any await. Actual score rejects the expired corridor while the fresh
+sibling retains a positive quote. Original deadlines and known negatives remain.
+
+
+The prerequisite reruns record #1453: 12 PASS / 0 FAIL / 2 SKIP;
+#1394: 23 PASS / 0 FAIL / 0 SKIP; #1392: 10 PASS / 0 FAIL / 2 SKIP;
+and #1396: 28 PASS / 0 FAIL / 3 SKIP.
+[Fresh identity observations](identity-renew.json) pass twice independently of
+quote admission. [Authenticated runtime isolation](authenticated-runtime-fixture-renew.json)
+passes twice on the same frozen source, with zero unrelated CONNECT grants before
+and after and complete owned-resource cleanup. Unavailable published-loopback
+and IPv6 probes remain explicit skips; internal, host-mode, confinement and ACL
+checks executed successfully.
+
+The first #1452 run retained one controlled-browser latency failure (1132.7 ms);
+its immediate retest passed. That isolated outlier's cause is unproven. A full
+unchanged-source rerun then passed all 14 stages without skips, including both
+controlled browser passes; all eight case maxima were below 63 ms. The original
+outlier remains recorded and was not waived by the temporary 500 ms target.
+Independent review subsequently found a known-negative cancellation race during
+provider metadata lock contention. The repair latches known HTTP, transport,
+height and identity negatives before failure-recording awaits, preserves typed
+integrity evidence in the existing retained error slot, and keeps own-timeout
+failure recording armed until completion. Actual held-lock cancellation tests
+cover closed and half-open providers and exactly-once failure counts. Fresh
+verification on this final source is recorded separately below. The
+[held-lock targeted receipt](known-negative-cancellation.json) records 13 passing
+tests twice on fingerprint ce877c360a9c4340e84bcb42be317b602d8b6cc2e81f7d60ee040719384efc4d.
+
+## Current-artifact funded controls
+
+[Current DEX build provenance](current-contract-build-provenance.json) and
+[locked CW20 provenance](current-cw20-fixture-provenance.json) establish bounded,
+locked cold builds of the unchanged contract tree. Thirteen optimized DEX outputs
+and the exact locked CW20 fixture are attested; previous manually replaced binaries
+are not silently promoted. This does not claim a second independent cold rebuild.
+
+[Funded controls](current-artifact-settlement-controls.json) passed twice on two
+fresh owned chains and two owned database clusters: six scenarios each,
+110 successful transactions total plus two expected floor rejections, five
+on-chain checksum matches each and exact pool/LP rollback across all five pools.
+Two actual reserve/oracle controls add38 transactions and current Rust consumer
+replays2/2 per process. Source/lock/outputs were checked; owned resources cleaned.
+The initial broad cleanup audit included pre-existing volumes, was corrected
+to exact owned-resource checks and passed twice without touching those volumes.
+
+These establish current-artifact tax/final-floor guards and actual reserve
+consumer behavior. Full cached-engine quote/settlement parity has no reusable
+observer and remains explicit SKIP. Hooked/AutoLP artifact execution is not
+covered by the hook-free fixtures; source guard regressions remain distinct.
+Production reads did not sign or broadcast.
+
 ## Remaining acceptance and skip scope
 
-- [ ] AC1 full live four-direction acceptance: #1466 is deployed/attested, but fails sustained useful coverage.
+- [ ] AC1 full live four-direction acceptance: #1467 is deployed/attested, but fails sustained useful coverage.
 - [ ] AC4 production coverage before expiry across multiple cadence/recovery cycles.
-- [ ] AC6 initialized hit/miss useful latency under normal regional desktop/phone
+- [ ] AC6 initialized hit/miss useful latency under normal desktop/phone
   browser transport, first/later result and separately measured RTT/cold state.
 - [ ] AC9 sustained deployed stability and bounded read-only outage/recovery evidence.
-- [ ] Current-release-attested funded LocalTerra parity: the chain is available and
-  the [two funded guard passes](localterra-settlement-guards.json) succeeded;
-  existing deployed artifacts must be independently matched to current sources before
-  they certify this release. Existing artifact smoke results have narrower scope.
+- [x] Current-artifact funded tax/final-floor controls: attested builds and two owned-chain passes are recorded above.
+- [ ] Full cached-engine quote/settlement parity and hooked/AutoLP artifact execution remain unverified; the funded controls have narrower scope.
 - [ ] #1456 production rollout/history acceptance stays separately scoped/open.
 
 Follow [the explicit skip policy](README.md#skip-policy-and-receipt). Finish available
 checks, record missing prerequisite/evidence and unchecked scope; source overall may
 be **PASS WITH SKIPS** only when executed source checks pass. A failed executed test
 or measured useful latency assertion cannot be waived into a skip.
+
+The first final-source full verifier was interrupted after independent review
+found two sequential metadata writes in the wrong-block-chain failure path.
+Cancellation after failure recording could count it twice. That run is not a
+PASS. The repair combines quarantine and identity metadata under one write guard
+with no later await; the regression checks retained typed error and exactly one
+failure. Final acceptance requires the restarted frozen-source verification.
+
+Unambiguous nonretryable response headers also enter the retained typed error
+slot before a potentially stalled body read. A caller deadline cannot downgrade
+known HTTP rejection to availability. HTTP 500 and contract-path 404 still require
+the original body classification; their semantics and bounded body limits remain.
+
+The [final targeted receipt](final-cancellation-controls.json) records41/41
+recovery tests passing twice on unchanged fingerprint
+df4d090e6e043351ccc90d4939dcf5e25313376e3b94027b85b07edf841804c6.
+The complete focused and prerequisite checks are rerun on that same final source.
+
+The [final focused first/retest](final-focused-source.json) passed11/0/2 on
+the same df4d090e fingerprint. LCD81 plus one ignored benchmark, recovery41,
+local quote76, discovery11, oracle27, ingestion21, health12, book18, route7,
+tax5 and holder2 pass per run. Four-path useful socket results remain below
+500 ms with exactly zero request RPC. Broader prerequisite and hosted verification
+must finish successfully before merge; source PASS WITH SKIPS does not establish
+production acceptance.
+
+The normal commit secret scanner initially flagged five public artifact/source
+SHA-256 values next to token file labels. Their digest shapes and provenance
+were verified; the public receipt presentation now separates paths from hashes
+and distinguishes original/public document checksums. The unchanged scanner
+passed after that restructuring; no hook or scanner rule was bypassed.

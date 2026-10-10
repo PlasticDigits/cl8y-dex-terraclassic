@@ -1,0 +1,145 @@
+{
+  "schema": "cl8y-1464-caller-budget-source-v1",
+  "base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "rust_fingerprint": "a8bbe4f8fa30b8420cd661f94d55669f509cf4d0762f3c0ff7ee10617022c608",
+  "utc_start": "2026-10-10T14:20:45Z",
+  "utc_end": "2026-10-10T14:25:20Z",
+  "command": "CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR=<build cache only> make verify-issue-1464",
+  "pass": 11,
+  "fail": 0,
+  "skip": 2,
+  "overall": "PASS WITH SKIPS",
+  "current_accepted_budget_ms": 500,
+  "rust_group_executions": [
+    {
+      "passed": 73,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 33,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 76,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 73,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 33,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 76,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "four_path_loopback": {
+    "first_miss_max_ms": 3.458,
+    "first_hit_max_ms": 2.193,
+    "retest_miss_max_ms": 3.324,
+    "retest_hit_max_ms": 2.07,
+    "useful_samples": 48,
+    "request_upstream_calls": 0
+  },
+  "scope": [
+    "Actual4s scheduled caller cancellation after2.5s failed first provider and2s healthy fallback; same shared state/caps, no neutral success/rate refund, next cycle fresh pool/hybrid.",
+    "Generic caller and half-open cancellation quarantine; actual own timeout/transport/HTTP still failures.",
+    "Slow503 headers fail before body; incomplete500 bodies retain cancellation quarantine and completed classic/contract/gas500 classifications stay unchanged.",
+    "Pair membership and original qualification deadlines captured together before database awaits; expired pair fails closed independently of fresh sibling.",
+    "Focused source/real loopback/disposable database only; live coverage/current500ms acceptance separate."
+  ],
+  "unverified": [
+    "Sustained replacement production rollout",
+    "Current500ms useful quote/browser tails",
+    "Full cached-engine settlement parity"
+  ]
+}
