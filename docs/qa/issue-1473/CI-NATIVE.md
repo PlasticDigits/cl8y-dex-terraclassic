@@ -45,9 +45,12 @@ also pass. The corrected issue-1400 verifier passes all nine checks without skip
 Go tests execute twice in the pinned builder and the policy image builds.
 The [local pinned native fixture](canvas-native-local-unavailable.json) is an
 explicit SKIP: its bounded exact-image pull made progress but never supplied a
-usable image, so no container, native compilation or rendering ran. Actual
-forced worker compile/load/render proof and policy rollout remain pending;
-no successful rollout or hosted result is inferred.
+usable image, so no container, native compilation or rendering ran. The [policy-only rollout](ci-native-policy-rollout.json) completed at reviewed
+commit `28272783a171911e1b249381d0dbf7a4b48ca98d` and reports exact bundle
+`80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4`,
+unsigned 401 and unchanged exclusive/netrc settings. Cloud Go tests executed.
+Actual forced worker compile/load/render and all six final-head jobs remain
+pending; no hosted or native-worker PASS is inferred.
 
 Initial issue-1400 verification exposed five pre-existing stale pin-ledger
 entries. Official registry manifest bytes verified all 13 currently declared

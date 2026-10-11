@@ -1,0 +1,49 @@
+{
+  "expected_revision": "28272783a171911e1b249381d0dbf7a4b48ca98d",
+  "utc_start": "2026-10-11T15:36:34.766120+00:00",
+  "utc_end": "2026-10-11T15:37:56.823640+00:00",
+  "previous_source_pin": "3c2fce6ea98d7b16c051a983913ce8ed30ad488b",
+  "previous_policy_sha256": "02a9b1282c318bd9dae2ac6a003e2eb7528998a33ad8a8d866332fc0cfde706c",
+  "rollback_source_pin": "3c2fce6ea98d7b16c051a983913ce8ed30ad488b",
+  "rollback_policy_sha256": "02a9b1282c318bd9dae2ac6a003e2eb7528998a33ad8a8d866332fc0cfde706c",
+  "expected_policy_sha256": "80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4",
+  "public_signing_key_unchanged": true,
+  "resource_configuration_unchanged": true,
+  "source_pin_patch_executed": true,
+  "deployment": {
+    "status": "finished",
+    "commit": "28272783a171911e1b249381d0dbf7a4b48ca98d",
+    "created_at": "2026-10-11T15:36:44.000000Z",
+    "finished_at": "2026-10-11T15:37:49.000000Z"
+  },
+  "deployed_policy_sha256": "80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4",
+  "unsigned_policy_status": 401,
+  "exclusive_extension_readback": true,
+  "netrc_readback": false,
+  "overall": "PASS",
+  "issue": 1473,
+  "scope": "Actual independent policy-only immutable release; no DEX application deployment",
+  "application_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "application_deployment_changed": false,
+  "normal_deploy_force": false,
+  "build_logs": {
+    "entries_inspected": 78,
+    "actual_go_test_success_lines": 1,
+    "explicit_public_key_copy_mode_present": true,
+    "compiler_error_count": 0,
+    "fatal_count": 0,
+    "no_raw_logs": true
+  },
+  "resource_limits": {
+    "memory": "128m",
+    "cpus": 1,
+    "auto_deploy": false
+  },
+  "initial_helper_preflight": {
+    "overall": "FAIL",
+    "http_status": 404,
+    "reason": "incorrect Forgejo commit metadata route; corrected before retest",
+    "source_pin_patch_executed": false
+  },
+  "actual_native_worker_proof": "PENDING_FINAL_HEAD_CI"
+}

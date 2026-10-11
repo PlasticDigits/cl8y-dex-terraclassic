@@ -1,7 +1,7 @@
 {
   "issue": 1473,
   "scope": "CI runner/native prerequisites and signed policy build; application unchanged",
-  "overall": "PENDING_NATIVE_PROOF_AND_REVIEWED_ROLLOUT",
+  "overall": "PENDING_ACTUAL_PINNED_WORKER_CI",
   "application_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
   "qa_fingerprint": "b4c64d57d87ab7c064bc144564a088e50135d8be009c70794ceadab2f55c993e",
   "runner_tests": {
@@ -75,7 +75,12 @@
     }
   },
   "native_canvas_compile": "PENDING_ACTUAL_PINNED_WORKER_PROOF",
-  "policy_rollout": "NOT_EXECUTED",
+  "policy_rollout": {
+    "overall": "PASS",
+    "receipt": "ci-native-policy-rollout.json",
+    "revision": "28272783a171911e1b249381d0dbf7a4b48ca98d",
+    "bundle_sha256": "80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4"
+  },
   "mandatory_ci": "413/414 remain FAIL; repaired-policy run not executed",
   "public_key_local_mode_restored": "0644",
   "prior_apt_only_runner_tests": {
