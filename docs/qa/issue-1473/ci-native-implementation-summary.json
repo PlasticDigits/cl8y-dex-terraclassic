@@ -1,0 +1,111 @@
+{
+  "issue": 1473,
+  "scope": "CI runner/native prerequisites and signed policy build; application unchanged",
+  "overall": "PENDING_NATIVE_PROOF_AND_REVIEWED_ROLLOUT",
+  "application_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "qa_fingerprint": "b4c64d57d87ab7c064bc144564a088e50135d8be009c70794ceadab2f55c993e",
+  "runner_tests": {
+    "passes": [
+      15,
+      15
+    ],
+    "failures": 0,
+    "host_apt_npm_and_node_stubbed": true,
+    "checks": [
+      "prerequisite-order",
+      "force-source-env-and-two-make-jobs",
+      "purge-prebuilt-binding-before-rebuild",
+      "compile-binding-object-probe-failure-no-PASS"
+    ]
+  },
+  "build_input_tests": {
+    "passed": 9,
+    "failed": 0
+  },
+  "image_declarations": {
+    "count": 13,
+    "registry_manifest_bytes_verified": true,
+    "declarations_changed": false,
+    "preexisting_ledger_values_reconciled": 5
+  },
+  "initial_issue1400": {
+    "passed": 7,
+    "failed": 2,
+    "skipped": 0,
+    "overall": "FAIL",
+    "failures": "pre-existing stale image-pin ledger"
+  },
+  "corrected_issue1400_before_copy_hardening": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "signed_policy_go_tests": {
+    "executions": 2,
+    "actual_pass": true,
+    "pinned_builder": "golang:1.26-bookworm",
+    "test_cache_disabled": true
+  },
+  "policy_bundle_sha256": "80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4",
+  "initial_nonroot_runtime": {
+    "overall": "FAIL",
+    "failure_class": "PublicKeyUnreadable",
+    "source_key_mode": "0600",
+    "copied_image_key_mode": "0600",
+    "root_owned": true,
+    "runtime_uid": 10001
+  },
+  "copy_mode_repair": {
+    "source_public_key_bytes_unchanged": true,
+    "explicit_copy_mode": "0444",
+    "retained_initial_failure": true,
+    "runtime_retest": {
+      "scope": "Nonroot policy Dockerfile regression from deliberately mode0600 public-key source",
+      "health_http": 200,
+      "policy_sha256": "80da17a5428fe88f1803ab592a474a51b3a3e52a7c954284f59f6793dcf982b4",
+      "matches_verified_bundle": true,
+      "unsigned_post_status": 401,
+      "source_public_key_mode": "0600",
+      "image_public_key_mode": "444",
+      "public_key_bytes_changed": false,
+      "limits_memory": "128m",
+      "limits_cpus": 1,
+      "overall": "PASS",
+      "prior_mode0600_runtime_failure_retained": true
+    }
+  },
+  "native_canvas_compile": "PENDING_ACTUAL_PINNED_WORKER_PROOF",
+  "policy_rollout": "NOT_EXECUTED",
+  "mandatory_ci": "413/414 remain FAIL; repaired-policy run not executed",
+  "public_key_local_mode_restored": "0644",
+  "prior_apt_only_runner_tests": {
+    "passes": [
+      14,
+      14
+    ],
+    "failures": 0,
+    "host_package_managers_stubbed": true
+  },
+  "prior_apt_only_policy_bundle_sha256": "70c72b50443dc1bebb0f494cced2d78f95f7e5c5883f11615dc856435a967ab4",
+  "current_issue1400": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "overall": "PASS_IMPLEMENTATION_SCOPE"
+  },
+  "local_native_canvas_provisioning": {
+    "overall": "SKIP",
+    "receipt": "canvas-native-local-unavailable.json",
+    "actual_cpp_compile": false,
+    "binding_load_render_executed": false
+  },
+  "worker_native_proof": {
+    "after_ordinary_npm_ci": true,
+    "forced_canvas_source_rebuild": true,
+    "make_jobs": 2,
+    "font": "DejaVu Sans",
+    "requires_compiled_objects_and_binding": true,
+    "rgba_and_pango_render_assertions": true,
+    "actual_worker_execution": "NOT_YET_EXECUTED"
+  }
+}

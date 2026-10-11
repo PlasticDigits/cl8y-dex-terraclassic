@@ -68,7 +68,37 @@ case "$job" in
     ;;
   frontend)
     cd frontend-dapp
+    # A prebuilt canvas download can time out; its native fallback must still
+    # have Cairo/Pango and compiler prerequisites in the pinned fresh job.
+    apt-get update
+    apt-get install -y --no-install-recommends build-essential pkg-config python3 \
+      libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev fonts-dejavu-core
     npm ci --no-audit --no-fund
+    # Exercise the fallback on every pinned worker even when npm ci obtained a
+    # prebuilt binding. Remove only canvas output; retain the locked dependency
+    # tree and prove fresh compilation before loading its native functionality.
+    rm -rf node_modules/canvas/build
+    npm_config_build_from_source=true npm_package_config_node_gyp_jobs=2 \
+      npm rebuild canvas --no-audit --no-fund --foreground-scripts
+    [[ -s node_modules/canvas/build/Release/canvas.node ]] || fail 'canvas native binding missing'
+    [[ -n "$(find node_modules/canvas/build/Release/obj.target -type f -name '*.o' -size +0c -print -quit)" ]] || fail 'canvas native compile objects missing'
+    node <<'CANVAS_NATIVE_PROBE'
+const assert = require('node:assert/strict');
+const { createCanvas } = require('canvas');
+const canvas = createCanvas(64, 32);
+const context = canvas.getContext('2d');
+context.fillStyle = '#1f7fbf';
+context.fillRect(0, 0, 64, 32);
+assert.deepEqual(Array.from(context.getImageData(1, 1, 1, 1).data), [31, 127, 191, 255]);
+context.clearRect(0, 0, 64, 32);
+context.fillStyle = 'black';
+context.font = '16px "DejaVu Sans"';
+const metrics = context.measureText('QA');
+assert(Number.isFinite(metrics.width) && metrics.width > 0);
+context.fillText('QA', 2, 20);
+assert(context.getImageData(0, 0, 64, 32).data.some((value, index) => index % 4 === 3 && value > 0));
+console.log('PASS: fresh native canvas RGBA and Pango rendering');
+CANVAS_NATIVE_PROBE
     # Required tools are invoked directly: PR-owned npm script aliases cannot
     # replace a functional assertion/build with an unconditional success.
     ./node_modules/.bin/eslint .

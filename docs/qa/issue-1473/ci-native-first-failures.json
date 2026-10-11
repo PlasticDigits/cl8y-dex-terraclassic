@@ -1,0 +1,101 @@
+{
+  "issue": 1473,
+  "scope": "Actual hosted dependency-install failures retained before trusted native fallback repair",
+  "app_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "qa_tool_revision": "cf176c0ee426991b417341c277f19220bb2b4a5d",
+  "overall": "FAIL",
+  "trials": [
+    {
+      "pipeline": 413,
+      "head": "cf176c0ee426991b417341c277f19220bb2b4a5d",
+      "overall": "FAIL",
+      "steps": [
+        {
+          "name": "gitleaks",
+          "state": "success",
+          "exit_code": 0
+        },
+        {
+          "name": "contracts",
+          "state": "success",
+          "exit_code": 0
+        },
+        {
+          "name": "frontend",
+          "state": "failure",
+          "exit_code": 1
+        },
+        {
+          "name": "indexer-lib",
+          "state": "skipped",
+          "exit_code": 0
+        },
+        {
+          "name": "indexer-postgres",
+          "state": "skipped",
+          "exit_code": 0
+        },
+        {
+          "name": "functional-required",
+          "state": "failure",
+          "exit_code": 1
+        }
+      ],
+      "frontend_stage": "npm ci native canvas installation",
+      "canvas_version": "3.1.0",
+      "prebuilt_result": "no prebuilt binary found",
+      "fallback_result": "node-gyp configure failure: pkg-config pangocairo.pc unavailable",
+      "frontend_lint_tests_build_reached": false,
+      "downstream_skips_are_pass": false
+    },
+    {
+      "pipeline": 414,
+      "head": "cf176c0ee426991b417341c277f19220bb2b4a5d",
+      "overall": "FAIL",
+      "steps": [
+        {
+          "name": "gitleaks",
+          "state": "success",
+          "exit_code": 0
+        },
+        {
+          "name": "contracts",
+          "state": "success",
+          "exit_code": 0
+        },
+        {
+          "name": "frontend",
+          "state": "failure",
+          "exit_code": 1
+        },
+        {
+          "name": "indexer-lib",
+          "state": "skipped",
+          "exit_code": 0
+        },
+        {
+          "name": "indexer-postgres",
+          "state": "skipped",
+          "exit_code": 0
+        },
+        {
+          "name": "functional-required",
+          "state": "failure",
+          "exit_code": 1
+        }
+      ],
+      "frontend_stage": "npm ci native canvas installation",
+      "canvas_version": "3.1.0",
+      "prebuilt_result": "request timed out",
+      "fallback_result": "node-gyp configure failure: pkg-config pangocairo.pc unavailable",
+      "frontend_lint_tests_build_reached": false,
+      "downstream_skips_are_pass": false
+    }
+  ],
+  "invariants": [
+    "No failed run is retroactively PASS",
+    "No skipped mandatory job is PASS",
+    "Application/package-lock trees unchanged",
+    "No status fabrication, check removal or contributor-policy fallback"
+  ]
+}

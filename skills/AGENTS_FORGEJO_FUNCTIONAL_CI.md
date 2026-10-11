@@ -48,6 +48,22 @@ Canonical [review/verification checklist](../docs/qa/issue-1400/README.md),
     agent owns provisioning, failures, repair and reruns. Policy documentation
     is not proof that a scheduler or chain check ran.
 
+The trusted frontend runner installs compiler, Python, pkg-config and native
+Cairo/Pango/JPEG/GIF/SVG prerequisites plus DejaVu fonts before ordinary locked `npm ci`. A failed
+prebuilt canvas download may use its actual native compilation fallback; do not
+omit install scripts or native dependencies from the required job. Prerequisite
+or npm installation failure removes any prior job receipt and remains FAIL.
+Hermetic runner tests stub both apt-get and npm; never let their fixtures run
+host package installation. Native fallback proof is a required worker step: remove only canvas build output,
+force source rebuilding with two make jobs, require fresh nonempty objects and
+binding, and assert exact RGBA plus DejaVu/Pango metrics/rendered alpha. Keep all
+existing checks and the 25-minute cap. A prebuilt-only load or mocked runner PASS
+does not establish compilation; local unavailable provisioning remains SKIP.
+
+The [native dependency repair scope](../docs/qa/issue-1473/CI-NATIVE.md) retains
+the failed installation trials and keeps policy deployment distinct from the
+unchanged application deployment.
+
 ## Agent procedure
 
 Run `make verify-issue-1400`, then the functional groups and negative tests
