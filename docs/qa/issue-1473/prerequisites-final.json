@@ -1,0 +1,108 @@
+{
+  "issue": 1473,
+  "scope": "Applicable available prerequisite verifiers and independently supplemented owned checks; not full production acceptance",
+  "original_1473_source_fingerprint": "7d0df872c5d2f1b041f6e6f241973477aa6de6bd5d4235cdfce1ad9c3cde980b",
+  "rows": [
+    {
+      "issue": 1452,
+      "counts": {
+        "pass": 14,
+        "fail": 0,
+        "skip": 0
+      },
+      "scope": "Complete available source verifier plus controlled browser first/retest; 40 samples each, 250 ms unchanged budget, maxima 50.8/52.8 ms, zero provider requests"
+    },
+    {
+      "issue": 1464,
+      "counts": {
+        "pass": 11,
+        "fail": 0,
+        "skip": 2
+      },
+      "scope": "Corrected source/provider recovery scope; unavailable deployed settlement/device acceptance remains separate"
+    },
+    {
+      "issue": 1453,
+      "counts": {
+        "pass": 12,
+        "fail": 0,
+        "skip": 2
+      },
+      "scope": "Corrected source plus 4/4 controlled UI checks; complete production redundancy and history remain separate"
+    },
+    {
+      "issue": 1398,
+      "counts": {
+        "pass": 7,
+        "fail": 0,
+        "skip": 0
+      },
+      "scope": "Available focused and full contract/frontend source checks"
+    },
+    {
+      "issue": 1381,
+      "counts": {
+        "pass": 13,
+        "fail": 0,
+        "skip": 1
+      },
+      "scope": "Full available verifier and 11 owned chain checks repeated independently; no production broadcasts"
+    },
+    {
+      "issue": 1390,
+      "counts": {
+        "pass": 15,
+        "fail": 0,
+        "skip": 1
+      },
+      "scope": "Available route launch/refund source scope"
+    },
+    {
+      "issue": 1399,
+      "counts": {
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+      },
+      "scope": "Available limit liveness source scope"
+    },
+    {
+      "issue": 1422,
+      "counts": {
+        "pass": 10,
+        "fail": 0,
+        "skip": 1
+      },
+      "scope": "Available funded reverse source scope; provider production gas envelope remains separate"
+    },
+    {
+      "issue": 1394,
+      "counts": {
+        "pass": 23,
+        "fail": 0,
+        "skip": 0
+      },
+      "scope": "Available discovery/cache source and owned database scope"
+    },
+    {
+      "issue": 1392,
+      "counts": {
+        "pass": 12,
+        "fail": 0,
+        "skip": 0
+      },
+      "scope": "Corrected source plus owned and public read-only chain identity checks"
+    },
+    {
+      "issue": 1396,
+      "counts": {
+        "pass": 26,
+        "fail": 2,
+        "skip": 2
+      },
+      "scope": "Original executed custom-bridge host SQL paths remain FAIL; owned internal and explicit-host IPv4 paths pass, IPv6 unavailable; no shared network or ACL modifications"
+    }
+  ],
+  "historical_failures_retained": true,
+  "fixture_correction": "Browser1452 originally used a 21-second observation window. Its independent 4-second fixture producer now owns observed_at and expires exactly 20 seconds later; quote requests do not renew freshness. Product source and the primary1473 fingerprint are unchanged."
+}

@@ -1,7 +1,10 @@
 # Issue #1473 implementation and verification
 
 Issue: [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
-The fix PR and final source revision will be recorded after publication.
+Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474). The source commit is
+[`bf13b04e24e74c4631b21934fedd0c26b50bcb89`](https://git.cl8y.com/code/cl8y-dex-terraclassic/commit/bf13b04e24e74c4631b21934fedd0c26b50bcb89).
+Available prerequisite scopes are recorded below; hosted CI and exact main/
+deployed revisions remain pending.
 Follow [the agent procedure/checklist](README.md) and
 [TQ1473](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md).
 
@@ -187,6 +190,18 @@ original verdicts. After matrix formatting, the shared Rust matrix and focused
 integer-floor arithmetic tests both pass, and all six probe safety tests pass.
 This controlled receipt does not establish deployed, device or complete
 settlement acceptance.
+
+[The available prerequisite summary](prerequisites-final.json) records completed
+source/owned-fixture scopes, explicit skips and the unresolved executed #1396
+host-bridge failures. The final #1452 verifier passes 14/0/0; its independently
+repeated 40-sample browser trials have 50.8/52.8 ms maxima, zero provider requests
+and their unchanged 250 ms budget. Its earlier warm failure exposed a synthetic
+21-second expiry. The corrected independent four-second fixture producer owns
+observations with exactly 20-second expiry; requests no longer renew freshness.
+The original failure remains retained. #1453 source/UI composite passes 12/0/2;
+#1381 passes 13/0/1 with 11 owned chain checks repeated; #1392 passes 12/0/0.
+Those counts describe their stated scopes and do not establish full production
+rollout, historical reconstruction or missing settlement/device acceptance.
 
 ## Acceptance status and remaining scope
 

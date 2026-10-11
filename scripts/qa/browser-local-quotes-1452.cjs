@@ -53,6 +53,10 @@ const tokens = assets.map((a) => ({
   cmc_id: null,
 }));
 let quoteRequests = 0;
+// Independent fixture ingestion owns freshness; quote requests never renew it.
+let observedAtMs = Date.now();
+const producerTimer = setInterval(() => { observedAtMs = Date.now(); }, 4000);
+producerTimer.unref();
 function quote(q) {
   quoteRequests++;
   const amount = q.get("amount_in") || "1000000";
@@ -104,13 +108,13 @@ function quote(q) {
     ],
     execution_metadata: {
       version: 1,
-      generation: "browser-fixture1",
+      generation: `browser-fixture${observedAtMs}`,
       input_amount: amount,
       max_spread: maxSpread,
       trader: q.get("trader"),
       sender: q.get("sender"),
-      observed_at_ms: Date.now() - 1000,
-      expires_at_ms: Date.now() + 20000,
+      observed_at_ms: observedAtMs,
+      expires_at_ms: observedAtMs + 20000,
       policy: "pool_only",
       ...(quoteRelative ? {
         protection_policy: "quote_relative_v1",
@@ -568,6 +572,7 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
+    clearInterval(producerTimer);
     if (browser) await browser.close();
     await new Promise((r) => server.close(r));
     await new Promise((r) => provider.close(r));

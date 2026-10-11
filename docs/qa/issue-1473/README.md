@@ -4,7 +4,7 @@ Issue: [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
 Read [TQ1473-1–TQ1473-10](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md),
 [local API outcomes](../../route-solver.md#trading-quote-outcomes-1473),
 [frontend defaults](../../frontend.md#trading-quote-outcomes-1473),
-and [results/provenance](RESULTS.md). The fix PR is linked from the issue and results.
+and [results/provenance](RESULTS.md). Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474).
 
 Quote behavior is generic across supported arbitrary pairs and exact amounts.
 Native USTC → CL8Y is only the product entry default. The
