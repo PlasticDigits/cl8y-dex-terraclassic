@@ -1,0 +1,343 @@
+{
+  "schema": "cl8y-1464-views-protocol-receipt-v1",
+  "status": "PASS WITH SKIPS",
+  "source_revision": "b018ec2a4f4b77bfcecf535197f9a87831850a32",
+  "scope": "Applicable source verifiers and two fresh isolated SDK53 fixture nodes. On-chain router quotes are distinct from the cached local engine and production deployment.",
+  "synthetic_only": true,
+  "shared_resources_mutated": false,
+  "started_at_utc": "2026-10-11T03:00:49Z",
+  "completed_at_utc": "2026-10-11T03:53:46Z",
+  "projected_at_utc": "2026-10-11T03:53:55.082792+00:00",
+  "source_verifiers": [
+    {
+      "issue": 1398,
+      "exit_code": 0,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "started_at_utc": "2026-10-11T03:03:28Z",
+      "completed_at_utc": "2026-10-11T03:06:20Z"
+    },
+    {
+      "issue": 1381,
+      "exit_code": 0,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 1,
+      "started_at_utc": "2026-10-11T03:15:51Z",
+      "completed_at_utc": "2026-10-11T03:24:07Z"
+    },
+    {
+      "issue": 1390,
+      "exit_code": 0,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 1,
+      "started_at_utc": "2026-10-11T03:24:07Z",
+      "completed_at_utc": "2026-10-11T03:29:07Z"
+    },
+    {
+      "issue": 1399,
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "started_at_utc": "2026-10-11T03:29:07Z",
+      "completed_at_utc": "2026-10-11T03:29:33Z"
+    },
+    {
+      "issue": 1422,
+      "exit_code": 0,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 1,
+      "started_at_utc": "2026-10-11T03:29:33Z",
+      "completed_at_utc": "2026-10-11T03:36:49Z"
+    }
+  ],
+  "source_checks_total": {
+    "passed": 53,
+    "failed": 0,
+    "skipped": 3
+  },
+  "artifact_attestation": {
+    "current_revision": "b018ec2a4f4b77bfcecf535197f9a87831850a32",
+    "archived_build_revision": "612f741af5c8ae1be39b9fa9401801dae91bf867",
+    "current_inputs_equivalent": true,
+    "source_sha256": "be34df2b3b4fdfc02c6d74ab9476b2f0eef46d4fa598eb0e63ab471fa51f1aa3",
+    "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+    "artifacts": [
+      {
+        "path": "bridge_debt.wasm",
+        "sha256": "e09e240412c629c35cea72f262381a5f5fda51c50d5557c9ad30c40ef2fc96b9"
+      },
+      {
+        "path": "bridge_debt_token.wasm",
+        "sha256": "cf7e121f0c0c89280b1d7ed0db113579b4634551f7be56ae4075f0b001d01b6a"
+      },
+      {
+        "path": "cl8y_community_tax_autolp.wasm",
+        "sha256": "829a4355647f28a1b0e2ea21bfdc786179a91718e3e1bc62ea036ce5df43613c"
+      },
+      {
+        "path": "cl8y_community_tax_token.wasm",
+        "sha256": "64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15"
+      },
+      {
+        "path": "cl8y_community_token_launcher.wasm",
+        "sha256": "9aea86732bed77fe6b3c3ec73504c3af0efa2ee5fe69b1afb00dd5a99cac12cb"
+      },
+      {
+        "path": "cl8y_dex_burn_hook.wasm",
+        "sha256": "af39f9b2763763eda9a714d5c1307d6417d1d7cef34b29d505e43f3b889fb30a"
+      },
+      {
+        "path": "cl8y_dex_factory.wasm",
+        "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+      },
+      {
+        "path": "cl8y_dex_faucet.wasm",
+        "sha256": "578daaab4e8585fefd5e8f68bb3f2079ecb38d21f3ef87b48b71bfe7e2815885"
+      },
+      {
+        "path": "cl8y_dex_fee_discount.wasm",
+        "sha256": "bf807e584226bbe8961b18ed6527ac94a7d1397b324b086bf97a893c0ae7ea20"
+      },
+      {
+        "path": "cl8y_dex_lp_burn_hook.wasm",
+        "sha256": "8c671302e885a8b3ad31a7ca0a126c605971db6581431c9dfaa0252627ea5dac"
+      },
+      {
+        "path": "cl8y_dex_pair.wasm",
+        "sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+      },
+      {
+        "path": "cl8y_dex_router.wasm",
+        "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+      },
+      {
+        "path": "cl8y_dex_tax_hook.wasm",
+        "sha256": "e4a074875151c5e51b1c6348af6b5453ee714b85dbf3c419cb1826bdadc4cec4"
+      }
+    ],
+    "cw20_locked_revision": "73a206b5c39c5bd8f9d3574bda32fc5ae8f52ec8",
+    "cw20_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+    "status": "PASS",
+    "completed_at_utc": "2026-10-11T03:03:08.575489+00:00",
+    "probe_sha256": "38967ab66441e3b2fbdf330233f39b5797ab38d57ba9bce643457fa9ac69762f",
+    "probe_toolchain": "1.81.0",
+    "probe_gas_scope": "transaction and query-wrapper overhead",
+    "ustr_locked_revision": "8f76c3d3da94522e2869345bf7d864c8c101575f",
+    "ustr_artifacts": [
+      {
+        "path": "treasury.wasm",
+        "sha256": "e2fd7dafe9d057555dcd5be4987d164a0b00e4f037361f92f061be0abf636028"
+      },
+      {
+        "path": "wrap_mapper.wasm",
+        "sha256": "6e48fd4e17b6061f103d358fd0dacaaf016141bead98dab9160570e723863b8b"
+      }
+    ]
+  },
+  "passes": [
+    {
+      "pass": "first",
+      "status": "PASS",
+      "fresh_owned_node": true,
+      "host_ports_published": 0,
+      "shared_resources_mutated": false,
+      "sdk53_image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+      "wasm_smart_query_limit": 3000000,
+      "funded_query_fixture_trials": 2,
+      "actual_smart_query_successes": 36,
+      "funded_accounting_scenarios": 6,
+      "route_tax_scenarios": 6,
+      "guard_scenarios": 16,
+      "native_and_invoice_scenarios": 5,
+      "floor_scenarios": [
+        {
+          "scenario": "zero intermediates",
+          "status": "PASS",
+          "quoted_net_output_raw": "946429267575517734",
+          "reverse_authorized_gross_input_raw": "1009999020096990300"
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "status": "PASS",
+          "quoted_net_output_raw": "894890444760655030",
+          "reverse_authorized_gross_input_raw": "1009999060288001788"
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "status": "PASS",
+          "quoted_net_output_raw": "946421488752678839",
+          "reverse_authorized_gross_input_raw": "1009999100473034445"
+        },
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "quoted_net_output_raw": "994000246661929123",
+          "reverse_authorized_gross_input_raw": "1010000"
+        },
+        {
+          "scenario": "taxed final buy",
+          "status": "PASS",
+          "quoted_net_output_raw": "961650",
+          "reverse_authorized_gross_input_raw": "1009999140652088252"
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "quoted_net_output_raw": "894880862313485362",
+          "reverse_authorized_gross_input_raw": "1009999180825163192"
+        }
+      ],
+      "atomic_token_router_sink_supply_rollback": true,
+      "atomic_pool_reserve_and_lp_share_rollback": true,
+      "native_wrap_and_invoice_atomic_rollback": true,
+      "probe_transaction_gas": {
+        "scope": "transaction and query-wrapper overhead; not LCD query-meter readings",
+        "count": 36,
+        "minimum": 743658,
+        "maximum": 2139981
+      },
+      "current_cw2_versions": {
+        "router": "1.5.0",
+        "pair": "1.21.0",
+        "factory": "1.12.0",
+        "community_tax_token": "1.4.0"
+      },
+      "on_chain_code_checksums_verified": 6
+    },
+    {
+      "pass": "retest",
+      "status": "PASS",
+      "fresh_owned_node": true,
+      "host_ports_published": 0,
+      "shared_resources_mutated": false,
+      "sdk53_image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+      "wasm_smart_query_limit": 3000000,
+      "funded_query_fixture_trials": 1,
+      "actual_smart_query_successes": 18,
+      "funded_accounting_scenarios": 6,
+      "route_tax_scenarios": 6,
+      "guard_scenarios": 16,
+      "native_and_invoice_scenarios": 5,
+      "floor_scenarios": [
+        {
+          "scenario": "zero intermediates",
+          "status": "PASS",
+          "quoted_net_output_raw": "946429267575517734",
+          "reverse_authorized_gross_input_raw": "1009999020096990300"
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "status": "PASS",
+          "quoted_net_output_raw": "894890444760655030",
+          "reverse_authorized_gross_input_raw": "1009999060288001788"
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "status": "PASS",
+          "quoted_net_output_raw": "946421488752678839",
+          "reverse_authorized_gross_input_raw": "1009999100473034445"
+        },
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "quoted_net_output_raw": "994000246661929123",
+          "reverse_authorized_gross_input_raw": "1010000"
+        },
+        {
+          "scenario": "taxed final buy",
+          "status": "PASS",
+          "quoted_net_output_raw": "961650",
+          "reverse_authorized_gross_input_raw": "1009999140652088252"
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "quoted_net_output_raw": "894880862313485362",
+          "reverse_authorized_gross_input_raw": "1009999180825163192"
+        }
+      ],
+      "atomic_token_router_sink_supply_rollback": true,
+      "atomic_pool_reserve_and_lp_share_rollback": true,
+      "native_wrap_and_invoice_atomic_rollback": true,
+      "probe_transaction_gas": {
+        "scope": "transaction and query-wrapper overhead; not LCD query-meter readings",
+        "count": 18,
+        "minimum": 743658,
+        "maximum": 2139981
+      },
+      "current_cw2_versions": {
+        "router": "1.5.0",
+        "pair": "1.21.0",
+        "factory": "1.12.0",
+        "community_tax_token": "1.4.0"
+      },
+      "on_chain_code_checksums_verified": 6
+    }
+  ],
+  "owned_nodes_and_volumes_removed": true,
+  "unverified": [
+    {
+      "criterion": "pre-fix router/token/pair migration and historical failure reproduction",
+      "status": "SKIP",
+      "reason": "No independently reviewed immutable pre-fix wasm and source/build provenance supplied; current-artifact fresh instantiation cannot prove a legacy migration."
+    },
+    {
+      "criterion": "artifact-level hooked per-hop floor and AutoLP atomic callback coverage",
+      "status": "SKIP",
+      "reason": "Reviewed chain drivers use hook-free pools and final router floor; they do not establish hooked/AutoLP actual execution. Source1398 separately covers these semantics."
+    },
+    {
+      "criterion": "full current cached local engine quote versus actual settlement parity",
+      "status": "SKIP",
+      "reason": "Reviewed funded/native drivers use on-chain router simulations. Cached-engine admission and arithmetic regressions are independent source evidence."
+    },
+    {
+      "criterion": "unexpired historical unfillable order cleanup/claim migration on actual wasm",
+      "status": "SKIP",
+      "reason": "Current pair rejects those placements; constructing the legacy state requires independently reviewed pre-fix pair artifacts. Source1399 raw-state fixtures cover matching/clean/claim semantics."
+    },
+    {
+      "criterion": "mainnet contract rollout/signing",
+      "status": "SKIP",
+      "reason": "This change deploys the indexer; production verification is read-only quote, health and log acceptance. OwnedLocalTerra receipts are not mainnet contract migration proof."
+    }
+  ],
+  "corrected_infrastructure_failure": {
+    "status": "PASS",
+    "scope": "exclusively owned QA cluster setting only",
+    "utc": "2026-10-11T03:15:17.325072+00:00",
+    "initial_failures": 3,
+    "initial_sqlstate": "53100",
+    "cause": "64MiB container shared-memory capacity; query requested32MiB dynamic allocation; host storage remained available",
+    "host_disk_exhausted": false,
+    "max_parallel_workers_per_gather_before": 2,
+    "max_parallel_workers_per_gather_after": 0,
+    "no_concurrent_compiler_process": true,
+    "production_or_shared_resources_changed": false,
+    "schema_or_acl_changed": false
+  },
+  "initial_failed_verifier_attempt": {
+    "issue": 1381,
+    "passed": 12,
+    "failed_groups": 1,
+    "skipped": 1,
+    "failed_test_cases": 3,
+    "status": "FAIL (repaired and retested)",
+    "retained_private_log": "dex1464-views-protocol-1381-attempt1.private.log"
+  },
+  "private_helpers": [
+    {
+      "path": "dex1464-views-protocol-owned.py",
+      "sha256": "bb407828fb2c8681f370f26ee860405eed740ffd2a6697ce59e0260988526f49"
+    },
+    {
+      "path": "dex1464-views-funded-controls.py",
+      "sha256": "f91077d93296e22ad93a8791b9c5f7676008ed61389195153cac459c2eb63b17"
+    }
+  ]
+}

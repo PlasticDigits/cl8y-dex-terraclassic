@@ -1,0 +1,394 @@
+{
+  "schema": "cl8y-1464-final-hosted-v1",
+  "pipeline": 402,
+  "source_revision": "b018ec2a4f4b77bfcecf535197f9a87831850a32",
+  "status": "PASS",
+  "steps": [
+    {
+      "name": "gitleaks",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:28:29Z",
+      "utc_end": "2026-10-11T02:28:41Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "name": "contracts",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:28:41Z",
+      "utc_end": "2026-10-11T02:29:57Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.04
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.03
+        },
+        {
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.11
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 102,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.17
+        },
+        {
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.03
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 567,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 5.56
+        },
+        {
+          "passed": 81,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "frontend",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:29:57Z",
+      "utc_end": "2026-10-11T02:36:14Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "name": "indexer-lib",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:36:14Z",
+      "utc_end": "2026-10-11T02:39:14Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 764,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 20.48
+        }
+      ]
+    },
+    {
+      "name": "indexer-postgres",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:39:14Z",
+      "utc_end": "2026-10-11T02:43:30Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 2.31
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 10.86
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 2.9
+        },
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 46.14
+        },
+        {
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 19.72
+        }
+      ]
+    },
+    {
+      "name": "functional-required",
+      "status": "PASS",
+      "exit_code": 0,
+      "utc_start": "2026-10-11T02:43:30Z",
+      "utc_end": "2026-10-11T02:43:31Z",
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    }
+  ],
+  "scope": "Six actual successful mandatory jobs with independently checked exact-head PASS markers. Optional ignored tests remain separate; no deployed acceptance is inferred."
+}
