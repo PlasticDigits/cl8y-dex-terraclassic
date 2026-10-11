@@ -26,6 +26,9 @@ visit(parse(source));
 const text = (node) => source.slice(node.start, node.end);
 const measurement = nodes.find((node) => node.type === "ArrowFunctionExpression" && node.params[0]?.name === "expected" && text(node).includes("window.__measurement1473"));
 assert.ok(measurement, "test must execute the production measurement closure");
+const viewportSetup = nodes.find((node) => node.type === "FunctionDeclaration" && node.id.name === "prepareMeasurementViewport");
+assert.ok(viewportSetup, "test must execute the production viewport setup");
+const prepareViewport = new Function(`return (${text(viewportSetup)})`)();
 const failureExpression = nodes.find((node) => node.type === "AssignmentExpression" && node.left.type === "MemberExpression" && node.left.object.name === "row" && node.left.property.name === "failed");
 const budget = nodes.find((node) => node.type === "VariableDeclarator" && node.id.name === "BROWSER_LATENCY_BUDGET_MS").init.value;
 assert.equal(budget, 750, "retain the authorized original-event latency limit");
@@ -36,7 +39,7 @@ function quote(overrides = {}) {
   return { started: 20, headers_received: 290, ended: 300, status: 200, classified: true, useful: true, output: "200000", minimum: "198000", observed: epoch - 1000, expires: epoch + 19000, params: { token_in: "in", token_out: "out", amount_in: "100000", max_spread: "0.01", protection_policy: "quote_relative_v1", trader: "private-actor-sentinel" }, generation: "private-context-digest-sentinel", url: "private-endpoint-sentinel", ...overrides };
 }
 
-function fixture({ receiveTop = 200, error = "", waiting = false } = {}) {
+function fixture({ receiveTop = 200, error = "", waiting = false, startInput = true, width = 1440, height = 1000 } = {}) {
   const dom = new JSDOM(`<input data-testid="swap-you-pay-amount"><input data-testid="swap-you-receive"><p data-testid="swap-quote-error"></p><div data-testid="swap-price-data-loading"><span>Loading price…</span><progress aria-label="Loading price"></progress></div>`, { runScripts: "outside-only" });
   const w = dom.window;
   const pay = w.document.querySelector('[data-testid="swap-you-pay-amount"]');
@@ -53,25 +56,165 @@ function fixture({ receiveTop = 200, error = "", waiting = false } = {}) {
   w.cancelAnimationFrame = (id) => frames.delete(id);
   w.setInterval = (callback) => { const id = nextId++; timers.set(id, callback); return id; };
   w.clearInterval = (id) => timers.delete(id);
-  Object.defineProperty(w, "innerHeight", { value: 1000 });
-  Object.defineProperty(w, "innerWidth", { value: 1440 });
+  Object.defineProperty(w, "innerHeight", { value: height });
+  Object.defineProperty(w, "innerWidth", { value: width });
   const rect = (top) => ({ x: 100, y: top, left: 100, top, right: 500, bottom: top + 32, width: 400, height: 32 });
   receive.getBoundingClientRect = () => rect(receiveTop);
+  pay.getBoundingClientRect = () => rect(100);
   alert.getBoundingClientRect = () => rect(100);
   loading.getBoundingClientRect = () => rect(100);
-  for (const element of [receive, alert, loading]) element.style.opacity = "1";
+  for (const element of [pay, receive, alert, loading]) element.style.opacity = "1";
   w.__quotes1473 = [];
   w.eval(`(${text(measurement)})`)(expected);
-  pay.value = "0.1";
-  pay.dispatchEvent(new w.Event("input", { bubbles: true }));
+  const input = () => {
+    pay.value = "0.1";
+    pay.dispatchEvent(new w.Event("input", { bubbles: true }));
+  };
+  if (startInput) input();
   const tick = (at) => { now = at; [...timers.values()].forEach((callback) => callback()); };
   const frame = (at) => { now = at; const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback(at)); };
-  return { w, receive, alert, tick, frame, frames, timers, moveReceive: (top) => { receiveTop = top; }, result: () => JSON.parse(JSON.stringify(w.__measurement1473.read())), close: () => w.close() };
+  return { w, pay, receive, alert, input, tick, frame, frames, timers, moveReceive: (top) => { receiveTop = top; }, result: () => JSON.parse(JSON.stringify(w.__measurement1473.read())), close: () => w.close() };
 }
 
 function failed(row) {
   return new Function("row", "BROWSER_LATENCY_BUDGET_MS", `return ${text(failureExpression.right)}`)(row, budget);
 }
+
+function setupPage(f, onSettingsClick) {
+  return {
+    locator(selector) {
+      assert.equal(selector, "#swap-slippage-settings");
+      return {
+        async isVisible() {
+          const panel = f.w.document.querySelector(selector);
+          return panel != null && !panel.hidden;
+        },
+        async waitFor({ state }) {
+          assert.equal(state, "hidden");
+          const panel = f.w.document.querySelector(selector);
+          assert.ok(panel == null || panel.hidden, "unmounted settings are hidden");
+        },
+      };
+    },
+    getByRole(role, options) {
+      assert.equal(role, "button");
+      assert.deepEqual(options, { name: "Settings", exact: true });
+      return {
+        async click() {
+          onSettingsClick();
+        },
+      };
+    },
+    getByTestId(id) {
+      assert.equal(id, "swap-you-pay-amount");
+      return {
+        async evaluate(callback) {
+          return callback(f.pay);
+        },
+      };
+    },
+    async waitForFunction(callback) {
+      assert.equal(
+        f.w.eval(`(${callback.toString()})()`),
+        true,
+        "both real DOM inputs must intersect before the clock",
+      );
+    },
+  };
+}
+
+test("expanded phone settings are closed before the original input clock and visible useful output", async () => {
+  const f = fixture({
+    receiveTop: 1060,
+    startInput: false,
+    width: 390,
+    height: 844,
+  });
+  const panel = f.w.document.createElement("div");
+  panel.id = "swap-slippage-settings";
+  f.w.document.body.append(panel);
+  let clicks = 0;
+  f.w.scrollBy = ({ behavior }) => {
+    assert.equal(behavior, "instant");
+  };
+  f.w.__quotes1473.push(quote());
+  f.receive.value = "0.2";
+  await prepareViewport(
+    setupPage(f, () => {
+      clicks++;
+      panel.remove();
+      f.moveReceive(640);
+    }),
+  );
+  assert.equal(clicks, 1);
+  assert.equal(
+    f.w.__measurement1473.started,
+    null,
+    "setup must not start or reset the measured event",
+  );
+  f.input();
+  f.tick(334);
+  f.frame(336);
+  f.frame(352);
+  assert.equal(f.result().useful, true);
+  assert.equal(f.result().input_to_dom_ms, 352);
+  f.close();
+});
+
+test("closed settings still require both inputs on screen before input without post-input scrolling", async () => {
+  const f = fixture({ startInput: false, width: 390, height: 844 });
+  assert.equal(f.w.document.querySelector("#swap-slippage-settings"), null);
+  let scroll = 0,
+    calls = 0;
+  const rect = (top) => ({
+    left: 20,
+    right: 370,
+    top: top - scroll,
+    bottom: top + 32 - scroll,
+    width: 350,
+    height: 32,
+  });
+  f.pay.getBoundingClientRect = () => rect(900);
+  f.receive.getBoundingClientRect = () => rect(1300);
+  f.w.scrollBy = ({ top, behavior }) => {
+    assert.equal(f.w.__measurement1473.started, null);
+    assert.equal(behavior, "instant");
+    scroll += top;
+    calls++;
+  };
+  await prepareViewport(
+    setupPage(f, () => assert.fail("closed settings must not reopen")),
+  );
+  assert.equal(calls, 1);
+  f.w.__quotes1473.push(quote());
+  f.receive.value = "0.2";
+  f.input();
+  f.tick(300);
+  f.frame(316);
+  f.frame(333);
+  assert.equal(f.result().useful, true);
+  assert.equal(
+    calls,
+    1,
+    "measurement itself must not scroll after the original event",
+  );
+  f.close();
+});
+
+test("viewport setup rejects hidden or transparent receive fields before starting input", async () => {
+  for (const style of [{ opacity: "0" }, { visibility: "hidden" }]) {
+    const f = fixture({ startInput: false, width: 390, height: 844 });
+    Object.assign(f.receive.style, style);
+    f.w.scrollBy = () => {};
+    await assert.rejects(
+      prepareViewport(setupPage(f, () => assert.fail("unmounted settings must not reopen"))),
+      /both real DOM inputs must intersect before the clock/,
+    );
+    assert.equal(f.w.__measurement1473.started, null);
+    assert.equal(f.w.__measurement1473.done, null);
+    f.close();
+  }
+});
 
 test("visible dust error confirms a blocked outcome with a blank receive below the viewport", () => {
   const f = fixture({ receiveTop: 1006, error: "This amount is too small to receive a positive output." });

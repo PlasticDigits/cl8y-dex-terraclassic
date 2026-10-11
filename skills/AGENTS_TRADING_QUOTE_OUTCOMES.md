@@ -51,6 +51,13 @@ Historical failures remain recorded, and passing new 750 ms trials cannot prove
 the prior 500 ms criterion. Public receipts
 omit credentials, actors/context digests, private endpoints and workstation details.
 
+Prepare browser viewport state before the original-input clock: close Settings
+after choosing protection and verify Pay/Receive both intersect the viewport.
+Keep strict visibility and two-frame checks during measurement; never scroll or
+reset the clock to rescue an already measured failure. Record the deployed app
+revision separately from a changed QA tool; a bounded reproduction does not
+replace the failed full matrix. Follow [the setup/reproduction instructions](../docs/qa/issue-1473/WARMUP.md#live-measurement-viewport-setup).
+
 Preserve [LQ1452](AGENTS_LOCAL_SWAP_QUOTES.md),
 [PR1464](AGENTS_PROVIDER_RECOVERY.md), [LF1453](AGENTS_LIQUIDITY_FEED.md),
 [QC1459](AGENTS_LOCAL_QUOTE_COVERAGE.md), [NE1398](AGENTS_NET_EXECUTION_FLOORS.md),

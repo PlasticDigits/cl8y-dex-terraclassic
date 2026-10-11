@@ -114,3 +114,45 @@ Unavailable display prerequisites may be an explicit SKIP; earlier headless
 failures remain FAIL and a headed PASS cannot prove their cause. The normal
 repository fixture remains headless. Follow [the final source scope](source-warmup-final.json)
 and [headed receipt](browser-warmup-headed-pass-summary.json).
+
+## Live measurement viewport setup
+
+The later full live trial stopped at its unchanged 30-minute cap after 426 of
+1,680 planned samples. Its [retained failure summary](live-warmup-failure-summary.json)
+includes nine useful-output latency failures and six phone visibility failures.
+Those phone samples received validated HTTP 200 quotes promptly and held the
+matching current net value, but the surface never passed the strict visibility
+check. The original diagnostics do not distinguish offscreen geometry from
+other visibility conditions. Expanded Settings precedes both amount fields in
+the app; the helper left it expanded without preparing both fields for a narrow
+viewport. This is QA setup evidence, not proof that product pricing timed out.
+
+The live helper now calls `prepareMeasurementViewport` before warm-up and before
+installing each original-input clock. It closes Settings after selecting the
+percentage, centers the Pay/Receive region and confirms both fields intersect
+the viewport with positive dimensions and visible styles. A failed preparation
+remains a failure. No scrolling occurs during the measured event; the strict
+output visibility check, exact amount, original expiry, two frames and 750 ms
+budget stay unchanged. The setup helper is inside the already fingerprinted
+[live browser file](../../../scripts/qa/browser-live-trading-quotes-1473.cjs),
+and its actual function/DOM behavior is exercised by the existing
+[helper regressions](../../../scripts/qa/test-browser-live-trading-quotes-1473.cjs).
+
+Keep application deployment identity separate from the QA tool revision. The
+application remains deployed at `ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d`;
+record the new helper's commit or dirty fingerprint independently. A bounded
+reproduction retest uses the corrected tool against that unchanged deployment:
+
+```sh
+EXPECTED_SOURCE_SHA=ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d \
+DEX1473_ATTESTATION_FILE=/tmp/issue-1473-deployment-attestation.json \
+DEX1473_BROWSER_PROFILE=reproduction DEX1473_BROWSER_CYCLES=2 \
+DEX1473_BROWSER_OUTPUT=/tmp/issue-1473-live-reproduction.json \
+  bash scripts/with-node.sh -- node scripts/qa/browser-live-trading-quotes-1473.cjs
+```
+
+This is 96 first/retest samples in both viewports with a 181-second cycle gap,
+not the expanded 1,680-case matrix. Attest the exact application revision and
+root artifacts before/after, record counts/distributions and preserve any new
+failed rows. A smaller passing trial cannot replace the capped full FAIL,
+the nine latency failures, earlier headless failures or incomplete acceptance.
