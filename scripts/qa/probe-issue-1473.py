@@ -127,75 +127,151 @@ def connection_for(base):
     return factory(target.hostname, target.port, timeout=10)
 
 
-def health_revision(connection):
+class HealthRevisionUnavailable(ValueError):
+    pass
+
+
+class RevisionMismatch(ValueError):
+    pass
+
+
+def health_revision(connection, on_stage=lambda _stage: None, on_status=lambda _status: None):
+    on_stage("request")
     connection.request("GET", "/health", headers={"Accept": "application/json"})
+    on_stage("response")
     response = connection.getresponse()
+    on_status(response.status)
+    on_stage("body")
     payload = response.read(4097)
     if response.status != 200 or len(payload) > 4096:
-        raise ValueError("backend revision unavailable")
+        raise HealthRevisionUnavailable()
+    on_stage("decode")
     data = json.loads(payload)
-    return data.get("git_sha") if isinstance(data, dict) else None
+    revision = data.get("git_sha") if isinstance(data, dict) else None
+    if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        raise HealthRevisionUnavailable()
+    return revision
+
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def probe(args):
     signal.signal(signal.SIGALRM, common.deadline)
-    started = datetime.now(timezone.utc).isoformat()
-    connection = connection_for(args.base_url)
-    rows, revisions = [], []
-    try:
-        for trial in range(args.cycles):
-            if trial:
-                time.sleep(args.cycle_delay)
+    started = utc_now()
+    connection = None
+    rows, revisions, prerequisites, failures = [], [], [], []
+    stage, trial_name = "origin", "first"
+
+    def provenance(phase):
+        nonlocal stage
+        # Health provenance never warms the measured quote connection. Each
+        # check owns a fresh connection, including after the long cycle gap.
+        health_connection = None
+        record = {"trial": trial_name, "phase": phase, "utc_start": utc_now()}
+        prerequisites.append(record)
+        try:
+            stage = phase + ".connection"
+            health_connection = connection_for(args.base_url)
+
+            def health_stage(value):
+                nonlocal stage
+                stage = phase + "." + value
+
             signal.alarm(10)
-            revisions.append(health_revision(connection))
+            revision = health_revision(health_connection, health_stage,
+                                       lambda status: record.update(status=status))
+            revisions.append(revision)
+            record["revision"] = revision
+            stage = phase + ".revision"
+            if revision != args.revision:
+                raise RevisionMismatch()
+            record["outcome"] = "revision_match"
+        except (ValueError, OSError, TimeoutError, common.http.client.HTTPException) as exc:
+            record.update(outcome="FAIL", failure_stage=stage, failure_class=type(exc).__name__)
+            raise
+        finally:
             signal.alarm(0)
-            if revisions[-1] != args.revision:
-                raise ValueError("backend revision mismatch before trial")
+            if health_connection is not None:
+                health_connection.close()
+            record["utc_end"] = utc_now()
+
+    try:
+        stage = "corpus"
+        scenarios = list(corpus(args.profile))
+        if not 1 <= len(scenarios) <= 420:
+            raise ValueError()
+        for trial in range(args.cycles):
+            trial_name = "first" if trial == 0 else "retest"
+            if trial:
+                stage = "cycle_delay"
+                time.sleep(args.cycle_delay)
+            provenance("provenance_before")
+            stage = "quote_connection"
+            connection = connection_for(args.base_url)
+            first_request = True
             for endpoint in args.endpoints:
-                for scenario in corpus(args.profile):
+                for scenario in scenarios:
                     query = {"token_in": scenario["token_in"], "token_out": scenario["token_out"],
                              "amount_in": scenario["amount"], "max_spread": scenario["spread"],
                              "pool_only": str(scenario["pool_only"]).lower(), "max_maker_fills": 8,
                              "protection_policy": "quote_relative_v1"}
                     start = time.perf_counter()
                     status, transport, outcome, valid = 0, "unknown", "transport_unavailable", False
+                    row_started, failure = utc_now(), {}
                     try:
                         signal.alarm(10)
+                        stage = "quote.request"
                         transport = common.request_transport(connection, ("/api/v1/route/solve" if endpoint == "solve" else "/api/v1/route/solve/best") + "?" + urlencode(query), {"Accept": "application/json"})
+                        stage = "quote.response"
                         response = connection.getresponse()
                         status = response.status
                         body_limit = common.MAX_BODY if status == 200 else 4096
+                        stage = "quote.body"
                         payload = response.read(body_limit + 1)
                         if len(payload) > body_limit:
                             outcome = "oversized_body"
                             connection.close()
                         else:
+                            stage = "quote.decode"
                             outcome, valid = classify(status, json.loads(payload), scenario, int(time.time() * 1000))
-                    except (OSError, TimeoutError, ValueError, common.http.client.HTTPException):
+                    except (OSError, TimeoutError, ValueError, common.http.client.HTTPException) as exc:
+                        failure = {"failure_stage": stage, "failure_class": type(exc).__name__}
                         connection.close()
                     finally:
                         signal.alarm(0)
                     elapsed = (time.perf_counter() - start) * 1000
-                    rows.append({"trial": "first" if trial == 0 else "retest", "endpoint": endpoint,
+                    rows.append({"trial": trial_name, "endpoint": endpoint,
                                  **{k: scenario[k] for k in ("pair", "human_amount", "amount", "spread")},
                                  "status": status, "outcome": outcome, "classified": valid,
                                  "transport": transport, "elapsed_ms": round(elapsed, 3),
+                                 "transport_plan": "cold_cycle_start" if first_request else "pooled",
+                                 "utc_start": row_started, "utc_end": utc_now(), **failure,
                                  "socket_budget_pass": outcome == "executable" and elapsed <= 500})
+                    first_request = False
+                    stage = "case_interval"
                     time.sleep(args.interval)
-            signal.alarm(10)
-            revisions.append(health_revision(connection))
-            signal.alarm(0)
-            if revisions[-1] != args.revision:
-                raise ValueError("backend revision mismatch after trial")
+            # Explicitly end this measured pool before the idle gap. A cold
+            # first request next cycle includes connection setup in its timing;
+            # no failing request is retried or has its clock restarted.
+            connection.close()
+            connection = None
+            provenance("provenance_after")
+    except (ValueError, OSError, TimeoutError, common.http.client.HTTPException) as exc:
+        failures.append({"trial": trial_name, "stage": stage, "failure_class": type(exc).__name__,
+                         "utc": utc_now(), "completed_request_count": len(rows)})
     finally:
         signal.alarm(0)
-        connection.close()
+        if connection is not None:
+            connection.close()
     counts = {reason: sum(row["outcome"] == reason for row in rows) for reason in sorted({row["outcome"] for row in rows})}
-    failed = any(not row["classified"] for row in rows) or (args.enforce_socket_budget and any(row["outcome"] == "executable" and not row["socket_budget_pass"] for row in rows))
+    failed = bool(failures) or any(not row["classified"] for row in rows) or (args.enforce_socket_budget and any(row["outcome"] == "executable" and not row["socket_budget_pass"] for row in rows))
     return {"issue": 1473, "revision": args.revision, "backend_revisions": revisions,
-            "utc_start": started, "utc_end": datetime.now(timezone.utc).isoformat(),
+            "utc_start": started, "utc_end": utc_now(),
             "overall": "FAIL" if failed else "PASS WITH SKIPS", "request_count": len(rows),
-            "counts": counts, "samples": rows,
+            "counts": counts, "samples": rows, "prerequisites": prerequisites, "failures": failures,
+            "transport_policy": "fresh provenance connection per check; planned cold measured connection per cycle, pooled within cycle; no quote retry",
             "useful_latency_by_transport": {mode: common.distribution([row["elapsed_ms"] for row in rows if row["outcome"] == "executable" and row["transport"] == mode]) for mode in ("new", "reused")},
             "scope": "public socket classification; safe blocked outcomes count as classified, never executable or economic acceptance",
             "skips": ["pinned economic parity", "frontend artifact provenance", "browser input-event latency", "cache hit/miss attestation", "receive/manual/hybrid/actor/abuse fixtures", "physical devices", "settlement"]}
@@ -217,12 +293,9 @@ def main():
         parser.error("exact 40-character revision required")
     if not 1 <= args.cycles <= 2 or not math.isfinite(args.interval) or not 0.5 <= args.interval <= 10 or not math.isfinite(args.cycle_delay) or not 181 <= args.cycle_delay <= 600 or len(set(args.endpoints)) != len(args.endpoints):
         parser.error("finite read budget: 1..2 cycles, unique endpoints, 0.5..10s interval, 181..600s cycle delay")
-    try:
-        result = probe(args)
-    except (ValueError, OSError, TimeoutError, common.http.client.HTTPException):
-        parser.exit(1, "FAIL: public matrix revision/transport prerequisite unavailable; no receipt acceptance\n")
+    result = probe(args)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
-    print(json.dumps({k: result[k] for k in ("overall", "request_count", "counts", "useful_latency_by_transport")}))
+    print(json.dumps({k: result[k] for k in ("overall", "request_count", "counts", "failures", "useful_latency_by_transport")}))
     return int(result["overall"] == "FAIL")
 
 

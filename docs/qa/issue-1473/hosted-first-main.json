@@ -1,0 +1,295 @@
+{
+  "pipeline": 407,
+  "head": "09365d97a9529beccfa8c3fcb15be11d7ca983d2",
+  "status": "success",
+  "steps": [
+    {
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791708966,
+      "finished": 1791708980
+    },
+    {
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791708980,
+      "finished": 1791709061
+    },
+    {
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791709061,
+      "finished": 1791709429
+    },
+    {
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791709429,
+      "finished": 1791709610
+    },
+    {
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791709610,
+      "finished": 1791709868
+    },
+    {
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0,
+      "started": 1791709868,
+      "finished": 1791709869
+    }
+  ],
+  "hosted_logs": [
+    {
+      "step": "gitleaks",
+      "bytes": 11843,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "step": "contracts",
+      "bytes": 105053,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 102,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 567,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 81,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "step": "frontend",
+      "bytes": 172143,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    },
+    {
+      "step": "indexer-lib",
+      "bytes": 124898,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 774,
+          "failed": 0,
+          "ignored": 1
+        }
+      ]
+    },
+    {
+      "step": "indexer-postgres",
+      "bytes": 108667,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": [
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1
+        },
+        {
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    {
+      "step": "functional-required",
+      "bytes": 10728,
+      "matching_head_pass_marker": true,
+      "rust_test_summaries": []
+    }
+  ]
+}

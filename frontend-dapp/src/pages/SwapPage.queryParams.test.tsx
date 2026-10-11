@@ -1,7 +1,7 @@
 import { localQuote } from '@/test/localRouteFixtures'
 import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, useLocation } from 'react-router-dom'
@@ -773,6 +773,97 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(simulateNativeSwap).not.toHaveBeenCalled()
     expect(swap).not.toHaveBeenCalled()
   })
+
+  it.each(['initial', 'retained_expired'] as const)(
+    'unknown reverse errors stay manual beyond20s (%s), and explicit retry accepts a fresh quote',
+    async (scenario) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(1_800_000_000_000)
+      let queryClient: QueryClient | undefined
+      try {
+        seedCw20Route()
+        const wallet = 'terra1wallet000000000000000000000000000001'
+        useWalletStore.setState({ address: wallet, walletType: 'dev' })
+        vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+        let failing = scenario === 'initial'
+        let originalExpiry = 0
+        vi.mocked(quoteSwapReceiveViaSolver).mockImplementation(async (input) => {
+          if (failing) throw new Error('reverse quote unavailable')
+          const fresh = receiveFixture(input.fromToken, input.toToken, '2000000', input.targetRaw, wallet)
+          const metadata = fresh.executionMetadata!
+          metadata.expires_at_ms = Date.now() + 2_000
+          metadata.minimum_receive = input.targetRaw
+          metadata.hops.at(-1)!.min_return = input.targetRaw
+          const operations = JSON.parse(fresh.executionOperations) as { terra_swap: { min_return: string } }[]
+          operations.at(-1)!.terra_swap.min_return = input.targetRaw
+          if (originalExpiry === 0) originalExpiry = metadata.expires_at_ms
+          return {
+            ...fresh,
+            offerAmount: '2000000',
+            executionMetadata: metadata,
+            minimumReceive: input.targetRaw,
+            indexerOperations: operations as never,
+            executionOperations: JSON.stringify(operations),
+          }
+        })
+        queryClient = renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
+        const advance = async (ms: number) => {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(ms)
+          })
+        }
+        const settle = async (ready: () => boolean) => {
+          for (let step = 0; step < 10 && !ready(); step++) await advance(100)
+          expect(ready()).toBe(true)
+        }
+
+        if (scenario === 'retained_expired') {
+          await settle(() => (screen.queryByTestId('swap-you-pay-amount') as HTMLInputElement | null)?.value === '2')
+          expect(screen.getByTestId('swap-submit')).toBeEnabled()
+          failing = true
+          await act(async () => {
+            await queryClient!.invalidateQueries({ queryKey: ['reverseSimulation'] })
+          })
+        }
+        await settle(() => screen.queryByTestId('swap-receive-quote-retry-error') != null)
+        const failedCallCount = scenario === 'initial' ? 1 : 2
+        expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(failedCallCount)
+        expect(screen.getByTestId('swap-submit')).toBeDisabled()
+        expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+        expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
+        expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+
+        // Cross two old10s refresh periods and the original nested quote expiry.
+        await advance(25_000)
+        expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(failedCallCount)
+        expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+        expect(screen.getByTestId('swap-submit')).toBeDisabled()
+        if (scenario === 'retained_expired') {
+          const cached = queryClient
+            .getQueriesData<{ quote?: { executionMetadata?: { expires_at_ms: number } } }>({
+              queryKey: ['reverseSimulation'],
+            })
+            .find(([, data]) => data?.quote)?.[1]
+          expect(cached?.quote?.executionMetadata?.expires_at_ms).toBe(originalExpiry)
+          expect(originalExpiry).toBeLessThan(Date.now())
+        }
+        expect(swap).not.toHaveBeenCalled()
+        expect(executeNativeSwap).not.toHaveBeenCalled()
+        expect(executeMultiHopSwap).not.toHaveBeenCalled()
+
+        failing = false
+        fireEvent.click(screen.getByTestId('retry-error-button'))
+        await settle(() => (screen.queryByTestId('swap-you-pay-amount') as HTMLInputElement | null)?.value === '2')
+        expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(failedCallCount + 1)
+        expect(screen.getByTestId('swap-submit')).toBeEnabled()
+        expect(screen.queryByTestId('swap-receive-quote-retry-error')).not.toBeInTheDocument()
+      } finally {
+        cleanup()
+        queryClient?.clear()
+        vi.useRealTimers()
+      }
+    }
+  )
 
   it.each([
     'reverse quote unavailable',

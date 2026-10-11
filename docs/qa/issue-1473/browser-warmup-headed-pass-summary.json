@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "partial": false,
+  "stage": "complete",
+  "frontend_artifact_sha256": "9dfc628357e709b31d7254006b0998df3ccf698b3c332cdf37292e21a3fcfaf9",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "source_dirty": true,
+  "recorded_at_utc": "2026-10-11T12:13:28.394Z",
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "truncated": false,
+  "browser_version": "151.0.7922.137",
+  "browser_headless": false,
+  "windowing_mode": "owned_xvfb_x11",
+  "source_fingerprint_before": "90ae4cf2829046ff39cb12291c89a728321c84d7fe34df15c1b666e77fd80fba",
+  "comparison_scope": "Full headed Chrome on freshly reset isolated Xvfb; same flags, original input/render clock, quote outputs and750ms budget. Does not erase historical headless failures or establish their cause.",
+  "browser_latency_budget_ms": 750,
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1992,
+  "factory_pair_count": 7,
+  "corpus_pair_count": 8,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 97.6000000089407,
+    "p95_ms": 158.5,
+    "p99_ms": 198.40000000596046,
+    "max_ms": 657.1999999880791
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 796,
+      "p50_ms": 111.1000000089407,
+      "p95_ms": 171.20000000298023,
+      "p99_ms": 225.70000000298023,
+      "max_ms": 657.1999999880791
+    },
+    "1440:browser_cache_hit": {
+      "count": 1178,
+      "p50_ms": 101.80000001192093,
+      "p95_ms": 164.09999999403954,
+      "p99_ms": 210.19999998807907,
+      "max_ms": 555.0999999940395
+    },
+    "390:initialized_http": {
+      "count": 796,
+      "p50_ms": 99.1000000089407,
+      "p95_ms": 137.19999998807907,
+      "p99_ms": 167,
+      "max_ms": 631.4000000059605
+    },
+    "390:browser_cache_hit": {
+      "count": 1178,
+      "p50_ms": 88.5,
+      "p95_ms": 123.70000000298023,
+      "p99_ms": 153.69999998807907,
+      "max_ms": 581.4000000059605
+    }
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 102,
+    "p95_ms": 166.90000000596046,
+    "p99_ms": 184.5,
+    "max_ms": 498.79999999701977
+  },
+  "failures": [],
+  "scenario_count": 4250,
+  "blocked_scenario_count": 302,
+  "source_fingerprint_start": "90ae4cf2829046ff39cb12291c89a728321c84d7fe34df15c1b666e77fd80fba",
+  "source_fingerprint_end": "90ae4cf2829046ff39cb12291c89a728321c84d7fe34df15c1b666e77fd80fba",
+  "stable_source": true,
+  "raw_receipt_sha256": "f3f63e3d67995f4d8643f08576c7f02e87420f6d1236beb38f504459671def5b",
+  "private_helper_sha256": "168b7a15342879907881568e8eb95ce3427d7c1b8cdd5ac09ed93c7b23162ed5",
+  "owned_display_cleanup_complete": true,
+  "original_500ms_exceedance_count": 6,
+  "limitations": "Complete controlled headedX11 scope passes750ms, not original500ms or historicalheadless scope. Retain all oldFAILs. No causalfix for earlierstalls inferred. Does not establish deployed/device/settlement acceptance."
+}

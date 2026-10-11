@@ -1,0 +1,85 @@
+{
+  "issue": 1473,
+  "expected_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "browser_latency_budget_ms": 750,
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "profile": "full",
+  "cycles": 2,
+  "utc_start": "2026-10-11T09:48:57.217Z",
+  "utc_end": "2026-10-11T09:56:38.971Z",
+  "completed": false,
+  "expected_sample_count": 1680,
+  "overall": "FAIL",
+  "quote_request_count": 105,
+  "network_quote_request_count": 105,
+  "prohibited_write_attempts": 0,
+  "blocked_websocket_count": 0,
+  "useful_latency": {
+    "count": 93,
+    "p50_ms": 356.90000000596046,
+    "p95_ms": 367.5,
+    "p99_ms": 10353.40000000596,
+    "max_ms": 10353.40000000596
+  },
+  "default_entry_checks": [
+    {
+      "viewport": "desktop",
+      "entry": "swap",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "desktop",
+      "entry": "trade",
+      "native_ustc": true,
+      "configured_cl8y": true
+    }
+  ],
+  "sample_count": 100,
+  "failed_sample_count": 4,
+  "original_receipt_sha256": "2046139d759405df95279a2a985027e9f94a6768596644c52a0b839aa7bfd7b4",
+  "scope": "Stopped partial initial live run; actual failures retained. Confirmed client-cache expiry defect and blocked-case measurement bug have source follow-up; the 889 ms API delay cause remains unresolved. No complete deployed acceptance.",
+  "failed_samples": [
+    {
+      "pair": "UST1->CL8Y",
+      "viewport": "desktop",
+      "human_amount": "0.1",
+      "input_to_dom_ms": 10353.40000000596,
+      "api_ms": 300.90000000596046,
+      "outcome": "executable",
+      "failed": true,
+      "attempts": 1
+    },
+    {
+      "pair": "UST1->CL8Y",
+      "viewport": "desktop",
+      "human_amount": "0.000001",
+      "input_to_dom_ms": 1011.2999999970198,
+      "api_ms": 889.3999999910593,
+      "outcome": "executable",
+      "failed": true,
+      "attempts": 1
+    },
+    {
+      "pair": "CL8Y->UST1",
+      "viewport": "desktop",
+      "human_amount": "0.000000000000000001",
+      "input_to_dom_ms": null,
+      "api_ms": null,
+      "outcome": "unavailable",
+      "failed": true,
+      "attempts": 8
+    },
+    {
+      "pair": "CL8Y->UST1",
+      "viewport": "desktop",
+      "human_amount": "0.000001",
+      "input_to_dom_ms": null,
+      "api_ms": null,
+      "outcome": "unavailable",
+      "failed": true,
+      "attempts": 2
+    }
+  ]
+}

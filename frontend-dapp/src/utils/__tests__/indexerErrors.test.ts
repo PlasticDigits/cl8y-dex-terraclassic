@@ -6,9 +6,27 @@ import {
   isIndexerRateLimitError,
   isIndexerRouteValidationError,
   isIndexerUnavailableError,
+  isIndexerPricingDataPending,
 } from '@/utils/indexerErrors'
+import { IndexerApiError } from '@/utils/routeQuoteErrors'
 
 describe('indexerErrors', () => {
+  it('requires typed503 missing/stale observations for a pricing-data wait', () => {
+    for (const reason of ['missing_observations', 'stale_observations'] as const) {
+      expect(isIndexerPricingDataPending(new IndexerApiError(503, reason))).toBe(true)
+      expect(isIndexerPricingDataPending(new IndexerApiError(422, reason))).toBe(false)
+    }
+    for (const error of [
+      new Error('Indexer API error: 503 missing_observations'),
+      new IndexerApiError(503),
+      new IndexerApiError(503, 'accounting_unavailable'),
+      new IndexerApiError(422, 'amount_too_small'),
+      new IndexerApiError(422, 'protection'),
+      new IndexerApiError(422, 'unsupported_semantics'),
+    ]) {
+      expect(isIndexerPricingDataPending(error)).toBe(false)
+    }
+  })
   it('keeps deterministic route rejection distinct from transport and other client failures (#1390)', () => {
     const error = new Error('Indexer API error: 422 Unprocessable Entity')
     expect(isIndexerRouteValidationError(error)).toBe(true)

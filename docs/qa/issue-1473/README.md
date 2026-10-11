@@ -4,6 +4,7 @@ Issue: [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
 Read [TQ1473-1–TQ1473-10](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md),
 [local API outcomes](../../route-solver.md#trading-quote-outcomes-1473),
 [frontend defaults](../../frontend.md#trading-quote-outcomes-1473),
+[data waits and client expiry](WARMUP.md),
 and [results/provenance](RESULTS.md). Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474).
 
 Quote behavior is generic across supported arbitrary pairs and exact amounts.
@@ -140,6 +141,41 @@ are blocked. Any unsupported connection prevents a passing receipt. No wallet,
 signing, broadcasts or screenshots are used. Root asset provenance does not
 attest lazy-loaded assets, settlement, historical observations or physical devices;
 those remain separate acceptance criteria.
+
+### QA helper follow-up (PR pending)
+
+The live helper distinguishes a typed blocked outcome from useful output. A
+blocked result requires a visible matching error and a blank receive field;
+that blank field may be below the viewport when settings are expanded. A matching
+missing/stale response may instead confirm the accessible `Loading price…`
+progress surface. Neither errors nor waiting count as useful output. Executable
+results still require exact independently validated net amounts, original expiry,
+visibility and two render-frame opportunities measured from the first input event.
+The temporary authorized 750 ms limit is unchanged. Completed failed samples now
+produce a nonzero process exit, as do prerequisite/runtime failures.
+
+Failed rows include bounded diagnostic timestamps, plan labels, counters and
+Boolean state transitions: at most 12 current request records, four prior quote
+records and 24 state changes. Requests are recorded before response headers arrive,
+so a missing request, an in-flight request, expired cached pricing and network/body
+delay can be distinguished. These fields omit raw bodies, URLs, actor/context
+identifiers or digests and full-document text. Earlier 37-GET diagnosis receipts
+remain failures; the original 889 ms API-path sample remains unresolved. This QA
+correction does not establish a network-delay fix or deployed follow-up acceptance.
+
+Run the [DOM/mock regression](../../../scripts/qa/test-browser-live-trading-quotes-1473.cjs)
+without a browser or network:
+
+```sh
+bash scripts/with-node.sh -- node --test scripts/qa/test-browser-live-trading-quotes-1473.cjs
+```
+
+It executes the helper's actual measurement closure with DOM input events and
+controlled frames, including offscreen blank receive, mismatched error, waiting,
+exact/late useful amounts and expired-cache transitions. A child process also
+checks the actual receipt/finalization code's success and failure exit status.
+These checks cover helper behavior; production latency and provider causes require
+separate deployment/browser receipts.
 
 ## Explicit skips and truthful verdicts
 
