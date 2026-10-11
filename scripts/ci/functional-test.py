@@ -32,7 +32,34 @@ class FunctionalRunnerTests(unittest.TestCase):
             "GITLEAKS_SCAN_SCRIPT": str(self.root / "bin" / "scanner"),
         }
         self.stub("cargo", '[ "${CARGO_FAIL:-0}" != 1 ]')
-        self.stub("npm", '[ "${NPM_FAIL:-0}" != 1 ] && mkdir -p dist')
+        # Every package-manager invocation is hermetic, including prerequisite
+        # installation. These tests must never invoke host apt-get.
+        self.stub("apt-get", 'printf "apt-get %s\\n" "$*" >> "$CI_WORKSPACE/frontend-install-order"\n'
+                  '[ "${APT_FAIL:-}" != "$1" ]')
+        self.stub("npm", '''printf "npm %s\\n" "$*" >> "$CI_WORKSPACE/frontend-install-order"
+case "$1" in
+  ci)
+    [ "${NPM_FAIL:-0}" != 1 ]
+    mkdir -p dist node_modules/canvas/build/Release
+    printf synthetic-prebuilt > node_modules/canvas/build/Release/canvas.node
+    ;;
+  rebuild)
+    [ "${CANVAS_REBUILD_FAIL:-0}" != 1 ]
+    [ "${npm_config_build_from_source:-}" = true ]
+    [ "${npm_package_config_node_gyp_jobs:-}" = 2 ]
+    [ ! -e node_modules/canvas/build ]
+    mkdir -p node_modules/canvas/build/Release/obj.target/canvas
+    if [ "${CANVAS_OBJECTS_MISSING:-0}" != 1 ]; then
+      printf synthetic-object > node_modules/canvas/build/Release/obj.target/canvas/probe.o
+    fi
+    if [ "${CANVAS_BINDING_MISSING:-0}" != 1 ]; then
+      printf synthetic-native > node_modules/canvas/build/Release/canvas.node
+    fi
+    ;;
+esac''')
+        self.stub("node", '''printf "node native-probe\\n" >> "$CI_WORKSPACE/frontend-install-order"
+cat > "$CI_WORKSPACE/native-probe-source"
+[ "${NODE_PROBE_FAIL:-0}" != 1 ]''')
         app_bins = self.root / "frontend-dapp" / "node_modules" / ".bin"
         app_bins.mkdir(parents=True)
         self.stub("eslint", 'exit 0', directory=app_bins)
@@ -100,6 +127,46 @@ class FunctionalRunnerTests(unittest.TestCase):
             '{"scripts":{"lint":"true","test:run":"true","build":"true"}}\n'
         )
         self.run_job("frontend", success=False, VITEST_FAIL="1")
+        self.assertFalse((self.root / ".ci-functional" / "frontend").exists())
+        self.run_job("aggregate", success=False)
+
+    def test_frontend_native_prerequisites_precede_locked_dependency_install(self):
+        self.run_job("frontend")
+        calls = (self.root / "frontend-install-order").read_text().splitlines()
+        self.assertEqual(calls[0], "apt-get update")
+        self.assertTrue(calls[1].startswith("apt-get install "))
+        for package in ("build-essential", "pkg-config", "python3", "libcairo2-dev",
+                        "libpango1.0-dev", "libjpeg-dev", "libgif-dev", "librsvg2-dev",
+                        "fonts-dejavu-core"):
+            self.assertIn(package, calls[1].split())
+        self.assertEqual(calls[2], "npm ci --no-audit --no-fund")
+        self.assertEqual(calls[3], "npm rebuild canvas --no-audit --no-fund --foreground-scripts")
+        self.assertEqual(calls[4], "node native-probe")
+        self.assertEqual(len(calls), 5)
+
+    def test_failed_native_rebuild_or_probe_cannot_retain_success(self):
+        for failure in ("CANVAS_REBUILD_FAIL", "NODE_PROBE_FAIL",
+                        "CANVAS_OBJECTS_MISSING", "CANVAS_BINDING_MISSING"):
+            with self.subTest(failure=failure):
+                self.run_job("frontend")
+                self.run_job("frontend", success=False, **{failure: "1"})
+                self.assertFalse((self.root / ".ci-functional" / "frontend").exists())
+                self.run_job("aggregate", success=False)
+
+    def test_failed_native_prerequisites_remove_success_and_never_run_npm(self):
+        for phase in ("update", "install"):
+            with self.subTest(phase=phase):
+                self.run_job("frontend")
+                order = self.root / "frontend-install-order"
+                order.unlink()
+                self.run_job("frontend", success=False, APT_FAIL=phase)
+                self.assertFalse((self.root / ".ci-functional" / "frontend").exists())
+                self.assertFalse(any(line.startswith("npm ") for line in order.read_text().splitlines()))
+                self.run_job("aggregate", success=False)
+
+    def test_failed_dependency_install_never_writes_frontend_success(self):
+        self.run_job("frontend")
+        self.run_job("frontend", success=False, NPM_FAIL="1")
         self.assertFalse((self.root / ".ci-functional" / "frontend").exists())
         self.run_job("aggregate", success=False)
 

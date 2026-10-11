@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "task": "Actualcanvas3.1.0native source fallback verification",
+  "recorded_at_utc": "2026-10-11T15:17:54.454110+00:00",
+  "source_revision": "cf176c0ee426991b417341c277f19220bb2b4a5d",
+  "ci_image": "node:24-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0",
+  "package_lock_sha256": "832972b009203f9e08f5710421272dc322ce2224464626c210759d2e2e0c800d",
+  "source_archive_sha256": "a13eac724e6683e25422864c331d5071527a6b26a5d15ff856a4c7959d0c6be8",
+  "canvas_version": "3.1.0",
+  "declared_canvas_locked_integrity": "sha512-tTj3CqqukVJ9NgSahykNwtGda7V33VLObwrHfzT0vqJXu7J4d4C/7kQQW3fOEGDfZZoILPut5H00gOjyttPGyg==",
+  "script_sha256": {
+    "run-fixture.sh": "346ec801fa6c1b46ff8b2c1a8c7d0f1f4d316fb9b06c7ae112204a7ad1a85124",
+    "verify-native.cjs": "ef5edc5a9061080c59bddccc271a5ed784fb1b2f40e7561641bad93b344b8c66"
+  },
+  "syntax_checks": "PASS shell/Node assertion syntax only",
+  "native_verdict": "UNAVAILABLE; not executed and no nativePASS",
+  "image_provisioning": {
+    "attempt_count": 1,
+    "image_present_before": false,
+    "exact_image_available_at_stop": false,
+    "last_observed_elapsed_seconds": 966,
+    "owned_pull_exit_code": 143,
+    "intentional_bounded_stop": true,
+    "pull_complete_markers": 3,
+    "download_complete_markers": 4,
+    "checksum_verification_markers": 3,
+    "explicit_registry_timeout_rate_limit_or_daemon_error": false,
+    "classification": "Pullmade realprogress butdidnotpublish usableexactimage beforebound; no underlyingregistry/daemoncause inferred"
+  },
+  "native_fixture": {
+    "container_created": false,
+    "canvas_install_executed": false,
+    "actual_cpp_compile_observed": false,
+    "native_binding_loaded": false,
+    "bitmap_render_assertions_executed": false,
+    "repeat_fresh_fixture_executed": false,
+    "output_digests": null,
+    "planned_cpu_limit": 2,
+    "planned_memory_limit_bytes": 4294967296,
+    "planned_pid_limit": 512,
+    "planned_elapsed_limit_seconds": 1200,
+    "planned_dependency_packages": [
+      "build-essential",
+      "pkg-config",
+      "python3",
+      "libcairo2-dev",
+      "libpango1.0-dev",
+      "libjpeg-dev",
+      "libgif-dev",
+      "librsvg2-dev"
+    ],
+    "prepare_only_command": "npm ci --ignore-scripts --no-audit --no-fund",
+    "actual_target_command": "npm_config_build_from_source=true npm_config_jobs=2 npm rebuild canvas --build-from-source --foreground-scripts --no-audit --no-fund",
+    "planned_assertions": [
+      "NativeELFbinding andcompiledobject presence",
+      "Exact2x2redRGBA pixels andPNG dimensions",
+      "Pango text metrics andnonzero renderedalpha",
+      "Unchanged exactpackage-lock bytes"
+    ],
+    "planned_fresh_cache_per_fixture": true,
+    "fixture_only_ignore_scripts": true,
+    "normal_trusted_npm_ci_all_scripts_unchanged": true
+  },
+  "privacy_and_isolation": {
+    "host_apt_untouched": true,
+    "shared_node_modules_or_npm_untouched": true,
+    "cargo_targets_not_mounted": true,
+    "docker_socket_or_credentials_not_mounted": true,
+    "daemon_or_network_settings_untouched": true,
+    "substitute_image_used": false,
+    "source_policy_or_app_edited_by_verifier": false
+  },
+  "meaningful_alternative": "Genuine pinnedworker lifecycle/CXX/node-gyp output pluscompiledobjects/native draw receipt under repairedtrustedpolicy. Prebuilt binding loadalone doesnot establish sourcecompile."
+}

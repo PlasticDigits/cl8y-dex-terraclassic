@@ -1,0 +1,469 @@
+{
+  "issue": 1473,
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "elapsed_time_limit_ms": 1800000,
+  "browser_latency_budget_ms": 750,
+  "viewport_setup": "settings_closed_and_both_fields_intersect_before_input",
+  "expected_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "profile": "reproduction",
+  "cycles": 2,
+  "utc_start": "2026-10-11T14:27:44.457Z",
+  "read_only": true,
+  "screenshots": false,
+  "signing": false,
+  "completed": true,
+  "expected_sample_count": 96,
+  "artifact_hashes": [
+    {
+      "phase": "before",
+      "assets": {
+        "html_sha256": "05c2f8f1d4b2e48ba4979c457b451c341f74dd98cbf51a44619a53793300bd1e",
+        "root_scripts": [
+          {
+            "asset": "index-CYb1hP6S.js",
+            "sha256": "b1640fc142d925c920cd9a9d7a3340bede504490a2b6a8e44470bacb0ea35c54"
+          }
+        ]
+      }
+    },
+    {
+      "phase": "after",
+      "assets": {
+        "html_sha256": "05c2f8f1d4b2e48ba4979c457b451c341f74dd98cbf51a44619a53793300bd1e",
+        "root_scripts": [
+          {
+            "asset": "index-CYb1hP6S.js",
+            "sha256": "b1640fc142d925c920cd9a9d7a3340bede504490a2b6a8e44470bacb0ea35c54"
+          }
+        ]
+      }
+    }
+  ],
+  "backend_revisions": [
+    "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+    "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+    "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+    "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+    "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d"
+  ],
+  "prohibited_write_attempts": 0,
+  "default_entry_checks": [
+    {
+      "viewport": "desktop",
+      "entry": "swap",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "desktop",
+      "entry": "trade",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "phone",
+      "entry": "swap",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "phone",
+      "entry": "trade",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "desktop",
+      "entry": "swap",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "desktop",
+      "entry": "trade",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "phone",
+      "entry": "swap",
+      "native_ustc": true,
+      "configured_cl8y": true
+    },
+    {
+      "viewport": "phone",
+      "entry": "trade",
+      "native_ustc": true,
+      "configured_cl8y": true
+    }
+  ],
+  "utc_end": "2026-10-11T14:47:47.523Z",
+  "quote_request_count": 120,
+  "quote_request_limit": 2200,
+  "network_quote_request_count": 120,
+  "blocked_websocket_count": 0,
+  "useful_latency": {
+    "count": 96,
+    "p50_ms": 362.20000000298023,
+    "p95_ms": 684.5,
+    "p99_ms": 1008.4000000059605,
+    "max_ms": 1008.4000000059605
+  },
+  "latency_by_cache": {
+    "hit": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "miss": {
+      "count": 39,
+      "p50_ms": 363.29999999701977,
+      "p95_ms": 680.5,
+      "p99_ms": 684.5,
+      "max_ms": 684.5
+    },
+    "unobserved": {
+      "count": 57,
+      "p50_ms": 362.20000000298023,
+      "p95_ms": 735.3999999910593,
+      "p99_ms": 1008.4000000059605,
+      "max_ms": 1008.4000000059605
+    }
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "count": 48,
+      "p50_ms": 355.6000000089407,
+      "p95_ms": 431,
+      "p99_ms": 690.7000000029802,
+      "max_ms": 690.7000000029802
+    },
+    "phone": {
+      "count": 48,
+      "p50_ms": 401.40000000596046,
+      "p95_ms": 735.3999999910593,
+      "p99_ms": 1008.4000000059605,
+      "max_ms": 1008.4000000059605
+    }
+  },
+  "latency_by_transport": {
+    "new": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "count": 96,
+      "p50_ms": 362.20000000298023,
+      "p95_ms": 684.5,
+      "p99_ms": 1008.4000000059605,
+      "max_ms": 1008.4000000059605
+    },
+    "browser_cache_hit": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "unobserved": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "overall": "FAIL",
+  "skips": [
+    "Physical device/cellular tests",
+    "Owned chain settlement",
+    "Historical pinned production economics"
+  ],
+  "qa_tool_commit_after": "cf176c0ee426991b417341c277f19220bb2b4a5d",
+  "qa_tool_fingerprint_after": "b4c64d57d87ab7c064bc144564a088e50135d8be009c70794ceadab2f55c993e",
+  "qa_tool_source_stable": true,
+  "application_expected_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "application_backend_revision_check_count": 5,
+  "application_backend_all_pins_match": true,
+  "root_artifact_before_after_match": true,
+  "root_artifact_phases_complete": true,
+  "owned_browser_cleanup_complete": true,
+  "recorded_at_utc": "2026-10-11T14:50:32.541773+00:00",
+  "scenario_count": 96,
+  "classified_count": 96,
+  "useful_count": 96,
+  "failed_row_count": 2,
+  "visibility_timeout_count": 0,
+  "scope_counts": {
+    "desktop:first": 24,
+    "phone:first": 24,
+    "desktop:retest": 24,
+    "phone:retest": 24
+  },
+  "failed_rows": [
+    {
+      "viewport": "phone",
+      "trial": "first",
+      "pair": "UST1->CL8Y",
+      "amount_class": "human_amount",
+      "human_amount": "1",
+      "raw_input": "1000000",
+      "selected_spread": "0.30",
+      "diagnostics": {
+        "no_current_quote_request": false,
+        "current_request_count": 1,
+        "current_records_truncated": false,
+        "current_records": [
+          {
+            "request_at_ms": 31.200000002980232,
+            "headers_at_ms": 334,
+            "validated_at_ms": 937.7999999970198,
+            "status": 200,
+            "reason": null,
+            "classified": true,
+            "transport_failed": false,
+            "expiry_at_ms": 4899.5,
+            "plan_policy": "pool_only",
+            "hop_count": 2,
+            "operation_count": 2,
+            "wrapper_present": false
+          }
+        ],
+        "previous_records": [],
+        "final_state": {
+          "current_input_matches": true,
+          "receive_present": true,
+          "receive_busy": false,
+          "receive_matches_quote": true,
+          "quote_request_count": 1,
+          "response_received": true,
+          "validation_complete": true,
+          "quote_validated": true,
+          "matched_quote_expired": false,
+          "expired_prior_quote": false,
+          "waiting_surface_present": false
+        },
+        "readiness": {
+          "first_ready_at_ms": 945.7000000029802,
+          "first_frame_at_ms": 952.1000000089407,
+          "paint_frame_at_ms": 1008.4000000059605,
+          "receive_visible": true,
+          "surface_visible": true,
+          "kind": "useful"
+        },
+        "timeline": [
+          {
+            "at_ms": 0.20000000298023224,
+            "current_input_matches": true,
+            "receive_present": false,
+            "receive_busy": true,
+            "receive_matches_quote": false,
+            "quote_request_count": 0,
+            "response_received": false,
+            "validation_complete": false,
+            "quote_validated": false,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          },
+          {
+            "at_ms": 41.29999999701977,
+            "current_input_matches": true,
+            "receive_present": false,
+            "receive_busy": true,
+            "receive_matches_quote": false,
+            "quote_request_count": 1,
+            "response_received": false,
+            "validation_complete": false,
+            "quote_validated": false,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          },
+          {
+            "at_ms": 336.20000000298023,
+            "current_input_matches": true,
+            "receive_present": false,
+            "receive_busy": true,
+            "receive_matches_quote": false,
+            "quote_request_count": 1,
+            "response_received": true,
+            "validation_complete": false,
+            "quote_validated": false,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          },
+          {
+            "at_ms": 945.7000000029802,
+            "current_input_matches": true,
+            "receive_present": true,
+            "receive_busy": false,
+            "receive_matches_quote": true,
+            "quote_request_count": 1,
+            "response_received": true,
+            "validation_complete": true,
+            "quote_validated": true,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          }
+        ]
+      },
+      "useful": true,
+      "classified": true,
+      "input_to_dom_ms": 1008.4000000059605,
+      "attempts": 1,
+      "statuses": [
+        200
+      ],
+      "outcome": "executable",
+      "server_cache_class": "unobserved",
+      "net_output": "1495530016666296802",
+      "minimum_receive": "1046871011666407762",
+      "api_ms": 906.5999999940395,
+      "cached_original_quote": false,
+      "original_observed_at_ms": 1791729260498,
+      "expires_at_ms": 1791729280498,
+      "policy_opt_in": true,
+      "secondary_estimate_present": false,
+      "generic_validation_copy": false,
+      "transport": "reused",
+      "http_protocol": "h3",
+      "failed": true
+    },
+    {
+      "viewport": "phone",
+      "trial": "first",
+      "pair": "CL8Y->UST1",
+      "amount_class": "human_amount",
+      "human_amount": "10",
+      "raw_input": "10000000000000000000",
+      "selected_spread": "0.01",
+      "diagnostics": {
+        "no_current_quote_request": false,
+        "current_request_count": 1,
+        "current_records_truncated": false,
+        "current_records": [
+          {
+            "request_at_ms": 31.200000002980232,
+            "headers_at_ms": 937.7999999970198,
+            "validated_at_ms": 938.3999999910593,
+            "status": 200,
+            "reason": null,
+            "classified": true,
+            "transport_failed": false,
+            "expiry_at_ms": 7408.899999991059,
+            "plan_policy": "pool_only",
+            "hop_count": 2,
+            "operation_count": 2,
+            "wrapper_present": false
+          }
+        ],
+        "previous_records": [],
+        "final_state": {
+          "current_input_matches": true,
+          "receive_present": true,
+          "receive_busy": false,
+          "receive_matches_quote": true,
+          "quote_request_count": 1,
+          "response_received": true,
+          "validation_complete": true,
+          "quote_validated": true,
+          "matched_quote_expired": false,
+          "expired_prior_quote": false,
+          "waiting_surface_present": false
+        },
+        "readiness": {
+          "first_ready_at_ms": 946.0999999940395,
+          "first_frame_at_ms": 958.7000000029802,
+          "paint_frame_at_ms": 1005,
+          "receive_visible": true,
+          "surface_visible": true,
+          "kind": "useful"
+        },
+        "timeline": [
+          {
+            "at_ms": 0.09999999403953552,
+            "current_input_matches": true,
+            "receive_present": false,
+            "receive_busy": true,
+            "receive_matches_quote": false,
+            "quote_request_count": 0,
+            "response_received": false,
+            "validation_complete": false,
+            "quote_validated": false,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          },
+          {
+            "at_ms": 39.8999999910593,
+            "current_input_matches": true,
+            "receive_present": false,
+            "receive_busy": true,
+            "receive_matches_quote": false,
+            "quote_request_count": 1,
+            "response_received": false,
+            "validation_complete": false,
+            "quote_validated": false,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          },
+          {
+            "at_ms": 946.0999999940395,
+            "current_input_matches": true,
+            "receive_present": true,
+            "receive_busy": false,
+            "receive_matches_quote": true,
+            "quote_request_count": 1,
+            "response_received": true,
+            "validation_complete": true,
+            "quote_validated": true,
+            "matched_quote_expired": false,
+            "expired_prior_quote": false,
+            "waiting_surface_present": false
+          }
+        ]
+      },
+      "useful": true,
+      "classified": true,
+      "input_to_dom_ms": 1005.0999999940395,
+      "attempts": 1,
+      "statuses": [
+        200
+      ],
+      "outcome": "executable",
+      "server_cache_class": "unobserved",
+      "net_output": "6188866",
+      "minimum_receive": "6126978",
+      "api_ms": 907.1999999880791,
+      "cached_original_quote": false,
+      "original_observed_at_ms": 1791729300499,
+      "expires_at_ms": 1791729320499,
+      "policy_opt_in": true,
+      "secondary_estimate_present": false,
+      "generic_validation_copy": false,
+      "transport": "reused",
+      "http_protocol": "h3",
+      "failed": true
+    }
+  ],
+  "raw_receipt_sha256": "c263f52fbbd2eb0cc697da907d4eb95c5470e365724b0fc956e6541c7b876c79",
+  "pre_input_visibility_proof": "Fixed helper mandatory await closes Settings and checks actual Pay/Receive viewport intersection before installing each original-input clock; all96measuredrows reached that preflight. Original measurement remains strict/both visible frames. Raw geometries were not emitted.",
+  "interpretation": "Corrected QA setup completed96/96current valid visible quote samples across two views/two cycles with181s gap and no visibilitytimeouts. Two original-event750ms timing failures remainFAIL. No actual stale/current-intent/expired-acceptance issue shown in those rows. Header/body elapsed does not establish underlying cause. Does not replace earlier full1680FAIL or establish entire issue acceptance."
+}

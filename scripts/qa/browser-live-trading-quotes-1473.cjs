@@ -106,6 +106,7 @@ try {
     measurement_clock: "original_input_event_through_confirmed_render_frame",
     elapsed_time_limit_ms: ELAPSED_LIMIT_MS,
     browser_latency_budget_ms: BROWSER_LATENCY_BUDGET_MS,
+    viewport_setup: "settings_closed_and_both_fields_intersect_before_input",
     expected_revision: SHA,
     matrix_sha256: crypto
       .createHash("sha256")
@@ -265,6 +266,50 @@ try {
     fs.writeFileSync(OUTPUT, JSON.stringify(receipt, null, 2) + "\n", {
       mode: 0o600,
     });
+  }
+  // Configure the visible ticket before installing the original-input clock.
+  // Expanded settings can put the receive field below a narrow viewport.
+  async function prepareMeasurementViewport(page) {
+    const settings = page.locator("#swap-slippage-settings");
+    if (await settings.isVisible())
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await settings.waitFor({ state: "hidden", timeout: 5000 });
+    await page.getByTestId("swap-you-pay-amount").evaluate((pay) => {
+      const doc = pay.ownerDocument,
+        receive = doc.querySelector('[data-testid="swap-you-receive"]'),
+        view = doc.defaultView;
+      if (!receive || !view) throw new Error("Quote ticket unavailable");
+      const a = pay.getBoundingClientRect(),
+        b = receive.getBoundingClientRect();
+      view.scrollBy({
+        top:
+          (Math.min(a.top, b.top) + Math.max(a.bottom, b.bottom)) / 2 -
+          view.innerHeight / 2,
+        behavior: "instant",
+      });
+    });
+    await page.waitForFunction(
+      () => {
+        return ["swap-you-pay-amount", "swap-you-receive"].every((id) => {
+          const node = document.querySelector(`[data-testid="${id}"]`),
+            rect = node?.getBoundingClientRect(),
+            style = node ? getComputedStyle(node) : null;
+          return (
+            rect?.width > 0 &&
+            rect?.height > 0 &&
+            rect.right > 0 &&
+            rect.bottom > 0 &&
+            rect.left < innerWidth &&
+            rect.top < innerHeight &&
+            style?.display !== "none" &&
+            style?.visibility !== "hidden" &&
+            Number(style?.opacity) > 0
+          );
+        });
+      },
+      undefined,
+      { timeout: 5000 },
+    );
   }
   async function acknowledge(page) {
     const risk = page.getByRole("checkbox", {
@@ -700,6 +745,7 @@ try {
                 await page
                   .getByTestId("swap-slippage-preset-" + Number(spread) * 100)
                   .click();
+              await prepareMeasurementViewport(page);
               await pay.fill("0.1");
               await page.waitForTimeout(1000);
               const amounts =
@@ -756,6 +802,7 @@ try {
                       generation: progress.quote_generation,
                     };
                 } catch {}
+                await prepareMeasurementViewport(page);
                 const nodeStart = Date.now();
                 await page.evaluate(
                   (expected) => {

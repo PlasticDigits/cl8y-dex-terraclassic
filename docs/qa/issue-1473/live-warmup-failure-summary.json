@@ -1,0 +1,160 @@
+{
+  "issue": 1473,
+  "overall": "FAIL",
+  "scope": "Read-only deployed full socket matrix plus capped public browser trial; classification does not establish economic or settlement acceptance",
+  "app_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "qa_source_fingerprint": "90ae4cf2829046ff39cb12291c89a728321c84d7fe34df15c1b666e77fd80fba",
+  "socket": {
+    "overall": "FAIL",
+    "utc_start": "2026-10-11T12:57:54.430772+00:00",
+    "utc_end": "2026-10-11T13:23:22.809359+00:00",
+    "responses": 1680,
+    "counts": {
+      "amount_too_small": 173,
+      "executable": 997,
+      "missing_observations": 200,
+      "stale_observations": 1,
+      "unsupported_semantics": 309
+    },
+    "shape_failures": 0,
+    "latency_budget_ms": 500,
+    "useful_budget_misses": 13,
+    "new_misses": 2,
+    "reused_misses": 11,
+    "latency_by_transport": {
+      "new": {
+        "samples": 2,
+        "p50_ms": 849.585,
+        "p95_ms": 1029.957,
+        "p99_ms": 1029.957,
+        "max_ms": 1029.957
+      },
+      "reused": {
+        "samples": 995,
+        "p50_ms": 287.625,
+        "p95_ms": 452.714,
+        "p99_ms": 750.397,
+        "max_ms": 825.929
+      }
+    },
+    "backend_revision_checks": 4
+  },
+  "browser": {
+    "overall": "FAIL",
+    "utc_start": "2026-10-11T13:35:24.314Z",
+    "utc_end": "2026-10-11T14:05:24.348Z",
+    "completed": false,
+    "failure_class": "ElapsedTimeBudget",
+    "elapsed_limit_ms": 1800000,
+    "expected_samples": 1680,
+    "completed_sample_rows": 426,
+    "classified_rows": 420,
+    "desktop_classified": 420,
+    "phone_rows": 6,
+    "useful_quotes": 286,
+    "typed_blocked_or_waiting": 134,
+    "failed_samples": 15,
+    "latency_failures": 9,
+    "phone_visibility_failures": 6,
+    "browser_latency_budget_ms": 750,
+    "useful_latency": {
+      "count": 286,
+      "p50_ms": 353.1000000089407,
+      "p95_ms": 383,
+      "p99_ms": 942.5999999940395,
+      "max_ms": 987.2000000029802
+    },
+    "latency_by_cache": {
+      "hit": {
+        "count": 2,
+        "p50_ms": 112.20000000298023,
+        "p95_ms": 115,
+        "p99_ms": 115,
+        "max_ms": 115
+      },
+      "miss": {
+        "count": 119,
+        "p50_ms": 355.20000000298023,
+        "p95_ms": 391.5,
+        "p99_ms": 939.6000000089407,
+        "max_ms": 987.2000000029802
+      },
+      "unobserved": {
+        "count": 165,
+        "p50_ms": 352.40000000596046,
+        "p95_ms": 372.40000000596046,
+        "p99_ms": 942.5999999940395,
+        "max_ms": 942.7000000029802
+      }
+    },
+    "latency_by_transport": {
+      "new": {
+        "count": 0,
+        "p50_ms": null,
+        "p95_ms": null,
+        "p99_ms": null,
+        "max_ms": null
+      },
+      "reused": {
+        "count": 256,
+        "p50_ms": 354.20000000298023,
+        "p95_ms": 387.40000000596046,
+        "p99_ms": 942.5999999940395,
+        "max_ms": 987.2000000029802
+      },
+      "browser_cache_hit": {
+        "count": 30,
+        "p50_ms": 116.90000000596046,
+        "p95_ms": 162.20000000298023,
+        "p99_ms": 168.30000001192093,
+        "max_ms": 168.30000001192093
+      },
+      "unobserved": {
+        "count": 0,
+        "p50_ms": null,
+        "p95_ms": null,
+        "p99_ms": null,
+        "max_ms": null
+      }
+    },
+    "quote_fetch_reservations": 523,
+    "network_quote_gets": 522,
+    "prohibited_writes": 0,
+    "blocked_websockets": 0,
+    "original_helper_provenance": "Two backend checks at initialization/cycle beginning and frontend artifact before only; cap prevented after-cycle/final artifact checks",
+    "phone_visibility_diagnosis": "All six phone rows had prompt validated matching HTTP 200 results and false receive/surface visibility. The original helper opened Settings and did not close it before input; expanded-state and exact offscreen versus opacity geometry were not recorded. No product pricing timeout is established.",
+    "not_completed": [
+      "full phone matrix",
+      "repeat cycle",
+      "181-second cycle gap",
+      "full 1680 browser scenarios"
+    ]
+  },
+  "independent_post_run_attestation": {
+    "overall": "PASS",
+    "app_revision": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+    "read_count": 8,
+    "utc": "2026-10-11T14:08:48.533753+00:00",
+    "root_artifact": {
+      "html_sha256": "05c2f8f1d4b2e48ba4979c457b451c341f74dd98cbf51a44619a53793300bd1e",
+      "root_scripts": [
+        {
+          "asset": "index-CYb1hP6S.js",
+          "sha256": "b1640fc142d925c920cd9a9d7a3340bede504490a2b6a8e44470bacb0ea35c54",
+          "bytes": 182245
+        }
+      ]
+    }
+  },
+  "receipt_sha256": {
+    "public-socket-warmup-full.json": "417af4645aaf2bc3ca02f4bd13c58e4efa2613d0822466db1a0d89842907183a",
+    "live-browser-warmup-full.json": "4b391b488c5121a64446387b26ae183be1a2fee3a98f0c2d9ef862e5eb7aeb21",
+    "deployment-warmup-after-public.json": "63945a9d6231311af00920fc2780292608dcb033317bce6599095659d225ddc6"
+  },
+  "invariants": [
+    "Every earlier FAIL remains FAIL; a corrected helper run is a separate scope",
+    "Waiting/errors never count as useful pricing",
+    "Product quote arithmetic, selected percentage, original expiry and zero request-triggered RPC remain unchanged",
+    "No complete issue acceptance or settlement is claimed"
+  ]
+}
