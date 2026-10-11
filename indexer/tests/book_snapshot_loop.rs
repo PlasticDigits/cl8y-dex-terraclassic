@@ -1862,6 +1862,15 @@ async fn recovery1464_owned_workers_wait_for_head_capacity_and_publish_pinned_qu
         "capacity wait must preserve the original pre-head timestamp"
     );
     assert_eq!(unpinned_pools.load(Ordering::SeqCst), 0);
+    // Stop the head-capacity worker before creating any quote qualification,
+    // then complete a bounded pool/book pass with its leadership released.
+    // Aborting a later incomplete fee phase after qualification must fail closed;
+    // it cannot be used as the setup for a positive cached-quote assertion.
+    liquidity.abort();
+    let _ = liquidity.await;
+    book_snapshot::snapshot_all_pairs(&pool, &lcd)
+        .await
+        .unwrap();
     let mut config = common::test_config();
     config.route_solver_db_hybrid = true;
     let state = common::local_quotes::state(pool.clone(), &config, lcd.clone());
@@ -1904,8 +1913,6 @@ async fn recovery1464_owned_workers_wait_for_head_capacity_and_publish_pinned_qu
     .expect("actual book and scheduled quote workers initialize compatible generation");
     cancel.cancel();
     while workers.join_next().await.is_some() {}
-    liquidity.abort();
-    let _ = liquidity.await;
     let count = requests.load(Ordering::SeqCst);
     let response = client.get(&quote).send().await.unwrap();
     assert!(response.status().is_success());

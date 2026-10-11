@@ -601,3 +601,14 @@ discovery 11, oracle 27, ingestion 21, health 12, pool/book 22, route 14,
 tax 5 and holder 2. These overlapping groups represent 351 test executions per
 pass, rather than unique tests. Original observation/expiry, owned cold guards,
 positive floors and zero request RPC remain asserted.
+
+The first #1392 broad run reported 9 PASS / 1 FAIL / 2 SKIP. Its first
+book-worker fixture aborted an unfinished fee phase after quote qualification,
+then incorrectly required a positive cached quote; the second pass happened to
+shut down between phases. The fixture now stops the capacity worker before any
+quote qualification, releases its leadership, and completes a bounded pool/book
+pass before initializing quote workers. Four consecutive targeted runs pass,
+retaining original pre-head timing, pinned reads, positive output/floors and
+zero request RPC. The complete checks restart on this final test source. An
+intermediate attempt to run the full pass while the loop held leadership timed
+out and was corrected; no production cancellation or admission rule changed.
