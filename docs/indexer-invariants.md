@@ -457,7 +457,8 @@ shared bounded provider admission and independent still-fresh admission observat
 with original expiry. Request paths remain local-only; execution floors, taxes,
 refund ownership and reviewed signing context remain mandatory. API liveness and
 indexing readiness do not establish useful trading coverage. Every representative
-initialized useful result must be strictly <250 ms under socket/browser transport.
+initialized useful result currently targets ≤500 ms under socket/browser transport;
+the original <250 ms improvement is deferred per [#1464](qa/issue-1464/README.md).
 Provider circuits/capacity rejected before an attempt do not spend background
 pacing slots; actual attempts still share finite rate/concurrency admission. Known
 registered code IDs do not require redundant data-hash fallback. Independent
@@ -489,3 +490,40 @@ permit neutrally and records caller_cancellations. It never refunds admitted wor
 declares success or closes a concurrent failure. Generic cancellation and
 incomplete half-open recovery retain quarantine; completed upstream failures and
 the provider's own timeout remain failures. See the [recovery runbook](runbooks/indexer-provider-recovery.md).
+
+## Quote-ready fee provenance (#1464 follow-up)
+
+Raw reserves remain independently publishable for valuation; executable cached
+quotes use complete compatible generations. An explicit pending fee proof binds
+namespace, currently qualified pair/assets/policy, height, positive raw reserves
+and exact PostgreSQL microsecond observation time. A retained complete tuple
+keeps its original time, height and expiry. No new reserves may inherit old fees
+or books. The four-second producer phase and twenty-second/original qualification
+limits remain unchanged.
+
+[Fee provenance](../indexer/src/indexer/fee_phase.rs) caps state at 32 namespaces,
+512 total active/tombstone markers, 128 optional complete mirrors, 4096 retained
+order rows and 4 MiB conservatively charged payload. Retained copies compact bounded
+numerics and charge vector/string capacities; immutable Arc sharing and actor
+copy-on-write preserve generation ownership. Unsupported inventory cannot grow
+this state. Unknown/capacity/expired provenance cannot qualify retention.
+
+Known required-read negatives invalidate cached/deeper responses before cleanup
+awaits. Cancelled/unknown work cannot leave a perpetual pending allowance. A
+changed validated fee supersedes old economics even without an allocated retained
+mirror. Active/tombstone provenance survives temporary qualification removal
+without renewing eligibility, and delayed older publication cannot regress a
+newer compatible complete generation.
+
+Cold or unqualified producers own a non-retaining guard before the raw SQL write.
+Their required-read rejection or cancellation also invalidates qualification that
+arrives during the request; obsolete completions cannot erase newer validation.
+The quote loader validates current raw reserves first. An incomplete fee requires
+an exact qualified pending proof; an older hybrid cannot hide an incomplete or
+changed raw fee. Only the owning qualified producer may establish recovery.
+
+Pool heads use the current live-pair stored frontier in the existing bounded
+provider scan. Below-frontier valid responses prove availability but cannot
+refresh that generation; shared policy, attempt limits and timestamps remain.
+Run [the #1464 checklist](qa/issue-1464/README.md), including #1452/#1453
+retests and fresh exact-revision deployed trials.

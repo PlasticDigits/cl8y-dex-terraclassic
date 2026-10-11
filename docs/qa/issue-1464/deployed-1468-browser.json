@@ -1,0 +1,2404 @@
+{
+  "network_path_scope": "network path unverified",
+  "revision": "8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c",
+  "latency_budget_ms": 500,
+  "utc_start": "2026-10-10T16:03:15.081Z",
+  "source": "actual production https://dex.cl8y.com; read-only disconnected Chromium profiles",
+  "samples": [
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 24889,
+      "useful": true,
+      "input_to_dom_ms": 334.70000000298023,
+      "fetch_ms": 297.29999999701977,
+      "execution": {
+        "net_output_raw": "93806696",
+        "fair_reference_output_raw": "94268865",
+        "slippage_percent": "0.4903",
+        "fair_reference_slippage_recomputed_percent": 0.490266,
+        "hop_market_spread_raw": [
+          "1398"
+        ],
+        "minimum_receive_raw": "89116361",
+        "hop_floors": [
+          "89116361"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648205009,
+        "original_observation_age_ms": 16069,
+        "expires_at_ms": 1791648225009,
+        "remaining_validity_ms": 3931,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "93806696",
+        "fair_reference_output_raw": "94268865",
+        "slippage_percent": "0.4903",
+        "fair_reference_slippage_recomputed_percent": 0.490266,
+        "hop_market_spread_raw": [
+          "1398"
+        ],
+        "minimum_receive_raw": "89116361",
+        "hop_floors": [
+          "89116361"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648205009,
+        "original_observation_age_ms": 16069,
+        "expires_at_ms": 1791648225009,
+        "remaining_validity_ms": 3931,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648221078,
+            "observed_at_ms": 1791648205009,
+            "expires_at_ms": 1791648225009
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 24889,
+      "useful": true,
+      "input_to_dom_ms": 342.30000000447035,
+      "fetch_ms": 304.1000000014901,
+      "execution": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942688",
+        "slippage_percent": "0.4887",
+        "fair_reference_slippage_recomputed_percent": 0.488708,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "928700",
+        "hop_floors": [
+          "928700"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 11130,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 8870,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942688",
+        "slippage_percent": "0.4887",
+        "fair_reference_slippage_recomputed_percent": 0.488708,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "928700",
+        "hop_floors": [
+          "928700"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 11130,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 8870,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648222680,
+            "observed_at_ms": 1791648211550,
+            "expires_at_ms": 1791648231550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 24889,
+      "useful": true,
+      "input_to_dom_ms": 327.29999999701977,
+      "fetch_ms": 293.20000000298023,
+      "execution": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942688",
+        "slippage_percent": "0.4887",
+        "fair_reference_slippage_recomputed_percent": 0.488708,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_floors": [
+          "656656"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 12654,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 7346,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942688",
+        "slippage_percent": "0.4887",
+        "fair_reference_slippage_recomputed_percent": 0.488708,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_floors": [
+          "656656"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 12654,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 7346,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648224204,
+            "observed_at_ms": 1791648211550,
+            "expires_at_ms": 1791648231550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3880,
+      "useful": true,
+      "input_to_dom_ms": 336.40000000596046,
+      "fetch_ms": 297.29999999701977,
+      "execution": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328479450",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": 5.345351,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_floors": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 18142,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 1858,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328479450",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": 5.345351,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_floors": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 18142,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 1858,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648229692,
+            "observed_at_ms": 1791648211550,
+            "expires_at_ms": 1791648231550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3880,
+      "useful": true,
+      "input_to_dom_ms": 345.1000000014901,
+      "fetch_ms": 305.80000000447035,
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284794",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 19698,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 302,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284794",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648211550,
+        "original_observation_age_ms": 19698,
+        "expires_at_ms": 1791648231550,
+        "remaining_validity_ms": 302,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648231248,
+            "observed_at_ms": 1791648211550,
+            "expires_at_ms": 1791648231550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3880,
+      "useful": true,
+      "input_to_dom_ms": 10627.40000000596,
+      "fetch_ms": 298.3999999985099,
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284807",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 11526,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 8474,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        503,
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284807",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 11526,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 8474,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_shape": null
+        },
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648243076,
+            "observed_at_ms": 1791648231550,
+            "expires_at_ms": 1791648251550
+          }
+        }
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "FAIL useful latency >500ms",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3969,
+      "useful": true,
+      "input_to_dom_ms": 335.5,
+      "fetch_ms": 295.3999999985099,
+      "execution": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571763,
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_floors": [
+          "592182",
+          "104839027"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 17151,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 2849,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571763,
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_floors": [
+          "592182",
+          "104839027"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 17151,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 2849,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648248700,
+            "observed_at_ms": 1791648231550,
+            "expires_at_ms": 1791648251550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3969,
+      "useful": true,
+      "input_to_dom_ms": 333.30000000447035,
+      "fetch_ms": 295.5,
+      "execution": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_floors": [
+          "6170",
+          "1092459"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 18688,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 1312,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_floors": [
+          "6170",
+          "1092459"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648231550,
+        "original_observation_age_ms": 18688,
+        "expires_at_ms": 1791648251550,
+        "remaining_validity_ms": 1312,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648250238,
+            "observed_at_ms": 1791648231550,
+            "expires_at_ms": 1791648251550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3969,
+      "useful": false,
+      "input_to_dom_ms": null,
+      "fetch_ms": null,
+      "execution": null,
+      "statuses": [
+        503,
+        503
+      ],
+      "json_useful_count": 0,
+      "latest_json_economics": null,
+      "quote_validation": [
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_shape": null
+        },
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_shape": null
+        }
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "FAIL unavailable/nonexecutable DOM",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3836,
+      "useful": true,
+      "input_to_dom_ms": 394.59999999403954,
+      "fetch_ms": 323.20000000298023,
+      "execution": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886166",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": 5.372379,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648251549,
+        "original_observation_age_ms": 17398,
+        "expires_at_ms": 1791648271549,
+        "remaining_validity_ms": 2602,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886166",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": 5.372379,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648251549,
+        "original_observation_age_ms": 17398,
+        "expires_at_ms": 1791648271549,
+        "remaining_validity_ms": 2602,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648268947,
+            "observed_at_ms": 1791648251549,
+            "expires_at_ms": 1791648271549
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3836,
+      "useful": true,
+      "input_to_dom_ms": 336.19999999552965,
+      "fetch_ms": 300.29999999701977,
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648251549,
+        "original_observation_age_ms": 18939,
+        "expires_at_ms": 1791648271549,
+        "remaining_validity_ms": 1061,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648251549,
+        "original_observation_age_ms": 18939,
+        "expires_at_ms": 1791648271549,
+        "remaining_validity_ms": 1061,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648270488,
+            "observed_at_ms": 1791648251549,
+            "expires_at_ms": 1791648271549
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3836,
+      "useful": true,
+      "input_to_dom_ms": 10632.60000000149,
+      "fetch_ms": 298.5,
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648271549,
+        "original_observation_age_ms": 10769,
+        "expires_at_ms": 1791648291549,
+        "remaining_validity_ms": 9231,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        503,
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648271549,
+        "original_observation_age_ms": 10769,
+        "expires_at_ms": 1791648291549,
+        "remaining_validity_ms": 9231,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 503,
+          "useful": false,
+          "shape": null,
+          "numeric_shape": null
+        },
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648282318,
+            "observed_at_ms": 1791648271549,
+            "expires_at_ms": 1791648291549
+          }
+        }
+      ],
+      "request_count": 2,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "FAIL useful latency >500ms",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 22298,
+      "useful": true,
+      "input_to_dom_ms": 359.29999999701977,
+      "fetch_ms": 295.6000000014901,
+      "execution": {
+        "net_output_raw": "90037900",
+        "fair_reference_output_raw": "94110552",
+        "slippage_percent": "4.3275",
+        "fair_reference_slippage_recomputed_percent": 4.327518,
+        "hop_market_spread_raw": [
+          "3810945177925478",
+          "28330"
+        ],
+        "minimum_receive_raw": "85536005",
+        "hop_floors": [
+          "735293995034041697",
+          "85536005"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648291550,
+        "original_observation_age_ms": 14799,
+        "expires_at_ms": 1791648311550,
+        "remaining_validity_ms": 5201,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "90037900",
+        "fair_reference_output_raw": "94110552",
+        "slippage_percent": "4.3275",
+        "fair_reference_slippage_recomputed_percent": 4.327518,
+        "hop_market_spread_raw": [
+          "3810945177925478",
+          "28330"
+        ],
+        "minimum_receive_raw": "85536005",
+        "hop_floors": [
+          "735293995034041697",
+          "85536005"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648291550,
+        "original_observation_age_ms": 14799,
+        "expires_at_ms": 1791648311550,
+        "remaining_validity_ms": 5201,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648306348,
+            "observed_at_ms": 1791648291550,
+            "expires_at_ms": 1791648311550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 22298,
+      "useful": true,
+      "input_to_dom_ms": 332.20000000298023,
+      "fetch_ms": 292.79999999701977,
+      "execution": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942233",
+        "slippage_percent": "0.4407",
+        "fair_reference_slippage_recomputed_percent": 0.440655,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "928700",
+        "hop_floors": [
+          "928700"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648295009,
+        "original_observation_age_ms": 12905,
+        "expires_at_ms": 1791648315009,
+        "remaining_validity_ms": 7095,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942233",
+        "slippage_percent": "0.4407",
+        "fair_reference_slippage_recomputed_percent": 0.440655,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "928700",
+        "hop_floors": [
+          "928700"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648295009,
+        "original_observation_age_ms": 12905,
+        "expires_at_ms": 1791648315009,
+        "remaining_validity_ms": 7095,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648307914,
+            "observed_at_ms": 1791648295009,
+            "expires_at_ms": 1791648315009
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 22298,
+      "useful": true,
+      "input_to_dom_ms": 325.3999999985099,
+      "fetch_ms": 290.3999999985099,
+      "execution": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942233",
+        "slippage_percent": "0.4407",
+        "fair_reference_slippage_recomputed_percent": 0.440655,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_floors": [
+          "656656"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648295009,
+        "original_observation_age_ms": 14422,
+        "expires_at_ms": 1791648315009,
+        "remaining_validity_ms": 5578,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942233",
+        "slippage_percent": "0.4407",
+        "fair_reference_slippage_recomputed_percent": 0.440655,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_floors": [
+          "656656"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648295009,
+        "original_observation_age_ms": 14422,
+        "expires_at_ms": 1791648315009,
+        "remaining_validity_ms": 5578,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648309431,
+            "observed_at_ms": 1791648295009,
+            "expires_at_ms": 1791648315009
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3789,
+      "useful": true,
+      "input_to_dom_ms": 333.5,
+      "fetch_ms": 291,
+      "execution": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328468048",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": 5.345351,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_floors": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 13240,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 6760,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328468048",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": 5.345351,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_floors": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 13240,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 6760,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648314790,
+            "observed_at_ms": 1791648301550,
+            "expires_at_ms": 1791648321550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3789,
+      "useful": true,
+      "input_to_dom_ms": 335.5,
+      "fetch_ms": 292.30000000447035,
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284680",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 14781,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 5219,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284680",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 14781,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 5219,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648316331,
+            "observed_at_ms": 1791648301550,
+            "expires_at_ms": 1791648321550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3789,
+      "useful": true,
+      "input_to_dom_ms": 330.69999999552965,
+      "fetch_ms": 291.19999999552965,
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284689",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 16306,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 3694,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284689",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": 4.665344,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648301550,
+        "original_observation_age_ms": 16306,
+        "expires_at_ms": 1791648321550,
+        "remaining_validity_ms": 3694,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648317855,
+            "observed_at_ms": 1791648301550,
+            "expires_at_ms": 1791648321550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3935,
+      "useful": true,
+      "input_to_dom_ms": 338.8999999985099,
+      "fetch_ms": 287.69999999552965,
+      "execution": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571763,
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_floors": [
+          "592182",
+          "104839027"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 11802,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 8198,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571763,
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_floors": [
+          "592182",
+          "104839027"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 11802,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 8198,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648323352,
+            "observed_at_ms": 1791648311550,
+            "expires_at_ms": 1791648331550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3935,
+      "useful": true,
+      "input_to_dom_ms": 331.79999999701977,
+      "fetch_ms": 292,
+      "execution": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_floors": [
+          "6170",
+          "1092459"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 13380,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 6620,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_floors": [
+          "6170",
+          "1092459"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 13380,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 6620,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648324930,
+            "observed_at_ms": 1791648311550,
+            "expires_at_ms": 1791648331550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3935,
+      "useful": true,
+      "input_to_dom_ms": 328.19999999552965,
+      "fetch_ms": 290.8999999985099,
+      "execution": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "772445",
+        "hop_floors": [
+          "4363",
+          "772445"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 14894,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 5106,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": 3.57824,
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "minimum_receive_raw": "772445",
+        "hop_floors": [
+          "4363",
+          "772445"
+        ],
+        "operations": 2,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648311550,
+        "original_observation_age_ms": 14894,
+        "expires_at_ms": 1791648331550,
+        "remaining_validity_ms": 5106,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648326444,
+            "observed_at_ms": 1791648311550,
+            "expires_at_ms": 1791648331550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "setup_ms": 3869,
+      "useful": true,
+      "input_to_dom_ms": 329.5,
+      "fetch_ms": 291.8999999985099,
+      "execution": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886167",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": 5.372379,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 10349,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 9651,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886167",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": 5.372379,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 10349,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 9651,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648331899,
+            "observed_at_ms": 1791648321550,
+            "expires_at_ms": 1791648341550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "setup_ms": 3869,
+      "useful": true,
+      "input_to_dom_ms": 327.80000000447035,
+      "fetch_ms": 290.6000000014901,
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 11886,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 8114,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 11886,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 8114,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648333436,
+            "observed_at_ms": 1791648321550,
+            "expires_at_ms": 1791648341550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "setup_ms": 3869,
+      "useful": true,
+      "input_to_dom_ms": 326.5,
+      "fetch_ms": 289.29999999701977,
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 13405,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 6595,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "statuses": [
+        200
+      ],
+      "json_useful_count": 1,
+      "latest_json_economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": 5.372283,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "generation_shape_valid": true,
+        "observed_at_ms": 1791648321550,
+        "original_observation_age_ms": 13405,
+        "expires_at_ms": 1791648341550,
+        "remaining_validity_ms": 6595,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "quote_validation": [
+        {
+          "status": 200,
+          "useful": true,
+          "shape": {
+            "status_200": true,
+            "input_identity_matches": true,
+            "output_identity_matches": true,
+            "original_input_matches": true,
+            "execution_blocker_absent": true,
+            "body_execution_supported": true,
+            "metadata_execution_supported": true,
+            "net_positive_raw": true,
+            "minimum_positive_raw": true,
+            "minimum_lte_net": true,
+            "generation_shape_valid": true,
+            "observed_original_not_future": true,
+            "not_expired": true,
+            "actor_context_absent": true,
+            "operations_nonempty": true,
+            "hops_nonempty": true,
+            "floor_lengths_match": true,
+            "hop_operation_floors_match": true,
+            "slippage_numeric_valid": true,
+            "fair_positive": true,
+            "slippage_matches_fair": true,
+            "market_spreads_canonical": true,
+            "protection_matches": true
+          },
+          "numeric_shape": {
+            "received_at_ms": 1791648334955,
+            "observed_at_ms": 1791648321550,
+            "expires_at_ms": 1791648341550
+          }
+        }
+      ],
+      "request_count": 1,
+      "other_direction_count": 0,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "outcome": "PASS useful DOM/JSON and latency",
+      "disconnected_submit": "CONNECT WALLET"
+    }
+  ],
+  "screenshots": false,
+  "signing": false,
+  "broadcast": false,
+  "browser_version": "151.0.7922.137",
+  "prohibited_write_attempts": 0,
+  "quote_get_attempts": 27,
+  "quote_budget_blocks": 0,
+  "quote_get_budget": 48,
+  "utc_end": "2026-10-10T16:05:35.815Z",
+  "useful_latency": {
+    "samples": 23,
+    "p50_ms": 334.7,
+    "p95_ms": 10627.4,
+    "p99_ms": 10632.6,
+    "max_ms": 10632.6
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "samples": 11,
+      "p50_ms": 336.4,
+      "p95_ms": 10632.6,
+      "p99_ms": 10632.6,
+      "max_ms": 10632.6
+    },
+    "phone": {
+      "samples": 12,
+      "p50_ms": 330.7,
+      "p95_ms": 359.3,
+      "p99_ms": 359.3,
+      "max_ms": 359.3
+    }
+  },
+  "latency_by_connection": {
+    "new": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "samples": 23,
+      "p50_ms": 334.7,
+      "p95_ms": 10627.4,
+      "p99_ms": 10632.6,
+      "max_ms": 10632.6
+    }
+  },
+  "overall": "FAIL",
+  "limitations": [
+    "Fresh disconnected contexts, no wallets/signing/broadcast; phone viewport on desktop Chromium, not cellular or physical device",
+    "Natural Chromium connection reuse observed through CDP; new-connection category may be empty because catalog reads initialize sockets",
+    "No screenshots, raw response bodies, actor identifiers/digests, generation digests or private endpoint URLs retained",
+    "Hop market spreads retain distinct output raw units; net fair-reference slippage includes costs and is not market spread",
+    "No production outage/disruption trial performed",
+    "Quote budget reservation adds a local binding callback before fetch; HTTPcache and protocolselection areotherwiseunaltered"
+  ],
+  "current_budget_results": {
+    "useful_within_budget": 21,
+    "useful_over_budget": 2,
+    "unavailable": 1,
+    "legacy250_useful_within_budget": 0
+  },
+  "artifact_note": "Original recorded outcomes andunroundedfirstusefulDOMtimings unchanged; activepredicateused500ms. A priorinterimmessage usedanoldthreshold, withnoeffectonrecordedresults."
+}

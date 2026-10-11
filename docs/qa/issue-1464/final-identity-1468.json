@@ -1,0 +1,167 @@
+{
+  "schema": "cl8y-1392-supplemental-identity-v1",
+  "source_revision": "ed6ddec6af57d3a0d9e20e74c36ef41a10dfad74",
+  "network_path_scope": "network path unverified",
+  "scope": "Supplemental bounded read-only local and configured-live identity observations. Local namespace isolation is not cryptographic remote attestation, historical support, transaction authority or deployed acceptance. No chain mutations or broadcasts.",
+  "passes": [
+    {
+      "pass": 1,
+      "utc_start": "2026-10-10T15:48:49.900419+00:00",
+      "local": {
+        "expected_chain": "localterra",
+        "chain_matches": true,
+        "height": 777950,
+        "height_positive": true,
+        "catching_up": false,
+        "time_valid": true,
+        "time_not_future": true,
+        "fresh_within_60_seconds": true,
+        "age_seconds": 0.428
+      },
+      "live": [
+        {
+          "provider_index": 0,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777779,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 866.15
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 848.41
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 12.644
+        },
+        {
+          "provider_index": 1,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777780,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 1844.19
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 1675.93
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 10.796
+        },
+        {
+          "provider_index": 2,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777781,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 1041.86
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 1353.16
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 7.947
+        }
+      ],
+      "utc_end": "2026-10-10T15:48:59.691048+00:00",
+      "identity_pass": true
+    },
+    {
+      "pass": 2,
+      "utc_start": "2026-10-10T15:49:01.691264+00:00",
+      "local": {
+        "expected_chain": "localterra",
+        "chain_matches": true,
+        "height": 778003,
+        "height_positive": true,
+        "catching_up": false,
+        "time_valid": true,
+        "time_not_future": true,
+        "fresh_within_60_seconds": true,
+        "age_seconds": 0.346
+      },
+      "live": [
+        {
+          "provider_index": 0,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777781,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 754.83
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 1193.66
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 12.583
+        },
+        {
+          "provider_index": 1,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777781,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 1698.77
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 2357.46
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 17.14
+        },
+        {
+          "provider_index": 2,
+          "expected_chain": "columbus-5",
+          "chain_matches": true,
+          "block_chain_matches": true,
+          "height": 30777783,
+          "height_positive": true,
+          "identity_transport": {
+            "status": 200,
+            "elapsed_ms": 851.77
+          },
+          "head_transport": {
+            "status": 200,
+            "elapsed_ms": 794.07
+          },
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "age_seconds": 7.418
+        }
+      ],
+      "utc_end": "2026-10-10T15:49:11.030057+00:00",
+      "identity_pass": true
+    }
+  ],
+  "status": "PASS"
+}

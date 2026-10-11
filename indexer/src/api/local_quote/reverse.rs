@@ -271,11 +271,11 @@ mod tests {
         first_fees: &[u16],
     ) -> (Snapshot, Vec<route_paths::PathHop>) {
         let mut s = super::super::tests::fixture();
-        let first = s.mirrors.get_mut("pair7a").unwrap();
+        let first = Arc::make_mut(s.mirrors.get_mut("pair7a").unwrap());
         first.reserve_0 = first_reserves.0;
         first.reserve_1 = first_reserves.1;
         first.fee_bps = 0;
-        let second = s.mirrors.get_mut("pair7b").unwrap();
+        let second = Arc::make_mut(s.mirrors.get_mut("pair7b").unwrap());
         second.reserve_0 = 1000;
         second.reserve_1 = 1002;
         second.fee_bps = 0;
@@ -334,9 +334,9 @@ mod tests {
     fn composed_inverse_matches_independent_first_reaching_census_with_commissions_and_three_hops()
     {
         let (mut s, mut path) = two_hop((1000, 6000), &[3333, 3333]);
-        s.mirrors.get_mut("pair7a").unwrap().fee_bps = 333;
-        s.mirrors.get_mut("pair7b").unwrap().fee_bps = 250;
-        let mut final_mirror = s.mirrors["pair7b"].clone();
+        Arc::make_mut(s.mirrors.get_mut("pair7a").unwrap()).fee_bps = 333;
+        Arc::make_mut(s.mirrors.get_mut("pair7b").unwrap()).fee_bps = 250;
+        let mut final_mirror = (*s.mirrors["pair7b"]).clone();
         final_mirror.asset_0_addr = "out18".into();
         final_mirror.asset_1_addr = "end18".into();
         final_mirror.reserve_0 = 2000;
@@ -346,7 +346,7 @@ mod tests {
         s.references = super::super::super::local_reference_quote::ReferencePrices::synthetic(
             s.addresses.keys().copied(),
         );
-        s.mirrors.insert("third".into(), final_mirror);
+        s.mirrors.insert("third".into(), Arc::new(final_mirror));
         s.hooks
             .insert("third".into(), hooks("end18", &[1000, 1500]));
         path.push(("third".into(), 2, 20));
@@ -379,8 +379,8 @@ mod tests {
     #[test]
     fn forward_refinement_limit_fails_closed_and_keeps_a_sufficient_alternate() {
         let (mut s, path) = two_hop((1, 4001), &[]);
-        s.mirrors.get_mut("pair7b").unwrap().reserve_0 = 3997;
-        s.mirrors.get_mut("pair7b").unwrap().reserve_1 = 6;
+        Arc::make_mut(s.mirrors.get_mut("pair7b").unwrap()).reserve_0 = 3997;
+        Arc::make_mut(s.mirrors.get_mut("pair7b").unwrap()).reserve_1 = 6;
         s.hooks
             .insert("pair7b".into(), hooks("out18", &[5000, 5000]));
         // An early necessary suffix input is overshot into a long even-output
@@ -399,11 +399,11 @@ mod tests {
             work.remaining,
             MAX_INVERSE_PROBES - 2 * MAX_FORWARD_REFINEMENTS
         );
-        let mut alternate = s.mirrors["pair7b"].clone();
+        let mut alternate = (*s.mirrors["pair7b"]).clone();
         alternate.asset_0_addr = "in18".into();
         alternate.reserve_0 = 2000;
         alternate.reserve_1 = 3;
-        s.mirrors.insert("alternate".into(), alternate);
+        s.mirrors.insert("alternate".into(), Arc::new(alternate));
         let healthy = vec![("alternate".into(), 1, 2)];
         let (required, quote) = select_inverse(&s, &[path, healthy.clone()], 1, SCALE / 2).unwrap();
         assert_eq!(required, 1000);

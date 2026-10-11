@@ -291,6 +291,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         return Ok(());
     }
     let mut mirrors = HashMap::new();
+    let mut config_expiries = s.config_expiries.clone();
     for pair in &s.pairs {
         if s.config_expiries
             .get(&pair.contract_address)
@@ -303,8 +304,20 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&pair.contract_address) {
             continue;
         }
-        if let Ok(m) = sim::load_local_mirror(&state.pool, pair, &s.addresses, s.max_age_ms).await {
-            mirrors.insert(pair.contract_address.clone(), m);
+        let context = s
+            .pair_contexts
+            .get(&pair.contract_address)
+            .map(String::as_str);
+        if let Some((mirror, retained_expiry)) =
+            load_qualified_mirror(state, pair, &s.addresses, s.max_age_ms, context).await
+        {
+            if let Some(expiry) = retained_expiry {
+                config_expiries
+                    .entry(pair.contract_address.clone())
+                    .and_modify(|at| *at = (*at).min(expiry))
+                    .or_insert(expiry);
+            }
+            mirrors.insert(pair.contract_address.clone(), mirror);
         }
     }
     publish(
@@ -315,7 +328,8 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         s.max_age_ms,
         s.hooks.clone(),
         s.config_expiry_ms,
-        s.config_expiries.clone(),
+        config_expiries,
+        s.pair_contexts.clone(),
         local_reference_quote::ReferencePrices::observe(
             &state.pool,
             &sqlx::query_as::<_, assets::AssetRow>("SELECT * FROM assets ORDER BY id LIMIT 2048")
@@ -331,6 +345,42 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         Some(s.config_epoch),
     );
     Ok(())
+}
+
+/// Shared by reserve and configuration publication. Only the explicit fee
+/// generation error permits retention; SQL, malformed/zero data and negatives do not.
+pub(super) async fn load_qualified_mirror(
+    state: &AppState,
+    pair: &pairs::PairRow,
+    addresses: &HashMap<i32, String>,
+    max_age_ms: u64,
+    context: Option<&str>,
+) -> Option<(Arc<sim::HopMirror>, Option<i64>)> {
+    let namespace = state.lcd.chain_cache_namespace();
+    match sim::load_local_mirror_for_quote(&state.pool, pair, addresses, max_age_ms, &namespace)
+        .await
+    {
+        Ok(mirror) => Some((Arc::new(mirror), None)),
+        Err(sim::DbSimError::IncompleteFeeGeneration {
+            height,
+            observed_at,
+            reserve_0,
+            reserve_1,
+        }) => crate::indexer::fee_phase::retained(
+            &namespace,
+            pair.id,
+            context?,
+            height,
+            observed_at,
+            (reserve_0, reserve_1),
+        )
+        .map(|(mirror, expiry)| (mirror, Some(expiry))),
+        Err(sim::DbSimError::FeeGenerationRejected) => None,
+        Err(_) => {
+            crate::indexer::fee_phase::reject(&namespace, pair.id, None, Utc::now());
+            None
+        }
+    }
 }
 
 #[cfg(test)]

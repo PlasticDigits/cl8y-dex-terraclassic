@@ -517,3 +517,98 @@ SHA-256 values next to token file labels. Their digest shapes and provenance
 were verified; the public receipt presentation now separates paths from hashes
 and distinguishes original/public document checksums. The unchanged scanner
 passed after that restructuring; no hook or scanner rule was bypassed.
+
+## Deployed caller-budget repair #1468
+
+[PR #1468](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1468) passed
+[six actual hosted jobs](hosted-394.json) for ed6ddec6af57d3a0d9e20e74c36ef41a10dfad74
+([pipeline394](https://ci.cl8y.com/repos/7/pipeline/394/1)): 731 library tests,
+84 selected PostgreSQL tests, and matching exact-head completion markers.
+[Final local prerequisites](final-prerequisites-1468.json) record98/0/9 stages
+on unchanged df4d090e fingerprint. [Fresh identity](final-identity-1468.json)
+and [authenticated runtime](authenticated-runtime-fixture-renew-final.json)
+controls pass twice independently. Their scope does not certify deployment.
+
+The [rollout](deployment-1468.json) completed15:58:45UTC on
+8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c, with3 healthy checks, old-container
+removal and no compiler errors. Public health independently attested that merge.
+[Initial corpus](deployed-1468-initial.json):23/24 useful, one stale503;
+11 actual reused successes all<=417.456ms. New TLS samples remain slower.
+[Later corpus](deployed-1468-warm-economics.json):24/24 useful, followed by
+[continued trial](deployed-1468-sustained-economics.json):20/24 useful.
+All actual reused useful fetches remain below500ms; cold sockets are separate.
+These measured failures remain FAIL and are not overridden by later successes.
+
+[Actual browser](deployed-1468-browser.json),16:03:15–16:05:35UTC:
+23/24 useful,21/24 meet500ms. Two desktop small30% scenarios waited about10.63s
+after503 before recovering; USTR small30% remained unavailable after two503s.
+Phone12/12 useful. All useful rows retain positive matching hop/final floors
+and numeric DOM output. Whole first-useful time includes every retry.
+
+[Five-minute metadata](deployed-1468-metadata-summary.json) has31 exact-merge
+samples, no counter resets and no all-provider-open samples. Provider2 gains
+2730 successes and24 caller cancellations with zero failures or circuit deferrals.
+Every sampled reference remains fresh below6.5s. This establishes the cancellation
+repair's operational effect, while intermittent route availability still fails.
+The monitor's stricter HTTPS-only admin-base validation refused log collection;
+that helper failure is distinct from the public availability observations.
+Separate log attempts preserve broker-expiry and bounded-read failures.
+
+A remaining source gap is the pool cycle's head prelude: it treats zero-attempt
+capacity deferral as missing height immediately, while subsequent pool phases
+already wait for capacity. Successful later live reads cannot establish a usable
+pinned fee/book generation; known-height retained rows cannot be relabelled.
+The follow-up uses a head-only wait inside the existing four-second budget,
+without retrying actual failures or renewing the original pre-head timestamp.
+Queued-cycle aging remains a separate hypothesis until lane-labelled evidence
+establishes it. No freshness period or shared provider cap is increased.
+
+## Pool frontier and complete fee generations: follow-up source
+
+Subsequent classified logs counted 110 rejected older pool observations,
+155 expired pool generations and 62 missing compatible fees. No head-unavailable
+warning was observed in that window; the capacity race is covered by source
+regressions, while older successful heads are an independently observed failure.
+The scheduled pool consumer now requires the stored live-pair height frontier
+inside its original bounded provider scan. A valid lower head is ineligible for
+that query and cannot refresh reserves or alter the shared lag policy.
+
+Raw reserves still publish for valuation. An explicit bounded pending phase lets
+both quote publishers retain only the exact previously qualified complete tuple,
+with original timestamps and expiry. Negative headers, cancellation, changed fees,
+maximum fees and obsolete completion remain fail closed. Cold producers also own
+a non-retaining guard before raw SQL; newly arriving qualification cannot evade
+that guard. Current raw fee validation precedes older hybrid selection.
+
+[Final targeted test/retest](final-fee-generation-controls.json): fee-phase controls 11/11 and actual scheduled-worker
+controls 7/7 passed twice. Earlier LCD controls passed 93/93 plus one ignored
+benchmark twice; producer/book controls passed 22/22 twice before the final cold
+guard extension. The complete verifiers below must pass on the final frozen source
+before merge. These source results do not resolve the deployed FAIL observations.
+
+The first broad run failed the existing initialized socket fixture when it
+replaced its production-qualified namespace with deliberately backdated synthetic
+observations. Monotonic fee provenance correctly rejected that regression. The
+controlled-age section now owns a separate synthetic namespace; all production
+measurements and stale/future rejection assertions remain intact. The failed run
+is retained, and the complete frozen checks restart after the fixture correction.
+
+[Final frozen fee-generation verifier](final-fee-generation-source.json) passed
+11 stages with zero failures and two explicit source-only omissions, UTC
+2026-10-10 23:44:31–23:49:42, on cadffc5f6cff17905999f06e1afebda272b24cb24ec5cf1a6c6cccc26747eb7f.
+Per pass: LCD 93 plus one ignored benchmark, recovery 67, local quote 77,
+discovery 11, oracle 27, ingestion 21, health 12, pool/book 22, route 14,
+tax 5 and holder 2. These overlapping groups represent 351 test executions per
+pass, rather than unique tests. Original observation/expiry, owned cold guards,
+positive floors and zero request RPC remain asserted.
+
+The first #1392 broad run reported 9 PASS / 1 FAIL / 2 SKIP. Its first
+book-worker fixture aborted an unfinished fee phase after quote qualification,
+then incorrectly required a positive cached quote; the second pass happened to
+shut down between phases. The fixture now stops the capacity worker before any
+quote qualification, releases its leadership, and completes a bounded pool/book
+pass before initializing quote workers. Four consecutive targeted runs pass,
+retaining original pre-head timing, pinned reads, positive output/floors and
+zero request RPC. The complete checks restart on this final test source. An
+intermediate attempt to run the full pass while the loop held leadership timed
+out and was corrected; no production cancellation or admission rule changed.

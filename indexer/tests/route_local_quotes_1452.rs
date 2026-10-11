@@ -885,6 +885,20 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
     )
     .await
     .unwrap();
+    // Artificially backdated mirrors belong to a separate synthetic namespace.
+    // The production-ingested namespace must retain its monotonic fee watermark;
+    // replacing it with older synthetic evidence would correctly fail closed.
+    server.abort();
+    let _ = server.await;
+    let state = app_state(pool.clone(), cold_fixture_lcd(upstream.uri()));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = Arc::new(format!("http://{}", listener.local_addr().unwrap()));
+    let server_state = state.clone();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, build_router(server_state, &common::test_config()))
+            .await
+            .unwrap()
+    });
     let mut controlled_reference = None;
     for seconds in [12, 15, 30, 90] {
         let mut mirrors = original_mirrors.clone();
@@ -1312,3 +1326,6 @@ async fn transient_admission_refresh_preserves_original_times_then_known_pause_i
         axum::http::StatusCode::SERVICE_UNAVAILABLE
     );
 }
+
+#[path = "scenarios/fee_generation_recovery_1464.rs"]
+mod fee_generation_recovery;

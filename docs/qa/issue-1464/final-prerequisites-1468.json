@@ -1,0 +1,56 @@
+{
+  "source_revision": "ed6ddec6af57d3a0d9e20e74c36ef41a10dfad74",
+  "rust_fingerprint": "df4d090e6e043351ccc90d4939dcf5e25313376e3b94027b85b07edf841804c6",
+  "results": {
+    "1464": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-10T15:22:55Z",
+      "utc_end": "2026-10-10T15:28:39Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1464"
+    },
+    "1452": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "utc_start": "2026-10-10T15:28:39Z",
+      "utc_end": "2026-10-10T15:34:02Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1452"
+    },
+    "1453": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-10T15:34:02Z",
+      "utc_end": "2026-10-10T15:37:23Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1453"
+    },
+    "1394": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0,
+      "utc_start": "2026-10-10T15:37:23Z",
+      "utc_end": "2026-10-10T15:38:06Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1394"
+    },
+    "1392": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-10T15:38:06Z",
+      "utc_end": "2026-10-10T15:46:57Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1392"
+    },
+    "1396": {
+      "pass": 28,
+      "fail": 0,
+      "skip": 3,
+      "utc_start": "2026-10-10T15:46:57Z",
+      "utc_end": "2026-10-10T15:49:42Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1396"
+    }
+  },
+  "source_scope_overall": "PASS WITH SKIPS",
+  "source_scope_only": true
+}

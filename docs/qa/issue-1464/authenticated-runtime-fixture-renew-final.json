@@ -1,0 +1,58 @@
+{
+  "source_base_revision": "ef1cf3995f2e725b8c3847ca9a5504b454a8ec89",
+  "reviewed_source_revision": "ed6ddec6af57d3a0d9e20e74c36ef41a10dfad74",
+  "source_fingerprint": "df4d090e6e043351ccc90d4939dcf5e25313376e3b94027b85b07edf841804c6",
+  "started_at_utc": "2026-10-10T15:52:15.175730+00:00",
+  "scope": "Authenticated runtime LOGIN checks on a fresh independently owned loopback-only Postgres cluster; compiled current-source test binary invoked directly; no shared or production grants changed.",
+  "provisioning_attempts": [
+    {
+      "run": 1,
+      "status": "PASS",
+      "runtime_tests_executed": 0,
+      "reason": "Fresh owned cluster waited for final initialization and readiness; actual CONNECT baseline checked before tests."
+    }
+  ],
+  "private_env_permissions": "0600",
+  "runs": [
+    {
+      "run": 1,
+      "started_at_utc": "2026-10-10T15:52:15.562543+00:00",
+      "duration_seconds": 0.927,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "run": 2,
+      "started_at_utc": "2026-10-10T15:52:16.559903+00:00",
+      "duration_seconds": 0.974,
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "baseline": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 0
+  },
+  "command": "database_isolation --exact runtime_credential_rejects_schema_ddl_and_detects_database_create_grants --ignored --test-threads=1",
+  "compiled_binary_sha256": "90768ea0c74851fff03a9220cc3cff24d9c38bf1368837a8f259bf9c496af61e",
+  "post_test_checks": {
+    "runtime_connectible_databases": 0,
+    "process_owned_databases": 2
+  },
+  "status": "PASS",
+  "cleanup": {
+    "owned_container_removed": true,
+    "generated_private_credentials_removed": true,
+    "owned_fixture_resources_remaining": 0
+  },
+  "completed_at_utc": "2026-10-10T15:52:18.042006+00:00",
+  "schema_version": 1,
+  "production_acceptance": false,
+  "source_scope": "Exact reviewed source revision and frozen Rust fingerprint; unchanged ef1 baseline provenance is preserved separately."
+}

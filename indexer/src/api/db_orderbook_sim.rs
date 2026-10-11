@@ -166,6 +166,15 @@ pub enum DbSimError {
     StaleMirror,
     #[error("invalid numeric in mirror row")]
     InvalidNumeric,
+    #[error("pool generation awaits its compatible fee")]
+    IncompleteFeeGeneration {
+        height: Option<i64>,
+        observed_at: DateTime<Utc>,
+        reserve_0: u128,
+        reserve_1: u128,
+    },
+    #[error("fee generation rejected")]
+    FeeGenerationRejected,
     #[error("insufficient pool liquidity")]
     InsufficientLiquidity,
     /// Pool-leg sim is not a ranking winner: ask out > ask reserve, or 18-dec offer
@@ -1380,18 +1389,96 @@ pub async fn load_local_mirror(
     addresses: &HashMap<i32, String>,
     max_age_ms: u64,
 ) -> Result<HopMirror, DbSimError> {
+    load_local_mirror_inner(pool, pair, addresses, max_age_ms, None).await
+}
+
+pub(crate) async fn load_local_mirror_for_quote(
+    pool: &PgPool,
+    pair: &pairs::PairRow,
+    addresses: &HashMap<i32, String>,
+    max_age_ms: u64,
+    namespace: &str,
+) -> Result<HopMirror, DbSimError> {
+    load_local_mirror_inner(pool, pair, addresses, max_age_ms, Some(namespace)).await
+}
+async fn load_local_mirror_inner(
+    pool: &PgPool,
+    pair: &pairs::PairRow,
+    addresses: &HashMap<i32, String>,
+    max_age_ms: u64,
+    namespace: Option<&str>,
+) -> Result<HopMirror, DbSimError> {
     let mut tx = pool.begin().await?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
         .await?;
+    // Executable quote publication validates the latest raw evidence first.
+    // Generic historical/book simulation keeps its existing hybrid selection.
+    let current_pool = if namespace.is_some() {
+        let identity: Option<(i32, i32, Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT p.asset_0_id,p.asset_1_id,
+                    CASE WHEN a0.is_cw20 THEN a0.contract_address ELSE a0.denom END,
+                    CASE WHEN a1.is_cw20 THEN a1.contract_address ELSE a1.denom END
+             FROM pairs p JOIN assets a0 ON a0.id=p.asset_0_id JOIN assets a1 ON a1.id=p.asset_1_id
+             WHERE p.id=$1 AND p.contract_address=$2",
+        )
+        .bind(pair.id)
+        .bind(&pair.contract_address)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if !identity.is_some_and(|(a, b, address0, address1)| {
+            a == pair.asset_0_id
+                && b == pair.asset_1_id
+                && address0.as_ref() == addresses.get(&a)
+                && address1.as_ref() == addresses.get(&b)
+                && address0.is_some()
+                && address1.is_some()
+        }) {
+            return Err(DbSimError::InvalidNumeric);
+        }
+        let raw = pair_reserves::get_pair_reserves(&mut *tx, pair.id)
+            .await?
+            .ok_or(DbSimError::MissingMirror)?;
+        let reserve_0 = exact_u128(&raw.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
+        let reserve_1 = exact_u128(&raw.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
+        if reserve_0 == 0
+            || reserve_1 == 0
+            || raw.block_height.is_none_or(|height| height <= 0)
+            || is_snapshot_stale(raw.snapshot_at, max_age_ms)
+        {
+            return Err(DbSimError::InvalidNumeric);
+        }
+        if raw.fee_bps == -1 {
+            return Err(DbSimError::IncompleteFeeGeneration {
+                height: raw.block_height,
+                observed_at: raw.snapshot_at,
+                reserve_0,
+                reserve_1,
+            });
+        }
+        if !(0..=10_000).contains(&raw.fee_bps) {
+            return Err(DbSimError::InvalidNumeric);
+        }
+        Some(raw)
+    } else {
+        None
+    };
     // Retain a compatible book generation at its original age when the independent
     // pool lane advances. A stale/missing hybrid falls back to current pool-only data.
     let hybrid = pair_reserves::get_hybrid_pair_reserves(&mut *tx, pair.id).await?;
-    let use_hybrid = hybrid
-        .as_ref()
-        .is_some_and(|r| !is_snapshot_stale(r.snapshot_at, max_age_ms));
+    let use_hybrid = hybrid.as_ref().is_some_and(|r| {
+        !is_snapshot_stale(r.snapshot_at, max_age_ms)
+            && current_pool.as_ref().is_none_or(|raw| r.fee_bps==raw.fee_bps
+                && r.snapshot_at<=raw.snapshot_at
+                && matches!((r.block_height,raw.block_height),(Some(old),Some(new)) if old>0 && old<=new))
+            && namespace.is_none_or(|ns| {
+                crate::indexer::fee_phase::permits(ns, pair.id, r.block_height, r.snapshot_at)
+            })
+    });
     let r = if use_hybrid {
         hybrid.unwrap()
+    } else if let Some(raw) = current_pool {
+        raw
     } else {
         pair_reserves::get_pair_reserves(&mut *tx, pair.id)
             .await?
@@ -1399,6 +1486,24 @@ pub async fn load_local_mirror(
     };
     let reserve_0 = exact_u128(&r.reserve_0).ok_or(DbSimError::InvalidNumeric)?;
     let reserve_1 = exact_u128(&r.reserve_1).ok_or(DbSimError::InvalidNumeric)?;
+    if r.fee_bps == -1
+        && reserve_0 > 0
+        && reserve_1 > 0
+        && r.block_height.is_some_and(|height| height > 0)
+        && !is_snapshot_stale(r.snapshot_at, max_age_ms)
+    {
+        return Err(DbSimError::IncompleteFeeGeneration {
+            height: r.block_height,
+            observed_at: r.snapshot_at,
+            reserve_0,
+            reserve_1,
+        });
+    }
+    if namespace.is_some_and(|ns| {
+        !crate::indexer::fee_phase::permits(ns, pair.id, r.block_height, r.snapshot_at)
+    }) {
+        return Err(DbSimError::FeeGenerationRejected);
+    }
     let fee_bps = u16::try_from(r.fee_bps)
         .ok()
         .filter(|b| *b <= 10_000)

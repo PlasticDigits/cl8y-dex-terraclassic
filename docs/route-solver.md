@@ -25,7 +25,9 @@ Read [LQ1452 invariants](../skills/AGENTS_LOCAL_SWAP_QUOTES.md),
 [agent verification instructions](qa/issue-1452/README.md) and
 [implemented scope and measured results](qa/issue-1452/RESULTS.md).
 Unsupported semantics and unavailable live checks remain explicit there. Local
-microbenchmarks never establish <250 ms production browser acceptance.
+microbenchmarks never establish production browser acceptance at the currently
+accepted temporary ≤500 ms target. The original <250 ms improvement is deferred
+per [#1464](qa/issue-1464/README.md); historical timing verdicts remain unchanged.
 Independent reserve/book generation and provider-feed recovery remain coordinated
 with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
 

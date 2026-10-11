@@ -103,3 +103,14 @@ revision without secrets. Never equate a configured URL list with healthy failov
 Provider lifecycle/fair scheduling and admission recovery also preserve
 [PR1464](AGENTS_PROVIDER_RECOVERY.md); [agent checklist](../docs/qa/issue-1464/README.md).
 Fresh pool retention does not certify executable configuration or live trading readiness.
+
+## Quote-ready fee generation follow-up (#1464)
+
+Use [provider recovery invariants](AGENTS_PROVIDER_RECOVERY.md) and
+[the current receipts](../docs/qa/issue-1464/verification.md) for pool-head capacity,
+monotonic head selection and pending fee publication. Raw valuation observations
+and quote-ready complete tuples remain distinct; a pending generation cannot
+renew or splice a prior tuple. Same-height cached/new fees share a guarded
+transaction. Known negatives, changed fee economics, expiry and capacity failure
+remain fail closed. Lane-labelled diagnostics and actual owned-worker tests
+establish source behavior; deployed acceptance requires new exact-revision trials.

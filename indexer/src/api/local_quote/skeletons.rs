@@ -70,7 +70,9 @@ mod tests {
         let mut s = super::super::tests::fixture();
         let initial = key(&s, 1, 2, 2);
         s.generation = "new-market-generation".into();
-        s.mirrors.values_mut().for_each(|m| m.reserve_0 *= 2);
+        s.mirrors
+            .values_mut()
+            .for_each(|m| Arc::make_mut(m).reserve_0 *= 2);
         assert_eq!(key(&s, 1, 2, 2), initial);
         let expected = paths(&s, 1, 2, 2);
         assert_eq!(paths(&s, 1, 2, 2), expected);

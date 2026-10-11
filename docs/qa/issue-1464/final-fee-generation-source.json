@@ -1,0 +1,130 @@
+{
+  "source_base_revision": "8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c",
+  "rust_source_fingerprint": "cadffc5f6cff17905999f06e1afebda272b24cb24ec5cf1a6c6cccc26747eb7f",
+  "command": "CARGO_BUILD_JOBS=2 make verify-issue-1464",
+  "utc_start": "2026-10-10T23:44:31Z",
+  "utc_end": "2026-10-10T23:49:42Z",
+  "stages": {
+    "pass": 11,
+    "fail": 0,
+    "skip": 2
+  },
+  "test_group_results": [
+    {
+      "passed": 93,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 67,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 77,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 93,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 67,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 77,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "status": "PASS WITH SKIPS",
+  "skip_scope": [
+    "Deployed useful corpus, browser and sustained outage acceptance must be executed independently.",
+    "Full current local-engine quote and funded settlement parity not established by this source-only verifier."
+  ],
+  "prior_failure": "An initial controlled-age fixture used its production namespace for older synthetic observations; separate synthetic namespace correction retained all economic, age, latency and zero-RPC assertions. Focused first/retest then passed on frozen source."
+}

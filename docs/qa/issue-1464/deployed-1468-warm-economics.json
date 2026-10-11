@@ -1,0 +1,901 @@
+{
+  "issue": 1464,
+  "revision": "8f62fb3c0125f73785fd7a9af0cd5b44a87dd01c",
+  "network_path_scope": "network path unverified",
+  "utc_start": "2026-10-10T16:02:23.710336+00:00",
+  "utc_end": "2026-10-10T16:02:51.607176+00:00",
+  "overall": "FAIL",
+  "useful_count": 24,
+  "request_count": 24,
+  "useful_economics_count": 24,
+  "latency_budget_ms": 500,
+  "useful_within_500ms_count": 11,
+  "useful_latency": {
+    "samples": 24,
+    "p50_ms": 847.693,
+    "p95_ms": 1052.706,
+    "p99_ms": 1453.711,
+    "max_ms": 1453.711
+  },
+  "useful_latency_by_intended_transport": {
+    "new": {
+      "samples": 12,
+      "p50_ms": 889.787,
+      "p95_ms": 1453.711,
+      "p99_ms": 1453.711,
+      "max_ms": 1453.711
+    },
+    "reused": {
+      "samples": 12,
+      "p50_ms": 296.73,
+      "p95_ms": 882.122,
+      "p99_ms": 882.122,
+      "max_ms": 882.122
+    }
+  },
+  "samples": [
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "93806696",
+        "fair_reference_output_raw": "94268337",
+        "slippage_percent": "0.4897",
+        "fair_reference_slippage_recomputed_percent": "0.489709",
+        "hop_market_spread_raw": [
+          "1398"
+        ],
+        "hop_minimum_receive_raw": [
+          "89116361"
+        ],
+        "minimum_receive_raw": "89116361",
+        "hop_count": 1,
+        "observed_at_ms": 1791648131549,
+        "original_observation_age_ms": 13076,
+        "expires_at_ms": 1791648151549,
+        "remaining_validity_ms": 6924,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 889.787,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "911759",
+        "fair_reference_output_raw": "942683",
+        "slippage_percent": "3.2804",
+        "fair_reference_slippage_recomputed_percent": "3.280424",
+        "hop_market_spread_raw": [
+          "16",
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "5098",
+          "902641"
+        ],
+        "minimum_receive_raw": "902641",
+        "hop_count": 2,
+        "observed_at_ms": 1791648131549,
+        "original_observation_age_ms": 15063,
+        "expires_at_ms": 1791648151549,
+        "remaining_validity_ms": 4937,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 1453.711,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942683",
+        "slippage_percent": "0.4882",
+        "fair_reference_slippage_recomputed_percent": "0.488181",
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "656656"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_count": 1,
+        "observed_at_ms": 1791648135009,
+        "original_observation_age_ms": 13192,
+        "expires_at_ms": 1791648155009,
+        "remaining_validity_ms": 6808,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 1052.706,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328474181",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": "5.345352",
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "hop_minimum_receive_raw": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_count": 3,
+        "observed_at_ms": 1791648131549,
+        "original_observation_age_ms": 18078,
+        "expires_at_ms": 1791648151549,
+        "remaining_validity_ms": 1922,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 893.356,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284741",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": "4.665344",
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "hop_minimum_receive_raw": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_count": 3,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 9507,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 10493,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 896.209,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284741",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": "4.665344",
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "hop_minimum_receive_raw": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_count": 3,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 10919,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 9081,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 877.914,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": "3.571763",
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "hop_minimum_receive_raw": [
+          "592182",
+          "104839027"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_count": 2,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 12345,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 7655,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 891.447,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": "3.578241",
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "6170",
+          "1092459"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_count": 2,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 13729,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 6271,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 850.832,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": "3.578241",
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "4363",
+          "772445"
+        ],
+        "minimum_receive_raw": "772445",
+        "hop_count": 2,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 15121,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 4879,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 858.983,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886166",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": "5.372379",
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "hop_minimum_receive_raw": [
+          "14527616973430"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_count": 1,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 16543,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 3457,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 889.225,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": "5.372283",
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "hop_minimum_receive_raw": [
+          "1513932151713"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_count": 1,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 17966,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 2034,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 890.026,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "new",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": "5.372283",
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "hop_minimum_receive_raw": [
+          "1070457076969"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_count": 1,
+        "observed_at_ms": 1791648141550,
+        "original_observation_age_ms": 19347,
+        "expires_at_ms": 1791648161550,
+        "remaining_validity_ms": 653,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 847.693,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "reused",
+      "actual_connection_mode": "new",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "93806696",
+        "fair_reference_output_raw": "94259651",
+        "slippage_percent": "0.4805",
+        "fair_reference_slippage_recomputed_percent": "0.480540",
+        "hop_market_spread_raw": [
+          "1398"
+        ],
+        "hop_minimum_receive_raw": [
+          "89116361"
+        ],
+        "minimum_receive_raw": "89116361",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 10763,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 9237,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 882.122,
+      "within_latency_budget": false
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942596",
+        "slippage_percent": "0.4790",
+        "fair_reference_slippage_recomputed_percent": "0.478996",
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "928700"
+        ],
+        "minimum_receive_raw": "928700",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 11560,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 8440,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 296.73,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "938081",
+        "fair_reference_output_raw": "942596",
+        "slippage_percent": "0.4790",
+        "fair_reference_slippage_recomputed_percent": "0.478996",
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "656656"
+        ],
+        "minimum_receive_raw": "656656",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 12356,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 7644,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 296.007,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "98007072056678281629",
+        "fair_reference_output_raw": "103541742178328479450",
+        "slippage_percent": "5.3454",
+        "fair_reference_slippage_recomputed_percent": "5.345352",
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3098162953782545"
+        ],
+        "hop_minimum_receive_raw": [
+          "110502571",
+          "601889",
+          "93106718453844367547"
+        ],
+        "minimum_receive_raw": "93106718453844367547",
+        "hop_count": 3,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 13163,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 6837,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 307.126,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284794",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": "4.665344",
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "hop_minimum_receive_raw": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_count": 3,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 13969,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 6031,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 306.246,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1035417421783284794",
+        "slippage_percent": "4.6653",
+        "fair_reference_slippage_recomputed_percent": "4.665344",
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "hop_minimum_receive_raw": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_count": 3,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 14777,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 5223,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 307.163,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "110356871",
+        "fair_reference_output_raw": "114444560",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": "3.571763",
+        "hop_market_spread_raw": [
+          "20",
+          "1398"
+        ],
+        "hop_minimum_receive_raw": [
+          "592182",
+          "104839027"
+        ],
+        "minimum_receive_raw": "104839027",
+        "hop_count": 2,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 15573,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 4427,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 296.132,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": "3.578241",
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "6170",
+          "1092459"
+        ],
+        "minimum_receive_raw": "1092459",
+        "hop_count": 2,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 16370,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 3630,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 297.211,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1103494",
+        "fair_reference_output_raw": "1144445",
+        "slippage_percent": "3.5782",
+        "fair_reference_slippage_recomputed_percent": "3.578241",
+        "hop_market_spread_raw": [
+          "0",
+          "0"
+        ],
+        "hop_minimum_receive_raw": [
+          "4363",
+          "772445"
+        ],
+        "minimum_receive_raw": "772445",
+        "hop_count": 2,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 17167,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 2833,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 296.682,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": "5.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16160427886167",
+        "slippage_percent": "5.3724",
+        "fair_reference_slippage_recomputed_percent": "5.372379",
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "hop_minimum_receive_raw": [
+          "14527616973430"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 17963,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 2037,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 296.151,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": "1.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": "5.372283",
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "hop_minimum_receive_raw": [
+          "1513932151713"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 18760,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 1240,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": false
+      },
+      "elapsed_ms": 296.729,
+      "within_latency_budget": true
+    },
+    {
+      "cycle": 0,
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": "30.00",
+      "transport": "reused",
+      "actual_connection_mode": "reused",
+      "status": 200,
+      "useful": true,
+      "outcome": "useful",
+      "economics": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1616042788616",
+        "slippage_percent": "5.3723",
+        "fair_reference_slippage_recomputed_percent": "5.372283",
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "hop_minimum_receive_raw": [
+          "1070457076969"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_count": 1,
+        "observed_at_ms": 1791648151549,
+        "original_observation_age_ms": 19557,
+        "expires_at_ms": 1791648171549,
+        "remaining_validity_ms": 443,
+        "generation_shape_valid": true,
+        "minimum_floor_within_requested_fraction": true,
+        "displayed_slippage_within_selected_percent": true
+      },
+      "elapsed_ms": 297.174,
+      "within_latency_budget": true
+    }
+  ],
+  "unverified": [
+    "cold initialization versus initialized cache hit/miss",
+    "transport RTT",
+    "desktop/phone browser",
+    "request upstream counters",
+    "settlement parity",
+    "bounded deployed outage trial"
+  ],
+  "scope": "Bounded read-only public GETs; fixed route/size labels and validated numeric economics only. Raw market spread values retain each hop output units and are not summed across different assets. Net fair-reference slippage includes costs and differs from market spread. No signing, deployment, actors, raw bodies, generation digest or endpoint URLs retained."
+}

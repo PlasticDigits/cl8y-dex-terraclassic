@@ -1,0 +1,151 @@
+{
+  "scope": "Sanitized metadata correlation only; component expiry and quote acceptance remain separately verified",
+  "utc_start": "2026-10-10T16:01:33.818832+00:00",
+  "utc_end": "2026-10-10T16:06:37.254821+00:00",
+  "status": "COLLECTED_FOR_REVIEW",
+  "actual_duration_seconds": 303.436,
+  "sample_count": 31,
+  "last_sample_elapsed_seconds": 300.0,
+  "all_revisions_match": true,
+  "counter_reset_or_backend_changes": 0,
+  "all_providers_circuit_open_samples": 0,
+  "providers": [
+    {
+      "provider_index": 0,
+      "delta": {
+        "attempts": 310,
+        "successes": 196,
+        "failures": 113,
+        "caller_cancellations": 1,
+        "rate_deferrals": 0,
+        "concurrency_deferrals": 0,
+        "circuit_deferrals": 2384,
+        "recovery_probes": 94
+      },
+      "circuit_open_samples": 30,
+      "end_circuit_open": true,
+      "end_in_flight": 0,
+      "caller_counter_present_every_sample": true
+    },
+    {
+      "provider_index": 1,
+      "delta": {
+        "attempts": 1265,
+        "successes": 1182,
+        "failures": 62,
+        "caller_cancellations": 16,
+        "rate_deferrals": 0,
+        "concurrency_deferrals": 9,
+        "circuit_deferrals": 1635,
+        "recovery_probes": 54
+      },
+      "circuit_open_samples": 18,
+      "end_circuit_open": false,
+      "end_in_flight": 7,
+      "caller_counter_present_every_sample": true
+    },
+    {
+      "provider_index": 2,
+      "delta": {
+        "attempts": 2750,
+        "successes": 2730,
+        "failures": 0,
+        "caller_cancellations": 24,
+        "rate_deferrals": 0,
+        "concurrency_deferrals": 64,
+        "circuit_deferrals": 0,
+        "recovery_probes": 0
+      },
+      "circuit_open_samples": 0,
+      "end_circuit_open": false,
+      "end_in_flight": 2,
+      "caller_counter_present_every_sample": true
+    }
+  ],
+  "reference_original_ages": [
+    {
+      "kind": "cex",
+      "ticker": "ustc",
+      "samples": 16,
+      "quality_counts": {
+        "fresh": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 3864,
+      "max_original_age_ms": 4608,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    },
+    {
+      "kind": "cex",
+      "ticker": "lunc",
+      "samples": 16,
+      "quality_counts": {
+        "fresh": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 4709,
+      "max_original_age_ms": 5494,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    },
+    {
+      "kind": "hub",
+      "ticker": "custc",
+      "samples": 16,
+      "quality_counts": {
+        "external_quorum": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 5598,
+      "max_original_age_ms": 6354,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    },
+    {
+      "kind": "hub",
+      "ticker": "lunc",
+      "samples": 16,
+      "quality_counts": {
+        "external_quorum": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 5599,
+      "max_original_age_ms": 6354,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    },
+    {
+      "kind": "hub",
+      "ticker": "ust1",
+      "samples": 16,
+      "quality_counts": {
+        "bounded_spot": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 5698,
+      "max_original_age_ms": 6452,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    },
+    {
+      "kind": "hub",
+      "ticker": "ustr",
+      "samples": 16,
+      "quality_counts": {
+        "bounded_spot": 16
+      },
+      "price_unavailable_samples": 0,
+      "min_original_age_ms": 5698,
+      "max_original_age_ms": 6452,
+      "older_than20s_samples": 0,
+      "future_timestamp_samples": 0
+    }
+  ],
+  "admin_log_validation_refusals": 11,
+  "unverified": [
+    "Pool/admission log evidence unavailable in monitor because configured admin base failed HTTPS validation; separate one-read broker attempt also unavailable.",
+    "Exact per-pair static expiry is not exposed by these aggregate fields.",
+    "No quote reads were issued; root owns sustained useful quote and500ms/browser acceptance evidence."
+  ]
+}
