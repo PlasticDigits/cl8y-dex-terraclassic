@@ -2,6 +2,7 @@
 
 Follow-up to [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473)
 and [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474).
+The pricing-data and client-expiry follow-up is [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475).
 Use [the checklist](README.md), [results](RESULTS.md), and
 [TQ1473](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md).
 

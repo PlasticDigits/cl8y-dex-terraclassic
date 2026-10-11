@@ -1,7 +1,7 @@
 # Issue #1473 implementation and verification
 
 Issue: [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
-Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474). The source commit is
+Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); pricing-data and client-expiry follow-up: [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475). The source commit is
 [`bf13b04e24e74c4631b21934fedd0c26b50bcb89`](https://git.cl8y.com/code/cl8y-dex-terraclassic/commit/bf13b04e24e74c4631b21934fedd0c26b50bcb89).
 PR #1474 passed all six mandatory hosted jobs on exact head
 `09365d97a9529beccfa8c3fcb15be11d7ca983d2` and merged as

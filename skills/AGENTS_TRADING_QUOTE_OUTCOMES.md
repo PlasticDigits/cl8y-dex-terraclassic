@@ -3,7 +3,7 @@
 Apply to arbitrary pair/amount scoring, quote error schemas, price-only display,
 intent recovery and trading entry defaults. Issue:
 [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
-Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); record its exact revision in
+Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); pricing-data and client-expiry follow-up: [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475); record its exact revision in
 [verification results](../docs/qa/issue-1473/RESULTS.md).
 Run `make verify-issue-1473` and follow the
 [agent checklist](../docs/qa/issue-1473/README.md).

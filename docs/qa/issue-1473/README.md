@@ -5,7 +5,7 @@ Read [TQ1473-1–TQ1473-10](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md),
 [local API outcomes](../../route-solver.md#trading-quote-outcomes-1473),
 [frontend defaults](../../frontend.md#trading-quote-outcomes-1473),
 [data waits and client expiry](WARMUP.md),
-and [results/provenance](RESULTS.md). Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474).
+and [results/provenance](RESULTS.md). Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); pricing-data and client-expiry follow-up: [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475).
 
 Quote behavior is generic across supported arbitrary pairs and exact amounts.
 Native USTC → CL8Y is only the product entry default. The
@@ -142,7 +142,7 @@ signing, broadcasts or screenshots are used. Root asset provenance does not
 attest lazy-loaded assets, settlement, historical observations or physical devices;
 those remain separate acceptance criteria.
 
-### QA helper follow-up (PR pending)
+### QA helper follow-up (PR #1475)
 
 The live helper distinguishes a typed blocked outcome from useful output. A
 blocked result requires a visible matching error and a blank receive field;
