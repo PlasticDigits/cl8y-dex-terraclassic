@@ -651,6 +651,8 @@ endpoints, raw response bodies or actor data are included here.
 
 ## Independent complete views: current follow-up
 
+Implementation/review: [PR #1472](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1472).
+
 The follow-up keeps complete pool and hybrid views in one immutable quote snapshot
 with independent original publication watermarks. A newer pool no longer makes an
 otherwise compatible original hybrid regress; expiry of that hybrid cannot erase
@@ -685,3 +687,25 @@ executed test assertions but failed the unchanged-source guard after the final
 diagnostics correction landed during verification: 10 PASS / 1 FAIL / 2 SKIP.
 That failure is retained. The complete focused first/retest must run again on
 the frozen source; neither successful individual tests nor a skip supersedes it.
+
+The first frozen run passed #1464 (11/0/2), #1452 (14/0/0) and #1453 (12/0/2)
+on 1a048f6c354a56f0ce62493bb03b79d25c146da86a0c302ce3218fcf37f5fc8f.
+[Pipeline 401](https://ci.cl8y.com/repos/7/pipeline/401/1) also passed all six
+actual jobs for `6ffd2a2b98f8a2c7d02c9a63e43eb75e78a02e0c`:
+764 library tests and 84 selected PostgreSQL tests, with exact-head markers.
+
+The [discovery prerequisite failure](independent-view-parallel-source-failure.json)
+then reported 22 PASS / 1 FAIL / 0 SKIP: a default-parallel library test assumed
+the global registry would remain immediately vacant after topology returned.
+Another fixture could legitimately acquire it. Both real topology requests had
+completed, including structural-cache reentry; the test now waits for ownership
+instead of using immediate `try_lock` success as an ownership guarantee. This
+changes only the test assertion, not production locking. The failure remains
+recorded, and final acceptance requires fresh parallel first/retest and frozen
+verification after this correction.
+
+Both corrected default-parallel library runs passed 764 tests with zero failures
+and one ignored benchmark (12.87 s / 13.13 s), on
+cc7f622dc7656cd000e4c207008badc1be5bc9634a014b3ba49c40716a13d49b.
+The complete focused/prerequisite sequence restarts on this unchanged corrected
+source before merge; prior source and deployed failures stay in their receipts.

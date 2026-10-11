@@ -1634,7 +1634,11 @@ mod tests {
         );
         assert!(!first.0["hops"].as_array().unwrap().is_empty());
         assert_eq!(first.0["quote_kind"], "indexer_route_only");
-        assert!(store().try_lock().is_ok());
+        // Another parallel fixture can legitimately acquire the global registry
+        // after topology returns. Reentry must work; immediate vacancy is not an
+        // ownership guarantee. The repeated requests above also exercise reentry
+        // through the structural cache rather than only acquiring this mutex.
+        assert!(store().lock().is_ok());
     }
     #[tokio::test]
     async fn actor_capacity_quarantine_blocks_warm_quotes_topology_and_progress() {
