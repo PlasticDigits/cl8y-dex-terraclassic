@@ -28,7 +28,9 @@ class Reader:
         base = os.environ.get("COOLIFY_URL", "").strip().rstrip("/")
         parsed = urllib.parse.urlsplit(base)
         self.token = os.environ.get("COOLIFY_WIRE_TOKEN", "").strip()
-        if (parsed.scheme != "https" or not parsed.hostname or parsed.username
+        # The scoped operator configuration may use an enrolled private HTTP
+        # broker. Never obtain this origin from a response or follow redirects.
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username
                 or parsed.password or parsed.query or parsed.fragment or not self.token):
             raise ValueError("scoped_coolify_credentials_required")
         self.api_base = base + "/api/v1/"
