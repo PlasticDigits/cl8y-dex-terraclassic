@@ -51,6 +51,7 @@ Historical failures remain recorded, and passing new 750 ms trials cannot prove
 the prior 500 ms criterion. Public receipts
 omit credentials, actors/context digests, private endpoints and workstation details.
 
+The QA setup correction is [PR #1476](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1476).
 Prepare browser viewport state before the original-input clock: close Settings
 after choosing protection and verify Pay/Receive both intersect the viewport.
 Keep strict visibility and two-frame checks during measurement; never scroll or

@@ -117,6 +117,8 @@ and [headed receipt](browser-warmup-headed-pass-summary.json).
 
 ## Live measurement viewport setup
 
+QA setup correction: [PR #1476](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1476).
+
 The later full live trial stopped at its unchanged 30-minute cap after 426 of
 1,680 planned samples. Its [retained failure summary](live-warmup-failure-summary.json)
 includes nine useful-output latency failures and six phone visibility failures.
