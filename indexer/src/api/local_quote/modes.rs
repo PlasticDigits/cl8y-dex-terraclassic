@@ -51,7 +51,7 @@ pub(super) fn wrapper_only(
     n: &super::NativeContext,
     spread: u128,
 ) -> Option<serde_json::Value> {
-    use super::{now_ms, wide_floor, SCALE};
+    use super::{net_floor, now_ms};
     use serde_json::json;
     if n.wrap == n.unwrap || normalized.token_in != normalized.token_out {
         return None;
@@ -83,9 +83,7 @@ pub(super) fn wrapper_only(
         .transpose()
         .ok()?
         .unwrap_or(0);
-    let floor = wide_floor(output, SCALE - spread, SCALE)?
-        .max(target)
-        .max(1);
+    let floor = net_floor(s, output, spread)?.max(target).max(1);
     if floor > output {
         return None;
     }
@@ -118,7 +116,10 @@ pub(super) fn wrapper_only(
     let floor_protocol = n.wrapper.direct_floor_protocol(n.wrap);
     let supported = floor_protocol.is_some();
     let wrapper = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":route_amount.to_string(),"route_output_amount":route_amount.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper,"floor_protocol_version":floor_protocol});
-    let metadata = json!({"version":1,"generation":s.generation,"input_amount":gross.to_string(),"max_spread":spread_text,"trader":n.request.trader,"sender":n.request.sender,"observed_at_ms":observed,"expires_at_ms":expires,"policy":"wrapper_only","hops":[],"minimum_receive":floor.to_string(),"wrapper":wrapper,"execution_supported":supported});
+    let mut metadata = json!({"version":1,"generation":s.generation,"input_amount":gross.to_string(),"max_spread":spread_text,"trader":n.request.trader,"sender":n.request.sender,"observed_at_ms":observed,"expires_at_ms":expires,"policy":"wrapper_only","hops":[],"minimum_receive":floor.to_string(),"wrapper":wrapper,"execution_supported":supported});
+    if s.quote_relative_protection {
+        metadata["protection_policy"] = json!("quote_relative_v1");
+    }
     Some(json!({
         "token_in":n.request.token_in,"token_out":n.request.token_out,"hops":[],"router_operations":[],
         "intermediate_tokens":[n.request.token_in,n.request.token_out],"quote_kind":"indexer_wrapper_db",

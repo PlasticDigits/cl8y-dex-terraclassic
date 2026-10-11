@@ -78,7 +78,12 @@ import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountIn
 import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
 import { formatNum, formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
-import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
+import {
+  isIndexerPairNotFoundError,
+  isIndexerRouteValidationError,
+  isIndexerLocalQuoteRejection,
+} from '@/utils/indexerErrors'
+import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import {
   MARKET_DATA_SERVICE_OUTAGE_TITLE,
@@ -269,6 +274,9 @@ export default function SwapPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const swapQueryKey = searchParams.toString()
   const appliedSwapQueryKeyRef = useRef<string | null>(null)
+  // Outbound URL replacement may still be pending when a user flips/picks.
+  // Read each actual location once so that old search cannot undo that intent.
+  const observedSwapQueryKeyRef = useRef<string | null>(null)
   const coarseNarrowViewport = useCoarseNarrowViewport()
 
   useEffect(() => {
@@ -276,23 +284,30 @@ export default function SwapPage() {
     // apply-once ref against wrap natives drops a listed CW20 until the next
     // search-string change (GitLab #711 AC1).
     if (!pairsQuery.isSuccess) return
-    const pair = defaultRetailSwapTokenPair(allTokens)
-    if (!pair) return
+    // Explicit links remain usable even when product-default identities are
+    // absent. Empty defaults never invent a replacement market (#1473).
+    const pair = defaultRetailSwapTokenPair(allTokens) ?? ['', '']
     const [econFrom, econTo] = pair
-    if (appliedSwapQueryKeyRef.current !== swapQueryKey) {
-      appliedSwapQueryKeyRef.current = swapQueryKey
+    if (
+      (appliedSwapQueryKeyRef.current !== swapQueryKey && observedSwapQueryKeyRef.current !== swapQueryKey) ||
+      (!fromToken && !toToken)
+    ) {
       const applied = applySwapQueryParams(searchParams, allTokens, pair)
+      observedSwapQueryKeyRef.current = swapQueryKey
+      if (!applied.payId && !applied.receiveId) return
+      appliedSwapQueryKeyRef.current = swapQueryKey
       setFromToken(applied.payId)
       setToToken(applied.receiveId)
       if (applied.payAmountHuman != null) setInputAmount(applied.payAmountHuman)
       setExactField(parseSwapExactField(searchParams) === 'output' ? 'output' : 'input')
       return
     }
+    observedSwapQueryKeyRef.current = swapQueryKey
     const fromHidden = !fromToken || isRetailHiddenTestToken(fromToken)
     const toHidden = !toToken || isRetailHiddenTestToken(toToken)
     if (!fromHidden && !toHidden) return
-    if (fromHidden) setFromToken(econFrom)
-    if (toHidden) setToToken(fromHidden ? econTo : fromToken === econTo ? econFrom : econTo)
+    if (fromHidden && econFrom) setFromToken(toToken === econFrom ? econTo : econFrom)
+    if (toHidden && econTo) setToToken(!fromHidden && fromToken === econTo ? econFrom : econTo)
   }, [allTokens, fromToken, toToken, searchParams, swapQueryKey, pairsQuery.isSuccess])
 
   const wrapUnwrapType = fromToken && toToken ? isDirectWrapUnwrap(fromToken, toToken) : null
@@ -611,6 +626,20 @@ export default function SwapPage() {
   })
 
   const reverseRetry = useQueryManualRetry(reverseQueryKey, reverseQuery)
+  useQuoteErrorRecovery({
+    error: reverseQuery.error,
+    currentIntent:
+      reverseQuoteActive && reverseQuery.isError && !reverseQuery.isFetching && inputAmount === debouncedInputAmount,
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amount: reverseAskRaw,
+    exactOutput: true,
+    trader: address ?? undefined,
+    maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: slippagePercentToMaxSpread(slippageTolerance),
+    poolOnly: true,
+    refetch: reverseQuery.refetch,
+  })
   const receiveTargetBelowPrecision =
     reverseQuoteActive &&
     receiveDecimals != null &&
@@ -755,7 +784,7 @@ export default function SwapPage() {
 
   const quoteTrader = useMemo(() => (address ? { trader: address } : undefined), [address])
 
-  const simQuery = useQuery({
+  const simQuery = useQuery<SwapSimData>({
     queryKey: simQueryKey,
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<SwapSimData> => {
@@ -878,7 +907,10 @@ export default function SwapPage() {
   } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
-    simQuery: reverseQuoteActive && !reverseQuoteReady ? { ...simQuery, data: undefined } : simQuery,
+    simQuery:
+      (reverseQuoteActive && !reverseQuoteReady) || isIndexerLocalQuoteRejection(simQuery.error)
+        ? { ...simQuery, data: undefined }
+        : simQuery,
     slippageTolerance,
     hybrid: {
       enabled: true,
@@ -1010,7 +1042,7 @@ export default function SwapPage() {
       if (!simData) throw new Error('Quote unavailable')
       if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
         throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
-      if (routeSlippageBlocked) throw new Error('Slippage is too high')
+      if (routeSlippageBlocked) throw new Error('Price impact is too high')
       if (simData.routePreflight?.anyHopExceedsMaxSpread) {
         throw new Error('Hop spread exceeds slippage protection')
       }
@@ -1080,10 +1112,25 @@ export default function SwapPage() {
     simQuery.isError &&
     !isWrapOrUnwrap &&
     hasPositiveInputAmount &&
+    !payInputsPendingForReceive &&
+    !simQuery.isFetching &&
     !indexerOutage &&
     !isIndexerPairNotFoundError(simQuery.error)
 
-  const outputAmount = simData?.return_amount ?? ''
+  useQuoteErrorRecovery({
+    error: simQuery.error,
+    currentIntent: !reverseQuoteActive && simQuery.isError && !simQuery.isFetching && !payInputsPendingForReceive,
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amount: debouncedRawInputAmount,
+    trader: address ?? undefined,
+    maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: slippagePercentToMaxSpread(slippageTolerance),
+    poolOnly: isNativeDenom(fromToken) || isNativeDenom(toToken),
+    refetch: simQuery.refetch,
+  })
+  const executableOutput = !simData?.executionBlocker && simData?.executionMetadata?.execution_supported !== false
+  const outputAmount = executableOutput ? (simData?.return_amount ?? '') : ''
   const commissionAmount = simData?.commission_amount ?? ''
 
   const hopSpreadPercent = simData
@@ -1306,10 +1353,10 @@ export default function SwapPage() {
     buttonText = 'Quote unavailable'
     buttonDisabled = true
   } else if (simData?.executionBlocker) {
-    buttonText = simData.executionBlocker
+    buttonText = 'Trade unavailable'
     buttonDisabled = true
   } else if (routeSlippageBlocked) {
-    buttonText = 'Slippage is too high'
+    buttonText = 'Price impact is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Hop spread exceeds slippage protection'
@@ -1369,7 +1416,7 @@ export default function SwapPage() {
   const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
   const quotedReceiveHuman = theaterRouteQuote
     ? '—'
-    : simData && outputAmount && receiveAssetInfo && receiveDecimals != null
+    : outputAmount && receiveAssetInfo && receiveDecimals != null
       ? fromRawAmount(outputAmount, receiveDecimals)
       : ''
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
@@ -1494,40 +1541,71 @@ export default function SwapPage() {
               </p>
             )}
 
-            {reverseQuoteActive && (reverseQuery.isError || receiveDecimalsUnavailable) && hasPositiveInputAmount && (
-              <RetryError
-                data-testid="swap-receive-quote-retry-error"
-                message={
-                  receiveDecimalsUnavailable
-                    ? 'Token decimals are unavailable. Retry token metadata to size this receive target.'
-                    : humanizeUserFacingErrorFromUnknown(reverseQuery.error)
-                }
-                isRetrying={reverseRetry.isRetrying}
-                onRetry={() => {
-                  if (receiveDecimalsUnavailable) {
-                    void queryClient.invalidateQueries({ queryKey: ['cw20-token-info-decimals'] })
-                    void queryClient.invalidateQueries({ queryKey: ['indexer-tokens-list'] })
-                  } else if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null)
-                    void wrapMapperConfigQuery.refetch()
-                  else reverseRetry.retry()
-                }}
-              />
-            )}
+            {reverseQuoteActive &&
+              reverseQuery.isError &&
+              isIndexerRouteValidationError(reverseQuery.error) &&
+              hasPositiveInputAmount &&
+              inputAmount === debouncedInputAmount &&
+              !reverseQuery.isFetching && (
+                <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-receive-quote-error">
+                  {humanizeUserFacingErrorFromUnknown(reverseQuery.error)}
+                </p>
+              )}
+            {reverseQuoteActive &&
+              (reverseQuery.isError || receiveDecimalsUnavailable) &&
+              hasPositiveInputAmount &&
+              inputAmount === debouncedInputAmount &&
+              !reverseQuery.isFetching &&
+              !isIndexerRouteValidationError(reverseQuery.error) && (
+                <RetryError
+                  data-testid="swap-receive-quote-retry-error"
+                  message={
+                    receiveDecimalsUnavailable
+                      ? 'Token decimals are unavailable. Retry token metadata to size this receive target.'
+                      : humanizeUserFacingErrorFromUnknown(reverseQuery.error)
+                  }
+                  isRetrying={reverseRetry.isRetrying}
+                  onRetry={() => {
+                    if (receiveDecimalsUnavailable) {
+                      void queryClient.invalidateQueries({ queryKey: ['cw20-token-info-decimals'] })
+                      void queryClient.invalidateQueries({ queryKey: ['indexer-tokens-list'] })
+                    } else if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null)
+                      void wrapMapperConfigQuery.refetch()
+                    else reverseRetry.retry()
+                  }}
+                />
+              )}
 
-            {showSimRetryError && (
-              <RetryError
-                data-testid="swap-quote-retry-error"
-                message={humanizeUserFacingErrorFromUnknown(simQuery.error)}
-                isRetrying={simRetry.isRetrying}
-                onRetry={simRetry.retry}
-              />
-            )}
+            {showSimRetryError &&
+              (isIndexerRouteValidationError(simQuery.error) ? (
+                <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-quote-error">
+                  {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+                </p>
+              ) : (
+                <RetryError
+                  data-testid="swap-quote-retry-error"
+                  message={humanizeUserFacingErrorFromUnknown(simQuery.error)}
+                  isRetrying={simRetry.isRetrying}
+                  onRetry={simRetry.retry}
+                />
+              ))}
 
-            {simQuery.isError && indexerOutage && !isWrapOrUnwrap && hasPositiveInputAmount && (
-              <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
-                {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+            {simData && !executableOutput && (
+              <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-wrapper-quote-error">
+                This conversion cannot protect your minimum receive.
               </p>
             )}
+
+            {simQuery.isError &&
+              indexerOutage &&
+              !isWrapOrUnwrap &&
+              hasPositiveInputAmount &&
+              !payInputsPendingForReceive &&
+              !simQuery.isFetching && (
+                <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
+                  {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+                </p>
+              )}
 
             {/* Slippage Settings */}
             {showSettings && (
@@ -1660,7 +1738,7 @@ export default function SwapPage() {
                   <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                     <label
                       className="flex items-center gap-2 text-xs cursor-pointer"
-                      title={`When off, swaps with expected slippage above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route token prices) are blocked.`}
+                      title={`When off, swaps with price impact above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route token prices) are blocked.`}
                     >
                       <input
                         type="checkbox"
@@ -1897,7 +1975,7 @@ export default function SwapPage() {
             </div>
 
             {/* Trade Details — default: Route + Min Received; rest collapsed */}
-            {simData && (
+            {simData && executableOutput && (
               <div className="card-glass mb-4 text-xs sm:text-sm space-y-2">
                 {swapRouteLine && (
                   <div
@@ -1937,7 +2015,7 @@ export default function SwapPage() {
                   <>
                     {extremeSlippageWarning && (
                       <div className="alert-error !text-xs" data-testid="swap-extreme-slippage-warning" role="alert">
-                        <p className="font-semibold mb-1">Extreme slippage ({priceImpact}%)</p>
+                        <p className="font-semibold mb-1">Extreme price impact ({priceImpact}%)</p>
                         <p>
                           This quote is far from the fair cross-rate. It may exploit mispriced pools or show a
                           misleadingly good multi-hop path. Proceed only if you understand the risk.
@@ -2105,7 +2183,7 @@ export default function SwapPage() {
                               className="inline-flex h-4 w-4 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[9px] font-bold leading-none normal-case"
                               tabIndex={0}
                               role="img"
-                              aria-label="Expected slippage help"
+                              aria-label="Price impact help"
                               aria-describedby={routeSlippageTooltipId}
                               title={ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
                             >
@@ -2167,17 +2245,17 @@ export default function SwapPage() {
             />
             {routeSlippageBlocked && (
               <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
-                <p className="font-semibold mb-1">Slippage is too high</p>
+                <p className="font-semibold mb-1">Price impact is too high</p>
                 {theaterRouteQuote ? (
                   <p className="mb-2" data-testid="swap-theater-quote-blocked">
-                    Expected slippage is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This quote
-                    is not executable. Expert Mode cannot waive it.
+                    Price impact is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This quote is not
+                    executable. Expert Mode cannot waive it.
                   </p>
                 ) : (
                   <>
                     <p className="mb-2">
-                      Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert
-                      Mode to continue.
+                      Price impact is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert Mode
+                      to continue.
                     </p>
                     <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
                       Dangerous: Enable Expert Mode to Swap Anyway:{' '}
@@ -2249,7 +2327,7 @@ export default function SwapPage() {
                 <p>{WRAP_RATE_LIMIT_EXCEEDED_MESSAGE}</p>
               </div>
             )}
-            {simData && hasPositiveInputAmount && fromToken && toToken && (
+            {simData && executableOutput && hasPositiveInputAmount && fromToken && toToken && (
               <details className="mb-3" data-testid="swap-pre-submit-details">
                 <summary
                   className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none mb-2"
@@ -2296,8 +2374,8 @@ export default function SwapPage() {
             />
             {showImpactConfirm && !routeSlippageBlocked && isWalletConnected && (
               <div className="alert-error mb-3 text-xs">
-                <p className="font-semibold mb-1">High expected slippage warning</p>
-                <p>{priceImpact}% expected slippage — click again to confirm.</p>
+                <p className="font-semibold mb-1">High price impact warning</p>
+                <p>{priceImpact}% price impact — click again to confirm.</p>
               </div>
             )}
             <button

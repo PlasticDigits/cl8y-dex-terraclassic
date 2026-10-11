@@ -58,3 +58,10 @@ reviewed version changes; future unknown versions keep the conservative budget.
 Remaining observation-only quote coverage, explicit external wrapper floors and
 bounded composed inverse follow [QC1459](AGENTS_LOCAL_QUOTE_COVERAGE.md) and the
 [agent implementation checklist](../docs/qa/issue-1459/README.md).
+
+Current retail quote-relative execution follows [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md).
+The selected UI tolerance anchors upward-rounded positive net hop/final floors;
+checked pinned L9 economics derive the separate signed market-spread ceiling.
+The existing L9 formula/material-book guards remain, with legacy API requests
+retaining direct UI-to-L9 admission. Read [the exact policy and compatibility](../docs/route-solver.md#quote-relative-execution-protection)
+and run `make verify-issue-1473`. No request-time simulation or weaker receive floor.

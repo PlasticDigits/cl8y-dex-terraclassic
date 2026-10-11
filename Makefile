@@ -2025,3 +2025,7 @@ verify-issue-1452:
 .PHONY: verify-issue-1464
 verify-issue-1464:
 	bash scripts/verify-issue-1464.sh
+
+.PHONY: verify-issue-1473
+verify-issue-1473:
+	bash scripts/verify-issue-1473.sh

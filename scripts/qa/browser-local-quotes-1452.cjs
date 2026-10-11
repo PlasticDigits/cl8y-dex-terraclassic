@@ -57,10 +57,18 @@ function quote(q) {
   quoteRequests++;
   const amount = q.get("amount_in") || "1000000";
   const maxSpread = q.get("max_spread") || "0.05";
+  const quoteRelative = q.get("protection_policy") === "quote_relative_v1";
+  const scale = 10n ** 18n;
+  const tolerance = BigInt((maxSpread.split(".")[1] || "").padEnd(18, "0"));
   const floor = (
-    (BigInt(amount) * BigInt(Math.round((1 - Number(maxSpread)) * 10000))) /
-    10000n
+    (BigInt(amount) * (scale - tolerance) + (quoteRelative ? scale - 1n : 0n)) /
+    scale
   ).toString();
+  // This fixture has zero market spread and fees. Independently derive the
+  // router ceiling while binding the exact UI tolerance to net floors (#1473).
+  const ceiling = (tolerance * scale + (scale - tolerance) - 1n) / (scale - tolerance);
+  const marketCeiling = ceiling >= scale ? "1" :
+    `0.${ceiling.toString().padStart(18, "0")}`.replace(/0+$/, "").replace(/\.$/, "");
   const hop = {
     pair: pairAddr,
     offer_token: q.get("token_in"),
@@ -104,6 +112,10 @@ function quote(q) {
       observed_at_ms: Date.now() - 1000,
       expires_at_ms: Date.now() + 20000,
       policy: "pool_only",
+      ...(quoteRelative ? {
+        protection_policy: "quote_relative_v1",
+        execution_market_spread: marketCeiling,
+      } : {}),
       minimum_receive: floor,
       hops: [hop],
     },

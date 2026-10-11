@@ -4,14 +4,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryRouter, Outlet, RouterProvider, useLocation } from 'react-router-dom'
+import { createMemoryRouter, Outlet, Route, Routes, RouterProvider, useLocation } from 'react-router-dom'
 import TradePage from './TradePage'
-import { renderWithProviders } from '@/test-utils'
+import { renderWithProviders as renderBase } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import * as factory from '@/services/terraclassic/factory'
+import * as routerService from '@/services/terraclassic/router'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
+import { CL8Y_TOKEN_ADDRESS } from '@/utils/constants'
+
+// Match route params in component tests; merely setting MemoryRouter's URL
+// does not provide useParams, which previously hid default-selection bugs.
+function renderWithProviders(ui: React.ReactElement, options?: { route?: string }) {
+  return renderBase(
+    <Routes>
+      <Route path="/trade" element={ui} />
+      <Route path="/trade/:pairAddr" element={ui} />
+    </Routes>,
+    options
+  )
+}
 
 const PAIR = 'terra1pair0000000000000000000000000000000001'
 const MAKER = 'terra1maker000000000000000000000000000001'
@@ -27,6 +41,7 @@ function renderTradeRoutes(initialEntries: string[], opts?: { layoutParity?: boo
   const tradeRoutes = [
     { path: '/trade', element: <TradePage /> },
     { path: '/trade/:pairAddr', element: <TradePage /> },
+    { path: '/', element: <div data-testid="native-swap-entry" /> },
   ]
   const router = createMemoryRouter(
     opts?.layoutParity ? [{ element: <LayoutParityShell />, children: tradeRoutes }] : tradeRoutes,
@@ -253,11 +268,56 @@ describe('TradePage', () => {
     })
   })
 
-  it('ignores /trade?from=uluna&to=uluna and auto-picks (#713 T15)', async () => {
+  it('leaves unresolved same-token /trade query unselected (#1473)', async () => {
     const router = renderTradeRoutes(['/trade?from=uluna&to=uluna'])
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Trading pair' })).toBeEnabled())
+    expect(router.state.location.pathname).toBe('/trade')
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+  })
+
+  it('sends a validated native query link to Swap with its actual funding and exact-output intent (#1473)', async () => {
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: mockIndexerPair.lp_token!,
+          asset_infos: [{ token: { contract_addr: CL8Y_TOKEN_ADDRESS } }, { token: { contract_addr: UST1 } }],
+        },
+      ],
     })
+    const tokens = vi.spyOn(routerService, 'getAllTokens').mockReturnValue(['uusd', CL8Y_TOKEN_ADDRESS, UST1])
+    try {
+      const router = renderTradeRoutes([
+        `/trade?inputCurrency=USTC&outputCurrency=${CL8Y_TOKEN_ADDRESS}&amount=2&exactField=output`,
+      ])
+      await screen.findByTestId('native-swap-entry')
+      const query = new URLSearchParams(router.state.location.search)
+      expect(query.get('from')).toBe('uusd')
+      expect(query.get('to')).toBe(CL8Y_TOKEN_ADDRESS)
+      expect(query.get('exactAmount')).toBe('2')
+      expect(query.get('exactField')).toBe('output')
+    } finally {
+      tokens.mockRestore()
+    }
+  })
+
+  it('redirects a fresh bare /trade to native USTC pay without inventing a factory pair (#1473)', async () => {
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: mockIndexerPair.lp_token!,
+          asset_infos: [{ token: { contract_addr: CL8Y_TOKEN_ADDRESS } }, { native_token: { denom: 'uusd' } }],
+        },
+      ],
+    })
+    const router = renderTradeRoutes(['/trade'])
+    await screen.findByTestId('native-swap-entry')
+    expect(router.state.location.pathname).toBe('/')
+    expect(new URLSearchParams(router.state.location.search).get('from')).toBe('uusd')
+    expect(new URLSearchParams(router.state.location.search).get('to')).toBe(CL8Y_TOKEN_ADDRESS)
+    expect(vi.mocked(indexerClient.getPair)).not.toHaveBeenCalledWith('uusd')
   })
 
   it('shows first-visit onboarding strip until dismissed (GitLab #417)', async () => {
@@ -785,7 +845,7 @@ describe('TradePage', () => {
     expect(pairInput.value).toContain('000002')
   })
 
-  it('auto-picks first factory pair on bare /trade (GitLab #357)', async () => {
+  it('leaves bare /trade unselected when configured default identities are missing (#1473)', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     const router = createMemoryRouter(
       [
@@ -801,9 +861,10 @@ describe('TradePage', () => {
     )
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+      expect(screen.getByRole('combobox', { name: 'Trading pair' })).toBeEnabled()
     })
-    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe('/trade')
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
   })
 
   it('switches trade workspace when a different pair is selected from search (GitLab #301)', async () => {

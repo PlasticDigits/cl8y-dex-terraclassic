@@ -41,6 +41,7 @@ struct Snapshot {
     actors: HashMap<String, (u16, bool)>,
     discounted_pairs: HashSet<String>,
     policy_identity: String,
+    quote_relative_protection: bool,
     taxes: HashMap<String, tax::TokenObservation>,
     tax_trader: Option<String>,
     protocol_actor_tokens: HashMap<String, HashSet<String>>,
@@ -91,18 +92,95 @@ fn mark_tax_wallet_capacity_exhausted(g: &mut Store, namespace: &str) {
 fn unavailable() -> Error {
     (
         StatusCode::SERVICE_UNAVAILABLE,
-        "Local execution quote unavailable; refresh after indexed data recovers".into(),
+        json!({"error":"missing_observations"}).to_string(),
     )
 }
-fn invalid(message: &str) -> Error {
-    (StatusCode::BAD_REQUEST, message.into())
+fn invalid(_message: &str) -> Error {
+    (
+        StatusCode::BAD_REQUEST,
+        json!({"error":"invalid_request"}).to_string(),
+    )
 }
 fn eligible_error() -> Error {
     (
         StatusCode::UNPROCESSABLE_ENTITY,
-        "No eligible route within the selected protection".into(),
+        json!({"error":"protection"}).to_string(),
     )
 }
+/// HTTP transport for the reviewed public reason contract. Internal strings are
+/// never echoed; older bounded admission/parameter failures are classified here.
+pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
+    let parsed = (body.len() <= 2048)
+        .then(|| serde_json::from_str::<Value>(&body).ok())
+        .flatten()
+        .filter(|v| {
+            v["error"].as_str().is_some_and(|code| {
+                matches!(
+                    code,
+                    "protection"
+                        | "price_impact_too_high"
+                        | "amount_too_large"
+                        | "amount_too_small"
+                        | "insufficient_liquidity"
+                        | "unsupported_semantics"
+                        | "missing_observations"
+                        | "stale_observations"
+                        | "accounting_unavailable"
+                        | "trading_blocked"
+                        | "no_route"
+                        | "invalid_request"
+                )
+            })
+        });
+    let fallback = match status {
+        StatusCode::BAD_REQUEST => "invalid_request",
+        StatusCode::UNPROCESSABLE_ENTITY => "protection",
+        _ => "missing_observations",
+    };
+    let mut public = json!({"error":fallback});
+    if let Some(parsed) = parsed {
+        public["error"] = parsed["error"].clone();
+        if parsed["generation"].as_str().is_some_and(|s| {
+            !s.is_empty()
+                && s.len() <= 256
+                && s.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b":_-".contains(&b))
+        }) {
+            public["generation"] = parsed["generation"].clone();
+        }
+        if parsed["error"] == "protection"
+            && parsed["execution_supported"] == false
+            && parsed["indicative_amount_out"].as_str().is_some_and(|s| {
+                s.len() <= 39
+                    && !s.starts_with('0')
+                    && s.bytes().all(|b| b.is_ascii_digit())
+                    && s.parse::<u128>().is_ok()
+            })
+            && parsed["observed_at_ms"]
+                .as_i64()
+                .is_some_and(|at| at > 0 && at <= now_ms())
+            && parsed["expires_at_ms"].as_i64().is_some_and(|at| {
+                at > now_ms()
+                    && at <= now_ms() + 20_000
+                    && parsed["observed_at_ms"].as_i64().is_some_and(|observed| {
+                        at > observed && at.saturating_sub(observed) <= 20_000
+                    })
+            })
+            && !public["generation"].is_null()
+        {
+            for field in [
+                "indicative_amount_out",
+                "execution_supported",
+                "observed_at_ms",
+                "expires_at_ms",
+            ] {
+                public[field] = parsed[field].clone();
+            }
+        }
+    }
+    (status, Json(public))
+}
+
 fn now_ms() -> i64 {
     Utc::now().timestamp_millis()
 }
@@ -142,6 +220,7 @@ fn key(namespace: &str, s: &Snapshot, q: &route_solver::SolveRouteParams, spread
         q.sender,
         (
             q.pool_only,
+            &q.protection_policy,
             q.max_maker_fills,
             q.hybrid_optimize,
             q.discount_bps
@@ -313,6 +392,7 @@ fn publish(
         actors,
         discounted_pairs,
         policy_identity,
+        quote_relative_protection: true,
         taxes,
         tax_trader: None,
         protocol_actor_tokens: HashMap::new(),
@@ -482,9 +562,12 @@ pub fn initialize_fixture_contexts(
         .insert(namespace.to_owned(), Arc::new(snapshot));
 }
 
+fn observation_max_age(s: &Snapshot) -> u64 {
+    s.max_age_ms.min(20_000)
+}
 fn quote_mirror<'a>(s: &'a Snapshot, pair: &str, book: bool) -> Option<&'a Arc<sim::HopMirror>> {
     let eligible = |mirror: &&Arc<sim::HopMirror>, pool_view| {
-        !sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
+        !sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
             && matches!(
                 mirror.freshness,
                 sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
@@ -519,7 +602,10 @@ struct Candidate {
     oldest: i64,
     block: Option<i64>,
     mirrors: Vec<Arc<sim::HopMirror>>,
+    protection_blocked: bool,
+    execution_market_spread: u128,
 }
+#[cfg(test)]
 fn score(
     s: &Snapshot,
     path: &[route_paths::PathHop],
@@ -547,19 +633,43 @@ fn score_with_plan(
     maker_fills: u32,
     plan: Option<&[Option<route_solver::HybridHopJson>]>,
 ) -> Option<Candidate> {
+    evaluate_with_plan(s, path, input, spread, book_input, maker_fills, plan)
+        .ok()
+        .filter(|candidate| !candidate.protection_blocked)
+}
+fn evaluate_with_plan(
+    s: &Snapshot,
+    path: &[route_paths::PathHop],
+    input: u128,
+    spread: u128,
+    book_input: u128,
+    maker_fills: u32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Result<Candidate, diagnostics::Rejection> {
     if plan.is_some_and(|p| p.len() != path.len()) {
-        return None;
+        return Err(diagnostics::Rejection::InvalidRequest);
     }
-    if path.is_empty() || input == 0 || !protocol_guards::permits_path(s, path) {
-        return None;
+    if path.is_empty() {
+        return Err(diagnostics::Rejection::NoRoute);
+    }
+    if input == 0 {
+        return Err(diagnostics::Rejection::Dust);
+    }
+    if !protocol_guards::permits_path(s, path) {
+        return Err(diagnostics::Rejection::TradingBlocked);
     }
     let mut visited = HashSet::new();
     for id in std::iter::once(path[0].1).chain(path.iter().map(|hop| hop.2)) {
-        let asset = s.addresses.get(&id)?;
+        let asset = s
+            .addresses
+            .get(&id)
+            .ok_or(diagnostics::Rejection::Missing)?;
         if s.taxes.contains_key(asset) && !visited.insert(asset) {
-            return None;
+            return Err(diagnostics::Rejection::TradingBlocked);
         }
     }
+    let mut protection_blocked = false;
+    let mut execution_market_spread = spread;
     let mut output = input;
     let mut hops = Vec::new();
     let mut operations = Vec::new();
@@ -573,7 +683,7 @@ fn score_with_plan(
             .unwrap_or(s.config_expiry_ms)
             <= now_ms()
         {
-            return None;
+            return Err(diagnostics::Rejection::Stale);
         }
         let needs_book = plan.map_or(hop_index == 0 && book_input > 0, |plan| {
             plan[hop_index].as_ref().is_some_and(|hop| {
@@ -582,59 +692,93 @@ fn score_with_plan(
                     .is_ok_and(|amount| amount > 0)
             })
         });
-        let mirror = quote_mirror(s, pair, needs_book)?;
+        let mirror = quote_mirror(s, pair, needs_book)
+            .ok_or_else(|| diagnostics::mirror_rejection(s, pair, needs_book))?;
         used_mirrors.push(mirror.clone());
-        let offer_token = s.addresses.get(offer_id)?;
-        let ask_token = s.addresses.get(ask_id)?;
+        let offer_token = s
+            .addresses
+            .get(offer_id)
+            .ok_or(diagnostics::Rejection::Missing)?;
+        let ask_token = s
+            .addresses
+            .get(ask_id)
+            .ok_or(diagnostics::Rejection::Missing)?;
         let (rin, rout) =
             if offer_token == &mirror.asset_0_addr && ask_token == &mirror.asset_1_addr {
                 (mirror.reserve_0, mirror.reserve_1)
             } else if offer_token == &mirror.asset_1_addr && ask_token == &mirror.asset_0_addr {
                 (mirror.reserve_1, mirror.reserve_0)
             } else {
-                return None;
+                return Err(diagnostics::Rejection::Accounting);
             };
         if mirror.fee_bps > 10_000 {
-            return None;
+            return Err(diagnostics::Rejection::Accounting);
         }
         let offer_tax = s.taxes.get(offer_token);
         let ask_tax = s.taxes.get(ask_token);
-        let sell_bps = offer_tax.map_or(Some(0), |tax| {
-            tax.rates(s.tax_trader.as_deref(), pair)
-                .map(|rates| rates.0)
-        })?;
-        let buy_bps = ask_tax.map_or(Some(0), |tax| {
-            tax.rates(s.tax_trader.as_deref(), pair)
-                .map(|rates| rates.1)
-        })?;
-        let (economic_input, sell_tax, sell_residue) = tax::sell(output, sell_bps)?;
+        let sell_bps = offer_tax
+            .map_or(Some(0), |tax| {
+                tax.rates(s.tax_trader.as_deref(), pair)
+                    .map(|rates| rates.0)
+            })
+            .ok_or_else(|| {
+                offer_tax.map_or(diagnostics::Rejection::Accounting, |tax| {
+                    diagnostics::tax_rejection(tax, s.tax_trader.as_deref(), pair)
+                })
+            })?;
+        let buy_bps = ask_tax
+            .map_or(Some(0), |tax| {
+                tax.rates(s.tax_trader.as_deref(), pair)
+                    .map(|rates| rates.1)
+            })
+            .ok_or_else(|| {
+                ask_tax.map_or(diagnostics::Rejection::Accounting, |tax| {
+                    diagnostics::tax_rejection(tax, s.tax_trader.as_deref(), pair)
+                })
+            })?;
+        let (economic_input, sell_tax, sell_residue) =
+            tax::sell(output, sell_bps).ok_or(diagnostics::Rejection::Accounting)?;
         let (book_input, maker_fills) = if let Some(plan) = plan {
             // Router accepts either exact economic budgets or the authorized gross
             // ratio; rescale the latter identically to funded_hybrid.
-            modes::declared_split(plan[hop_index].as_ref(), economic_input).or_else(|| {
-                modes::declared_split(plan[hop_index].as_ref(), output).and_then(|(book, fills)| {
-                    Some((wide_floor(economic_input, book, output)?, fills))
+            modes::declared_split(plan[hop_index].as_ref(), economic_input)
+                .or_else(|| {
+                    modes::declared_split(plan[hop_index].as_ref(), output).and_then(
+                        |(book, fills)| Some((wide_floor(economic_input, book, output)?, fills)),
+                    )
                 })
-            })?
+                .ok_or(diagnostics::Rejection::InvalidRequest)?
         } else {
             (
                 if hop_index == 0 {
-                    wide_floor(economic_input, book_input, output)?
+                    wide_floor(economic_input, book_input, output)
+                        .ok_or(diagnostics::Rejection::Accounting)?
                 } else {
                     0
                 },
                 maker_fills,
             )
         };
+        if book_input > 0
+            && economic_input > book_input
+            && economic_input - book_input < (economic_input / 10).max(1)
+        {
+            return Err(diagnostics::Rejection::InvalidRequest);
+        }
         let leg =
             sim::quote_local_leg(mirror, offer_token, economic_input, book_input, maker_fills)
-                .ok()?;
+                .map_err(diagnostics::simulation_rejection)?;
         let pool_net = leg.pool_return_amount;
         let commission = leg.commission_amount;
-        let post_hook = s.hooks.get(pair).map_or(Some(leg.return_amount), |hooks| {
-            hooks.net_return(ask_token, leg.return_amount).ok()
-        })?;
-        let (net, buy_tax) = tax::buy(post_hook, buy_bps)?;
+        let post_hook = s
+            .hooks
+            .get(pair)
+            .map_or(Some(leg.return_amount), |hooks| {
+                hooks.net_return(ask_token, leg.return_amount).ok()
+            })
+            .ok_or(diagnostics::Rejection::Unsupported)?;
+        let (net, buy_tax) =
+            tax::buy(post_hook, buy_bps).ok_or(diagnostics::Rejection::Accounting)?;
         // Bought intermediate proceeds stay in the authenticated router; only
         // purchased rounding residue and final delivery credit the payer wallet.
         if (hop_index + 1 == path.len()
@@ -644,57 +788,95 @@ fn score_with_plan(
                 && offer_tax
                     .is_some_and(|tax| !tax.permits_credit(s.tax_trader.as_deref(), sell_residue)))
         {
-            return None;
+            let credit_tax = if hop_index + 1 == path.len()
+                && ask_tax.is_some_and(|tax| !tax.permits_credit(s.tax_trader.as_deref(), net))
+            {
+                ask_tax
+            } else {
+                offer_tax
+            };
+            return Err(
+                credit_tax.map_or(diagnostics::Rejection::TradingBlocked, |tax| {
+                    diagnostics::tax_rejection(tax, s.tax_trader.as_deref(), pair)
+                }),
+            );
         }
-        let gross = pool_net.checked_add(commission)?;
+        let gross = pool_net
+            .checked_add(commission)
+            .ok_or(diagnostics::Rejection::Accounting)?;
         let market_spread = leg.spread_amount;
-        let denominator = gross.checked_add(leg.book_return_net)?;
-        let consumed = economic_input.checked_sub(leg.pool_input_actual)?;
+        let denominator = gross
+            .checked_add(leg.book_return_net)
+            .ok_or(diagnostics::Rejection::Accounting)?;
+        let consumed = economic_input
+            .checked_sub(leg.pool_input_actual)
+            .ok_or(diagnostics::Rejection::Accounting)?;
         let book_shortfall = if leg.pool_input_actual > 0 && consumed > 0 {
-            wide_floor(pool_net, consumed, leg.pool_input_actual)?
+            wide_floor(pool_net, consumed, leg.pool_input_actual)
+                .ok_or(diagnostics::Rejection::Accounting)?
                 .saturating_sub(leg.book_return_net)
         } else {
             0
         };
-        let spread_total = market_spread.min(gross).checked_add(book_shortfall)?;
-        // Exact L9 pool+book denominator, separate from post-hook receive floors.
-        if BigInt::from(spread_total) * BigInt::from(SCALE)
+        let spread_total = market_spread
+            .min(gross)
+            .checked_add(book_shortfall)
+            .ok_or(diagnostics::Rejection::Accounting)?;
+        // L9 market impact remains an independently checked contract metric.
+        // Quote-relative protection anchors the market ceiling to this amount's
+        // pinned economics; positive net floors still bind the exact UI setting.
+        if s.quote_relative_protection {
+            execution_market_spread = execution_market_spread.max(quote_relative_market_spread(
+                spread_total,
+                denominator,
+                spread,
+            )?);
+        } else if BigInt::from(spread_total) * BigInt::from(SCALE)
             > BigInt::from(denominator) * BigInt::from(spread)
         {
-            return None;
+            protection_blocked = true;
         }
         if book_input > 0 && economic_input > book_input && pool_net == 0 {
-            return None;
+            return Err(diagnostics::Rejection::Dust);
         }
-        let floor = wide_floor(net, SCALE - spread, SCALE)?.max(1);
+        let floor = net_floor(s, net, spread).ok_or(diagnostics::Rejection::Accounting)?;
         // Escrow-backed book output is independent of AMM reserves. Apply pool
         // plausibility only to the amount actually exchanged against those reserves.
-        if net == 0
-            || floor == 0
-            || sim::hop_sim_implausible(leg.pool_input_actual, rin, rout, pool_net)
-        {
-            return None;
+        if net == 0 {
+            return Err(diagnostics::Rejection::Dust);
+        }
+        if sim::hop_sim_implausible(leg.pool_input_actual, rin, rout, pool_net) {
+            return Err(diagnostics::Rejection::Liquidity);
         }
         hops.push(json!({"pair":pair,"offer_token":offer_token,"ask_token":ask_token,"offer_amount":output.to_string(),"economic_offer_amount":economic_input.to_string(),"sell_tax_amount":sell_tax.to_string(),"sell_residue":sell_residue.to_string(),"sell_tax_bps":sell_bps,"buy_tax_bps":buy_bps,"buy_tax_amount":buy_tax.to_string(),"post_hook_return_amount":post_hook.to_string(),"return_amount":net.to_string(),"pool_return_amount":pool_net.to_string(),"book_return_net":leg.book_return_net.to_string(),"pool_input_actual":leg.pool_input_actual.to_string(),"book_offer_consumed":consumed.to_string(),"book_input_actual":consumed.to_string(),"spread_amount":market_spread.to_string(),"commission_amount":commission.to_string(),"min_return":floor.to_string()}));
         operations.push(json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":offer_token}},"ask_asset_info":{"token":{"contract_addr":ask_token}},"hybrid":if book_input==0 && plan.is_none_or(|plan| plan[hop_index].is_none()){Value::Null}else{json!({"pool_input":(economic_input-book_input).to_string(),"book_input":book_input.to_string(),"max_maker_fills":maker_fills,"book_start_hint":null})},"min_return":floor.to_string()}}));
-        hops.last_mut()?["declared_hybrid"] = operations.last()?["terra_swap"]["hybrid"].clone();
+        hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["declared_hybrid"] = operations
+            .last()
+            .ok_or(diagnostics::Rejection::Accounting)?["terra_swap"]["hybrid"]
+            .clone();
         output = net;
         oldest = oldest.min(mirror.snapshot_at.timestamp_millis());
         if let Some(height) = mirror.block_height {
             block = Some(block.map_or(height, |old: i64| old.min(height)));
         }
     }
-    let (fair, reference_at) =
-        s.references
-            .fair_output(path[0].1, path.last()?.2, input, Utc::now())?;
+    let (fair, reference_at) = s
+        .references
+        .fair_output(
+            path[0].1,
+            path.last().ok_or(diagnostics::Rejection::NoRoute)?.2,
+            input,
+            Utc::now(),
+        )
+        .ok_or_else(|| diagnostics::reference_rejection(s, path, input))?;
     let spot = fair;
     oldest = oldest.min(reference_at);
     if BigInt::from(fair.abs_diff(output)) * BigInt::from(100u8)
         >= BigInt::from(fair.max(output)) * BigInt::from(99u8)
     {
-        return None;
+        return Err(diagnostics::Rejection::FairDeviation);
     }
-    Some(Candidate {
+    Ok(Candidate {
         path: path.to_vec(),
         output,
         spot,
@@ -703,6 +885,8 @@ fn score_with_plan(
         oldest,
         block,
         mirrors: used_mirrors,
+        protection_blocked,
+        execution_market_spread,
     })
 }
 fn better(a: &Candidate, b: &Candidate) -> bool {
@@ -710,6 +894,63 @@ fn better(a: &Candidate, b: &Candidate) -> bool {
 }
 fn paths(s: &Snapshot, start: i32, goal: i32, depth: usize) -> Vec<Vec<route_paths::PathHop>> {
     skeletons::paths(s, start, goal, depth)
+}
+#[derive(Default)]
+struct Selection {
+    executable: Option<Candidate>,
+    indicative: Option<Candidate>,
+    rejected: Option<diagnostics::Rejection>,
+}
+fn select_detailed(
+    s: &Snapshot,
+    paths: &[Vec<route_paths::PathHop>],
+    amount: u128,
+    spread: u128,
+    book_allowed: bool,
+    maker_fills: u32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Selection {
+    let splits = if book_allowed && plan.is_none() {
+        vec![0, amount / 2, amount]
+    } else {
+        vec![0]
+    };
+    let mut selected = Selection::default();
+    for path in paths {
+        for book in &splits {
+            let reason = match evaluate_with_plan(s, path, amount, spread, *book, maker_fills, plan)
+            {
+                Ok(candidate) if !candidate.protection_blocked => {
+                    if selected
+                        .executable
+                        .as_ref()
+                        .is_none_or(|old| better(&candidate, old))
+                    {
+                        selected.executable = Some(candidate);
+                    }
+                    continue;
+                }
+                Ok(candidate) => {
+                    if selected
+                        .indicative
+                        .as_ref()
+                        .is_none_or(|old| better(&candidate, old))
+                    {
+                        selected.indicative = Some(candidate);
+                    }
+                    diagnostics::Rejection::Protection
+                }
+                Err(reason) => reason,
+            };
+            if selected
+                .rejected
+                .is_none_or(|old| reason.priority() < old.priority())
+            {
+                selected.rejected = Some(reason);
+            }
+        }
+    }
+    selected
 }
 fn select(
     s: &Snapshot,
@@ -719,19 +960,7 @@ fn select(
     book_allowed: bool,
     maker_fills: u32,
 ) -> Option<Candidate> {
-    let splits = if book_allowed {
-        vec![0, amount / 2, amount]
-    } else {
-        vec![0]
-    };
-    paths
-        .iter()
-        .flat_map(|p| {
-            splits
-                .iter()
-                .filter_map(move |b| score_with_book(s, p, amount, spread, *b, maker_fills))
-        })
-        .reduce(|a, b| if better(&b, &a) { b } else { a })
+    select_detailed(s, paths, amount, spread, book_allowed, maker_fills, None).executable
 }
 
 fn response(
@@ -772,14 +1001,11 @@ fn response(
             json!({"pair":pair,"offer_token":s.addresses[offer],"ask_token":s.addresses[ask]})
         })
         .collect();
-    let spread_text = format!("0.{spread:018}")
-        .trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string();
+    let spread_text = decimal_text(spread);
     let floor = c.hops.last().unwrap()["min_return"].as_str().unwrap();
     let mut expires = c
         .oldest
-        .saturating_add(s.max_age_ms as i64)
+        .saturating_add(observation_max_age(s) as i64)
         .min(s.config_expiry_ms);
     for (pair, offer, ask) in &c.path {
         expires = expires.min(
@@ -829,14 +1055,20 @@ fn response(
             (c.spot.abs_diff(c.output) as f64 / c.spot.max(c.output) as f64) * 100.0
         ))
     };
-    json!({"token_in":q.token_in,"token_out":q.token_out,"hops":route_hops,"intermediate_tokens":tokens,
+    let mut body = json!({"token_in":q.token_in,"token_out":q.token_out,"hops":route_hops,"intermediate_tokens":tokens,
         "quote_kind":if c.operations.iter().all(|op|op["terra_swap"]["hybrid"].is_null()){"indexer_pool_db"}else{"indexer_hybrid_db"},"router_operations":c.operations,"estimated_amount_out":c.output.to_string(),"estimated_amount_out_net":c.output.to_string(),
         "tax_kind":if route_tax {"route_local_v1"} else {"none"},"buy_tax_bps":buy_bps,"sell_tax_bps":sell_bps,"router_hops_tax":route_tax,"tax_funding_version":if route_tax {json!(1)} else {Value::Null},"solver_version":"local_v1","paths_considered":count,
         "optimality_scope":"Best net output among bounded eligible local pool paths","lcd_hybrid_queries":0,"db_hybrid_queries":0,"fidelity_check":"skipped",
         "snapshot_age_ms":now_ms().saturating_sub(c.oldest),"snapshot_block_height":c.block,"spot_amount_out":c.spot.to_string(),"slippage_percent":impact,
         "required_amount_in":q.amount_out.as_ref().map(|_|input.to_string()),"target_amount_out":q.amount_out,"sizing_mode":q.amount_out.as_ref().map(|_|"local_pool_exact_output"),
         "execution_metadata":{"version":1,"tax_funding_version":if route_tax {json!(1)} else {Value::Null},"generation":s.generation,"input_amount":input.to_string(),"max_spread":spread_text,"trader":q.trader,"sender":q.sender,
-            "observed_at_ms":c.oldest,"expires_at_ms":expires,"policy":if c.operations[0]["terra_swap"]["hybrid"].is_null(){"pool_only"}else{"declared_hybrid_hop0"},"hops":c.hops,"minimum_receive":floor}})
+            "observed_at_ms":c.oldest,"expires_at_ms":expires,"policy":if c.operations[0]["terra_swap"]["hybrid"].is_null(){"pool_only"}else{"declared_hybrid_hop0"},"hops":c.hops,"minimum_receive":floor}});
+    if s.quote_relative_protection {
+        body["execution_metadata"]["protection_policy"] = json!("quote_relative_v1");
+        body["execution_metadata"]["execution_market_spread"] =
+            json!(decimal_text(c.execution_market_spread));
+    }
+    body
 }
 
 fn admission_generation(s: &Snapshot) -> String {
@@ -850,9 +1082,10 @@ fn admission_generation(s: &Snapshot) -> String {
     relevant.sort();
     let mut h = Sha256::new();
     h.update(format!(
-        "{}|{relevant:?}|fee:{}",
+        "{}|{relevant:?}|fee:{}|protection:{}",
         s.generation,
-        crate::indexer::fee_phase::revision(&s.namespace)
+        crate::indexer::fee_phase::revision(&s.namespace),
+        s.quote_relative_protection
     ));
     format!("{:x}", h.finalize())
 }
@@ -913,6 +1146,101 @@ fn reviewed_snapshot_current(
     }
     generation == reviewed.generation
 }
+fn native_candidate_rejection(
+    n: &NativeContext,
+    c: &Candidate,
+    input: u128,
+) -> Option<diagnostics::Rejection> {
+    if !n.wrapper.is_fresh(now_ms()) {
+        return Some(diagnostics::Rejection::Stale);
+    }
+    for (enabled, denom, amount) in [
+        (
+            n.wrap,
+            &n.request.token_in,
+            if n.wrap {
+                n.request
+                    .amount_in
+                    .as_deref()
+                    .and_then(|raw| raw.parse().ok())
+                    .or_else(|| n.wrapper.inverse_wrap(input))
+            } else {
+                None
+            },
+        ),
+        (n.unwrap, &n.request.token_out, Some(c.output)),
+    ] {
+        if !enabled {
+            continue;
+        }
+        let Some(amount) = amount else {
+            return Some(diagnostics::Rejection::AmountLimit);
+        };
+        let Some(mapping) = n.wrapper.mappings.get(denom) else {
+            return Some(diagnostics::Rejection::Missing);
+        };
+        if mapping.maximum.is_some_and(|limit| {
+            mapping
+                .used
+                .checked_add(amount)
+                .is_none_or(|used| used > limit)
+        }) {
+            return Some(diagnostics::Rejection::AmountLimit);
+        }
+    }
+    if n.wrap && n.wrapper.fee_wrap_bps >= 10_000 {
+        return Some(diagnostics::Rejection::Unsupported);
+    }
+    if n.unwrap {
+        if !n.wrapper.router_unwrap_supported {
+            return Some(diagnostics::Rejection::Unsupported);
+        }
+        if n.wrapper.tax_atomics.is_none()
+            || n.wrapper
+                .mappings
+                .get(&n.request.token_out)
+                .is_none_or(|m| m.tax_cap.is_none())
+        {
+            return Some(diagnostics::Rejection::Missing);
+        }
+        if n.wrapper
+            .unwrap_output(&n.request.token_out, c.output, now_ms())
+            .is_none()
+        {
+            return Some(diagnostics::Rejection::Dust);
+        }
+    }
+    None
+}
+fn native_fair_rejection(
+    s: &Snapshot,
+    n: &NativeContext,
+    c: &Candidate,
+    input: u128,
+) -> Option<diagnostics::Rejection> {
+    let gross = if n.wrap {
+        n.request
+            .amount_in
+            .as_deref()
+            .and_then(|v| v.parse().ok())
+            .or_else(|| n.wrapper.inverse_wrap(input))?
+    } else {
+        input
+    };
+    let output = if n.unwrap {
+        n.wrapper
+            .unwrap_output(&n.request.token_out, c.output, now_ms())?
+            .1
+    } else {
+        c.output
+    };
+    let (fair, _) =
+        s.references
+            .fair_output(c.path.first()?.1, c.path.last()?.2, gross, Utc::now())?;
+    (BigInt::from(fair.abs_diff(output)) * BigInt::from(100u8)
+        >= BigInt::from(fair.max(output)) * BigInt::from(99u8))
+    .then_some(diagnostics::Rejection::FairDeviation)
+}
 fn final_response(
     s: &Snapshot,
     q: &route_solver::SolveRouteParams,
@@ -926,6 +1254,9 @@ fn final_response(
     let Some(n) = native else {
         return Some(body);
     };
+    if native_candidate_rejection(n, c, input).is_some() {
+        return None;
+    }
     let gross = if n.wrap {
         if let Some(raw) = n.request.amount_in.as_ref() {
             raw.parse::<u128>().ok()?
@@ -946,15 +1277,13 @@ fn final_response(
         let (_, route_net_floor, _) =
             n.wrapper
                 .unwrap_output(&n.request.token_out, route_floor, now_ms())?;
-        let floor = route_net_floor
-            .max(wide_floor(output, SCALE - spread, SCALE)?)
-            .max(
-                n.request
-                    .amount_out
-                    .as_ref()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(0),
-            );
+        let floor = route_net_floor.max(net_floor(s, output, spread)?).max(
+            n.request
+                .amount_out
+                .as_ref()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0),
+        );
         let wrapped_floor = n.wrapper.inverse_unwrap(&n.request.token_out, floor)?;
         let (_, _, base) =
             n.wrapper
@@ -1061,7 +1390,7 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
     let path = paths(&s, start, goal, 4)
         .into_iter()
         .next()
-        .ok_or_else(eligible_error)?;
+        .ok_or_else(|| diagnostics::candidate_error(namespace, &s, &[], start, goal, None))?;
     let hops=path.iter().map(|(pair,offer,ask)|json!({"pair":pair,"offer_token":s.addresses[offer],"ask_token":s.addresses[ask]})).collect::<Vec<_>>();
     let ops=path.iter().map(|(_,offer,ask)|json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":s.addresses[offer]}},"ask_asset_info":{"token":{"contract_addr":s.addresses[ask]}},"hybrid":null}})).collect::<Vec<_>>();
     let mut tokens = vec![q.token_in.clone()];
@@ -1073,11 +1402,43 @@ fn topology(namespace: &str, q: &route_solver::SolveRouteParams) -> Result<Json<
         json!({"token_in":q.token_in,"token_out":q.token_out,"hops":hops,"intermediate_tokens":tokens,"router_operations":ops,"quote_kind":"indexer_route_only","estimated_amount_out":null,"solver_version":"local_v1"}),
     ))
 }
+fn bind_error_generation(
+    namespace: &str,
+    q: &route_solver::SolveRouteParams,
+    mut error: Error,
+) -> Error {
+    let g = store().lock().unwrap();
+    if let (Some(snapshot), Ok(mut body)) = (
+        g.snapshots.get(namespace),
+        serde_json::from_str::<Value>(&error.1),
+    ) {
+        let s = protocol_guards::derive(&g, namespace, snapshot);
+        let generation = if matches!(q.token_in.as_str(), "uluna" | "uusd")
+            || matches!(q.token_out.as_str(), "uluna" | "uusd")
+        {
+            g.wrappers
+                .get(namespace)
+                .map(|w| wrapper_generation(&s.generation, w))
+        } else {
+            Some(s.generation)
+        };
+        if let Some(generation) = generation {
+            // Keep priced evidence bound to the generation which produced it.
+            if body["generation"].is_null() {
+                body["generation"] = json!(generation);
+            }
+            error.1 = body.to_string();
+        }
+    }
+    error
+}
 async fn solve_local(
     namespace: &str,
     request: &route_solver::SolveRouteParams,
 ) -> Result<Json<Value>, Error> {
-    solve_local_with_plan(namespace, request, None).await
+    solve_local_with_plan(namespace, request, None)
+        .await
+        .map_err(|error| bind_error_generation(namespace, request, error))
 }
 pub async fn solve_post(
     state: &AppState,
@@ -1091,7 +1452,10 @@ pub async fn solve_post(
         return Err(invalid("hybrid_by_hop must declare one to four hops"));
     }
     require_safe_indexing(state)?;
-    let quote = solve_local_with_plan(&state.lcd.chain_cache_namespace(), request, plan).await;
+    let namespace = state.lcd.chain_cache_namespace();
+    let quote = solve_local_with_plan(&namespace, request, plan)
+        .await
+        .map_err(|error| bind_error_generation(&namespace, request, error));
     require_safe_indexing(state)?;
     quote
 }
@@ -1100,11 +1464,30 @@ async fn solve_local_with_plan(
     request: &route_solver::SolveRouteParams,
     plan: Option<&[Option<route_solver::HybridHopJson>]>,
 ) -> Result<Json<Value>, Error> {
+    if request
+        .protection_policy
+        .as_deref()
+        .is_some_and(|policy| policy != "quote_relative_v1")
+    {
+        return Err(invalid("Unknown protection policy"));
+    }
     if actor_capacity_unavailable(&store().lock().unwrap(), namespace) {
         return Err(unavailable());
     }
     if request.amount_in.is_none() && request.amount_out.is_none() {
         return topology(namespace, request);
+    }
+    for raw in [request.amount_in.as_deref(), request.amount_out.as_deref()]
+        .into_iter()
+        .flatten()
+    {
+        if raw.len() > 39
+            || raw.starts_with('0')
+            || !raw.bytes().all(|b| b.is_ascii_digit())
+            || raw.parse::<u128>().is_err()
+        {
+            return Err(invalid("Amount must be canonical positive Uint128"));
+        }
     }
     let mut q = request.clone();
     let wrap = matches!(q.token_in.as_str(), "uluna" | "uusd");
@@ -1126,22 +1509,39 @@ async fn solve_local_with_plan(
                 let amount = raw
                     .parse::<u128>()
                     .map_err(|_| invalid("Invalid native offer"))?;
+                if mapping.maximum.is_some_and(|limit| {
+                    mapping
+                        .used
+                        .checked_add(amount)
+                        .is_none_or(|used| used > limit)
+                }) {
+                    return Err(diagnostics::Rejection::AmountLimit.error());
+                }
                 let (_, credit) = w
                     .wrap_input(&q.token_in, amount, now_ms())
-                    .ok_or_else(eligible_error)?;
+                    .ok_or_else(|| diagnostics::Rejection::Dust.error())?;
                 q.amount_in = Some(credit.to_string());
             }
             q.token_in = mapping.cw20.clone();
         }
         if unwrap {
             let mapping = w.mappings.get(&q.token_out).ok_or_else(unavailable)?;
+            if q.token_in != mapping.cw20 && !w.router_unwrap_supported {
+                return Err(diagnostics::Rejection::Unsupported.error());
+            }
+            if w.tax_atomics.is_none() || mapping.tax_cap.is_none() {
+                return Err(diagnostics::Rejection::Missing.error());
+            }
+            if w.tax_atomics.is_some_and(|rate| rate >= SCALE) || w.fee_unwrap_bps >= 10_000 {
+                return Err(diagnostics::Rejection::Unsupported.error());
+            }
             if let Some(raw) = q.amount_out.as_ref() {
                 let target = raw
                     .parse::<u128>()
                     .map_err(|_| invalid("Invalid native target"))?;
                 q.amount_out = Some(
                     w.inverse_unwrap(&q.token_out, target)
-                        .ok_or_else(eligible_error)?
+                        .ok_or_else(|| diagnostics::Rejection::AmountLimit.error())?
                         .to_string(),
                 );
             }
@@ -1172,6 +1572,8 @@ async fn solve_local_with_plan(
         let snapshot = g.snapshots.get(namespace).ok_or_else(unavailable)?;
         protocol_guards::derive(&g, namespace, snapshot)
     };
+    derived.quote_relative_protection =
+        request.protection_policy.as_deref() == Some("quote_relative_v1");
     for actor in [request.trader.as_deref(), request.sender.as_deref()]
         .into_iter()
         .flatten()
@@ -1183,7 +1585,7 @@ async fn solve_local_with_plan(
         {
             return Err((
                 StatusCode::UNPROCESSABLE_ENTITY,
-                "Trading is unavailable for this wallet".into(),
+                json!({"error":"trading_blocked","generation":derived.generation}).to_string(),
             ));
         }
     }
@@ -1235,6 +1637,53 @@ async fn solve_local_with_plan(
             .is_none()
         {
             return Err(unavailable());
+        }
+        let gross = native
+            .request
+            .amount_in
+            .as_deref()
+            .and_then(|v| v.parse::<u128>().ok())
+            .or_else(|| {
+                let target = native.request.amount_out.as_deref()?.parse::<u128>().ok()?;
+                if native.wrap {
+                    native.wrapper.inverse_wrap(target)
+                } else {
+                    native
+                        .wrapper
+                        .inverse_unwrap(&native.request.token_out, target)
+                }
+            })
+            .ok_or_else(|| diagnostics::Rejection::AmountLimit.error())?;
+        let denom = if native.wrap {
+            &native.request.token_in
+        } else {
+            &native.request.token_out
+        };
+        let mapping = native.wrapper.mappings.get(denom).ok_or_else(unavailable)?;
+        if mapping.maximum.is_some_and(|limit| {
+            mapping
+                .used
+                .checked_add(gross)
+                .is_none_or(|used| used > limit)
+        }) {
+            return Err(diagnostics::Rejection::AmountLimit.error());
+        }
+        let wallet_output = if native.wrap {
+            native
+                .wrapper
+                .wrap_input(denom, gross, now_ms())
+                .map(|(_, net)| net)
+        } else {
+            native
+                .wrapper
+                .unwrap_output_direct(denom, gross, now_ms())
+                .map(|(_, net, _)| net)
+        }
+        .ok_or_else(|| diagnostics::Rejection::Dust.error())?;
+        if BigInt::from(gross.abs_diff(wallet_output)) * BigInt::from(100u8)
+            >= BigInt::from(gross.max(wallet_output)) * BigInt::from(99u8)
+        {
+            return Err(diagnostics::Rejection::FairDeviation.error());
         }
         let body = modes::wrapper_only(&snapshot, q, native, spread).ok_or_else(eligible_error)?;
         let g = store().lock().unwrap();
@@ -1288,26 +1737,35 @@ async fn solve_local_with_plan(
         q.pool_only != Some(true) && q.hybrid_optimize != Some(false) && q.amount_out.is_none();
     let maker_fills = crate::hybrid_limits::clamp_max_maker_fills(q.max_maker_fills.unwrap_or(8));
     let select_amount = |paths: &[Vec<route_paths::PathHop>], amount| {
-        if let Some(plan) = plan {
-            paths
-                .iter()
-                .filter_map(|p| {
-                    score_with_plan(&snapshot, p, amount, spread, 0, maker_fills, Some(plan))
-                })
-                .reduce(|a, b| if better(&b, &a) { b } else { a })
-        } else {
-            select(&snapshot, paths, amount, spread, book_allowed, maker_fills)
-        }
+        select_detailed(
+            &snapshot,
+            paths,
+            amount,
+            spread,
+            book_allowed,
+            maker_fills,
+            plan,
+        )
     };
     let mut initial = paths(&snapshot, start, goal, 2);
-    // An eligible longer baseline is prepared locally when endpoints have no short corridor.
+    let mut selected = q
+        .amount_in
+        .as_deref()
+        .and_then(|raw| raw.parse::<u128>().ok())
+        .map(|amount| select_amount(&initial, amount));
+    // Keep the short result and its bounded evidence. Searching a longer
+    // corridor consumes the existing pass; classification never re-simulates.
     if initial.is_empty()
-        || q.amount_in
+        || selected
             .as_ref()
-            .and_then(|a| a.parse().ok())
-            .is_some_and(|amount| select_amount(&initial, amount).is_none())
+            .is_some_and(|result| result.executable.is_none())
     {
         initial = paths(&snapshot, start, goal, 4);
+        selected = q
+            .amount_in
+            .as_deref()
+            .and_then(|raw| raw.parse::<u128>().ok())
+            .map(|amount| select_amount(&initial, amount));
     }
     let mut considered = initial.len();
     let (amount, candidate) = if let Some(raw) = q.amount_in.as_ref() {
@@ -1316,12 +1774,23 @@ async fn solve_local_with_plan(
             .ok()
             .filter(|a| *a > 0)
             .ok_or_else(|| invalid("amount_in must be a positive Uint128"))?;
-        (
-            amount,
-            select_amount(&initial, amount).ok_or_else(|| {
-                diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal, plan)
-            })?,
-        )
+        let mut selected = selected.unwrap_or_default();
+        let candidate = selected.executable.take().ok_or_else(|| {
+            diagnostics::selection_error(
+                namespace,
+                &snapshot,
+                &initial,
+                start,
+                goal,
+                plan,
+                q,
+                amount,
+                spread,
+                native.as_ref(),
+                selected,
+            )
+        })?;
+        (amount, candidate)
     } else {
         let target = q
             .amount_out
@@ -1334,17 +1803,29 @@ async fn solve_local_with_plan(
         // Invert constant-product and integer commission locally. Unlike power-of-two
         // bracketing, this cannot skip a feasible target near the spread boundary.
         considered = initial.len().min(64);
-        let mut best = select_inverse(&snapshot, &initial, target, spread);
+        let (mut best, mut rejected) =
+            reverse::select_inverse_detailed(&snapshot, &initial, target, spread);
         if best.is_none() && initial.iter().all(|p| p.len() <= 2) {
             let longer = paths(&snapshot, start, goal, 4)
                 .into_iter()
                 .filter(|p| p.len() > 2)
                 .collect::<Vec<_>>();
             considered += longer.len().min(64);
-            best = select_inverse(&snapshot, &longer, target, spread);
+            let (candidate, reason) =
+                reverse::select_inverse_detailed(&snapshot, &longer, target, spread);
+            best = candidate;
+            if let Some(reason) = reason {
+                if rejected.is_none_or(|old| reason.priority() < old.priority()) {
+                    rejected = Some(reason);
+                }
+            }
         }
         best.ok_or_else(|| {
-            diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal, plan)
+            rejected
+                .map(|reason| diagnostics::bound_error(&snapshot, reason.error()))
+                .unwrap_or_else(|| {
+                    diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal, plan)
+                })
         })?
     };
     let mut body = final_response(
@@ -1357,11 +1838,11 @@ async fn solve_local_with_plan(
         native.as_ref(),
     )
     .ok_or_else(|| {
-        if native
-            .as_ref()
-            .is_some_and(|n| !n.wrapper.is_fresh(now_ms()))
-        {
-            unavailable()
+        if let Some(reason) = native.as_ref().and_then(|n| {
+            native_candidate_rejection(n, &candidate, amount)
+                .or_else(|| native_fair_rejection(&snapshot, n, &candidate, amount))
+        }) {
+            diagnostics::bound_error(&snapshot, reason.error())
         } else {
             diagnostics::candidate_error(
                 namespace,
@@ -1481,6 +1962,7 @@ fn progress_local(
         .into(),
         cache_hit: cached,
         updated_at_ms: now_ms().max(0) as u64,
+        quote_generation: Some(s.generation.clone()),
     })
 }
 
@@ -1493,8 +1975,11 @@ mod pair_admission;
 mod reverse;
 #[cfg(test)]
 use reverse::inverse_pool_path;
+#[cfg(test)]
 use reverse::select_inverse;
+mod protection;
 mod protocol_guards;
+use protection::{decimal_text, net_floor, quote_relative_market_spread};
 mod skeletons;
 mod tax;
 pub use admission::{ingest_fixture, ingest_once};
@@ -1593,6 +2078,7 @@ mod tests {
             actors: HashMap::new(),
             discounted_pairs: HashSet::new(),
             policy_identity: "synthetic".into(),
+            quote_relative_protection: false,
             taxes: HashMap::new(),
             tax_trader: None,
             protocol_actor_tokens: HashMap::new(),
@@ -1601,6 +2087,7 @@ mod tests {
     pub(super) fn request(amount: u128) -> route_solver::SolveRouteParams {
         route_solver::SolveRouteParams {
             max_spread: Some("0.05".into()),
+            protection_policy: None,
             token_in: "in18".into(),
             token_out: "out18".into(),
             amount_in: Some(amount.to_string()),
@@ -1613,6 +2100,408 @@ mod tests {
             discount_bps: None,
         }
     }
+
+    /// Shared public corpus, pinned synthetic reserves and independent integer
+    /// oracle. Native labels exercise decimal economics here; socket tests own
+    /// real wrapper admission and protocol capability evidence.
+    #[test]
+    fn issue1473_bidirectional_shared_matrix_pins_net_output_and_protection() {
+        let corpus: Value =
+            serde_json::from_str(include_str!("../../../docs/qa/issue-1473/matrix.json")).unwrap();
+        let mut count = 0;
+        for pair in corpus["pairs"].as_array().unwrap() {
+            for reverse in [false, true] {
+                let first = pair[usize::from(reverse)].as_str().unwrap();
+                let second = pair[usize::from(!reverse)].as_str().unwrap();
+                let da = corpus["assets"][first]["decimals"].as_u64().unwrap() as u32;
+                let db = corpus["assets"][second]["decimals"].as_u64().unwrap() as u32;
+                let mut s = fixture();
+                s.quote_relative_protection = true;
+                let mut m = (*s.mirrors["pair0a"]).clone();
+                m.asset_0_addr = first.into();
+                m.asset_1_addr = second.into();
+                m.reserve_0 = 1_000 * 10u128.pow(da);
+                m.reserve_1 = 1_000 * 10u128.pow(db);
+                s.addresses.insert(1, first.into());
+                s.addresses.insert(2, second.into());
+                s.mirrors.insert("matrix".into(), Arc::new(m.clone()));
+                for (id, decimals) in [(1, da), (2, db)] {
+                    s.references.prices.insert(
+                        id,
+                        super::super::local_reference_quote::ReferencePrice {
+                            price: BigDecimal::from(1),
+                            decimals,
+                            as_of: Utc::now(),
+                        },
+                    );
+                }
+                let path = vec![("matrix".into(), 1, 2)];
+                let mut amounts = vec![1];
+                for human in corpus["human_amounts"].as_array().unwrap() {
+                    let raw = (human.as_str().unwrap().parse::<BigDecimal>().unwrap()
+                        * BigDecimal::from(10u128.pow(da)))
+                    .with_scale(0)
+                    .to_string()
+                    .parse::<u128>()
+                    .unwrap();
+                    amounts.push(raw);
+                }
+                for input in amounts {
+                    let gross = (BigInt::from(m.reserve_1) * BigInt::from(input)
+                        / BigInt::from(m.reserve_0 + input))
+                    .to_string()
+                    .parse::<u128>()
+                    .unwrap();
+                    let commission = gross * 30 / 10_000;
+                    let expected = gross - commission;
+                    let ideal = (BigInt::from(input) * BigInt::from(m.reserve_1)
+                        / BigInt::from(m.reserve_0))
+                    .to_string()
+                    .parse::<u128>()
+                    .unwrap();
+                    for spread_text in corpus["max_spreads"].as_array().unwrap() {
+                        let spread = spread_atomics(spread_text.as_str()).unwrap();
+                        let result = evaluate_with_plan(&s, &path, input, spread, 0, 8, None);
+                        if expected == 0 {
+                            assert!(
+                                matches!(result, Err(diagnostics::Rejection::Dust)),
+                                "{first}->{second} input {input}"
+                            );
+                            assert!(score(&s, &path, input, spread).is_none());
+                        } else {
+                            let c = result.unwrap_or_else(|r| {
+                                panic!("{first}->{second} input {input}: {r:?}")
+                            });
+                            assert_eq!(c.output, expected, "{first}->{second} input {input}");
+                            let blocked = BigInt::from(ideal - gross) * BigInt::from(SCALE)
+                                > BigInt::from(gross) * BigInt::from(spread);
+                            assert!(!c.protection_blocked);
+                            assert!(score(&s, &path, input, spread).is_some());
+                            assert!(c.execution_market_spread >= spread);
+                            assert_eq!(
+                                c.execution_market_spread,
+                                quote_relative_market_spread(
+                                    (ideal - gross).min(gross),
+                                    gross,
+                                    spread
+                                )
+                                .unwrap()
+                            );
+                            if blocked {
+                                assert!(c.execution_market_spread > spread);
+                            }
+                            assert!(
+                                c.hops[0]["min_return"]
+                                    .as_str()
+                                    .unwrap()
+                                    .parse::<u128>()
+                                    .unwrap()
+                                    > 0
+                            );
+                        }
+                        count += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(count, 420);
+    }
+    #[test]
+    fn issue1473_price_only_error_strips_signing_material_and_keeps_original_expiry() {
+        let mut s = fixture();
+        let path = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        let q = request(10u128.pow(18));
+        let error = diagnostics::amount_error(
+            "unit",
+            &s,
+            std::slice::from_ref(&path),
+            1,
+            2,
+            None,
+            &q,
+            10u128.pow(18),
+            SCALE / 100,
+            false,
+            8,
+            None,
+        );
+        assert_eq!(error.0, StatusCode::UNPROCESSABLE_ENTITY);
+        let body: Value = serde_json::from_str(&error.1).unwrap();
+        assert_eq!(body["error"], "protection");
+        assert_eq!(body["execution_supported"], false);
+        assert!(
+            body["indicative_amount_out"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap()
+                > 0
+        );
+        assert_eq!(body["generation"], s.generation);
+        assert!(
+            body["expires_at_ms"].as_i64().unwrap()
+                <= s.mirrors["pair0a"].snapshot_at.timestamp_millis() + 20_000
+        );
+        for absent in [
+            "router_operations",
+            "execution_metadata",
+            "hops",
+            "minimum_receive",
+        ] {
+            assert!(body[absent].is_null());
+        }
+        Arc::make_mut(s.mirrors.get_mut("pair0a").unwrap()).reserve_0 = 0;
+        let failure = evaluate_with_plan(&s, &path, 10u128.pow(18), SCALE / 100, 0, 8, None);
+        assert!(matches!(failure, Err(diagnostics::Rejection::Liquidity)));
+        let error = diagnostics::amount_error(
+            "unit",
+            &s,
+            &[path],
+            1,
+            2,
+            None,
+            &q,
+            10u128.pow(18),
+            SCALE / 100,
+            false,
+            8,
+            None,
+        );
+        let body: Value = serde_json::from_str(&error.1).unwrap();
+        assert_eq!(body["error"], "insufficient_liquidity");
+        assert!(body["indicative_amount_out"].is_null());
+    }
+
+    #[test]
+    fn issue1473_arbitrary_identities_boundaries_and_failure_classes() {
+        let mut s = fixture();
+        s.addresses.insert(1, "arbitrary-offer".into());
+        s.addresses.insert(2, "unrelated-ask".into());
+        let mut m = (*s.mirrors["pair0a"]).clone();
+        m.asset_0_addr = "arbitrary-offer".into();
+        m.asset_1_addr = "unrelated-ask".into();
+        m.reserve_0 = 100_000_000;
+        m.reserve_1 = 100_000_000;
+        s.mirrors
+            .insert("arbitrary-pair".into(), Arc::new(m.clone()));
+        let path = vec![("arbitrary-pair".into(), 1, 2)];
+        for reverse in [false, true] {
+            let path = if reverse {
+                vec![("arbitrary-pair".into(), 2, 1)]
+            } else {
+                path.clone()
+            };
+            for spread in [SCALE / 100, SCALE / 20, SCALE * 30 / 100] {
+                let boundary = wide_floor(m.reserve_0, spread, SCALE).unwrap();
+                for input in [boundary - 1, boundary, boundary + 1] {
+                    let gross = m.reserve_1 * input / (m.reserve_0 + input);
+                    let ideal = input * m.reserve_1 / m.reserve_0;
+                    let blocked = BigInt::from(ideal - gross) * BigInt::from(SCALE)
+                        > BigInt::from(gross) * BigInt::from(spread);
+                    let c = evaluate_with_plan(&s, &path, input, spread, 0, 8, None).unwrap();
+                    assert_eq!(c.output, gross - gross * 30 / 10_000);
+                    assert_eq!(c.protection_blocked, blocked);
+                    assert_eq!(score(&s, &path, input, spread).is_some(), !blocked);
+                }
+            }
+        }
+        assert!(matches!(
+            evaluate_with_plan(&s, &path, u128::MAX, SCALE / 20, 0, 8, None),
+            Err(diagnostics::Rejection::Accounting)
+        ));
+        assert!(matches!(
+            evaluate_with_plan(&s, &[], 1, SCALE / 20, 0, 8, None),
+            Err(diagnostics::Rejection::NoRoute)
+        ));
+        s.references.prices.remove(&2);
+        assert!(matches!(
+            evaluate_with_plan(&s, &path, 100_000, SCALE / 20, 0, 8, None),
+            Err(diagnostics::Rejection::Missing)
+        ));
+        s.references.prices.insert(
+            2,
+            super::super::local_reference_quote::ReferencePrice {
+                price: BigDecimal::from(1),
+                decimals: 39,
+                as_of: Utc::now(),
+            },
+        );
+        assert!(matches!(
+            evaluate_with_plan(&s, &path, 100_000, SCALE / 20, 0, 8, None),
+            Err(diagnostics::Rejection::Unsupported)
+        ));
+        Arc::make_mut(s.mirrors.get_mut("arbitrary-pair").unwrap()).snapshot_at -=
+            chrono::Duration::seconds(21);
+        assert!(matches!(
+            evaluate_with_plan(&s, &path, 100_000, SCALE / 20, 0, 8, None),
+            Err(diagnostics::Rejection::Stale)
+        ));
+    }
+    #[test]
+    fn issue1473_http_reason_contract_allowlists_and_bounds_private_payloads() {
+        let now = now_ms();
+        let supplied = json!({"error":"protection","private_actor":"secret","router_operations":[{"arbitrary":"transaction"}],
+            "indicative_amount_out":"123","execution_supported":false,"generation":"test-generation","observed_at_ms":now,"expires_at_ms":now+19_000});
+        let (_, Json(clean)) =
+            public_error((StatusCode::UNPROCESSABLE_ENTITY, supplied.to_string()));
+        assert!(clean["private_actor"].is_null());
+        assert!(clean["router_operations"].is_null());
+        assert_eq!(clean["indicative_amount_out"], "123");
+        for bad in [
+            "+123",
+            "0123",
+            "0",
+            "1e5",
+            "340282366920938463463374607431768211456",
+        ] {
+            let mut supplied = supplied.clone();
+            supplied["indicative_amount_out"] = json!(bad);
+            let (_, Json(clean)) =
+                public_error((StatusCode::UNPROCESSABLE_ENTITY, supplied.to_string()));
+            assert!(clean["indicative_amount_out"].is_null());
+        }
+        let (_, Json(clean)) = public_error((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            json!({"error":"<script>private</script>"}).to_string(),
+        ));
+        assert_eq!(clean, json!({"error":"protection"}));
+        let mut missing_generation = supplied.clone();
+        missing_generation["generation"] = json!("");
+        let (_, Json(clean)) = public_error((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            missing_generation.to_string(),
+        ));
+        assert!(clean["generation"].is_null());
+        assert!(clean["indicative_amount_out"].is_null());
+        let (_, Json(clean)) =
+            public_error((StatusCode::UNPROCESSABLE_ENTITY, "sensitive".repeat(1_000)));
+        assert_eq!(clean, json!({"error":"protection"}));
+    }
+    #[tokio::test]
+    async fn issue1473_request_amounts_reject_noncanonical_and_overflow_without_discovery() {
+        for raw in [
+            "0",
+            "-1",
+            "+1",
+            "01",
+            "1e6",
+            "0.01",
+            "340282366920938463463374607431768211456",
+            &"1".repeat(1_000),
+        ] {
+            let mut q = request(1);
+            q.amount_in = Some(raw.into());
+            let error = solve_local("uninitialized-malformed1473", &q)
+                .await
+                .err()
+                .unwrap();
+            assert_eq!(error.0, StatusCode::BAD_REQUEST, "{raw}");
+            let body: Value = serde_json::from_str(&error.1).unwrap();
+            assert_eq!(body["error"], "invalid_request");
+        }
+    }
+    #[test]
+    fn issue1473_quote_relative_metadata_keeps_exact_ui_tolerance_and_positive_floors() {
+        let mut s = fixture();
+        s.quote_relative_protection = true;
+        let path = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        let input = 10u128.pow(18);
+        let mut q = request(input);
+        q.protection_policy = Some("quote_relative_v1".into());
+        let c = score(&s, &path, input, SCALE / 100).unwrap();
+        let body = response(&s, &q, &c, input, SCALE / 100, 1);
+        assert_eq!(body["execution_metadata"]["max_spread"], "0.01");
+        assert_eq!(
+            body["execution_metadata"]["protection_policy"],
+            "quote_relative_v1"
+        );
+        assert_ne!(
+            body["execution_metadata"]["execution_market_spread"],
+            "0.01"
+        );
+        for hop in &c.hops {
+            let net = hop["return_amount"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap();
+            assert_eq!(
+                hop["min_return"].as_str().unwrap().parse::<u128>().unwrap(),
+                ((net * 99 + 99) / 100).max(1)
+            );
+        }
+        assert_eq!(
+            body["execution_metadata"]["minimum_receive"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap(),
+            ((c.output * 99 + 99) / 100).max(1)
+        );
+        s.quote_relative_protection = false;
+        assert!(score(&s, &path, input, SCALE / 100).is_none());
+    }
+
+    #[test]
+    fn issue1473_native_pricing_capability_and_rate_caps_are_distinct_from_ui_protection() {
+        use super::super::local_wrapper_quote::{NativeMapping, WrapperSnapshot};
+        let s = fixture();
+        let input = 10u128.pow(18);
+        let path = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+        let c = score(&s, &path, input, SCALE / 20).unwrap();
+        let mut q = request(input);
+        q.token_out = "uusd".into();
+        let mut n = NativeContext {
+            request: q,
+            wrap: false,
+            unwrap: true,
+            wrapper: WrapperSnapshot {
+                mapper: "mapper".into(),
+                treasury: "treasury".into(),
+                observed_at_ms: now_ms(),
+                mappings: HashMap::from([(
+                    "uusd".into(),
+                    NativeMapping {
+                        cw20: "out18".into(),
+                        maximum: None,
+                        used: 0,
+                        tax_cap: Some(0),
+                    },
+                )]),
+                fee_wrap_bps: 0,
+                fee_unwrap_bps: 0,
+                tax_atomics: Some(0),
+                router_unwrap_supported: false,
+                mapper_floor_version: Some(1),
+                treasury_floor_version: Some(1),
+            },
+        };
+        assert_eq!(
+            native_candidate_rejection(&n, &c, input),
+            Some(diagnostics::Rejection::Unsupported)
+        );
+        n.wrapper.router_unwrap_supported = true;
+        n.wrapper.tax_atomics = None;
+        assert_eq!(
+            native_candidate_rejection(&n, &c, input),
+            Some(diagnostics::Rejection::Missing)
+        );
+        n.wrapper.tax_atomics = Some(0);
+        n.wrapper.mappings.get_mut("uusd").unwrap().maximum = Some(c.output - 1);
+        assert_eq!(
+            native_candidate_rejection(&n, &c, input),
+            Some(diagnostics::Rejection::AmountLimit)
+        );
+        n.wrapper.mappings.get_mut("uusd").unwrap().maximum = None;
+        assert_eq!(native_candidate_rejection(&n, &c, input), None);
+        assert!(final_response(&s, &request(input), &c, input, SCALE / 20, 1, Some(&n)).is_some());
+        n.wrapper.observed_at_ms -= 21_000;
+        assert_eq!(
+            native_candidate_rejection(&n, &c, input),
+            Some(diagnostics::Rejection::Stale)
+        );
+    }
+
     #[test]
     fn topology_releases_registry_before_structural_cache_and_leaves_it_usable() {
         let namespace = "1452-topology-registry-reentry";

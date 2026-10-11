@@ -294,7 +294,7 @@ async fn route_solve_native_uluna_returns_400() {
 
 #[serial]
 #[tokio::test]
-async fn route_solve_no_path_returns_404() {
+async fn route_solve_no_path_returns_typed_422() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
     let app = local_app(pool, common::test_config(), true).await;
@@ -306,8 +306,15 @@ async fn route_solve_no_path_returns_404() {
     );
     let resp = server.get(&url).await;
     resp.assert_status_unprocessable_entity();
-    let text = resp.text();
-    assert!(text.contains("No eligible route"), "{}", text);
+    // Topology-only requests have no eligible path here; a bounded public
+    // reason replaces generic copy without inventing a protected quote.
+    let body: Value = resp.json();
+    assert_eq!(body["error"], "no_route");
+    assert!(body["generation"]
+        .as_str()
+        .is_some_and(|value| !value.is_empty()));
+    assert!(body.get("execution_metadata").is_none());
+    assert!(body.get("router_operations").is_none());
 }
 
 #[serial]

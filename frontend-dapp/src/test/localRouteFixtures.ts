@@ -24,7 +24,13 @@ export function localQuote(
   output = amount
 ): IndexerRouteSolveResponse {
   const spread = options?.maxSpread ?? '0.05'
-  const floor = ((BigInt(output) * BigInt(Math.round((1 - Number(spread)) * 10000))) / 10000n).toString()
+  const scale = 10n ** 18n
+  const selected = BigInt((spread.split('.')[1] ?? '').padEnd(18, '0'))
+  const floor = ((BigInt(output) * (scale - selected) + scale - 1n) / scale).toString()
+  // These baseline fixtures have zero observed L9 spread, independently giving u/(1-u).
+  const market = (selected * scale + (scale - selected) - 1n) / (scale - selected)
+  const marketSpread =
+    market >= scale ? '1' : `0.${market.toString().padStart(18, '0')}`.replace(/0+$/, '').replace(/\.$/, '')
   const hop = {
     pair: LOCAL_PAIR,
     offer_token: from,
@@ -62,6 +68,8 @@ export function localQuote(
       generation: 'fixture1',
       input_amount: amount,
       max_spread: spread,
+      protection_policy: 'quote_relative_v1',
+      execution_market_spread: marketSpread,
       trader: options?.trader,
       sender: options?.sender,
       observed_at_ms: Date.now() - 1000,

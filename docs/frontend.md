@@ -1421,7 +1421,7 @@ Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not
 | **P534-2** | **Hub grouping.** Among economic pairs, group by the highest-priority hub present: UST1, then cLUNC, cUSTC, USTR, CL8Y, vFDUSD. All UST1 markets (UST1/cUSTC, UST1/USTR, cLUNC/UST1) stay adjacent. |
 | **P534-3** | **Volume within a group** prefers list JSON **`volume_usd_24h`** when present ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)). Else human quote volume `raw / 10^quoteDecimals` (mixed 6/18-dec safe). Do not sort 18-dec USTR raw against 6-dec cUSTC raw. |
 | **P534-4** | **Vol badge / `/pool` Vol** render compact **USD** from `volume_usd_24h` (`formatPairListVolumeUsd` / `formatIndexedVolumeUsd`). Missing / invalid → **—**. Never `formatNum(raw)` on USTR (`19,297,048T`). Indexer `volume_quote_24h` stays a **raw** integer for integrators. |
-| **P534-5** | Bare `/trade` auto-pick uses `firstCatalogPairAddress` (first catalog-ranked factory pair), not `pairs[0]` factory-creation order. Deep links unchanged. |
+| **P534-5** | Bare `/trade` navigates to the native-capable native USTC → configured CL8Y swap entry under [#1473](#trading-quote-outcomes-1473). Missing/ambiguous identities leave the pair selector available. Explicit genuine factory links retain precedence. |
 | **P534-6** | **Typed search** keeps indexer `relevance` / local haystack order. Catalog rank applies to **empty browse** only. |
 | **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
 | **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
@@ -1439,7 +1439,7 @@ Soft-launch gemstone CW20s stay on columbus-5. The production dApp (`https://dex
 | **P562-1** | **Expose flag.** `retailExposeTestTokens()` is true iff `VITE_NETWORK !== 'mainnet'` **or** build-arg `VITE_SHOW_TEST_TOKENS=true`. Not a runtime query (`?showGems=1` forbidden). Default production image leaves the override unset. |
 | **P562-2** | **Identity.** Hide by hardcoded columbus-5 gem **addresses** (all eight, including QUARTZ/PEARL) **and** `GEM_SYMBOLS`. Unsetting Coolify `VITE_TOKEN_*` must not re-list gems. A gem contract spoofing `symbol=UST1` stays hidden; a listed hub/tokenlist token is never a gem even if someone names it RUBY (**X1**). UST1 / cLUNC / cUSTC / USTR / CL8Y / vFDUSD are never gems (**U6** / **P534-8**). |
 | **P562-3** | **Discovery.** Production empty browse and typed search omit gems from Swap `TokenSearchSelect`, Trade/Limits `PairSearchSelect`, Charts pair menu, and `/pool` (catalog **and** user column sorts). **Test pairs** divider is absent when nothing remains to group. LocalTerra still lists gems last under **Test pairs** (**P534-1**). |
-| **P562-4** | **Defaults.** Swap pay/receive and bare `/trade` auto-pick use economic tokens (`defaultRetailSwapTokenPair` / `firstCatalogPairAddress` after the hide filter), never `tokens[0]` gem. A leftover gem selection is reset to the economic default (**X10**). |
+| **P562-4** | **Defaults.** Swap default uses exact native `uusd` → configured CL8Y identities (`defaultRetailSwapTokenPair`), independent of catalog rank. Bare `/trade` navigates to that native-capable flow. Missing/ambiguous defaults stay unselected; valid explicit links/selections take precedence ([#1473](#trading-quote-outcomes-1473)). |
 | **P562-5** | **Create Pair.** Listed catalog does not append `SOFT_LAUNCH_MINTABLE_TOKENS` when `!retailExposeTestTokens()`. Custom paste of a gem CW20 still uses checksum + code-id check — no client-only “blocked token” toast. |
 | **P562-6** | **Quotes.** When both legs are economic, `findRoute` drops test pairs from the BFS graph and `quoteCw20ViaRouteSolve` returns `null` if any hop token is a gem (fail closed; displayed hops = executed hops). Gem↔gem remains allowed as an exit hatch. |
 | **P562-7** | **Balances / exit.** `/trader`, `/limits` history, and LP rows still render gem symbols and amounts. `/portfolio` Open Positions / header realized P&amp;L / Recent activity **hide** gems by default with **Show test pairs** ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674) **P674**). Deep link `/trade/<gem-pair-addr>` may resolve; optional static copy: **Legacy noneconomic market.** Do not put hidden gems back in global browse. Factory token universe remains the Swap gate (#481) — filter gems *inside* that set. |
@@ -1848,7 +1848,7 @@ Hook: [`usePairCodeIdFreeze`](../frontend-dapp/src/hooks/usePairCodeIdFreeze.ts)
 
 ### Trading blacklist disabled CTAs (SEC-E01) {#trading-blacklist-disabled-ctas-sec-e01}
 
-Factory trading blacklist ([ADR 0003](./adr/0003-governance-trading-blacklist.md), [security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response)) gates user write actions in the dApp via [`useTradingBlacklist`](../frontend-dapp/src/hooks/useTradingBlacklist.ts) and [`describeTradingBlacklistBlock`](../frontend-dapp/src/services/terraclassic/blacklist.ts).
+Factory trading blacklist ([ADR 0003](./adr/0003-governance-trading-blacklist.md), [security model § Trading blacklist](./security-model.md#trading-blacklist-compliance--incident-response)) gates user write actions in the dApp via [`useTradingBlacklist`](../frontend-dapp/src/hooks/useTradingBlacklist.ts) and [`describeTradingBlacklistBlock`](../frontend-dapp/src/services/terraclassic/blacklist.ts).
 
 | Page | Gated CTAs | Submit label when blocked (connected) |
 |------|------------|---------------------------------------|
@@ -2454,7 +2454,16 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 **Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx), [`pairDiscountRegistry.test.ts`](../frontend-dapp/src/utils/__tests__/pairDiscountRegistry.test.ts), [`useLimitOrderMakerFeeRates.test.tsx`](../frontend-dapp/src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10. Regression: `make verify-issue-537` / `make verify-issue-538`.
 
-**Expected slippage, Expert Mode & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)):** When the indexer returns `slippage_percent` on `route/solve`, the trade summary shows **Expected slippage** — symmetric deviation vs fair cross-rate token prices (`spot_amount_out`). The dApp prefers wallet `return_amount` vs spot when both are present ([`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts)). **Expert Mode** (Settings checkbox, default **off**, persisted in `localStorage`) blocks submit when expected slippage **> 30%** with **Slippage is too high** and an **Enable Expert Mode** affordance that opens a warning modal ([`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx)). **≥ 99%** always shows an extreme-slippage alert, even with Expert Mode enabled. Multihop and indexer quotes also run **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so hop spread is visible as secondary context and submit is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) via [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) and `TxResultAlert`. **Pool-only CW20 swap** gas uses the buffered one-hop router envelope (**830k**), not legacy **600k**, so wallet fee displays (~23 vs ~36 LUNC) stay aligned with on-chain headroom; LocalTerra post-sign guards reject fee/gas rewrites below **95%** of the dApp envelope ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
+**Price impact, Expert Mode and quoted-net protection (#1473):** The current local
+engine reports symmetric deviation from independent fair prices as **Price impact**.
+Expert Mode retains the 30% submit guard and the ≥99% guard is never waived.
+Retail uses `quote_relative_v1`: the UI percentage protects the exact net quote
+with upward-rounded positive hop/final floors. A separate checked amount-specific
+market-spread ceiling is independently verified before signing. Quote, refresh,
+reference and reviewed preparation perform zero request-triggered chain queries.
+Historical remote per-hop preflight and direct UI-percent-to-router spread behavior
+are superseded; see [the current policy](route-solver.md#quote-relative-execution-protection)
+and [TQ1473](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md).
 
 **Swap Settings — retail vs Advanced (GitLab [#413](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/413)):** Opening **Settings** on `/` shows **retail** controls only: slippage presets/custom, **transaction deadline** (5/10/20/30m presets + custom, 30s–60m clamp via `useDexStore`), and **Expert Mode** (`data-testid="swap-expert-mode-toggle"`). Integrator tooling — direct-pair **limit book leg** (hybrid `book_input` / `max_maker_fills`, only when `isDirect && !isWrapOrUnwrap`) and **Indexer route check** (BFS hop dump) — live behind a collapsed-by-default **Advanced** disclosure ([`SwapAdvancedSettings.tsx`](../frontend-dapp/src/components/swap/SwapAdvancedSettings.tsx), `data-testid="swap-advanced-settings-toggle"`). Power users who expand Advanced persist that state in `localStorage` ([`swapSettingsAdvanced.ts`](../frontend-dapp/src/utils/swapSettingsAdvanced.ts)). Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) § Settings progressive disclosure.
 
@@ -2681,3 +2690,38 @@ generation, expiry and positive wallet floor. Serialize explicit
 `wrap_deposit_with_minimum` / `unwrap_with_minimum` messages; unsupported external
 contracts reject those variants. Do not send floor fields on legacy messages or
 substitute unwrap's pre-bank-tax base floor. Preparation makes no chain queries.
+
+## Trading quote outcomes (#1473)
+
+The shared checked local engine prices arbitrary supported pairs and exact raw
+amounts in either direction. Native USTC → configured CL8Y is the identity-based
+entry default, independent of symbols/catalog order. Native `uusd` remains distinct
+from cUSTC. Bare `/trade` navigates to the swap flow; explicit factory-pair links,
+chart identity and limit-order admission remain genuine. Missing/ambiguous defaults
+leave selection unavailable rather than selecting arbitrary catalog entries.
+
+[Bounded public reasons](../frontend-dapp/src/utils/routeQuoteErrors.ts) render one
+applicable condition. Main receive output is executable under the exact selected UI protection
+and its positive net floors. Retail displays one quote, with no competing price-only
+estimate or extra pricing panel. HTTP 422 price-only metadata is never displayed,
+copied into executable simulation or sent for signing.
+Original observation expiry is preserved. Unsupported, unavailable, dust or unsafe
+economics never manufacture prices. An HTTP 200 response rejected by local client
+validation remains a distinct invalid/mismatched quote, without remote fallback.
+
+Intent changes discard old errors/estimates. Deterministic 422 has no periodic
+solve loop; explicit refresh/input changes and independently changed local progress
+generations permit another request. The progress watcher never drives producers.
+Only 4 KiB allowlisted reason/status/provenance is parsed; remote prose/private
+fields and signing material are discarded.
+
+Follow [TQ1473](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md),
+[agent verification](qa/issue-1473/README.md) and
+[local execution protections](../skills/AGENTS_LOCAL_SWAP_QUOTES.md).
+
+Retail uses the explicit `quote_relative_v1` API policy. The selected percentage
+protects the amount-specific net quote and each positive receive minimum; predicted
+AMM price impact no longer causes that quote to reject itself. The independently
+verified market-spread ceiling is an internal signing value. Existing compact
+price-impact/Expert/≥99% safeguards remain separate. No new controls or competing
+estimate panels are added. See [the exact integer API contract](route-solver.md#quote-relative-execution-protection).

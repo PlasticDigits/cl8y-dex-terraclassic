@@ -13,7 +13,7 @@ and [agent verification checklist](../docs/qa/issue-1452/README.md).
 | --- | --- |
 | LQ1452-1 | Initial results, deeper search, references, refreshes and reviewed-route preparation read initialized local observations. No request may trigger chain polling, attestation, router simulation, config/tier discovery or a remote fallback. |
 | LQ1452-2 | An independently scheduled, nonoverlapping worker maintains bounded observations. Missing, stale, future-dated or unsupported required semantics fail explicitly. Preserve original observation times on ingestion failure; a successful read does not make other failed reads fresh. Coordinate independent reserve/book generations with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453). |
-| LQ1452-3 | Search direct and one-intermediate paths before bounded longer search. Rank amount-specific delivered net output subject to the caller's actual spread constraint. Contract identity and checked integer economics determine eligibility; symbols, address order, USD marks and raw cross-decimal reserves do not determine preferences. |
+| LQ1452-3 | Search direct and one-intermediate paths before bounded longer search. Rank amount-specific delivered net output subject to the caller's explicit execution protection policy. Legacy requests retain the actual L9 spread constraint; quote_relative_v1 keeps the exact UI net-floor tolerance and independently derived pinned market-spread bound. Contract identity and checked integer economics determine eligibility; symbols, address order, USD marks and raw cross-decimal reserves do not determine preferences. |
 | LQ1452-4 | Useful first output precedes deeper work. A loading/progress acknowledgement is not a quote. The current temporary target is ≤500 ms separately for initialized route misses and hits; the original <250 ms target is deferred by explicit user direction in #1464. Measure useful results, including socket transport and browser input; cold initialization and production deployment are separate evidence. |
 | LQ1452-5 | Bound graph size, edge visits, mirror/book work, exact-input results, skeletons, references, background jobs and concurrent requests. Identical requests coalesce deeper work; cancellation and worker errors release resources. Cache keys bind namespace, observation generation, direction, exact offer/target, mode, actor/tier, spread, maker cap and funding/tax semantics. Never linearly scale an executable cached quote. |
 | LQ1452-6 | Output, references, impact, per-hop positive floors and final minimum receive come from compatible observations. Unavailable fair references are unavailable, never zero impact. Cache hits never inherit old enrichment and relabel it fresh. L9 spread and fair-reference deviation remain separate. |
@@ -74,6 +74,12 @@ recovery follow [FOLLOWUP-INGESTION.md](../docs/qa/issue-1452/FOLLOWUP-INGESTION
 Publish completed scheduled observations before further work; request traffic must
 never advance the slice cursor or reset quarantine.
 
+For #1473 controlled/deployed browser trials only, explicit user direction on
+2026-10-11 temporarily sets a named ≤750 ms criterion; see
+[TQ1473-10](AGENTS_TRADING_QUOTE_OUTCOMES.md). The separate socket and other
+existing-scope 500 ms checks remain unchanged. Historical 500 ms FAIL receipts
+remain failures, and new 750 ms trials do not establish the prior 500 ms target.
+
 Provider lifecycle/admission recovery and useful-result latency: preserve
 [PR1464](AGENTS_PROVIDER_RECOVERY.md), run `make verify-issue-1464` and follow
 [AC1–AC9](../docs/qa/issue-1464/README.md). No availability fix may introduce
@@ -90,3 +96,7 @@ Both views share the bounded [fee registry](../indexer/src/indexer/fee_phase.rs)
 negative invalidation and original four-second phase/twenty-second TTL. Verify
 exact-input/receive caches and declared plans across independent expiry with
 [both scheduled publisher controls](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).
+
+Arbitrary pair/amount reason classification, non-executable protection estimates,
+intent recovery and identity entry defaults follow [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md)
+and the [agent checklist](../docs/qa/issue-1473/README.md). Run `make verify-issue-1473`.

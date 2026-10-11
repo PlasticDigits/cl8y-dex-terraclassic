@@ -5,6 +5,7 @@ import type { IndexerRouteExecutionMetadata, IndexerRouteSolveResponse } from '@
 import { assetInfoLabel, getWrappedEquivalent, isNativeDenom } from '@/types'
 import { TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
+import { quoteRelativeNetFloor, validatedLocalMarketSpread } from '@/utils/quoteRelativeProtection'
 import {
   hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
@@ -12,7 +13,7 @@ import {
   spreadRatioStrictlyExceedsMax,
 } from '@/utils/swapMaxSpread'
 
-export const LOCAL_ROUTE_UNAVAILABLE = 'Quote unavailable. Refresh the quote.'
+export const LOCAL_ROUTE_UNAVAILABLE = 'Quote unavailable: the response is invalid or no longer matches this trade.'
 const UINT128_MAX = (1n << 128n) - 1n
 export function isLocalQuoteRaw(value: unknown, positive = true): value is string {
   return (
@@ -25,6 +26,39 @@ export function isLocalQuoteRaw(value: unknown, positive = true): value is strin
 }
 function reject(): never {
   throw new Error(LOCAL_ROUTE_UNAVAILABLE)
+}
+
+/** Omission retains reviewed compatibility; provided execution claims require Boolean semantics. */
+export function hasValidLocalExecutionSupport(idx: IndexerRouteSolveResponse): boolean {
+  const metadata = idx.execution_metadata
+  if (!metadata) return false
+  if (Object.hasOwn(metadata, 'execution_supported') && typeof metadata.execution_supported !== 'boolean') return false
+  if (
+    Object.hasOwn(idx, 'execution_supported') &&
+    (typeof idx.execution_supported !== 'boolean' || idx.execution_supported !== (metadata.execution_supported ?? true))
+  )
+    return false
+  return true
+}
+
+/** Freshness binds the original observation window; a new expiry cannot revive an old observation. */
+export function hasFreshLocalQuoteWindow(
+  metadata: Pick<IndexerRouteExecutionMetadata, 'observed_at_ms' | 'expires_at_ms'>,
+  nowMs = Date.now()
+): boolean {
+  const observed = metadata.observed_at_ms,
+    expires = metadata.expires_at_ms
+  return (
+    Number.isSafeInteger(nowMs) &&
+    nowMs >= 0 &&
+    Number.isSafeInteger(observed) &&
+    observed >= 0 &&
+    observed <= nowMs &&
+    Number.isSafeInteger(expires) &&
+    expires > nowMs &&
+    expires > observed &&
+    expires - observed <= 20_000
+  )
 }
 
 /** The reviewed snapshot binds exact hybrid budgets, cap and hint at mutation time. */
@@ -69,6 +103,7 @@ export function validateLocalRouteQuote(
   const m = idx.execution_metadata
   if (
     !m ||
+    !hasValidLocalExecutionSupport(idx) ||
     m.version !== 1 ||
     m.execution_supported === false ||
     typeof m.generation !== 'string' ||
@@ -90,11 +125,7 @@ export function validateLocalRouteQuote(
     m.max_spread !== input.maxSpreadStr ||
     (m.trader ?? '') !== (input.trader ?? '') ||
     (m.sender ?? '') !== (input.sender ?? '') ||
-    !Number.isSafeInteger(m.observed_at_ms) ||
-    !Number.isSafeInteger(m.expires_at_ms) ||
-    m.observed_at_ms > nowMs ||
-    m.expires_at_ms <= nowMs ||
-    m.expires_at_ms <= m.observed_at_ms ||
+    !hasFreshLocalQuoteWindow(m, nowMs) ||
     !isLocalQuoteRaw(idx.estimated_amount_out) ||
     !isLocalQuoteRaw(m.minimum_receive) ||
     !Array.isArray(idx.hops) ||
@@ -107,6 +138,8 @@ export function validateLocalRouteQuote(
     reject()
   // A missing fair reference is explicit, never substituted with an invented impact.
   if (!isLocalQuoteRaw(idx.spot_amount_out)) reject()
+  const executionMarketSpread = validatedLocalMarketSpread(m)
+  if (executionMarketSpread == null) reject()
   const w = m.wrapper
   if (
     w &&
@@ -165,7 +198,10 @@ export function validateLocalRouteQuote(
     )
       reject()
     if (BigInt(h.return_amount) > BigInt(h.pool_return_amount) + BigInt(h.book_return_net)) reject()
-    const floor = applySlippagePercentFloor(h.return_amount, input.slippageTolerancePercent)
+    const floor =
+      m.protection_policy === 'quote_relative_v1'
+        ? quoteRelativeNetFloor(h.return_amount, input.maxSpreadStr)
+        : applySlippagePercentFloor(h.return_amount, input.slippageTolerancePercent)
     if (floor == null || BigInt(h.min_return) < BigInt(floor) || BigInt(h.min_return) > BigInt(h.return_amount))
       reject()
     let economic = BigInt(h.offer_amount)
@@ -239,7 +275,7 @@ export function validateLocalRouteQuote(
       { ...h, book_return_amount: h.book_return_net },
       legs
     )
-    if (spreadRatioStrictlyExceedsMax(spread, gross, input.maxSpreadStr)) reject()
+    if (spreadRatioStrictlyExceedsMax(spread, gross, executionMarketSpread)) reject()
     if (spread * worstDen > worstNum * gross) {
       worstNum = spread
       worstDen = gross
@@ -249,7 +285,10 @@ export function validateLocalRouteQuote(
     visited.add(currentToken)
   }
   if (currentToken !== (w?.unwrap_output ? getWrappedEquivalent(idx.token_out) : idx.token_out)) reject()
-  const finalFloor = applySlippagePercentFloor(idx.estimated_amount_out!, input.slippageTolerancePercent)
+  const finalFloor =
+    m.protection_policy === 'quote_relative_v1'
+      ? quoteRelativeNetFloor(idx.estimated_amount_out!, input.maxSpreadStr)
+      : applySlippagePercentFloor(idx.estimated_amount_out!, input.slippageTolerancePercent)
   if (
     (w
       ? current !== w.route_output_amount || BigInt(idx.estimated_amount_out!) > BigInt(current)
@@ -288,7 +327,13 @@ export function assertWrapperOnlySubmit(
   minimumReceive: string | undefined,
   nowMs = Date.now()
 ): void {
+  if (validatedLocalMarketSpread(metadata) == null) reject()
   const w = metadata.wrapper
+  if (metadata.protection_policy === 'quote_relative_v1' && w?.wrap_input) {
+    const floor = quoteRelativeNetFloor(w.route_output_amount, maxSpread)
+    if (floor == null || !isLocalQuoteRaw(metadata.minimum_receive) || BigInt(metadata.minimum_receive) < BigInt(floor))
+      reject()
+  }
   if (
     !w ||
     metadata.version !== 1 ||
@@ -300,11 +345,7 @@ export function assertWrapperOnlySubmit(
     metadata.max_spread !== maxSpread ||
     (metadata.trader ?? '') !== trader ||
     (metadata.sender != null && metadata.sender !== trader) ||
-    !Number.isSafeInteger(metadata.observed_at_ms) ||
-    !Number.isSafeInteger(metadata.expires_at_ms) ||
-    metadata.observed_at_ms > nowMs ||
-    metadata.expires_at_ms <= nowMs ||
-    metadata.expires_at_ms <= metadata.observed_at_ms ||
+    !hasFreshLocalQuoteWindow(metadata, nowMs) ||
     operations.length !== 0 ||
     metadata.hops.length !== 0 ||
     metadata.tax_funding_version != null ||
@@ -347,6 +388,7 @@ export function assertLocalRouteSubmit(
   }
   if (
     metadata.version !== 1 ||
+    (Object.hasOwn(metadata, 'execution_supported') && metadata.execution_supported !== true) ||
     metadata.execution_supported === false ||
     !['pool_only', 'declared_hybrid_hop0', 'declared_hybrid_manual'].includes(metadata.policy) ||
     (metadata.tax_funding_version != null && metadata.tax_funding_version !== 1) ||
@@ -355,15 +397,35 @@ export function assertLocalRouteSubmit(
     metadata.max_spread !== maxSpread ||
     (metadata.trader ?? '') !== trader ||
     (metadata.sender != null && metadata.sender !== trader) ||
-    metadata.expires_at_ms <= nowMs ||
-    metadata.observed_at_ms > nowMs ||
+    !hasFreshLocalQuoteWindow(metadata, nowMs) ||
     !isLocalQuoteRaw(minimumReceive) ||
     BigInt(minimumReceive) < BigInt(metadata.wrapper?.minimum_receive_base ?? metadata.minimum_receive) ||
     !operations.length ||
     metadata.hops.length !== operations.length
   )
     reject()
+  if (validatedLocalMarketSpread(metadata) == null) reject()
+  if (metadata.protection_policy === 'quote_relative_v1' && !metadata.wrapper) {
+    const finalFloor = quoteRelativeNetFloor(metadata.hops.at(-1)?.return_amount, maxSpread)
+    if (
+      finalFloor == null ||
+      !isLocalQuoteRaw(metadata.minimum_receive) ||
+      BigInt(metadata.minimum_receive) < BigInt(finalFloor)
+    )
+      reject()
+  }
   for (const [i, op] of operations.entries()) {
+    const pinnedFloor =
+      metadata.protection_policy === 'quote_relative_v1'
+        ? quoteRelativeNetFloor(metadata.hops[i]?.return_amount, maxSpread)
+        : undefined
+    if (
+      metadata.protection_policy === 'quote_relative_v1' &&
+      (pinnedFloor == null ||
+        !isLocalQuoteRaw(metadata.hops[i]?.min_return) ||
+        BigInt(metadata.hops[i].min_return) < BigInt(pinnedFloor))
+    )
+      reject()
     if (
       assetInfoLabel(op.terra_swap.offer_asset_info) !== metadata.hops[i].offer_token ||
       assetInfoLabel(op.terra_swap.ask_asset_info) !== metadata.hops[i].ask_token ||

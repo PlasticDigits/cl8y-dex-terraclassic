@@ -28,6 +28,10 @@ Unsupported semantics and unavailable live checks remain explicit there. Local
 microbenchmarks never establish production browser acceptance at the currently
 accepted temporary ≤500 ms target. The original <250 ms improvement is deferred
 per [#1464](qa/issue-1464/README.md); historical timing verdicts remain unchanged.
+For #1473 controlled/deployed browser verification, the user temporarily set a
+named ≤750 ms criterion on 2026-10-11; [its checklist](qa/issue-1473/README.md#temporary-browser-latency-criterion)
+retains prior 500 ms failures without reclassifying them. Separate socket budgets
+and economic protection percentages are unchanged.
 Independent reserve/book generation and provider-feed recovery remain coordinated
 with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
 
@@ -240,7 +244,7 @@ Read the response using this doc:
 | `GRID_POINTS` | 17 | `hybrid_route_opt.rs` |
 | Coordinate descent passes | 2 | `hybrid_route_opt.rs` (`COORDINATE_PASSES`) |
 | Default `max_maker_fills` | 8 | `route_solver.rs` |
-| `MAX_MAKER_FILLS_HARD_CAP` | **100** (on-chain parity; clamps GET query and DB sim — [#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)) | [`constants.rs`](../indexer/src/constants.rs), `dex-common/pair.rs` |
+| `MAX_MAKER_FILLS_HARD_CAP` | **100** (on-chain parity; clamps GET query and DB sim — [#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)) | [`hybrid_limits.rs`](../indexer/src/hybrid_limits.rs), `dex-common/pair.rs` |
 | `ROUTE_SOLVE_POST_BODY_LIMIT` | 128 KiB | `api/mod.rs` |
 | `ROUTE_CACHE_TTL` | 12 s (1-hop direct) | `route_solver.rs` |
 | `ROUTE_CACHE_TTL_DISTANT` | 90 s (multi-hop, ≥2 legs) | `route_solver.rs` |
@@ -609,3 +613,78 @@ observation consumes only the remaining bounded publication budget, preserving
 completed native-input arithmetic while unavailable signing capabilities stay blocked.
 See [recovery/readiness](runbooks/indexer-provider-recovery.md),
 [AC1–AC9 verification](qa/issue-1464/README.md) and `make verify-issue-1464`.
+
+## Trading quote outcomes (#1473)
+
+GET solve/best and declared POST routes use the initialized local quote engine.
+These requests never perform router validation, smart queries, network attestation
+or chain simulation. Historical remote-solver descriptions above do not describe
+the current local endpoints. Typed checked scoring applies to arbitrary supported
+execution identities and exact raw amounts; no corpus/address whitelist or price
+scaling is introduced.
+
+The error contract uses JSON `error` with fixed public classifications:
+
+| HTTP | Codes | Meaning |
+| --- | --- | --- |
+| 400 | `invalid_request` | Invalid request amount/settings/shape |
+| 422 | `protection`, `price_impact_too_high`, `amount_too_small`, `amount_too_large`, `insufficient_liquidity`, `unsupported_semantics`, `trading_blocked`, `no_route` | Deterministic execution/economic outcome |
+| 503 | `missing_observations`, `stale_observations`, `accounting_unavailable` | Pricing prerequisite unavailable or cannot be safely calculated |
+
+An accurately priced exact-input candidate rejected solely by selected price
+protection may return HTTP 422 with `indicative_amount_out` (canonical net raw
+Uint128), `execution_supported:false`, bounded `generation`, original
+`observed_at_ms` and `expires_at_ms`. It contains no `router_operations`,
+`execution_metadata`, floors or hop plan. This display-only result is never an
+executable quote or HTTP 200 success. ≥99% fair deviation, unknown references,
+unsupported hooks/tax/wrappers and accounting failures do not produce such estimates.
+Available eligible alternatives are searched within the existing hard budgets.
+
+Initialized rejections carry local generation identity; `/route/solve/progress`
+provides optional `quote_generation`. The frontend may observe generation change
+after a deterministic blocker; traffic never schedules ingestion or renews expiry.
+API HTTP 200 client-validation rejection is separately invalid/mismatched metadata.
+
+Preserve [TQ1473](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md),
+[LQ1452](../skills/AGENTS_LOCAL_SWAP_QUOTES.md) and
+[the agent checklist](qa/issue-1473/README.md).
+
+### Quote-relative execution protection
+
+Current retail GET/POST/progress requests explicitly select
+`protection_policy=quote_relative_v1`. `max_spread` keeps the user's exact UI
+tolerance, applied to amount-specific post-hook/tax net receive. Each hop and final
+receive use the positive **ceiling** of `net × (1 − tolerance)`, so even small raw
+outputs cannot lose more than the selected percentage through floor rounding.
+The separate router `max_spread` binds the existing L9 market-spread metric, which
+includes predictable AMM price impact; passing the UI tolerance directly into
+that metric caused a large trade to reject its own accurately priced output.
+
+Tagged execution metadata adds `protection_policy: "quote_relative_v1"` and
+`execution_market_spread`. For each pinned hop, let `D = pool net + commission +
+book net` and `N = min(pool spread, pool gross) + book shortfall`. With selected
+tolerance `u` in 18-decimal atomics, the checked ceiling is
+`min(1, ceil((N/D + u)/(1-u)))`, rounded upward at 18-decimal precision; the router
+uses the maximum across the bounded hops. `N > D` remains ineligible. The client
+independently recomputes this value from the exact pinned hop fields and rejects
+unknown policy, altered ceilings, mismatched input/context, weakened floors or
+expiry. The transaction uses this reviewed market bound plus the exact UI net
+floors; it never sends a blanket unlimited-spread value. Existing contracts accept
+this message shape, so no router migration is required.
+
+The response cache isolates the explicit policy. Requests without the policy retain
+the historical UI-to-L9 constraint for existing API consumers. Pure-wrapper
+execution retains its separate floor-capability contract; routed wrappers bind
+quoted net-wallet and router-base floors separately. Independent fair-reference
+≥99% protection, 30% Expert behavior, hybrid material-pool requirements, actor
+guards, tax funding and all work/freshness budgets remain mandatory. Price impact
+is distinct from the user's tolerance for movement after the quote.
+
+Verification: [client integer policy](../frontend-dapp/src/utils/quoteRelativeProtection.ts),
+[existing-router funded proof](../scripts/qa/localterra-quote-protection-1473.py),
+[bidirectional shared corpus](qa/issue-1473/matrix.json).
+
+Official callers bind the requested response policy. Provided execution-support
+flags must be Boolean and consistent at both levels. The client checks safe
+timestamps and original `expires_at_ms − observed_at_ms ≤ 20,000` during display
+and mutation, preventing future expiry from reviving an old observation.

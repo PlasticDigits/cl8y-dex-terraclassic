@@ -1,3 +1,5 @@
+import { isIndexerLocalQuoteRejection } from '@/utils/indexerErrors'
+
 /** Debounce before swap / market sim queries fire (GitLab #346). */
 export const SIM_QUOTE_DEBOUNCE_MS = 25
 
@@ -15,9 +17,10 @@ export const SIM_QUOTE_REFETCH_INTERVAL_MS = 10_000
  * cancelled and restarted (GitLab #484).
  */
 export function simQuoteRefetchInterval(query: {
-  state: { fetchStatus: 'fetching' | 'paused' | 'idle' }
+  state: { fetchStatus: 'fetching' | 'paused' | 'idle'; error?: unknown }
 }): number | false {
   if (query.state.fetchStatus === 'fetching') return false
+  if (isIndexerLocalQuoteRejection(query.state.error)) return false
   return SIM_QUOTE_REFETCH_INTERVAL_MS
 }
 

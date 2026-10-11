@@ -59,3 +59,10 @@ Pool-only regression: `test_swap_max_spread` in [`smartcontracts/tests/src/lib.r
 ## Frontend mirror
 
 TypeScript preflight (no `belief_price`): [`frontend-dapp/src/utils/swapMaxSpread.ts`](../frontend-dapp/src/utils/swapMaxSpread.ts) — keep in sync with `dex_common::max_spread`. Direct pair `swap()` rejects non-positive `beliefPrice` strings ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)); do not add a retail Swap UI field.
+
+Current retail quote-relative execution follows [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md).
+The selected UI tolerance anchors upward-rounded positive net hop/final floors;
+checked pinned L9 economics derive the separate signed market-spread ceiling.
+The existing L9 formula/material-book guards remain, with legacy API requests
+retaining direct UI-to-L9 admission. Read [the exact policy and compatibility](../docs/route-solver.md#quote-relative-execution-protection)
+and run `make verify-issue-1473`. No request-time simulation or weaker receive floor.

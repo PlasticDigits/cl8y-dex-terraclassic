@@ -85,7 +85,7 @@ describe('acquire banner and impact aside (#1360)', () => {
       </MemoryRouter>
     )
     expect(screen.getByTestId('swap-acquire-guidance')).toHaveTextContent(SWAP_ACQUIRE_COPY.highImpact)
-    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Expected slippage 6.20%')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price impact 6.20%')
     expect(screen.getByTestId('swap-impact-aside').textContent).not.toMatch(/2\.63/)
     expect(document.body.textContent).not.toMatch(/2\.63/)
   })

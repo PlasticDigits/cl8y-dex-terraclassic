@@ -394,10 +394,11 @@ async fn route_exact_output_validation_fails_closed_and_rejects_modes() {
         "/api/v1/route/solve?token_in={}&token_out={}&amount_out=1000000",
         seed.token_a, seed.token_b
     );
-    // The deliberately malformed pin/hooks/blacklist fixture is unavailable,
-    // not evidence that the requested amount violated protection.
+    // Successful malformed required observations are unsupported semantics,
+    // rather than temporary data loss or amount/protection rejection.
     let malformed = server.get(&url).await;
-    malformed.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    malformed.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(malformed.json::<Value>()["error"], "unsupported_semantics");
     assert!(!malformed.text().contains("required_amount_in"));
     server
         .get(&format!("{url}&amount_in=100"))
@@ -443,7 +444,10 @@ async fn route_exact_output_stale_empty_and_infeasible_are_finite() {
         ))
         .await;
     resp.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
-    assert!(resp.text().contains("indexed data recovers"));
+    // The initial expired database tuple was never admitted as an executable
+    // observation. Missing usable cached data is distinct from expiration of
+    // an original admitted view (covered by the generation/TTL socket suite).
+    assert_eq!(resp.json::<Value>()["error"], "missing_observations");
     assert!(mock
         .received_requests()
         .await
@@ -785,7 +789,7 @@ async fn route_exact_output_present_standard_reference_unavailable_fails_closed(
         ))
         .await;
     resp.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
-    assert!(resp.text().contains("indexed data recovers"));
+    assert_eq!(resp.json::<Value>()["error"], "missing_observations");
     assert!(mock
         .received_requests()
         .await
@@ -839,7 +843,7 @@ async fn route_exact_output_protocol_exempt_guard_rejection_is_observable() {
             seed.token_a, seed.token_b,
         )).await;
         response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
-        assert!(response.text().contains("No eligible route"));
+        assert_eq!(response.json::<Value>()["error"], "trading_blocked");
         assert!(!response.text().contains("required_amount_in"));
     }
     assert!(mock.received_requests().await.unwrap().is_empty());

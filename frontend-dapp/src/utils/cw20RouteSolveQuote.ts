@@ -11,7 +11,12 @@ import type {
   PairInfo,
 } from '@/types'
 import { assetInfoLabel, getWrappedEquivalent, isNativeDenom } from '@/types'
-import { isLocalQuoteRaw, LOCAL_ROUTE_UNAVAILABLE, validateLocalRouteQuote } from '@/utils/localRouteQuote'
+import {
+  hasValidLocalExecutionSupport,
+  isLocalQuoteRaw,
+  LOCAL_ROUTE_UNAVAILABLE,
+  validateLocalRouteQuote,
+} from '@/utils/localRouteQuote'
 import { validateWrapperOnlyQuote } from '@/utils/localWrapperOnlyQuote'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
@@ -87,6 +92,10 @@ async function validateRouteSolveQuote(
   } = input
 
   input.signal?.throwIfAborted()
+  // Every official client request opts into exact quote-relative net protection.
+  // Legacy validator compatibility cannot downgrade that explicit request.
+  if (idx?.execution_metadata?.protection_policy !== 'quote_relative_v1' || !hasValidLocalExecutionSupport(idx))
+    throw new Error(LOCAL_ROUTE_UNAVAILABLE)
   if (idx?.execution_metadata?.policy === 'wrapper_only') {
     if (idx.token_in !== fromToken || idx.token_out !== toToken || input.declaredHybrid)
       throw new Error(LOCAL_ROUTE_UNAVAILABLE)

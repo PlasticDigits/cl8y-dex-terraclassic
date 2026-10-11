@@ -545,3 +545,15 @@ provider scan. Below-frontier valid responses prove availability but cannot
 refresh that generation; shared policy, attempt limits and timestamps remain.
 Run [the #1464 checklist](qa/issue-1464/README.md), including #1452/#1453
 retests and fresh exact-revision deployed trials.
+
+## Arbitrary trading amount outcomes (#1473)
+
+[TQ1473-1–TQ1473-10](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md) preserve
+typed low-cardinality scoring loss and separate net indicative pricing from
+execution eligibility. All supported identities/amounts use the checked integer
+engine; positive per-hop/final floors, gross route-local tax funding, actor/launch
+guards and nonwaivable fair deviation stay mandatory. JSON error output contains
+only reviewed public codes and bounded original price-only provenance, never
+private actor/provider bodies or a signable plan. Progress generation observation
+reads local state only and cannot advance scheduled ingestion. Run
+`make verify-issue-1473`; see [agent checklist](qa/issue-1473/README.md).

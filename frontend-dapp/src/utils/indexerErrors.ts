@@ -1,3 +1,5 @@
+import { IndexerApiError } from '@/utils/routeQuoteErrors'
+
 /** Indexer responded 404 — pair/route is not in the indexer catalog (distinct from outage). */
 export function isIndexerPairNotFoundError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*404\b/.test(err.message)
@@ -18,9 +20,18 @@ export function isIndexerRouteValidationError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*422\b/.test(err.message)
 }
 
-/** True when the indexer HTTP API is unreachable or returns 5xx (not 4xx semantic errors). */
+/** Known local pricing failures recover only after intent or observation generation changes. */
+export function isIndexerLocalQuoteRejection(err: unknown): boolean {
+  return (
+    isIndexerRouteValidationError(err) ||
+    (err instanceof IndexerApiError && err.status === 503 && err.quoteReason != null)
+  )
+}
+
+/** Transport outage, distinct from authoritative local observation/accounting outcomes (#1473). */
 export function isIndexerUnavailableError(err: unknown): boolean {
   if (!err || !(err instanceof Error)) return false
+  if (err instanceof IndexerApiError && err.quoteReason != null) return false
   if (isIndexerPairNotFoundError(err)) return false
   if (isIndexerClientError(err)) return false
   const m = err.message

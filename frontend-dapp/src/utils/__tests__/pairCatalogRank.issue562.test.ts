@@ -111,17 +111,48 @@ describe('production discovery filters (A1 / A3 / A4)', () => {
     expect(firstCatalogPairAddress([gem, econ])).toBe(econ.contract_addr)
   })
 
-  it('defaults Swap pay/receive to economic tokens when gems lead the factory set (U8)', () => {
+  it('defaults Swap to native USTC and configured CL8Y when gems lead the factory set (#1473)', () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
-    const pair = defaultRetailSwapTokenPair([RUBY, QUARTZ, UST1, CUSTC, 'uluna'])
-    expect(pair).toEqual([UST1, CUSTC])
+    const pair = defaultRetailSwapTokenPair([RUBY, QUARTZ, UST1, CUSTC, 'uluna', CL8Y, 'uusd'])
+    expect(pair).toEqual(['uusd', CL8Y])
   })
 
-  it('keeps factory/wrap order when choosing defaults (do not re-sort hubs)', () => {
+  it('leaves selection empty when either default execution identity is absent (#1473)', () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
-    expect(defaultRetailSwapTokenPair(['uluna', CUSTC, UST1, RUBY])).toEqual(['uluna', CUSTC])
+    expect(defaultRetailSwapTokenPair(['uluna', CUSTC, UST1, RUBY])).toBeUndefined()
+  })
+
+  it('uses the same native pay direction across every catalog permutation (#1473)', () => {
+    const ids = ['uusd', CL8Y, CUSTC, UST1]
+    function permutations(values: string[]): string[][] {
+      if (values.length === 0) return [[]]
+      return values.flatMap((id, index) =>
+        permutations(values.filter((_, i) => i !== index)).map((tail) => [id, ...tail])
+      )
+    }
+    for (const catalog of permutations(ids)) {
+      expect(defaultRetailSwapTokenPair(catalog)).toEqual(['uusd', CL8Y])
+    }
+  })
+
+  it('rejects spoof symbols, wrappers, listing ids, missing config and duplicate identities (#1473)', () => {
+    for (const catalog of [
+      [],
+      ['uusd'],
+      [CUSTC, CL8Y],
+      ['USTC', CL8Y],
+      ['uusd', 'CL8Y'],
+      ['uusd', 'cl8y-native:uusd'],
+      ['uusd', CL8Y, CL8Y],
+      ['uusd', 'uusd', CL8Y],
+      ['uusd', CL8Y, CL8Y.toUpperCase()],
+    ]) {
+      expect(defaultRetailSwapTokenPair(catalog)).toBeUndefined()
+    }
+    expect(defaultRetailSwapTokenPair(['uusd', CL8Y], '')).toBeUndefined()
+    expect(defaultRetailSwapTokenPair(['uusd', CL8Y], 'terra1spoof')).toBeUndefined()
   })
 })
 

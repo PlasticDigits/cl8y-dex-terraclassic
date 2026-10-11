@@ -1,4 +1,5 @@
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
+import { IndexerApiError } from '@/utils/routeQuoteErrors'
 import { describe, it, expect } from 'vitest'
 import {
   assertSubmitHybridAligned,
@@ -19,6 +20,22 @@ describe('simQuoteRefetchInterval (#484)', () => {
   it('returns the standard interval when idle or paused', () => {
     expect(simQuoteRefetchInterval({ state: { fetchStatus: 'idle' } })).toBe(SIM_QUOTE_REFETCH_INTERVAL_MS)
     expect(simQuoteRefetchInterval({ state: { fetchStatus: 'paused' } })).toBe(SIM_QUOTE_REFETCH_INTERVAL_MS)
+  })
+  it('does not repeatedly solve an unchanged deterministic rejection (#1473)', () => {
+    expect(
+      simQuoteRefetchInterval({ state: { fetchStatus: 'idle', error: new Error('Indexer API error: 422') } })
+    ).toBe(false)
+    expect(
+      simQuoteRefetchInterval({ state: { fetchStatus: 'idle', error: new Error('Indexer API error: 503') } })
+    ).toBe(SIM_QUOTE_REFETCH_INTERVAL_MS)
+    expect(
+      simQuoteRefetchInterval({
+        state: {
+          fetchStatus: 'idle',
+          error: new IndexerApiError(503, 'accounting_unavailable', undefined, undefined, 'first'),
+        },
+      })
+    ).toBe(false)
   })
 })
 

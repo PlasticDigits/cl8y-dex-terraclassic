@@ -17,6 +17,13 @@ const { MOCK_LUNC_C } = vi.hoisted(() => ({
   MOCK_USTC_C: 'terra1ustc_c_mock_address_for_testing_xxxxx',
 }))
 
+// These execution fixtures deliberately select their synthetic pair; product
+// default identity coverage lives in SwapPage.queryParams/pairCatalogRank.
+vi.mock('@/utils/pairCatalogRank', async (importActual) => ({
+  ...(await importActual<typeof import('@/utils/pairCatalogRank')>()),
+  defaultRetailSwapTokenPair: () => [LOCAL_FROM, LOCAL_TO] as [string, string],
+}))
+
 vi.mock('react-blockies', () => ({
   __esModule: true,
   default: function MockBlockies() {

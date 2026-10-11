@@ -10,6 +10,7 @@ import {
   tryHumanizeWalletLikeMessage,
 } from './humanizeOffChainError'
 import { stripNestedTransactionFailedPrefixes, tryHumanizeTerraTxMessage } from './humanizeTerraTxError'
+import { humanizeRouteQuoteError } from './routeQuoteErrors'
 
 export function getErrorMessage(err: unknown): string {
   if (err == null) return 'Unknown error'
@@ -41,5 +42,5 @@ export function humanizeUserFacingError(raw: string): string {
 }
 
 export function humanizeUserFacingErrorFromUnknown(err: unknown): string {
-  return humanizeUserFacingError(getErrorMessage(err))
+  return humanizeRouteQuoteError(err) ?? humanizeUserFacingError(getErrorMessage(err))
 }

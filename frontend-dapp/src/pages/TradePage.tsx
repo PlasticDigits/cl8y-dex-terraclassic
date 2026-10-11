@@ -34,7 +34,7 @@ import {
   TRADE_INDEXER_OUTAGE_BANNER_TITLE,
 } from '@/utils/indexerTradeOutageCopy'
 import {
-  firstCatalogPairAddress,
+  defaultRetailSwapTokenPair,
   isRetailHiddenTestPair,
   pairInfoLegIds,
   pairInfoLegSymbols,
@@ -59,7 +59,9 @@ import {
   shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
-import { parseTradeTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
+import { resolveTradeQueryTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
+import { getAllTokens } from '@/services/terraclassic/router'
+import { applySwapQueryParams, parseSwapExactField } from '@/utils/swapQueryParams'
 import {
   TRADE_BOOK_VISIBLE_KEY,
   TRADE_TAPE_EXPANDED_KEY,
@@ -232,7 +234,7 @@ export default function TradePage() {
     }
     const resolved = resolveTradePairFromQuery(location.search, pairs)
     if (resolved) {
-      const ticket = parseTradeTicketPrefill(location.search)
+      const ticket = resolveTradeQueryTicketPrefill(location.search, pairs.find((p) => p.contract_addr === resolved)!)
       setPairAddr(resolved)
       navigate(`/trade/${resolved}`, {
         replace: true,
@@ -243,10 +245,21 @@ export default function TradePage() {
       })
       return
     }
-    const first = firstCatalogPairAddress(pairs)
-    if (first) {
-      setPairAddr(first)
-      navigate(`/trade/${first}`, { replace: true })
+    // Factory tickets preserve their genuine pair identity. Native funding
+    // belongs to Swap, so a fresh bare entry uses that executable flow (#1473).
+    const tokens = getAllTokens(pairs)
+    const explicit = applySwapQueryParams(location.search, tokens, ['', ''])
+    const nativeLink =
+      explicit.payId &&
+      explicit.receiveId &&
+      (['uusd', 'uluna'].includes(explicit.payId) || ['uusd', 'uluna'].includes(explicit.receiveId))
+    const defaults = !location.search ? defaultRetailSwapTokenPair(tokens) : undefined
+    const direction = nativeLink ? [explicit.payId, explicit.receiveId] : defaults
+    if (direction) {
+      const search = new URLSearchParams({ from: direction[0], to: direction[1] })
+      if (nativeLink && explicit.payAmountHuman) search.set('exactAmount', explicit.payAmountHuman)
+      if (nativeLink && parseSwapExactField(location.search) === 'output') search.set('exactField', 'output')
+      navigate(`/?${search.toString()}`, { replace: true })
     }
   }, [
     pairAddr,
