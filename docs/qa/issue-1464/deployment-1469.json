@@ -1,0 +1,21 @@
+{
+  "deployment_uuid": "skvo4sxyqisu95smdbg5ejan",
+  "uuid": null,
+  "status": "finished",
+  "commit": "bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a",
+  "created_at": "2026-10-11T00:59:35.000000Z",
+  "updated_at": "2026-10-11T01:03:38.000000Z",
+  "finished_at": "2026-10-11T01:03:38.000000Z",
+  "fixed_log_counts": {
+    "failed": 0,
+    "successfully": 0,
+    "healthy": 3,
+    "Starting new application": 0,
+    "Removing old container": 1,
+    "Compiling cl8y-dex-indexer": 1,
+    "Finished `release`": 1
+  },
+  "compiler_error_lines": 0,
+  "expected_source": "bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a",
+  "observed_at_utc": "2026-10-11T01:03:56.009147+00:00"
+}

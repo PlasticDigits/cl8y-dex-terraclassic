@@ -1,0 +1,92 @@
+{
+  "schema": "cl8y-1392-final-identity-v1",
+  "source_revision": "b018ec2a4f4b77bfcecf535197f9a87831850a32",
+  "status": "PASS",
+  "passes": [
+    {
+      "pass_number": 1,
+      "utc_start": "2026-10-11T02:36:48.603358Z",
+      "utc_end": "2026-10-11T02:36:58.721916Z",
+      "local": {
+        "chain_matches": true,
+        "height_positive": true,
+        "time_valid": true,
+        "time_not_future": true,
+        "fresh_within_60_seconds": true
+      },
+      "configured_live": [
+        {
+          "provider_index": 0,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        },
+        {
+          "provider_index": 1,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        },
+        {
+          "provider_index": 2,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "pass_number": 2,
+      "utc_start": "2026-10-11T02:37:00.722155Z",
+      "utc_end": "2026-10-11T02:37:09.519706Z",
+      "local": {
+        "chain_matches": true,
+        "height_positive": true,
+        "time_valid": true,
+        "time_not_future": true,
+        "fresh_within_60_seconds": true
+      },
+      "configured_live": [
+        {
+          "provider_index": 0,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        },
+        {
+          "provider_index": 1,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        },
+        {
+          "provider_index": 2,
+          "chain_matches": true,
+          "height_positive": true,
+          "time_valid": true,
+          "time_not_future": true,
+          "fresh_within_60_seconds": true,
+          "block_chain_matches": true
+        }
+      ],
+      "status": "PASS"
+    }
+  ],
+  "scope": "Two bounded read-only local and configured-live identity observations. Local namespaces do not prove remote attestation, historical support or deployed trading acceptance. No broadcasts or mutations."
+}

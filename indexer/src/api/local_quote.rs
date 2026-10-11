@@ -29,6 +29,8 @@ struct Snapshot {
     addresses: HashMap<i32, String>,
     ids: HashMap<String, i32>,
     mirrors: HashMap<String, Arc<sim::HopMirror>>,
+    // Independently complete pool tuples; never relabel or splice an old book.
+    pool_mirrors: HashMap<String, Arc<sim::HopMirror>>,
     pair_contexts: HashMap<String, String>,
     max_age_ms: u64,
     hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
@@ -149,53 +151,53 @@ fn key(namespace: &str, s: &Snapshot, q: &route_solver::SolveRouteParams, spread
 /// Preserve only an already qualified newer complete tuple in the same binding.
 /// Raw numeric/SQL errors never call this helper with an arbitrary fallback.
 fn preserve_newer_mirrors(snapshot: &mut Snapshot, current: &Snapshot) {
-    for (address, incoming) in snapshot.mirrors.iter_mut() {
-        if snapshot.pair_contexts.get(address).is_none()
-            || snapshot.pair_contexts.get(address) != current.pair_contexts.get(address)
-        {
-            continue;
-        }
-        let Some(previous) = current.mirrors.get(address) else {
-            continue;
-        };
-        let non_regressing_height = match (incoming.block_height, previous.block_height) {
-            (Some(new), Some(old)) => new >= old,
-            (_, None) => true,
-            (None, Some(_)) => false,
-        };
-        if (incoming.snapshot_at < previous.snapshot_at || !non_regressing_height)
-            && !sim::is_snapshot_stale(previous.snapshot_at, snapshot.max_age_ms)
-            && crate::indexer::fee_phase::permits(
-                &snapshot.namespace,
-                previous.pair_id,
-                previous.block_height,
-                previous.snapshot_at,
-            )
-        {
-            *incoming = previous.clone();
-            let expiry = current
-                .config_expiries
-                .get(address)
-                .copied()
-                .unwrap_or(current.config_expiry_ms);
-            snapshot
-                .config_expiries
-                .entry(address.clone())
-                .and_modify(|at| *at = (*at).min(expiry))
-                .or_insert(expiry);
-            snapshot.generation = format!(
-                "{:x}",
-                Sha256::digest(format!(
-                    "{}|preserved|{}|{}|{:?}|{}|{}|{}",
-                    snapshot.generation,
-                    address,
-                    previous.snapshot_at,
+    for (pool_view, incoming_views, previous_views) in [
+        (false, &mut snapshot.mirrors, &current.mirrors),
+        (true, &mut snapshot.pool_mirrors, &current.pool_mirrors),
+    ] {
+        for (address, incoming) in incoming_views {
+            if snapshot.pair_contexts.get(address).is_none()
+                || snapshot.pair_contexts.get(address) != current.pair_contexts.get(address)
+            {
+                continue;
+            }
+            let Some(previous) = previous_views.get(address) else {
+                continue;
+            };
+            let non_regressing_height = match (incoming.block_height, previous.block_height) {
+                (Some(new), Some(old)) => new >= old,
+                (_, None) => true,
+                (None, Some(_)) => false,
+            };
+            if (incoming.snapshot_at < previous.snapshot_at || !non_regressing_height)
+                && !sim::is_snapshot_stale(previous.snapshot_at, snapshot.max_age_ms)
+                && crate::indexer::fee_phase::permits_view(
+                    &snapshot.namespace,
+                    previous.pair_id,
                     previous.block_height,
-                    previous.reserve_0,
-                    previous.reserve_1,
-                    previous.fee_bps
-                ))
-            );
+                    previous.snapshot_at,
+                    pool_view,
+                )
+            {
+                *incoming = previous.clone();
+                let expiry = current
+                    .config_expiries
+                    .get(address)
+                    .copied()
+                    .unwrap_or(current.config_expiry_ms);
+                snapshot
+                    .config_expiries
+                    .entry(address.clone())
+                    .and_modify(|at| *at = (*at).min(expiry))
+                    .or_insert(expiry);
+                snapshot.generation = format!(
+                    "{:x}",
+                    Sha256::digest(format!(
+                        "{}|preserved|{}|{pool_view}|{}|{}",
+                        snapshot.generation, address, previous.snapshot_at, current.generation
+                    ))
+                );
+            }
         }
     }
 }
@@ -205,6 +207,7 @@ fn publish(
     pairs: Vec<pairs::PairRow>,
     addresses: HashMap<i32, String>,
     mirrors: HashMap<String, Arc<sim::HopMirror>>,
+    pool_mirrors: HashMap<String, Arc<sim::HopMirror>>,
     max_age_ms: u64,
     hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
     config_expiry_ms: i64,
@@ -276,6 +279,20 @@ fn publish(
         ));
     }
     digest.update(&policy_identity);
+    let mut pool_keys = pool_mirrors.iter().collect::<Vec<_>>();
+    pool_keys.sort_by_key(|(address, _)| *address);
+    for (address, mirror) in pool_keys {
+        digest.update(format!(
+            "pool|{address}|{}|{}|{}|{:?}|{}|{}|{}",
+            mirror.asset_0_addr,
+            mirror.asset_1_addr,
+            mirror.fee_bps,
+            mirror.block_height,
+            mirror.snapshot_at,
+            mirror.reserve_0,
+            mirror.reserve_1,
+        ));
+    }
     let generation = format!("{:x}", digest.finalize());
     let ids = addresses.iter().map(|(id, a)| (a.clone(), *id)).collect();
     let mut snapshot = Snapshot {
@@ -285,6 +302,7 @@ fn publish(
         addresses,
         ids,
         mirrors,
+        pool_mirrors,
         max_age_ms,
         hooks,
         config_expiry_ms,
@@ -333,6 +351,7 @@ fn publish(
                         .unwrap_or(snapshot.config_expiry_ms),
                     max_age_ms: snapshot.max_age_ms,
                     mirror: snapshot.mirrors.get(&pair.contract_address).cloned(),
+                    pool_mirror: snapshot.pool_mirrors.get(&pair.contract_address).cloned(),
                 })
         })
         .collect();
@@ -343,17 +362,23 @@ fn publish(
         g.results.clear();
         return;
     }
-    snapshot.mirrors.retain(|address, mirror| {
-        crate::indexer::fee_phase::permits(
-            &namespace,
-            mirror.pair_id,
-            mirror.block_height,
-            mirror.snapshot_at,
-        ) && snapshot
-            .pairs
-            .iter()
-            .any(|pair| &pair.contract_address == address)
-    });
+    for (pool_view, views) in [
+        (false, &mut snapshot.mirrors),
+        (true, &mut snapshot.pool_mirrors),
+    ] {
+        views.retain(|address, mirror| {
+            crate::indexer::fee_phase::permits_view(
+                &namespace,
+                mirror.pair_id,
+                mirror.block_height,
+                mirror.snapshot_at,
+                pool_view,
+            ) && snapshot
+                .pairs
+                .iter()
+                .any(|pair| &pair.contract_address == address)
+        });
+    }
     protocol_guards::clear_admitted_false(
         &mut g,
         &namespace,
@@ -375,6 +400,9 @@ pub(crate) fn invalidate_fee_generation(namespace: &str, pair_id: i32) {
         let mut snapshot = (*previous).clone();
         snapshot
             .mirrors
+            .retain(|_, mirror| mirror.pair_id != pair_id);
+        snapshot
+            .pool_mirrors
             .retain(|_, mirror| mirror.pair_id != pair_id);
         g.next_config_epoch = g.next_config_epoch.saturating_add(1);
         snapshot.config_epoch = g.next_config_epoch;
@@ -407,6 +435,7 @@ pub fn initialize_for_test(
             .into_iter()
             .map(|(address, mirror)| (address, Arc::new(mirror)))
             .collect(),
+        HashMap::new(),
         max_staleness_ms,
         HashMap::new(),
         now_ms() + CONFIG_TTL_MS,
@@ -453,6 +482,33 @@ pub fn initialize_fixture_contexts(
         .insert(namespace.to_owned(), Arc::new(snapshot));
 }
 
+fn quote_mirror<'a>(s: &'a Snapshot, pair: &str, book: bool) -> Option<&'a Arc<sim::HopMirror>> {
+    let eligible = |mirror: &&Arc<sim::HopMirror>, pool_view| {
+        !sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
+            && matches!(
+                mirror.freshness,
+                sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
+            )
+            && crate::indexer::fee_phase::permits_view(
+                &s.namespace,
+                mirror.pair_id,
+                mirror.block_height,
+                mirror.snapshot_at,
+                pool_view,
+            )
+    };
+    if !book {
+        if let Some(pool) = s
+            .pool_mirrors
+            .get(pair)
+            .filter(|mirror| eligible(mirror, true))
+        {
+            return Some(pool);
+        }
+    }
+    s.mirrors.get(pair).filter(|mirror| eligible(mirror, false))
+}
+
 #[derive(Clone)]
 struct Candidate {
     path: Vec<route_paths::PathHop>,
@@ -462,6 +518,7 @@ struct Candidate {
     operations: Vec<Value>,
     oldest: i64,
     block: Option<i64>,
+    mirrors: Vec<Arc<sim::HopMirror>>,
 }
 fn score(
     s: &Snapshot,
@@ -508,6 +565,7 @@ fn score_with_plan(
     let mut operations = Vec::new();
     let mut oldest = now_ms();
     let mut block = None;
+    let mut used_mirrors = Vec::with_capacity(path.len());
     for (hop_index, (pair, offer_id, ask_id)) in path.iter().enumerate() {
         if s.config_expiries
             .get(pair)
@@ -517,23 +575,15 @@ fn score_with_plan(
         {
             return None;
         }
-        let mirror = s.mirrors.get(pair)?;
-        if !crate::indexer::fee_phase::permits(
-            &s.namespace,
-            mirror.pair_id,
-            mirror.block_height,
-            mirror.snapshot_at,
-        ) {
-            return None;
-        }
-        if sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
-            || !matches!(
-                mirror.freshness,
-                sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
-            )
-        {
-            return None;
-        }
+        let needs_book = plan.map_or(hop_index == 0 && book_input > 0, |plan| {
+            plan[hop_index].as_ref().is_some_and(|hop| {
+                hop.book_input
+                    .parse::<u128>()
+                    .is_ok_and(|amount| amount > 0)
+            })
+        });
+        let mirror = quote_mirror(s, pair, needs_book)?;
+        used_mirrors.push(mirror.clone());
         let offer_token = s.addresses.get(offer_id)?;
         let ask_token = s.addresses.get(ask_id)?;
         let (rin, rout) =
@@ -652,6 +702,7 @@ fn score_with_plan(
         operations,
         oldest,
         block,
+        mirrors: used_mirrors,
     })
 }
 fn better(a: &Candidate, b: &Candidate) -> bool {
@@ -755,7 +806,7 @@ fn response(
         if operation["terra_swap"]["hybrid"].is_null() {
             continue;
         }
-        let mirror = &s.mirrors[&c.path[index].0];
+        let mirror = &c.mirrors[index];
         let book = if s.addresses[&c.path[index].1] == mirror.asset_0_addr {
             &mirror.bids
         } else {
@@ -1147,7 +1198,11 @@ async fn solve_local_with_plan(
                 .and_then(|a| derived.actors.get(a))
                 .map_or(0, |(bps, _)| *bps)
         };
-    for (address, mirror) in derived.mirrors.iter_mut() {
+    for (address, mirror) in derived
+        .mirrors
+        .iter_mut()
+        .chain(derived.pool_mirrors.iter_mut())
+    {
         if !derived.discounted_pairs.contains(address) {
             continue;
         }
@@ -1264,7 +1319,7 @@ async fn solve_local_with_plan(
         (
             amount,
             select_amount(&initial, amount).ok_or_else(|| {
-                diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal)
+                diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal, plan)
             })?,
         )
     } else {
@@ -1289,7 +1344,7 @@ async fn solve_local_with_plan(
             best = select_inverse(&snapshot, &longer, target, spread);
         }
         best.ok_or_else(|| {
-            diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal)
+            diagnostics::candidate_error(namespace, &snapshot, &initial, start, goal, plan)
         })?
     };
     let mut body = final_response(
@@ -1314,6 +1369,7 @@ async fn solve_local_with_plan(
                 std::slice::from_ref(&candidate.path),
                 start,
                 goal,
+                plan,
             )
         }
     })?;
@@ -1525,6 +1581,7 @@ mod tests {
             addresses: addresses.clone(),
             pairs,
             mirrors,
+            pool_mirrors: HashMap::new(),
             max_age_ms: 20_000,
             hooks: HashMap::new(),
             config_expiry_ms: now_ms() + 180_000,
@@ -1577,7 +1634,11 @@ mod tests {
         );
         assert!(!first.0["hops"].as_array().unwrap().is_empty());
         assert_eq!(first.0["quote_kind"], "indexer_route_only");
-        assert!(store().try_lock().is_ok());
+        // Another parallel fixture can legitimately acquire the global registry
+        // after topology returns. Reentry must work; immediate vacancy is not an
+        // ownership guarantee. The repeated requests above also exercise reentry
+        // through the structural cache rather than only acquiring this mutex.
+        assert!(store().lock().is_ok());
     }
     #[tokio::test]
     async fn actor_capacity_quarantine_blocks_warm_quotes_topology_and_progress() {
@@ -1973,6 +2034,7 @@ mod tests {
                 s.pairs,
                 s.addresses,
                 s.mirrors,
+                s.pool_mirrors,
                 s.max_age_ms,
                 s.hooks,
                 s.config_expiry_ms,
@@ -2419,7 +2481,14 @@ mod tests {
         current
             .config_expiries
             .insert("pair7a".into(), now_ms() + 10_000);
+        let mut pool = (*current.mirrors["pair7a"]).clone();
+        pool.block_height = Some(11);
+        pool.reserve_0 += 10;
+        current.pool_mirrors.insert("pair7a".into(), Arc::new(pool));
         let mut delayed = current.clone();
+        let delayed_pool = Arc::make_mut(delayed.pool_mirrors.get_mut("pair7a").unwrap());
+        delayed_pool.block_height = Some(10);
+        delayed_pool.reserve_0 /= 2;
         delayed
             .config_expiries
             .insert("pair7a".into(), now_ms() + 20_000);
@@ -2432,6 +2501,12 @@ mod tests {
             &delayed.mirrors["pair7a"],
             &current.mirrors["pair7a"]
         ));
+        assert!(Arc::ptr_eq(
+            &delayed.pool_mirrors["pair7a"],
+            &current.pool_mirrors["pair7a"]
+        ));
+        assert_eq!(delayed.mirrors["pair7a"].block_height, Some(10));
+        assert_eq!(delayed.pool_mirrors["pair7a"].block_height, Some(11));
         assert_eq!(
             delayed.config_expiries["pair7a"],
             current.config_expiries["pair7a"]
@@ -2441,7 +2516,66 @@ mod tests {
             .pair_contexts
             .insert("pair7a".into(), "changed-policy".into());
         Arc::make_mut(changed.mirrors.get_mut("pair7a").unwrap()).block_height = Some(9);
+        Arc::make_mut(changed.pool_mirrors.get_mut("pair7a").unwrap()).block_height = Some(10);
         preserve_newer_mirrors(&mut changed, &current);
         assert_eq!(changed.mirrors["pair7a"].block_height, Some(9));
+        assert_eq!(changed.pool_mirrors["pair7a"].block_height, Some(10));
+    }
+    #[test]
+    #[serial_test::serial]
+    fn recovery1464_pool_companion_changes_cache_and_reviewed_generation() {
+        let namespace = "pool-companion-generation";
+        let publish_fixture = |s: Snapshot, expected| {
+            publish(
+                namespace.into(),
+                s.pairs,
+                s.addresses,
+                s.mirrors,
+                s.pool_mirrors,
+                s.max_age_ms,
+                s.hooks,
+                s.config_expiry_ms,
+                s.config_expiries,
+                s.pair_contexts,
+                s.references,
+                s.actors,
+                s.discounted_pairs,
+                s.policy_identity,
+                s.taxes,
+                expected,
+            );
+        };
+        let mut first = fixture();
+        first
+            .pool_mirrors
+            .insert("pair7a".into(), first.mirrors["pair7a"].clone());
+        publish_fixture(first, None);
+        let (previous, reviewed) = {
+            let g = store().lock().unwrap();
+            let previous = g.snapshots[namespace].clone();
+            let reviewed = protocol_guards::derive(&g, namespace, &previous);
+            assert!(reviewed_snapshot_current(&g, namespace, &reviewed, None));
+            (previous, reviewed)
+        };
+        let mut changed = (*previous).clone();
+        // The original hybrid remains byte-for-byte unchanged; only the whole
+        // complete pool advances in the same configuration epoch.
+        let pool = Arc::make_mut(changed.pool_mirrors.get_mut("pair7a").unwrap());
+        pool.reserve_0 += 1;
+        pool.reserve_1 += 1;
+        publish_fixture(changed, Some(previous.config_epoch));
+        let g = store().lock().unwrap();
+        let current = &g.snapshots[namespace];
+        assert_eq!(current.config_epoch, previous.config_epoch);
+        assert!(Arc::ptr_eq(
+            &current.mirrors["pair7a"],
+            &previous.mirrors["pair7a"]
+        ));
+        assert_ne!(current.generation, previous.generation);
+        assert_ne!(
+            key(namespace, current, &request(1), SCALE / 20),
+            key(namespace, &previous, &request(1), SCALE / 20)
+        );
+        assert!(!reviewed_snapshot_current(&g, namespace, &reviewed, None));
     }
 }

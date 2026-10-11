@@ -1,0 +1,868 @@
+{
+  "revision": "bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a",
+  "utc_start": "2026-10-11T01:06:58.498Z",
+  "utc_end": "2026-10-11T01:08:46.780Z",
+  "latency_budget_ms": 500,
+  "overall": "PASS",
+  "useful_latency": {
+    "samples": 24,
+    "p50_ms": 334.9,
+    "p95_ms": 362.2,
+    "p99_ms": 363.7,
+    "max_ms": 363.7
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "samples": 12,
+      "p50_ms": 337.8,
+      "p95_ms": 349,
+      "p99_ms": 349,
+      "max_ms": 349
+    },
+    "phone": {
+      "samples": 12,
+      "p50_ms": 333,
+      "p95_ms": 363.7,
+      "p99_ms": 363.7,
+      "max_ms": 363.7
+    }
+  },
+  "latency_by_connection": {
+    "new": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "reused": {
+      "samples": 24,
+      "p50_ms": 334.9,
+      "p95_ms": 362.2,
+      "p99_ms": 363.7,
+      "max_ms": 363.7
+    }
+  },
+  "quote_get_attempts": 24,
+  "quote_get_budget": 48,
+  "prohibited_write_attempts": 0,
+  "limitations": [
+    "Fresh disconnected contexts, no wallets/signing/broadcast; phone viewport on desktop Chromium, not cellular or physical device",
+    "Natural Chromium connection reuse observed through CDP; new-connection category may be empty because catalog reads initialize sockets",
+    "No screenshots, raw response bodies, actor identifiers/digests, generation digests or private endpoint URLs retained",
+    "Hop market spreads retain distinct output raw units; net fair-reference slippage includes costs and is not market spread",
+    "No production outage/disruption trial performed",
+    "Quote budget reservation adds a local binding callback before fetch; HTTPcache and protocolselection areotherwiseunaltered"
+  ],
+  "schema": "cl8y-1464-public-browser-summary-v1",
+  "samples": [
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 337.79999999701977,
+      "fetch_ms": 298.8999999910593,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "execution": {
+        "net_output_raw": "93460309",
+        "fair_reference_output_raw": "94732937",
+        "slippage_percent": "1.3434",
+        "fair_reference_slippage_recomputed_percent": 1.343384,
+        "hop_market_spread_raw": [
+          "1391"
+        ],
+        "minimum_receive_raw": "88787293",
+        "hop_floors": [
+          "88787293"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680827836,
+        "expires_at_ms": 1791680847836,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 343,
+      "fetch_ms": 308.90000000596046,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "934617",
+        "fair_reference_output_raw": "947329",
+        "slippage_percent": "1.3419",
+        "fair_reference_slippage_recomputed_percent": 1.341878,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "925270",
+        "hop_floors": [
+          "925270"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680827836,
+        "expires_at_ms": 1791680847836,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 336.3999999910593,
+      "fetch_ms": 297.09999999403954,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "934617",
+        "fair_reference_output_raw": "947329",
+        "slippage_percent": "1.3419",
+        "fair_reference_slippage_recomputed_percent": 1.341878,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "654231",
+        "hop_floors": [
+          "654231"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680827836,
+        "expires_at_ms": 1791680847836,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 341.3999999910593,
+      "fetch_ms": 292.5,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "98127417674264825112",
+        "fair_reference_output_raw": "103668849781429700370",
+        "slippage_percent": "5.3453",
+        "fair_reference_slippage_recomputed_percent": 5.34532,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3105776385022488"
+        ],
+        "minimum_receive_raw": "93221046790551583856",
+        "hop_floors": [
+          "110502571",
+          "602628",
+          "93221046790551583856"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680840557,
+        "expires_at_ms": 1791680860557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 349,
+      "fetch_ms": 313,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1036688497814297003",
+        "slippage_percent": "4.7822",
+        "fair_reference_slippage_recomputed_percent": 4.782233,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680840557,
+        "expires_at_ms": 1791680860557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 330.90000000596046,
+      "fetch_ms": 294.5,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1036688497814297003",
+        "slippage_percent": "4.7822",
+        "fair_reference_slippage_recomputed_percent": 4.782233,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680840557,
+        "expires_at_ms": 1791680860557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 341.80000001192093,
+      "fetch_ms": 297.90000000596046,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "110221564",
+        "fair_reference_output_raw": "114304240",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571762,
+        "hop_market_spread_raw": [
+          "20",
+          "1396"
+        ],
+        "minimum_receive_raw": "104710485",
+        "hop_floors": [
+          "592182",
+          "104710485"
+        ],
+        "operations": 2,
+        "observed_at_ms": 1791680840557,
+        "expires_at_ms": 1791680860557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 347.29999999701977,
+      "fetch_ms": 308.70000000298023,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1072178",
+        "fair_reference_output_raw": "1143042",
+        "slippage_percent": "6.1996",
+        "fair_reference_slippage_recomputed_percent": 6.199597,
+        "hop_market_spread_raw": [
+          "0",
+          "3776150779",
+          "676",
+          "0"
+        ],
+        "minimum_receive_raw": "1061456",
+        "hop_floors": [
+          "6170",
+          "5945847546905006",
+          "111299839",
+          "1061456"
+        ],
+        "operations": 4,
+        "observed_at_ms": 1791680850557,
+        "expires_at_ms": 1791680870557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 331,
+      "fetch_ms": 292,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1102140",
+        "fair_reference_output_raw": "1143042",
+        "slippage_percent": "3.5783",
+        "fair_reference_slippage_recomputed_percent": 3.578346,
+        "hop_market_spread_raw": [
+          "0",
+          "1"
+        ],
+        "minimum_receive_raw": "771498",
+        "hop_floors": [
+          "4363",
+          "771498"
+        ],
+        "operations": 2,
+        "observed_at_ms": 1791680850557,
+        "expires_at_ms": 1791680870557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 329.6000000089407,
+      "fetch_ms": 294.3999999910593,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16140613706131",
+        "slippage_percent": "5.2562",
+        "fair_reference_slippage_recomputed_percent": 5.256214,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680860557,
+        "expires_at_ms": 1791680880557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 344,
+      "fetch_ms": 308.5,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1614061370613",
+        "slippage_percent": "5.2561",
+        "fair_reference_slippage_recomputed_percent": 5.256118,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680860557,
+        "expires_at_ms": 1791680880557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "desktop",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 326.59999999403954,
+      "fetch_ms": 292.09999999403954,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1614061370613",
+        "slippage_percent": "5.2561",
+        "fair_reference_slippage_recomputed_percent": 5.256118,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680860557,
+        "expires_at_ms": 1791680880557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 363.70000000298023,
+      "fetch_ms": 306.59999999403954,
+      "connection_mode": "reused",
+      "http_protocol": "h2",
+      "execution": {
+        "net_output_raw": "93460309",
+        "fair_reference_output_raw": "94757353",
+        "slippage_percent": "1.3688",
+        "fair_reference_slippage_recomputed_percent": 1.368805,
+        "hop_market_spread_raw": [
+          "1391"
+        ],
+        "minimum_receive_raw": "88787293",
+        "hop_floors": [
+          "88787293"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680880557,
+        "expires_at_ms": 1791680900557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 334.8999999910593,
+      "fetch_ms": 293.79999999701977,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "934617",
+        "fair_reference_output_raw": "947573",
+        "slippage_percent": "1.3673",
+        "fair_reference_slippage_recomputed_percent": 1.367282,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "925270",
+        "hop_floors": [
+          "925270"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680880557,
+        "expires_at_ms": 1791680900557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "LUNC->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 333,
+      "fetch_ms": 293.29999999701977,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "934617",
+        "fair_reference_output_raw": "947573",
+        "slippage_percent": "1.3673",
+        "fair_reference_slippage_recomputed_percent": 1.367282,
+        "hop_market_spread_raw": [
+          "0"
+        ],
+        "minimum_receive_raw": "654231",
+        "hop_floors": [
+          "654231"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680880557,
+        "expires_at_ms": 1791680900557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 333,
+      "fetch_ms": 291.40000000596046,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "98127417674264825112",
+        "fair_reference_output_raw": "103668849781429693171",
+        "slippage_percent": "5.3453",
+        "fair_reference_slippage_recomputed_percent": 5.34532,
+        "hop_market_spread_raw": [
+          "47285",
+          "8",
+          "3105776385022488"
+        ],
+        "minimum_receive_raw": "93221046790551583856",
+        "hop_floors": [
+          "110502571",
+          "602628",
+          "93221046790551583856"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680890557,
+        "expires_at_ms": 1791680910557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 335.40000000596046,
+      "fetch_ms": 292,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1036688497814296931",
+        "slippage_percent": "4.7822",
+        "fair_reference_slippage_recomputed_percent": 4.782233,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "977240519320372001",
+        "hop_floors": [
+          "120288889",
+          "6317",
+          "977240519320372001"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680900557,
+        "expires_at_ms": 1791680920557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "CL8Y->USTR",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 332.09999999403954,
+      "fetch_ms": 296.29999999701977,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "987111635677143436",
+        "fair_reference_output_raw": "1036688497814296931",
+        "slippage_percent": "4.7822",
+        "fair_reference_slippage_recomputed_percent": 4.782233,
+        "hop_market_spread_raw": [
+          "7554",
+          "24",
+          "314274123287"
+        ],
+        "minimum_receive_raw": "690978144974000405",
+        "hop_floors": [
+          "85052750",
+          "4466",
+          "690978144974000405"
+        ],
+        "operations": 3,
+        "observed_at_ms": 1791680900557,
+        "expires_at_ms": 1791680920557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 342.5,
+      "fetch_ms": 290.70000000298023,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "110221564",
+        "fair_reference_output_raw": "114304240",
+        "slippage_percent": "3.5718",
+        "fair_reference_slippage_recomputed_percent": 3.571762,
+        "hop_market_spread_raw": [
+          "20",
+          "1396"
+        ],
+        "minimum_receive_raw": "104710485",
+        "hop_floors": [
+          "592182",
+          "104710485"
+        ],
+        "operations": 2,
+        "observed_at_ms": 1791680900557,
+        "expires_at_ms": 1791680920557,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 330.09999999403954,
+      "fetch_ms": 293.29999999701977,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1102140",
+        "fair_reference_output_raw": "1143042",
+        "slippage_percent": "3.5783",
+        "fair_reference_slippage_recomputed_percent": 3.578346,
+        "hop_market_spread_raw": [
+          "0",
+          "1"
+        ],
+        "minimum_receive_raw": "1091118",
+        "hop_floors": [
+          "6170",
+          "1091118"
+        ],
+        "operations": 2,
+        "observed_at_ms": 1791680900557,
+        "expires_at_ms": 1791680920557,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "USTR->cUSTC",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 328.30000001192093,
+      "fetch_ms": 290.70000000298023,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1102140",
+        "fair_reference_output_raw": "1143042",
+        "slippage_percent": "3.5783",
+        "fair_reference_slippage_recomputed_percent": 3.578346,
+        "hop_market_spread_raw": [
+          "0",
+          "1"
+        ],
+        "minimum_receive_raw": "771498",
+        "hop_floors": [
+          "4363",
+          "771498"
+        ],
+        "operations": 2,
+        "observed_at_ms": 1791680910556,
+        "expires_at_ms": 1791680930556,
+        "displayed_slippage_within_selected_percent": true
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "ordinary",
+      "protection_percent": 5,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 333,
+      "fetch_ms": 291,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "15292228393085",
+        "fair_reference_output_raw": "16140613706131",
+        "slippage_percent": "5.2562",
+        "fair_reference_slippage_recomputed_percent": 5.256214,
+        "hop_market_spread_raw": [
+          "134039"
+        ],
+        "minimum_receive_raw": "14527616973430",
+        "hop_floors": [
+          "14527616973430"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680910556,
+        "expires_at_ms": 1791680930556,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 1,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 362.20000000298023,
+      "fetch_ms": 323.09999999403954,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1614061370613",
+        "slippage_percent": "5.2561",
+        "fair_reference_slippage_recomputed_percent": 5.256118,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1513932151713",
+        "hop_floors": [
+          "1513932151713"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680910556,
+        "expires_at_ms": 1791680930556,
+        "displayed_slippage_within_selected_percent": false
+      }
+    },
+    {
+      "viewport": "phone",
+      "direction": "ALPHA->CL8Y",
+      "size": "small",
+      "protection_percent": 30,
+      "useful": true,
+      "outcome": "PASS useful DOM/JSON and latency",
+      "statuses": [
+        200
+      ],
+      "input_to_dom_ms": 330.90000000596046,
+      "fetch_ms": 291.59999999403954,
+      "connection_mode": "reused",
+      "http_protocol": "h3",
+      "execution": {
+        "net_output_raw": "1529224395670",
+        "fair_reference_output_raw": "1614061370613",
+        "slippage_percent": "5.2561",
+        "fair_reference_slippage_recomputed_percent": 5.256118,
+        "hop_market_spread_raw": [
+          "1340"
+        ],
+        "minimum_receive_raw": "1070457076969",
+        "hop_floors": [
+          "1070457076969"
+        ],
+        "operations": 1,
+        "observed_at_ms": 1791680910556,
+        "expires_at_ms": 1791680930556,
+        "displayed_slippage_within_selected_percent": true
+      }
+    }
+  ]
+}

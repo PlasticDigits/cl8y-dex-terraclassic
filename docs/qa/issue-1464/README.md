@@ -29,6 +29,32 @@ commands and stage outcomes. The [fee-generation state](../../../indexer/src/ind
 browser/signing, discovery, attestation and real database privilege regressions.
 Repeat on stable final source if source changes during a run.
 
+### Independent complete pool and hybrid views
+
+Read [whole-view loading](../../../indexer/src/api/db_orderbook_sim.rs),
+[local selection/publication](../../../indexer/src/api/local_quote.rs) and
+[fee provenance](../../../indexer/src/indexer/fee_phase.rs).
+Pool and hybrid publication watermarks advance independently, with original
+height/time/expiry and the same qualified assets/policy. Zero-book and pool-only
+budgets prefer the complete pool. Automatic optimization may compare an eligible
+original hybrid, but a declared positive book budget requires that hybrid.
+Never splice old book rows into new reserves/fees or renew book age from a pool
+success. Both saved views share the existing hard state caps and authoritative
+negative invalidation; the four-second phase and twenty-second original TTL remain.
+
+For each scheduled publisher, run the
+[actual-worker controls](../../../indexer/tests/scenarios/fee_generation_recovery_1464.rs)
+twice. Warm exact-input/receive cache entries, expire only the hybrid without a
+new scheduled pass, then verify fresh pool output and original pool provenance,
+zero request RPC, automatic book exclusion and declared-book availability rejection.
+Expire the pool and verify both are rejected. Exercise pending fees, known negative
+headers before body cleanup, changed fees, cancellation and phase deadline while
+both original views are fresh; none may resurrect either view. Run
+[state controls](../../../indexer/src/indexer/fee_phase_tests.rs) for independent
+watermarks and combined mirror/order/byte caps. Check cache/reviewed-generation
+identity when only the complete pool changes. These are source subchecks of
+AC4/AC5/AC7/AC8; leave sustained deployed acceptance unchecked until its own trial.
+
 ## Agent checklist
 
 Read the issue and all comments with scoped workstation secret injection:
@@ -41,11 +67,11 @@ scope proven by its evidence; a synthetic test cannot check deployed acceptance.
 | [ ] | AC1: four executable directions | Run quote socket fixtures twice. Test LUNC→cUSTC, CL8Y→USTR, USTR→cUSTC and ALPHA→CL8Y at the exact documented ordinary/small raw amounts, each supported direction/mode and 6/18 decimals. Validate positive net, concrete operations, matching input, original generation/expiry, per-hop/final positive floors and honest genuine liquidity/protection rejection. Run the public corpus against the independently confirmed deployed revision. Topology-only 200 is insufficient. |
 | [ ] | AC2: transient recovery preserves serving/checkpoint | Inject capacity deferral, circuits open and attempted height/hash/body/transaction errors repeatedly, then recover. Assert API socket stays alive, original checkpoint/hash retained and same block committed once, without duplicate swaps/fees or restart storms. Test under concurrent pool/book/config/reference producers. |
 | [ ] | AC3: fatal integrity/cancellation | Inject checkpoint mismatch/reorg, parser/accounting/database permanent failure independently. Assert progress halts with truthful readiness, no successful skip and no availability downgrade. Cancel retries, shutdown and leadership loss; assert tasks/permits release and workers join. |
-| [ ] | AC4: bounded independent observation recovery | Run provider/book/admission regressions twice. Inject unrelated fee/bid/ask/token/actor phase failures while a healthy alternative remains. Check original times and generation, finite request/rate/in-flight/half-open counts, no stale relabeling and rebuilt coverage before actual expiry. Compare deployed coverage across multiple freshness cycles; local cadence alone cannot certify it. |
+| [ ] | AC4: bounded independent observation recovery | Run provider/book/admission regressions twice, including independent complete-view controls above for both publishers. Inject unrelated fee/bid/ask/token/actor phase failures while a healthy alternative remains. Check original times and lane watermarks, combined state caps, finite request/rate/in-flight/half-open counts, no stale relabeling/splicing and rebuilt coverage before actual expiry. Compare deployed coverage across multiple freshness cycles; local cadence alone cannot certify it. |
 | [ ] | AC5: accurate blockers | Test missing versus stale versus unsupported versus genuine amount/protection failure and final-response admission separately. Inspect fixed internal reason counters and the single appropriate public blocker. Infrastructure loss must not become a size suggestion; diagnostics must omit actor data/private endpoints. |
 | [ ] | AC6: current temporary ≤500 ms useful output | Run real initialized socket hits/misses and production-build desktop/phone browser corpus. Count only validated positive executable results. Record sample count, p50/p95/p99/max, first/later result, cold initialization, new/reused connections and transport RTT separately. The currently accepted temporary target is ≤500 ms. The original <250 ms target is deferred; preserve its historical results separately. Any measured miss of the threshold remains FAIL until corrected and rerun. |
 | [ ] | AC7: zero request RPC | Run counting/throwing-provider fixtures across GET, best, POST, progress, reference, refresh, confirmation/preflight and reviewed-route preparation. Assert exactly zero network calls, including cache miss/outage/deeper job and concurrent traffic. Independently measure scheduled cadence/finite work; do not subtract unexplained background calls from total counters. |
-| [ ] | AC8: isolation/signing races | Run existing #1452 frontend/cache/socket suites. Vary amount/direction/mode/actor/tier/spread/maker cap/funding/namespace/generation and same-key bursts. Exercise refresh/reversal/disconnect/confirmation/deeper-result race; unchanged reviewed operations/floors and nonwaivable ≥99% guard. Check canceled jobs coalesce/clean up within bounds. |
+| [ ] | AC8: isolation/signing races | Run existing #1452 frontend/cache/socket suites. Vary amount/direction/mode/actor/tier/spread/maker cap/funding/namespace/generation and same-key bursts. Change only the complete pool and verify cache/reviewed-generation invalidation; expire the hybrid and verify declared positive book budgets cannot become pool-only. Exercise refresh/reversal/disconnect/confirmation/deeper-result race; unchanged reviewed operations/floors and nonwaivable ≥99% guard. Check canceled jobs coalesce/clean up within bounds. |
 | [ ] | AC9: verifier/docs/deployed sustained trial | Run focused and all five prerequisite verifiers, fix executed failures and retest. Review PR1464 and all crosslinks. Read-only deployed corpus must confirm revision, useful coverage and sustained multiple admission/freshness cycles, plus bounded agent-owned read-only outage/recovery evidence. Keep missing #1456 rollout/history scope open. |
 | [ ] | Execution parity/security | Provision feasible funded LocalTerra and verify signed quote/settlement floors/taxes; never broadcast mainnet for reproduction. Exercise malformed/oversized/wrong-chain/ignored-height/overflow providers, spoofed identities, dense/dust graphs, actor block eviction and tax-funding tampering. Runtime/QA ACL tests retain least privilege and per-process DB isolation. |
 

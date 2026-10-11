@@ -1,0 +1,17 @@
+{
+  "source_revision": "6ffd2a2b98f8a2c7d02c9a63e43eb75e78a02e0c",
+  "command": "CARGO_BUILD_JOBS=2 make verify-issue-1394",
+  "utc_start": "2026-10-11T02:24:36Z",
+  "utc_end": "2026-10-11T02:25:20Z",
+  "pass": 22,
+  "fail": 1,
+  "skip": 0,
+  "status": "FAIL",
+  "failed_test": "api::local_quote::tests::topology_releases_registry_before_structural_cache_and_leaves_it_usable",
+  "test_summary": {
+    "passed": 763,
+    "failed": 1,
+    "ignored": 1
+  },
+  "reason": "Immediate global mutex vacancy raced with parallel fixtures; two real topology reentry requests completed. Corrected test awaits legitimate ownership instead of assuming vacancy. Failed default-parallel verification must be rerun."
+}

@@ -612,3 +612,230 @@ retaining original pre-head timing, pinned reads, positive output/floors and
 zero request RPC. The complete checks restart on this final test source. An
 intermediate attempt to run the full pass while the loop held leadership timed
 out and was corrected; no production cancellation or admission rule changed.
+
+## Merged and deployed #1469
+
+[PR #1469](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1469) merged
+source `a585a0505dd509263d2f8f78526baae3d4f37dd3` as
+`bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a`. All six mandatory
+[hosted CI steps](https://ci.cl8y.com/repos/7/pipeline/399/1) passed on that
+exact source. The rollout finished and public health independently attested the
+merge revision before these read-only browser trials. This confirms deployment,
+not sustained trading acceptance.
+
+Public receipts: [local prerequisites](final-prerequisites-1469.json),
+[hosted jobs](hosted-399.json), [deployment](deployment-1469.json),
+[initial browser](deployed-1469-browser.json) and
+[browser retest](deployed-1469-browser-retest.json).
+
+The first initialized desktop/phone corpus, 2026-10-11
+01:06:58.498–01:08:46.780 UTC, returned **24/24 useful results within 500 ms**:
+p50 334.9 ms, p95 362.2 ms, p99/max 363.7 ms. It made 24 quote GETs with
+actual reused browser connections. This trial was **PASS** for its measured scope.
+
+The later retest, 01:44:21.348–01:46:26.251 UTC on the same revision, returned
+**24/24 useful results but only 22/24 within 500 ms**. Desktop CL8Y→USTR
+small/1% took 10,637 ms, and phone ALPHA→CL8Y ordinary/5% took 10,633.5 ms;
+each first received 503 and then recovered on a later request. Full input-to-first-
+useful DOM time retains those retries: p50 333.3 ms, p95 10,633.5 ms,
+p99/max 10,637 ms. The retest made 26 quote GETs. **Sustained acceptance remains
+FAIL**; the initial passing run does not erase these measured failures.
+
+Both trials used disconnected Chromium profiles without signing or broadcasting.
+Phone means a phone viewport in desktop Chromium, not a physical-device trial.
+Positive executable output and matching hop/final floors were checked; fair-reference
+cost/deviation and per-hop market spread remain distinct. Browser initialization
+and cold/new socket timing are separate from initialized useful-result timing.
+No production outage was induced, and no operational location metadata, private
+endpoints, raw response bodies or actor data are included here.
+
+## Independent complete views: current follow-up
+
+Implementation/review: [PR #1472](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1472).
+
+The follow-up keeps complete pool and hybrid views in one immutable quote snapshot
+with independent original publication watermarks. A newer pool no longer makes an
+otherwise compatible original hybrid regress; expiry of that hybrid cannot erase
+a still-fresh pool. Zero-book/pool-only budgets prefer the complete pool. Automatic
+optimization may compare the independently eligible original hybrid, while a
+declared positive book budget requires it and fails unavailable after expiry.
+Every candidate uses one whole compatible tuple. No old book is attached to new
+reserves or fee economics.
+
+Both views share the existing hard namespace/marker/mirror/order/byte caps and
+known-negative invalidation. The four-second pending phase and original twenty-
+second observation TTL are unchanged. Cache and reviewed-generation identity
+includes changes to either complete view, including a pool-only update.
+See [invariants](../../indexer-invariants.md#quote-ready-fee-provenance-1464-follow-up),
+[local engine](../../../indexer/src/api/local_quote.rs),
+[whole-view loading](../../../indexer/src/api/db_orderbook_sim.rs) and
+[fee registry](../../../indexer/src/indexer/fee_phase.rs).
+
+The [state controls](../../../indexer/src/indexer/fee_phase_tests.rs) exercise
+independent watermarks, shared immediate negatives and combined allocation caps.
+The [actual-worker controls](../../../indexer/tests/scenarios/fee_generation_recovery_1464.rs)
+exercise both publishers, original hybrid/pool expiry without another scheduled
+pass, exact-input/receive caches, automatic book exclusion, declared-book refusal,
+pending/changed fees, cancellation, known rejection and exactly zero request RPC.
+Follow the [agent instructions](README.md#independent-complete-pool-and-hybrid-views)
+and preserve the explicit skip policy. Final-source counts and deployed acceptance
+for this follow-up require their own completed receipts; none are inferred from
+#1469 or from these implementation descriptions.
+
+The [initial source run](independent-view-initial-source-change.json) passed its
+executed test assertions but failed the unchanged-source guard after the final
+diagnostics correction landed during verification: 10 PASS / 1 FAIL / 2 SKIP.
+That failure is retained. The complete focused first/retest must run again on
+the frozen source; neither successful individual tests nor a skip supersedes it.
+
+The first frozen run passed #1464 (11/0/2), #1452 (14/0/0) and #1453 (12/0/2)
+on 1a048f6c354a56f0ce62493bb03b79d25c146da86a0c302ce3218fcf37f5fc8f.
+[Pipeline 401](https://ci.cl8y.com/repos/7/pipeline/401/1) also passed all six
+actual jobs for `6ffd2a2b98f8a2c7d02c9a63e43eb75e78a02e0c`:
+764 library tests and 84 selected PostgreSQL tests, with exact-head markers.
+
+The [discovery prerequisite failure](independent-view-parallel-source-failure.json)
+then reported 22 PASS / 1 FAIL / 0 SKIP: a default-parallel library test assumed
+the global registry would remain immediately vacant after topology returned.
+Another fixture could legitimately acquire it. Both real topology requests had
+completed, including structural-cache reentry; the test now waits for ownership
+instead of using immediate `try_lock` success as an ownership guarantee. This
+changes only the test assertion, not production locking. The failure remains
+recorded, and final acceptance requires fresh parallel first/retest and frozen
+verification after this correction.
+
+Both corrected default-parallel library runs passed 764 tests with zero failures
+and one ignored benchmark (12.87 s / 13.13 s), on
+cc7f622dc7656cd000e4c207008badc1be5bc9634a014b3ba49c40716a13d49b.
+The complete focused/prerequisite sequence restarts on this unchanged corrected
+source before merge; prior source and deployed failures stay in their receipts.
+
+## Independent complete views: frozen final-source verification
+
+Implementation/review: [PR #1472](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1472).
+Final reviewed source: `b018ec2a4f4b77bfcecf535197f9a87831850a32`; Rust fingerprint
+`cc7f622dc7656cd000e4c207008badc1be5bc9634a014b3ba49c40716a13d49b`. Only substitute values from the completed final
+receipts. Earlier source-change and parallel-test failures remain recorded above;
+passing retests do not erase those failures or the deployed #1469 timing failures.
+
+The six final commands completed serially between 2026-10-11T02:28:20Z and 2026-10-11T02:58:32Z
+UTC: **98 PASS / 0 FAIL / 9 SKIP**.
+Each focused verifier retains its first/retest on the unchanged corrected source.
+See [final prerequisites](final-prerequisites-1472.json). Report the actual counts
+per command from that receipt; do not infer counts from a previous source revision.
+The default-parallel first/retest also passed 764 tests each, zero failed and one
+ignored benchmark, on the final corrected Rust fingerprint (12.87 s / 13.13 s).
+
+| Command | PASS | FAIL | SKIP |
+| --- | ---: | ---: | ---: |
+| `make verify-issue-1464` | 11 | 0 | 2 |
+| `make verify-issue-1452` | 14 | 0 | 0 |
+| `make verify-issue-1453` | 12 | 0 | 2 |
+| `make verify-issue-1394` | 23 | 0 | 0 |
+| `make verify-issue-1392` | 10 | 0 | 2 |
+| `make verify-issue-1396` | 28 | 0 | 3 |
+
+[Hosted pipeline 402](https://ci.cl8y.com/repos/7/pipeline/402/1)
+passed all six actual mandatory jobs on the exact reviewed source, with matching
+PASS markers checked in their actual logs. See [hosted results](hosted-402.json)
+for actual test summaries and ignored scope. Hosted success does not establish
+production deployment or initialized browser acceptance.
+
+The [independent authenticated-runtime fixture](authenticated-runtime-fixture-1472.json)
+ran the actual ignored LOGIN regression twice in a fresh independently owned
+cluster. Each run passed 1 tests, zero failed and zero ignored;
+no unrelated runtime CONNECT privilege existed before or after. Owned resources
+and private fixture credentials were removed. Shared and production grants were
+unchanged. This separate result supplements the focused verifier's unavailable
+LOGIN scope; it does not establish production role-transition acceptance.
+
+The [identity first/retest](final-identity-1472.json) checked local and all three
+configured live providers using bounded read-only observations. Every measured
+identity and positive recent head passed. No transaction was signed or broadcast.
+Namespace isolation does not establish cryptographic remote attestation or
+historical query support. The focused verifier's unsupplied-command skips stay
+explicit rather than being rewritten as passes.
+
+Source verification is **PASS WITH SKIPS** when its completed receipt reports
+zero executed failures and explicit unavailable scope. Full funded cached-engine
+and hooked settlement parity, active deployed redundancy, historical contribution
+reconstruction, unavailable socket capabilities and production transition scope
+remain unverified as identified in the receipts. Add actual deployed receipts and
+results separately; source/hosted success cannot supersede a measured production
+failure.
+
+An agent can reproduce the review as follows:
+
+- [ ] Check out the recorded reviewed revision in a separate worktree and verify
+  the recorded Rust fingerprint before and after commands.
+- [ ] Run all six commands above serially with `CARGO_BUILD_JOBS=2`, using a
+  private isolated QA environment and per-process disposable databases. Retain
+  actual UTC start/end, exit code, PASS/FAIL/SKIP summaries and first/retest output.
+- [ ] Follow the [independent-view checklist](README.md#independent-complete-pool-and-hybrid-views)
+  for fresh pool/original hybrid, declared positive book budgets, pending fees,
+  hard negatives, combined caps, immutable cache identity and zero request RPC.
+- [ ] Reproduce the independent owned authenticated-runtime LOGIN and bounded
+  local/live identity checks if those capabilities are available. Preserve the
+  database-isolation and OPSEC requirements; never publish raw logs or private
+  endpoints.
+- [ ] Verify every mandatory hosted job against the exact reviewed revision and
+  its actual PASS marker, rather than relying only on aggregate status.
+- [ ] After deployment, attest the running merge revision and perform initialized
+  desktop/phone first/retest over a window exceeding the configuration TTL. Keep
+  full input-to-first-useful timing, including every unavailable response and
+  retry, and separately report new-connection timing and economic floor checks.
+
+For an unavailable item, record **SKIP**, the reason and the unmet scope. An agent
+may mark overall runnable verification **PASS WITH SKIPS** if every executed
+check passed. An executed failure stays **FAIL** until corrected and retested;
+never mark skipped production or physical-device acceptance complete. The original
+250 ms improvement remains deferred; initialized common-path acceptance currently
+uses an unrounded **500 ms** ceiling.
+
+### Applicable protocol and funded execution checks
+
+The [protocol receipt](protocol-1472.json) records **53 PASS / 0 FAIL / 3 SKIP**
+for the same reviewed source: #1398 7/0/0, #1381 13/0/1, #1390 15/0/1,
+#1399 8/0/0 and #1422 10/0/1. Together with the six prerequisites, the final
+source verifiers report **151 PASS / 0 FAIL / 12 explicit skips**. These are
+verification stages, not unique test counts. Every executed failure is retained
+with its correction and successful rerun.
+
+The initial #1381 attempt had three disposable-database connection failures
+(SQLSTATE 53100): its exclusively owned QA container exhausted its 64 MiB
+shared-memory area; host storage was available. After the attempt finished,
+QA-only `max_parallel_workers_per_gather=0` was reloaded and verified. No source,
+schema, ACL, shared cluster or production setting changed. The fresh-fixture
+rerun passed all source and chain cases; the first FAIL remains in the receipt.
+
+Two fresh independently owned SDK53 nodes used the unchanged **3,000,000**
+smart-query limit and independently attested current code checksums/cw2 values.
+Each passed six funded tax cases, five native/invoice cases, sixteen launch-guard
+cases and six additional floor cases. Rejected minimum receive left all five
+pool reserve/LP-share snapshots exactly unchanged. All owned containers and
+volumes were independently confirmed removed, including the failed-attempt node.
+
+Three funded fixtures across the two nodes passed **54/54 actual smart queries**
+and **54 probe transactions**, with eighteen accounting/rollback cases. Measured
+probe gas ranged from 743,658 to 2,139,981 and includes transaction/wrapper
+overhead; it is distinct from the actual 3M smart-query success evidence.
+Router 1.5.0, pair 1.21.0, factory 1.12.0 and tax token 1.4.0 were read back.
+Archived contract artifacts match all 176 current contract build inputs.
+
+Agents can repeat `make verify-issue-1398`, `verify-issue-1381`,
+`verify-issue-1390`, `verify-issue-1399` and `verify-issue-1422` serially after the
+six prerequisite commands. Follow each linked playbook in
+[PR1464](../../../skills/AGENTS_PROVIDER_RECOVERY.md), use current reviewed
+artifacts and isolated fresh nodes, set the current router version explicitly,
+and keep raw chain receipts/private keys out of public evidence. For exact floor
+rollback, query every fixture pool's reserves and LP total share immediately
+before and after the deliberately rejected minimum-receive transaction and
+require exact equality. Repeat on an independent node; never reset shared state.
+
+No independent pre-fix migration artifacts were supplied. Historical unfillable
+state migration, artifact-level hooked/AutoLP execution and full cached-engine
+quote-to-settlement parity remain explicit unverified scope. Mainnet contract
+migration/signing is outside this indexer repair. Deployed indexer health, logs
+and initialized 500 ms first/retest results are recorded separately in
+[PR #1472](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1472); source and
+LocalTerra success cannot certify those results before their actual trials.

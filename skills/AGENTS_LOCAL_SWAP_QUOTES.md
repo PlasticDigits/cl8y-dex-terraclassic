@@ -78,3 +78,15 @@ Provider lifecycle/admission recovery and useful-result latency: preserve
 [PR1464](AGENTS_PROVIDER_RECOVERY.md), run `make verify-issue-1464` and follow
 [AC1–AC9](../docs/qa/issue-1464/README.md). No availability fix may introduce
 request RPC, renew stale observations or weaken reviewed execution/signing guards.
+
+Complete pool and hybrid views retain independent original watermarks, observation
+times and expiry in the [local engine](../indexer/src/api/local_quote.rs).
+Zero-book and pool-only budgets prefer the eligible complete pool; automatic book
+optimization may compare an eligible original hybrid. A declared positive book
+budget must use that original compatible hybrid and must fail unavailable when it
+expires. Never splice old books into new reserves/fees or wait for request-triggered
+refresh. Changing either whole view changes cache/reviewed-generation identity.
+Both views share the bounded [fee registry](../indexer/src/indexer/fee_phase.rs),
+negative invalidation and original four-second phase/twenty-second TTL. Verify
+exact-input/receive caches and declared plans across independent expiry with
+[both scheduled publisher controls](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).

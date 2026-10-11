@@ -103,6 +103,9 @@ fn invalidate_cached_asset(g: &mut Store, namespace: &str, asset: &str) {
         .map(|pair| pair.contract_address.clone())
         .collect::<HashSet<_>>();
     snapshot.mirrors.retain(|pair, _| retained.contains(pair));
+    snapshot
+        .pool_mirrors
+        .retain(|pair, _| retained.contains(pair));
     snapshot.hooks.retain(|pair, _| retained.contains(pair));
     snapshot
         .config_expiries
@@ -134,6 +137,7 @@ fn invalidate_pair_observation(admission: &mut Admission, namespace: &str, pair:
     let mut snapshot = (*previous).clone();
     snapshot.pairs.retain(|p| p.contract_address != pair);
     snapshot.mirrors.remove(pair);
+    snapshot.pool_mirrors.remove(pair);
     snapshot.hooks.remove(pair);
     snapshot.config_expiries.remove(pair);
     snapshot.discounted_pairs.remove(pair);
@@ -815,6 +819,7 @@ async fn publish_admission(
     let mut pair_contexts = HashMap::new();
     let mut pairs = Vec::new();
     let mut mirrors = HashMap::new();
+    let mut pool_mirrors = HashMap::new();
     let mut hooks = HashMap::new();
     let mut discounted = HashSet::new();
     let mut taxes = HashMap::new();
@@ -862,7 +867,7 @@ async fn publish_admission(
                 obs.hooks.observation_identity()
             ))
         );
-        if let Some((mirror, retained_expiry)) = ingestion::load_qualified_mirror(
+        if let Some((views, retained_expiry)) = ingestion::load_qualified_mirror(
             state,
             &obs.pair,
             addresses,
@@ -877,7 +882,12 @@ async fn publish_admission(
                     .and_modify(|at| *at = (*at).min(expiry))
                     .or_insert(expiry);
             }
-            mirrors.insert(obs.pair.contract_address.clone(), mirror);
+            if let Some(mirror) = views.hybrid {
+                mirrors.insert(obs.pair.contract_address.clone(), mirror);
+            }
+            if let Some(mirror) = views.pool {
+                pool_mirrors.insert(obs.pair.contract_address.clone(), mirror);
+            }
         }
         pair_contexts.insert(obs.pair.contract_address.clone(), context);
     }
@@ -897,6 +907,7 @@ async fn publish_admission(
         pairs,
         addresses.clone(),
         mirrors,
+        pool_mirrors,
         state.book_snapshot_max_staleness_ms,
         hooks,
         expiry,
