@@ -88,7 +88,7 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
   }
 
   if (/Indexer API error:\s*422\b/i.test(m)) {
-    return 'Route validation rejected this quote. Refresh the quote or choose another route.'
+    return 'This trade cannot execute with the current amount and settings.'
   }
 
   if (/Indexer API error:/i.test(m) && !/Indexer API error:\s*404\b/i.test(m)) {
@@ -99,8 +99,12 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
     return 'Market data for this request was not found. The pair or route may not be indexed yet.'
   }
 
+  if (m === 'Quote unavailable: the response is invalid or no longer matches this trade.') {
+    return 'The quote response is invalid or no longer matches this trade.'
+  }
+
   if (/hybrid quote unavailable|quote unavailable/i.test(m)) {
-    return 'Could not estimate output for this trade. Try a smaller amount or disable hybrid routing, then retry.'
+    return 'Could not estimate output for this trade.'
   }
 
   if (/indexer (unavailable|down)|market data.*unavailable/i.test(m)) {

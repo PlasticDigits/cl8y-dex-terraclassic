@@ -462,9 +462,10 @@ async fn recovery1464_cold_changed_fee_cannot_reuse_old_hybrid_economics() {
 /// kept in SQL: deleting it would bypass the preferential-hybrid bug under test.
 async fn seed_independent_views(state: &AppState) -> (i64, i64) {
     let at = chrono::Utc::now();
-    // Leave two seconds for cold scheduled admission; the 20-second production
-    // TTL and the exact original deadline remain unchanged.
-    let hybrid_at = at - chrono::Duration::milliseconds(18_000);
+    // Leave 3.75 seconds for owned cold scheduled admission. The original
+    // hybrid still expires inside the four-second pending-fee window, even
+    // before subtracting admission time. Neither production TTL is extended.
+    let hybrid_at = at - chrono::Duration::milliseconds(16_250);
     let pool_at = at - chrono::Duration::milliseconds(9_000);
     sqlx::query("INSERT INTO hybrid_pair_reserves SELECT * FROM pair_reserves ON CONFLICT(pair_id) DO NOTHING")
         .execute(&state.pool).await.unwrap();

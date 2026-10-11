@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "frontend_artifact_sha256": "b489b1b970b7bd97375b9db846fc11c65bda699446353a91aaae566d87a15f85",
+  "matrix_sha256": "ad1482002eddcc73a852aad7e39ee27c78ea7764025c0ac4d6f69e68e6d53608",
+  "source_dirty": true,
+  "recorded_at_utc": "2026-10-11T07:29:54.414Z",
+  "source_revision": "72084767e3a85fcfedb94a83bb027b3454e0ad82",
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "truncated": false,
+  "browser_version": "151.0.7922.137",
+  "provider_requests": 0,
+  "quote_requests": 1992,
+  "factory_pair_count": 7,
+  "corpus_pair_count": 8,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 34.599999994039536,
+    "p95_ms": 51,
+    "p99_ms": 57.3999999910593,
+    "max_ms": 1630
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 795,
+      "p50_ms": 45,
+      "p95_ms": 55.29999999701977,
+      "p99_ms": 69.5,
+      "max_ms": 1097.4000000059605
+    },
+    "1440:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 33.20000000298023,
+      "p95_ms": 35.79999999701977,
+      "p99_ms": 37.20000000298023,
+      "max_ms": 1630
+    },
+    "390:initialized_http": {
+      "count": 796,
+      "p50_ms": 44.599999994039536,
+      "p95_ms": 53.5,
+      "p99_ms": 58.19999998807907,
+      "max_ms": 91.70000000298023
+    },
+    "390:browser_cache_hit": {
+      "count": 1178,
+      "p50_ms": 33,
+      "p95_ms": 35.5,
+      "p99_ms": 36.69999998807907,
+      "max_ms": 40.900000005960464
+    }
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 45.5,
+    "p95_ms": 59,
+    "p99_ms": 66.70000000298023,
+    "max_ms": 443.29999999701977
+  },
+  "failures": [
+    {
+      "viewport": 1440,
+      "pair": ["CL8Y", "UST1"],
+      "amount": "14.9999655",
+      "raw_input": "14999965500000000000",
+      "max_spread": "0.01",
+      "initialization_ms": 1577,
+      "cold_first_output_ms": 219.20000000298023,
+      "transport_class": "initialized_http",
+      "pass": "first",
+      "outcome": "executable_quote",
+      "expected_output": "9871265",
+      "useful_output_ms": 521,
+      "blocker_ms": null,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "trace": {
+        "start": 3064.7000000029802,
+        "end": 3585.7000000029802,
+        "intent": {
+          "pay": "CL8Y",
+          "receive": "UST1",
+          "amount": "14.9999655",
+          "preset": "swap-slippage-preset-1",
+          "custom": ""
+        },
+        "fetch_attempts": [
+          {
+            "from": "CL8Y",
+            "to": "UST1",
+            "amount": "14999965500000000000",
+            "spread": "0.01",
+            "kind": "solve",
+            "start": 3094.7999999970198,
+            "end": 3566.7000000029802,
+            "status": 200,
+            "server_received_at_ms": 1791703405423,
+            "server_sent_at_ms": 1791703405423,
+            "time_origin_ms": 1791703402326.9
+          },
+          {
+            "from": "CL8Y",
+            "to": "UST1",
+            "amount": "14999965500000000000",
+            "spread": null,
+            "kind": "progress",
+            "start": 3095.8999999910593,
+            "end": 3569.5999999940395,
+            "status": 200,
+            "server_received_at_ms": 1791703405893,
+            "server_sent_at_ms": 1791703405893,
+            "time_origin_ms": 1791703402326.9
+          }
+        ],
+        "resources": [
+          {
+            "from": "CL8Y",
+            "to": "UST1",
+            "amount": "14999965500000000000",
+            "spread": "0.01",
+            "kind": "solve",
+            "start": 3095.7000000029802,
+            "fetch_start": 3095.7000000029802,
+            "request_start": 3096.2999999970198,
+            "response_start": 3097,
+            "response_end": 3569.5,
+            "duration": 473.79999999701977,
+            "connect_start": 3095.7000000029802,
+            "connect_end": 3095.7000000029802,
+            "protocol": "http/1.1"
+          },
+          {
+            "from": "CL8Y",
+            "to": "UST1",
+            "amount": "14999965500000000000",
+            "spread": null,
+            "kind": "progress",
+            "start": 3096.5,
+            "fetch_start": 3096.5,
+            "request_start": 3566.5999999940395,
+            "response_start": 3567.2999999970198,
+            "response_end": 3570.5999999940395,
+            "duration": 474.09999999403954,
+            "connect_start": 3096.5,
+            "connect_end": 3096.5,
+            "protocol": "http/1.1"
+          }
+        ],
+        "long_tasks": []
+      },
+      "failure": "initialized useful output exceeded 500ms"
+    },
+    {
+      "viewport": 1440,
+      "pair": ["USTC", "LUNC"],
+      "amount": "0.000004",
+      "raw_input": "4",
+      "max_spread": "0.05",
+      "initialization_ms": 1443,
+      "cold_first_output_ms": 69.29999999701977,
+      "transport_class": "browser_cache_hit",
+      "pass": "retest",
+      "outcome": "executable_quote",
+      "expected_output": "2",
+      "useful_output_ms": 1630,
+      "blocker_ms": null,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "trace": {
+        "start": 3424,
+        "end": 5054,
+        "intent": {
+          "pay": "USTC",
+          "receive": "LUNC",
+          "amount": "0.000004",
+          "preset": "swap-slippage-preset-5",
+          "custom": ""
+        },
+        "fetch_attempts": [],
+        "resources": [],
+        "long_tasks": [
+          {
+            "start": 3440.7999999970198,
+            "duration": 1580
+          }
+        ]
+      },
+      "failure": "initialized useful output exceeded 500ms"
+    },
+    {
+      "viewport": 1440,
+      "pair": ["UST1", "CL8Y"],
+      "amount": "0.000002",
+      "raw_input": "2",
+      "max_spread": "0.30",
+      "initialization_ms": 1358,
+      "cold_first_output_ms": 65.70000000298023,
+      "transport_class": "initialized_http",
+      "pass": "first",
+      "outcome": "executable_quote",
+      "expected_output": "2990999994018",
+      "useful_output_ms": 1097.4000000059605,
+      "blocker_ms": null,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "trace": {
+        "start": 1440.0999999940395,
+        "end": 2537.5,
+        "intent": {
+          "pay": "UST1",
+          "receive": "CL8Y",
+          "amount": "0.000002",
+          "custom": "30"
+        },
+        "fetch_attempts": [
+          {
+            "from": "UST1",
+            "to": "CL8Y",
+            "amount": "2",
+            "spread": "0.3",
+            "kind": "solve",
+            "start": 1471.199999988079,
+            "end": 2528.5,
+            "status": 200,
+            "server_received_at_ms": 1791703533187,
+            "server_sent_at_ms": 1791703533187,
+            "time_origin_ms": 1791703531715.2
+          },
+          {
+            "from": "UST1",
+            "to": "CL8Y",
+            "amount": "2",
+            "spread": null,
+            "kind": "progress",
+            "start": 1471.8999999910593,
+            "end": 2528.699999988079,
+            "status": 200,
+            "server_received_at_ms": 1791703533188,
+            "server_sent_at_ms": 1791703533188,
+            "time_origin_ms": 1791703531715.2
+          }
+        ],
+        "resources": [
+          {
+            "from": "UST1",
+            "to": "CL8Y",
+            "amount": "2",
+            "spread": "0.3",
+            "kind": "solve",
+            "start": 1471.7999999970198,
+            "fetch_start": 1471.7999999970198,
+            "request_start": 1472.2999999970198,
+            "response_start": 1472.8999999910593,
+            "response_end": 2496.8999999910593,
+            "duration": 1025.0999999940395,
+            "connect_start": 1471.7999999970198,
+            "connect_end": 1471.7999999970198,
+            "protocol": "http/1.1"
+          },
+          {
+            "from": "UST1",
+            "to": "CL8Y",
+            "amount": "2",
+            "spread": null,
+            "kind": "progress",
+            "start": 1472.3999999910593,
+            "fetch_start": 1472.3999999910593,
+            "request_start": 1472.7999999970198,
+            "response_start": 2493.199999988079,
+            "response_end": 2497.0999999940395,
+            "duration": 1024.7000000029802,
+            "connect_start": 1472.3999999910593,
+            "connect_end": 1472.3999999910593,
+            "protocol": "http/1.1"
+          }
+        ],
+        "long_tasks": []
+      },
+      "failure": "initialized useful output exceeded 500ms"
+    }
+  ],
+  "overall": "FAIL",
+  "scenario_count": 4250
+}

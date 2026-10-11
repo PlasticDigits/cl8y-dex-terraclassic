@@ -136,3 +136,7 @@ the four-second phase and original twenty-second observation TTL stay unchanged.
 Verify shared bounds in [fee state controls](../indexer/src/indexer/fee_phase_tests.rs)
 and original expiry, declared-book refusal, both publishers, cache/receive behavior
 and zero request RPC in [owned-worker controls](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).
+
+Arbitrary pair/amount reason classification, non-executable protection estimates,
+intent recovery and identity entry defaults follow [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md)
+and the [agent checklist](../docs/qa/issue-1473/README.md). Run `make verify-issue-1473`.

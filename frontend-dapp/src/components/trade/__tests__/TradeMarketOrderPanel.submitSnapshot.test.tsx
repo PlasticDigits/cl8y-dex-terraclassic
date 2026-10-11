@@ -114,10 +114,20 @@ vi.mock('@/services/indexer/client', () => {
     }),
     postRouteSolve: vi.fn().mockRejectedValue(new Error('indexer unavailable')),
     getTokens: vi.fn().mockResolvedValue([]),
+    getRouteSolveProgress: vi.fn().mockResolvedValue({
+      stage: 'idle',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: false,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+    }),
   }
 })
 
 import * as indexerClient from '@/services/indexer/client'
+import { parseRouteQuoteError } from '@/utils/routeQuoteErrors'
 import * as pair from '@/services/terraclassic/pair'
 import { simulateMultiHopSwap } from '@/services/terraclassic/router'
 
@@ -284,4 +294,48 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     expect(pair.simulateSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
   })
+  it.each(['ask', 'bid'] as const)(
+    'keeps %s protection estimates unsigned and recovers after an amount edit (#1473)',
+    async (side) => {
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        if (amount === '100000000')
+          throw parseRouteQuoteError(
+            422,
+            JSON.stringify({
+              error: 'protection',
+              execution_supported: false,
+              indicative_amount_out: '140000000',
+              generation: 'fixture1',
+              observed_at_ms: Date.now() - 1000,
+              expires_at_ms: Date.now() + 19_000,
+            })
+          )
+        return localQuote(from, to, amount, options)
+      })
+      renderWithProviders(
+        <TradeMarketOrderPanel
+          pairAddr={PAIR_ADDR}
+          selectedPair={selectedPair}
+          pairs={[selectedPair]}
+          side={side}
+          isPaused={false}
+        />
+      )
+      fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '100' } })
+      await screen.findByTestId('trade-market-quote-error')
+      expect(screen.getByTestId('trade-market-quote-error')).toHaveTextContent('selected price protection')
+      expect(screen.queryByTestId('trade-market-indicative-estimate')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Estimate only/)).not.toBeInTheDocument()
+      expect(screen.queryByTestId('trade-market-expected-receive')).not.toBeInTheDocument()
+      expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+      fireEvent.click(screen.getByTestId('trade-market-submit'))
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+      fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+      expect(screen.queryByTestId('trade-market-quote-error')).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+      expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1')
+      expect(pair.simulateSwap).not.toHaveBeenCalled()
+      expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+    }
+  )
 })

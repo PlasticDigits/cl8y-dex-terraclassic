@@ -13,6 +13,7 @@ import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByTokenId } from '@/utils/tokenRegistry'
 import { isCustcLeg, isUst1Leg } from '@/utils/tradePairDisplayOrientation'
 import { MAINNET_UST1_CUSTC_PAIR_ADDRESS } from '@/utils/ust1SecondaryMarket'
+import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 
 /**
  * Soft-launch + LocalTerra faucet/test tickers (GitLab #534 / #562).
@@ -418,9 +419,20 @@ export function compareTokenCatalog(tokenIdA: string, tokenIdB: string): number 
   return tokenIdA.localeCompare(tokenIdB)
 }
 
-/** Production Swap pay/receive defaults: first two non-gem ids in factory/wrap order (P562-4). */
-export function defaultRetailSwapTokenPair(tokenIds: readonly string[]): [string, string] | undefined {
+/**
+ * #1473 product default: native USTC pays, configured CL8Y receives.
+ * Discovery only establishes identity availability, never executable liquidity.
+ * Missing/ambiguous identities leave selection empty; symbols, wraps, ordering
+ * and listing ids must not substitute for either execution identity.
+ */
+export function defaultRetailSwapTokenPair(
+  tokenIds: readonly string[],
+  cl8yAddress: string = CL8Y_TOKEN_ADDRESS
+): [string, string] | undefined {
+  if (!cl8yAddress || !isValidTerraBech32Address(cl8yAddress)) return undefined
   const tokens = filterRetailDiscoveryTokens(tokenIds)
-  if (tokens.length < 2) return undefined
-  return [tokens[0], tokens[1]]
+  const native = tokens.filter((id) => id === 'uusd')
+  const cl8y = tokens.filter((id) => id.toLowerCase() === cl8yAddress.toLowerCase())
+  if (native.length !== 1 || cl8y.length !== 1) return undefined
+  return ['uusd', cl8y[0]]
 }

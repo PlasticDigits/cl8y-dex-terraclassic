@@ -14,6 +14,61 @@ async function loadModule() {
 }
 
 describe('indexer client fetchJson', () => {
+  it('preserves bounded public reasons without exposing private error text or retrying (#1473)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'protection',
+          message: 'private actor endpoint stack',
+          execution_supported: false,
+          indicative_amount_out: '1000000',
+          observed_at_ms: Date.now() - 1000,
+          expires_at_ms: Date.now() + 18_000,
+          generation: 'fixture1',
+        }),
+        { status: 422, headers: { 'Content-Type': 'application/json' } }
+      )
+    )
+    const client = await loadModule()
+    const error = await client.getRouteSolve('terra1a', 'terra1b', '1000').catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 422, quoteReason: 'protection', indicativeAmountOut: '1000000' })
+    expect((error as Error).message).not.toMatch(/private|actor|endpoint/)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels oversized streaming error bodies without trusting content length (#1473)', async () => {
+    const cancel = vi.fn()
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('x'.repeat(4097)))
+      },
+      cancel,
+    })
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(stream, { status: 422, headers: { 'Content-Type': 'application/json', 'Content-Length': '1' } })
+    )
+    const client = await loadModule()
+    await expect(client.getRouteSolve('terra1a', 'terra1b', '1000')).rejects.toMatchObject({
+      status: 422,
+      quoteReason: undefined,
+    })
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains authoritative HTTP rejection when the error body stream fails (#1473)', async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('Failed to fetch private upstream'))
+      },
+    })
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(stream, { status: 422, headers: { 'Content-Type': 'application/json' } })
+    )
+    const client = await loadModule()
+    await expect(client.getRouteSolve('terra1a', 'terra1b', '1000')).rejects.toThrow('Indexer API error: 422')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
   it('does not transport-retry deterministic route preview rejection (#1390)', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response('router_preview_rejected', { status: 422, statusText: 'Unprocessable Entity' })
@@ -149,9 +204,13 @@ describe('indexer client fetchJson', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(body),
+        body: expect.any(String),
       })
     )
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string)).toEqual({
+      ...body,
+      protection_policy: 'quote_relative_v1',
+    })
     expect(out.estimated_amount_out).toBe('99')
   })
 
@@ -174,6 +233,7 @@ describe('indexer client fetchJson', () => {
     await client.getRouteSolve('terra1a', 'terra1b', '1000', { trader })
     const url = vi.mocked(fetch).mock.calls[0][0] as string
     expect(url).toContain(`trader=${trader}`)
+    expect(new URL(url).searchParams.get('protection_policy')).toBe('quote_relative_v1')
   })
 
   it('POST /route/solve includes trader in JSON body (GitLab #245)', async () => {
@@ -624,6 +684,7 @@ describe('exact-output route solver transport (#1376)', () => {
     })
     const url = new URL(vi.mocked(fetch).mock.calls.at(-1)![0] as string)
     expect(url.searchParams.get('amount_out')).toBe('100000000000000000000')
+    expect(url.searchParams.get('protection_policy')).toBe('quote_relative_v1')
     expect(url.searchParams.has('amount_in')).toBe(false)
     expect(url.searchParams.get('pool_only')).toBe('true')
     expect(url.searchParams.get('trader')).toBe('terra1trader')

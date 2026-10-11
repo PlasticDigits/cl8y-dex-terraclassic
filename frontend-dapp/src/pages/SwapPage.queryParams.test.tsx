@@ -8,6 +8,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
+import { parseRouteQuoteError } from '@/utils/routeQuoteErrors'
+import * as assetTypes from '@/types'
 
 const { UST1, LISTED, USTR } = vi.hoisted(() => ({
   UST1: 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72',
@@ -241,6 +243,7 @@ function receiveFixture(from: string, to: string, offer: string, output: string,
     indexerOperations: q.router_operations as never,
     indexerIntermediateTokens: [from, to],
     executionMetadata: q.execution_metadata,
+    minimumReceive: q.execution_metadata!.minimum_receive,
     executionOperations: JSON.stringify(q.router_operations),
     routePreflight: { worstSpreadPercent: '0.00', anyHopExceedsMaxSpread: false },
   }
@@ -600,12 +603,65 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
         '2000000',
         expect.any(Array),
         '0.05',
-        '980000',
+        '980001',
         undefined,
         expect.any(Number),
         expect.objectContaining({ generation: 'fixture1' })
       )
     )
+  })
+
+  it('protection estimates stay unsigned and amount edits remove obsolete errors (#1473)', async () => {
+    seedCw20Route()
+    useWalletStore.setState({ address: 'terra1wallet000000000000000000000000001', walletType: 'dev' })
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    vi.spyOn(indexerClient, 'getRouteSolveProgress').mockResolvedValue({
+      stage: 'idle',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: false,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+    })
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      if (amount === '100000000')
+        throw parseRouteQuoteError(
+          422,
+          JSON.stringify({
+            error: 'protection',
+            indicative_amount_out: '140000000',
+            execution_supported: false,
+            generation: 'fixture1',
+            observed_at_ms: Date.now() - 1000,
+            expires_at_ms: Date.now() + 19_000,
+          })
+        )
+      return localQuote(from, to, amount, options)
+    })
+    renderWithSearch(`/?from=${LISTED}&to=${UST1}&amount=100`)
+    await waitForSwapReady()
+    await screen.findByTestId('swap-quote-error')
+    expect(screen.queryByTestId('swap-indicative-estimate')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Estimate only/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+    expect(screen.getByTestId('swap-quote-error')).toHaveTextContent(
+      'This amount exceeds the selected price protection.'
+    )
+    expect(screen.queryByTestId('retry-error-button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    expect(swap).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '10' } })
+    expect(screen.queryByTestId('swap-quote-error')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('swap-indicative-estimate')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('10'))
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '100' } })
+    await waitFor(() => expect(screen.getByTestId('swap-quote-error')).toHaveTextContent('selected price protection'))
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
   })
 
   it('native output intent cannot sign operations without matching local wrapper metadata', async () => {
@@ -619,6 +675,79 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(executeNativeSwap).not.toHaveBeenCalled()
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
   })
+
+  it.each([false, true])(
+    'direct wrapper primary receive requires observed floor support: supported=%s (#1473)',
+    async (supported) => {
+      const wrapped = UST1
+      vi.spyOn(assetTypes, 'getWrappedEquivalent').mockImplementation((token) => (token === 'uluna' ? wrapped : null))
+      vi.mocked(isDirectWrapUnwrap).mockReturnValue('wrap')
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair',
+            liquidity_token: 'terra1lp',
+            asset_infos: [{ native_token: { denom: 'uluna' } }, { token: { contract_addr: wrapped } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', 'uusd', wrapped])
+      vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([{ contract_address: wrapped, decimals: 6 }] as never)
+      const blocker = 'Direct wrapping cannot enforce the reviewed receive floor'
+      vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+        token_in: 'uluna',
+        token_out: wrapped,
+        hops: [],
+        router_operations: [],
+        intermediate_tokens: ['uluna', wrapped],
+        estimated_amount_out: '9800',
+        estimated_amount_out_net: '9800',
+        spot_amount_out: '10000',
+        slippage_percent: '2.0000',
+        quote_kind: 'indexer_wrapper_db',
+        tax_kind: 'none',
+        execution_blocker: supported ? null : blocker,
+        execution_metadata: {
+          version: 1,
+          generation: 'wrapper1',
+          input_amount: '10000',
+          max_spread: '0.05',
+          observed_at_ms: Date.now() - 1000,
+          expires_at_ms: Date.now() + 10_000,
+          policy: 'wrapper_only',
+          protection_policy: 'quote_relative_v1',
+          execution_supported: supported,
+          hops: [],
+          minimum_receive: '9310',
+          wrapper: {
+            input_token: 'uluna',
+            output_token: wrapped,
+            input_amount: '10000',
+            route_input_amount: '9800',
+            route_output_amount: '9800',
+            minimum_receive_base: '9310',
+            wrap_input: true,
+            unwrap_output: false,
+            treasury: 'terra1treasury',
+            mapper: 'terra1mapper',
+            ...(supported ? { floor_protocol_version: 1 } : {}),
+          },
+        },
+      } as never)
+      renderWithSearch(`/?from=uluna&to=${wrapped}&amount=0.01`)
+      await waitForSwapReady()
+      await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
+      if (supported) await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.0098'))
+      else {
+        await screen.findByTestId('swap-wrapper-quote-error')
+        expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+        expect(screen.queryByTestId('swap-confirm-min-return')).not.toBeInTheDocument()
+        expect(screen.queryByText(/Estimate only/)).not.toBeInTheDocument()
+        expect(executeNativeSwap).not.toHaveBeenCalled()
+        expect(executeMultiHopSwap).not.toHaveBeenCalled()
+      }
+    }
+  )
 
   it('reverse offers still enforce the connected wallet balance guard', async () => {
     seedCw20Route()
@@ -710,6 +839,84 @@ describe('SwapPage query params (GitLab #711)', () => {
     )
   })
 
+  it.each([
+    ['uusd', 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3', UST1, LISTED],
+    [LISTED, UST1, 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3', 'uusd'],
+  ])('bare / pays native USTC regardless of discovery order (#1473): %j', async (...ids) => {
+    vi.mocked(getAllTokens).mockReturnValue(ids)
+    renderWithProviders(<SwapPage />, { route: '/' })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('USTC')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('CL8Y')
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(executeNativeSwap).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('CL8Y')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('USTC')
+  })
+
+  it('empty initial discovery selects defaults only after the late catalog arrives (#1473)', async () => {
+    const CL8Y = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+    let resolveCatalog!: (pairs: never[]) => void
+    vi.spyOn(indexerClient, 'getAllPairsPaged').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCatalog = resolve
+        })
+    )
+    vi.mocked(getAllTokens).mockImplementation((pairs) => (pairs.length ? [CL8Y, 'uusd'] : []))
+    renderWithProviders(<SwapPage />, { route: '/' })
+    expect(screen.getByText(/loading pairs/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Select token you pay' })).not.toBeInTheDocument()
+    await act(async () => {
+      resolveCatalog([
+        {
+          pair_address: 'terra1pair00000000000000000000000000000001',
+          asset_0: { denom: 'uusd', contract_addr: null, symbol: 'USTC', decimals: 6 },
+          asset_1: { contract_addr: CL8Y, denom: null, symbol: 'CL8Y', decimals: 18 },
+        },
+      ] as never[])
+    })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('USTC')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('CL8Y')
+  })
+
+  it('preserves a valid explicit link when an initially empty catalog gains the requested pair (#1473)', async () => {
+    vi.spyOn(indexerClient, 'getAllPairsPaged').mockResolvedValue([])
+    vi.mocked(getAllTokens).mockImplementation((pairs) => (pairs.length ? ['uluna', UST1] : []))
+    const { queryClient } = renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('--')
+    await act(async () => {
+      queryClient.setQueryData(['allPairs'], {
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ native_token: { denom: 'uluna' } }, { token: { contract_addr: UST1 } }],
+          },
+        ],
+      })
+    })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
+  })
+
+  it('valid explicit links take precedence over available native product defaults (#1473)', async () => {
+    vi.mocked(getAllTokens).mockReturnValue([
+      'uusd',
+      'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3',
+      'uluna',
+      UST1,
+    ])
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
+  })
+
   it('AC1: /?from=uluna&to=<listed cw20> selects LUNC and that token', async () => {
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
     await waitForSwapReady()
@@ -756,7 +963,7 @@ describe('SwapPage query params (GitLab #711)', () => {
   it('AC2 one-sided: outputCurrency only defaults pay', async () => {
     renderWithProviders(<SwapPage />, { route: `/?outputCurrency=${UST1}` })
     await waitForSwapReady()
-    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('--')
     expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
   })
 
@@ -765,8 +972,8 @@ describe('SwapPage query params (GitLab #711)', () => {
     await waitForSwapReady()
     const pay = screen.getByRole('combobox', { name: 'Select token you pay' })
     const receive = screen.getByRole('combobox', { name: 'Select token you receive' })
-    expect(pay).toHaveValue('LUNC')
-    expect(receive).toHaveValue('USTC')
+    expect(pay).toHaveValue('--')
+    expect(receive).toHaveValue('--')
     expect((pay as HTMLInputElement).value).not.toMatch(/javascript/i)
     expect((receive as HTMLInputElement).value).not.toMatch(/script/i)
   })

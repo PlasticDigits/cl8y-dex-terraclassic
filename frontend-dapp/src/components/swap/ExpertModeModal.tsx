@@ -30,16 +30,16 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
     <Modal isOpen={isOpen} onClose={handleClose} title="Enable Expert Mode" panelClassName="max-w-md">
       <div className="space-y-4 text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
         <p>
-          Expert Mode disables the automatic block on swaps with very high expected slippage (above{' '}
+          Expert Mode disables the automatic block on swaps with very high price impact (above{' '}
           <strong style={{ color: 'var(--ink)' }}>30%</strong> vs best-route token prices).
         </p>
         <p>
-          High slippage often means the quoted route exploits thin or mispriced pools. You may receive far fewer tokens
+          High price impact often means the quoted route uses thin or mispriced pools. You may receive far fewer tokens
           than the fair cross-rate, or a quote that looks too good to be true on multi-hop paths.
         </p>
         <p>
-          Expert Mode does <strong style={{ color: 'var(--ink)' }}>not</strong> override your Settings slippage
-          tolerance or per-hop max-spread checks — those still block when on-chain spread would exceed your limit.
+          Your selected tolerance still protects the quoted net output and each hop's receive minimum. Separate
+          market-spread checks protect the quoted execution; the 99% price-impact guard always applies.
         </p>
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
           Only enable Expert Mode if you understand the execution risk.

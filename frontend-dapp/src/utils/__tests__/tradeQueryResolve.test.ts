@@ -1,8 +1,14 @@
 import { UST1_TOKEN_ADDRESS, MAINNET_UST1_TOKEN_ADDRESS } from '@/utils/constants'
 import { buildTokenlistQueryMaps, publishedTokenlistQueryRows } from '@/utils/tokenlistQueryCatalog'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { PairInfo } from '@/types'
-import { parseTradeTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
+import {
+  parseTradeTicketPrefill,
+  resolveTradePairFromQuery,
+  resolveTradeQueryTicketPrefill,
+} from '@/utils/tradeQueryResolve'
+
+import { factorySideFromDisplay, writeStoredPairDisplayInverted } from '@/utils/tradePairDisplayOrientation'
 
 const PAIR = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 const PAIR_B = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
@@ -57,5 +63,35 @@ describe('parseTradeTicketPrefill (#713)', () => {
     })
     expect(parseTradeTicketPrefill('exactAmount=2&side=buy')).toEqual({ amountHuman: '2', side: 'bid' })
     expect(parseTradeTicketPrefill('side=nope')).toEqual({ amountHuman: null, side: null })
+  })
+})
+
+describe('query ticket funding orientation (#1473)', () => {
+  afterEach(() => window.sessionStorage.clear())
+  const CL8Y = PAIR_B
+  for (const legs of [
+    [UST1, CL8Y],
+    [CL8Y, UST1],
+  ]) {
+    for (const inverted of [false, true]) {
+      for (const [pay, receive] of [legs, legs.slice().reverse()]) {
+        it(`preserves ${pay} pay with factory ${legs[0]} first and display inverted=${inverted}`, () => {
+          writeStoredPairDisplayInverted(PAIR, inverted)
+          const ticket = resolveTradeQueryTicketPrefill(
+            new URLSearchParams({ from: pay, to: receive, amount: '2' }),
+            pair(PAIR, legs[0], legs[1])
+          )
+          expect(ticket.amountHuman).toBe('2')
+          const side = factorySideFromDisplay(ticket.side!, inverted)
+          expect(side === 'ask' ? legs[0] : legs[1]).toBe(pay)
+          expect(side === 'ask' ? legs[1] : legs[0]).toBe(receive)
+        })
+      }
+    }
+  }
+  it('keeps explicit side precedence and the identity-based UST1 display default', () => {
+    expect(resolveTradeQueryTicketPrefill(`from=${UST1}&to=${CL8Y}`, pair(PAIR, UST1, CL8Y)).side).toBe('bid')
+    expect(resolveTradeQueryTicketPrefill(`from=${CL8Y}&to=${UST1}`, pair(PAIR, CL8Y, UST1)).side).toBe('ask')
+    expect(resolveTradeQueryTicketPrefill(`from=${UST1}&to=${CL8Y}&side=sell`, pair(PAIR, UST1, CL8Y)).side).toBe('ask')
   })
 })

@@ -115,14 +115,27 @@ async fn failed_discovery_and_untrusted_spoofed_capability_never_waive_tax() {
                 seed.token_a, seed.token_c
             ))
             .await;
-        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        let status = if fail {
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        } else {
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY
+        };
+        let reason = if fail {
+            "missing_observations"
+        } else {
+            "unsupported_semantics"
+        };
+        response.assert_status(status);
+        assert_eq!(response.json::<Value>()["error"], reason);
         assert!(!response.text().contains("estimated_amount_out"));
         let response = server
             .post("/api/v1/route/solve")
             .json(&json!({"token_in":seed.token_a,"token_out":seed.token_c,"amount_in":"1010000"}))
             .await;
-        // Request failures depend only on published unsupported observations, never provider cooldown.
-        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        // Missing producer evidence and completed unsupported capability are
+        // distinct; neither can waive tax or trigger request-time discovery.
+        response.assert_status(status);
+        assert_eq!(response.json::<Value>()["error"], reason);
         assert_no_request_rpc(&mock).await;
     }
 }
@@ -142,7 +155,8 @@ async fn legacy_middle_tax_and_incompatible_funding_versions_are_rejected() {
                 seed.token_a, seed.token_c
             ))
             .await;
-        response.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(response.json::<Value>()["error"], "unsupported_semantics");
         assert_no_request_rpc(&mock).await;
     }
 }
@@ -292,7 +306,10 @@ async fn protocol_exempt_trader_guard_rejection_is_observable_on_all_forward_api
         for pool_only in ["true", "false"] {
             let response=server.get(&format!("/api/v1/route/{endpoint}?token_in={}&token_out={}&amount_in=1010000&pool_only={pool_only}&trader={trader}",seed.token_a,seed.token_c)).await;
             response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
-            assert!(response.text().contains("No eligible route"));
+            assert_eq!(
+                response.json::<serde_json::Value>()["error"],
+                "trading_blocked"
+            );
             assert!(!response.text().contains("estimated_amount_out"));
         }
     }

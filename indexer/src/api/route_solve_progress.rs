@@ -59,6 +59,8 @@ pub struct SolveProgress {
     pub label: String,
     pub cache_hit: bool,
     pub updated_at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_generation: Option<String>,
 }
 
 #[derive(Clone)]
@@ -135,6 +137,7 @@ fn set_progress(
             label: String::new(),
             cache_hit: false,
             updated_at_ms: now_ms(),
+            quote_generation: None,
         },
         started_at: now,
         terminal_at: None,
@@ -146,6 +149,7 @@ fn set_progress(
         label,
         cache_hit,
         updated_at_ms: now_ms(),
+        quote_generation: None,
     };
     if terminal {
         entry.terminal_at = Some(now);
@@ -223,6 +227,7 @@ fn idle_progress() -> SolveProgress {
         label: "Waiting…".into(),
         cache_hit: false,
         updated_at_ms: now_ms(),
+        quote_generation: None,
     }
 }
 

@@ -62,9 +62,12 @@ const AMOUNT_CACHE_BUCKET: u128 = 1_000_000;
 
 #[derive(Debug, Clone, Deserialize, Serialize, IntoParams, ToSchema)]
 pub struct SolveRouteParams {
-    /// Caller L9 execution constraint; local quote admission and signed floors share this value.
+    /// Exact UI protection. Legacy requests also use this as the L9 market cap.
     #[serde(default)]
     pub max_spread: Option<String>,
+    /// Explicit quote-relative net-floor policy. Omit for legacy L9 admission.
+    #[serde(default)]
+    pub protection_policy: Option<String>,
     /// CW20 contract address (must match indexed `assets.contract_address`). See [route-solver glossary](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/route-solver.md#glossary).
     pub token_in: String,
     /// CW20 contract address for the output asset (indexed `assets.contract_address`).
@@ -102,6 +105,9 @@ pub struct SolveRoutePostBody {
     /// Caller protection binds exact local math and signed execution floors.
     #[serde(default)]
     pub max_spread: Option<String>,
+    /// Explicit quote-relative net-floor policy. Omit for legacy L9 admission.
+    #[serde(default)]
+    pub protection_policy: Option<String>,
     pub token_in: String,
     pub token_out: String,
     /// Exact raw integer offer amount for locally cached arithmetic.
@@ -284,6 +290,10 @@ pub struct LocalExecutionMetadata {
     pub generation: String,
     pub input_amount: String,
     pub max_spread: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protection_policy: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_market_spread: Option<String>,
     pub trader: Option<String>,
     pub sender: Option<String>,
     pub observed_at_ms: i64,
@@ -365,13 +375,13 @@ pub struct RouteSolveResponse {
     /// Router `ExecuteSwapOperations` operations (JSON). `terra_swap.hybrid` is `null` for pool-only hops.
     #[schema(value_type = Vec<Object>)]
     pub router_operations: Vec<serde_json::Value>,
-    /// LCD router `simulate_swap_operations` output when `amount_in` and `ROUTER_ADDRESS` are set — **not** a guaranteed fill.
+    /// Checked amount-specific local net estimate from initialized observations; no request-time router simulation.
     pub estimated_amount_out: Option<String>,
     /// Final executable NET output. For route_local_v1 this equals estimated_amount_out:
-    /// all per-hop tax has already been applied by the router simulation.
+    /// all per-hop tax has already been applied by the local integer model.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub estimated_amount_out_net: Option<String>,
-    /// `route_local_v1` means the authorized offer is gross and simulated output is already net.
+    /// `route_local_v1` means the authorized offer is gross and locally priced output is already net.
     /// Legacy compatibility labels: buy / sell_in / exempt / honest_hops / none / skipped_middle_sell.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tax_kind: Option<String>,
@@ -386,16 +396,16 @@ pub struct RouteSolveResponse {
     /// True when a token on this route uses authenticated router-hop tax; v1 charges route funds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub router_hops_tax: Option<bool>,
-    /// Solver generation label on global best-execution GET (shipped: `global_v1`). Absent on discovery-only GET and POST.
+    /// Local engine label (`local_v1`), including GET, best and declared POST.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub solver_version: Option<String>,
-    /// Simple paths evaluated (≤ `MAX_PATH_CANDIDATES` = 5). Present on `global_v1` GET only.
+    /// Number of bounded local candidates considered; graph work limits remain independent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub paths_considered: Option<u32>,
     /// Human-readable optimality bound — not global optimum over all paths. Matches `best_execution::OPTIMALITY_SCOPE`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub optimality_scope: Option<String>,
-    /// Approximate pair-level `HybridSimulation` LCD calls during optimization. Upper bound documented as `LCD_HYBRID_SIM_BUDGET`.
+    /// Request-time LCD query count: zero for local_v1.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lcd_hybrid_queries: Option<u32>,
     /// Postgres mirror hybrid grid evaluations (`global_v2`).
@@ -1213,10 +1223,10 @@ async fn exact_output_get(
         (status = 200, description = "Hybrid best-execution route with merged router operations", body = RouteSolveResponse),
         (status = 400, description = "Missing or invalid amount_in, or unknown token"),
         (status = 404, description = "No route within 4 hops"),
-        (status = 502, description = "Hybrid optimization LCD failure (sanitized body)"),
-        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, on-chain preview/guard rejection, or infeasible receive target"),
+        (status = 502, description = "Legacy endpoint status; local quote requests never query LCD"),
+        (status = 422, description = "Bounded local quote reason: protection, amount_too_small, insufficient_liquidity, unsupported_semantics, trading_blocked or no_route; protection may carry an explicitly nonexecutable indicative_amount_out"),
         (status = 429, description = "Exact-output concurrency limit"),
-        (status = 503, description = "Fresh router validation unavailable or rejected"),
+        (status = 503, description = "Local observations missing/stale or checked accounting unavailable; no request-time network validation"),
         (status = 504, description = "Exact-output sizing exceeded time budget"),
     ),
     tag = "Routing"
@@ -1225,11 +1235,11 @@ pub async fn solve_route_best(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     if q.amount_in.is_none() && q.amount_out.is_none() {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Best execution requires amount_in or amount_out".into(),
+            Json(serde_json::json!({"error":"invalid_request"})),
         ));
     }
     if q.amount_out.is_some() {
@@ -1243,9 +1253,12 @@ pub async fn solve_route_best(
                 Duration::from_secs(1),
                 super::local_quote::solve(&state, &q),
             )
-            .await;
+            .await
+            .map_err(super::local_quote::public_error);
     }
-    super::local_quote::solve(&state, &q).await
+    super::local_quote::solve(&state, &q)
+        .await
+        .map_err(super::local_quote::public_error)
 }
 
 /// Multihop route discovery (GET default **4 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
@@ -1257,9 +1270,9 @@ pub async fn solve_route_best(
         (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
         (status = 400, description = "token_in or token_out not found in indexer assets"),
         (status = 404, description = "No route within hop limit"),
-        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, on-chain preview/guard rejection, or infeasible receive target"),
+        (status = 422, description = "Bounded local quote reason: protection, amount_too_small, insufficient_liquidity, unsupported_semantics, trading_blocked or no_route; protection may carry an explicitly nonexecutable indicative_amount_out"),
         (status = 429, description = "Exact-output concurrency limit"),
-        (status = 503, description = "Fresh router validation unavailable or rejected"),
+        (status = 503, description = "Local observations missing/stale or checked accounting unavailable; no request-time network validation"),
         (status = 504, description = "Exact-output sizing exceeded time budget"),
     ),
     tag = "Routing"
@@ -1268,11 +1281,11 @@ pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     if q.hybrid_optimize == Some(true) && q.amount_in.is_none() && q.amount_out.is_none() {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Hybrid execution requires amount_in or amount_out".into(),
+            Json(serde_json::json!({"error":"invalid_request"})),
         ));
     }
     if q.amount_out.is_some() {
@@ -1286,9 +1299,12 @@ pub async fn solve_route(
                 Duration::from_secs(1),
                 super::local_quote::solve(&state, &q),
             )
-            .await;
+            .await
+            .map_err(super::local_quote::public_error);
     }
-    super::local_quote::solve(&state, &q).await
+    super::local_quote::solve(&state, &q)
+        .await
+        .map_err(super::local_quote::public_error)
 }
 
 /// Same local discovery as GET (max 4 hops); declared splits must exactly match every priced hop budget.
@@ -1298,18 +1314,20 @@ pub async fn solve_route(
     request_body = SolveRoutePostBody,
     responses(
         (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
-        (status = 400, description = "Bad request (unknown token, hybrid length mismatch, or router simulation error)"),
+        (status = 400, description = "Invalid input or declared local hop budgets"),
         (status = 404, description = "No route within 4 hops"),
-        (status = 422, description = "Unsupported trading tax capability, repeated capable asset, or on-chain preview/guard rejection"),
+        (status = 422, description = "Bounded local quote reason; explicitly nonexecutable indicative amount may accompany protection"),
+        (status = 503, description = "Local observations missing/stale or checked accounting unavailable; no request-time network validation"),
     ),
     tag = "Routing"
 )]
 pub async fn solve_route_post(
     State(state): State<AppState>,
     Json(body): Json<SolveRoutePostBody>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let q = SolveRouteParams {
         max_spread: body.max_spread,
+        protection_policy: body.protection_policy,
         token_in: body.token_in,
         token_out: body.token_out,
         amount_in: body.amount_in,
@@ -1321,7 +1339,9 @@ pub async fn solve_route_post(
         sender: body.sender,
         discount_bps: None,
     };
-    super::local_quote::solve_post(&state, &q, body.hybrid_by_hop.as_deref()).await
+    super::local_quote::solve_post(&state, &q, body.hybrid_by_hop.as_deref())
+        .await
+        .map_err(super::local_quote::public_error)
 }
 
 #[cfg(test)]

@@ -17,6 +17,12 @@ vi.mock('@/utils/constants', async (importActual) => {
   }
 })
 
+// Pin this outage suite's fixture selection independently of product defaults.
+vi.mock('@/utils/pairCatalogRank', async (importActual) => ({
+  ...(await importActual<typeof import('@/utils/pairCatalogRank')>()),
+  defaultRetailSwapTokenPair: () => [terraA, terraB] as [string, string],
+}))
+
 vi.mock('react-blockies', () => ({
   __esModule: true,
   default: function MockBlockies() {

@@ -587,11 +587,10 @@ async fn route_solve_db_hybrid_book_scan_matches_emitted_plan_and_stale_fail_clo
             seed.token_a, seed.token_b
         );
         let response = server.get(&url).await;
-        // Stale indexed input is infrastructure unavailability, independent of trade protection.
+        // This synthetic initializer retains the original stale mirror (unlike
+        // cold scheduled ingestion which never admits an expired raw tuple).
         response.assert_status_service_unavailable();
-        assert!(response
-            .text()
-            .contains("refresh after indexed data recovers"));
+        assert_eq!(response.json::<Value>()["error"], "stale_observations");
         assert!(mock.received_requests().await.unwrap().is_empty());
     }
 }

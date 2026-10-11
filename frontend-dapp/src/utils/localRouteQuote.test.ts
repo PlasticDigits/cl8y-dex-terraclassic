@@ -6,6 +6,8 @@ import { LOCAL_FROM, LOCAL_TO, LOCAL_WALLET, localQuote, localTaxQuote } from '@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
 import { assertLocalRouteSubmit, validateLocalRouteQuote } from './localRouteQuote'
+import { buildSubmitAlignedSimPayload } from '@/utils/quoteDebounce'
+import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 vi.mock('@/services/indexer/client', () => ({ getRouteSolve: vi.fn(), postRouteSolve: vi.fn() }))
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn(() => {
@@ -64,6 +66,278 @@ function nativeQuote(unwrap = false) {
   return q
 }
 describe('local quote settlement policies #1452', () => {
+  it.each([
+    [30000, 10000],
+    [15000, 5001],
+    [1000, Number.NaN],
+    [1000, Number.POSITIVE_INFINITY],
+  ])('rejects renewed/unsafe original windows: age%s expiry%s (#1473)', async (age, expiry) => {
+    const now = Date.now()
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '1000000', { trader: LOCAL_WALLET })
+    q.execution_metadata!.observed_at_ms = now - age
+    q.execution_metadata!.expires_at_ms = now + expiry
+    expect(() =>
+      validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET }, now)
+    ).toThrow('Quote unavailable')
+    expect(() =>
+      assertLocalRouteSubmit(
+        q.execution_metadata!,
+        q.router_operations as SwapOperation[],
+        '1000000',
+        '0.05',
+        LOCAL_WALLET,
+        '950000',
+        now
+      )
+    ).toThrow('Quote unavailable')
+    vi.mocked(getRouteSolve).mockResolvedValue(q)
+    await expect(quoteCw20ViaRouteSolve(request)).rejects.toThrow('Quote unavailable')
+    expect(queryContract).not.toHaveBeenCalled()
+  })
+  it('retains an unchanged original20s expiry and rejects exactly at expiration (#1473)', () => {
+    const now = Date.now()
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '1000000', { trader: LOCAL_WALLET })
+    q.execution_metadata!.observed_at_ms = now - 1000
+    q.execution_metadata!.expires_at_ms = now + 19000
+    expect(
+      validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET }, now)
+        .metadata.expires_at_ms
+    ).toBe(now + 19000)
+    assertLocalRouteSubmit(
+      q.execution_metadata!,
+      q.router_operations as SwapOperation[],
+      '1000000',
+      '0.05',
+      LOCAL_WALLET,
+      '950000',
+      now
+    )
+    expect(() =>
+      assertLocalRouteSubmit(
+        q.execution_metadata!,
+        q.router_operations as SwapOperation[],
+        '1000000',
+        '0.05',
+        LOCAL_WALLET,
+        '950000',
+        now + 19000
+      )
+    ).toThrow('Quote unavailable')
+  })
+  it.each(['false', 0, 1, null, {}])(
+    'rejects malformed execution capability %j before validation or signing (#1473)',
+    async (flag) => {
+      const q = localQuote(LOCAL_FROM, LOCAL_TO, '1000000', { trader: LOCAL_WALLET })
+      q.execution_metadata!.execution_supported = flag as boolean
+      expect(() =>
+        validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET })
+      ).toThrow('Quote unavailable')
+      expect(() =>
+        assertLocalRouteSubmit(
+          q.execution_metadata!,
+          q.router_operations as SwapOperation[],
+          '1000000',
+          '0.05',
+          LOCAL_WALLET,
+          '950000'
+        )
+      ).toThrow('Quote unavailable')
+      vi.mocked(getRouteSolve).mockResolvedValue(q)
+      await expect(quoteCw20ViaRouteSolve(request)).rejects.toThrow('Quote unavailable')
+      delete q.execution_metadata!.execution_supported
+      q.execution_supported = flag as boolean
+      expect(() =>
+        validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET })
+      ).toThrow('Quote unavailable')
+      await expect(quoteCw20ViaRouteSolve(request)).rejects.toThrow('Quote unavailable')
+      expect(queryContract).not.toHaveBeenCalled()
+    }
+  )
+  it('accepts reviewed Boolean support and rejects contradictory top-level claims (#1473)', () => {
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '1000000', { trader: LOCAL_WALLET })
+    q.execution_metadata!.execution_supported = true
+    q.execution_supported = true
+    expect(
+      validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET })
+    ).toBeDefined()
+    q.execution_supported = false
+    expect(() =>
+      validateLocalRouteQuote(q, q.router_operations as SwapOperation[], { ...request, trader: LOCAL_WALLET })
+    ).toThrow('Quote unavailable')
+  })
+  it('retains explicit legacy validation but prevents official net19/min18 policy downgrades (#1473)', async () => {
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '19', { trader: LOCAL_WALLET }, '19')
+    delete q.execution_metadata!.protection_policy
+    delete q.execution_metadata!.execution_market_spread
+    q.execution_metadata!.minimum_receive = '18'
+    q.execution_metadata!.hops[0].min_return = '18'
+    ;(q.router_operations[0] as SwapOperation).terra_swap.min_return = '18'
+    expect(
+      validateLocalRouteQuote(q, q.router_operations as SwapOperation[], {
+        ...request,
+        simRaw: '19',
+        trader: LOCAL_WALLET,
+      })
+    ).toBeDefined()
+    vi.mocked(getRouteSolve).mockResolvedValue(q)
+    await expect(quoteCw20ViaRouteSolve({ ...request, simRaw: '19' })).rejects.toThrow('Quote unavailable')
+    expect(queryContract).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['2', '2'],
+    ['19', '19'],
+    ['20', '19'],
+  ])('keeps selected tolerance at raw output%s and floor%s (#1473)', (output, floor) => {
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, output, { trader: LOCAL_WALLET }, output)
+    const metadata = q.execution_metadata!
+    metadata.protection_policy = 'quote_relative_v1'
+    metadata.execution_market_spread = '0.052631578947368422'
+    metadata.minimum_receive = floor
+    metadata.hops[0].min_return = floor
+    ;(q.router_operations[0] as SwapOperation).terra_swap.min_return = floor
+    const validated = validateLocalRouteQuote(q, q.router_operations as SwapOperation[], {
+      ...request,
+      simRaw: output,
+      trader: LOCAL_WALLET,
+    })
+    const reviewed = buildSubmitAlignedSimPayload(
+      output,
+      { return_amount: output, minimumReceive: validated.metadata.minimum_receive },
+      5,
+      applySlippagePercentFloor
+    )
+    expect(reviewed.minReceived).toBe(floor)
+    expect((BigInt(output) - BigInt(floor)) * 100n <= BigInt(output) * 5n).toBe(true)
+    assertLocalRouteSubmit(metadata, q.router_operations as SwapOperation[], output, '0.05', LOCAL_WALLET, floor)
+    metadata.hops[0].min_return = (BigInt(floor) - 1n).toString()
+    ;(q.router_operations[0] as SwapOperation).terra_swap.min_return = metadata.hops[0].min_return
+    expect(() =>
+      assertLocalRouteSubmit(metadata, q.router_operations as SwapOperation[], output, '0.05', LOCAL_WALLET, floor)
+    ).toThrow('Quote unavailable')
+  })
+  it('executes a pinned high-impact baseline with exact UI net floors and an independently derived market ceiling (#1473)', async () => {
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '10000', { trader: LOCAL_WALLET }, '9000')
+    const metadata = q.execution_metadata!,
+      hop = metadata.hops[0]
+    metadata.protection_policy = 'quote_relative_v1'
+    metadata.execution_market_spread = '0.157894736842105264'
+    hop.commission_amount = '1000'
+    hop.spread_amount = '1000'
+    q.spot_amount_out = '10000'
+    vi.mocked(getRouteSolve).mockResolvedValue(q)
+    const result = (await quoteCw20ViaRouteSolve({ ...request, simRaw: '10000', trader: LOCAL_WALLET }))!
+    expect(result.return_amount).toBe('9000')
+    expect(result.minimumReceive).toBe('8550')
+    expect(result.routePreflight?.anyHopExceedsMaxSpread).toBe(false)
+    expect(result.routePreflight?.worstSpreadPercent).toBe('10.00')
+    await executeMultiHopSwap(
+      LOCAL_WALLET,
+      LOCAL_FROM,
+      '10000',
+      result.indexerOperations,
+      '0.05',
+      '8550',
+      undefined,
+      undefined,
+      result.executionMetadata
+    )
+    const hook = JSON.parse(
+      atob((vi.mocked(executeTerraContract).mock.calls[0][2] as { send: { msg: string } }).send.msg)
+    )
+    expect(hook.execute_swap_operations.max_spread).toBe('0.157894736842105264')
+    expect(hook.execute_swap_operations.minimum_receive).toBe('8550')
+    expect(hook.execute_swap_operations.operations[0].terra_swap.min_return).toBe('8550')
+    expect(metadata.max_spread).toBe('0.05')
+    expect(queryContract).not.toHaveBeenCalled()
+    const legacy = structuredClone(q)
+    delete legacy.execution_metadata!.protection_policy
+    delete legacy.execution_metadata!.execution_market_spread
+    expect(() =>
+      validateLocalRouteQuote(legacy, legacy.router_operations as SwapOperation[], {
+        ...request,
+        simRaw: '10000',
+        trader: LOCAL_WALLET,
+      })
+    ).toThrow('Quote unavailable')
+  })
+
+  it.each(['0.05', '0.157894736842105263', '0.157894736842105265', '1', '1e-1'])(
+    'rejects tampered quote-relative ceiling %s (#1473)',
+    (ceiling) => {
+      const q = localQuote(LOCAL_FROM, LOCAL_TO, '10000', { trader: LOCAL_WALLET }, '9000')
+      q.execution_metadata!.hops[0].commission_amount = '1000'
+      q.execution_metadata!.hops[0].spread_amount = '1000'
+      q.execution_metadata!.protection_policy = 'quote_relative_v1'
+      q.execution_metadata!.execution_market_spread = ceiling
+      q.spot_amount_out = '10000'
+      expect(() =>
+        validateLocalRouteQuote(q, q.router_operations as SwapOperation[], {
+          ...request,
+          simRaw: '10000',
+          trader: LOCAL_WALLET,
+        })
+      ).toThrow('Quote unavailable')
+      expect(() =>
+        assertLocalRouteSubmit(
+          q.execution_metadata!,
+          q.router_operations as SwapOperation[],
+          '10000',
+          '0.05',
+          LOCAL_WALLET,
+          '8550'
+        )
+      ).toThrow('Quote unavailable')
+    }
+  )
+
+  it.each(['pool_return_amount', 'spread_amount', 'return_amount', 'min_return'] as const)(
+    'rejects noncanonical quote-relative %s (#1473)',
+    (field) => {
+      const q = localQuote(LOCAL_FROM, LOCAL_TO, '10000', { trader: LOCAL_WALLET }, '9000')
+      q.execution_metadata!.protection_policy = 'quote_relative_v1'
+      q.execution_metadata!.execution_market_spread = '0.052631578947368422'
+      q.execution_metadata!.hops[0][field] = `0${q.execution_metadata!.hops[0][field]}`
+      if (field === 'min_return')
+        (q.router_operations[0] as SwapOperation).terra_swap.min_return = q.execution_metadata!.hops[0][field]
+      expect(() =>
+        validateLocalRouteQuote(q, q.router_operations as SwapOperation[], {
+          ...request,
+          simRaw: '10000',
+          trader: LOCAL_WALLET,
+        })
+      ).toThrow('Quote unavailable')
+      expect(() =>
+        assertLocalRouteSubmit(
+          q.execution_metadata!,
+          q.router_operations as SwapOperation[],
+          '10000',
+          '0.05',
+          LOCAL_WALLET,
+          '8550'
+        )
+      ).toThrow('Quote unavailable')
+    }
+  )
+
+  it('rejects weakened simultaneous metadata/operation net floors at signing (#1473)', () => {
+    const q = localQuote(LOCAL_FROM, LOCAL_TO, '10000', { trader: LOCAL_WALLET }, '9000')
+    q.execution_metadata!.hops[0].commission_amount = '1000'
+    q.execution_metadata!.hops[0].spread_amount = '1000'
+    q.execution_metadata!.protection_policy = 'quote_relative_v1'
+    q.execution_metadata!.execution_market_spread = '0.157894736842105264'
+    q.execution_metadata!.hops[0].min_return = '8549'
+    ;(q.router_operations[0] as SwapOperation).terra_swap.min_return = '8549'
+    expect(() =>
+      assertLocalRouteSubmit(
+        q.execution_metadata!,
+        q.router_operations as SwapOperation[],
+        '10000',
+        '0.05',
+        LOCAL_WALLET,
+        '8550'
+      )
+    ).toThrow('Quote unavailable')
+  })
   it('validates post-hook floors while L9 uses pre-hook pool output', () => {
     const q = localQuote()
     q.execution_metadata!.hops[0].pool_return_amount = '1050000'

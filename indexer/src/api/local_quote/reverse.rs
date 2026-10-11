@@ -85,30 +85,60 @@ impl<'a> PoolLeg<'a> {
     /// First gross offer delivering at least target, constrained only by a
     /// monotone pre-hook pool-output lower bound. Reachability jumps must be
     /// checked against the actual hooks rather than a monotone approximation.
-    fn inverse(&self, target: u128, mut lower: u128, work: &mut WorkBudget) -> Option<u128> {
-        let post_hook_target = tax::inverse_buy(target, self.buy_bps)?;
+    fn inverse(
+        &self,
+        target: u128,
+        mut lower: u128,
+        work: &mut WorkBudget,
+    ) -> Result<u128, diagnostics::Rejection> {
+        let post_hook_target =
+            tax::inverse_buy(target, self.buy_bps).ok_or(diagnostics::Rejection::Accounting)?;
         for _ in 0..MAX_HOP_REFINEMENTS {
-            work.probe()?;
-            let original_target = self.hooks.map_or(Some(post_hook_target.max(lower)), |h| {
-                h.inverse_return_from(self.ask, post_hook_target, lower)
-                    .ok()
-            })?;
+            work.probe().ok_or(diagnostics::Rejection::Accounting)?;
+            let original_target = self
+                .hooks
+                .map_or(Some(post_hook_target.max(lower)), |h| {
+                    h.inverse_return_from(self.ask, post_hook_target, lower)
+                        .ok()
+                })
+                .ok_or(diagnostics::Rejection::Accounting)?;
+            let maximum_gross = self.reserve_out.saturating_sub(1);
+            let maximum_net = maximum_gross.saturating_sub(
+                super::super::orderbook_sim::swap_fee_amount(maximum_gross, self.mirror.fee_bps),
+            );
+            if original_target > maximum_net {
+                return Err(diagnostics::Rejection::Liquidity);
+            }
+            if self.mirror.fee_bps >= 10_000 {
+                return Err(diagnostics::Rejection::Dust);
+            }
             let economic = inverse_pool_offer(
                 self.reserve_in,
                 self.reserve_out,
                 self.mirror.fee_bps,
                 original_target,
-            )?;
-            let original = self.original(economic)?;
-            if self.delivered(original)? >= target {
-                return economic.checked_add(super::super::community_tax_rank::tax_amount(
-                    economic,
-                    self.sell_bps,
-                ));
+            )
+            .ok_or(diagnostics::Rejection::Accounting)?;
+            let original = self
+                .original(economic)
+                .ok_or(diagnostics::Rejection::Accounting)?;
+            if self
+                .delivered(original)
+                .ok_or(diagnostics::Rejection::Accounting)?
+                >= target
+            {
+                return economic
+                    .checked_add(super::super::community_tax_rank::tax_amount(
+                        economic,
+                        self.sell_bps,
+                    ))
+                    .ok_or(diagnostics::Rejection::Accounting);
             }
-            lower = original.checked_add(1)?;
+            lower = original
+                .checked_add(1)
+                .ok_or(diagnostics::Rejection::Accounting)?;
         }
-        None
+        Err(diagnostics::Rejection::Accounting)
     }
 }
 
@@ -140,7 +170,7 @@ fn compose_inverse(
     target: u128,
     first_original_lower: u128,
     work: &mut WorkBudget,
-) -> Option<u128> {
+) -> Result<u128, diagnostics::Rejection> {
     let mut wanted = target;
     for (index, leg) in legs.iter().enumerate().rev() {
         wanted = leg.inverse(
@@ -149,7 +179,7 @@ fn compose_inverse(
             work,
         )?;
     }
-    Some(wanted)
+    Ok(wanted)
 }
 
 #[cfg(test)]
@@ -170,6 +200,7 @@ pub(super) fn inverse_pool_path(
             remaining: MAX_INVERSE_PROBES,
         },
     )
+    .ok()
 }
 
 fn inverse_candidate(
@@ -178,33 +209,56 @@ fn inverse_candidate(
     target: u128,
     spread: u128,
     work: &mut WorkBudget,
-) -> Option<(u128, Candidate)> {
+) -> Result<(u128, Candidate), diagnostics::Rejection> {
     if path.is_empty() || target == 0 {
-        return None;
+        return Err(diagnostics::Rejection::NoRoute);
+    }
+    if let Some(reason) = diagnostics::path_prerequisite_rejection(s, path) {
+        return Err(reason);
     }
     let legs = path
         .iter()
         .map(|hop| PoolLeg::new(s, hop))
-        .collect::<Option<Vec<_>>>()?;
+        .collect::<Option<Vec<_>>>()
+        .ok_or(diagnostics::Rejection::Accounting)?;
+    if legs
+        .iter()
+        .any(|leg| leg.reserve_in == 0 || leg.reserve_out == 0)
+        || target >= legs.last().unwrap().reserve_out
+    {
+        return Err(diagnostics::Rejection::Liquidity);
+    }
     let mut lower = 0;
     for _ in 0..MAX_FORWARD_REFINEMENTS {
         let required = compose_inverse(&legs, target, lower, work)?;
-        let (mut output, original) = legs[0].forward(required)?;
+        let (mut output, original) = legs[0]
+            .forward(required)
+            .ok_or(diagnostics::Rejection::Accounting)?;
         for leg in &legs[1..] {
-            output = leg.forward(output)?.0;
+            output = leg
+                .forward(output)
+                .ok_or(diagnostics::Rejection::Accounting)?
+                .0;
         }
         if output >= target {
             // Preserve all admission, wallet, L9 and fair-reference protections.
-            let candidate = score(s, path, required, spread)?;
-            return (candidate.output >= target).then_some((required, candidate));
+            let candidate = evaluate_with_plan(s, path, required, spread, 0, 8, None)?;
+            if candidate.protection_blocked {
+                return Err(diagnostics::Rejection::Protection);
+            }
+            return (candidate.output >= target)
+                .then_some((required, candidate))
+                .ok_or(diagnostics::Rejection::Accounting);
         }
         // At a fixed first-hop original pool output the entire route is fixed.
         // Skip that plateau, but preserve subsequent upstream hook dips. Each
         // backward candidate is a necessary lower bound; together these facts
         // establish minimality when the full forward result first reaches target.
-        lower = original.checked_add(1)?;
+        lower = original
+            .checked_add(1)
+            .ok_or(diagnostics::Rejection::Accounting)?;
     }
-    None
+    Err(diagnostics::Rejection::Accounting)
 }
 
 pub(super) fn select_inverse(
@@ -213,21 +267,40 @@ pub(super) fn select_inverse(
     target: u128,
     spread: u128,
 ) -> Option<(u128, Candidate)> {
+    select_inverse_detailed(s, paths, target, spread).0
+}
+
+pub(super) fn select_inverse_detailed(
+    s: &Snapshot,
+    paths: &[Vec<route_paths::PathHop>],
+    target: u128,
+    spread: u128,
+) -> (Option<(u128, Candidate)>, Option<diagnostics::Rejection>) {
     let mut best = None;
+    let mut rejected = None;
     for path in paths.iter().take(MAX_INVERSE_PATHS) {
         let mut work = WorkBudget {
             remaining: MAX_INVERSE_PROBES,
         };
-        if let Some((required, candidate)) = inverse_candidate(s, path, target, spread, &mut work) {
-            if best
-                .as_ref()
-                .is_none_or(|(amount, _): &(u128, Candidate)| required < *amount)
-            {
-                best = Some((required, candidate));
+        match inverse_candidate(s, path, target, spread, &mut work) {
+            Ok((required, candidate)) => {
+                if best
+                    .as_ref()
+                    .is_none_or(|(amount, _): &(u128, Candidate)| required < *amount)
+                {
+                    best = Some((required, candidate));
+                }
+            }
+            Err(reason) => {
+                if rejected
+                    .is_none_or(|old: diagnostics::Rejection| reason.priority() < old.priority())
+                {
+                    rejected = Some(reason);
+                }
             }
         }
     }
-    best
+    (best, rejected)
 }
 
 #[cfg(test)]
@@ -367,10 +440,28 @@ mod tests {
     }
 
     #[test]
+    fn issue1473_receive_reserve_and_fee_limits_are_liquidity_not_protection() {
+        let (mut s, _) = two_hop((1000, 6000), &[]);
+        let m = Arc::make_mut(s.mirrors.get_mut("pair7b").unwrap());
+        m.reserve_0 = 1_000;
+        m.reserve_1 = 1_000;
+        m.fee_bps = 30;
+        let paths = vec![vec![("pair7b".into(), 10, 2)]];
+        for target in [999, 1000, 1001, u128::MAX] {
+            let (best, rejection) = select_inverse_detailed(&s, &paths, target, SCALE / 2);
+            assert!(best.is_none());
+            assert_eq!(rejection, Some(diagnostics::Rejection::Liquidity));
+        }
+    }
+
+    #[test]
     fn exhausted_shared_work_never_publishes_insufficient_composition() {
         let (s, path) = two_hop((1000, 6000), &[]);
         let mut work = WorkBudget { remaining: 2 };
-        assert!(inverse_candidate(&s, &path, 3, SCALE / 2, &mut work).is_none());
+        assert!(matches!(
+            inverse_candidate(&s, &path, 3, SCALE / 2, &mut work),
+            Err(diagnostics::Rejection::Accounting)
+        ));
         assert_eq!(work.remaining, 0);
         assert!(work.probe().is_none());
         assert_eq!(select_inverse(&s, &[path], 3, SCALE / 2).unwrap().0, 2);
@@ -394,7 +485,10 @@ mod tests {
         let mut work = WorkBudget {
             remaining: MAX_INVERSE_PROBES,
         };
-        assert!(inverse_candidate(&s, &path, 1, SCALE / 2, &mut work).is_none());
+        assert!(matches!(
+            inverse_candidate(&s, &path, 1, SCALE / 2, &mut work),
+            Err(diagnostics::Rejection::Accounting)
+        ));
         assert_eq!(
             work.remaining,
             MAX_INVERSE_PROBES - 2 * MAX_FORWARD_REFINEMENTS

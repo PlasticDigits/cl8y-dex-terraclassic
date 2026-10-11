@@ -1,9 +1,15 @@
 import type { IndexerRouteSolveResponse } from '@/types'
 import { getWrappedEquivalent, isNativeDenom } from '@/types'
 import { TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import { isLocalQuoteRaw, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
+import {
+  hasFreshLocalQuoteWindow,
+  hasValidLocalExecutionSupport,
+  isLocalQuoteRaw,
+  LOCAL_ROUTE_UNAVAILABLE,
+} from '@/utils/localRouteQuote'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { spreadMatchesSlippagePercent } from '@/utils/slippageConstraint'
+import { quoteRelativeNetFloor, validatedLocalMarketSpread } from '@/utils/quoteRelativeProtection'
 
 export const DIRECT_WRAPPER_FLOOR_UNSUPPORTED = 'Direct wrapping cannot enforce the reviewed receive floor'
 
@@ -19,13 +25,17 @@ export function validateWrapperOnlyQuote(
   const wrap = isNativeDenom(idx.token_in)
   const unwrap = isNativeDenom(idx.token_out)
   const floor = isLocalQuoteRaw(idx.estimated_amount_out)
-    ? applySlippagePercentFloor(idx.estimated_amount_out, input.slippageTolerancePercent)
+    ? m?.protection_policy === 'quote_relative_v1'
+      ? quoteRelativeNetFloor(idx.estimated_amount_out, input.maxSpreadStr)
+      : applySlippagePercentFloor(idx.estimated_amount_out, input.slippageTolerancePercent)
     : null
   if (
     !m ||
+    !hasValidLocalExecutionSupport(idx) ||
     !w ||
     m.version !== 1 ||
     m.policy !== 'wrapper_only' ||
+    validatedLocalMarketSpread(m) == null ||
     (m.execution_supported !== true && m.execution_supported !== false) ||
     (m.execution_supported === true
       ? w.floor_protocol_version !== 1 || idx.execution_blocker != null
@@ -38,11 +48,7 @@ export function validateWrapperOnlyQuote(
     !spreadMatchesSlippagePercent(input.maxSpreadStr, input.slippageTolerancePercent) ||
     (m.trader ?? '') !== (input.trader ?? '') ||
     (m.sender ?? '') !== (input.sender ?? '') ||
-    !Number.isSafeInteger(m.observed_at_ms) ||
-    !Number.isSafeInteger(m.expires_at_ms) ||
-    m.observed_at_ms > nowMs ||
-    m.expires_at_ms <= nowMs ||
-    m.expires_at_ms <= m.observed_at_ms ||
+    !hasFreshLocalQuoteWindow(m, nowMs) ||
     !Array.isArray(idx.router_operations) ||
     idx.router_operations.length !== 0 ||
     !Array.isArray(idx.hops) ||

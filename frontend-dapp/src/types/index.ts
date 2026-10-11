@@ -816,6 +816,9 @@ export interface IndexerRouteExecutionMetadata {
   generation: string
   input_amount: string
   max_spread: string
+  /** UI tolerance anchors net output floors; the separate market ceiling admits the pinned baseline. */
+  protection_policy?: 'quote_relative_v1'
+  execution_market_spread?: string
   trader?: string | null
   sender?: string | null
   observed_at_ms: number
@@ -862,6 +865,8 @@ export interface IndexerRouteExecutionMetadata {
 }
 
 export interface IndexerRouteSolveResponse {
+  /** When supplied, must be Boolean and agree with the reviewed metadata capability. */
+  execution_supported?: boolean
   execution_blocker?: string | null
   execution_metadata?: IndexerRouteExecutionMetadata
   /** Exact-output sizing metadata (#1376); target is net CW20 raw units. */
@@ -901,6 +906,8 @@ export interface IndexerRouteSolveResponse {
 
 /** Advisory in-flight solve status from `GET /api/v1/route/solve/progress` (GitLab #485). Not a quote. */
 export interface IndexerRouteSolveProgress {
+  /** Local admission generation; observing it never starts producer work. Not signing metadata. */
+  quote_generation?: string
   stage: string
   done: number
   total: number

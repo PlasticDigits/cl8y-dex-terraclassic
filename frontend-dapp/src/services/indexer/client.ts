@@ -1,4 +1,5 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
+import { IndexerApiError, MAX_ROUTE_ERROR_BYTES, parseRouteQuoteError } from '@/utils/routeQuoteErrors'
 import type {
   IndexerCandle,
   IndexerHookEvent,
@@ -128,7 +129,11 @@ async function fetchText(path: string, init?: IndexerFetchInit): Promise<string>
         signal,
       })
       if (!resp.ok) {
-        throw new Error(`Indexer API error: ${resp.status} ${resp.statusText}`)
+        if (path.startsWith('/api/v1/route/solve') && resp.headers.get('content-type')?.includes('application/json')) {
+          throw parseRouteQuoteError(resp.status, await readBoundedErrorBody(resp))
+        }
+        await resp.body?.cancel().catch(() => undefined)
+        throw new IndexerApiError(resp.status)
       }
       return await resp.text()
     } catch (err) {
@@ -140,6 +145,38 @@ async function fetchText(path: string, init?: IndexerFetchInit): Promise<string>
     }
   }
   throw lastError!
+}
+
+/** Read at most one small public error schema, even when the server omits/forges Content-Length. */
+async function readBoundedErrorBody(resp: Response): Promise<string> {
+  const reader = resp.body?.getReader()
+  if (!reader) return ''
+  const chunks: Uint8Array[] = []
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_ROUTE_ERROR_BYTES) {
+        await reader.cancel()
+        return ''
+      }
+      chunks.push(value)
+    }
+    const bytes = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    return new TextDecoder().decode(bytes)
+  } catch {
+    // HTTP remains authoritative even if its body stream fails; never transport-retry a 422.
+    return ''
+  } finally {
+    reader.releaseLock()
+  }
 }
 
 async function fetchJson<T>(path: string, init?: IndexerFetchInit): Promise<T> {
@@ -652,7 +689,7 @@ export interface GetRouteSolveOptions {
   /** @deprecated Hybrid optimization is default when `amountIn` is set; use `poolOnly` to opt out. */
   hybridOptimize?: boolean
   maxMakerFills?: number
-  /** Actual signed pair spread constraint, decimal ratio (#1452). */
+  /** Selected UI net-output tolerance; quote_relative_v1 derives a separate signed market ceiling. */
   maxSpread?: string
   /** Connected wallet for CL8Y fee-tier discounted quotes (GitLab #245). */
   trader?: string
@@ -663,20 +700,20 @@ export interface GetRouteSolveOptions {
   discountBps?: number
 }
 
-/**
- * Multihop route from indexer graph. GET defaults to **hybrid-aware** routing (max **3 hops**) when
- * `amountIn` is set. Pass `poolOnly: true` for legacy pool-only ops (max 4 hops).
- * Uses a longer HTTP timeout than other indexer reads ({@link INDEXER_ROUTE_SOLVE_TIMEOUT_MS})
- * because distant-pair hybrid solves often exceed 15s (GitLab #484).
- * **Limitation:** `token_in` / `token_out` must match indexed CW20 `contract_address` entries; native-only assets without a CW20 row are not routable via this endpoint.
- */
+/** Amount-specific route from initialized local observations, including configured native wrappers.
+ * The explicit quote-relative policy anchors selected UI tolerance to net floors.
+ * Requests never start chain discovery, simulations or producer refreshes. */
 export async function getRouteSolve(
   tokenIn: string,
   tokenOut: string,
   amountIn?: string,
   options?: GetRouteSolveOptions
 ): Promise<IndexerRouteSolveResponse> {
-  const sp = new URLSearchParams({ token_in: tokenIn.trim(), token_out: tokenOut.trim() })
+  const sp = new URLSearchParams({
+    token_in: tokenIn.trim(),
+    token_out: tokenOut.trim(),
+    protection_policy: 'quote_relative_v1',
+  })
   if (amountIn?.trim()) sp.set('amount_in', amountIn.trim())
   if (options?.poolOnly) sp.set('pool_only', 'true')
   else if (options?.hybridOptimize === false) sp.set('hybrid_optimize', 'false')
@@ -702,6 +739,7 @@ export async function getRouteSolveExactOutput(
     token_out: tokenOut.trim(),
     amount_out: amountOut,
     pool_only: 'true',
+    protection_policy: 'quote_relative_v1',
   })
   if (options?.maxSpread != null) sp.set('max_spread', options.maxSpread)
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
@@ -721,13 +759,19 @@ export async function getRouteSolveProgress(
   tokenIn: string,
   tokenOut: string,
   amountIn: string,
-  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal' | 'discountBps'>
+  options?: Pick<
+    GetRouteSolveOptions,
+    'maxMakerFills' | 'trader' | 'sender' | 'signal' | 'discountBps' | 'poolOnly' | 'maxSpread'
+  > & { exactOutput?: boolean }
 ): Promise<IndexerRouteSolveProgress> {
   const sp = new URLSearchParams({
     token_in: tokenIn.trim(),
     token_out: tokenOut.trim(),
-    amount_in: amountIn.trim(),
+    [options?.exactOutput ? 'amount_out' : 'amount_in']: amountIn.trim(),
+    protection_policy: 'quote_relative_v1',
   })
+  if (options?.poolOnly) sp.set('pool_only', 'true')
+  if (options?.maxSpread != null) sp.set('max_spread', options.maxSpread)
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
@@ -754,6 +798,7 @@ export async function postRouteSolve(
       token_out: tokenOut.trim(),
       amount_in: amountIn?.trim() || null,
       hybrid_by_hop: hybridByHop,
+      protection_policy: 'quote_relative_v1',
       max_spread: options?.maxSpread,
       trader: options?.trader?.trim() || null,
       sender: options?.sender?.trim() || null,

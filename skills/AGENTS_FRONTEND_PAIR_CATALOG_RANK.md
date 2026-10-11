@@ -15,7 +15,7 @@ Factory `pairs` (and indexer `sort=volume_24h` when volumes are 0 or raw 18-dec)
 - **Do** rank empty pair browse via [`pairCatalogRank.ts`](../frontend-dapp/src/utils/pairCatalogRank.ts) (`sortPairInfosByCatalog` / `sortIndexerPairsByCatalog`).
 - **Do** format pair-search / `/pool` Vol from `volume_usd_24h` with [`formatPairListVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts). Keep `formatQuoteVolume24h` for remaining quote-token helpers / old indexers.
 - **Do** keep typed pair search on indexer `relevance` / local haystack (**P534-6**).
-- **Do** auto-pick bare `/trade` with `firstCatalogPairAddress`.
+- **Do** use [#1473 identity defaults](AGENTS_TRADING_QUOTE_OUTCOMES.md) for bare trading entry: native `uusd` → configured CL8Y via the native-capable swap flow. Keep catalog rank for browsing; valid explicit factory links retain precedence.
 - **Don’t** treat UST1 / CL8Y / wrap tokens as gems (**U6** / **P534-8**).
 - **Don’t** pass raw 18-dec volume into `formatNum` (compact `T` is not a volume formatter here).
 - **Don’t** change indexer JSON: `volume_quote_24h` stays a **raw** integer. Overlay rank in the dApp. `volume_usd_24h` is the additive USD field ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)).
@@ -30,7 +30,7 @@ Factory `pairs` (and indexer `sort=volume_24h` when volumes are 0 or raw 18-dec)
 | `frontend-dapp/src/utils/chartsOverviewStats.ts` | `formatPairListVolumeUsd` (pool Vol + badges) |
 | `frontend-dapp/src/utils/formatAmount.ts` | `formatQuoteVolume24h` (quote-token helper; not `/pool` Vol) |
 | `frontend-dapp/src/components/trade/PairSearchSelect.tsx` | Empty browse + USD vol badge + Test pairs divider |
-| `frontend-dapp/src/pages/TradePage.tsx` | Catalog auto-pick |
+| `frontend-dapp/src/pages/TradePage.tsx` | Native-capable identity default and explicit factory links |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Catalog rank on pair `MenuSelect` |
 | `frontend-dapp/src/utils/tokenSearchQuery.ts` | Swap token empty browse (**P534-7**) |
 | `frontend-dapp/src/pages/PoolPage.tsx` | Default catalog table ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)); Vol USD via `formatPairListVolumeUsd` ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)) |

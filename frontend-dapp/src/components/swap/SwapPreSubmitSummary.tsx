@@ -12,7 +12,7 @@ export type SwapPreSubmitSummaryProps = {
   /** Plain decimal strings from raw transaction/quote amounts; this signing card always groups in full (#1259). */
   offerAmountHuman: string
   receiveAmountHuman: string
-  /** Slippage protection passed on-chain as max_spread (percent). */
+  /** Selected UI tolerance anchoring quoted net floors; distinct from the derived router market ceiling. */
   maxSpreadPercent: number
   /** Minimum receive after slippage floor; null while quote is incomplete. */
   minReceiveHuman: string | null

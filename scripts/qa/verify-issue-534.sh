@@ -54,8 +54,9 @@ run_step "code: PairSearchSelect uses catalog sort + USD vol badge" \
   grep -qE 'Test pairs' frontend-dapp/src/components/trade/PairSearchSelect.tsx && \
   bash -c '! grep -qE "formatNum\(opt.volumeQuote24h" frontend-dapp/src/components/trade/PairSearchSelect.tsx'
 
-run_step "code: Trade auto-pick + Charts catalog rank" \
-  grep -qE 'firstCatalogPairAddress' frontend-dapp/src/pages/TradePage.tsx && \
+run_step "code: identity-based Trade entry (#1473) + Charts catalog rank" \
+  grep -qE 'defaultRetailSwapTokenPair' frontend-dapp/src/pages/TradePage.tsx && \
+  grep -qE 'new URLSearchParams' frontend-dapp/src/pages/TradePage.tsx && \
   grep -qE 'sortIndexerPairsByCatalog' frontend-dapp/src/pages/ChartsPage.tsx && \
   grep -qE 'formatPairListVolumeUsd' frontend-dapp/src/components/pool/PoolPairsTable.tsx
 

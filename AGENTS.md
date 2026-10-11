@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Trading quote outcomes and defaults
+
+For arbitrary pair/amount rejection classes, indicative pricing, quote recovery or
+trading defaults, follow [TQ1473-1–TQ1473-10](skills/AGENTS_TRADING_QUOTE_OUTCOMES.md)
+([#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473)).
+Run `make verify-issue-1473`; use the [agent checklist and explicit skip policy](docs/qa/issue-1473/README.md).
+Native USTC → CL8Y is the entry default only; scoring applies to all supported
+pairs/amounts. Price-only estimates cannot enter signing. Executed failures remain
+FAIL; unavailable checks may yield PASS WITH SKIPS without closing incomplete acceptance.
+
 ## Provider recovery and live quote readiness
 
 For checkpoint/provider recovery, indexer/API supervision, quote admission loss or

@@ -58,6 +58,7 @@ function fixture(unwrap = false): IndexerRouteSolveResponse {
       generation: 'wrapper-1',
       input_amount: '10000',
       max_spread: '0.05',
+      protection_policy: 'quote_relative_v1',
       trader: 'terra1trader',
       observed_at_ms: Date.now() - 1000,
       expires_at_ms: Date.now() + 10000,
@@ -82,6 +83,46 @@ function fixture(unwrap = false): IndexerRouteSolveResponse {
 }
 beforeEach(() => vi.clearAllMocks())
 describe('zero-hop local wrapper arithmetic #1452', () => {
+  it('rejects a revived old wrapper observation before pricing or signing (#1473)', () => {
+    const idx = fixture()
+    delete idx.execution_blocker
+    const metadata = idx.execution_metadata!
+    metadata.execution_supported = true
+    metadata.wrapper!.floor_protocol_version = 1
+    metadata.observed_at_ms = Date.now() - 30_000
+    metadata.expires_at_ms = Date.now() + 10_000
+    expect(() => validateWrapperOnlyQuote(idx, { ...input, trader: 'terra1trader' })).toThrow('Quote unavailable')
+    expect(() =>
+      assertLocalRouteSubmit(metadata, [], input.simRaw, input.maxSpreadStr, 'terra1trader', metadata.minimum_receive)
+    ).toThrow('Quote unavailable')
+  })
+  it('pins quote-relative direct wrap ceil floors without a router market ceiling (#1473)', () => {
+    const idx = fixture()
+    idx.estimated_amount_out = '2'
+    idx.estimated_amount_out_net = '2'
+    idx.spot_amount_out = '2'
+    delete idx.execution_blocker
+    const metadata = idx.execution_metadata!
+    metadata.input_amount = '2'
+    metadata.protection_policy = 'quote_relative_v1'
+    metadata.execution_supported = true
+    metadata.minimum_receive = '2'
+    Object.assign(metadata.wrapper!, {
+      floor_protocol_version: 1,
+      input_amount: '2',
+      route_input_amount: '2',
+      route_output_amount: '2',
+      minimum_receive_base: '2',
+    })
+    expect(validateWrapperOnlyQuote(idx, { ...input, simRaw: '2', trader: 'terra1trader' })).toBe(metadata)
+    assertLocalRouteSubmit(metadata, [], '2', '0.05', 'terra1trader', '2')
+    metadata.minimum_receive = '1'
+    metadata.wrapper!.minimum_receive_base = '1'
+    expect(() => validateWrapperOnlyQuote(idx, { ...input, simRaw: '2', trader: 'terra1trader' })).toThrow(
+      'Quote unavailable'
+    )
+    expect(() => assertLocalRouteSubmit(metadata, [], '2', '0.05', 'terra1trader', '1')).toThrow('Quote unavailable')
+  })
   it.each([false, true])(
     'quotes and sizes with no RPC but never signs unprotected direct wrapper: unwrap=%s',
     async (unwrap) => {

@@ -3,7 +3,7 @@ import { queryContract } from '@/services/terraclassic/queries'
 import type { IndexerRouteSolveResponse } from '@/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { quoteCw20ExactOutputViaRouteSolve, quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
-import { assertLocalRouteSubmit } from './localRouteQuote'
+import { assertLocalRouteSubmit, validateLocalRouteQuote } from './localRouteQuote'
 
 vi.mock('@/services/indexer/client', () => ({
   getRouteSolve: vi.fn(),
@@ -28,7 +28,13 @@ const input = {
   maxSpreadStr: '0.05',
   quoteTrader: { trader },
 }
-function fixture(): IndexerRouteSolveResponse {
+function fixture(selectedSpread = '0.05'): IndexerRouteSolveResponse {
+  const scale = 10n ** 18n
+  const selected = BigInt((selectedSpread.split('.')[1] ?? '').padEnd(18, '0'))
+  // The second pinned hop has the larger L9 ratio:1000/981000.
+  const denominator = 981000n * (scale - selected)
+  const ceiling = ((1000n * scale + 981000n * selected) * scale + denominator - 1n) / denominator
+  const marketSpread = `0.${ceiling.toString().padStart(18, '0')}`.replace(/0+$/, '').replace(/\.$/, '')
   const hops = [
     { pair: 'pair1', offer_token: from, ask_token: mid },
     { pair: 'pair2', offer_token: mid, ask_token: to },
@@ -65,7 +71,9 @@ function fixture(): IndexerRouteSolveResponse {
       version: 1,
       generation: 'market-7',
       input_amount: '1000000',
-      max_spread: '0.05',
+      max_spread: selectedSpread,
+      protection_policy: 'quote_relative_v1',
+      execution_market_spread: marketSpread,
       trader,
       observed_at_ms: Date.now() - 1000,
       expires_at_ms: Date.now() + 10000,
@@ -82,6 +90,29 @@ function serve(idx = fixture()) {
 
 beforeEach(() => vi.clearAllMocks())
 describe('local executable route #1452', () => {
+  it.each([undefined, 'legacy', 'unknown'] as const)(
+    'rejects a response policy downgrade (%s) on the official opt-in path (#1473)',
+    async (policy) => {
+      const idx = fixture()
+      idx.execution_metadata!.protection_policy = policy as 'quote_relative_v1' | undefined
+      delete idx.execution_metadata!.execution_market_spread
+      serve(idx)
+      await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+      idx.sizing_mode = 'local_pool_exact_output'
+      idx.required_amount_in = input.simRaw
+      idx.target_amount_out = '980000'
+      vi.mocked(getRouteSolveExactOutput).mockResolvedValue(idx)
+      await expect(quoteCw20ExactOutputViaRouteSolve({ ...input, targetRaw: '980000' })).rejects.toThrow(
+        'Quote unavailable'
+      )
+      idx.execution_metadata!.policy = 'declared_hybrid_manual'
+      vi.mocked(postRouteSolve).mockResolvedValue(idx)
+      await expect(quoteCw20ViaRouteSolve({ ...input, declaredHybrid: [null, null] })).rejects.toThrow(
+        'Quote unavailable'
+      )
+      expect(queryContract).not.toHaveBeenCalled()
+    }
+  )
   it('quotes, refreshes and prepares reviewed operations without any chain request', async () => {
     serve()
     const first = await quoteCw20ViaRouteSolve(input)
@@ -144,11 +175,19 @@ describe('local executable route #1452', () => {
     serve(idx)
     await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
   })
-  it('uses contract L9 denominator rather than adding spread to gross output', async () => {
+  it('retains the legacy contract L9 denominator rather than adding spread to gross output', () => {
     const idx = fixture()
+    delete idx.execution_metadata!.protection_policy
+    delete idx.execution_metadata!.execution_market_spread
     idx.execution_metadata!.hops[0].spread_amount = '51000'
-    serve(idx)
-    await expect(quoteCw20ViaRouteSolve(input)).rejects.toThrow('Quote unavailable')
+    expect(() =>
+      validateLocalRouteQuote(idx, idx.router_operations as import('@/services/terraclassic/router').SwapOperation[], {
+        simRaw: input.simRaw,
+        maxSpreadStr: input.maxSpreadStr,
+        slippageTolerancePercent: 5,
+        trader,
+      })
+    ).toThrow('Quote unavailable')
   })
   it('rejects corrupted propagation or operations and does not turn unknown reference into zero', async () => {
     const idx = fixture()
@@ -179,7 +218,7 @@ describe('local executable route #1452', () => {
     [0.14, '0.0014'],
     [0.29, '0.0029'],
   ] as const)('preserves the actual custom %s%% constraint through quote validation', async (percent, spread) => {
-    const idx = fixture()
+    const idx = fixture(spread)
     const atomics = BigInt(Math.round(percent * 100))
     idx.execution_metadata!.max_spread = spread
     for (const [i, hop] of idx.execution_metadata!.hops.entries()) {

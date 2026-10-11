@@ -7,6 +7,12 @@ import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { isRetailHiddenTestToken } from '@/utils/pairCatalogRank'
 import { parseSwapQueryParams, SWAP_QUERY_AMOUNT_MAX_CHARS, type SwapQueryParse } from '@/utils/swapQueryParams'
 import { isTradePairRouteParam } from '@/utils/tradePairRoute'
+import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import {
+  defaultDisplayInverted,
+  displaySideFromFactory,
+  readStoredPairDisplayInverted,
+} from '@/utils/tradePairDisplayOrientation'
 
 export type TradeQueryTicketPrefill = {
   amountHuman: string | null
@@ -106,4 +112,25 @@ export function parseTradeTicketPrefill(search: string | URLSearchParams | null 
     amountHuman: amountOk,
     side: parseSide(lastNonEmptyForKey(params, 'side')),
   }
+}
+
+/** Preserve an explicit pay direction across factory ordering and stored chart orientation (#1473). */
+export function resolveTradeQueryTicketPrefill(
+  search: string | URLSearchParams | null | undefined,
+  pair: PairInfo
+): TradeQueryTicketPrefill {
+  const ticket = parseTradeTicketPrefill(search)
+  if (ticket.side) return ticket
+  const pay = parseSwapQueryParams(search).payId
+  const legs = pairLegIds(pair)
+  if (!pay || !legs) return ticket
+  const factorySide = sameId(pay, legs[0]) ? 'ask' : sameId(pay, legs[1]) ? 'bid' : null
+  if (!factorySide) return ticket
+  const inverted =
+    readStoredPairDisplayInverted(pair.contract_addr) ??
+    defaultDisplayInverted(
+      { contractAddr: legs[0], symbol: getTokenDisplaySymbol(legs[0]) },
+      { contractAddr: legs[1], symbol: getTokenDisplaySymbol(legs[1]) }
+    )
+  return { ...ticket, side: displaySideFromFactory(factorySide, inverted) }
 }

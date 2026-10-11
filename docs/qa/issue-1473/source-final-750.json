@@ -1,0 +1,116 @@
+{
+  "issue": 1473,
+  "source_revision": "72084767e3a85fcfedb94a83bb027b3454e0ad82",
+  "source_dirty": true,
+  "source_fingerprint_start": "7d0df872c5d2f1b041f6e6f241973477aa6de6bd5d4235cdfce1ad9c3cde980b",
+  "source_fingerprint_end": "7d0df872c5d2f1b041f6e6f241973477aa6de6bd5d4235cdfce1ad9c3cde980b",
+  "core_utc_start": "2026-10-11T08:21:47Z",
+  "core_utc_end": "2026-10-11T08:27:40Z",
+  "core_counts": {
+    "pass": 14,
+    "fail": 0,
+    "skip": 3
+  },
+  "core_pass_groups": [
+    "first shared corpus and actual socket safety",
+    "first indexer integer/rejection/zero-RPC/security regressions",
+    "first disposable socket matrix and mode regressions",
+    "first frontend intent/default/signing regressions",
+    "retest shared corpus and actual socket safety",
+    "retest indexer integer/rejection/zero-RPC/security regressions",
+    "retest disposable socket matrix and mode regressions",
+    "retest frontend intent/default/signing regressions",
+    "frontend types",
+    "Rust formatting",
+    "verifier shell syntax",
+    "invariants and checklist crosslinks",
+    "diff whitespace",
+    "stable source across first/retest"
+  ],
+  "standalone_browser": {
+    "receipt": "browser-750-pass-summary.json",
+    "source_fingerprint_matches": true,
+    "browser_latency_budget_ms": 750,
+    "scenarios": 4250,
+    "useful_quotes": 3948,
+    "bounded_rejections": 302,
+    "failures": 0,
+    "provider_requests": 0,
+    "verdict": "PASS under temporary 750 ms user criterion"
+  },
+  "composite_counts": {
+    "pass": 15,
+    "fail": 0,
+    "skip": 2
+  },
+  "overall": "PASS WITH SKIPS",
+  "scope": "Selected issue1473 source and separately executed controlled desktop/phone first/retest, not complete deployment or broader acceptance",
+  "remaining_skips": [
+    "Deployed frontend/backend provenance and sustained full matrix",
+    "Physical devices and complete funded settlement coverage"
+  ],
+  "executed_failure_outside_selected_scope": "Issue1396 custom-bridge host access remains FAIL; passing owned database paths do not erase it",
+  "historical_500ms_failures_preserved": true,
+  "rust_test_summaries": [
+    {
+      "passed": 774,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 774,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    }
+  ]
+}

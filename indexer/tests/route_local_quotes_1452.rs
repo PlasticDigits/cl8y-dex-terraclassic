@@ -809,6 +809,104 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
         !strict.status().is_success(),
         "a cached 5% quote must not satisfy stricter ineligible spread"
     );
+    assert_eq!(strict.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        strict.headers()[reqwest::header::CONTENT_TYPE],
+        "application/json"
+    );
+    let rejected: Value = strict.json().await.unwrap();
+    assert_eq!(rejected["error"], "protection");
+    assert_eq!(rejected["execution_supported"], false);
+    assert!(
+        rejected["indicative_amount_out"]
+            .as_str()
+            .unwrap()
+            .parse::<u128>()
+            .unwrap()
+            > 0
+    );
+    for field in [
+        "router_operations",
+        "execution_metadata",
+        "minimum_receive",
+        "hops",
+    ] {
+        assert!(
+            rejected[field].is_null(),
+            "indicative response leaked signing material {field}"
+        );
+    }
+    // Explicit current policy prices the same amount under the UI net floor
+    // while keeping a reviewed amount-specific L9 contract ceiling. Legacy
+    // requests above retain their original strict market-spread behavior.
+    let relative = client
+        .get(format!("{base}/api/v1/route/solve"))
+        .query(&[
+            ("token_in", CL8Y),
+            ("token_out", USTR),
+            ("amount_in", "100000000000000000"),
+            ("max_spread", "0.00001"),
+            ("protection_policy", "quote_relative_v1"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert!(relative.status().is_success());
+    let relative: Value = relative.json().await.unwrap();
+    assert_eq!(
+        relative["execution_metadata"]["protection_policy"],
+        "quote_relative_v1"
+    );
+    assert_eq!(relative["execution_metadata"]["max_spread"], "0.00001");
+    assert_ne!(
+        relative["execution_metadata"]["execution_market_spread"],
+        "0.00001"
+    );
+    assert_eq!(
+        relative["estimated_amount_out_net"],
+        baseline["estimated_amount_out_net"]
+    );
+    let progress: Value = progress.json().await.unwrap();
+    assert_eq!(progress["quote_generation"], rejected["generation"]);
+    for endpoint in ["solve", "solve/best"] {
+        for (input, output) in [(CL8Y, USTR), (USTR, CL8Y)] {
+            for protection in ["0.01", "0.05", "0.30"] {
+                let repeated = client
+                    .get(format!("{base}/api/v1/route/{endpoint}"))
+                    .query(&[
+                        ("token_in", input),
+                        ("token_out", output),
+                        ("amount_in", "100000000000000000"),
+                        ("max_spread", protection),
+                        ("protection_policy", "quote_relative_v1"),
+                    ])
+                    .send()
+                    .await
+                    .unwrap();
+                assert!(
+                    repeated.status().is_success(),
+                    "amount/direction/protection change must clear obsolete rejection"
+                );
+                let repeated: Value = repeated.json().await.unwrap();
+                assert!(
+                    repeated["estimated_amount_out_net"]
+                        .as_str()
+                        .unwrap()
+                        .parse::<u128>()
+                        .unwrap()
+                        > 0
+                );
+                assert_eq!(repeated["token_in"], input);
+                assert_eq!(repeated["token_out"], output);
+                assert!(
+                    repeated["execution_metadata"]["expires_at_ms"]
+                        .as_i64()
+                        .unwrap()
+                        > chrono::Utc::now().timestamp_millis()
+                );
+            }
+        }
+    }
     assert_eq!(
         upstream.received_requests().await.unwrap().len(),
         0,
@@ -860,9 +958,9 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
         "freeze admission changes must bind quote generation"
     );
 
-    // Controlled observation ages exercise the old 12/15/30/90-second cache boundaries
-    // without sleeping or changing economic data. Synthetic admission is confined to this
-    // fixture; the earlier socket measurements exercised production ingestion admission.
+    // Controlled ages retain the old 12/15/30/90-second regression boundaries.
+    // Only original observations below the hard 20-second quote TTL are usable,
+    // even when a synthetic mirror fixture supplies a longer loading max age.
     let addresses: std::collections::HashMap<i32, String> = assets::get_all_assets(&pool)
         .await
         .unwrap()
@@ -913,6 +1011,24 @@ async fn initialized_worker_socket_quotes_are_useful_fast_and_network_free() {
             mirrors,
             120_000,
         );
+        if seconds >= 20 {
+            let expired = client
+                .get(format!("{base}/api/v1/route/solve"))
+                .query(&[
+                    ("token_in", CL8Y),
+                    ("token_out", USTR),
+                    ("amount_in", "100000000000000000"),
+                    ("max_spread", "0.05"),
+                ])
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(expired.status(), reqwest::StatusCode::SERVICE_UNAVAILABLE);
+            let expired: Value = expired.json().await.unwrap();
+            assert_eq!(expired["error"], "stale_observations");
+            assert!(expired["indicative_amount_out"].is_null());
+            continue;
+        }
         let (aged, _) = useful_quote(&client, &base, CL8Y, "100000000000000000").await;
         assert_eq!(
             aged["estimated_amount_out_net"],

@@ -33,6 +33,8 @@ import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@
 import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY, quoteDisclosureForIndexerKind } from '@/utils/directHybridQuote'
 import { formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
+import { isIndexerLocalQuoteRejection } from '@/utils/indexerErrors'
 import {
   evaluateLimitOrderEscrowPlaceGate,
   LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT,
@@ -393,7 +395,7 @@ export function TradeMarketOrderPanel({
   const { submitPayRaw, simData, minReceived, isSubmitReady, snapshottedHybrid } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
-    simQuery,
+    simQuery: isIndexerLocalQuoteRejection(simQuery.error) ? { ...simQuery, data: undefined } : simQuery,
     slippageTolerance,
     extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay || routeRiskBlocked,
     hybrid: {
@@ -458,7 +460,7 @@ export function TradeMarketOrderPanel({
       }
       if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
-      if (routeRiskBlocked) throw new Error('Slippage is too high')
+      if (routeRiskBlocked) throw new Error('Price impact is too high')
       if (!simData) throw new Error('Quote unavailable')
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived
@@ -551,10 +553,22 @@ export function TradeMarketOrderPanel({
     [simQuery.data?.indexerOperations, pairs, selectedPair, fromToken, toToken]
   )
 
+  useQuoteErrorRecovery({
+    error: simQuery.error,
+    currentIntent: simQuery.isError && !simQuery.isFetching && rawInputAmount === debouncedRawInputAmount,
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amount: debouncedRawInputAmount,
+    trader: address ?? undefined,
+    maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: maxSpreadStr,
+    refetch: simQuery.refetch,
+  })
+  const receiveRaw = simData?.return_amount
   const receiveHuman = theaterRouteQuote
     ? '—'
-    : simData?.return_amount != null && simData.return_amount !== '' && receiveDecimals != null
-      ? formatTokenAmount(simData.return_amount, receiveDecimals, 6)
+    : receiveRaw != null && receiveRaw !== '' && receiveDecimals != null
+      ? formatTokenAmount(receiveRaw, receiveDecimals, 6)
       : '—'
 
   const minReceiveHuman = theaterRouteQuote
@@ -613,7 +627,7 @@ export function TradeMarketOrderPanel({
             priceImpactTooHigh
               ? 'Hop spread exceeds slippage protection'
               : routeRiskBlocked
-                ? 'Slippage is too high'
+                ? 'Price impact is too high'
                 : liveSplit?.bookExceedsPay
                   ? 'Book leg exceeds pay'
                   : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
@@ -709,17 +723,21 @@ export function TradeMarketOrderPanel({
             Quoting…
           </div>
         )}
-        {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
-          <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
-            {humanizeUserFacingErrorFromUnknown(simQuery.error)}
-          </p>
-        )}
+        {simQuery.isError &&
+          rawInputAmount !== '0' &&
+          !showReceiveCalculating &&
+          rawInputAmount === debouncedRawInputAmount &&
+          !simQuery.isFetching && (
+            <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
+              {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+            </p>
+          )}
         {liveSplit?.bookExceedsPay && (
           <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
             Book leg cannot exceed pay amount
           </p>
         )}
-        {simQuery.data && rawInputAmount !== '0' && (
+        {simData && rawInputAmount !== '0' && (
           <div className="flex justify-between gap-2 text-[10px]" data-testid="trade-market-quote">
             <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
             <span className="font-mono text-right" data-testid="trade-market-expected-receive">
@@ -867,7 +885,7 @@ export function TradeMarketOrderPanel({
                   )}
                   {marketImpactAside?.kind === 'route' ? (
                     <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
-                      Expected slippage {marketImpactAside.percent}%.
+                      Price impact {marketImpactAside.percent}%.
                     </p>
                   ) : marketImpactAside?.kind === 'worst_hop' ? (
                     <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">

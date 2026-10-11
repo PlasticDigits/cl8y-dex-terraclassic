@@ -18,7 +18,7 @@ export function SwapImpactAside({
   if (aside.kind === 'route') {
     return (
       <p className="mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }} data-testid={testId}>
-        Expected slippage {aside.percent}%.
+        Price impact {aside.percent}%.
       </p>
     )
   }

@@ -97,7 +97,7 @@ fn prerequisites(
             .then(|| s.pool_mirrors.get(pair))
             .flatten()
             .filter(|mirror| {
-                !sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
+                !sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
                     && matches!(
                         mirror.freshness,
                         sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
@@ -122,7 +122,7 @@ fn prerequisites(
         ) {
             return Some(Reason::Missing);
         }
-        if sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
+        if sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
             || mirror.freshness == sim::MirrorFreshness::Stale
         {
             return Some(Reason::Stale);
@@ -140,7 +140,11 @@ fn prerequisites(
                     return Some(Reason::Stale);
                 }
                 if tax.rates(s.tax_trader.as_deref(), pair).is_none() {
-                    return Some(Reason::Missing);
+                    return Some(match tax_rejection(tax, s.tax_trader.as_deref(), pair) {
+                        Rejection::Stale => Reason::Stale,
+                        Rejection::TradingBlocked => Reason::Protection,
+                        _ => Reason::Missing,
+                    });
                 }
             }
         }
@@ -269,18 +273,349 @@ pub(super) fn candidate_error(
         mirrors = s.mirrors.len(),
         "Local quote candidate unavailable"
     );
-    match reason {
-        Reason::Protection => eligible_error(),
-        Reason::Unsupported => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Local execution quote unavailable for this route".into(),
-        ),
-        Reason::Missing | Reason::Stale => unavailable(),
+    let error = match reason {
+        Reason::Protection => {
+            if paths.is_empty()
+                && inventory.as_ref().is_none_or(|i| {
+                    route_paths::find_paths_top_k_with_work_budget(
+                        start, goal, &i.pairs, 4, 1024, MAX_WORK,
+                    )
+                    .0
+                    .is_empty()
+                })
+            {
+                Rejection::NoRoute.error()
+            } else if paths
+                .iter()
+                .any(|p| prerequisites(s, p, now_ms(), plan).is_none())
+            {
+                Rejection::Protection.error()
+            } else {
+                Rejection::TradingBlocked.error()
+            }
+        }
+        Reason::Unsupported => Rejection::Unsupported.error(),
+        Reason::Missing => Rejection::Missing.error(),
+        Reason::Stale => Rejection::Stale.error(),
+    };
+    bound_error(s, error)
+}
+
+/// Fixed-cardinality public contract. Never carry assets, actors or upstream bodies.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Rejection {
+    Missing,
+    Stale,
+    Unsupported,
+    Dust,
+    Liquidity,
+    Accounting,
+    Protection,
+    TradingBlocked,
+    NoRoute,
+    InvalidRequest,
+    AmountLimit,
+    FairDeviation,
+}
+impl Rejection {
+    pub(super) fn code(self) -> &'static str {
+        match self {
+            Self::Missing => "missing_observations",
+            Self::Stale => "stale_observations",
+            Self::Unsupported => "unsupported_semantics",
+            Self::Dust => "amount_too_small",
+            Self::Liquidity => "insufficient_liquidity",
+            Self::Accounting => "accounting_unavailable",
+            Self::Protection => "protection",
+            Self::TradingBlocked => "trading_blocked",
+            Self::NoRoute => "no_route",
+            Self::InvalidRequest => "invalid_request",
+            Self::AmountLimit => "amount_too_large",
+            Self::FairDeviation => "price_impact_too_high",
+        }
+    }
+    pub(super) fn priority(self) -> u8 {
+        // Real fully priced protection wins over broken alternatives. Never let
+        // a missing alternative turn a confirmed dust/liquidity rejection generic.
+        match self {
+            Self::Protection => 0,
+            Self::FairDeviation => 1,
+            Self::Dust => 2,
+            Self::Liquidity | Self::AmountLimit => 3,
+            Self::Accounting => 4,
+            Self::Missing => 5,
+            Self::Stale => 6,
+            Self::Unsupported => 7,
+            Self::TradingBlocked => 8,
+            Self::NoRoute => 9,
+            Self::InvalidRequest => 10,
+        }
+    }
+    pub(super) fn error(self) -> Error {
+        let status = match self {
+            Self::InvalidRequest => StatusCode::BAD_REQUEST,
+            Self::Missing | Self::Stale | Self::Accounting => StatusCode::SERVICE_UNAVAILABLE,
+            _ => StatusCode::UNPROCESSABLE_ENTITY,
+        };
+        (status, json!({"error":self.code()}).to_string())
     }
 }
+pub(super) fn path_prerequisite_rejection(
+    s: &Snapshot,
+    path: &[route_paths::PathHop],
+) -> Option<Rejection> {
+    prerequisites(s, path, now_ms(), None).map(|reason| match reason {
+        Reason::Missing => Rejection::Missing,
+        Reason::Stale => Rejection::Stale,
+        Reason::Unsupported => Rejection::Unsupported,
+        Reason::Protection => Rejection::TradingBlocked,
+    })
+}
+pub(super) fn bound_error(s: &Snapshot, mut error: Error) -> Error {
+    if let Ok(mut body) = serde_json::from_str::<Value>(&error.1) {
+        if body["generation"].is_null() {
+            body["generation"] = json!(s.generation);
+        }
+        error.1 = body.to_string();
+    }
+    error
+}
+pub(super) fn tax_rejection(
+    tax: &tax::TokenObservation,
+    actor: Option<&str>,
+    pair: &str,
+) -> Rejection {
+    let at = now_ms();
+    if actor
+        .and_then(|a| tax.actors.get(a))
+        .is_some_and(|a| a.protocol)
+    {
+        return Rejection::TradingBlocked;
+    }
+    if tax.observed_at_ms > at || at.saturating_sub(tax.observed_at_ms) >= CONFIG_TTL_MS {
+        return Rejection::Stale;
+    }
+    if !tax.pairs.contains(pair) {
+        return Rejection::Missing;
+    }
+    if let Some(actor) = actor {
+        let Some(observed) = tax.actors.get(actor) else {
+            return Rejection::Missing;
+        };
+        if observed.observed_at_ms > at
+            || at.saturating_sub(observed.observed_at_ms) >= CONFIG_TTL_MS
+        {
+            return Rejection::Stale;
+        }
+        if tax.max_wallet.is_some() && observed.balance.is_none() {
+            return Rejection::Missing;
+        }
+    } else if tax.max_wallet.is_some() {
+        return Rejection::Missing;
+    }
+    Rejection::TradingBlocked
+}
+pub(super) fn simulation_rejection(error: sim::DbSimError) -> Rejection {
+    match error {
+        sim::DbSimError::InsufficientLiquidity | sim::DbSimError::ImplausibleHop => {
+            Rejection::Liquidity
+        }
+        sim::DbSimError::StaleMirror => Rejection::Stale,
+        sim::DbSimError::MissingMirror
+        | sim::DbSimError::IncompleteFeeGeneration { .. }
+        | sim::DbSimError::FeeGenerationRejected => Rejection::Missing,
+        _ => Rejection::Accounting,
+    }
+}
+pub(super) fn mirror_rejection(s: &Snapshot, pair: &str, needs_book: bool) -> Rejection {
+    let views = s
+        .mirrors
+        .get(pair)
+        .into_iter()
+        .chain((!needs_book).then(|| s.pool_mirrors.get(pair)).flatten());
+    if views.clone().any(|m| {
+        sim::is_snapshot_stale(m.snapshot_at, observation_max_age(s))
+            || m.freshness == sim::MirrorFreshness::Stale
+    }) {
+        Rejection::Stale
+    } else {
+        Rejection::Missing
+    }
+}
+pub(super) fn reference_rejection(
+    s: &Snapshot,
+    path: &[route_paths::PathHop],
+    input: u128,
+) -> Rejection {
+    for id in [path[0].1, path.last().unwrap().2] {
+        let Some(p) = s.references.prices.get(&id) else {
+            return Rejection::Missing;
+        };
+        if p.decimals > 38 || p.price <= bigdecimal::BigDecimal::from(0) {
+            return Rejection::Unsupported;
+        }
+        if p.as_of > Utc::now() || now_ms().saturating_sub(p.as_of.timestamp_millis()) > 20_000 {
+            return Rejection::Stale;
+        }
+    }
+    // Both fresh marks exist, but integer conversion is unrepresentable. A
+    // zero reference is not zero impact and must never admit execution.
+    let a = &s.references.prices[&path[0].1];
+    let b = &s.references.prices[&path.last().unwrap().2];
+    let unrounded = bigdecimal::BigDecimal::from(input)
+        * &a.price
+        * bigdecimal::BigDecimal::from(10u128.pow(b.decimals))
+        / (&b.price * bigdecimal::BigDecimal::from(10u128.pow(a.decimals)));
+    if unrounded < bigdecimal::BigDecimal::from(1) {
+        Rejection::Dust
+    } else {
+        Rejection::Accounting
+    }
+}
+pub(super) fn selection_error(
+    namespace: &str,
+    s: &Snapshot,
+    paths: &[Vec<route_paths::PathHop>],
+    start: i32,
+    goal: i32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+    q: &route_solver::SolveRouteParams,
+    input: u128,
+    spread: u128,
+    native: Option<&NativeContext>,
+    selected: Selection,
+) -> Error {
+    let reason = selected.rejected;
+    let indicative = selected.indicative;
+    let Some(reason) = reason else {
+        return candidate_error(namespace, s, paths, start, goal, plan);
+    };
+    tracing::debug!(
+        reason = reason.code(),
+        candidates = paths.len(),
+        "Local quote candidate rejected"
+    );
+    let mut error = reason.error();
+    if reason == Rejection::Protection {
+        if let Some(body) =
+            indicative.and_then(|c| final_response(s, q, &c, input, spread, paths.len(), native))
+        {
+            let expiry = body["execution_metadata"]["expires_at_ms"]
+                .as_i64()
+                .unwrap_or(0);
+            if expiry > now_ms() {
+                error.1 = json!({"error":reason.code(),"indicative_amount_out":body["estimated_amount_out_net"],
+                    "execution_supported":false,"generation":body["execution_metadata"]["generation"],
+                    "observed_at_ms":body["execution_metadata"]["observed_at_ms"],"expires_at_ms":expiry}).to_string();
+            }
+        }
+    }
+    bound_error(s, error)
+}
+#[cfg(test)]
+pub(super) fn amount_error(
+    namespace: &str,
+    s: &Snapshot,
+    paths: &[Vec<route_paths::PathHop>],
+    start: i32,
+    goal: i32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+    q: &route_solver::SolveRouteParams,
+    input: u128,
+    spread: u128,
+    book_allowed: bool,
+    maker_fills: u32,
+    native: Option<&NativeContext>,
+) -> Error {
+    selection_error(
+        namespace,
+        s,
+        paths,
+        start,
+        goal,
+        plan,
+        q,
+        input,
+        spread,
+        native,
+        select_detailed(s, paths, input, spread, book_allowed, maker_fills, plan),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn issue1473_known_tax_policy_requires_original_actor_data_and_preserves_negatives() {
+        let mut s = super::super::tests::fixture();
+        s.tax_trader = Some("synthetic-wallet".into());
+        s.taxes.insert(
+            "out18".into(),
+            tax::TokenObservation {
+                policy_identity: "synthetic".into(),
+                code_id: 1,
+                buy_bps: 0,
+                sell_bps: 0,
+                observed_at_ms: now_ms(),
+                max_wallet: Some(100),
+                pairs: HashSet::from(["pair7b".into()]),
+                actors: Default::default(),
+            },
+        );
+        let path = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+        let classify = |s: &Snapshot| {
+            evaluate_with_plan(s, &path, 10u128.pow(18), SCALE / 20, 0, 8, None).err()
+        };
+        assert_eq!(classify(&s), Some(Rejection::Missing));
+        s.taxes.get_mut("out18").unwrap().actors.insert(
+            "synthetic-wallet".into(),
+            tax::ActorObservation {
+                observed_at_ms: now_ms(),
+                protocol: false,
+                manager: false,
+                balance: None,
+            },
+        );
+        assert_eq!(
+            classify(&s),
+            Some(Rejection::Missing),
+            "missing balance cannot become a known wallet-limit violation"
+        );
+        s.taxes
+            .get_mut("out18")
+            .unwrap()
+            .actors
+            .get_mut("synthetic-wallet")
+            .unwrap()
+            .balance = Some(0);
+        assert_eq!(
+            classify(&s),
+            Some(Rejection::TradingBlocked),
+            "fresh known credit exceeds its cap"
+        );
+        s.taxes.get_mut("out18").unwrap().max_wallet = Some(2 * 10u128.pow(18));
+        assert!(classify(&s).is_none());
+        s.taxes
+            .get_mut("out18")
+            .unwrap()
+            .actors
+            .get_mut("synthetic-wallet")
+            .unwrap()
+            .observed_at_ms -= CONFIG_TTL_MS;
+        assert_eq!(classify(&s), Some(Rejection::Stale));
+        s.taxes
+            .get_mut("out18")
+            .unwrap()
+            .actors
+            .get_mut("synthetic-wallet")
+            .unwrap()
+            .protocol = true;
+        assert_eq!(
+            classify(&s),
+            Some(Rejection::TradingBlocked),
+            "known protocol negatives cannot be erased by age"
+        );
+    }
     #[test]
     fn missing_stale_prerequisites_are_not_amount_protection_and_healthy_alternative_wins() {
         let mut s = super::super::tests::fixture();

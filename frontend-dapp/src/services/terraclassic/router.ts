@@ -9,6 +9,7 @@ import {
 } from '@/utils/constants'
 import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
+import { validatedLocalMarketSpread } from '@/utils/quoteRelativeProtection'
 import {
   fetchNativeTransferTaxParams,
   grossUlunaForTargetNet,
@@ -147,7 +148,7 @@ export async function executeMultiHopSwap(
       [taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
         ...(taxFundingVersion === 1 ? { funding_version: 1 } : {}),
         operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-        max_spread: maxSpread,
+        max_spread: localExecution ? validatedLocalMarketSpread(localExecution)! : maxSpread,
         minimum_receive: minimumReceive,
         to,
         deadline,
@@ -578,7 +579,7 @@ export async function executeLocalNativeRoute(
           [metadata.tax_funding_version === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
             ...(metadata.tax_funding_version === 1 ? { funding_version: 1 } : {}),
             operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-            max_spread: maxSpread,
+            max_spread: validatedLocalMarketSpread(metadata)!,
             minimum_receive: minimumReceive,
             deadline,
             ...(w.unwrap_output ? { unwrap_output: true } : {}),

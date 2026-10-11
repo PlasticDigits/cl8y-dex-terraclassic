@@ -143,7 +143,8 @@ async fn recovery1464_completed_tax_outage_preserves_original_policy_and_actual_
     phase.store(2, Ordering::SeqCst);
     local_quote::ingest_once(&state).await.unwrap();
     let rejected = server.get(&request(&seed)).await;
-    rejected.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    rejected.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(rejected.json::<Value>()["error"], "unsupported_semantics");
     assert!(!rejected.text().contains("estimated_amount_out"));
     phase.store(0, Ordering::SeqCst);
     local_quote::ingest_once(&state).await.unwrap();
@@ -152,7 +153,8 @@ async fn recovery1464_completed_tax_outage_preserves_original_policy_and_actual_
         phase.store(changed, Ordering::SeqCst);
         local_quote::ingest_once(&state).await.unwrap();
         let rejected = server.get(&request(&seed)).await;
-        rejected.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+        rejected.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(rejected.json::<Value>()["error"], "unsupported_semantics");
         assert!(
             !rejected.text().contains("estimated_amount_out"),
             "completed policy change cannot hide behind a later provider outage"
@@ -269,7 +271,8 @@ async fn recovery1464_known_bad_preview_revokes_before_later_outage_unknown_alte
     phase.store(2, Ordering::SeqCst);
     local_quote::ingest_once(&state).await.unwrap();
     let rejected = server.get(&request(&seed)).await;
-    rejected.assert_status(axum::http::StatusCode::SERVICE_UNAVAILABLE);
+    rejected.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(rejected.json::<Value>()["error"], "unsupported_semantics");
     assert!(!rejected.text().contains("estimated_amount_out"));
     assert!(
         negative_reads.load(Ordering::SeqCst) > 0,
