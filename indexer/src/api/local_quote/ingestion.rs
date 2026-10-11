@@ -291,6 +291,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         return Ok(());
     }
     let mut mirrors = HashMap::new();
+    let mut pool_mirrors = HashMap::new();
     let mut config_expiries = s.config_expiries.clone();
     for pair in &s.pairs {
         if s.config_expiries
@@ -308,7 +309,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
             .pair_contexts
             .get(&pair.contract_address)
             .map(String::as_str);
-        if let Some((mirror, retained_expiry)) =
+        if let Some((views, retained_expiry)) =
             load_qualified_mirror(state, pair, &s.addresses, s.max_age_ms, context).await
         {
             if let Some(expiry) = retained_expiry {
@@ -317,7 +318,12 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
                     .and_modify(|at| *at = (*at).min(expiry))
                     .or_insert(expiry);
             }
-            mirrors.insert(pair.contract_address.clone(), mirror);
+            if let Some(mirror) = views.hybrid {
+                mirrors.insert(pair.contract_address.clone(), mirror);
+            }
+            if let Some(mirror) = views.pool {
+                pool_mirrors.insert(pair.contract_address.clone(), mirror);
+            }
         }
     }
     publish(
@@ -325,6 +331,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         s.pairs.clone(),
         s.addresses.clone(),
         mirrors,
+        pool_mirrors,
         s.max_age_ms,
         s.hooks.clone(),
         s.config_expiry_ms,
@@ -349,32 +356,57 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
 
 /// Shared by reserve and configuration publication. Only the explicit fee
 /// generation error permits retention; SQL, malformed/zero data and negatives do not.
+pub(super) struct QualifiedViews {
+    pub hybrid: Option<Arc<sim::HopMirror>>,
+    pub pool: Option<Arc<sim::HopMirror>>,
+}
 pub(super) async fn load_qualified_mirror(
     state: &AppState,
     pair: &pairs::PairRow,
     addresses: &HashMap<i32, String>,
     max_age_ms: u64,
     context: Option<&str>,
-) -> Option<(Arc<sim::HopMirror>, Option<i64>)> {
+) -> Option<(QualifiedViews, Option<i64>)> {
     let namespace = state.lcd.chain_cache_namespace();
-    match sim::load_local_mirror_for_quote(&state.pool, pair, addresses, max_age_ms, &namespace)
+    match sim::load_local_views_for_quote(&state.pool, pair, addresses, max_age_ms, &namespace)
         .await
     {
-        Ok(mirror) => Some((Arc::new(mirror), None)),
+        Ok(views) => Some((
+            QualifiedViews {
+                hybrid: views.hybrid.map(Arc::new),
+                pool: views.pool.map(Arc::new),
+            },
+            None,
+        )),
         Err(sim::DbSimError::IncompleteFeeGeneration {
             height,
             observed_at,
             reserve_0,
             reserve_1,
-        }) => crate::indexer::fee_phase::retained(
-            &namespace,
-            pair.id,
-            context?,
-            height,
-            observed_at,
-            (reserve_0, reserve_1),
-        )
-        .map(|(mirror, expiry)| (mirror, Some(expiry))),
+        }) => {
+            let views = crate::indexer::fee_phase::retained_views(
+                &namespace,
+                pair.id,
+                context?,
+                height,
+                observed_at,
+                (reserve_0, reserve_1),
+            )?;
+            // Retention never extends the original qualification of either view.
+            let expiry = views
+                .hybrid
+                .iter()
+                .chain(views.pool.iter())
+                .map(|(_, expiry)| *expiry)
+                .min()?;
+            Some((
+                QualifiedViews {
+                    hybrid: views.hybrid.map(|(mirror, _)| mirror),
+                    pool: views.pool.map(|(mirror, _)| mirror),
+                },
+                Some(expiry),
+            ))
+        }
         Err(sim::DbSimError::FeeGenerationRejected) => None,
         Err(_) => {
             crate::indexer::fee_phase::reject(&namespace, pair.id, None, Utc::now());

@@ -1,0 +1,56 @@
+{
+  "source_revision": "a585a0505dd509263d2f8f78526baae3d4f37dd3",
+  "rust_fingerprint": "b8e1888a6c7479bb362928a8e524ae7ca08b3b1f9857bb36fc012256ec0a03b6",
+  "results": {
+    "1464": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-11T00:13:49Z",
+      "utc_end": "2026-10-11T00:18:45Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1464"
+    },
+    "1452": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "utc_start": "2026-10-11T00:18:45Z",
+      "utc_end": "2026-10-11T00:24:16Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1452"
+    },
+    "1453": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-11T00:24:16Z",
+      "utc_end": "2026-10-11T00:27:21Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1453"
+    },
+    "1394": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0,
+      "utc_start": "2026-10-11T00:27:21Z",
+      "utc_end": "2026-10-11T00:28:04Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1394"
+    },
+    "1392": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 2,
+      "utc_start": "2026-10-11T00:28:04Z",
+      "utc_end": "2026-10-11T00:35:51Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1392"
+    },
+    "1396": {
+      "pass": 28,
+      "fail": 0,
+      "skip": 3,
+      "utc_start": "2026-10-11T00:35:51Z",
+      "utc_end": "2026-10-11T00:38:43Z",
+      "command": "CARGO_BUILD_JOBS=2 make verify-issue-1396"
+    }
+  },
+  "source_scope_overall": "PASS WITH SKIPS",
+  "scope": "Six frozen final-source commands each contain their own first/retest; explicit unavailable scope remains unverified. No hosted or deployed acceptance inferred."
+}

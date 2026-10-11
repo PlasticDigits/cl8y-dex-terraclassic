@@ -1,0 +1,126 @@
+{
+  "scope": "Initial run retained; source changed during review, so stable first/retest verification is required. Executed test assertions passed; unchanged-source guard failed and is not skipped.",
+  "source_base_revision": "bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a",
+  "initial_rust_fingerprint": "6a006d332d0ac58b264a559b0502b2a7df1e9a7a3f0432b6824084e10e65bda3",
+  "final_rust_fingerprint": "1a048f6c354a56f0ce62493bb03b79d25c146da86a0c302ce3218fcf37f5fc8f",
+  "command": "CARGO_BUILD_JOBS=2 make verify-issue-1464",
+  "utc_start": "2026-10-11T01:55:44Z",
+  "utc_end": "2026-10-11T02:05:15Z",
+  "pass": 10,
+  "fail": 1,
+  "skip": 2,
+  "status": "FAIL",
+  "failed_stage": "source changed during verification; repeat on stable final source",
+  "test_summaries": [
+    {
+      "passed": 93,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 72,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 80,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 93,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "passed": 74,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 81,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    }
+  ]
+}

@@ -1389,17 +1389,30 @@ pub async fn load_local_mirror(
     addresses: &HashMap<i32, String>,
     max_age_ms: u64,
 ) -> Result<HopMirror, DbSimError> {
-    load_local_mirror_inner(pool, pair, addresses, max_age_ms, None).await
+    load_local_mirror_inner(pool, pair, addresses, max_age_ms, None)
+        .await
+        .map(|(mirror, _, _)| mirror)
 }
 
-pub(crate) async fn load_local_mirror_for_quote(
+/// Both complete views share one repeatable-read capture. Pool economics never
+/// borrow the hybrid fee/book, and publication keeps their original timestamps.
+pub(crate) struct LocalQuoteViews {
+    pub hybrid: Option<HopMirror>,
+    pub pool: Option<HopMirror>,
+}
+pub(crate) async fn load_local_views_for_quote(
     pool: &PgPool,
     pair: &pairs::PairRow,
     addresses: &HashMap<i32, String>,
     max_age_ms: u64,
     namespace: &str,
-) -> Result<HopMirror, DbSimError> {
-    load_local_mirror_inner(pool, pair, addresses, max_age_ms, Some(namespace)).await
+) -> Result<LocalQuoteViews, DbSimError> {
+    let (mirror, pool, hybrid) =
+        load_local_mirror_inner(pool, pair, addresses, max_age_ms, Some(namespace)).await?;
+    Ok(LocalQuoteViews {
+        hybrid: hybrid.then_some(mirror),
+        pool,
+    })
 }
 async fn load_local_mirror_inner(
     pool: &PgPool,
@@ -1407,7 +1420,7 @@ async fn load_local_mirror_inner(
     addresses: &HashMap<i32, String>,
     max_age_ms: u64,
     namespace: Option<&str>,
-) -> Result<HopMirror, DbSimError> {
+) -> Result<(HopMirror, Option<HopMirror>, bool), DbSimError> {
     let mut tx = pool.begin().await?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         .execute(&mut *tx)
@@ -1477,7 +1490,7 @@ async fn load_local_mirror_inner(
     });
     let r = if use_hybrid {
         hybrid.unwrap()
-    } else if let Some(raw) = current_pool {
+    } else if let Some(raw) = current_pool.clone() {
         raw
     } else {
         pair_reserves::get_pair_reserves(&mut *tx, pair.id)
@@ -1525,29 +1538,47 @@ async fn load_local_mirror_inner(
         asks.clear();
     }
     tx.commit().await?;
-    Ok(HopMirror {
+    let pool_view = current_pool.map(|raw| HopMirror {
         pair_id: pair.id,
-        asset_0_addr: addresses
-            .get(&pair.asset_0_id)
-            .ok_or(DbSimError::InvalidNumeric)?
-            .clone(),
-        asset_1_addr: addresses
-            .get(&pair.asset_1_id)
-            .ok_or(DbSimError::InvalidNumeric)?
-            .clone(),
-        reserve_0,
-        reserve_1,
-        fee_bps,
-        block_height: r.block_height,
-        snapshot_at: r.snapshot_at,
-        freshness: if reserve_0 == 0 || reserve_1 == 0 {
-            MirrorFreshness::EmptyPool
-        } else if is_snapshot_stale(r.snapshot_at, max_age_ms) {
-            MirrorFreshness::Stale
-        } else {
-            MirrorFreshness::Fresh
+        asset_0_addr: addresses[&pair.asset_0_id].clone(),
+        asset_1_addr: addresses[&pair.asset_1_id].clone(),
+        // Exact, positive numeric/height/fee validation happened before selection.
+        reserve_0: exact_u128(&raw.reserve_0).unwrap(),
+        reserve_1: exact_u128(&raw.reserve_1).unwrap(),
+        fee_bps: raw.fee_bps as u16,
+        block_height: raw.block_height,
+        snapshot_at: raw.snapshot_at,
+        freshness: MirrorFreshness::Fresh,
+        bids: Vec::new(),
+        asks: Vec::new(),
+    });
+    Ok((
+        HopMirror {
+            pair_id: pair.id,
+            asset_0_addr: addresses
+                .get(&pair.asset_0_id)
+                .ok_or(DbSimError::InvalidNumeric)?
+                .clone(),
+            asset_1_addr: addresses
+                .get(&pair.asset_1_id)
+                .ok_or(DbSimError::InvalidNumeric)?
+                .clone(),
+            reserve_0,
+            reserve_1,
+            fee_bps,
+            block_height: r.block_height,
+            snapshot_at: r.snapshot_at,
+            freshness: if reserve_0 == 0 || reserve_1 == 0 {
+                MirrorFreshness::EmptyPool
+            } else if is_snapshot_stale(r.snapshot_at, max_age_ms) {
+                MirrorFreshness::Stale
+            } else {
+                MirrorFreshness::Fresh
+            },
+            bids,
+            asks,
         },
-        bids,
-        asks,
-    })
+        pool_view,
+        use_hybrid,
+    ))
 }

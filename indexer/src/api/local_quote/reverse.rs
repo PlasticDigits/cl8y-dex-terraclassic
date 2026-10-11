@@ -37,7 +37,7 @@ impl<'a> PoolLeg<'a> {
     fn new(s: &'a Snapshot, (pair, offer, ask): &route_paths::PathHop) -> Option<Self> {
         let offer = s.addresses.get(offer)?.as_str();
         let ask = s.addresses.get(ask)?.as_str();
-        let mirror = s.mirrors.get(pair)?;
+        let mirror = quote_mirror(s, pair, false)?;
         let (reserve_in, reserve_out) =
             if offer == mirror.asset_0_addr && ask == mirror.asset_1_addr {
                 (mirror.reserve_0, mirror.reserve_1)

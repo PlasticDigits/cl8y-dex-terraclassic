@@ -27,6 +27,10 @@ Implementation acceptance and scoped results: [verification](../docs/qa/issue-14
    Unknown height cannot form a new hybrid; fee-cache reuse requires the same height.
    Fresh pool-only reserves cannot make an old book fresh. Readers must
    explicitly choose pool-only versus hybrid data; do not silently join the two.
+   Quote snapshots keep complete pool and hybrid views with independent original
+   publication watermarks. New pool completion does not revoke an otherwise
+   compatible original hybrid; hybrid expiry does not erase a still-fresh pool.
+   Declared positive book budgets require the eligible original hybrid.
 3. **LF1453-3 — bounded background ownership.** Reserve refresh belongs to the
    nonoverlapping background cadence. Bound jobs, pair/height deadlines, response
    bytes and orders, distribute admission across cycles, and coalesce competing
@@ -114,3 +118,15 @@ renew or splice a prior tuple. Same-height cached/new fees share a guarded
 transaction. Known negatives, changed fee economics, expiry and capacity failure
 remain fail closed. Lane-labelled diagnostics and actual owned-worker tests
 establish source behavior; deployed acceptance requires new exact-revision trials.
+
+The [complete-view loader](../indexer/src/api/db_orderbook_sim.rs) and
+[local engine](../indexer/src/api/local_quote.rs) keep original pool and hybrid
+tuples independently. Zero-book budgets prefer the complete pool; automatic book
+optimization uses only its independently eligible hybrid. No new reserve/fee may
+inherit old book rows, including after hybrid expiry without a publication pass.
+The [fee registry](../indexer/src/indexer/fee_phase.rs) charges both views against
+the same hard mirror/order/byte caps; its shared authoritative negatives invalidate
+both views. The four-second phase and twenty-second original TTL are unchanged.
+Retest [state bounds](../indexer/src/indexer/fee_phase_tests.rs) and
+[both scheduled publishers](../indexer/tests/scenarios/fee_generation_recovery_1464.rs)
+under pending/changed fees, cancellation, known rejection and independent expiry.

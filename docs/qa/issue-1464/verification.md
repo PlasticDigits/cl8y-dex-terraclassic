@@ -612,3 +612,76 @@ retaining original pre-head timing, pinned reads, positive output/floors and
 zero request RPC. The complete checks restart on this final test source. An
 intermediate attempt to run the full pass while the loop held leadership timed
 out and was corrected; no production cancellation or admission rule changed.
+
+## Merged and deployed #1469
+
+[PR #1469](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1469) merged
+source `a585a0505dd509263d2f8f78526baae3d4f37dd3` as
+`bf59d6db032cbcf9a65a98d1935b2665a8e4fa9a`. All six mandatory
+[hosted CI steps](https://ci.cl8y.com/repos/7/pipeline/399/1) passed on that
+exact source. The rollout finished and public health independently attested the
+merge revision before these read-only browser trials. This confirms deployment,
+not sustained trading acceptance.
+
+Public receipts: [local prerequisites](final-prerequisites-1469.json),
+[hosted jobs](hosted-399.json), [deployment](deployment-1469.json),
+[initial browser](deployed-1469-browser.json) and
+[browser retest](deployed-1469-browser-retest.json).
+
+The first initialized desktop/phone corpus, 2026-10-11
+01:06:58.498–01:08:46.780 UTC, returned **24/24 useful results within 500 ms**:
+p50 334.9 ms, p95 362.2 ms, p99/max 363.7 ms. It made 24 quote GETs with
+actual reused browser connections. This trial was **PASS** for its measured scope.
+
+The later retest, 01:44:21.348–01:46:26.251 UTC on the same revision, returned
+**24/24 useful results but only 22/24 within 500 ms**. Desktop CL8Y→USTR
+small/1% took 10,637 ms, and phone ALPHA→CL8Y ordinary/5% took 10,633.5 ms;
+each first received 503 and then recovered on a later request. Full input-to-first-
+useful DOM time retains those retries: p50 333.3 ms, p95 10,633.5 ms,
+p99/max 10,637 ms. The retest made 26 quote GETs. **Sustained acceptance remains
+FAIL**; the initial passing run does not erase these measured failures.
+
+Both trials used disconnected Chromium profiles without signing or broadcasting.
+Phone means a phone viewport in desktop Chromium, not a physical-device trial.
+Positive executable output and matching hop/final floors were checked; fair-reference
+cost/deviation and per-hop market spread remain distinct. Browser initialization
+and cold/new socket timing are separate from initialized useful-result timing.
+No production outage was induced, and no operational location metadata, private
+endpoints, raw response bodies or actor data are included here.
+
+## Independent complete views: current follow-up
+
+The follow-up keeps complete pool and hybrid views in one immutable quote snapshot
+with independent original publication watermarks. A newer pool no longer makes an
+otherwise compatible original hybrid regress; expiry of that hybrid cannot erase
+a still-fresh pool. Zero-book/pool-only budgets prefer the complete pool. Automatic
+optimization may compare the independently eligible original hybrid, while a
+declared positive book budget requires it and fails unavailable after expiry.
+Every candidate uses one whole compatible tuple. No old book is attached to new
+reserves or fee economics.
+
+Both views share the existing hard namespace/marker/mirror/order/byte caps and
+known-negative invalidation. The four-second pending phase and original twenty-
+second observation TTL are unchanged. Cache and reviewed-generation identity
+includes changes to either complete view, including a pool-only update.
+See [invariants](../../indexer-invariants.md#quote-ready-fee-provenance-1464-follow-up),
+[local engine](../../../indexer/src/api/local_quote.rs),
+[whole-view loading](../../../indexer/src/api/db_orderbook_sim.rs) and
+[fee registry](../../../indexer/src/indexer/fee_phase.rs).
+
+The [state controls](../../../indexer/src/indexer/fee_phase_tests.rs) exercise
+independent watermarks, shared immediate negatives and combined allocation caps.
+The [actual-worker controls](../../../indexer/tests/scenarios/fee_generation_recovery_1464.rs)
+exercise both publishers, original hybrid/pool expiry without another scheduled
+pass, exact-input/receive caches, automatic book exclusion, declared-book refusal,
+pending/changed fees, cancellation, known rejection and exactly zero request RPC.
+Follow the [agent instructions](README.md#independent-complete-pool-and-hybrid-views)
+and preserve the explicit skip policy. Final-source counts and deployed acceptance
+for this follow-up require their own completed receipts; none are inferred from
+#1469 or from these implementation descriptions.
+
+The [initial source run](independent-view-initial-source-change.json) passed its
+executed test assertions but failed the unchanged-source guard after the final
+diagnostics correction landed during verification: 10 PASS / 1 FAIL / 2 SKIP.
+That failure is retained. The complete focused first/retest must run again on
+the frozen source; neither successful individual tests nor a skip supersedes it.

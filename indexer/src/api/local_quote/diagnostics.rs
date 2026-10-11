@@ -67,11 +67,16 @@ impl Reason {
         }
     }
 }
-fn prerequisites(s: &Snapshot, path: &[route_paths::PathHop], at: i64) -> Option<Reason> {
+fn prerequisites(
+    s: &Snapshot,
+    path: &[route_paths::PathHop],
+    at: i64,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Option<Reason> {
     if !protocol_guards::permits_path(s, path) {
         return Some(Reason::Protection);
     }
-    for (pair, offer, ask) in path {
+    for (hop_index, (pair, offer, ask)) in path.iter().enumerate() {
         if s.config_expiries
             .get(pair)
             .copied()
@@ -80,9 +85,43 @@ fn prerequisites(s: &Snapshot, path: &[route_paths::PathHop], at: i64) -> Option
         {
             return Some(Reason::Stale);
         }
-        let Some(mirror) = s.mirrors.get(pair) else {
+        let needs_book = plan
+            .and_then(|plan| plan.get(hop_index))
+            .and_then(Option::as_ref)
+            .is_some_and(|hop| {
+                hop.book_input
+                    .parse::<u128>()
+                    .is_ok_and(|amount| amount > 0)
+            });
+        let pool = (!needs_book)
+            .then(|| s.pool_mirrors.get(pair))
+            .flatten()
+            .filter(|mirror| {
+                !sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
+                    && matches!(
+                        mirror.freshness,
+                        sim::MirrorFreshness::Fresh | sim::MirrorFreshness::EmptyPool
+                    )
+                    && crate::indexer::fee_phase::permits_view(
+                        &s.namespace,
+                        mirror.pair_id,
+                        mirror.block_height,
+                        mirror.snapshot_at,
+                        true,
+                    )
+            });
+        let Some(mirror) = pool.or_else(|| s.mirrors.get(pair)) else {
             return Some(Reason::Missing);
         };
+        if !crate::indexer::fee_phase::permits_view(
+            &s.namespace,
+            mirror.pair_id,
+            mirror.block_height,
+            mirror.snapshot_at,
+            pool.is_some(),
+        ) {
+            return Some(Reason::Missing);
+        }
         if sim::is_snapshot_stale(mirror.snapshot_at, s.max_age_ms)
             || mirror.freshness == sim::MirrorFreshness::Stale
         {
@@ -122,6 +161,7 @@ fn prerequisites(s: &Snapshot, path: &[route_paths::PathHop], at: i64) -> Option
     }
     None
 }
+#[cfg(test)]
 fn classify(
     s: &Snapshot,
     paths: &[Vec<route_paths::PathHop>],
@@ -129,17 +169,29 @@ fn classify(
     start: i32,
     goal: i32,
 ) -> Reason {
+    classify_with_plan(s, paths, inventory, start, goal, None)
+}
+fn classify_with_plan(
+    s: &Snapshot,
+    paths: &[Vec<route_paths::PathHop>],
+    inventory: Option<&Inventory>,
+    start: i32,
+    goal: i32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
+) -> Reason {
     // A complete fresh candidate can genuinely fail the requested budget/floor.
     // An unrelated broken alternative never changes that protection rejection.
     if paths
         .iter()
-        .any(|p| prerequisites(s, p, now_ms()).is_none())
+        .filter(|path| plan.is_none_or(|plan| plan.len() == path.len()))
+        .any(|p| prerequisites(s, p, now_ms(), plan).is_none())
     {
         return Reason::Protection;
     }
     let failures = paths
         .iter()
-        .filter_map(|path| prerequisites(s, path, now_ms()))
+        .filter(|path| plan.is_none_or(|plan| plan.len() == path.len()))
+        .filter_map(|path| prerequisites(s, path, now_ms(), plan))
         .collect::<Vec<_>>();
     // A protected corridor must not hide an otherwise recoverable alternative.
     for reason in [Reason::Missing, Reason::Stale, Reason::Unsupported] {
@@ -201,6 +253,7 @@ pub(super) fn candidate_error(
     paths: &[Vec<route_paths::PathHop>],
     start: i32,
     goal: i32,
+    plan: Option<&[Option<route_solver::HybridHopJson>]>,
 ) -> Error {
     let inventory = store()
         .lock()
@@ -208,7 +261,7 @@ pub(super) fn candidate_error(
         .admission_inventory
         .get(namespace)
         .cloned();
-    let reason = classify(s, paths, inventory.as_ref(), start, goal);
+    let reason = classify_with_plan(s, paths, inventory.as_ref(), start, goal, plan);
     tracing::debug!(
         reason = reason.label(),
         candidates = paths.len(),
@@ -266,5 +319,67 @@ mod tests {
             classify(&s, &[], Some(&inventory), 1, 2),
             Reason::Unsupported
         );
+    }
+    #[test]
+    fn recovery1464_declared_book_expiry_is_unavailable_even_with_fresh_pool() {
+        let mut s = super::super::tests::fixture();
+        let path = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        let pool = s.mirrors["pair0a"].clone();
+        s.pool_mirrors.insert("pair0a".into(), pool);
+        Arc::make_mut(s.mirrors.get_mut("pair0a").unwrap()).snapshot_at =
+            Utc::now() - chrono::Duration::seconds(21);
+        let plan = [
+            Some(route_solver::HybridHopJson {
+                pool_input: "0".into(),
+                book_input: "1".into(),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }),
+            None,
+        ];
+        assert!(classify(&s, std::slice::from_ref(&path), None, 1, 2) == Reason::Protection);
+        assert!(classify_with_plan(&s, &[path], None, 1, 2, Some(&plan)) == Reason::Stale);
+    }
+
+    #[test]
+    fn recovery1464_unusable_pool_does_not_hide_complete_hybrid_protection() {
+        let mut s = super::super::tests::fixture();
+        let mut pool = (*s.mirrors["pair0a"]).clone();
+        pool.freshness = sim::MirrorFreshness::MissingReserves;
+        s.pool_mirrors.insert("pair0a".into(), Arc::new(pool));
+        let path = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        assert!(super::super::quote_mirror(&s, "pair0a", false).is_some());
+        assert!(classify(&s, &[path], None, 1, 2) == Reason::Protection);
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn recovery1464_regressed_pool_does_not_hide_eligible_original_hybrid() {
+        let mut s = super::super::tests::fixture();
+        s.namespace = "diagnostic-pool-regression".into();
+        let hybrid = s.mirrors["pair0a"].clone();
+        s.pool_mirrors.insert("pair0a".into(), hybrid.clone());
+        let mut newer = (*hybrid).clone();
+        newer.block_height = Some(11);
+        newer.snapshot_at += chrono::Duration::microseconds(1);
+        assert!(crate::indexer::fee_phase::qualify(
+            &s.namespace,
+            vec![crate::indexer::fee_phase::Qualification {
+                pair_id: hybrid.pair_id,
+                assets: (1, 3),
+                context: "diagnostic-regression".into(),
+                expiry_ms: now_ms() + 10_000,
+                max_age_ms: s.max_age_ms,
+                mirror: Some(hybrid.clone()),
+                pool_mirror: Some(Arc::new(newer)),
+            }]
+        ));
+        assert!(Arc::ptr_eq(
+            super::super::quote_mirror(&s, "pair0a", false).unwrap(),
+            &hybrid
+        ));
+        let path = vec![("pair0a".into(), 1, 3), ("pair0b".into(), 3, 2)];
+        assert!(classify(&s, &[path], None, 1, 2) == Reason::Protection);
+        assert!(crate::indexer::fee_phase::qualify(&s.namespace, Vec::new()));
     }
 }

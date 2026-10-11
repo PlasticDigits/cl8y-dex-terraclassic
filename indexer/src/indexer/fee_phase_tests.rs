@@ -23,7 +23,8 @@ fn qualified(namespace: &str, mirror: Arc<HopMirror>, expiry: i64) {
             context: "reviewed".into(),
             expiry_ms: expiry,
             max_age_ms: 20_000,
-            mirror: Some(mirror)
+            mirror: Some(mirror),
+            pool_mirror: None,
         }]
     ));
 }
@@ -168,7 +169,8 @@ fn recovery1464_fee_phase_capacity_and_context_changes_cannot_enable_fallback() 
             context: "new-policy".into(),
             expiry_ms: at.timestamp_millis() + 10_000,
             max_age_ms: 20_000,
-            mirror: None
+            mirror: None,
+            pool_mirror: None,
         }]
     ));
     guard.finish_validated();
@@ -181,6 +183,7 @@ fn recovery1464_fee_phase_capacity_and_context_changes_cannot_enable_fallback() 
             expiry_ms: at.timestamp_millis() + 10_000,
             max_age_ms: 20_000,
             mirror: None,
+            pool_mirror: None,
         })
         .collect();
     assert!(!qualify("fee-phase-capacity", oversized));
@@ -229,7 +232,8 @@ fn recovery1464_fee_negative_survives_expiry_empty_and_removed_qualification() {
                         context: "different".into(),
                         expiry_ms: at.timestamp_millis() + 10_000,
                         max_age_ms: 20_000,
-                        mirror: None
+                        mirror: None,
+                        pool_mirror: None,
                     }]
                 ));
             }
@@ -308,7 +312,8 @@ fn recovery1464_active_fee_negative_authority_survives_temporary_disqualificatio
                         context: "other".into(),
                         expiry_ms: at.timestamp_millis() + 10_000,
                         max_age_ms: 20_000,
-                        mirror: None
+                        mirror: None,
+                        pool_mirror: None,
                     }]
                 ));
             }
@@ -406,4 +411,210 @@ fn recovery1464_untracked_guard_never_erases_newer_validated_generation() {
     );
     guard.finish_negative();
     assert!(permits(ns, 1, newer.block_height, newer.snapshot_at));
+}
+
+#[test]
+#[serial_test::serial]
+fn recovery1464_dual_complete_lanes_keep_original_book_and_share_negatives() {
+    let namespace = "dual-complete-lanes";
+    let at = Utc::now();
+    let hybrid = complete(at - chrono::Duration::seconds(8));
+    qualified(namespace, hybrid.clone(), at.timestamp_millis() + 10_000);
+    let mut pool = (*complete(at - chrono::Duration::seconds(2))).clone();
+    pool.block_height = Some(101);
+    pool.reserve_0 = 30_000;
+    let pool = Arc::new(pool);
+    assert!(qualify(
+        namespace,
+        vec![Qualification {
+            pair_id: 1,
+            assets: (1, 2),
+            context: "reviewed".into(),
+            expiry_ms: at.timestamp_millis() + 10_000,
+            max_age_ms: 20_000,
+            mirror: Some(hybrid.clone()),
+            pool_mirror: Some(pool.clone()),
+        }]
+    ));
+    assert!(permits(
+        namespace,
+        1,
+        hybrid.block_height,
+        hybrid.snapshot_at
+    ));
+    assert!(permits_view(
+        namespace,
+        1,
+        pool.block_height,
+        pool.snapshot_at,
+        true
+    ));
+    let owner = begin(namespace, 1, (1, 2), 102, at, (20_000, 20_000)).unwrap();
+    let retained =
+        retained_views(namespace, 1, "reviewed", Some(102), at, (20_000, 20_000)).unwrap();
+    assert_eq!(retained.hybrid.unwrap().0.snapshot_at, hybrid.snapshot_at);
+    assert_eq!(retained.pool.unwrap().0.reserve_0, 30_000);
+    owner.finish_negative();
+    assert!(!permits(
+        namespace,
+        1,
+        hybrid.block_height,
+        hybrid.snapshot_at
+    ));
+    assert!(!permits_view(
+        namespace,
+        1,
+        pool.block_height,
+        pool.snapshot_at,
+        true
+    ));
+    let reg = registry().lock().unwrap();
+    let entry = &reg.namespaces[namespace].entries[&1];
+    assert!(entry.complete.is_none() && entry.pool_complete.is_none());
+}
+
+#[test]
+#[serial_test::serial]
+fn recovery1464_dual_complete_views_charge_shared_mirror_capacity() {
+    let namespace = "dual-complete-capacity";
+    let at = Utc::now();
+    let qualifications = (1..=MAX_COMPLETE as i32)
+        .map(|pair_id| {
+            let mut mirror = (*complete(at)).clone();
+            mirror.pair_id = pair_id;
+            let mirror = Arc::new(mirror);
+            Qualification {
+                pair_id,
+                assets: (1, 2),
+                context: "reviewed".into(),
+                expiry_ms: at.timestamp_millis() + 10_000,
+                max_age_ms: 20_000,
+                mirror: Some(mirror.clone()),
+                pool_mirror: Some(mirror),
+            }
+        })
+        .collect();
+    assert!(qualify(namespace, qualifications));
+    let mut reg = registry().lock().unwrap();
+    let totals = reg
+        .namespaces
+        .values()
+        .flat_map(|ns| ns.entries.values())
+        .flat_map(|entry| [&entry.complete, &entry.pool_complete])
+        .filter_map(Option::as_ref)
+        .fold((0, 0, 0), |(count, bytes, orders), complete| {
+            (count + 1, bytes + complete.bytes, orders + complete.orders)
+        });
+    assert_eq!(
+        totals.0, MAX_COMPLETE,
+        "both views consume a shared mirror slot"
+    );
+    assert!(totals.1 <= MAX_COMPLETE_BYTES && totals.2 <= MAX_COMPLETE_ORDERS);
+    let pair_count = reg.namespaces[namespace]
+        .entries
+        .values()
+        .filter(|entry| entry.complete.is_some() || entry.pool_complete.is_some())
+        .count();
+    assert!(
+        pair_count < MAX_COMPLETE,
+        "one pair cannot receive two uncharged slots"
+    );
+    reg.namespaces.remove(namespace);
+}
+
+#[test]
+#[serial_test::serial]
+fn recovery1464_dual_complete_views_keep_shared_order_and_byte_budgets() {
+    let namespace = "dual-complete-order-budget";
+    let at = Utc::now();
+    let qualifications = (1..=10)
+        .map(|pair_id| {
+            let mut pool = (*complete(at)).clone();
+            pool.pair_id = pair_id;
+            let mut hybrid = pool.clone();
+            hybrid.bids = (0..500)
+                .map(
+                    |order_id| crate::db::queries::resting_orders::RestingOrderRow {
+                        pair_id,
+                        order_id,
+                        side: "bid".into(),
+                        price: bigdecimal::BigDecimal::from(1),
+                        remaining: bigdecimal::BigDecimal::from(10),
+                        owner: None,
+                        expires_at: None,
+                    },
+                )
+                .collect();
+            Qualification {
+                pair_id,
+                assets: (1, 2),
+                context: "reviewed".into(),
+                expiry_ms: at.timestamp_millis() + 10_000,
+                max_age_ms: 20_000,
+                mirror: Some(Arc::new(hybrid)),
+                pool_mirror: Some(Arc::new(pool)),
+            }
+        })
+        .collect();
+    assert!(qualify(namespace, qualifications));
+    {
+        let mut reg = registry().lock().unwrap();
+        let entries = &reg.namespaces[namespace].entries;
+        assert!(
+            entries
+                .values()
+                .filter(|entry| entry.complete.is_some())
+                .count()
+                < 10
+        );
+        let totals = reg
+            .namespaces
+            .values()
+            .flat_map(|ns| ns.entries.values())
+            .flat_map(|entry| [&entry.complete, &entry.pool_complete])
+            .filter_map(Option::as_ref)
+            .fold((0, 0, 0), |(count, bytes, orders), complete| {
+                (count + 1, bytes + complete.bytes, orders + complete.orders)
+            });
+        assert!(
+            totals.0 <= MAX_COMPLETE
+                && totals.1 <= MAX_COMPLETE_BYTES
+                && totals.2 <= MAX_COMPLETE_ORDERS
+        );
+        reg.namespaces.remove(namespace);
+    }
+    let namespace = "dual-complete-byte-budget";
+    let hybrid = complete(at - chrono::Duration::seconds(1));
+    let mut oversized_pool = (*complete(at)).clone();
+    oversized_pool.bids = Vec::with_capacity(
+        MAX_COMPLETE_BYTES
+            / std::mem::size_of::<crate::db::queries::resting_orders::RestingOrderRow>()
+            + 1,
+    );
+    assert!(mirror_cost(&oversized_pool).unwrap().0 > MAX_COMPLETE_BYTES);
+    assert!(qualify(
+        namespace,
+        vec![Qualification {
+            pair_id: 1,
+            assets: (1, 2),
+            context: "reviewed".into(),
+            expiry_ms: at.timestamp_millis() + 10_000,
+            max_age_ms: 20_000,
+            mirror: Some(hybrid.clone()),
+            pool_mirror: Some(Arc::new(oversized_pool)),
+        }]
+    ));
+    assert!(registry().lock().unwrap().namespaces[namespace].entries[&1]
+        .pool_complete
+        .is_none());
+    begin(namespace, 1, (1, 2), 101, Utc::now(), (20_000, 20_000))
+        .unwrap()
+        .finish_validated_fee(10_000);
+    assert!(!permits(
+        namespace,
+        1,
+        hybrid.block_height,
+        hybrid.snapshot_at
+    ));
+    assert!(!permits_view(namespace, 1, Some(100), at, true));
 }

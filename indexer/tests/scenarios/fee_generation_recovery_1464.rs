@@ -124,6 +124,19 @@ async fn fixture_fee(
     wiremock::MockServer,
     GatedProvider,
 ) {
+    fixture_fee_with_ingestion(permanent, fee_bps, true).await
+}
+
+async fn fixture_fee_with_ingestion(
+    permanent: bool,
+    fee_bps: u16,
+    initialize: bool,
+) -> (
+    AppState,
+    pairs::PairRow,
+    wiremock::MockServer,
+    GatedProvider,
+) {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
     let a = asset(&pool, CL8Y, 18).await;
@@ -145,7 +158,9 @@ async fn fixture_fee(
     let provider = GatedProvider::start(upstream.uri(), permanent, fee_bps).await;
     let mut state = app_state(pool.clone(), cold_fixture_lcd(provider.uri.clone()));
     state.book_snapshot_max_staleness_ms = 20_000;
-    local_quote::ingest_fixture(&state).await.unwrap();
+    if initialize {
+        local_quote::ingest_fixture(&state).await.unwrap();
+    }
     let pair = sqlx::query_as("SELECT * FROM pairs WHERE contract_address=$1")
         .bind(PAIR)
         .fetch_one(&pool)
@@ -441,4 +456,303 @@ async fn recovery1464_cold_changed_fee_cannot_reuse_old_hybrid_economics() {
         .await
         .unwrap();
     assert_eq!(raw.values().next().unwrap().fee_bps, 10_000);
+}
+
+/// Give the scheduled publisher both real generations. The old book is deliberately
+/// kept in SQL: deleting it would bypass the preferential-hybrid bug under test.
+async fn seed_independent_views(state: &AppState) -> (i64, i64) {
+    let at = chrono::Utc::now();
+    // Leave two seconds for cold scheduled admission; the 20-second production
+    // TTL and the exact original deadline remain unchanged.
+    let hybrid_at = at - chrono::Duration::milliseconds(18_000);
+    let pool_at = at - chrono::Duration::milliseconds(9_000);
+    sqlx::query("INSERT INTO hybrid_pair_reserves SELECT * FROM pair_reserves ON CONFLICT(pair_id) DO NOTHING")
+        .execute(&state.pool).await.unwrap();
+    sqlx::query("UPDATE hybrid_pair_reserves SET snapshot_at=$1,block_height=100")
+        .bind(hybrid_at)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE pair_reserves SET snapshot_at=$1,block_height=101,reserve_0=$2,reserve_1=$2",
+    )
+    .bind(pool_at)
+    .bind(bigdecimal::BigDecimal::from(RAW * 3))
+    .execute(&state.pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO resting_limit_orders(pair_id,order_id,side,price,remaining,block_height,snapshot_at,walk_index) SELECT id,1,'bid',1.01,$1,100,$2,0 FROM pairs WHERE contract_address=$3")
+        .bind(bigdecimal::BigDecimal::from(RAW)).bind(hybrid_at).bind(PAIR)
+        .execute(&state.pool).await.unwrap();
+    (hybrid_at.timestamp_millis(), pool_at.timestamp_millis())
+}
+
+async fn publish_view(state: &AppState, admission: bool) {
+    if admission {
+        local_quote::ingest_once(state).await.unwrap();
+    } else {
+        local_quote::refresh_reserves(state).await.unwrap();
+    }
+}
+
+fn view_request(receive: bool, book: bool) -> Value {
+    json!({
+        "token_in":CL8Y,"token_out":USTR,"max_spread":"0.05",
+        "amount_in":if receive {Value::Null} else {json!("1000000000000000000")},
+        "amount_out":if receive {json!("1000000000000000000")} else {Value::Null},
+        "pool_only":!book
+    })
+}
+
+async fn view_quote(
+    state: &AppState,
+    receive: bool,
+    book: bool,
+) -> Result<Value, (axum::http::StatusCode, String)> {
+    let request = serde_json::from_value(view_request(receive, book)).unwrap();
+    local_quote::solve(state, &request).await.map(|body| body.0)
+}
+
+async fn manual_book_quote(state: &AppState) -> Result<Value, (axum::http::StatusCode, String)> {
+    let plan = [Some(
+        serde_json::from_value(json!({
+            "pool_input":"0","book_input":"1000000000000000000",
+            "max_maker_fills":8,"book_start_hint":null
+        }))
+        .unwrap(),
+    )];
+    let request = serde_json::from_value(view_request(false, true)).unwrap();
+    local_quote::solve_post(state, &request, Some(&plan))
+        .await
+        .map(|body| body.0)
+}
+
+fn original_view(body: &Value, height: i64, observed: i64) {
+    useful(body);
+    assert_eq!(
+        body["snapshot_block_height"], height,
+        "a view must preserve its own height"
+    );
+    assert_eq!(body["execution_metadata"]["observed_at_ms"], observed);
+    assert_eq!(
+        body["execution_metadata"]["expires_at_ms"],
+        observed + 20_000,
+        "publication and fallback must not renew the original 20-second deadline"
+    );
+}
+
+async fn after_original_deadline(observed: i64) {
+    let remaining = (observed + 20_025 - chrono::Utc::now().timestamp_millis()).max(0);
+    tokio::time::sleep(Duration::from_millis(remaining as u64)).await;
+}
+
+async fn both_views_rejected(state: &AppState, provider: &GatedProvider) {
+    let before_calls = provider.calls.load(Ordering::SeqCst);
+    assert!(view_quote(state, false, false).await.is_err());
+    assert!(view_quote(state, true, false).await.is_err());
+    assert!(view_quote(state, false, true).await.is_err());
+    assert!(manual_book_quote(state).await.is_err());
+    assert_eq!(
+        provider.calls.load(Ordering::SeqCst),
+        before_calls,
+        "negative cached quotes trigger zero RPC"
+    );
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn recovery1464_dual_views_survive_hybrid_expiry_without_another_scheduled_pass() {
+    for admission in [false, true] {
+        let (state, _pair, _upstream, provider) =
+            fixture_fee_with_ingestion(false, 35, false).await;
+        let (hybrid_at, pool_at) = seed_independent_views(&state).await;
+        if !admission {
+            local_quote::ingest_fixture(&state).await.unwrap();
+        }
+        publish_view(&state, admission).await;
+        let before_calls = provider.calls.load(Ordering::SeqCst);
+        eprintln!(
+            "dual-view publisher_admission={admission} first_quote_age_ms={}",
+            chrono::Utc::now().timestamp_millis() - hybrid_at
+        );
+        assert!(
+            chrono::Utc::now().timestamp_millis() < hybrid_at + 20_000,
+            "scheduled fixture crossed its original hybrid deadline before quoting"
+        );
+        original_view(&manual_book_quote(&state).await.unwrap(), 100, hybrid_at);
+        let optimized = view_quote(&state, false, true).await.unwrap();
+        original_view(&optimized, 100, hybrid_at);
+        assert!(!optimized["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+        original_view(&manual_book_quote(&state).await.unwrap(), 100, hybrid_at);
+        // Warm exact-input and receive cache entries before the hybrid expires.
+        original_view(
+            &view_quote(&state, false, false).await.unwrap(),
+            101,
+            pool_at,
+        );
+        original_view(
+            &view_quote(&state, true, false).await.unwrap(),
+            101,
+            pool_at,
+        );
+        after_original_deadline(hybrid_at).await;
+        let pool = view_quote(&state, false, false).await.expect(
+            "still-fresh complete pool must survive hybrid expiry without a publisher pass",
+        );
+        original_view(&pool, 101, pool_at);
+        assert!(pool["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+        original_view(
+            &view_quote(&state, true, false).await.unwrap(),
+            101,
+            pool_at,
+        );
+        let automatic = view_quote(&state, false, true).await.unwrap();
+        original_view(&automatic, 101, pool_at);
+        assert!(
+            automatic["router_operations"][0]["terra_swap"]["hybrid"].is_null(),
+            "the fresh pool must never splice in an expired book"
+        );
+        assert_eq!(
+            manual_book_quote(&state).await.unwrap_err().0,
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "an expired declared book is unavailable and cannot fall back silently"
+        );
+        assert_eq!(
+            provider.calls.load(Ordering::SeqCst),
+            before_calls,
+            "quotes trigger zero RPC"
+        );
+        after_original_deadline(pool_at).await;
+        both_views_rejected(&state, &provider).await;
+        assert_eq!(provider.calls.load(Ordering::SeqCst), before_calls);
+    }
+}
+
+#[tokio::test]
+#[serial_test::serial]
+async fn recovery1464_dual_views_pending_fee_keeps_pool_and_shares_immediate_invalidation() {
+    // Each publisher must capture the newer complete pool even while the older
+    // hybrid remains eligible. Then a real producer commits a third, fee=-1 raw.
+    for admission in [false, true] {
+        for outcome in ["cancel", "changed", "negative", "deadline"] {
+            let (state, pair, _upstream, provider) =
+                fixture_fee_with_ingestion(outcome == "negative", 10_000, false).await;
+            let (hybrid_at, pool_at) = seed_independent_views(&state).await;
+            if !admission {
+                local_quote::ingest_fixture(&state).await.unwrap();
+            }
+            publish_view(&state, admission).await;
+            eprintln!(
+                "dual-view publisher_admission={admission} outcome={outcome} first_quote_age_ms={}",
+                chrono::Utc::now().timestamp_millis() - hybrid_at
+            );
+            assert!(
+                chrono::Utc::now().timestamp_millis() < hybrid_at + 20_000,
+                "scheduled fixture crossed its original hybrid deadline before quoting"
+            );
+            original_view(&manual_book_quote(&state).await.unwrap(), 100, hybrid_at);
+            original_view(
+                &view_quote(&state, false, true).await.unwrap(),
+                100,
+                hybrid_at,
+            );
+            original_view(&manual_book_quote(&state).await.unwrap(), 100, hybrid_at);
+            let complete_pool = view_quote(&state, false, false).await.unwrap();
+            original_view(&complete_pool, 101, pool_at);
+            original_view(
+                &view_quote(&state, true, false).await.unwrap(),
+                101,
+                pool_at,
+            );
+            let (pool, lcd, p) = (state.pool.clone(), state.lcd.clone(), pair.clone());
+            let worker = tokio::spawn(async move {
+                book_snapshot::snapshot_single_pair(&pool, &lcd, &p, Some(102))
+                    .await
+                    .map_err(|error| error.to_string())
+            });
+            provider.waiting().await;
+            let fee_waiting = Instant::now();
+            let raw = pair_reserves::get_all_pair_reserves(&state.pool)
+                .await
+                .unwrap();
+            assert_eq!(raw.values().next().unwrap().block_height, Some(102));
+            assert_eq!(raw.values().next().unwrap().fee_bps, -1);
+            if outcome == "negative" {
+                // Permanent headers revoke both immutable views while the body
+                // remains gated, before either publisher can observe completion.
+                tokio::time::timeout(Duration::from_secs(1), async {
+                    while view_quote(&state, false, false).await.is_ok() {
+                        tokio::task::yield_now().await;
+                    }
+                })
+                .await
+                .unwrap();
+                both_views_rejected(&state, &provider).await;
+                assert!(!worker.is_finished());
+            } else {
+                publish_view(&state, admission).await;
+                let quote_calls = provider.calls.load(Ordering::SeqCst);
+                original_view(
+                    &view_quote(&state, false, true).await.unwrap(),
+                    100,
+                    hybrid_at,
+                );
+                original_view(&manual_book_quote(&state).await.unwrap(), 100, hybrid_at);
+                if outcome == "cancel" || outcome == "changed" {
+                    assert!(
+                        chrono::Utc::now().timestamp_millis() < hybrid_at + 20_000,
+                        "invalidation must be exercised while BOTH original views are fresh"
+                    );
+                    if outcome == "changed" {
+                        provider.release.notify_waiters();
+                        worker.await.unwrap().unwrap();
+                    } else {
+                        worker.abort();
+                        let _ = worker.await;
+                    }
+                    let completed_calls = provider.calls.load(Ordering::SeqCst);
+                    both_views_rejected(&state, &provider).await;
+                    assert_eq!(provider.calls.load(Ordering::SeqCst), completed_calls);
+                    publish_view(&state, admission).await;
+                    both_views_rejected(&state, &provider).await;
+                    continue;
+                }
+                after_original_deadline(hybrid_at).await;
+                let retained_pool = view_quote(&state, false, false).await.expect(
+                    "pending raw must retain the independently captured complete pool, not only old hybrid");
+                original_view(&retained_pool, 101, pool_at);
+                assert_eq!(
+                    retained_pool["estimated_amount_out_net"],
+                    complete_pool["estimated_amount_out_net"],
+                    "pending reserves cannot borrow the retained fee or pool economics"
+                );
+                let automatic = view_quote(&state, false, true).await.unwrap();
+                original_view(&automatic, 101, pool_at);
+                assert!(automatic["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+                original_view(
+                    &view_quote(&state, true, false).await.unwrap(),
+                    101,
+                    pool_at,
+                );
+                assert_eq!(manual_book_quote(&state).await.unwrap_err().0,
+                    axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    "expired manual book must be an availability blocker while the complete pool remains fresh");
+                assert_eq!(provider.calls.load(Ordering::SeqCst), quote_calls);
+                if outcome == "deadline" {
+                    // The four-second pending guard remains shorter than the
+                    // pool's original deadline; a stalled fee cannot extend it.
+                    tokio::time::sleep(
+                        Duration::from_millis(4_025).saturating_sub(fee_waiting.elapsed()),
+                    )
+                    .await;
+                    both_views_rejected(&state, &provider).await;
+                }
+            }
+            worker.abort();
+            let _ = worker.await;
+            both_views_rejected(&state, &provider).await;
+            publish_view(&state, admission).await;
+            both_views_rejected(&state, &provider).await;
+        }
+    }
 }

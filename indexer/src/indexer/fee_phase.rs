@@ -58,8 +58,10 @@ struct Entry {
     watermark: Option<Stamp>,
     validated: Option<Stamp>,
     published: Option<Stamp>,
+    pool_published: Option<Stamp>,
     qualified_fee: Option<u16>,
     complete: Option<Complete>,
+    pool_complete: Option<Complete>,
 }
 #[derive(Default)]
 struct Namespace {
@@ -112,16 +114,19 @@ fn prune(reg: &mut Registry) {
                 entry.negative = true;
                 entry.watermark = Some(phase.stamp);
                 entry.complete = None;
+                entry.pool_complete = None;
                 namespace.revision = namespace.revision.saturating_add(1);
             }
-            if entry.complete.as_ref().is_some_and(|complete| {
-                complete.expiry_ms <= now
-                    || crate::api::db_orderbook_sim::is_snapshot_stale(
-                        complete.mirror.snapshot_at,
-                        complete.max_age_ms,
-                    )
-            }) {
-                entry.complete = None;
+            for complete in [&mut entry.complete, &mut entry.pool_complete] {
+                if complete.as_ref().is_some_and(|complete| {
+                    complete.expiry_ms <= now
+                        || crate::api::db_orderbook_sim::is_snapshot_stale(
+                            complete.mirror.snapshot_at,
+                            complete.max_age_ms,
+                        )
+                }) {
+                    *complete = None;
+                }
             }
         }
         namespace
@@ -140,6 +145,7 @@ pub(crate) struct Qualification {
     pub expiry_ms: i64,
     pub max_age_ms: u64,
     pub mirror: Option<Arc<HopMirror>>,
+    pub pool_mirror: Option<Arc<HopMirror>>,
 }
 fn mirror_cost(mirror: &HopMirror) -> Option<(usize, usize)> {
     if mirror.reserve_0 == 0
@@ -264,8 +270,10 @@ pub(crate) fn qualify(namespace: &str, qualified: Vec<Qualification>) -> bool {
             watermark: None,
             validated: None,
             published: None,
+            pool_published: None,
             qualified_fee: None,
             complete: None,
+            pool_complete: None,
         });
         if changed {
             entry.context = q.context;
@@ -274,21 +282,41 @@ pub(crate) fn qualify(namespace: &str, qualified: Vec<Qualification>) -> bool {
             entry.phase = None;
             entry.owner = 0;
             entry.complete = None;
+            entry.pool_complete = None;
             entry.qualified_fee = None;
             ns.revision = ns.revision.saturating_add(1);
         }
         entry.qualified = true;
         entry.expiry_ms = q.expiry_ms;
         entry.safety_age_ms = entry.safety_age_ms.max(q.max_age_ms);
-        if let Some(mirror) = q.mirror {
+        // Each lane advances independently. A newer complete pool must not make
+        // the still-compatible original hybrid unusable, or relabel its book.
+        let paired = q.pool_mirror.is_some();
+        for (pool_view, mirror) in [(true, q.pool_mirror), (false, q.mirror)] {
+            let Some(mirror) = mirror else { continue };
             let candidate = stamp(&mirror);
+            let entry = reg
+                .namespaces
+                .get_mut(namespace)
+                .unwrap()
+                .entries
+                .get_mut(&q.pair_id)
+                .unwrap();
+            let published = if pool_view {
+                entry.pool_published
+            } else {
+                entry.published
+            };
             if entry.negative
-                || entry
-                    .validated
-                    .is_some_and(|validated| !candidate.covers(validated))
+                || published.is_some_and(|published| !candidate.covers(published))
+                || ((pool_view || !paired)
+                    && entry
+                        .validated
+                        .is_some_and(|validated| !candidate.covers(validated)))
                 || entry
                     .watermark
                     .is_some_and(|watermark| !candidate.covers(watermark))
+                || (!pool_view && paired && entry.qualified_fee != Some(mirror.fee_bps))
                 || crate::api::db_orderbook_sim::is_snapshot_stale(
                     mirror.snapshot_at,
                     q.max_age_ms.min(RETENTION_AGE_MS),
@@ -302,11 +330,24 @@ pub(crate) fn qualify(namespace: &str, qualified: Vec<Qualification>) -> bool {
                 && mirror.block_height.is_some_and(|height| height > 0)
             {
                 entry.qualified_fee = Some(mirror.fee_bps);
-                entry.validated = Some(candidate);
-                entry.published = Some(candidate);
+                if entry
+                    .validated
+                    .is_none_or(|validated| candidate.covers(validated))
+                {
+                    entry.validated = Some(candidate);
+                }
+                if pool_view {
+                    entry.pool_published = Some(candidate);
+                } else {
+                    entry.published = Some(candidate);
+                }
             }
-            if entry
-                .complete
+            let saved = if pool_view {
+                &mut entry.pool_complete
+            } else {
+                &mut entry.complete
+            };
+            if saved
                 .as_ref()
                 .is_some_and(|old| stamp(&old.mirror) == candidate)
             {
@@ -315,12 +356,13 @@ pub(crate) fn qualify(namespace: &str, qualified: Vec<Qualification>) -> bool {
             let Some((bytes, orders)) = mirror_cost(&mirror) else {
                 continue;
             };
-            entry.complete = None;
+            *saved = None;
             let totals = reg
                 .namespaces
                 .values()
                 .flat_map(|ns| ns.entries.values())
-                .filter_map(|e| e.complete.as_ref())
+                .flat_map(|entry| [&entry.complete, &entry.pool_complete])
+                .filter_map(Option::as_ref)
                 .fold((0usize, 0usize, 0usize), |(count, b, o), c| {
                     (count + 1, b + c.bytes, o + c.orders)
                 });
@@ -337,20 +379,21 @@ pub(crate) fn qualify(namespace: &str, qualified: Vec<Qualification>) -> bool {
                 .entries
                 .get_mut(&q.pair_id)
                 .unwrap();
-            entry.validated = Some(candidate);
-            // Clone once at admission to compact owned numeric coefficients and
-            // vector/string allocations. Every later retention shares this Arc;
-            // bounded active limbs (<=256 bits) fit the charged per-row 256 bytes.
             let mirror = Arc::new((*mirror).clone());
             let (bytes, orders) =
                 mirror_cost(&mirror).expect("compact clone preserves validated bounds");
-            entry.complete = Some(Complete {
+            let complete = Some(Complete {
                 mirror,
                 expiry_ms: q.expiry_ms,
                 max_age_ms: q.max_age_ms.min(RETENTION_AGE_MS),
                 bytes,
                 orders,
             });
+            if pool_view {
+                entry.pool_complete = complete;
+            } else {
+                entry.complete = complete;
+            }
         }
     }
     true
@@ -610,6 +653,7 @@ impl FeePhaseGuard {
             }
             entry.negative = true;
             entry.complete = None;
+            entry.pool_complete = None;
             if entry.watermark.is_none_or(|old| self.stamp.covers(old)) {
                 entry.watermark = Some(self.stamp);
             }
@@ -670,6 +714,7 @@ pub fn reject(namespace: &str, pair_id: i32, height: Option<i64>, observed_at: D
             if entry.validated.is_none_or(covers) && entry.watermark.is_none_or(covers) {
                 entry.negative = true;
                 entry.complete = None;
+                entry.pool_complete = None;
                 entry.phase = None;
                 entry.owner = owner;
                 entry.watermark = Some(rejected);
@@ -695,31 +740,40 @@ pub(crate) fn permits(
     height: Option<i64>,
     observed_at: DateTime<Utc>,
 ) -> bool {
+    permits_view(namespace, pair_id, height, observed_at, false)
+}
+pub(crate) fn permits_view(
+    namespace: &str,
+    pair_id: i32,
+    height: Option<i64>,
+    observed_at: DateTime<Utc>,
+    pool_view: bool,
+) -> bool {
     let mut reg = registry().lock().unwrap();
     prune(&mut reg);
     reg.namespaces
         .get(namespace)
         .and_then(|ns| ns.entries.get(&pair_id))
         .is_none_or(|entry| {
+            let incoming = Stamp {
+                height,
+                at_us: observed_at.timestamp_micros(),
+            };
+            let published = if pool_view {
+                entry.pool_published
+            } else {
+                entry.published
+            };
             !entry.negative
-                && entry.published.is_none_or(|published| {
-                    Stamp {
-                        height,
-                        at_us: observed_at.timestamp_micros(),
-                    }
-                    .covers(published)
-                })
-                && entry.watermark.is_none_or(|watermark| {
-                    Stamp {
-                        height,
-                        at_us: observed_at.timestamp_micros(),
-                    }
-                    .covers(watermark)
-                })
+                && published.is_none_or(|published| incoming.covers(published))
+                && entry
+                    .watermark
+                    .is_none_or(|watermark| incoming.covers(watermark))
         })
 }
 /// Exact pending/transient raw generation only. The returned tuple is the old
 /// complete tuple itself, with its original static deadline; never splice fees.
+#[cfg(test)]
 pub(crate) fn retained(
     namespace: &str,
     pair_id: i32,
@@ -728,6 +782,21 @@ pub(crate) fn retained(
     observed_at: DateTime<Utc>,
     reserves: (u128, u128),
 ) -> Option<(Arc<HopMirror>, i64)> {
+    let views = retained_views(namespace, pair_id, context, height, observed_at, reserves)?;
+    views.hybrid.or(views.pool)
+}
+pub(crate) struct RetainedViews {
+    pub hybrid: Option<(Arc<HopMirror>, i64)>,
+    pub pool: Option<(Arc<HopMirror>, i64)>,
+}
+pub(crate) fn retained_views(
+    namespace: &str,
+    pair_id: i32,
+    context: &str,
+    height: Option<i64>,
+    observed_at: DateTime<Utc>,
+    reserves: (u128, u128),
+) -> Option<RetainedViews> {
     let mut reg = registry().lock().unwrap();
     prune(&mut reg);
     let entry = reg.namespaces.get(namespace)?.entries.get(&pair_id)?;
@@ -745,21 +814,27 @@ pub(crate) fn retained(
     {
         return None;
     }
-    let complete = entry.complete.as_ref()?;
     let now = Utc::now().timestamp_millis();
-    if complete.expiry_ms.min(entry.expiry_ms) <= now
-        || crate::api::db_orderbook_sim::is_snapshot_stale(
-            complete.mirror.snapshot_at,
-            complete.max_age_ms,
-        )
-        || !phase.stamp.covers(stamp(&complete.mirror))
-    {
-        return None;
-    }
-    Some((
-        complete.mirror.clone(),
-        complete.expiry_ms.min(entry.expiry_ms),
-    ))
+    let retain = |complete: &Option<Complete>| {
+        let complete = complete.as_ref()?;
+        (complete.expiry_ms.min(entry.expiry_ms) > now
+            && !crate::api::db_orderbook_sim::is_snapshot_stale(
+                complete.mirror.snapshot_at,
+                complete.max_age_ms,
+            )
+            && phase.stamp.covers(stamp(&complete.mirror)))
+        .then(|| {
+            (
+                complete.mirror.clone(),
+                complete.expiry_ms.min(entry.expiry_ms),
+            )
+        })
+    };
+    let views = RetainedViews {
+        hybrid: retain(&entry.complete),
+        pool: retain(&entry.pool_complete),
+    };
+    (views.hybrid.is_some() || views.pool.is_some()).then_some(views)
 }
 
 #[cfg(test)]

@@ -10,7 +10,12 @@ quotes but did not sustain coverage. Capacity waiting and typed static tax admis
 [merged #1467](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1467); its
 [deployed follow-up](../docs/qa/issue-1464/verification.md#deployed-1467-and-current-500-ms-target)
 still fails sustained availability and first-useful latency. Caller-budget and
-original-expiry repairs must retain the remaining deployed acceptance as unproven.
+original-expiry repairs shipped in [merged #1468](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1468).
+Pool-frontier and bounded fee-generation repairs shipped in
+[merged #1469](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1469).
+Its [initial and sustained browser trials](../docs/qa/issue-1464/verification.md#merged-and-deployed-1469)
+passed initially but later failed the 500 ms target after transient 503 retries.
+Independent complete-view repairs require new source and exact-revision deployed evidence.
 Its [deployed receipt](../docs/qa/issue-1464/deployment-1465.json) records a successful
 rollout and failed useful-quote acceptance; use the current verification results,
 not merged status or liveness, to assess trading readiness.
@@ -21,7 +26,7 @@ not merged status or liveness, to assess trading readiness.
 | PR1464-2 | API serving and indexing have separate lifecycles. Transient indexing pressure cannot erase qualified in-memory quotes through process restart. Liveness alone never certifies accounting progress or trading readiness. |
 | PR1464-3 | Reorg/checkpoint mismatch and nonavailability parser/database/state failures halt unsafe progress visibly. Record processing/state failure once with the durable unsafe marker and halt before replay can skip a partial economic write; marked pending heights refuse replay after restart. Only prewrite LCD errors use the finite permanent-error retry budget. Repair incomplete projections before explicitly clearing the marker; this is not an atomic crash guarantee. |
 | PR1464-4 | Cloned clients share finite endpoint rate/concurrency/circuit state. Background pacing must not hold a provider permit while awaiting its pacing turn. Historical block/checkpoint/filtered-tx bodies must match the requested height and are not live-tip lag evidence. No additional client/queue may evade admission, and cancellation/leadership loss releases owned work. |
-| PR1464-5 | Independent still-fresh observations remain eligible until their original expiry or authoritative invalidation. Failed refresh cannot renew age, delete healthy unrelated candidates, clear known actor blocks or combine incompatible pool/book generations. |
+| PR1464-5 | Independent still-fresh complete pool and hybrid views keep separate original publication watermarks and expiry. A newer complete pool must not revoke an otherwise compatible original hybrid or make its book fresh. Failed refresh cannot renew age, delete healthy unrelated candidates, clear known actor blocks or combine incompatible pool/book generations. |
 | PR1464-6 | Internal rejection reasons use fixed low-cardinality classes. Missing/stale/unsupported observations fail closed with an availability blocker; genuine protected execution rejection remains a protection blocker. Never advise arbitrary smaller sizes for infrastructure loss. |
 | PR1464-7 | Quote, best, POST, progress, reference, refresh, preflight and reviewed-route preparation trigger zero RPC/LCD/network validation. Only independently scheduled producers acquire observations; traffic cannot accelerate their cadence. |
 | PR1464-8 | Exact integer gross debit, route-local tax funding, positive post-hook/hop/final floors, pause/freeze/blacklist and refund ownership remain mandatory. Actor/amount/mode/funding/namespace/generation cache isolation and reviewed signing context remain intact; ≥99% protection is nonwaivable. |
@@ -112,3 +117,22 @@ Qualification arriving during a request does not excuse known rejection or
 cancellation. Load and validate current raw state before selecting an older hybrid;
 an incomplete or changed fee must never inherit its economics. Verify these races
 with [both publisher fixtures](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).
+
+Keep complete pool and hybrid views independently in
+[local snapshots](../indexer/src/api/local_quote.rs) and
+[scheduled loading](../indexer/src/api/local_quote/ingestion.rs).
+Ordinary zero-book and pool-only budgets prefer the fresh complete pool. Automatic
+optimization may compare an independently eligible original hybrid; a declared
+positive book budget requires that hybrid and cannot silently become pool-only.
+Hybrid expiry cannot erase a still-fresh pool, even without another publisher pass.
+Never splice an old book into new reserves or fee economics. Both lane watermarks
+are monotonic within the same qualified policy/assets context; changing either
+complete view updates cache and reviewed-generation identity.
+
+Both saved views share the existing 32-namespace, 512-marker, 128-complete-mirror,
+4096-order and 4 MiB caps in [fee provenance](../indexer/src/indexer/fee_phase.rs).
+Known negatives, changed fees and canceled/expired phases invalidate both views;
+the four-second phase and original twenty-second observation TTL stay unchanged.
+Verify shared bounds in [fee state controls](../indexer/src/indexer/fee_phase_tests.rs)
+and original expiry, declared-book refusal, both publishers, cache/receive behavior
+and zero request RPC in [owned-worker controls](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).

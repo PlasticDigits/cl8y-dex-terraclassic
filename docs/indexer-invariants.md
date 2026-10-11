@@ -515,6 +515,24 @@ mirror. Active/tombstone provenance survives temporary qualification removal
 without renewing eligibility, and delayed older publication cannot regress a
 newer compatible complete generation.
 
+Complete pool and hybrid views have independent original publication watermarks.
+Newer complete pool publication cannot revoke an otherwise compatible still-fresh
+original hybrid or renew its book age. Zero-book and pool-only budgets prefer the
+complete pool; automatic optimization may compare an eligible original hybrid.
+A declared positive book budget requires that original hybrid and fails unavailable
+after its expiry. Hybrid expiry does not erase a fresh pool, including cached
+exact-input/receive quotes without another publisher pass. Each quote uses a whole
+compatible tuple: never combine an old book with new reserves or fee economics.
+Both views share the caps above and authoritative negative invalidation; neither
+the four-second phase nor the twenty-second observation TTL increases. Both lane
+watermarks advance monotonically within the same qualified assets/policy context.
+Either complete view changing updates cache and reviewed-generation identity.
+Implementation: [whole-view loading](../indexer/src/api/db_orderbook_sim.rs),
+[local selection/publication](../indexer/src/api/local_quote.rs) and
+[fee registry](../indexer/src/indexer/fee_phase.rs). Controls:
+[shared state budgets](../indexer/src/indexer/fee_phase_tests.rs) and
+[both scheduled publishers](../indexer/tests/scenarios/fee_generation_recovery_1464.rs).
+
 Cold or unqualified producers own a non-retaining guard before the raw SQL write.
 Their required-read rejection or cancellation also invalidates qualification that
 arrives during the request; obsolete completions cannot erase newer validation.
