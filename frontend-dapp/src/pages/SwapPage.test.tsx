@@ -205,6 +205,7 @@ import { TRADING_BLACKLIST_ALLOWED } from '@/test/tradingBlacklistMocks'
 import { NUMBER_DISPLAY_MODE_KEY, readNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
+import { IndexerApiError } from '@/utils/routeQuoteErrors'
 
 function SwapLocationProbe() {
   const { pathname, search } = useLocation()
@@ -318,6 +319,133 @@ describe('SwapPage local executable quotes (#1452)', () => {
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
     expect(simulateSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it.each(['missing_observations', 'stale_observations'] as const)(
+    'waits indeterminately for %s and recovers only after a published generation',
+    async (reason) => {
+      let available = false
+      const publication = { generation: undefined as string | undefined }
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        if (!available) throw new IndexerApiError(503, reason)
+        return localQuote(from, to, amount, options)
+      })
+      vi.mocked(indexerClient.getRouteSolveProgress).mockImplementation(async () => ({
+        stage: 'idle',
+        done: 0,
+        total: 0,
+        label: '',
+        cache_hit: true,
+        updated_at_ms: Date.now(),
+        quote_generation: publication.generation,
+      }))
+      const { queryClient } = renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+      await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+      expect(screen.getByTestId('swap-you-receive')).toHaveAttribute('aria-busy', 'true')
+      expect(screen.getByTestId('swap-submit')).toBeDisabled()
+      expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price')
+      expect(screen.queryByTestId('swap-quote-retry-error')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('swap-quote-unavailable')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      available = true
+      publication.generation = 'published-first'
+      await queryClient.invalidateQueries({ queryKey: ['blockedQuoteGeneration'] })
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
+      expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-submit')).toBeEnabled()
+      expect(simulateSwap).not.toHaveBeenCalled()
+      expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+    }
+  )
+  it.each(['amount_too_small', 'protection', 'unsupported_semantics'] as const)(
+    'keeps actual %s blockers visible rather than presenting them as pricing waits',
+    async (reason) => {
+      vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(422, reason))
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+      await waitFor(() => expect(screen.getByTestId('swap-quote-error')).toBeInTheDocument())
+      expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    }
+  )
+  it('keeps receive sizing in a data wait and publishes only the validated matching offer', async () => {
+    let available = false
+    vi.spyOn(indexerClient, 'getRouteSolveExactOutput').mockImplementation(async (from, to, target, options) => {
+      if (!available) throw new IndexerApiError(503, 'missing_observations')
+      return {
+        ...localQuote(from, to, target, options),
+        sizing_mode: 'local_pool_exact_output',
+        required_amount_in: target,
+        target_amount_out: target,
+      }
+    })
+    const { queryClient } = renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
+    expect(screen.queryByTestId('swap-receive-quote-retry-error')).not.toBeInTheDocument()
+    available = true
+    vi.mocked(indexerClient.getRouteSolveProgress).mockResolvedValue({
+      stage: 'idle',
+      done: 0,
+      total: 0,
+      label: '',
+      cache_hit: true,
+      updated_at_ms: Date.now(),
+      quote_generation: 'published-receive',
+    })
+    await queryClient.invalidateQueries({ queryKey: ['blockedQuoteGeneration'] })
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('1'))
+    expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeEnabled()
+  })
+  it('clears the old wait immediately on a flip and shows the other direction’s valid quote', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      if (from === LOCAL_FROM) throw new IndexerApiError(503, 'missing_observations')
+      return localQuote(from, to, amount, options)
+    })
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
+  })
+  it('immediately rechecks an expired cached amount within the global10s freshness window', async () => {
+    let firstAmountCalls = 0
+    let finish!: () => void
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      if (amount === '1000000' && ++firstAmountCalls === 2) {
+        return new Promise((resolve) => {
+          finish = () => resolve(localQuote(from, to, amount, options))
+        })
+      }
+      const quote = localQuote(from, to, amount, options)
+      if (amount === '1000000') quote.execution_metadata!.expires_at_ms = Date.now() + 1000
+      return quote
+    })
+    const { queryClient } = renderWithProviders(<SwapPage />)
+    queryClient.setDefaultOptions({ queries: { retry: false, gcTime: Infinity, staleTime: 10_000 } })
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '2' } })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('2'))
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(firstAmountCalls).toBe(2), { timeout: 1000 })
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+    finish()
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
   })
   it('rejects unavailable executable metadata rather than trusting a positive amount', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async () => {

@@ -1,12 +1,115 @@
 # Issue #1473 implementation and verification
 
 Issue: [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
-Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474). The source commit is
+Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); pricing-data and client-expiry follow-up: [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475). The source commit is
 [`bf13b04e24e74c4631b21934fedd0c26b50bcb89`](https://git.cl8y.com/code/cl8y-dex-terraclassic/commit/bf13b04e24e74c4631b21934fedd0c26b50bcb89).
-Available prerequisite scopes are recorded below; hosted CI and exact main/
-deployed revisions remain pending.
+PR #1474 passed all six mandatory hosted jobs on exact head
+`09365d97a9529beccfa8c3fcb15be11d7ca983d2` and merged as
+`7b66402c9154364b61673cb781279e48d689e089`. Backend and frontend separately
+completed deployment of that revision; the bounded public attester matched both
+component revisions, backend health and served root HTML/script hashes. See [hosted CI](hosted-first-main.json), [separate deployment attestation](deployment-first-main.json)
+and [classified bounded runtime logs](runtime-first-main.json). These provenance
+checks establish revision identity, not complete live acceptance.
 Follow [the agent procedure/checklist](README.md) and
 [TQ1473](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md).
+
+## Deployed follow-up findings
+
+The first live run on `7b66402c…` did not pass. A public socket prerequisite
+failed before completion; the earlier helper emitted no partial receipt. The
+corrected helper preserves a bounded FAIL receipt and successful prior rows on
+transport/provenance failure. Its fresh provenance connection policy does not
+establish the cause of that original failure.
+
+The [initial live browser failure summary](live-first-main-failure.json) preserves
+a stopped run with four failed rows in 100 samples.
+One useful quote took about 10.35 seconds; another API path took about 889 ms
+and reached the visible frame in about 1.01 seconds. A separate 37-GET read-only
+diagnosis proved a client cache bug: original quote expiry occurred inside the
+global ten-second React Query freshness window, so revisiting an amount displayed
+expired data and waited for the interval. This is corrected by original-expiry
+cache admission, active display/signing invalidation and bounded local refresh.
+The earlier 889 ms API delay remains unresolved; no graphics/provider cause is
+inferred. Two blocked-case helper timeouts were caused by requiring a blank input
+below the viewport to be visible despite an already visible matching error.
+Blocked outcomes now require visible matching state and blank receive; useful
+output still requires exact validated visible amount and two render frames.
+Completed helper failures now exit nonzero and preserve bounded diagnostics.
+
+The user reported KENA missing pricing while other tokens remained fast.
+The [bounded read-only probes](kena-missing-data-first.json) classified buys as `missing_observations`; the sole
+active KENA/cLUNC market had about $25.77 cached liquidity, below the admitted
+reference producer's $100 default floor. Scoped deployment configuration has no
+floor override. This does not justify bypassing economic reference admission.
+The generic UI now shows an indeterminate loading bar for typed missing/stale
+observations, including errors without a generation, until usable data actually
+arrives. It suppresses pricing-error/retry/outage copy for this state, retains real
+dust/protection/accounting/unsupported conditions and cancels obsolete waits.
+There is no fake completion percentage, estimate or finite ETA. See the
+[data-wait invariants and agent checks](WARMUP.md).
+
+The [first source attempt](warmup-stopped-first.json) was stopped after its first
+423 frontend / 774 indexer / 81 socket tests passed. Independent review found
+that the live helper required an explicit progress role and missed the native
+`<progress>` actually rendered by the app; its DOM fixture is corrected to real
+markup. A referenced-project `tsc -b` also caught a receive-query error-type
+inference mismatch, corrected with explicit query type parameters. The simpler
+solution-level `tsc --noEmit` invocation did not traverse those references.
+Neither partial passing tests nor that inadequate type invocation establishes
+a final source pass. The complete frozen verifier is restarted with fresh
+process-owned databases and browser fixtures after these corrections.
+
+The restarted complete source verifier (`a653582f…`) passed its source/API/type
+and whitespace groups but [failed the controlled browser group](browser-warmup-first-failure.json):
+16 PASS / 1 FAIL / 2 SKIP. Both source trials passed 423 frontend tests, 774
+indexer tests (plus one explicitly manual benchmark ignored), 81 owned socket
+tests, ten Python probe regressions and eight actual native-progress DOM helper
+tests. The complete 4,250-scenario browser trial had 3,948 useful quotes, 302
+bounded rejections and zero provider requests. Useful p50/p95/p99/max were
+89.8/144.6/165.2/762.4 ms. The one miss was desktop LUNC → USTC,
+49.999999 at 5%, on a cache-hit retest with no API attempt: a 617 ms long task
+occupied its original event-to-frame window. This exceeds the current 750 ms
+criterion and remains FAIL; the cause is under bounded profiling. No graphics,
+GC or host explanation is inferred from a long-task duration alone.
+
+The full unprofiled browser [retest](browser-warmup-retest-failure.json) also
+failed once: 857.4 ms desktop ALPHA → CL8Y, 74.999999 at 5%, a cache hit with
+a 751 ms long task. Its complete 4,250 rows had zero provider requests and the
+same frozen source fingerprint. A bounded circular trace subsequently captured
+a different 965.5 ms event with mostly native waits and little application CPU.
+Profiling may perturb timing; it does not establish the cause of either earlier
+long task. Headed Chrome on an isolated Xvfb display was provisioned without
+sudo, global installation or use of the human display; bounded comparisons
+passed but cannot replace the failed full trials or prove a causal fix.
+
+Independent retry review then found a genuine new cadence regression: failed
+refreshes retain old data, so shortening intervals by expired metadata changed
+ordinary forward errors from ten-second to one-second retries. Receive errors
+also lost their previous interval-stop guard. The guards are restored and actual
+QueryClient tests cover retained expired data, forward cadence and manual receive
+retry. Subsequent source/browser evidence must use the updated fingerprint.
+
+The [final functional source summary](source-warmup-final.json) records 427
+frontend tests in 24 files passing twice on updated frozen `90ae4cf2…`, referenced
+`tsc -b`, all modified TypeScript lint, formatting and whitespace checks. The
+unchanged backend retains its earlier tested source scope; no backend arithmetic
+or economic admission changed. The [full owned headed browser first/retest](browser-warmup-headed-pass-summary.json)
+passed all 4,250 scenarios: 3,948 useful quotes, 302 bounded rejections, zero
+failures/provider requests and 1,992 quote GETs. Chrome 151.0.7922.137 on an
+owned authenticated Xvfb display measured original input through two confirmed
+visible frames. Useful p50/p95/p99/max were 97.6/158.5/198.4/657.2 ms. Source
+fingerprints before and after matched exactly. Its temporary adapter changed
+only the copied fixture's repository-root resolution, `headless:true` to false,
+and mode/fingerprint/scope receipt metadata. Native GPU/shared-memory flags,
+amounts, native outputs, arithmetic, clocks and 750 ms budget were preserved.
+The browser/display/authentication files were cleaned up without touching the
+human display or system packages. This is a passing new headed scope, not a
+causal explanation or replacement of either earlier headless FAIL.
+
+Publication of the reviewed functional fix is authorized with these explicit
+limits. Hosted CI, exact merged deployment and sustained live evidence follow
+separately. The final issue comment records their actual results; this source
+receipt does not establish deployed, historical or physical-device acceptance.
 
 ## Behavior and invariant review
 
@@ -216,7 +319,7 @@ rollout, historical reconstruction or missing settlement/device acceptance.
 - [ ] AC3 complete user/state acceptance: focused intent/generation tests pass;
   remaining deployed and receive/manual/browser race scope needs its receipts.
 - [ ] AC4 complete entry acceptance: source permutations, native navigation and
-  funding-orientation tests pass; final deployed frontend provenance/default trial remains.
+  funding-orientation tests pass; exact deployed frontend provenance and native default trial passed on `7b66402c…`; follow-up revision needs a fresh trial.
 - [ ] AC6 complete expanded source/socket/browser/deployed first/repeat matrix.
 - [ ] AC7 complete initialized browser latency: the fresh controlled full
   first/retest passes the temporary 750 ms criterion; complete deployed

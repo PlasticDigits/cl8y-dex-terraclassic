@@ -17,7 +17,7 @@ function setup() {
   return { client, wrapper }
 }
 const args = () => ({
-  error: new IndexerApiError(422, 'protection', '1000000', initialTime + 19_000, 'first'),
+  error: new IndexerApiError(422, 'protection', '1000000', initialTime + 19_000, 'first') as unknown,
   currentIntent: true,
   tokenIn: 'terra1from',
   tokenOut: 'terra1to',
@@ -104,10 +104,96 @@ describe('rejected quote observation recovery (#1473)', () => {
     const { rerender, unmount } = renderHook((value) => useQuoteErrorRecovery(value), { initialProps: input, wrapper })
     await tick()
     expect(input.refetch).not.toHaveBeenCalled()
-    rerender({ ...input, error: new IndexerApiError(503, 'stale_observations') })
+    rerender({ ...input, error: new Error('Failed to fetch') })
     await tick(30_000)
     expect(getRouteSolveProgress).toHaveBeenCalledTimes(1)
     expect(input.refetch).not.toHaveBeenCalled()
+    unmount()
+    client.clear()
+  })
+  it.each(['missing_observations', 'stale_observations'] as const)(
+    'watches %s without an error generation and solves once for each valid publication',
+    async (reason) => {
+      const input = { ...args(), error: new IndexerApiError(503, reason) }
+      let generation = 'first'
+      vi.mocked(getRouteSolveProgress).mockImplementation(async () => progress(generation))
+      const { client, wrapper } = setup()
+      const { unmount } = renderHook(() => useQuoteErrorRecovery(input), { wrapper })
+      await tick(1)
+      expect(input.refetch).toHaveBeenCalledTimes(1)
+      await tick(40_000)
+      expect(input.refetch).toHaveBeenCalledTimes(1)
+      generation = 'second'
+      await tick(10_000)
+      expect(input.refetch).toHaveBeenCalledTimes(2)
+      generation = 'first'
+      await tick(10_000)
+      expect(input.refetch).toHaveBeenCalledTimes(2)
+      unmount()
+      client.clear()
+    }
+  )
+  it('ignores and aborts late progress for a cancelled missing-price intent', async () => {
+    const input = { ...args(), error: new IndexerApiError(503, 'missing_observations') }
+    let finish!: (value: ReturnType<typeof progress>) => void
+    let signal: AbortSignal | undefined
+    vi.mocked(getRouteSolveProgress).mockImplementation((_a, _b, _c, options) => {
+      signal = options?.signal
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const { client, wrapper } = setup()
+    const { rerender, unmount } = renderHook(useQuoteErrorRecovery, { initialProps: input, wrapper })
+    await tick()
+    rerender({ ...input, currentIntent: false, amount: '2' })
+    expect(signal?.aborted).toBe(true)
+    finish(progress('first'))
+    await tick(30_000)
+    expect(input.refetch).not.toHaveBeenCalled()
+    expect(getRouteSolveProgress).toHaveBeenCalledTimes(1)
+    unmount()
+    client.clear()
+  })
+  it('bounds recent generation suppression while never repeating unchanged current publications', async () => {
+    const input = { ...args(), error: new IndexerApiError(503, 'missing_observations') }
+    let generation = 'publication-0'
+    vi.mocked(getRouteSolveProgress).mockImplementation(async () => progress(generation))
+    const { client, wrapper } = setup()
+    const { unmount } = renderHook(() => useQuoteErrorRecovery(input), { wrapper })
+    await tick(1)
+    for (let i = 1; i <= 65; i++) {
+      generation = `publication-${i}`
+      await tick(10_000)
+    }
+    expect(input.refetch).toHaveBeenCalledTimes(66)
+    await tick(30_000)
+    expect(input.refetch).toHaveBeenCalledTimes(66)
+    generation = 'publication-2' // Still in the64-publication history.
+    await tick(10_000)
+    expect(input.refetch).toHaveBeenCalledTimes(66)
+    generation = 'publication-0' // Evicted after64 newer publications; this is a changed signal.
+    await tick(10_000)
+    expect(input.refetch).toHaveBeenCalledTimes(67)
+    await tick(30_000)
+    expect(input.refetch).toHaveBeenCalledTimes(67)
+    unmount()
+    client.clear()
+  })
+  it('resets recovery ownership through a successful intermediate UI intent, including return toA', async () => {
+    const input = { ...args(), error: new IndexerApiError(503, 'missing_observations') as unknown, intentKey: 'A' }
+    vi.mocked(getRouteSolveProgress).mockResolvedValue(progress('publication'))
+    const { client, wrapper } = setup()
+    const { rerender, unmount } = renderHook(useQuoteErrorRecovery, { initialProps: input, wrapper })
+    await tick(1)
+    expect(input.refetch).toHaveBeenCalledTimes(1)
+    rerender({ ...input, intentKey: 'B', error: null })
+    await tick(1)
+    rerender(input)
+    await tick(1)
+    expect(input.refetch).toHaveBeenCalledTimes(2)
+    await tick(30_000)
+    expect(input.refetch).toHaveBeenCalledTimes(2)
     unmount()
     client.clear()
   })

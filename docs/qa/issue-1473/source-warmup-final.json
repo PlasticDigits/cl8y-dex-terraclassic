@@ -1,0 +1,59 @@
+{
+  "issue": 1473,
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "source_dirty": true,
+  "source_fingerprint": "90ae4cf2829046ff39cb12291c89a728321c84d7fe34df15c1b666e77fd80fba",
+  "recorded_at_utc": "2026-10-11T12:17:39.224978+00:00",
+  "scope": "Current functional frontend and owned headed browser first/retest; unchanged backend scopes were tested at earlier a653 source. Earlier full headless acceptance failures remain FAIL. This is not complete issue acceptance.",
+  "current_frontend_first_retest": {
+    "files": 24,
+    "tests_each": 427,
+    "failures": 0
+  },
+  "types": "PASS referenced-project tsc -b",
+  "lint": "PASS all modified frontend TS files",
+  "format_and_whitespace": "PASS",
+  "current_owned_headed_browser": {
+    "receipt": "browser-warmup-headed-pass-summary.json",
+    "scenarios": 4250,
+    "useful_quotes": 3948,
+    "blocked": 302,
+    "failures": 0,
+    "provider_requests": 0,
+    "browser_latency_budget_ms": 750,
+    "maximum_useful_ms": 657.2
+  },
+  "unchanged_backend_first_retest": {
+    "indexer_tests_each": 774,
+    "ignored_manual_benchmarks_each": 1,
+    "socket_tests_each": 81,
+    "source_scope": "Backend source unchanged by follow-up UI/cadence changes; earlier frozen a653 verifier actual groups passed."
+  },
+  "python_probe_tests_each": 10,
+  "native_progress_dom_tests_each": 8,
+  "earlier_full_verifier": {
+    "source_fingerprint": "a653582f828398d35ab821eeedd5e6cad1a3bbcb736da5c99fa5a0803ed50bd4",
+    "counts": {
+      "pass": 16,
+      "fail": 1,
+      "skip": 2
+    },
+    "overall": "FAIL",
+    "failure": "browser-warmup-first-failure.json"
+  },
+  "earlier_full_headless_retest": {
+    "overall": "FAIL",
+    "failure": "browser-warmup-retest-failure.json"
+  },
+  "functional_and_headed_scope_verdict": "PASS WITH SKIPS for stated tested scope",
+  "overall_issue_verdict": "INCOMPLETE: retained headless FAILs, deployed follow-up, historical/context/settlement/device and prerequisite scopes remain separate",
+  "skips": [
+    "Follow-up exact deployment and sustained public matrix",
+    "Complete historical economic observations and actor/hook/settlement contexts",
+    "Physical wallet browser; prepared operator inbox action"
+  ],
+  "retained_executed_failures": [
+    "Headless controlled trials at earlier a653: 762.4ms and857.4ms; causes unresolved",
+    "Earlier #1396 custom-bridge host verification failed; separate unchanged prerequisite scope"
+  ]
+}

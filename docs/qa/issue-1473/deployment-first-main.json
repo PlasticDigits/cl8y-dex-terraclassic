@@ -1,0 +1,45 @@
+{
+  "issue": 1473,
+  "expected_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "utc": "2026-10-11T09:31:22.760298+00:00",
+  "read_only": true,
+  "frontend": {
+    "source_sha": "7b66402c9154364b61673cb781279e48d689e089",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-11T09:28:43+00:00",
+    "artifact": {
+      "html_sha256": "64ffe15322807f0355ab7614252bf79009b36b6b02f29f1af173d2beb9788567",
+      "root_scripts": [
+        {
+          "asset": "index-DgZfiRRB.js",
+          "sha256": "901e92708764aac368cce02971392afcd7c2537585cc40af8b902826426343bd",
+          "bytes": 182245
+        }
+      ]
+    },
+    "revision_matches": true
+  },
+  "backend_deployment": {
+    "source_sha": "7b66402c9154364b61673cb781279e48d689e089",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-11T09:23:17+00:00"
+  },
+  "backend": {
+    "git_sha": "7b66402c9154364b61673cb781279e48d689e089",
+    "revision_matches": true
+  },
+  "overall": "PASS",
+  "read_count": 8,
+  "limits": {
+    "no_raw_private_bodies": true,
+    "no_private_endpoints": true,
+    "frontend_source_attestation": "completed deployment metadata and independently hashed served root artifacts",
+    "backend_source_attestation": "public health revision and completed deployment metadata",
+    "unverified": [
+      "lazy-loaded frontend artifacts",
+      "settlement",
+      "historical economics",
+      "physical devices"
+    ]
+  }
+}

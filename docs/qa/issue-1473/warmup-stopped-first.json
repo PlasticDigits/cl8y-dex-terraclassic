@@ -1,0 +1,21 @@
+{
+  "issue": 1473,
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "source_fingerprint_start": "5c3fbfe1d78118094f9270994fc85a4420c5802597326ad0fd2e09871f7564ad",
+  "utc_start": "2026-10-11T10:38:27Z",
+  "completed": false,
+  "overall": "STOPPED FOR CORRECTION",
+  "reason": "Independent review found live-helper native progress selector gap; stop owned test processes before source correction, repeat complete frozen verification with fresh process-owned databases/browser",
+  "first_pass_completed": {
+    "indexer_passed": 774,
+    "indexer_ignored": 1,
+    "socket_passed": 81,
+    "frontend_passed": 423,
+    "frontend_files": 24,
+    "python_probe_passed": 10,
+    "dom_helper_passed": 8
+  },
+  "partial_retest_not_acceptance": true,
+  "owned_processes_terminated": 3,
+  "shared_services_changed": false
+}

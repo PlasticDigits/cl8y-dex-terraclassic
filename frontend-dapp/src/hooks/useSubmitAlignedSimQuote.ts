@@ -6,7 +6,8 @@ import {
 } from '@/utils/quoteDebounce'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { isExpiredLocalQuote, localQuoteExpiryMs } from '@/utils/localQuoteFreshness'
 
 export type SubmitAlignedSimQuote<T extends { return_amount: string }> = {
   /** Raw pay amount aligned with the debounced sim query key — use for on-chain submit. */
@@ -46,16 +47,20 @@ export function useSubmitAlignedSimQuote<T extends { return_amount: string; inde
     hybrid,
   } = params
 
-  const isQuoteStale = isSubmitQuoteStale(
-    rawInputAmount,
-    debouncedRawInputAmount,
-    simQuery.isPlaceholderData,
-    simQuery.isFetching,
-    hybrid
-  )
+  const [, refreshExpiry] = useState(0)
+  useEffect(() => {
+    const expiry = localQuoteExpiryMs(simQuery.data)
+    if (expiry === undefined || !Number.isFinite(expiry) || expiry <= Date.now()) return
+    const timer = window.setTimeout(() => refreshExpiry((value) => value + 1), expiry - Date.now() + 1)
+    return () => window.clearTimeout(timer)
+  }, [simQuery.data])
+  const expired = isExpiredLocalQuote(simQuery.data)
+  const isQuoteStale =
+    expired ||
+    isSubmitQuoteStale(rawInputAmount, debouncedRawInputAmount, simQuery.isPlaceholderData, simQuery.isFetching, hybrid)
 
   // Retain the last useful same-key baseline on refresh failure; isError still blocks submit.
-  const simData = simQuery.data
+  const simData = expired ? undefined : simQuery.data
 
   const submitPayload = useMemo(
     () =>

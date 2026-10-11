@@ -2,6 +2,9 @@
 """Quote corpus and actual socket safety tests with synthetic public payloads."""
 import importlib.util
 import json
+import subprocess
+import sys
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -133,6 +136,205 @@ class Tests(unittest.TestCase):
         for origin in ["https://user:secret@example.invalid", "https://example.invalid/path", "file:///tmp/x", "https://example.invalid/?actor=x"]:
             with self.assertRaises(ValueError):
                 probe.connection_for(origin)
+
+    def test_idle_keepalive_closes_but_each_cycle_has_fresh_provenance_and_cold_quote(self):
+        revision = "b" * 40
+        idle_closed = threading.Event()
+        connections = {"health": [], "quote": []}
+
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def setup(self):
+                super().setup()
+                self.connection.settimeout(0.04)
+
+            def log_message(self, *_args):
+                pass
+
+            def finish(self):
+                super().finish()
+                idle_closed.set()
+
+            def do_GET(self):
+                is_health = self.path == "/health"
+                connections["health" if is_health else "quote"].append(self.client_address[1])
+                payload = json.dumps({"git_sha": revision} if is_health else {"error": "protection"}).encode()
+                self.send_response(200 if is_health else 422)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        origin = f"http://127.0.0.1:{server.server_port}"
+        stale = probe.connection_for(origin)
+        try:
+            self.assertEqual(probe.health_revision(stale), revision)
+            self.assertTrue(idle_closed.wait(1), "owned server must actually close the idle keepalive")
+            self.assertIsNotNone(stale.sock, "client still retains the stale pooled socket")
+            with self.assertRaises((OSError, probe.common.http.client.HTTPException)):
+                probe.health_revision(stale)
+            connections["health"].clear()
+            # Short idle gap is internal to this local regression. CLI minimums
+            # remain 181s cycle delay and 0.5s request spacing for public probes.
+            args = SimpleNamespace(base_url=origin, revision=revision, cycles=2, cycle_delay=0.08,
+                                   endpoints=["solve"], profile="reproduction", interval=0,
+                                   enforce_socket_budget=False)
+            cases = list(probe.corpus("reproduction"))[:2]
+            with patch.object(probe, "corpus", return_value=iter(cases)):
+                result = probe.probe(args)
+            self.assertEqual(result["overall"], "PASS WITH SKIPS")
+            self.assertEqual(result["request_count"], 4)
+            self.assertEqual(result["backend_revisions"], [revision] * 4)
+            self.assertEqual([row["transport"] for row in result["samples"]], ["new", "reused"] * 2)
+            self.assertEqual([row["transport_plan"] for row in result["samples"]], ["cold_cycle_start", "pooled"] * 2)
+            self.assertEqual(len(set(connections["health"])), 4)
+            self.assertEqual(len(set(connections["quote"])), 2)
+            self.assertTrue(set(connections["health"]).isdisjoint(connections["quote"]))
+        finally:
+            stale.close()
+            server.shutdown()
+            server.server_close()
+            worker.join()
+
+    def test_failed_provenance_preserves_completed_cases_without_raw_health_data(self):
+        revision = "c" * 40
+        sentinel = "private-actor-and-url-never-exported"
+        health_count = 0
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_GET(self):
+                nonlocal health_count
+                if self.path == "/health":
+                    health_count += 1
+                    status, body = 200, {"git_sha": revision if health_count < 3 else sentinel}
+                else:
+                    status, body = 422, {"error": "protection", "private_actor": sentinel}
+                payload = json.dumps(body).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            args = SimpleNamespace(base_url=f"http://127.0.0.1:{server.server_port}", revision=revision,
+                                   cycles=2, cycle_delay=0, endpoints=["solve"], profile="reproduction",
+                                   interval=0, enforce_socket_budget=False)
+            cases = list(probe.corpus("reproduction"))[:2]
+            with patch.object(probe, "corpus", return_value=iter(cases)):
+                result = probe.probe(args)
+            self.assertEqual(result["overall"], "FAIL")
+            self.assertEqual(result["request_count"], 2)
+            self.assertEqual(result["counts"], {"protection": 2})
+            self.assertEqual(result["backend_revisions"], [revision, revision])
+            self.assertEqual(result["failures"][0]["stage"], "provenance_before.decode")
+            self.assertEqual(result["failures"][0]["failure_class"], "HealthRevisionUnavailable")
+            self.assertEqual(result["failures"][0]["completed_request_count"], 2)
+            self.assertEqual(result["failures"][0]["trial"], "retest")
+            self.assertTrue(all(row["utc_start"] <= row["utc_end"] for row in result["samples"]))
+            encoded = json.dumps(result)
+            self.assertNotIn(sentinel, encoded)
+            self.assertNotIn(args.base_url, encoded)
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join()
+
+    def test_failed_quote_is_recorded_once_and_never_retried_or_counted_as_latency(self):
+        revision = "d" * 40
+        quote_count = 0
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_GET(self):
+                nonlocal quote_count
+                if self.path == "/health":
+                    status, body = 200, {"git_sha": revision}
+                else:
+                    quote_count += 1
+                    if quote_count == 1:
+                        self.close_connection = True
+                        return  # Actual connection close before response headers.
+                    status, body = 422, {"error": "protection"}
+                payload = json.dumps(body).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            args = SimpleNamespace(base_url=f"http://127.0.0.1:{server.server_port}", revision=revision,
+                                   cycles=1, cycle_delay=0, endpoints=["solve"], profile="reproduction",
+                                   interval=0, enforce_socket_budget=False)
+            cases = list(probe.corpus("reproduction"))[:2]
+            with patch.object(probe, "corpus", return_value=iter(cases)):
+                result = probe.probe(args)
+            self.assertEqual(quote_count, 2)
+            self.assertEqual(result["overall"], "FAIL")
+            self.assertEqual(result["request_count"], 2)
+            failed = result["samples"][0]
+            self.assertEqual(failed["failure_stage"], "quote.response")
+            self.assertEqual(failed["failure_class"], "RemoteDisconnected")
+            self.assertFalse(failed["classified"])
+            self.assertFalse(failed["socket_budget_pass"])
+            self.assertEqual(result["samples"][1]["outcome"], "protection")
+            self.assertEqual(result["useful_latency_by_transport"]["new"]["samples"], 0)
+            self.assertEqual(result["useful_latency_by_transport"]["reused"]["samples"], 0)
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join()
+
+    def test_cli_writes_failure_receipt_when_initial_provenance_is_malformed(self):
+        sentinel = "private-health-field-never-print"
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_GET(self):
+                payload = json.dumps({"git_sha": sentinel}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "partial.json"
+                origin = f"http://127.0.0.1:{server.server_port}"
+                completed = subprocess.run([sys.executable, str(Path(probe.__file__)),
+                    "--base-url", origin, "--revision", "e" * 40, "--output", str(output)],
+                    capture_output=True, text=True, timeout=10)
+                self.assertEqual(completed.returncode, 1)
+                self.assertTrue(output.is_file(), "prerequisite failure must preserve a receipt")
+                result = json.loads(output.read_text())
+                self.assertEqual(result["overall"], "FAIL")
+                self.assertEqual(result["request_count"], 0)
+                self.assertEqual(result["failures"][0]["stage"], "provenance_before.decode")
+                self.assertEqual(result["failures"][0]["failure_class"], "HealthRevisionUnavailable")
+                self.assertNotIn(sentinel, output.read_text() + completed.stdout + completed.stderr)
+                self.assertNotIn(origin, output.read_text() + completed.stdout + completed.stderr)
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join()
 
 
 if __name__ == "__main__":

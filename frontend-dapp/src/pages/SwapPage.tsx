@@ -84,6 +84,9 @@ import {
   isIndexerLocalQuoteRejection,
 } from '@/utils/indexerErrors'
 import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
+import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
+import { QuoteDataLoadingProgress } from '@/components/QuoteDataLoadingProgress'
+import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import {
   MARKET_DATA_SERVICE_OUTAGE_TITLE,
@@ -111,7 +114,6 @@ import {
   assertSubmitQuotePayRawAligned,
   shouldShowSimReceiveCalculating,
   SIM_QUOTE_DEBOUNCE_MS,
-  simQuoteRefetchInterval,
 } from '@/utils/quoteDebounce'
 import { applySlippagePercentFloor, isPositiveRawAmount, spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
@@ -598,7 +600,7 @@ export default function SwapPage() {
     debouncedBookInputHuman,
     unwrapBurnTaxQuery.dataUpdatedAt,
   ] as const
-  const reverseQuery = useQuery({
+  const reverseQuery = useQuery<{ offerAmount: string; quote?: SwapSimData }, Error>({
     queryKey: reverseQueryKey,
     queryFn: async ({ signal }): Promise<{ offerAmount: string; quote?: SwapSimData }> => {
       if (!canReverseQuote) throw new Error('No eligible receive route found')
@@ -620,16 +622,23 @@ export default function SwapPage() {
     // Deterministic liquidity/arithmetic failures never auto-retry or interval-refetch.
     retry: false,
     refetchOnWindowFocus: false,
+    staleTime: localQuoteStaleTime,
     enabled: decimalsResolved && reverseQuoteActive && reverseAskRaw !== '0' && !taxReceive.isLoading,
-    // Prior-key offers are unsafe when the receive draft or route changes.
-    refetchInterval: (query) => (query.state.status === 'error' ? false : simQuoteRefetchInterval(query)),
+    // Receive failures require explicit retry or a changed published generation.
+    refetchInterval: (query) => (query.state.status === 'error' ? false : localQuoteRefetchInterval(query)),
   })
 
   const reverseRetry = useQueryManualRetry(reverseQueryKey, reverseQuery)
   useQuoteErrorRecovery({
     error: reverseQuery.error,
+    intentKey: JSON.stringify([...reverseQueryKey, inputAmount, bookInputHuman, hybridMaxMakers]),
     currentIntent:
-      reverseQuoteActive && reverseQuery.isError && !reverseQuery.isFetching && inputAmount === debouncedInputAmount,
+      reverseQuoteActive &&
+      reverseQuery.isError &&
+      !reverseQuery.isFetching &&
+      inputAmount === debouncedInputAmount &&
+      bookInputHuman === debouncedBookInputHuman &&
+      hybridMaxMakers === debouncedHybridMaxMakers,
     tokenIn: fromToken,
     tokenOut: toToken,
     amount: reverseAskRaw,
@@ -646,6 +655,23 @@ export default function SwapPage() {
     isPositiveDecimalAmount(inputAmount) &&
     toRawAmount(inputAmount, receiveDecimals) === '0'
   const receiveDecimalsUnavailable = reverseQuoteActive && !decimalsResolved && !decimalsPending
+  const reverseIntentCurrent =
+    reverseQuoteActive &&
+    reverseAskRaw !== '0' &&
+    inputAmount === debouncedInputAmount &&
+    bookInputHuman === debouncedBookInputHuman &&
+    hybridMaxMakers === debouncedHybridMaxMakers
+  const reversePricingDataPending = useQuotePricingDataPending({
+    intentKey: JSON.stringify([...reverseQueryKey, inputAmount, bookInputHuman, hybridMaxMakers]),
+    currentIntent: reverseIntentCurrent,
+    error: reverseQuery.error,
+    hasValidatedQuote:
+      !!reverseQuery.data &&
+      !reverseQuery.isError &&
+      !reverseQuery.isFetching &&
+      !isExpiredLocalQuote(reverseQuery.data),
+    expired: isExpiredLocalQuote(reverseQuery.data),
+  })
   const reverseOfferRaw = reverseQuery.isError ? null : (reverseQuery.data?.offerAmount ?? null)
   const reverseQuoteReady =
     reverseQuoteActive &&
@@ -654,7 +680,8 @@ export default function SwapPage() {
     !!reverseOfferRaw &&
     isPositiveRawAmount(reverseOfferRaw) &&
     !taxReceive.isLoading &&
-    !reverseQuery.isFetching
+    !reverseQuery.isFetching &&
+    !isExpiredLocalQuote(reverseQuery.data)
   const rawInputAmount = reverseQuoteActive ? (reverseQuoteReady ? reverseOfferRaw : '0') : typedPayRaw
   const debouncedRawInputAmount = reverseQuoteActive
     ? reverseQuoteReady
@@ -835,7 +862,8 @@ export default function SwapPage() {
     // Receive refresh belongs to reverseQuery so offer and operations refresh together.
     retry: false,
     refetchOnWindowFocus: false,
-    refetchInterval: reverseQuoteActive ? false : simQuoteRefetchInterval,
+    staleTime: localQuoteStaleTime,
+    refetchInterval: reverseQuoteActive ? false : localQuoteRefetchInterval,
   })
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
@@ -863,23 +891,45 @@ export default function SwapPage() {
   })
 
   // Settled for *current* sim key only — placeholder keepPreviousData is prior-key stale (#496).
-  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
+  const simInputIntentCurrent =
+    rawInputAmount === debouncedRawInputAmount &&
+    bookInputHuman === debouncedBookInputHuman &&
+    hybridMaxMakers === debouncedHybridMaxMakers
+  const hasSettledSimQuote =
+    !!simQuery.data &&
+    !simQuery.isPlaceholderData &&
+    simInputIntentCurrent &&
+    !isExpiredLocalQuote(simQuery.data) &&
+    !isIndexerLocalQuoteRejection(simQuery.error)
+  const forwardPricingDataPending = useQuotePricingDataPending({
+    intentKey: JSON.stringify([...simQueryKey, rawInputAmount, bookInputHuman, hybridMaxMakers]),
+    currentIntent:
+      !reverseQuoteActive && debouncedRawInputAmount !== '0' && simInputIntentCurrent && !simQuery.isPlaceholderData,
+    error: simQuery.error,
+    hasValidatedQuote: hasSettledSimQuote && !simQuery.isFetching && !simQuery.isError,
+    expired: isExpiredLocalQuote(simQuery.data),
+  })
+  const pricingDataPending = reverseQuoteActive ? reversePricingDataPending : forwardPricingDataPending
   const payInputsPendingForReceive = rawInputAmount !== debouncedRawInputAmount
-  const showSimReceiveCalculating = shouldShowSimReceiveCalculating(
-    simQuery.isFetching,
-    hasSettledSimQuote,
-    simQuery.isPlaceholderData,
-    payInputsPendingForReceive
-  )
+  const showSimReceiveCalculating =
+    pricingDataPending ||
+    shouldShowSimReceiveCalculating(
+      simQuery.isFetching,
+      hasSettledSimQuote,
+      simQuery.isPlaceholderData,
+      payInputsPendingForReceive
+    )
 
-  const simLoadingLabel = resolveSimQuoteLoadingLabel(
-    simQuery.isFetching,
-    hasSettledSimQuote,
-    routeSolveProgress,
-    fetchStartedAtMs,
-    nowMs,
-    'Calculating...'
-  )
+  const simLoadingLabel = pricingDataPending
+    ? 'Loading price…'
+    : resolveSimQuoteLoadingLabel(
+        simQuery.isFetching,
+        hasSettledSimQuote,
+        routeSolveProgress,
+        fetchStartedAtMs,
+        nowMs,
+        'Calculating...'
+      )
 
   const hybridSubmitSnapshot = useMemo(
     () => ({
@@ -1107,19 +1157,24 @@ export default function SwapPage() {
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
   const hasPositiveInputAmount = isPositiveDecimalAmount(inputAmount)
   const simQuoteUnavailable =
-    !isWrapOrUnwrap && hasPositiveInputAmount && (simQuery.isError || (!simQuery.isLoading && !simData))
-  const showSimRetryError =
-    simQuery.isError &&
+    !pricingDataPending &&
     !isWrapOrUnwrap &&
     hasPositiveInputAmount &&
-    !payInputsPendingForReceive &&
+    (simQuery.isError || (!simQuery.isLoading && !simData))
+  const showSimRetryError =
+    simQuery.isError &&
+    !pricingDataPending &&
+    !isWrapOrUnwrap &&
+    hasPositiveInputAmount &&
+    simInputIntentCurrent &&
     !simQuery.isFetching &&
     !indexerOutage &&
     !isIndexerPairNotFoundError(simQuery.error)
 
   useQuoteErrorRecovery({
     error: simQuery.error,
-    currentIntent: !reverseQuoteActive && simQuery.isError && !simQuery.isFetching && !payInputsPendingForReceive,
+    intentKey: JSON.stringify([...simQueryKey, rawInputAmount, bookInputHuman, hybridMaxMakers]),
+    currentIntent: !reverseQuoteActive && simQuery.isError && !simQuery.isFetching && simInputIntentCurrent,
     tokenIn: fromToken,
     tokenOut: toToken,
     amount: debouncedRawInputAmount,
@@ -1330,6 +1385,9 @@ export default function SwapPage() {
   } else if (!decimalsResolved) {
     buttonText = decimalsPending ? 'Loading decimals…' : 'Token decimals unavailable'
     buttonDisabled = true
+  } else if (pricingDataPending) {
+    buttonText = 'Wait for price'
+    buttonDisabled = true
   } else if (isRateLimitExceeded) {
     buttonText = 'Rate Limit Exceeded'
     buttonDisabled = true
@@ -1423,7 +1481,7 @@ export default function SwapPage() {
   const showReversePayCalculating =
     reverseQuoteActive &&
     !reverseQuoteReady &&
-    !reverseQuery.isError &&
+    (!reverseQuery.isError || reversePricingDataPending) &&
     !receiveTargetBelowPrecision &&
     !receiveDecimalsUnavailable &&
     isPositiveDecimalAmount(inputAmount)
@@ -1522,7 +1580,7 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {indexerOutage && (
+            {indexerOutage && !pricingDataPending && (
               <MarketDataServiceOutageBanner
                 testId="swap-market-data-outage-banner"
                 title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
@@ -1541,6 +1599,8 @@ export default function SwapPage() {
               </p>
             )}
 
+            {pricingDataPending && <QuoteDataLoadingProgress testId="swap-price-data-loading" />}
+
             {reverseQuoteActive &&
               reverseQuery.isError &&
               isIndexerRouteValidationError(reverseQuery.error) &&
@@ -1556,6 +1616,7 @@ export default function SwapPage() {
               hasPositiveInputAmount &&
               inputAmount === debouncedInputAmount &&
               !reverseQuery.isFetching &&
+              !reversePricingDataPending &&
               !isIndexerRouteValidationError(reverseQuery.error) && (
                 <RetryError
                   data-testid="swap-receive-quote-retry-error"
@@ -1813,7 +1874,7 @@ export default function SwapPage() {
                   className="swap-io-amount-input w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent"
                   style={{ color: 'var(--ink)' }}
                   data-testid="swap-you-pay-amount"
-                  aria-busy={showReversePayCalculating || undefined}
+                  aria-busy={pricingDataPending || showReversePayCalculating || undefined}
                 />
                 {isWalletConnected && offerDecimals != null && (
                   <AmountBalanceActions
@@ -1896,14 +1957,14 @@ export default function SwapPage() {
                   className="swap-io-amount-input w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent"
                   style={{ color: 'var(--ink)' }}
                   data-testid="swap-you-receive"
-                  aria-busy={showSimReceiveCalculating && !reverseQuoteActive ? true : undefined}
+                  aria-busy={pricingDataPending || (showSimReceiveCalculating && !reverseQuoteActive) || undefined}
                 />
                 {showQuoteOnly && (
                   <p className="text-xs mt-1" style={{ color: 'var(--ink-subtle)' }} data-testid="swap-quote-only">
                     Quote only
                   </p>
                 )}
-                {showSimReceiveCalculating && (
+                {showSimReceiveCalculating && !pricingDataPending && (
                   <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                     {simLoadingLabel}
                   </span>

@@ -1,5 +1,14 @@
 import { IndexerApiError } from '@/utils/routeQuoteErrors'
 
+/** Cached price publication is pending; this is neither a transport outage nor a trade blocker. */
+export function isIndexerPricingDataPending(err: unknown): boolean {
+  return (
+    err instanceof IndexerApiError &&
+    err.status === 503 &&
+    (err.quoteReason === 'missing_observations' || err.quoteReason === 'stale_observations')
+  )
+}
+
 /** Indexer responded 404 — pair/route is not in the indexer catalog (distinct from outage). */
 export function isIndexerPairNotFoundError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*404\b/.test(err.message)

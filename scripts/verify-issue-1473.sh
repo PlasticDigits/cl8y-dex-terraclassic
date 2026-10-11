@@ -24,7 +24,7 @@ from pathlib import Path
 files=[]
 for root in ['indexer/src','indexer/tests','frontend-dapp/src']:
     files.extend(p for p in Path(root).rglob('*') if p.is_file())
-files.extend(Path(p) for p in ['docs/qa/issue-1473/matrix.json','scripts/qa/probe-issue-1473.py','scripts/qa/test-probe-issue-1473.py','scripts/qa/browser-trading-quotes-1473.cjs'])
+files.extend(Path(p) for p in ['docs/qa/issue-1473/matrix.json','scripts/qa/probe-issue-1473.py','scripts/qa/test-probe-issue-1473.py','scripts/qa/browser-trading-quotes-1473.cjs','scripts/qa/browser-live-trading-quotes-1473.cjs','scripts/qa/test-browser-live-trading-quotes-1473.cjs'])
 h=hashlib.sha256()
 for p in sorted(files):
     h.update(str(p).encode()+b'\0'+p.read_bytes()+b'\0')
@@ -51,7 +51,8 @@ socket_tests() {
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
     src/utils/routeQuoteErrors.test.ts src/utils/localRouteQuote.test.ts \
-    src/hooks/useQuoteErrorRecovery.test.tsx \
+    src/hooks/useQuoteErrorRecovery.test.tsx src/hooks/useQuotePricingDataPending.test.tsx \
+    src/utils/localQuoteFreshness.test.tsx src/components/QuoteDataLoadingProgress.test.tsx \
     src/utils/cw20RouteSolveQuote.test.ts src/utils/quoteDebounce.test.ts \
     src/utils/localWrapperOnlyQuote.test.ts src/hooks/useSubmitAlignedSimQuote.test.ts \
     src/components/swap/__tests__/ExpertModeModal.test.tsx \
@@ -74,6 +75,7 @@ from pathlib import Path
 required={
  'AGENTS.md':['AGENTS_TRADING_QUOTE_OUTCOMES.md','verify-issue-1473'],
  'skills/AGENTS_TRADING_QUOTE_OUTCOMES.md':[*(f'TQ1473-{i}' for i in range(1,11)),'issue-1473/README.md'],
+ 'docs/qa/issue-1473/WARMUP.md':['expires_at_ms','indeterminate','SKIP','TQ1473'],
  'docs/qa/issue-1473/README.md':[*(f'AC{i}' for i in range(1,10)),'PASS WITH SKIPS','Executed failures remain FAIL'],
  'docs/route-solver.md':['#1473','indicative_amount_out','accounting_unavailable'],
  'docs/frontend.md':['#1473','native USTC','AGENTS_TRADING_QUOTE_OUTCOMES.md'],
@@ -92,6 +94,7 @@ SOURCE_FINGERPRINT="$(fingerprint)"
 printf 'Source fingerprint: %s\n' "$SOURCE_FINGERPRINT"
 for attempt in first retest; do
   run "$attempt shared corpus and actual socket safety" python3 scripts/qa/test-probe-issue-1473.py
+  run "$attempt live helper DOM and verdict regressions" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-live-trading-quotes-1473.cjs
   selected "$attempt indexer integer/rejection/zero-RPC/security regressions" RUST indexer
   selected "$attempt disposable socket matrix and mode regressions" DB socket_tests
   selected "$attempt frontend intent/default/signing regressions" FRONTEND frontend

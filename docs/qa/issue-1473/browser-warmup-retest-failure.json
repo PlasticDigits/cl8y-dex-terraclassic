@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "partial": false,
+  "stage": "complete",
+  "frontend_artifact_sha256": "a0ce46c02870b6c9079c4f7c3a083455e4f398c8641e59645e21d2e12a1fc743",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "source_dirty": true,
+  "recorded_at_utc": "2026-10-11T11:22:21.221Z",
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "truncated": false,
+  "browser_version": "151.0.7922.137",
+  "browser_latency_budget_ms": 750,
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1990,
+  "factory_pair_count": 7,
+  "corpus_pair_count": 8,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 91.09999999403954,
+    "p95_ms": 152.19999998807907,
+    "p99_ms": 198,
+    "max_ms": 857.4000000059605
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 795,
+      "p50_ms": 111.09999999403954,
+      "p95_ms": 173.59999999403954,
+      "p99_ms": 225.40000000596046,
+      "max_ms": 694.2000000029802
+    },
+    "1440:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 97.90000000596046,
+      "p95_ms": 150.09999999403954,
+      "p99_ms": 212,
+      "max_ms": 857.4000000059605
+    },
+    "390:initialized_http": {
+      "count": 795,
+      "p50_ms": 87.79999999701977,
+      "p95_ms": 112.29999999701977,
+      "p99_ms": 124.8999999910593,
+      "max_ms": 374.69999998807907
+    },
+    "390:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 83,
+      "p95_ms": 105.5,
+      "p99_ms": 124.70000000298023,
+      "max_ms": 470.20000000298023
+    }
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 96.79999999701977,
+    "p95_ms": 161,
+    "p99_ms": 203.70000000298023,
+    "max_ms": 477.90000000596046
+  },
+  "failures": [
+    {
+      "viewport": 1440,
+      "pair": [
+        "ALPHA",
+        "CL8Y"
+      ],
+      "amount": "74.999999",
+      "raw_input": "74999999",
+      "max_spread": "0.05",
+      "initialization_ms": 1408,
+      "cold_first_output_ms": 165.09999999403954,
+      "transport_class": "browser_cache_hit",
+      "pass": "retest",
+      "outcome": "executable_quote",
+      "expected_output": "47476189873318215792",
+      "useful_output_ms": 857.4000000059605,
+      "blocker_ms": null,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "trace": {
+        "start": 4840.9000000059605,
+        "end": 5698.300000011921,
+        "intent": {
+          "pay": "ALPHA",
+          "receive": "CL8Y",
+          "amount": "74.999999",
+          "preset": "swap-slippage-preset-5",
+          "custom": ""
+        },
+        "fetch_attempts": [],
+        "resources": [],
+        "long_tasks": [
+          {
+            "start": 4883.300000011921,
+            "duration": 751
+          }
+        ]
+      },
+      "failure": "initialized useful output exceeded 750ms"
+    }
+  ],
+  "scenario_count": 4250,
+  "source_fingerprint_start": "a653582f828398d35ab821eeedd5e6cad1a3bbcb736da5c99fa5a0803ed50bd4",
+  "source_fingerprint_end": "a653582f828398d35ab821eeedd5e6cad1a3bbcb736da5c99fa5a0803ed50bd4",
+  "raw_receipt_sha256": "f5a7b97569681ca9aac9383c14b984b023881f8a5a5333342debfd8100ba533e",
+  "verdict": "FAIL current750ms criterion: useful857.4ms cachehit with751ms longtask; cause unclassified",
+  "scope_note": "Complete4250case first/retest; previousfailure also retained. No profiling or app source change between these trials."
+}

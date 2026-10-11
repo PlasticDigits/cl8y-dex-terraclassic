@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "partial": false,
+  "stage": "complete",
+  "frontend_artifact_sha256": "2745d0e78e5215a9e193a04cf9e73824d08d596791b2d5cb631751d1f8ff5f65",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "source_dirty": true,
+  "recorded_at_utc": "2026-10-11T11:04:04.691Z",
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "truncated": false,
+  "browser_version": "151.0.7922.137",
+  "browser_latency_budget_ms": 750,
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1989,
+  "factory_pair_count": 7,
+  "corpus_pair_count": 8,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 89.79999999701977,
+    "p95_ms": 144.59999999403954,
+    "p99_ms": 165.19999998807907,
+    "max_ms": 762.4000000059605
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 795,
+      "p50_ms": 107,
+      "p95_ms": 160.40000000596046,
+      "p99_ms": 178.5,
+      "max_ms": 435.59999999403954
+    },
+    "1440:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 90.3999999910593,
+      "p95_ms": 137.70000000298023,
+      "p99_ms": 155.09999999403954,
+      "max_ms": 762.4000000059605
+    },
+    "390:initialized_http": {
+      "count": 795,
+      "p50_ms": 89.40000000596046,
+      "p95_ms": 124.1000000089407,
+      "p99_ms": 148.69999998807907,
+      "max_ms": 299.5
+    },
+    "390:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 83.6000000089407,
+      "p95_ms": 117.3999999910593,
+      "p99_ms": 141,
+      "max_ms": 374.8999999910593
+    }
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 94.5,
+    "p95_ms": 157.90000000596046,
+    "p99_ms": 170.6000000089407,
+    "max_ms": 218.6000000089407
+  },
+  "failures": [
+    {
+      "viewport": 1440,
+      "pair": [
+        "LUNC",
+        "USTC"
+      ],
+      "amount": "49.999999",
+      "raw_input": "49999999",
+      "max_spread": "0.05",
+      "initialization_ms": 1410,
+      "cold_first_output_ms": 143.3999999910593,
+      "transport_class": "browser_cache_hit",
+      "pass": "retest",
+      "outcome": "executable_quote",
+      "expected_output": "71214285",
+      "useful_output_ms": 762.4000000059605,
+      "blocker_ms": null,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "trace": {
+        "start": 5899.899999991059,
+        "end": 6662.29999999702,
+        "intent": {
+          "pay": "LUNC",
+          "receive": "USTC",
+          "amount": "49.999999",
+          "preset": "swap-slippage-preset-5",
+          "custom": ""
+        },
+        "fetch_attempts": [],
+        "resources": [],
+        "long_tasks": [
+          {
+            "start": 5963.399999991059,
+            "duration": 617
+          }
+        ]
+      },
+      "failure": "initialized useful output exceeded 750ms"
+    }
+  ],
+  "scenario_count": 4250,
+  "source_fingerprint_start": "a653582f828398d35ab821eeedd5e6cad1a3bbcb736da5c99fa5a0803ed50bd4",
+  "source_fingerprint_end": "a653582f828398d35ab821eeedd5e6cad1a3bbcb736da5c99fa5a0803ed50bd4",
+  "raw_receipt_sha256": "c225419cd64e968f09dc033d6e9926c2a4e0c7d8a410b9042277803c6b39cc16",
+  "verdict": "FAIL current750ms criterion: useful762.4ms cache-hit with617ms longtask; cause unclassified",
+  "scope_note": "Complete4250case first/retest; one executed latency failure retained. Source/API/expiry correctness groups passed,0providerrequests; no graphics/GC/host cause inferred."
+}

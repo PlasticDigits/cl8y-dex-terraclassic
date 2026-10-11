@@ -34,6 +34,9 @@ import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY, quoteDisclosureForIndexerKind } f
 import { formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
+import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
+import { QuoteDataLoadingProgress } from '@/components/QuoteDataLoadingProgress'
+import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
 import { isIndexerLocalQuoteRejection } from '@/utils/indexerErrors'
 import {
   evaluateLimitOrderEscrowPlaceGate,
@@ -49,7 +52,6 @@ import {
   assertSubmitQuotePayRawAligned,
   shouldShowSimReceiveCalculating,
   SIM_QUOTE_DEBOUNCE_MS,
-  simQuoteRefetchInterval,
 } from '@/utils/quoteDebounce'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
@@ -292,7 +294,36 @@ export function TradeMarketOrderPanel({
     // Skip interval while fetching so in-flight quotes are not cancel/restarted (#484).
     retry: false,
     refetchOnWindowFocus: false,
-    refetchInterval: simQuoteRefetchInterval,
+    staleTime: localQuoteStaleTime,
+    refetchInterval: localQuoteRefetchInterval,
+  })
+
+  const simInputIntentCurrent =
+    rawInputAmount === debouncedRawInputAmount &&
+    bookInputHuman === debouncedBookInputHuman &&
+    hybridMaxMakers === debouncedHybridMaxMakers
+  const hasSettledSimQuote =
+    !!simQuery.data &&
+    !simQuery.isPlaceholderData &&
+    simInputIntentCurrent &&
+    !isExpiredLocalQuote(simQuery.data) &&
+    !isIndexerLocalQuoteRejection(simQuery.error)
+  const pricingDataPending = useQuotePricingDataPending({
+    intentKey: JSON.stringify([
+      pairAddr,
+      side,
+      rawInputAmount,
+      bookInputHuman,
+      hybridMaxMakers,
+      slippageTolerance,
+      address,
+      offerDecimals,
+      receiveDecimals,
+    ]),
+    currentIntent: rawInputAmount !== '0' && simInputIntentCurrent && !simQuery.isPlaceholderData,
+    error: simQuery.error,
+    hasValidatedQuote: hasSettledSimQuote && !simQuery.isFetching && !simQuery.isError,
+    expired: isExpiredLocalQuote(simQuery.data),
   })
 
   const solverHybridForGas = useMemo(
@@ -397,7 +428,7 @@ export function TradeMarketOrderPanel({
     debouncedRawInputAmount,
     simQuery: isIndexerLocalQuoteRejection(simQuery.error) ? { ...simQuery, data: undefined } : simQuery,
     slippageTolerance,
-    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay || routeRiskBlocked,
+    extraSubmitBlocked: pricingDataPending || priceImpactTooHigh || !!liveSplit?.bookExceedsPay || routeRiskBlocked,
     hybrid: {
       enabled: true,
       live: { bookInputHuman, hybridMaxMakers },
@@ -555,7 +586,18 @@ export function TradeMarketOrderPanel({
 
   useQuoteErrorRecovery({
     error: simQuery.error,
-    currentIntent: simQuery.isError && !simQuery.isFetching && rawInputAmount === debouncedRawInputAmount,
+    intentKey: JSON.stringify([
+      pairAddr,
+      side,
+      rawInputAmount,
+      bookInputHuman,
+      hybridMaxMakers,
+      slippageTolerance,
+      address,
+      offerDecimals,
+      receiveDecimals,
+    ]),
+    currentIntent: simQuery.isError && !simQuery.isFetching && simInputIntentCurrent,
     tokenIn: fromToken,
     tokenOut: toToken,
     amount: debouncedRawInputAmount,
@@ -578,13 +620,14 @@ export function TradeMarketOrderPanel({
       : '—'
 
   // Same receive stale/loading rules as Swap (#484 keep-previous vs #496 pay change).
-  const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
-  const showReceiveCalculating = shouldShowSimReceiveCalculating(
-    simQuery.isFetching,
-    hasSettledSimQuote,
-    simQuery.isPlaceholderData,
-    rawInputAmount !== debouncedRawInputAmount
-  )
+  const showReceiveCalculating =
+    pricingDataPending ||
+    shouldShowSimReceiveCalculating(
+      simQuery.isFetching,
+      hasSettledSimQuote,
+      simQuery.isPlaceholderData,
+      rawInputAmount !== debouncedRawInputAmount
+    )
 
   const hasPositivePay = isPositiveDecimalAmount(marketAmountHuman)
   const payAcquireGuidance = useSwapPayAcquireGuidance({
@@ -611,28 +654,31 @@ export function TradeMarketOrderPanel({
     !!selectedPair &&
     rawInputAmount !== '0' &&
     isSubmitReady &&
+    !pricingDataPending &&
     !extraDebitGate.blockSubmit
 
   const submitLabel = !isWalletConnected
     ? 'Connect Wallet'
-    : extraDebitGate.insufficientBalance
-      ? 'Insufficient Balance'
-      : hasPositivePay && !decimalsResolved
-        ? decimalsPending
-          ? 'Loading decimals…'
-          : 'Token decimals unavailable'
-        : terraBroadcastPendingButtonLabel(
-            swapMutation.phase,
-            swapMutation.isPending,
-            priceImpactTooHigh
-              ? 'Hop spread exceeds slippage protection'
-              : routeRiskBlocked
-                ? 'Price impact is too high'
-                : liveSplit?.bookExceedsPay
-                  ? 'Book leg exceeds pay'
-                  : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-            'Submitting…'
-          )
+    : pricingDataPending
+      ? 'Wait for price'
+      : extraDebitGate.insufficientBalance
+        ? 'Insufficient Balance'
+        : hasPositivePay && !decimalsResolved
+          ? decimalsPending
+            ? 'Loading decimals…'
+            : 'Token decimals unavailable'
+          : terraBroadcastPendingButtonLabel(
+              swapMutation.phase,
+              swapMutation.isPending,
+              priceImpactTooHigh
+                ? 'Hop spread exceeds slippage protection'
+                : routeRiskBlocked
+                  ? 'Price impact is too high'
+                  : liveSplit?.bookExceedsPay
+                    ? 'Book leg exceeds pay'
+                    : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+              'Submitting…'
+            )
 
   const swapMutate = swapMutation.mutate
   const swapPhase = swapMutation.phase
@@ -710,7 +756,8 @@ export function TradeMarketOrderPanel({
           </p>
         )}
 
-        {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
+        {pricingDataPending && <QuoteDataLoadingProgress testId="trade-market-price-data-loading" />}
+        {!pricingDataPending && (simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
           <div
             className="flex items-center gap-2 text-[10px]"
             style={{ color: 'var(--ink-dim)' }}
@@ -724,6 +771,7 @@ export function TradeMarketOrderPanel({
           </div>
         )}
         {simQuery.isError &&
+          !pricingDataPending &&
           rawInputAmount !== '0' &&
           !showReceiveCalculating &&
           rawInputAmount === debouncedRawInputAmount &&
@@ -737,7 +785,7 @@ export function TradeMarketOrderPanel({
             Book leg cannot exceed pay amount
           </p>
         )}
-        {simData && rawInputAmount !== '0' && (
+        {!pricingDataPending && simData && rawInputAmount !== '0' && (
           <div className="flex justify-between gap-2 text-[10px]" data-testid="trade-market-quote">
             <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
             <span className="font-mono text-right" data-testid="trade-market-expected-receive">

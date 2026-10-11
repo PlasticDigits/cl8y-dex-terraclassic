@@ -2705,8 +2705,14 @@ applicable condition. Main receive output is executable under the exact selected
 and its positive net floors. Retail displays one quote, with no competing price-only
 estimate or extra pricing panel. HTTP 422 price-only metadata is never displayed,
 copied into executable simulation or sent for signing.
-Original observation expiry is preserved. Unsupported, unavailable, dust or unsafe
-economics never manufacture prices. An HTTP 200 response rejected by local client
+Original observation expiry bounds client cache freshness, visible output and signing
+snapshots; expiry inside the global ten-second freshness interval requires a new
+local quote. Missing/stale observations show an accessible indeterminate loading
+bar until a validated quote arrives. It has no completed percentage or promised ETA,
+and search-idle progress never proves pricing readiness. Initial missing-data
+responses without a generation still watch independent publications. Other genuine
+conditions retain their bounded explanation. See the [data-wait and expiry review](qa/issue-1473/WARMUP.md).
+Unsupported, unavailable, dust or unsafe economics never manufacture prices. An HTTP 200 response rejected by local client
 validation remains a distinct invalid/mismatched quote, without remote fallback.
 
 Intent changes discard old errors/estimates. Deterministic 422 has no periodic

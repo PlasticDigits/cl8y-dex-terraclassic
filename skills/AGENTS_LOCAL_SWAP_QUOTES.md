@@ -99,4 +99,7 @@ exact-input/receive caches and declared plans across independent expiry with
 
 Arbitrary pair/amount reason classification, non-executable protection estimates,
 intent recovery and identity entry defaults follow [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md)
-and the [agent checklist](../docs/qa/issue-1473/README.md). Run `make verify-issue-1473`.
+and the [agent checklist](../docs/qa/issue-1473/README.md).
+Missing/stale data waits and original client-cache expiry are documented in the
+[follow-up review](../docs/qa/issue-1473/WARMUP.md); neither drives producers nor
+relaxes economic reference admission. Run `make verify-issue-1473`.

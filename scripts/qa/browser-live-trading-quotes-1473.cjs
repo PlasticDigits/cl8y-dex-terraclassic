@@ -484,13 +484,26 @@ try {
               started = performance.now();
             if (quote && !(await window.__reserve1473QuoteRead()))
               throw new Error("Quote read budget exhausted");
-            const response = await original(...args);
-            if (quote) {
-              const params = Object.fromEntries(url.searchParams);
-              const row = { started, status: response.status, params };
+            const params = quote ? Object.fromEntries(url.searchParams) : null;
+            const row = quote ? { started, status: null, params } : null;
+            if (row) {
               window.__quotes1473.push(row);
               if (window.__quotes1473.length > 2200)
                 window.__quotes1473.shift();
+            }
+            let response;
+            try {
+              response = await original(...args);
+            } catch (error) {
+              if (row) {
+                row.transport_failed = true;
+                row.ended = performance.now();
+              }
+              throw error;
+            }
+            if (quote) {
+              row.status = response.status;
+              row.headers_received = performance.now();
               void (async () => {
                 try {
                   const reader = response.clone().body.getReader(),
@@ -536,6 +549,11 @@ try {
                   row.expires = row.useful
                     ? body.execution_metadata.expires_at_ms
                     : undefined;
+                  const metadata = body.execution_metadata;
+                  row.plan_policy = ["pool_only", "declared_hybrid_hop0", "declared_hybrid_manual", "wrapper_only"].includes(metadata?.policy) ? metadata.policy : null;
+                  row.hop_count = Array.isArray(metadata?.hops) && metadata.hops.length <= 4 ? metadata.hops.length : null;
+                  row.operation_count = Array.isArray(body.router_operations) && body.router_operations.length <= 4 ? body.router_operations.length : null;
+                  row.wrapper_present = metadata?.wrapper != null;
                   row.generation_valid =
                     typeof body.execution_metadata?.generation === "string";
                   row.generation = body.execution_metadata?.generation;
@@ -745,8 +763,11 @@ try {
                         started: null,
                         done: null,
                         kind: null,
+                        timeline: [],
+                        readiness: { first_ready_at_ms: null, first_frame_at_ms: null, paint_frame_at_ms: null, receive_visible: null, surface_visible: null, kind: null },
                       }),
                       selector = '[data-testid="swap-you-pay-amount"]';
+                    const waitingSelector = '[data-testid="swap-price-data-loading"]';
                     const errorSelector =
                       '[data-testid="swap-quote-error"],[data-testid="swap-quote-unavailable"],[data-testid="swap-quote-retry-error"],[data-testid="swap-wrapper-quote-error"]';
                     const reasonCopy = {
@@ -777,12 +798,77 @@ try {
                       Array.from(document.querySelectorAll(errorSelector))
                         .map((node) => node.textContent || "")
                         .join(" ");
+                    // Capture bounded state changes without reading full-document text or layout.
+                    const parseAmount = (value, decimals) => {
+                      if (typeof value !== "string" || value.length > 96 || !/^\d+(\.\d+)?$/.test(value) || !Number.isInteger(decimals) || decimals < 0 || decimals > 38) return null;
+                      const [whole, fraction = ""] = value.split(".");
+                      if (fraction.length > decimals) return null;
+                      return (BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, "0") || "0")).toString();
+                    };
+                    const timelineState = () => {
+                      const rows = window.__quotes1473.filter(matches);
+                      const current = rows.filter((row) => row.started >= measurement.started);
+                      const prior = rows.filter((row) => row.started < measurement.started).at(-1);
+                      const latest = current.at(-1) || prior;
+                      const output = document.querySelector('[data-testid="swap-you-receive"]');
+                      const value = output?.value?.replaceAll(",", "") || "";
+                      return {
+                        current_input_matches: parseAmount(document.querySelector(selector)?.value, expected.offerDecimals) === expected.amount,
+                        receive_present: value !== "",
+                        receive_busy: output?.getAttribute("aria-busy") === "true",
+                        receive_matches_quote: !!latest?.useful && parseAmount(value, expected.decimals) === latest.output,
+                        quote_request_count: current.length,
+                        response_received: latest?.headers_received != null || latest?.status != null,
+                        validation_complete: latest?.ended != null,
+                        quote_validated: latest?.classified === true,
+                        matched_quote_expired: latest?.useful === true && latest.expires <= Date.now(),
+                        expired_prior_quote: prior?.useful === true && prior.expires <= Date.now(),
+                        waiting_surface_present: document.querySelector(waitingSelector) != null,
+                      };
+                    };
+                    const captureState = () => {
+                      if (measurement.started == null) return;
+                      const state = timelineState(), signature = JSON.stringify(state);
+                      if (signature !== measurement.lastState && measurement.timeline.length < 24) {
+                        measurement.lastState = signature;
+                        measurement.timeline.push({ at_ms: performance.now() - measurement.started, ...state });
+                      }
+                    };
+                    const diagnostics = () => {
+                      const current = window.__quotes1473.filter((row) => matches(row) && row.started >= measurement.started);
+                      const prior = window.__quotes1473.filter((row) => matches(row) && row.started < measurement.started).slice(-4);
+                      const delta = (value) => Number.isFinite(value) ? value - measurement.started : null;
+                      const describe = (row) => ({
+                        request_at_ms: delta(row.started),
+                        headers_at_ms: delta(row.headers_received),
+                        validated_at_ms: delta(row.ended),
+                        status: Number.isInteger(row.status) && row.status >= 100 && row.status <= 599 ? row.status : null,
+                        reason: Object.hasOwn(reasonCopy, row.reason) ? row.reason : null,
+                        classified: row.classified === true,
+                        transport_failed: row.transport_failed === true,
+                        expiry_at_ms: Number.isSafeInteger(row.expires) ? row.expires - Date.now() + performance.now() - measurement.started : null,
+                        plan_policy: ["pool_only", "declared_hybrid_hop0", "declared_hybrid_manual", "wrapper_only"].includes(row.plan_policy) ? row.plan_policy : null,
+                        hop_count: Number.isInteger(row.hop_count) && row.hop_count >= 0 && row.hop_count <= 4 ? row.hop_count : null,
+                        operation_count: Number.isInteger(row.operation_count) && row.operation_count >= 0 && row.operation_count <= 4 ? row.operation_count : null,
+                        wrapper_present: row.wrapper_present === true,
+                      });
+                      return {
+                        no_current_quote_request: current.length === 0,
+                        current_request_count: current.length,
+                        current_records_truncated: current.length > 12,
+                        current_records: (current.length > 12 ? [...current.slice(0, 6), ...current.slice(-6)] : current).map(describe),
+                        previous_records: prior.map(describe),
+                        final_state: timelineState(),
+                        readiness: measurement.readiness,
+                        timeline: measurement.timeline,
+                      };
+                    };
                     const start = (event) => {
                       if (
                         event.target.matches?.(selector) &&
                         measurement.started == null
                       )
-                        measurement.started = performance.now();
+                        { measurement.started = performance.now(); captureState(); }
                     };
                     document.addEventListener("input", start, true);
                     const ready = () => {
@@ -826,14 +912,13 @@ try {
                           );
                         if (displayed === BigInt(latest.output))
                           return { kind: "useful", latest, output };
-                      } else if (
-                        latest.classified &&
-                        !latest.useful &&
-                        value === "" &&
-                        reasonCopy[latest.reason] &&
-                        errorText().includes(reasonCopy[latest.reason])
-                      )
-                        return { kind: "blocked", latest, output };
+                      } else if (latest.classified && !latest.useful && value === "") {
+                        const waiting = document.querySelector(waitingSelector);
+                        if (["missing_observations", "stale_observations"].includes(latest.reason) && waiting?.querySelector('progress:not([value]),[role="progressbar"]:not([aria-valuenow])') && (waiting.textContent || "").includes("Loading price"))
+                          return { kind: "waiting", latest, output, surface: waiting };
+                        if (Object.hasOwn(reasonCopy, latest.reason) && errorText().includes(reasonCopy[latest.reason]))
+                          return { kind: "blocked", latest, output };
+                      }
                       return null;
                     };
                     const visible = (node) => {
@@ -860,12 +945,16 @@ try {
                       )
                         return;
                       // The original event clock includes all retries and two render-frame opportunities.
+                      if (measurement.readiness.first_ready_at_ms == null) measurement.readiness.first_ready_at_ms = performance.now() - measurement.started;
                       measurement.readyFrame = requestAnimationFrame(() => {
+                        if (measurement.readiness.first_frame_at_ms == null) measurement.readiness.first_frame_at_ms = performance.now() - measurement.started;
                         measurement.paintFrame = requestAnimationFrame(() => {
                           const current = ready();
                           const surface =
                             current?.kind === "useful"
                               ? current.output
+                              : current?.kind === "waiting"
+                                ? current.surface
                               : Array.from(
                                   document.querySelectorAll(errorSelector),
                                 ).find(
@@ -875,10 +964,14 @@ try {
                                       reasonCopy[current.latest.reason],
                                     ),
                                 );
+                          measurement.readiness.paint_frame_at_ms = performance.now() - measurement.started;
+                          measurement.readiness.receive_visible = current ? Boolean(visible(current.output)) : null;
+                          measurement.readiness.surface_visible = current ? Boolean(visible(surface)) : null;
+                          measurement.readiness.kind = current?.kind ?? null;
                           if (
                             current &&
-                            visible(current.output) &&
-                            visible(surface)
+                            (current.kind !== "useful" || measurement.readiness.receive_visible) &&
+                            measurement.readiness.surface_visible
                           ) {
                             measurement.kind = current.kind;
                             measurement.latest = current.latest;
@@ -888,7 +981,7 @@ try {
                       });
                     };
                     measurement.frame = requestAnimationFrame(check);
-                    measurement.timer = setInterval(check, 5);
+                    measurement.timer = setInterval(() => { captureState(); check(); }, 5);
                     measurement.read = () => {
                       clearInterval(measurement.timer);
                       cancelAnimationFrame(measurement.frame);
@@ -903,6 +996,7 @@ try {
                           row.params.amount_in === expected.amount,
                       );
                       return {
+                        diagnostics: diagnostics(),
                         useful: measurement.kind === "useful",
                         classified: measurement.kind != null,
                         input_to_dom_ms:
@@ -955,6 +1049,7 @@ try {
                     amount: inputRaw,
                     spread,
                     decimals: b.decimals,
+                    offerDecimals: a.decimals,
                     cacheObservation,
                   },
                 );
@@ -1002,6 +1097,7 @@ try {
                   row.generic_validation_copy ||
                   !row.policy_opt_in ||
                   (row.useful && row.input_to_dom_ms > BROWSER_LATENCY_BUDGET_MS);
+                if (!row.failed) delete row.diagnostics;
                 receipt.samples.push(row);
                 save();
                 await page.waitForTimeout(500);
@@ -1021,6 +1117,7 @@ try {
     ownedBrowser = null;
     receipt.completed = true;
     save();
+    process.exitCode = receipt.overall === "FAIL" ? 1 : 0;
     console.log(
       JSON.stringify({
         overall: receipt.overall,

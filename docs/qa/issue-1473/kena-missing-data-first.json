@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-10-11T10:07:49.861101+00:00",
+  "source_revision": "7b66402c9154364b61673cb781279e48d689e089",
+  "scope": "Bounded actor-free read-only public cached KENA catalog, quotes and local progress; no chain queries, broadcast or reporter metadata. Deployed configuration floor not yet attested.",
+  "quote_get_count": 12,
+  "quote_get_limit": 16,
+  "progress_get_count": 8,
+  "catalog_pair_count": 1,
+  "catalog_pair_active": true,
+  "catalog_pair_frozen": false,
+  "catalog_pair_decimals": [
+    6,
+    6
+  ],
+  "catalog_pair_fee_bps": 180,
+  "cached_pair_liquidity_usd": "25.76830019936176",
+  "source_reference_floor_default_usd": "100",
+  "deployed_reference_floor_usd": null,
+  "source_reference_rule": "Scheduled economic marks require original fresh reserves, eligible priced hub anchor and total pair TVL at least the configured floor; local fair marks stay within original 20 seconds.",
+  "source_inference": "Cached TVL is below the source default floor. If the deployed floor remains 100 USD, unchanged scheduled observations cannot admit a KENA reference until independent eligible depth/state changes.",
+  "samples": [
+    {
+      "round": 1,
+      "pair": "CL8Y->KENA",
+      "status": 503,
+      "reason": "missing_observations",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 1,
+      "pair": "KENA->CL8Y",
+      "status": 422,
+      "reason": "amount_too_small",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 1,
+      "pair": "USTC->KENA",
+      "status": 503,
+      "reason": "missing_observations",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 1,
+      "pair": "KENA->USTC",
+      "status": 422,
+      "reason": "unsupported_semantics",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 2,
+      "pair": "CL8Y->KENA",
+      "status": 503,
+      "reason": "missing_observations",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 2,
+      "pair": "KENA->CL8Y",
+      "status": 422,
+      "reason": "amount_too_small",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 2,
+      "pair": "USTC->KENA",
+      "status": 503,
+      "reason": "missing_observations",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "round": 2,
+      "pair": "KENA->USTC",
+      "status": 422,
+      "reason": "unsupported_semantics",
+      "has_generation": true,
+      "progress_status": 200,
+      "progress_stage": "idle",
+      "progress_done": 1,
+      "progress_total": 1,
+      "generation_changed": null
+    },
+    {
+      "pair": "cLUNC->KENA",
+      "human_offer": 1,
+      "status": 503,
+      "reason": "missing_observations"
+    },
+    {
+      "pair": "KENA->cLUNC",
+      "human_offer": 1000,
+      "status": 503,
+      "reason": "missing_observations"
+    },
+    {
+      "pair": "KENA->cLUNC",
+      "human_offer": 1000000,
+      "status": 503,
+      "reason": "missing_observations"
+    },
+    {
+      "pair": "cLUNC->KENA",
+      "human_offer": 1000,
+      "status": 503,
+      "reason": "missing_observations"
+    }
+  ],
+  "independent_generation_changes": [
+    {
+      "pair": "CL8Y->KENA",
+      "changed": true
+    },
+    {
+      "pair": "KENA->CL8Y",
+      "changed": true
+    },
+    {
+      "pair": "USTC->KENA",
+      "changed": true
+    },
+    {
+      "pair": "KENA->USTC",
+      "changed": true
+    }
+  ],
+  "classification_result": "Reported buying directions are missing_observations503; no accounting or unsupported reclassification is justified by these reads. Separate tiny-size and native-unwrap directions retain deterministic reasons.",
+  "backend_change": "None; unavailable pricing remains nonexecutable and requests cannot accelerate scheduled ingestion."
+}

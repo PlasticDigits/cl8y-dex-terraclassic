@@ -3,7 +3,7 @@
 Apply to arbitrary pair/amount scoring, quote error schemas, price-only display,
 intent recovery and trading entry defaults. Issue:
 [#1473](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1473).
-Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); record its exact revision in
+Implementation: [PR #1474](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1474); pricing-data and client-expiry follow-up: [PR #1475](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1475); record its exact revision in
 [verification results](../docs/qa/issue-1473/RESULTS.md).
 Run `make verify-issue-1473` and follow the
 [agent checklist](../docs/qa/issue-1473/README.md).
@@ -13,9 +13,9 @@ Run `make verify-issue-1473` and follow the
 | TQ1473-1 | All supported execution identities and exact entered raw amounts use the same checked economics. The seven-pair corpus is regression coverage, never an admission whitelist. No address/symbol-specific scoring fix or scaled cached price. |
 | TQ1473-2 | Preserve bounded typed reasons for missing/stale observations, unsupported semantics, dust, liquidity, accounting, protection, trading restrictions and disconnected routes. An unrelated broken alternative cannot erase a fully priced protection result. Search eligible alternatives within existing caps. |
 | TQ1473-3 | Genuine price protection may carry an amount-specific net `indicative_amount_out` on HTTP 422 with `execution_supported:false`. No operations, floors or execution metadata. Missing pricing, accounting, ≥99% fair deviation and unsupported models cannot manufacture indicative output. |
-| TQ1473-4 | Main receive output must be executable under the exact selected UI protection. Retail shows one quote and no indicative pricing panel. Price-only API values expire at original observations and stay outside executable quote state and confirmation/signing snapshots. HTTP 200 client validation remains a separate failure. Never downgrade HTTP 422 to fallback success. |
+| TQ1473-4 | Main receive output must be executable under the exact selected UI protection. Retail shows one quote and no indicative pricing panel. Original observation expiry also governs client cache freshness, display and signing snapshots; cached data cannot remain fresh for ten seconds when its original expiry is earlier. Price-only API values stay outside executable quote state. HTTP 200 client validation remains a separate failure. Never downgrade HTTP 422 to fallback success. |
 | TQ1473-5 | Error bodies are bounded to 4 KiB; frontend allowlists fixed public reason/status pairs and bounded provenance. No server prose, private fields, HTML or upstream status text reaches retail copy/evidence. |
-| TQ1473-6 | Intent changes clear obsolete estimates/blockers. Deterministic 422 does not endlessly retry solve; independently replaced local generations, explicit refresh and input edits may re-quote. Progress observes local state and never drives ingestion. |
+| TQ1473-6 | Missing/stale observation outcomes show an indeterminate price-loading bar, not an error or a false completed percentage/ETA. Intent changes clear obsolete waits/estimates/blockers. Watch local publication even when an initial missing-data error has no generation; re-quote on newly observed generations, suppressing repeat attempts through a bounded 64-generation recent history. Unchanged publication never starts a solve; intent changes reset history. Deterministic 422 remains a truthful blocker. Expiry never accelerates failed-refresh retries: preserve the forward ten-second unknown-error cadence and receive all-error interval stop. Progress observes local state and never drives ingestion; a search-idle label does not establish pricing readiness. |
 | TQ1473-7 | The entry default alone is native `uusd` → configured exact CL8Y execution identity, independent of catalog ordering, symbols or liquidity ranks. Missing/ambiguous identities leave selection unavailable deterministically. Valid explicit links and deliberate choices take precedence. |
 | TQ1473-8 | Bare `/trade` may navigate to the native-capable swap entry. Explicit factory/chart/limit identities remain genuine; no fabricated native factory pair or cUSTC relabeling. Bid/ask and actual funding must match displayed direction. |
 | TQ1473-9 | Preserve zero request RPC, independently scheduled producers, original four-second fee phase, twenty-second observations, 180-second configuration expiry and all work/cache/concurrency limits. Retain tax/gross-debit, positive floors, actor/launch guards, original generation and nonwaivable protection. |
@@ -33,6 +33,8 @@ Implementation map: [typed local scoring](../indexer/src/api/local_quote.rs),
 [quote-relative integer protection](../indexer/src/api/local_quote/protection.rs),
 [reason boundary](../frontend-dapp/src/utils/routeQuoteErrors.ts),
 [local signing validation](../frontend-dapp/src/utils/localRouteQuote.ts),
+[original client expiry](../frontend-dapp/src/utils/localQuoteFreshness.ts),
+[loading/recovery review](../docs/qa/issue-1473/WARMUP.md),
 [entry identities](../frontend-dapp/src/utils/pairCatalogRank.ts),
 [Swap](../frontend-dapp/src/pages/SwapPage.tsx),
 [Trade](../frontend-dapp/src/pages/TradePage.tsx).
