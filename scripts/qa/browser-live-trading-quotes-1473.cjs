@@ -3,6 +3,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const {
+  selectDirectionalGroups, amountCases, rawAmount, caseIdentity,
+  expectedCaseIdentities, assertCaseCoverage,
+} = require("./browser-quote-shards.cjs");
 const { createRequire } = require("node:module");
 try {
   const ROOT = path.resolve(__dirname, "../..");
@@ -93,6 +97,14 @@ try {
       : PROFILE === "census"
         ? ["0.000001", "0.01", "1", "100", "10000"]
         : matrix.human_amounts;
+  const matrixIdentity = crypto.createHash("sha256").update(matrixBytes).digest("hex");
+  const selection = selectDirectionalGroups(pairCorpus, process.env);
+  const casePlan = {
+    matrixIdentity, profile: PROFILE, cycles: CYCLES,
+    assets: matrix.assets, spreads: matrix.max_spreads, humanAmounts,
+  };
+  const corpusCaseIds = expectedCaseIdentities({ ...casePlan, groups: selection.corpus });
+  const selectedCaseIds = expectedCaseIdentities({ ...casePlan, groups: selection.selected });
   const FRONTEND = "https://dex.cl8y.com";
   const BACKEND = "https://indexer.dex.cl8y.com";
   let ownedBrowser,
@@ -111,10 +123,11 @@ try {
     browser_latency_budget_ms: BROWSER_LATENCY_BUDGET_MS,
     viewport_setup: "settings_closed_and_both_fields_intersect_before_input",
     expected_revision: SHA,
-    matrix_sha256: crypto
-      .createHash("sha256")
-      .update(matrixBytes)
-      .digest("hex"),
+    matrix_sha256: matrixIdentity,
+    shard: selection.shard,
+    corpus_expected_sample_count: corpusCaseIds.length,
+    selected_expected_sample_count: selectedCaseIds.length,
+    expected_case_ids: selectedCaseIds,
     profile: PROFILE,
     cycles: CYCLES,
     utc_start: new Date().toISOString(),
@@ -122,26 +135,13 @@ try {
     screenshots: false,
     signing: false,
     completed: false,
-    expected_sample_count:
-      pairCorpus.length *
-      2 *
-      matrix.max_spreads.length *
-      (humanAmounts.length + (PROFILE === "full" ? 1 : 0)) *
-      2 *
-      CYCLES,
+    expected_sample_count: selectedCaseIds.length,
     samples: [],
     artifact_hashes: [],
     backend_revisions: [],
     prohibited_write_attempts: 0,
   };
-  function raw(human, decimals) {
-    const [whole, fraction = ""] = human.split(".");
-    if (fraction.length > decimals) throw new Error("Unrepresentable input");
-    return (
-      BigInt(whole) * 10n ** BigInt(decimals) +
-      BigInt(fraction.padEnd(decimals, "0") || "0")
-    ).toString();
-  }
+  const raw = rawAmount;
   function stats(rows) {
     const values = rows
       .filter((row) => row.useful)
@@ -711,10 +711,9 @@ try {
           if (!selected.native_ustc || !selected.configured_cl8y)
             throw new Error("Default entry policy mismatch");
         }
-        for (const pair of pairCorpus)
-          for (const labels of [pair, [...pair].reverse()])
-            for (const spread of matrix.max_spreads) {
-              const [from, to] = labels,
+        for (const group of selection.selected)
+          for (const spread of matrix.max_spreads) {
+              const {from, to} = group,
                 a = matrix.assets[from],
                 b = matrix.assets[to];
               await page.goto(
@@ -752,22 +751,7 @@ try {
               await prepareMeasurementViewport(page);
               await pay.fill("0.1");
               await page.waitForTimeout(1000);
-              const amounts =
-                PROFILE === "full"
-                  ? [
-                      {
-                        kind: "one_raw_unit",
-                        human: `0.${"0".repeat(a.decimals - 1)}1`,
-                      },
-                      ...humanAmounts.map((human) => ({
-                        kind: "human_amount",
-                        human,
-                      })),
-                    ]
-                  : humanAmounts.map((human) => ({
-                      kind: "human_amount",
-                      human,
-                    }));
+              const amounts = amountCases(PROFILE, humanAmounts, a.decimals);
               for (const amountCase of amounts) {
                 const amount = amountCase.human;
                 assertElapsedBudget();
@@ -1126,6 +1110,12 @@ try {
                   )
                   .at(-1);
                 const row = {
+                  case_id: caseIdentity({
+                    matrixIdentity, profile: PROFILE, viewport: view,
+                    trial: cycle ? "retest" : "first", from, to, spread,
+                    ...amountCase, raw: inputRaw,
+                  }),
+                  directional_group_index: group.index,
                   viewport: view,
                   trial: cycle ? "retest" : "first",
                   pair: `${from}->${to}`,
@@ -1165,6 +1155,7 @@ try {
       throw new Error("Frontend artifacts changed during trial");
     if (receipt.samples.length !== receipt.expected_sample_count)
       throw new Error("Incomplete browser matrix");
+    assertCaseCoverage(selectedCaseIds, receipt.samples.map(row => row.case_id));
     await ownedBrowser.close();
     ownedBrowser = null;
     receipt.completed = true;

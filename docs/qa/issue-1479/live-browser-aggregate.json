@@ -1,0 +1,98 @@
+{
+  "utc": "2026-10-12T07:25:43.851Z",
+  "revision": "0395459971312c31f87d502ef7822733a7250238",
+  "matrix_sha256": "a7c7d0baa9d8a8e0ee1fcd60deb92c4513387718c1bca8ae1fbae9b3cb8d6e75",
+  "profile": "census",
+  "overall": "PASS WITH SKIPS",
+  "expected_cases": 840,
+  "observed_cases": 840,
+  "unique_cases": 840,
+  "failed_cases": 0,
+  "classification_counts": {
+    "amount_too_small": 102,
+    "executable": 558,
+    "price_impact_too_high": 12,
+    "unsupported_semantics": 163,
+    "missing_observations": 5
+  },
+  "useful_latency": {
+    "count": 558,
+    "p50_ms": 376.9000000022352,
+    "p95_ms": 414.4000000022352,
+    "p99_ms": 444.8999999985099,
+    "max_ms": 467.30000000074506
+  },
+  "latency_by_viewport": {
+    "desktop": {
+      "count": 282,
+      "p50_ms": 372.19999999925494,
+      "p95_ms": 388.5,
+      "p99_ms": 450.19999999925494,
+      "max_ms": 467.30000000074506
+    },
+    "phone": {
+      "count": 276,
+      "p50_ms": 399.8999999985099,
+      "p95_ms": 415.30000000074506,
+      "p99_ms": 424.80000000074506,
+      "max_ms": 426.3999999985099
+    }
+  },
+  "latency_by_cache": {
+    "hit": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "miss": {
+      "count": 269,
+      "p50_ms": 378.30000000074506,
+      "p95_ms": 414,
+      "p99_ms": 449,
+      "max_ms": 467.30000000074506
+    },
+    "unobserved": {
+      "count": 289,
+      "p50_ms": 375.0999999977648,
+      "p95_ms": 414.79999999701977,
+      "p99_ms": 444.8999999985099,
+      "max_ms": 450.4000000022352
+    }
+  },
+  "shards": [
+    {
+      "index": 0,
+      "case_count": 420,
+      "quote_request_count": 540,
+      "elapsed_seconds": 1143.103,
+      "first_retest_gap_minimum_seconds": 181,
+      "receipt_sha256": "7e09f80c501d5ec3e80e355de4d82d6b1da8c36fda613de1d1bc21cd50604f19"
+    },
+    {
+      "index": 1,
+      "case_count": 420,
+      "quote_request_count": 609,
+      "elapsed_seconds": 1142.293,
+      "first_retest_gap_minimum_seconds": 181,
+      "receipt_sha256": "d4ec3c7231f8380d059b27dd43378fe750b7a3962080c3ab5f3abbd928f177e8"
+    }
+  ],
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "runtime_scratch": "Independent owned tmpfs directories and browser profiles per shard",
+  "read_only": true,
+  "signing": false,
+  "prohibited_write_attempts": 0,
+  "skips": [
+    "Physical devices/cellular",
+    "Owned-chain settlement is separate",
+    "Pinned historical production economics"
+  ],
+  "retained_failures": [
+    "Original unsharded run: 710/840 at the 30-minute cap; 1110.9/1101.2 ms failures retained",
+    "Full API run: one unclassified client-validation failure; original body unavailable",
+    "Exact-input API replay: cold 883.045 ms exceeds 500 ms; warm validated replies remain separate"
+  ],
+  "qa_helper_sha256": "19f9088d3dec3e5baefb8b328f8542a2fb274e70eb7dc063522ec842eb02b93e"
+}

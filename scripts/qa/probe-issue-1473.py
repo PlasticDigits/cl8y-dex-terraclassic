@@ -121,6 +121,98 @@ def classify(status, body, scenario, now_ms):
     return reason, True
 
 
+def validation_diagnostic(body, scenario, now_ms):
+    """Partial, bounded explanation of failed HTTP 200 validation, never a body export.
+
+    Only fixed reason codes and canonical numeric scalars cross this boundary.
+    The caller supplies the exact clock used by classify; this does not retry,
+    refresh an observation, alter a verdict, or attest a cause it cannot identify.
+    """
+    def timestamp(value):
+        return value if type(value) is int and 0 <= value <= 2 ** 53 - 1 else None
+
+    def raw(value):
+        return value if (isinstance(value, str) and len(value) <= 39
+                         and re.fullmatch(r"0|[1-9][0-9]{0,38}", value) is not None
+                         and int(value) < 2 ** 128) else None
+
+    def fraction(value):
+        return value if (isinstance(value, str) and len(value) <= 20
+                         and re.fullmatch(r"0(?:\.[0-9]{1,18})?|1(?:\.0{1,18})?", value) is not None) else None
+
+    reasons = []
+    evidence = {}
+    clock = timestamp(now_ms)
+    if clock is not None:
+        evidence["validation_at_ms"] = clock
+    if not isinstance(body, dict) or not isinstance(body.get("execution_metadata"), dict):
+        return {"reasons": ["quote_shape"], **evidence}
+    meta = body["execution_metadata"]
+    observed, expiry = timestamp(meta.get("observed_at_ms")), timestamp(meta.get("expires_at_ms"))
+    if observed is not None:
+        evidence["observed_at_ms"] = observed
+    if expiry is not None:
+        evidence["expires_at_ms"] = expiry
+    if observed is None or expiry is None or clock is None:
+        reasons.append("observation_shape")
+    else:
+        if observed > clock:
+            reasons.append("observation_in_future")
+        if expiry <= clock:
+            reasons.append("observation_expired")
+        if not 0 < expiry - observed <= 20_000:
+            reasons.append("observation_lifetime")
+    if body.get("token_in") != scenario.get("token_in") or body.get("token_out") != scenario.get("token_out"):
+        reasons.append("identity_mismatch")
+    if (body.get("execution_blocker") is not None or body.get("execution_supported", True) is not True
+            or meta.get("execution_supported", True) is not True):
+        reasons.append("execution_unavailable")
+    for source, target in ((meta, "input_amount"), (body, "estimated_amount_out_net"), (meta, "minimum_receive")):
+        value = raw(source.get(target))
+        if value is not None:
+            evidence[target] = value
+    if meta.get("input_amount") != scenario.get("amount"):
+        reasons.append("input_mismatch")
+    if meta.get("protection_policy") != "quote_relative_v1":
+        reasons.append("protection_policy_mismatch")
+    selected = fraction(meta.get("max_spread"))
+    for field in ("max_spread", "execution_market_spread"):
+        value = fraction(meta.get(field))
+        if value is not None:
+            evidence[field] = value
+    if selected is None or Decimal(selected) != Decimal(scenario["spread"]) or not 0 < Decimal(selected) <= Decimal("0.5"):
+        reasons.append("spread_mismatch")
+    net, floor = raw(body.get("estimated_amount_out_net")), raw(meta.get("minimum_receive"))
+    tolerance = int(Decimal(scenario["spread"]) * 10 ** 18)
+
+    def floor_valid(net, floor, cap=False):
+        return (net is not None and floor is not None and int(net) > 0 and int(floor) > 0
+                and (not cap or int(floor) <= int(net))
+                and int(floor) >= (int(net) * (10 ** 18 - tolerance) + 10 ** 18 - 1) // 10 ** 18)
+
+    if not floor_valid(net, floor, cap=True):
+        reasons.append("minimum_receive_invalid")
+    hops = meta.get("hops")
+    if not isinstance(hops, list) or not hops:
+        reasons.append("hop_shape")
+    else:
+        # Eight entries cover current bounded routes while capping hostile input.
+        evidence["hop_floors"] = []
+        evidence["hop_floors_truncated"] = len(hops) > 8
+        for hop in hops[:8]:
+            if not isinstance(hop, dict):
+                reasons.append("hop_shape")
+                evidence["hop_floors"].append({})
+                continue
+            hop_net, hop_floor = raw(hop.get("return_amount")), raw(hop.get("min_return"))
+            evidence["hop_floors"].append({field: value for field, value in
+                (("return_amount", hop_net), ("min_return", hop_floor)) if value is not None})
+            if not floor_valid(hop_net, hop_floor):
+                reasons.append("hop_floor_invalid")
+    # Uncovered checks (e.g. operations or computed market ceiling) are not guessed.
+    return {"reasons": list(dict.fromkeys(reasons)) or ["unclassified_validation"], **evidence}
+
+
 def connection_for(base):
     target = urlsplit(base)
     if target.scheme not in ("http", "https") or not target.hostname or target.username or target.password or target.query or target.fragment or target.path not in ("", "/"):
@@ -222,6 +314,7 @@ def probe(args):
                     start = time.perf_counter()
                     status, transport, outcome, valid = 0, "unknown", "transport_unavailable", False
                     row_started, failure = utc_now(), {}
+                    validation_body, validation_clock = None, None
                     try:
                         signal.alarm(10)
                         stage = "quote.request"
@@ -237,13 +330,17 @@ def probe(args):
                             connection.close()
                         else:
                             stage = "quote.decode"
-                            outcome, valid = classify(status, json.loads(payload), scenario, int(time.time() * 1000))
+                            validation_body = json.loads(payload)
+                            validation_clock = int(time.time() * 1000)
+                            outcome, valid = classify(status, validation_body, scenario, validation_clock)
                     except (OSError, TimeoutError, ValueError, common.http.client.HTTPException) as exc:
                         failure = {"failure_stage": stage, "failure_class": type(exc).__name__}
                         connection.close()
                     finally:
                         signal.alarm(0)
                     elapsed = (time.perf_counter() - start) * 1000
+                    if status == 200 and not valid and validation_clock is not None:
+                        failure["validation_diagnostic"] = validation_diagnostic(validation_body, scenario, validation_clock)
                     rows.append({"trial": trial_name, "endpoint": endpoint,
                                  **{k: scenario[k] for k in ("pair", "human_amount", "amount", "spread")},
                                  "status": status, "outcome": outcome, "classified": valid,

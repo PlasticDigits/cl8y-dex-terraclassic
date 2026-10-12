@@ -1,0 +1,13 @@
+{
+  "utc": "2026-10-12T05:57:53.806107+00:00",
+  "scope": "Bounded readonly Coolify configuration and existing runtime DB capability; no provider queries, actors, private URLs or credential values",
+  "backend_before": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "configured_floors": {
+    "HUB_USD_TVL_FLOOR": "unset_in_coolify_configuration",
+    "ECONOMIC_USD_TVL_FLOOR": "unset_in_coolify_configuration"
+  },
+  "runtime_database_connection_shape_available": false,
+  "database_reason": "authorized_api_does_not_expose_runtime_credentials",
+  "backend_after": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "read_count": 4
+}

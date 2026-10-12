@@ -134,3 +134,30 @@ measurement clocks/budgets. Earlier normal-host FAILs remain retained. The previ
 completed 1452 run belongs to pre-review source;1473 was explicitly interrupted for
 the review fixes and has no final verdict. Controlled source success does not
 establish live deployed acceptance or physical wallets.
+
+
+## Publication and deployed checks
+
+[PR #1481](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481) merged to
+`0395459971312c31f87d502ef7822733a7250238`. Both production apps finished healthy;
+[initial](../issue-1479/deployment-attestation.json) and
+[post-matrix](../issue-1479/attestation-final.json) attestation pin backend/frontend
+and served root assets independently. [Full shared live results](../issue-1479/RESULTS.md#publication-and-deployed-checks)
+retain all pass/failure/skip scope: 1,680 API rows, one unproved client-validation
+failure, the original 30-minute/two-latency browser FAIL, and 840 unique replacement
+shard cases with zero failures/558 useful quotes/max 467.3 ms against 750 ms.
+A separate cold API replay at 883.045 ms remains FAIL against 500 ms.
+
+[Hosted CI 422](https://ci.cl8y.com/repos/7/pipeline/422/1) genuinely passed all steps
+after the explicit pending-only per-merge override. No branch protection/status
+fabrication/force Git push occurred. Application source is unchanged by the QA/
+evidence follow-up; current gas budgets remain bound to the owned funded receipts.
+
+Every #1480 whole criterion remains unchecked: physical/atomic WalletConnect and
+original report details, funded production/native/USTR/wrapper/tax/hook/book worst
+cases, and production contract provenance remain incomplete. Source/funded plain
+core and live quote subsets do not certify those scopes. The pending PM phone
+card compares approval fees and cancels without signing. #1480 remains open.
+
+[Published evidence and QA follow-up #1482](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1482)
+crosslinks these results, bounded shards and failed-response diagnostics.

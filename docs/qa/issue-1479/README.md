@@ -46,7 +46,7 @@ Detailed passing subsets, skipped scope and failures belong in [results](RESULTS
 | [ ] | AC5 exact execution | Owned funded direct/multihop/native settlement at positive 1/5/30% net floors, rejected-floor reserve/LP rollback and non-signability of stale/indicative output. |
 | [ ] | AC6 full regression | Complete specified markets/amounts/modes/state/context/UI matrix first/repeat with meaningful raw expected values and retained failed inputs. |
 | [ ] | AC7 deployed acceptance | Independently pinned backend/frontend/artifacts, desktop/phone cycles >20s/>180s, useful hit/miss p50/p95/p99/max ≤750ms browser and separate 500ms socket scope. |
-| [ ] | AC8 documentation | Policy/floors, original-time readiness, API/client semantics, issue/PR/skills crosslinks and truthful checklist. |
+| [x] | AC8 documentation | Policy/floors, original-time readiness, API/client semantics, issue/PR/skills crosslinks and truthful checklist. |
 
 ## Monitoring
 
@@ -82,3 +82,20 @@ backend revision. The existing deployed browser
 helper accepts `DEX1473_BROWSER_MATRIX=1479`; every existing artifact/revision,
 2,200-quote/30-minute and read-only guard remains. Default 1473 corpus is unchanged.
 All blocked results remain classified blockers rather than executable successes.
+
+
+## Bounded browser shards and failure diagnostics
+
+Set both `DEX1473_BROWSER_SHARD_COUNT=2` and
+`DEX1473_BROWSER_SHARD_INDEX=0` (then 1 in an independent owned profile) for the
+840-case census. Each run retains the original 30-minute/2,200-read/750 ms limits,
+exact deployed SHA/attestation, both viewports, first/retest and 181-second gap.
+Selection partitions direction groups, records full/selected expected counts and
+case identities, and rejects duplicate/substituted/missing completion. Aggregate
+coverage must prove 840 unique cases, not merely add row counts. Original failed
+unsharded runs remain FAIL. See [aggregate evidence](live-browser-aggregate.json).
+
+The public API probe records only bounded fixed reason codes and allowlisted
+original time/input/net/floor scalars when HTTP 200 client validation fails, using
+the exact verdict clock. Hostile fields, actors, operations and private prose/URLs
+are excluded. Earlier missing bodies cannot gain a retrospective invented cause.

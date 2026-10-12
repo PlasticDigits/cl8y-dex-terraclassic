@@ -1,0 +1,14 @@
+{
+  "utc": "2026-10-12T07:29:12.913059+00:00",
+  "window_seconds": 900,
+  "scope": "Fixed aggregate categories only, no log lines, actors, paths or raw private bodies",
+  "counts": {
+    "frontend_missing_file": 0.0,
+    "frontend_permission_denied": 0.0,
+    "frontend_upstream_connection": 0.0,
+    "frontend_panic_fatal": 0.0,
+    "backend_http_503": 8.0,
+    "backend_panic_fatal": 0.0
+  },
+  "read_count": 9
+}
