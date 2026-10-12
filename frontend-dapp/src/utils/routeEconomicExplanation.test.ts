@@ -10,13 +10,13 @@ function fixture() {
 }
 describe('bounded advisory economic explanation #1483', () => {
   it('explains independently reconciled reference divergence without an extra percent', () => {
-    expect(routeEconomicExplanation(fixture())).toBe('Reference and pool prices differ most.')
+    expect(routeEconomicExplanation(fixture())).toBe('Different pricing')
   })
   it.each([
-    ['wrapper_loss', ['150000', '50000', '0', '0'], 'Wrapping costs contribute most.'],
-    ['trading_cost', ['0', '160000', '40000', '0'], 'Trading fees, taxes and hooks contribute most.'],
-    ['market_movement', ['0', '50000', '250000', '-100000'], 'Trade size and available liquidity contribute most.'],
-    ['mixed', ['100000', '100000', '0', '0'], 'Several costs and price differences contribute.'],
+    ['wrapper_loss', ['150000', '50000', '0', '0'], 'Wrapping costs'],
+    ['trading_cost', ['0', '160000', '40000', '0'], 'Trading costs'],
+    ['market_movement', ['0', '50000', '250000', '-100000'], 'Limited liquidity'],
+    ['mixed', ['100000', '100000', '0', '0'], 'Combined costs and pricing'],
   ])('derives %s from signed same-denomination terms', (cause, values, copy) => {
     const q = fixture(),
       a = q.economic_attribution as Record<string, unknown>
@@ -51,9 +51,7 @@ describe('bounded advisory economic explanation #1483', () => {
     }
   )
   it('does not invent costs for an exact zero-component quote', () => {
-    expect(routeEconomicExplanation(attachReferenceAttribution(localQuote()))).toBe(
-      'No difference from the fair reference.'
-    )
+    expect(routeEconomicExplanation(attachReferenceAttribution(localQuote()))).toBe('Matches reference prices')
   })
   it.each(['expired', 'future', 'extended', 'unsafe', 'net_mismatch'])('rejects %s diagnostic binding', (kind) => {
     const q = fixture()

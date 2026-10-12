@@ -13,7 +13,6 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
-import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
@@ -759,9 +758,13 @@ function TradeOrderTicketContent({
             </a>
           </div>
         )}
-        {selectedPair && isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="trade-pair-code-id-frozen-banner" />}
+        {selectedPair && !isPaused && isPairCodeIdFrozen && (
+          <p className="alert-error text-xs" role="alert" data-testid="trade-pair-code-id-frozen-banner">
+            Trading is temporarily unavailable.
+          </p>
+        )}
 
-        {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
+        {selectedPair && !isPaused && !isPairCodeIdFrozen && tradingBlacklist.blocked && tradingBlacklist.message && (
           <div className="alert-error text-xs" role="alert">
             <p>{tradingBlacklist.message}</p>
           </div>

@@ -23,6 +23,9 @@ sockets() {
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
     src/utils/routeEconomicExplanation.test.ts src/utils/swapRouteSlippage.test.ts \
+    src/components/swap/SwapImpactAside.test.tsx src/utils/tradingNotice.test.ts \
+    src/utils/__tests__/humanizeTerraTxError.test.ts \
+    src/services/terraclassic/__tests__/swapAutoGasFeeHint.test.tsx \
     src/components/swap/__tests__/SwapPreSubmitSummary.test.tsx \
     src/utils/localRouteQuote.test.ts src/utils/localWrapperOnlyQuote.test.ts \
     src/pages/SwapPage.test.tsx src/pages/TradePage.test.tsx \

@@ -38,10 +38,7 @@ import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
 import { QuoteDataLoadingProgress } from '@/components/QuoteDataLoadingProgress'
 import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
 import { isIndexerLocalQuoteRejection } from '@/utils/indexerErrors'
-import {
-  evaluateLimitOrderEscrowPlaceGate,
-  LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT,
-} from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
@@ -62,8 +59,10 @@ import {
 } from '@/utils/swapPayAcquireGuidance'
 import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import { firstTradingNotice, isPreSignTradingError } from '@/utils/tradingNotice'
+import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
-import { resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
+import { formatTradingPriceDifference, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
@@ -145,7 +144,7 @@ export function TradeMarketOrderPanel({
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const queryClient = useQueryClient()
-  const { slippageTolerance, setSlippageTolerance, deadlineSeconds, expertMode } = useDexStore()
+  const { slippageTolerance, setSlippageTolerance, deadlineSeconds, expertMode, setExpertMode } = useDexStore()
 
   const bookLegInputId = useId()
   const maxMakersInputId = useId()
@@ -156,6 +155,7 @@ export function TradeMarketOrderPanel({
   /** Always-on best execution (#596). Typed book leg overrides via POST. */
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
+  const [showExpertModeModal, setShowExpertModeModal] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const acceptedImpactKeyRef = useRef<string | null>(null)
   const [reviewedImpactKey, setReviewedImpactKey] = useState<string | null>(null)
@@ -509,8 +509,10 @@ export function TradeMarketOrderPanel({
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Market swap submitted.',
+    toastOnError: false,
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
+      if (isPaused) throw new Error('Trading is temporarily unavailable.')
       if (offerDecimals == null || receiveDecimals == null) throw new Error('Token decimals unavailable')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
       if (extraDebitGate.blockSubmit) {
@@ -520,12 +522,20 @@ export function TradeMarketOrderPanel({
       if (snapshottedHybrid) {
         assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
       }
+      if (
+        routeRiskBlocked &&
+        simData &&
+        !isExpiredLocalQuote(simData) &&
+        !simQuery.isError &&
+        !simQuery.isFetching &&
+        !simQuery.isPlaceholderData
+      )
+        throw new Error('Price difference is too high')
       if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       if (needsImpactConsent && acceptedImpactKeyRef.current !== impactReviewKey)
-        throw new Error('Review the price difference first.')
+        throw new Error('Confirm the price difference first.')
       acceptedImpactKeyRef.current = null
-      if (routeRiskBlocked) throw new Error('Price difference is too high')
       if (!simData) throw new Error('Quote unavailable')
       if (marketSwapFee.coverageError) throw new Error(marketSwapFee.coverageError)
       const payRaw = submitPayRaw
@@ -695,30 +705,72 @@ export function TradeMarketOrderPanel({
     !routeRiskBlocked &&
     !priceImpactTooHigh
 
-  const submitLabel = !isWalletConnected
-    ? 'Connect Wallet'
-    : showImpactConfirm && canSubmit
-      ? 'Confirm market swap'
-      : pricingDataPending
-        ? 'Wait for price'
-        : extraDebitGate.insufficientBalance
-          ? 'Insufficient Balance'
-          : hasPositivePay && !decimalsResolved
-            ? decimalsPending
-              ? 'Loading decimals…'
-              : 'Token decimals unavailable'
-            : terraBroadcastPendingButtonLabel(
-                swapMutation.phase,
-                swapMutation.isPending,
-                priceImpactTooHigh
-                  ? 'Hop spread exceeds slippage protection'
-                  : routeRiskBlocked
-                    ? 'Price difference is too high'
-                    : liveSplit?.bookExceedsPay
-                      ? 'Book leg exceeds pay'
-                      : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-                'Submitting…'
-              )
+  let submitLabel = isPaused
+    ? 'Trading unavailable'
+    : marketSwapFee.coverageError
+      ? 'Network fee unavailable'
+      : !isWalletConnected
+        ? 'Connect Wallet'
+        : showImpactConfirm && canSubmit
+          ? 'Confirm market swap'
+          : pricingDataPending
+            ? 'Wait for price'
+            : extraDebitGate.insufficientBalance
+              ? 'Insufficient Balance'
+              : hasPositivePay && !decimalsResolved
+                ? decimalsPending
+                  ? 'Loading decimals…'
+                  : 'Token decimals unavailable'
+                : terraBroadcastPendingButtonLabel(
+                    swapMutation.phase,
+                    swapMutation.isPending,
+                    priceImpactTooHigh
+                      ? 'Quote exceeds price protection'
+                      : routeRiskBlocked
+                        ? 'Price difference is too high'
+                        : liveSplit?.bookExceedsPay
+                          ? 'Book leg exceeds pay'
+                          : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+                    'Submitting…'
+                  )
+
+  const primaryNotice = firstTradingNotice([
+    ['tx', swapMutation.isError && !isPreSignTradingError(swapMutation.error)],
+    ['paused', isPaused],
+    ['pricing', pricingDataPending],
+    [
+      'quote',
+      simQuery.isError && !showReceiveCalculating && rawInputAmount === debouncedRawInputAmount && !simQuery.isFetching,
+    ],
+    ['book', liveSplit?.bookExceedsPay === true],
+    ['acquire', isWalletConnected && payAcquireGuidance.kind.startsWith('insufficient')],
+    [
+      'funding',
+      hasPositivePay &&
+        (!!marketSwapFee.coverageError ||
+          (isWalletConnected && (!!inlineGate.userMessage || extraDebitGate.blockSubmit))),
+    ],
+    ['hop', priceImpactTooHigh],
+    [
+      'price',
+      !!simData &&
+        !showReceiveCalculating &&
+        expectedSlippagePct != null &&
+        expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
+    ],
+    ['tx', swapMutation.isError],
+  ] as const)
+
+  if (primaryNotice === 'tx' && showImpactConfirm && canSubmit && expectedSlippagePct != null)
+    submitLabel = `Confirm market swap (${formatTradingPriceDifference(expectedSlippagePct)}%)`
+
+  const lastErrorIntentRef = useRef(impactReviewKey)
+  const { error: lastMutationError, reset: resetMutationError } = swapMutation
+  useEffect(() => {
+    const changed = lastErrorIntentRef.current !== impactReviewKey
+    lastErrorIntentRef.current = impactReviewKey
+    if (changed && isPreSignTradingError(lastMutationError)) resetMutationError()
+  }, [impactReviewKey, lastMutationError, resetMutationError])
 
   const swapMutate = swapMutation.mutate
   const swapPhase = swapMutation.phase
@@ -739,18 +791,20 @@ export function TradeMarketOrderPanel({
         else if (needsImpactConsent && !showImpactConfirm) setReviewedImpactKey(impactReviewKey)
         else {
           acceptedImpactKeyRef.current = impactReviewKey
+          setReviewedImpactKey(null)
           swapMutate()
         }
       },
       phase: swapPhase,
       pendingTxHash: swapPendingTxHash,
-      isError: swapIsError,
+      isError: primaryNotice === 'tx' && swapIsError,
       errorMessage: swapErrorMessage,
       isSuccess: swapIsSuccess,
       successTxHash: swapSuccessTxHash,
     }),
     [
       canSubmit,
+      primaryNotice,
       needsImpactConsent,
       showImpactConfirm,
       impactReviewKey,
@@ -817,7 +871,8 @@ export function TradeMarketOrderPanel({
             Quoting…
           </div>
         )}
-        {simQuery.isError &&
+        {primaryNotice === 'quote' &&
+          simQuery.isError &&
           !pricingDataPending &&
           rawInputAmount !== '0' &&
           !showReceiveCalculating &&
@@ -827,7 +882,7 @@ export function TradeMarketOrderPanel({
               {humanizeUserFacingErrorFromUnknown(simQuery.error)}
             </p>
           )}
-        {liveSplit?.bookExceedsPay && (
+        {primaryNotice === 'book' && (
           <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
             Book leg cannot exceed pay amount
           </p>
@@ -854,11 +909,14 @@ export function TradeMarketOrderPanel({
           </p>
         )}
 
-        {!pricingDataPending && simData && rawInputAmount !== '0' && !showReceiveCalculating && (
+        {primaryNotice === 'price' && (
           <SwapImpactAside
             routeSlippagePct={expectedSlippagePct}
-            worstHopPercent={simData.routePreflight?.worstSpreadPercent}
-            economicExplanation={simData.economicExplanation}
+            economicExplanation={simData?.economicExplanation}
+            blocked={routeRiskBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
+            confirming={showImpactConfirm && canSubmit}
+            onCancel={() => setReviewedImpactKey(null)}
+            onEnableExpert={() => setShowExpertModeModal(true)}
             testId="trade-market-impact-aside"
           />
         )}
@@ -1000,55 +1058,89 @@ export function TradeMarketOrderPanel({
                   )}
                 </div>
               )}
-              {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
-                <SwapPreSubmitSummary
-                  actionLabel="Market swap"
-                  offerSymbol={getTokenDisplaySymbol(fromToken)}
-                  receiveSymbol={getTokenDisplaySymbol(toToken)}
-                  offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
-                  receiveAmountHuman={
-                    !theaterRouteQuote && simData?.return_amount && receiveDecimals != null
-                      ? fromRawAmount(simData.return_amount, receiveDecimals)
-                      : '—'
-                  }
-                  maxSpreadPercent={slippageTolerance}
-                  minReceiveHuman={
-                    !showQuoteOnly && !theaterRouteQuote && minReceived && receiveDecimals != null
-                      ? fromRawAmount(minReceived, receiveDecimals)
-                      : null
-                  }
-                  pairContractAddresses={marketPairContractAddresses}
-                  chainFullLabel={getNetworkBadgeCopy().fullLabel}
-                  data-testid="trade-market-pre-submit-summary"
-                />
-              )}
             </div>
           )}
         </div>
 
-        {showImpactConfirm && canSubmit && (
-          <p className="alert-error text-xs" data-testid="trade-market-impact-confirm">
-            High fair-reference deviation. Click again to confirm.
-            <button type="button" className="ml-2 underline" onClick={() => setReviewedImpactKey(null)}>
-              Cancel
-            </button>
-          </p>
+        {simData && rawInputAmount !== '0' && !showReceiveCalculating && (
+          <details data-testid="trade-market-signing-details">
+            <summary className="cursor-pointer text-[11px]" style={{ color: 'var(--ink-subtle)' }}>
+              Signing details
+            </summary>
+            {expectedSlippagePct != null && expectedSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT && (
+              <SwapImpactAside
+                details
+                routeSlippagePct={expectedSlippagePct}
+                economicExplanation={simData.economicExplanation}
+                testId="trade-market-price-details"
+              />
+            )}
+            {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
+              <SwapPreSubmitSummary
+                actionLabel="Market swap"
+                offerSymbol={getTokenDisplaySymbol(fromToken)}
+                receiveSymbol={getTokenDisplaySymbol(toToken)}
+                offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
+                receiveAmountHuman={
+                  !theaterRouteQuote && simData?.return_amount && receiveDecimals != null
+                    ? fromRawAmount(simData.return_amount, receiveDecimals)
+                    : '—'
+                }
+                maxSpreadPercent={slippageTolerance}
+                minReceiveHuman={
+                  !showQuoteOnly && !theaterRouteQuote && minReceived && receiveDecimals != null
+                    ? fromRawAmount(minReceived, receiveDecimals)
+                    : null
+                }
+                pairContractAddresses={marketPairContractAddresses}
+                chainFullLabel={getNetworkBadgeCopy().fullLabel}
+                data-testid="trade-market-pre-submit-summary"
+              />
+            )}
+          </details>
         )}
 
-        <SwapPayAcquireGuidanceBanner
-          guidance={payAcquireGuidance}
-          testIdPrefix="trade-market"
-          hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
-          onReduce={(human) => setMarketAmountHuman(human)}
-        />
-        <LimitOrderEscrowPlaceGuardMessage
-          gate={
-            payAcquireGuidance.kind.startsWith('insufficient') &&
-            inlineGate.userMessage === LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT
-              ? { ...inlineGate, userMessage: null }
-              : inlineGate
-          }
-          data-testid="trade-market-place-guard"
+        {primaryNotice === 'acquire' && (
+          <SwapPayAcquireGuidanceBanner
+            guidance={payAcquireGuidance}
+            testIdPrefix="trade-market"
+            hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
+            onReduce={(human) => setMarketAmountHuman(human)}
+          />
+        )}
+        {primaryNotice === 'funding' && (
+          <LimitOrderEscrowPlaceGuardMessage
+            gate={
+              inlineGate.userMessage
+                ? inlineGate
+                : {
+                    ...inlineGate,
+                    tone: 'error',
+                    userMessage: marketSwapFee.coverageError
+                      ? 'Network fee unavailable.'
+                      : 'Trade funding is unavailable.',
+                  }
+            }
+            data-testid="trade-market-place-guard"
+          />
+        )}
+        {primaryNotice === 'paused' && !dockSubmit && (
+          <p className="alert-error text-xs" role="alert">
+            Trading is temporarily unavailable.
+          </p>
+        )}
+        {primaryNotice === 'hop' && (
+          <p className="alert-error text-xs" role="alert">
+            Quote exceeds your price protection.
+          </p>
+        )}
+        <ExpertModeModal
+          isOpen={showExpertModeModal}
+          onClose={() => setShowExpertModeModal(false)}
+          onEnable={() => {
+            setExpertMode(true)
+            setShowExpertModeModal(false)
+          }}
         />
         {!dockSubmit && <TradeMarketSubmitChrome model={submitChromeModel} />}
       </div>

@@ -1,40 +1,61 @@
-import { impactAsideOutsideDetails } from '@/utils/swapRouteSlippage'
+import { formatTradingPriceDifference } from '@/utils/swapRouteSlippage'
+import { SWAP_FUNDED_HIGH_IMPACT_PCT } from '@/utils/swapPayAcquireGuidance'
+import { UNAVAILABLE_ECONOMIC_EXPLANATION } from '@/utils/routeEconomicExplanation'
 
-/**
- * One aggregate fair-reference percentage and bounded explanation in both entry flows.
- * Per-hop spreads remain separate diagnostic metrics, never an adjacent percentage.
- */
+/** One actionable price notice; optional low-risk information stays in signing details. */
 export function SwapImpactAside({
   routeSlippagePct,
-  worstHopPercent,
   economicExplanation,
+  details = false,
+  blocked,
+  confirming = false,
+  onCancel,
+  onEnableExpert,
   testId = 'swap-impact-aside',
 }: {
   routeSlippagePct: number | null
-  worstHopPercent: string | null | undefined
+  worstHopPercent?: string | null
   economicExplanation?: string
+  details?: boolean
+  blocked?: 'expert' | 'extreme'
+  confirming?: boolean
+  onCancel?: () => void
+  onEnableExpert?: () => void
   testId?: string
 }) {
-  const aside = impactAsideOutsideDetails({ routeSlippagePct, worstHopPercent })
-  if (!aside) return null
-  if (aside.kind === 'route') {
-    return (
-      <p className="mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }} data-testid={testId}>
-        Fair-reference deviation {aside.percent}%. {economicExplanation ?? 'Cost breakdown unavailable.'}
-      </p>
-    )
-  }
+  if (routeSlippagePct == null || !Number.isFinite(routeSlippagePct)) return null
+  if (!details && routeSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT) return null
+  const explanation =
+    economicExplanation &&
+    economicExplanation !== UNAVAILABLE_ECONOMIC_EXPLANATION &&
+    economicExplanation !== 'Matches reference prices'
+      ? economicExplanation.toLowerCase()
+      : null
+  const metric = `Price difference ${formatTradingPriceDifference(routeSlippagePct)}%`
+  const sentence =
+    blocked === 'extreme'
+      ? `${metric} is too high.`
+      : blocked === 'expert'
+        ? `${metric} requires Expert Mode.`
+        : `${metric}${explanation ? ` — ${explanation}` : ''}${!details && confirming ? '; click again to confirm' : ''}.`
   return (
-    <p className="card-glass mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }} data-testid={testId}>
-      Worst hop spread ≈ {aside.percent}%.{' '}
-      <a
-        href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/swap-max-spread-ux.md"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline"
-      >
-        Docs
-      </a>
-    </p>
+    <div
+      className={details ? 'text-[11px] sm:text-xs' : 'alert-error mb-3 text-xs'}
+      role={details ? undefined : 'alert'}
+      style={details ? { color: 'var(--ink-dim)' } : undefined}
+      data-testid={testId}
+    >
+      <p>{sentence}</p>
+      {!details && blocked === 'expert' && onEnableExpert && (
+        <button type="button" className="underline" onClick={onEnableExpert}>
+          Enable Expert Mode
+        </button>
+      )}
+      {!details && !blocked && confirming && onCancel && (
+        <button type="button" className="underline" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
+    </div>
   )
 }

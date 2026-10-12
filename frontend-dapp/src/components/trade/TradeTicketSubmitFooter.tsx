@@ -51,7 +51,11 @@ export function TradeMarketSubmitChrome({ model }: { model: TradeMarketSubmitChr
         {model.label}
       </button>
       <TerraBroadcastPendingLink phase={model.phase} txHash={model.pendingTxHash} />
-      {model.isError && model.errorMessage != null && <TxResultAlert type="error" message={model.errorMessage} />}
+      {model.isError && model.errorMessage != null && (
+        <div role="alert" data-testid="trade-market-tx-error">
+          <TxResultAlert type="error" message={model.errorMessage} />
+        </div>
+      )}
       {model.isSuccess && (
         <TxResultAlert type="success" message="Market swap confirmed." txHash={model.successTxHash} />
       )}

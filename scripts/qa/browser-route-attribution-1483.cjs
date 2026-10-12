@@ -10,13 +10,14 @@ const frontend = createRequire(path.join(ROOT, "frontend-dapp/package.json"));
 const FRONTEND = "https://dex.cl8y.com";
 const BACKEND = "https://indexer.dex.cl8y.com";
 const COPIES = [
-  "Wrapping costs contribute most.",
-  "Trading fees, taxes and hooks contribute most.",
-  "Trade size and available liquidity contribute most.",
-  "Pool or book execution improves the output most.",
-  "Reference and pool prices differ most.",
-  "Several costs and price differences contribute.",
-  "No difference from the fair reference.",
+  "Wrapping costs",
+  "Trading costs",
+  "Limited liquidity",
+  "Pool and order pricing",
+  "Better pool or order pricing",
+  "Different pricing",
+  "Combined costs and pricing",
+  "Matches reference prices",
 ];
 
 function assert(condition, code) {
@@ -144,6 +145,7 @@ function sharedSources() {
   assert(!/require\(/.test(precision), "PrecisionDependencyShape");
   return {
     precision: `(() => { const exports = {}; ${precision}; return exports.preciseFairDeviationPercent; })()`,
+    format: `(() => { const exports = {}; ${precision}; return exports.formatTradingPriceDifference; })()`,
     validator: `(() => { ${declarations.map(text).join("\n")} return ${text(validate)}; })()`,
     measurement,
     explanation: `(() => { const exports = {}; ${explanation}; return exports.routeEconomicExplanation; })()`,
@@ -228,27 +230,56 @@ function installRuntime(config) {
       : output.value?.replaceAll(",", "") || "";
   window.__quotes1473 = [];
   window.__explanationReady1483 = (expected, latest) => {
-    const aside = window.__query1483(
-      `[data-testid="${expected.entry === "trade" ? "trade-market" : "swap"}-impact-aside"]`,
-    );
     const diag = latest.diagnostic;
+    const pay = window.__query1483(
+      `[data-testid="${expected.entry === "trade" ? "limit-order-escrow-amount-input" : "swap-you-pay-amount"}"]`,
+    );
+    const scope =
+      expected.entry === "trade"
+        ? pay.closest('[role="tabpanel"]') || document
+        : document;
+    const prefix = expected.entry === "trade" ? "trade-market" : "swap";
     const receive = window.__query1483(
       `[data-testid="${expected.entry === "trade" ? "trade-market-expected-receive" : "swap-you-receive"}"]`,
     );
-    if (!diag?.valid || !visible(aside) || !visible(receive)) return false;
-    const expectedText = `Fair-reference deviation ${diag.percent}%. ${diag.explanation}`;
-    const text = aside.textContent.replace(/\s+/g, " ").trim();
+    if (!diag?.valid || !visible(receive)) return false;
+    const low = diag.precise_percent <= 5;
+    const outside = scope.querySelector(
+      `[data-testid="${prefix}-impact-aside"]`,
+    );
+    const node = low
+      ? scope.querySelector(`[data-testid="${prefix}-price-details"]`)
+      : outside;
+    if (!node || (!low && !visible(node))) return false;
+    if (
+      low &&
+      (outside ||
+        !node.closest(
+          `[data-testid="${expected.entry === "trade" ? "trade-market-signing-details" : "swap-pre-submit-details"}"]`,
+        ))
+    )
+      return false;
+    const cause =
+      diag.explanation === "Matches reference prices"
+        ? ""
+        : ` — ${diag.explanation.toLowerCase()}`;
+    const text = node.textContent.replace(/\s+/g, " ").trim();
+    const expectedText = `Price difference ${diag.percent}%${cause}.`;
+    const alerts = [...scope.querySelectorAll('[role="alert"]')].filter(
+      visible,
+    );
     return (
       text === expectedText &&
       (text.match(/%/g) || []).length === 1 &&
+      alerts.length === (low ? 0 : 1) &&
       ![
-        ...document.querySelectorAll(
+        ...scope.querySelectorAll(
           '[data-testid="swap-expected-slippage"],[data-testid="trade-market-quote-extras"]',
         ),
       ]
         .filter(visible)
         .some((node) =>
-          /(?:Hop spread|Worst hop spread|Price impact|Expected slippage)\s*[:≈]?\s*\d/i.test(
+          /(?:Hop spread|Worst hop spread|Price impact|Expected slippage|Fair-reference)\s*[:≈]?\s*\d/i.test(
             node.textContent || "",
           ),
         )
@@ -336,9 +367,12 @@ function installRuntime(config) {
               net = BigInt(row.output);
             row.diagnostic = {
               explanation,
-              percent: Number(
+              precise_percent: Number(
                 window.__precise1483(String(net), String(fair)),
-              ).toFixed(2),
+              ),
+              percent: window.__format1483(
+                Number(window.__precise1483(String(net), String(fair))),
+              ),
               valid:
                 body.economic_attribution?.status === "available" &&
                 config.copies.includes(explanation),
@@ -587,7 +621,7 @@ async function run() {
         socket.close();
       });
       await context.addInitScript({
-        content: `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision};`,
+        content: `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format};`,
       });
       await context.addInitScript(installRuntime, { copies: COPIES });
       await context.route("**/*", async (route) => {
@@ -725,12 +759,15 @@ async function run() {
             await pay.fill("0.2");
           }
         }
-        await page
-          .locator(
-            `[data-testid="${trade ? "trade-market" : "swap"}-impact-aside"]:visible`,
-          )
-          .first()
-          .waitFor({ timeout: 15000 });
+        await page.waitForFunction(
+          () =>
+            window.__quotes1473.some(
+              (row) =>
+                row.useful && row.diagnostic?.valid && row.expires > Date.now(),
+            ),
+          undefined,
+          { timeout: 15000 },
+        );
         for (const amount of ["1", "1000", "4000"]) {
           const raw =
             entry === "swap_credit"
@@ -830,10 +867,30 @@ async function run() {
               ...result,
               explanation: latest?.diagnostic?.explanation,
               displayed_percent: latest?.diagnostic?.percent,
+              detail_case: latest?.diagnostic?.precise_percent <= 5,
               quoted_wrap_credit_raw: latest?.native_credit,
             };
           });
           row.failed = browserSampleFailed(row);
+          if (!row.failed && row.detail_case) {
+            const details = page
+              .locator(
+                `[data-testid="${trade ? "trade-market-signing-details" : "swap-pre-submit-details"}"]:visible`,
+              )
+              .first();
+            await details.locator("summary").click();
+            const detail = details.locator(
+              `[data-testid="${trade ? "trade-market" : "swap"}-price-details"]`,
+            );
+            row.progressive_disclosure_verified =
+              (await detail.isVisible()) &&
+              (await detail.textContent()).includes(
+                `Price difference ${row.displayed_percent}%`,
+              );
+            if (!row.progressive_disclosure_verified) row.failed = true;
+            await details.locator("summary").click();
+          }
+
           if (
             entry === "swap_native" &&
             row.useful &&

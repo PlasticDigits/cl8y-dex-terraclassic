@@ -5,20 +5,23 @@ import { LOCAL_WALLET, localQuote, localTokens } from '@/test/localRouteFixtures
 import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
 import { useDexStore } from '@/stores/dex'
 import type { PairInfo } from '@/types'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
 const { nativeBalance, mutationEntry } = vi.hoisted(() => ({
   nativeBalance: { data: '10000000000' },
-  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>) },
+  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>), toastOnError: true },
 }))
 vi.mock('@/hooks/useTerraBroadcastMutation', async (importActual) => {
   const actual = await importActual<typeof import('@/hooks/useTerraBroadcastMutation')>()
   return {
     ...actual,
     useTerraBroadcastMutation: (options: Parameters<typeof actual.useTerraBroadcastMutation>[0]) => {
-      if (options.toastSuccess === 'Market swap submitted.') mutationEntry.run = () => options.mutationFn(undefined)
+      if (options.toastSuccess === 'Market swap submitted.') {
+        mutationEntry.run = () => options.mutationFn(undefined)
+        mutationEntry.toastOnError = options.toastOnError !== false
+      }
       return actual.useTerraBroadcastMutation(options)
     },
   }
@@ -167,6 +170,19 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       localQuote(from, to, amount, options)
     )
   })
+  afterEach(() => vi.restoreAllMocks())
+  it('uses one inline error surface while retaining success notifications', async () => {
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    expect(mutationEntry.toastOnError).toBe(false)
+  })
   async function ready() {
     const rendered = renderWithProviders(
       <TradeMarketOrderPanel
@@ -193,12 +209,13 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
         return q
       })
       await ready()
-      const aside = screen.getByTestId('trade-market-impact-aside')
-      expect(aside).toHaveTextContent('Fair-reference deviation 0.99%.')
-      expect(aside).toHaveTextContent(
-        tampered ? 'Cost breakdown unavailable.' : 'Reference and pool prices differ most.'
-      )
+      const aside = screen.getByTestId('trade-market-price-details')
+      expect(aside).toHaveTextContent('Price difference 0.99%')
+      expect(aside).toHaveTextContent(tampered ? 'Price difference 0.99%.' : 'different pricing')
       expect(aside.textContent?.match(/%/g)).toHaveLength(1)
+      expect(screen.queryByTestId('trade-market-impact-aside')).not.toBeInTheDocument()
+      expect(screen.getByTestId('trade-market-signing-details')).not.toHaveAttribute('open')
+      expect(screen.queryAllByRole('alert')).toHaveLength(0)
       expect(screen.getByTestId('trade-market-advanced')).toHaveAttribute('data-open', 'false')
     }
   )
@@ -210,11 +227,12 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     })
     await ready()
     fireEvent.click(screen.getByTestId('trade-market-submit'))
-    expect(screen.getByTestId('trade-market-impact-confirm')).toBeInTheDocument()
-    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm.')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    await expect(mutationEntry.run!()).rejects.toThrow('Confirm the price difference first.')
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
-    expect(screen.queryByTestId('trade-market-impact-confirm')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-impact-aside')).not.toHaveTextContent('click again to confirm.')
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '2' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
@@ -222,12 +240,120 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
-    expect(screen.queryByTestId('trade-market-impact-confirm')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-impact-aside')).not.toHaveTextContent('click again to confirm.')
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
-    expect(screen.getByTestId('trade-market-impact-confirm')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm.')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+  })
+  it('shows an anonymous quote without a false unavailable-balance warning', async () => {
+    useWalletStore.setState({ address: null, walletType: null })
+    const wallets = await import('@/services/terraclassic/wallet')
+    vi.mocked(wallets.getConnectedWallet).mockReturnValue(null)
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1'))
+    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Connect Wallet')
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
+    expect(screen.getByTestId('trade-market-price-details')).toHaveTextContent('Price difference')
+    vi.mocked(wallets.getConnectedWallet).mockReturnValue({} as never)
+  })
+  it('keeps an included failure visible while showing the changed price in its next confirmation', async () => {
+    vi.mocked(executeMultiHopSwap).mockRejectedValueOnce(
+      new Error('Transaction included with code 11; network fee paid.')
+    )
+    await ready()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/included|network fee/i))
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94n) / 100n).toString())
+      q.spot_amount_out = amount
+      return attachReferenceAttribution(q)
+    })
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '2' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Confirm market swap (6.00%)')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(executeMultiHopSwap).toHaveBeenCalledTimes(1)
+    vi.mocked(executeMultiHopSwap).mockResolvedValue('txhash')
+  })
+  it('shows only the actual unavailable-fee blocker and cannot submit', async () => {
+    const fees = await import('@/services/terraclassic/swapNetworkFee')
+    const sample = fees.tryEstimateSwapNetworkFee(() => 3200000)
+    vi.spyOn(fees, 'tryEstimateSwapNetworkFee').mockReturnValue({
+      ...sample,
+      coverageError: 'Network fee unavailable for this route. Refresh the quote.',
+    })
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+    await waitFor(() =>
+      expect(screen.getByTestId('trade-market-place-guard')).toHaveTextContent('Network fee unavailable.')
+    )
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.queryByTestId('trade-market-impact-aside')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1'))
+    await expect(mutationEntry.run!()).rejects.toThrow('Network fee unavailable')
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('requires a new review after account and quote generation change', async () => {
+    let generation = 'initial'
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94n) / 100n).toString())
+      q.spot_amount_out = amount
+      q.execution_metadata!.generation = generation
+      return attachReferenceAttribution(q)
+    })
+    const { queryClient } = await ready()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm')
+    generation = 'new-generation'
+    await act(async () => {
+      useWalletStore.setState({ address: 'terra1changed000000000000000000000000001' })
+      await queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
+    })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    expect(screen.getByTestId('trade-market-impact-aside')).not.toHaveTextContent('click again to confirm')
+    await expect(mutationEntry.run!()).rejects.toThrow('Confirm the price difference first.')
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+  })
+  it('rechecks current trade restriction at mutation entry after review', async () => {
+    const { rerender } = await ready()
+    rerender(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused
+      />
+    )
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Trading is temporarily unavailable.')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
   })
   it.each([30.001, 99])('blocks %s%% fair deviation and keeps the Expert boundary', async (impact) => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
@@ -247,6 +373,8 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-impact-aside')).toBeInTheDocument())
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Price difference is too high')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
     else await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())

@@ -1142,7 +1142,9 @@ describe('TradePage', () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     await selectTradeLimitTab(user)
-    expect(await screen.findByTestId('trade-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+    expect(await screen.findByTestId('trade-pair-code-id-frozen-banner')).toHaveTextContent(
+      'Trading is temporarily unavailable.'
+    )
     await selectTradeLimitTab(user)
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')

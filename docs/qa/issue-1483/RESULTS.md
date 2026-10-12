@@ -1,5 +1,20 @@
 # Route attribution results (#1483)
 
+## Retail warning follow-up
+
+The initial deployed implementation used a technical metric label and left
+overlapping price, confirmation, funding and speculative refresh messages.
+The follow-up uses **Price difference**, moves ordinary <=5% information into
+existing Signing details and selects one current operational blocker or consent
+notice. Disconnected wallets do not show failed balance reads, and inline
+transaction errors are not duplicated in a toast. Preserved included/unknown
+transaction status cannot hide the current price during confirmation.
+Missing advisory cost data is silent in the primary flow. The required
+risk acknowledgement, exact 5/30/99 checks, original review binding and every
+independent execution gate remain; tests also cover direct/stale callbacks for
+known pause, freeze and blacklist conditions. Whole acceptance remains scoped
+to the receipts below, including the outstanding device/contract evidence.
+
 Issue: [#1483](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1483).
 Implementation [PR #1484](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1484),
 initial implementation `8227ed351a072b69de938dc07d9cfdf0c09d41a7`.
@@ -226,3 +241,82 @@ source fingerprint above remains unchanged. The bounded deployed explanation
 tool's **11/11 first and 11/11 retest** tests cover actual source-bound validators,
 clock/caps, clipping, injection/duplicate/expiry/floor/actor restrictions and the
 750ms boundary. Neither helper test suite claims an executed deployed matrix.
+
+## Core deployment and live API
+
+[Core deployment attestation](deployment-core-attestation.json) binds the served
+frontend root and backend health to merged `db46e30a5011ee4cbd1998c1c97a34d966b07003`.
+PR #1484 passed hosted pipelines 427 and 428 before merge; [both Coolify jobs](deployment-core-jobs.json)
+finished with matching revision and zero fatal build-pattern entries.
+[Live API receipt](live-core-quotes.json) covers two cycles separated by 185 seconds:
+176 bounded reads, 154 executable useful quotes and no failures. Useful quote
+p50/p95/p99/max were 282.435/283.348/283.783/284.251ms under the named 500ms budget.
+Native 1/1,000/4,000 LUNC solve and best requests all produced executable results;
+all returned raw component sums independently reconciled to fair minus net.
+These current inputs are independent probes, not the unavailable original report.
+
+[Monitoring aggregates](monitor-core.json) retain two indexer error-pattern entries.
+[Source-message classification](monitor-core-classification.json) identifies both
+as fee-discount LCD config probe failures; the follow-up public health read shows
+recovery and zero consecutive failures. The 15-minute sample had 169 provider
+capacity-pattern entries; passing quotes do not establish redundant provider
+capacity. No Prometheus datasource is provisioned, so that check remains SKIP.
+No raw log lines or private credentials are published.
+
+[Complete controlled browser summary](browser-full-controlled-summary.json)
+records 4,250 scenarios, zero failures and 3,948 useful results. Useful output
+p50/p95/p99/max were 88.4/146.2/164.1/236.3ms at the unchanged 750ms budget.
+This owned-infrastructure result remains separate from deployment and custody.
+
+## Retail follow-up retained failures
+
+The first follow-up regressions exposed missing alert semantics on the existing
+Swap and Trade inline transaction error surfaces; both now expose one alert.
+The initial fee-only fallback test invoked mutation before quote/precision
+initialization, so its setup now waits for the validated quote without changing
+production gates or measurement clocks. Earlier cause-copy fixtures were updated
+to the final fixed labels. These initial failures remain recorded; stable final
+first/retest results are separate receipts.
+
+The first complete frozen-source #1483 follow-up run retained **17 passing groups,
+2 failed groups and 2 external skips**: both frontend rounds found the same old
+Trade freeze-banner text expectation. The other 285 frontend tests per round,
+all Rust/socket/tool groups, types and documentation checks passed. The outdated
+copy assertion is corrected while the original disabled-limit-action assertions
+remain. A complete fresh first/retest is required for the final verdict.
+
+## Stable retail warning verification
+
+[Final warning source receipt](source-warning-summary.json) records **19 passing
+groups, zero failures and two explicit external acceptance skips**. Each round
+passed 286 actual frontend tests, 8 raw-attribution tests, 1 book-fee regression,
+2 owned same-cohort socket/ranking fixtures, 8 public-probe controls, 7 private
+wallet-helper controls and 13 browser-tool controls. Types, Rust formatting,
+syntax, documentation and exact stable-source fingerprint pass:
+`18f7de57c89921e51ff480a7e87d611ed6325b8e7aefd4a06cdc1e2522132ea2`.
+Fresh owned disposable SQL children and React fixtures reset affected test state;
+no shared or production infrastructure was reset.
+
+The initialized useful sockets have 14 samples per round. First
+p50/p95/p99/max are 1.438/1.683/1.683/9.925ms; retest are
+2.317/2.850/2.850/15.165ms at the unchanged 500ms budget. The build with actual
+public production configuration also passes without credentials in its child.
+The broader #1452 selection exposed one stale SDK MaxSpread error-copy assertion;
+the scan also corrected the matching TxResultAlert copy assertion while retaining
+rejection/masking checks. Those two files passed all 70 tests before the final
+stable receipt. Related frontend counts and hosted/deployed verification are
+reported separately; final live follow-up receipts belong in the issue comments.
+
+[Related normal frontend selections](source-warning-related-summary.json) also
+pass first/retest on stable frontend source: #1452 has 499 tests in 27 files,
+#1473 has 463 in 24 and #1480 has 382 in 20 per round. These overlap and must not
+be added as unique tests. Unchanged backend, contract and owned-chain evidence
+remains scoped to the earlier receipts. Removing unrelated formatting churn from
+the shared browser helper left only its intended price-copy update; its actual
+source-bound controls passed 13/13 first and 13/13 retest afterward.
+
+Independent review, TypeScript and lint pass. Five lint warnings remain only in
+unchanged files; none was added by this patch. The related receipt documents its
+frontend/package/config-only fingerprint recipe, distinct from the focused
+five-directory source fingerprint. Every mandatory acknowledgement and execution
+condition remains independent of which one notice is presented.

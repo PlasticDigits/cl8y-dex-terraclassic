@@ -1,0 +1,90 @@
+{
+  "scope": "Normal named FRONTEND functions from related verifiers; no unchanged backend/chain reruns",
+  "source_fingerprint": "e8b762eb9dbaa7f0f82acd27174964eea699cdfa5abf426b46b52d46818130b4",
+  "stable_source": true,
+  "runs": [
+    {
+      "issue": 1452,
+      "attempt": "first",
+      "utc_start": "2026-10-12T23:16:11.615342+00:00",
+      "utc_end": "2026-10-12T23:16:34.935544+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  27 passed (27)",
+      "Tests": "Tests  499 passed (499)"
+    },
+    {
+      "issue": 1473,
+      "attempt": "first",
+      "utc_start": "2026-10-12T23:16:34.947363+00:00",
+      "utc_end": "2026-10-12T23:16:56.500731+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  24 passed (24)",
+      "Tests": "Tests  463 passed (463)"
+    },
+    {
+      "issue": 1480,
+      "attempt": "first",
+      "utc_start": "2026-10-12T23:16:56.512744+00:00",
+      "utc_end": "2026-10-12T23:17:08.975313+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  20 passed (20)",
+      "Tests": "Tests  382 passed (382)"
+    },
+    {
+      "issue": 1452,
+      "attempt": "retest",
+      "utc_start": "2026-10-12T23:17:08.994435+00:00",
+      "utc_end": "2026-10-12T23:17:31.340089+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  27 passed (27)",
+      "Tests": "Tests  499 passed (499)"
+    },
+    {
+      "issue": 1473,
+      "attempt": "retest",
+      "utc_start": "2026-10-12T23:17:31.361106+00:00",
+      "utc_end": "2026-10-12T23:17:52.803359+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  24 passed (24)",
+      "Tests": "Tests  463 passed (463)"
+    },
+    {
+      "issue": 1480,
+      "attempt": "retest",
+      "utc_start": "2026-10-12T23:17:52.814738+00:00",
+      "utc_end": "2026-10-12T23:18:05.707702+00:00",
+      "exit_code": 0,
+      "Test Files": "Test Files  20 passed (20)",
+      "Tests": "Tests  382 passed (382)"
+    }
+  ],
+  "source_fingerprint_recipe": {
+    "algorithm": "SHA-256",
+    "scope": "frontend only; deliberately distinct from the full issue verifier fingerprint",
+    "ordered_inputs": [
+      "all files recursively under frontend-dapp/src sorted by relative Path",
+      "frontend-dapp/package.json",
+      "frontend-dapp/package-lock.json",
+      "frontend-dapp/vite.config.ts"
+    ],
+    "per_file_encoding": "relative UTF-8 path + NUL byte + exact file bytes + NUL byte",
+    "excludes": [
+      "backend and contracts",
+      "QA scripts",
+      "documentation",
+      "env files and generated build output"
+    ]
+  },
+  "types": {
+    "command": "bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/tsc -b --pretty false",
+    "exit_code": 0
+  },
+  "lint": {
+    "command": "bash scripts/with-node.sh --cwd frontend-dapp -- npm run lint",
+    "exit_code": 0,
+    "errors": 0,
+    "warnings": 5,
+    "warning_scope": "Unchanged chart, lazy route, listbox and limit page files"
+  },
+  "review_verdict": "PASS within tested frontend scope: mutation guards, exact consent/context clearing, mandatory transaction warnings, one prioritized notice, threshold-aware display and conditional cause copy; no backend/reference/signing policy change."
+}

@@ -94,7 +94,7 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
     entry === "trade" ? "trade-market-expected-receive" : "swap-you-receive";
   const prefix = entry === "trade" ? "trade-market" : "swap";
   const dom = new JSDOM(
-    `<input data-testid="${payId}">${entry === "trade" ? `<span data-testid="${receiveId}"></span>` : `<input data-testid="${receiveId}">`}<p data-testid="${prefix}-impact-aside"></p>`,
+    `<input data-testid="${payId}">${entry === "trade" ? `<span data-testid="${receiveId}"></span>` : `<input data-testid="${receiveId}">`}<p role="alert" data-testid="${prefix}-impact-aside"></p>`,
     { runScripts: "outside-only", url: "https://dex.cl8y.com" },
   );
   const w = dom.window;
@@ -122,7 +122,7 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
   };
   w.clearInterval = (id) => intervals.delete(id);
   w.eval(
-    `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; (${installRuntime.toString()})(${JSON.stringify({ copies: COPIES })});`,
+    `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format}; (${installRuntime.toString()})(${JSON.stringify({ copies: COPIES })});`,
   );
   const pay = w.document.querySelector(`[data-testid="${payId}"]`),
     receive = w.document.querySelector(`[data-testid="${receiveId}"]`),
@@ -174,14 +174,14 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
     diagnostic: {
       valid: true,
       percent: "10.00",
+      precise_percent: 10,
       explanation: w.__explain1483(q),
     },
   };
   w.__quotes1473.push(row);
   if (entry === "trade") receive.textContent = "0.9 UST1";
   else receive.value = "0.9";
-  aside.textContent =
-    "Fair-reference deviation 10.00%. Reference and pool prices differ most.";
+  aside.textContent = "Price difference 10.00% — different pricing.";
   return {
     w,
     row,
@@ -267,7 +267,7 @@ for (const entry of ["swap", "trade"]) {
     for (const text of [
       "Cost breakdown unavailable.",
       "<script>private</script>",
-      "Fair-reference deviation 10.00%. Reference and pool prices differ most. 2%",
+      "Price difference 10.00% — different pricing. 2%",
     ]) {
       const f = fixture({ entry });
       f.aside.textContent = text;
@@ -331,5 +331,33 @@ test("ancestral overflow clipping is excluded from useful explanation visibility
   f.frame(320);
   f.frame(340);
   assert.equal(f.result().useful, false);
+  f.close();
+});
+
+test("ordinary price detail stays behind Signing details without an outside warning", () => {
+  const f = fixture();
+  f.aside.remove();
+  const detail = f.w.document.createElement("details");
+  detail.dataset.testid = "swap-pre-submit-details";
+  const metric = f.w.document.createElement("p");
+  metric.dataset.testid = "swap-price-details";
+  metric.textContent = "Price difference 1.00% — different pricing.";
+  detail.appendChild(metric);
+  f.w.document.body.appendChild(detail);
+  f.row.diagnostic.percent = "1.00";
+  f.row.diagnostic.precise_percent = 1;
+  f.tick(300);
+  f.frame(320);
+  f.frame(340);
+  assert.equal(f.result().useful, true);
+  assert.equal(detail.hasAttribute("open"), false);
+  assert.equal(f.w.document.querySelector('[role="alert"]'), null);
+  f.close();
+});
+test("display metric formatter retains the real safety transitions", () => {
+  const f = fixture();
+  assert.equal(f.w.__format1483(5.000000000000001), ">5");
+  assert.equal(f.w.__format1483(30.000000000000004), ">30");
+  assert.equal(f.w.__format1483(98.99999999999997), "<99");
   f.close();
 });
