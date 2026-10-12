@@ -85,3 +85,8 @@ flag must be Boolean and agree across payload/metadata. Route and wrapper
 validation plus mutation guards require a safe, nonfuture, unexpired original
 observation window of at most 20,000 ms; extending expiry cannot revive a stale
 quote. Explicit direct legacy validator tests remain a separate compatibility scope.
+
+Generic route cost attribution, exact-amount cache ranking and consistent fair-reference
+explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
+[the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
+explanation never changes reference quality, funding, floors or signing admission.

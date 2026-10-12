@@ -1150,6 +1150,7 @@ mod openapi_pack_tests {
         }
         let properties = &value["components"]["schemas"]["RouteSolveResponse"]["properties"];
         for field in [
+            "economic_attribution",
             "required_amount_in",
             "target_amount_out",
             "sizing_mode",
@@ -1158,6 +1159,15 @@ mod openapi_pack_tests {
         ] {
             assert!(!properties[field].is_null(), "missing {field}");
         }
+        assert_eq!(
+            properties["economic_attribution"]["type"],
+            serde_json::json!(["object", "null"])
+        );
+        let hop = &value["components"]["schemas"]["LocalExecutionHop"]["properties"];
+        assert_eq!(
+            hop["book_commission_amount"]["type"],
+            serde_json::json!(["string", "null"])
+        );
     }
 
     /// #1204 AC8/AC9: five evidence surfaces plus health/compliance stay in ApiDoc.

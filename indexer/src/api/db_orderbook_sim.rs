@@ -353,6 +353,7 @@ fn book_orders_from_hint<'a>(
 struct BookSimResult {
     return_net: u128,
     offer_consumed: u128,
+    commission_amount: u128,
 }
 
 fn simulate_match_bids(
@@ -367,6 +368,7 @@ fn simulate_match_bids(
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token0_left = token0_budget;
     let mut token1_out = 0u128;
+    let mut commission_total = 0u128;
     let mut makers_used = 0u32;
     let mut scan_steps = 0u32;
     let now_secs = Utc::now().timestamp().max(0) as u64;
@@ -411,6 +413,9 @@ fn simulate_match_bids(
             .ok_or(DbSimError::InvalidNumeric)?
             / 10_000;
         let net = cost.saturating_sub(commission);
+        commission_total = commission_total
+            .checked_add(commission)
+            .ok_or(DbSimError::InvalidNumeric)?;
         token0_left = token0_left.saturating_sub(fill);
         token1_out = token1_out
             .checked_add(net)
@@ -420,6 +425,7 @@ fn simulate_match_bids(
     Ok(BookSimResult {
         return_net: token1_out,
         offer_consumed: token0_budget.saturating_sub(token0_left),
+        commission_amount: commission_total,
     })
 }
 
@@ -435,6 +441,7 @@ fn simulate_match_asks(
     let taker_bps = taker_fee_bps(effective_fee_bps);
     let mut token1_left = token1_budget;
     let mut token0_out = 0u128;
+    let mut commission_total = 0u128;
     let mut makers_used = 0u32;
     let mut scan_steps = 0u32;
     let now_secs = Utc::now().timestamp().max(0) as u64;
@@ -479,6 +486,9 @@ fn simulate_match_asks(
             .ok_or(DbSimError::InvalidNumeric)?
             / 10_000;
         let net = fill_t0.saturating_sub(commission);
+        commission_total = commission_total
+            .checked_add(commission)
+            .ok_or(DbSimError::InvalidNumeric)?;
         token1_left = token1_left.saturating_sub(cost);
         token0_out = token0_out
             .checked_add(net)
@@ -488,6 +498,7 @@ fn simulate_match_asks(
     Ok(BookSimResult {
         return_net: token0_out,
         offer_consumed: token1_budget.saturating_sub(token1_left),
+        commission_amount: commission_total,
     })
 }
 
@@ -1067,6 +1078,31 @@ mod tests {
     }
 
     #[test]
+    fn issue1483_book_taker_commissions_retain_each_fill_rounding() {
+        // 30bps effective pair fee -> 15bps taker fee. Each 1,000 raw
+        // maker return loses floor(1,000*15/10,000)=1, independently.
+        let bids = vec![
+            resting(1, "bid", "2", "1000"),
+            resting(2, "bid", "2", "1000"),
+        ];
+        let matched = simulate_match_bids(&bids, 1000, 8, 30, None).unwrap();
+        assert_eq!(matched.return_net, 1998);
+        assert_eq!(matched.commission_amount, 2);
+        let mirror = mirror_with_book(bids);
+        let leg = quote_local_leg(&mirror, "terra1token0", 1000, 1000, 8).unwrap();
+        assert_eq!(leg.book_commission_amount, 2);
+        assert_eq!(leg.commission_amount, 0);
+        assert_eq!(leg.return_amount, 1998);
+        let asks = vec![
+            resting(1, "ask", "2", "1000"),
+            resting(2, "ask", "2", "1000"),
+        ];
+        let matched = simulate_match_asks(&asks, 4000, 8, 30, None).unwrap();
+        assert_eq!(matched.return_net, 1998);
+        assert_eq!(matched.commission_amount, 2);
+    }
+
+    #[test]
     fn first_live_book_start_hint_picks_match_side() {
         let m = HopMirror {
             bids: vec![resting(10, "bid", "2", "1000")],
@@ -1318,6 +1354,9 @@ pub struct LocalLegQuote {
     pub commission_amount: u128,
     pub spread_amount: u128,
     pub book_return_net: u128,
+    /// Exact taker commissions, floored separately for each matched maker.
+    /// The existing commission_amount remains the pool commission.
+    pub book_commission_amount: u128,
     pub pool_input_actual: u128,
 }
 pub fn quote_local_leg(
@@ -1377,6 +1416,7 @@ pub fn quote_local_leg(
         commission_amount: commission,
         spread_amount: ideal.saturating_sub(gross),
         book_return_net: book.return_net,
+        book_commission_amount: book.commission_amount,
         pool_input_actual: actual,
     })
 }

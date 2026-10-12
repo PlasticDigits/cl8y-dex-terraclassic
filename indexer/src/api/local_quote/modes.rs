@@ -120,7 +120,7 @@ pub(super) fn wrapper_only(
     if s.quote_relative_protection {
         metadata["protection_policy"] = json!("quote_relative_v1");
     }
-    Some(json!({
+    let mut body = json!({
         "token_in":n.request.token_in,"token_out":n.request.token_out,"hops":[],"router_operations":[],
         "intermediate_tokens":[n.request.token_in,n.request.token_out],"quote_kind":"indexer_wrapper_db",
         "solver_version":"local_v1","tax_kind":"none","buy_tax_bps":0,"sell_tax_bps":0,"router_hops_tax":false,
@@ -130,5 +130,7 @@ pub(super) fn wrapper_only(
         "sizing_mode":n.request.amount_out.as_ref().map(|_|"local_pool_exact_output"),"paths_considered":0,"lcd_hybrid_queries":0,"db_hybrid_queries":0,
         "snapshot_age_ms":now_ms()-observed,"optimality_scope":"Exact direct native mapping; no pair route",
         "execution_metadata":metadata,"execution_blocker":if supported {serde_json::Value::Null}else{json!("Direct wrapping cannot enforce the reviewed receive floor")}
-    }))
+    });
+    body["economic_attribution"] = super::attribution::wrapper_only(gross, fair, output, &body);
+    Some(body)
 }

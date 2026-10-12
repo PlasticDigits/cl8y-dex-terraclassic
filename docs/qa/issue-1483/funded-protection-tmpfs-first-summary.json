@@ -1,0 +1,428 @@
+{
+  "issue": 1473,
+  "scope": "Owned LocalTerra hook-free 6/18/9 decimal direct and multihop existing-router execution; arithmetic independently checked against contract; no production signing or deployment claim",
+  "utc_start": "2026-10-12T14:20:18.243312+00:00",
+  "utc_end": "2026-10-12T14:21:47.893684+00:00",
+  "status": "PASS",
+  "source_driver_sha256": "d714ddca7a50d2f7be467e6729bb57efa3b9910a7e6fcd4af8e1753183f593ce",
+  "inclusion_monitor_sha256": "e0b0079edc0956f58a95e1e64164a1751ba765a639095ae4297079fe6f67a75d",
+  "inclusion_monitor": "Bounded 120-second REST reconciliation of original accepted hash; private pending identity; no resend",
+  "source_artifact_provenance": {
+    "source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+    "contract_source_inputs_match_current": true,
+    "contract_input_count": 170,
+    "contract_inputs_sha256": "5f26b67537fed3f78d39ef050f4238d199ff9411fc8270a14e44d77bc37fbaf1",
+    "artifact_attestation": "Current checked-in artifact checksums and complete current contract/package/lock input equivalence; original build recipe not re-attested; pair rebuilt after original receipt",
+    "sha256": {
+      "cl8y_dex_factory": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "cl8y_dex_router": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "cl8y_dex_pair": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "cw20_mintable": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "cases": [
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "100",
+      "selected_tolerance": "0.01",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "135954545454545454546"
+      ],
+      "net_quote": "135954545454545454546",
+      "minimum_receive": "134595000000000000001",
+      "delivered": "135954545454545454546",
+      "execution_market_spread": "0.111111111111111112",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "100",
+      "selected_tolerance": "0.05",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "113295454545454545454"
+      ],
+      "net_quote": "113295454545454545454",
+      "minimum_receive": "107630681818181818182",
+      "delivered": "113295454545454545454",
+      "execution_market_spread": "0.148325358851674642",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "100",
+      "selected_tolerance": "0.30",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "95865384615384615385"
+      ],
+      "net_quote": "95865384615384615385",
+      "minimum_receive": "67105769230769230770",
+      "delivered": "95865384615384615385",
+      "execution_market_spread": "0.54761904761904762",
+      "legacy_false_rejection_reproduced": false,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "1000",
+      "selected_tolerance": "0.01",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "500167224080267558529"
+      ],
+      "net_quote": "500167224080267558529",
+      "minimum_receive": "495165551839464882944",
+      "delivered": "500167224080267558529",
+      "execution_market_spread": "0.787101787101787102",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "1000",
+      "selected_tolerance": "0.05",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "197035573122529644269"
+      ],
+      "net_quote": "197035573122529644269",
+      "minimum_receive": "187183794466403162056",
+      "delivered": "197035573122529644269",
+      "execution_market_spread": "0.510297482837528605",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18",
+      "human_offer": "1000",
+      "selected_tolerance": "0.30",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "105391120507399577167"
+      ],
+      "net_quote": "105391120507399577167",
+      "minimum_receive": "73773784355179704017",
+      "delivered": "105391120507399577167",
+      "execution_market_spread": "0.861471861471861472",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.01",
+      "raw_offer": "100000000000000000000",
+      "expected_hop_outputs": [
+        "955156995"
+      ],
+      "net_quote": "955156995",
+      "minimum_receive": "945605426",
+      "delivered": "955156995",
+      "execution_market_spread": "0.299663299072863119",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.05",
+      "raw_offer": "100000000000000000000",
+      "expected_hop_outputs": [
+        "607091310"
+      ],
+      "net_quote": "607091310",
+      "minimum_receive": "576736745",
+      "delivered": "607091310",
+      "execution_market_spread": "0.287155713717105123",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.30",
+      "raw_offer": "100000000000000000000",
+      "expected_hop_outputs": [
+        "419959222"
+      ],
+      "net_quote": "419959222",
+      "minimum_receive": "293971456",
+      "delivered": "419959222",
+      "execution_market_spread": "0.688861987397829076",
+      "legacy_false_rejection_reproduced": false,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.01",
+      "raw_offer": "1000000000000000000000",
+      "expected_hop_outputs": [
+        "1397889653"
+      ],
+      "net_quote": "1397889653",
+      "minimum_receive": "1383910757",
+      "delivered": "1397889653",
+      "execution_market_spread": "1",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.05",
+      "raw_offer": "1000000000000000000000",
+      "expected_hop_outputs": [
+        "342415464"
+      ],
+      "net_quote": "342415464",
+      "minimum_receive": "325294691",
+      "delivered": "342415464",
+      "execution_market_spread": "0.691040012391787456",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.30",
+      "raw_offer": "1000000000000000000000",
+      "expected_hop_outputs": [
+        "154730761"
+      ],
+      "net_quote": "154730761",
+      "minimum_receive": "108311533",
+      "delivered": "154730761",
+      "execution_market_spread": "0.967891632576594562",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "100",
+      "selected_tolerance": "0.01",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "711790808733529167123",
+        "621853528498"
+      ],
+      "net_quote": "621853528498",
+      "minimum_receive": "615634993214",
+      "delivered": "621853528498",
+      "execution_market_spread": "0.729081624984507893",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "100",
+      "selected_tolerance": "0.05",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "478832991177857223008",
+        "190964214485"
+      ],
+      "net_quote": "190964214485",
+      "minimum_receive": "181416003761",
+      "delivered": "190964214485",
+      "execution_market_spread": "0.347080366137809997",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "100",
+      "selected_tolerance": "0.30",
+      "raw_offer": "100000000",
+      "expected_hop_outputs": [
+        "344157189032625072482",
+        "92690456336"
+      ],
+      "net_quote": "92690456336",
+      "minimum_receive": "64883319436",
+      "delivered": "92690456336",
+      "execution_market_spread": "0.662345789057008113",
+      "legacy_false_rejection_reproduced": false,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "1000",
+      "selected_tolerance": "0.01",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "1229105349339554672286",
+        "192663118147"
+      ],
+      "net_quote": "192663118147",
+      "minimum_receive": "190736486966",
+      "delivered": "192663118147",
+      "execution_market_spread": "1",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "1000",
+      "selected_tolerance": "0.05",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "322381183312818774131",
+        "31346770657"
+      ],
+      "net_quote": "31346770657",
+      "minimum_receive": "29779432125",
+      "delivered": "31346770657",
+      "execution_market_spread": "0.667813516055624595",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW6->RAW18->RAW9",
+      "human_offer": "1000",
+      "selected_tolerance": "0.30",
+      "raw_offer": "1000000000",
+      "expected_hop_outputs": [
+        "148641826484239567897",
+        "12845663360"
+      ],
+      "net_quote": "12845663360",
+      "minimum_receive": "8991964352",
+      "delivered": "12845663360",
+      "execution_market_spread": "0.955507641922495835",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.01",
+      "raw_offer": "100000000000",
+      "expected_hop_outputs": [
+        "929593869732497896697",
+        "2578713772"
+      ],
+      "net_quote": "2578713772",
+      "minimum_receive": "2552926635",
+      "delivered": "2578713772",
+      "execution_market_spread": "1",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.05",
+      "raw_offer": "100000000000",
+      "expected_hop_outputs": [
+        "594120824984970339447",
+        "345531787"
+      ],
+      "net_quote": "345531787",
+      "minimum_receive": "328255198",
+      "delivered": "345531787",
+      "execution_market_spread": "0.52151451562569252",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "100",
+      "selected_tolerance": "0.30",
+      "raw_offer": "100000000000",
+      "expected_hop_outputs": [
+        "412487723833862965931",
+        "136716706"
+      ],
+      "net_quote": "136716706",
+      "minimum_receive": "95701695",
+      "delivered": "136716706",
+      "execution_market_spread": "0.734222944401836269",
+      "legacy_false_rejection_reproduced": false,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.01",
+      "raw_offer": "1000000000000",
+      "expected_hop_outputs": [
+        "1381939183621944075979",
+        "237230443"
+      ],
+      "net_quote": "237230443",
+      "minimum_receive": "234858139",
+      "delivered": "237230443",
+      "execution_market_spread": "1",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.05",
+      "raw_offer": "1000000000000",
+      "expected_hop_outputs": [
+        "340616159767800976681",
+        "33681738"
+      ],
+      "net_quote": "33681738",
+      "minimum_receive": "31997652",
+      "delivered": "33681738",
+      "execution_market_spread": "0.688970784535275494",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    },
+    {
+      "direction": "RAW9->RAW18->RAW6",
+      "human_offer": "1000",
+      "selected_tolerance": "0.30",
+      "raw_offer": "1000000000000",
+      "expected_hop_outputs": [
+        "154191625028186340462",
+        "13458206"
+      ],
+      "net_quote": "13458206",
+      "minimum_receive": "9420745",
+      "delivered": "13458206",
+      "execution_market_spread": "0.96680217614048934",
+      "legacy_false_rejection_reproduced": true,
+      "rejected_floor_reserves_and_lp_unchanged": true,
+      "status": "PASS"
+    }
+  ],
+  "case_count": 24,
+  "skips": [
+    "funded tax/hook parity of derived ceiling",
+    "native wrapping",
+    "deployed acceptance"
+  ],
+  "infrastructure": "Ownedbounded2GBtmpfsLocalTerra; sameeconomic/sourceassertions andoriginal120sinclusiondeadline; no machine-crashpersistenceclaim"
+}

@@ -2036,3 +2036,7 @@ verify-issue-1479:
 
 verify-issue-1480:
 	bash scripts/verify-issue-1480.sh
+
+.PHONY: verify-issue-1483
+verify-issue-1483:
+	bash scripts/qa/verify-issue-1483.sh

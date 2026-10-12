@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Route economic attribution and amount-specific ranking
+
+For native/wrapped route cost attribution, amount-cache ranking or Swap/Trade
+fair-reference explanation, follow
+[RC1483-1–RC1483-10](skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and run
+`make verify-issue-1483`; use [the checklist](docs/qa/issue-1483/README.md).
+Signed components reconcile in raw final-output units; network fees remain
+separate. Legitimate 5/30/99 safeguards, original reference quality and offline
+execution remain enforced. Unavailable attribution cannot authorize signing.
+
 ## Small-market references and offline execution budgets
 
 For small-market reference admission and structural pricing exclusions, follow

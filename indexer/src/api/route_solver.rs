@@ -317,6 +317,10 @@ pub struct LocalExecutionHop {
     pub book_offer_consumed: String,
     pub spread_amount: String,
     pub commission_amount: String,
+    /// Exact ask-side book taker commissions, floored per maker fill (#1483).
+    /// `commission_amount` keeps its existing pool-only meaning.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub book_commission_amount: Option<String>,
     pub min_return: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -343,6 +347,15 @@ pub struct RouteHop {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RouteSolveResponse {
+    /// Bounded advisory `spot_bridge_v1` economic attribution (#1483).
+    /// Available diagnostics bind the execution generation/original timestamps,
+    /// independent fair/net raw output and signed common-output wrapper_loss,
+    /// trading_cost, market_movement and reference_divergence components.
+    /// Their exact sum is fair minus net. Unavailable diagnostics carry no
+    /// amounts. Never an oracle quality class, execution floor or signing grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub economic_attribution: Option<serde_json::Value>,
     /// Generation-pinned local execution evidence, positive floors and wrapper bindings.
     /// Absent on topology-only responses and historical fixtures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -420,10 +433,13 @@ pub struct RouteSolveResponse {
     /// True when path search was truncated by the concurrency cap (#324).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_truncated: Option<bool>,
-    /// Fair output at best-route token cross-rate (raw integer, output token decimals). GitLab #293.
+    /// Independently qualified fair output in final-token raw units. Native
+    /// composition values the authorized gross principal, retaining wrapper loss.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub spot_amount_out: Option<String>,
-    /// Symmetric deviation vs `spot_amount_out` (percent string, e.g. `"99.97"`). GitLab #293.
+    /// Symmetric fair-reference deviation: 100*abs(fair-net)/max(fair,net).
+    /// Includes swap/wrapper costs and reference offsets; distinct from selected
+    /// tolerance, network fee and amount-dependent AMM/book movement (#1483).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slippage_percent: Option<String>,
     /// Input token price in the quote asset (best-route valuation). GitLab #293.

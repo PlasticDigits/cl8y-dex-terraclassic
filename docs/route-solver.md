@@ -1,5 +1,70 @@
 # Route solver — in-depth guide
 
+## Economic attribution (#1483)
+
+The optional `economic_attribution` object explains the existing aggregate
+fair-reference deviation without changing route ranking, independent references,
+protection or execution. See [RC1483](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md)
+and [verification/checklist](qa/issue-1483/README.md). It is a spot bridge, not an
+independent oracle, executable counterfactual or network-fee estimate.
+
+Available schema version 1 uses fixed `status:"available"`,
+`method:"spot_bridge_v1"`, `generation`, `observed_at_ms`, `expires_at_ms`,
+`fair_amount_out`, `net_amount_out`, exactly four `components` and fixed
+`dominant_cause`. The fair/net fields match `spot_amount_out` and delivered
+`estimated_amount_out_net`; context/time fields match original execution metadata.
+Components `wrapper_loss`, `trading_cost`, `market_movement` and
+`reference_divergence` are canonical signed raw integers in final-output units,
+each magnitude bounded by Uint128. No per-hop percentages are added. Unavailable
+schema contains only version, status and method; it cannot manufacture zero costs.
+
+For each original hop define `P_i(x) = floor(x * reserve_out_i / reserve_in_i)`
+and `P_suffix` as their ordered composition, with one floor per remaining hop.
+Let `F` be independent fair output, `G` authorized gross input, `C` credited
+route input, `R` final route net and `N` delivered wallet net. Reference divergence
+is `F - P_all(G)`. Wrapper loss is
+`P_all(G) - P_all(C) + R - N`, so native wrap/unwrap is counted once. Trading
+cost sums differences of projected actual gross/economic sell boundaries,
+pre/post commission boundaries, supported hook boundaries and buy-net boundaries.
+It includes actual pool/book taker commissions, taxes and sell residue. Market
+movement sums projected economic spot minus projected actual precommission
+returns, retaining signed favorable book execution. Actual net of each hop is
+the next hop's input. Those adjacent boundaries telescope exactly:
+
+`wrapper_loss + trading_cost + market_movement + reference_divergence = F - N`.
+
+Integer truncation belongs to its stage in that ordered bridge. Reconciliation
+has **zero raw-unit residual**; a continuously valued counterfactual can allocate
+rounding differently and is not claimed. Missing reserves/stages, incompatible
+boundaries, overflow or reconciliation failure yields unavailable attribution.
+Original fair quality, times and $10 economic/$100 independent depth admission
+are unchanged. The largest absolute component selects the fixed dominant cause;
+ties yield `mixed`, and signed favorable offsets retain their direction.
+
+The existing single retail percentage is `100 * abs(F - N) / max(F, N)`.
+It is distinct from selected slippage tolerance, L9 AMM spread, gas and network
+fees. Exact raw fraction thresholds govern >5%, >30% and >=99% before display
+rounding. Legitimately high best quotes retain their warnings. Exact-amount
+results and skeleton reuse still compare supported eligible alternatives within
+the original work caps; the new same-cohort fixture proves a small cached direct
+winner yields to the better deep two-hop route at a larger amount. Native routes
+remain pool-only; unsupported output capabilities remain explicit blockers.
+
+Bounded deeper work publishes every strictly better eligible raw net result;
+the previous undocumented 0.1% improvement cutoff has been removed. An independent
+same-generation fixture retains the initial direct baseline, then requires its
+cached result to improve by approximately 0.05% through an eligible three-hop
+path. This improves later quotes without replacing any already reviewed intent.
+Per-hop `book_commission_amount` separately records actual book taker commissions;
+existing `commission_amount` retains its pool-commission meaning.
+
+Actual Swap and Trade use one compact fixed cause explanation only after client
+schema/reconciliation/quote binding checks. Missing or tampered diagnostics show
+`Cost breakdown unavailable.` Diagnostics cannot authorize signing or replace
+original gross input, generation, expiry, positive floors or offline fee budgets.
+Remaining protocol/reference/device/deployment limits are recorded in
+[results](qa/issue-1483/RESULTS.md).
+
 ## Local quote contract (#1452)
 
 Current amount-sensitive GET `/route/solve`, `/best`, POST and progress requests

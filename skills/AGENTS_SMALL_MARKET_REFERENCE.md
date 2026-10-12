@@ -26,3 +26,8 @@ no new reference quality class. Existing spot-derived economic marks retain thei
 source/time/anchor checks; the lower threshold does not prove independent token
 reference integrity under AC3. Additional historical/corroborated evidence needs
 its own reviewed manipulation tests; a waiting period alone is not that evidence.
+
+Generic route cost attribution, exact-amount cache ranking and consistent fair-reference
+explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
+[the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
+explanation never changes reference quality, funding, floors or signing admission.

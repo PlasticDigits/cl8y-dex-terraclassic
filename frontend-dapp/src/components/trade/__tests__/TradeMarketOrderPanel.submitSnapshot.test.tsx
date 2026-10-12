@@ -2,12 +2,27 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { executeMultiHopSwap } from '@/services/terraclassic/router'
 import { renderWithProviders } from '@/test-utils'
 import { LOCAL_WALLET, localQuote, localTokens } from '@/test/localRouteFixtures'
+import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
+import { useDexStore } from '@/stores/dex'
 import type { PairInfo } from '@/types'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
-const { nativeBalance } = vi.hoisted(() => ({ nativeBalance: { data: '10000000000' } }))
+const { nativeBalance, mutationEntry } = vi.hoisted(() => ({
+  nativeBalance: { data: '10000000000' },
+  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>) },
+}))
+vi.mock('@/hooks/useTerraBroadcastMutation', async (importActual) => {
+  const actual = await importActual<typeof import('@/hooks/useTerraBroadcastMutation')>()
+  return {
+    ...actual,
+    useTerraBroadcastMutation: (options: Parameters<typeof actual.useTerraBroadcastMutation>[0]) => {
+      if (options.toastSuccess === 'Market swap submitted.') mutationEntry.run = () => options.mutationFn(undefined)
+      return actual.useTerraBroadcastMutation(options)
+    },
+  }
+})
 vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
   assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
   queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
@@ -143,6 +158,7 @@ async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
 describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useDexStore.setState({ expertMode: false, slippageTolerance: 5 })
     nativeBalance.data = '10000000000'
     vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
     useWalletStore.setState({ address: LOCAL_WALLET, walletType: 'simulated', error: null })
@@ -166,6 +182,76 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
     return rendered
   }
+  it.each([false, true])(
+    'shows the same public reference explanation outside Advanced (tampered=%s)',
+    async (tampered) => {
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        const q = localQuote(from, to, amount, options)
+        q.spot_amount_out = '1010000'
+        attachReferenceAttribution(q)
+        if (tampered) (q.economic_attribution as Record<string, unknown>).generation = 'forged'
+        return q
+      })
+      await ready()
+      const aside = screen.getByTestId('trade-market-impact-aside')
+      expect(aside).toHaveTextContent('Fair-reference deviation 0.99%.')
+      expect(aside).toHaveTextContent(
+        tampered ? 'Cost breakdown unavailable.' : 'Reference and pool prices differ most.'
+      )
+      expect(aside.textContent?.match(/%/g)).toHaveLength(1)
+      expect(screen.getByTestId('trade-market-advanced')).toHaveAttribute('data-open', 'false')
+    }
+  )
+  it('requires renewed consent above 5%, cancel and changed quote', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())
+      q.spot_amount_out = amount
+      return attachReferenceAttribution(q)
+    })
+    await ready()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(screen.getByTestId('trade-market-impact-confirm')).toBeInTheDocument()
+    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    expect(screen.queryByTestId('trade-market-impact-confirm')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '2' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    expect(screen.queryByTestId('trade-market-impact-confirm')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    expect(screen.getByTestId('trade-market-impact-confirm')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+  })
+  it.each([30.001, 99])('blocks %s%% fair deviation and keeps the Expert boundary', async (impact) => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, impact === 99 ? '10000' : '699990')
+      q.spot_amount_out = '1000000'
+      return attachReferenceAttribution(q)
+    })
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('trade-market-impact-aside')).toBeInTheDocument())
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    useDexStore.setState({ expertMode: true })
+    if (impact === 99) expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    else await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+  })
   it('quotes the default through local GET and the actual selected spread', async () => {
     await ready()
     expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(

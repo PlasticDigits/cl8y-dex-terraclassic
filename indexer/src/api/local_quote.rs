@@ -608,6 +608,7 @@ struct Candidate {
     mirrors: Vec<Arc<sim::HopMirror>>,
     protection_blocked: bool,
     execution_market_spread: u128,
+    economics: Vec<attribution::HopEconomics>,
 }
 #[cfg(test)]
 fn score(
@@ -680,6 +681,7 @@ fn evaluate_with_plan(
     let mut oldest = now_ms();
     let mut block = None;
     let mut used_mirrors = Vec::with_capacity(path.len());
+    let mut economics = Vec::with_capacity(path.len());
     for (hop_index, (pair, offer_id, ask_id)) in path.iter().enumerate() {
         if s.config_expiries
             .get(pair)
@@ -852,12 +854,27 @@ fn evaluate_with_plan(
         if sim::hop_sim_implausible(leg.pool_input_actual, rin, rout, pool_net) {
             return Err(diagnostics::Rejection::Liquidity);
         }
+        economics.push(attribution::HopEconomics {
+            reserve_in: rin,
+            reserve_out: rout,
+            input: output,
+            economic_input,
+            pre_commission: leg
+                .return_amount
+                .checked_add(commission)
+                .and_then(|amount| amount.checked_add(leg.book_commission_amount)),
+            post_commission: leg.return_amount,
+            post_hook,
+            net,
+        });
         hops.push(json!({"pair":pair,"offer_token":offer_token,"ask_token":ask_token,"offer_amount":output.to_string(),"economic_offer_amount":economic_input.to_string(),"sell_tax_amount":sell_tax.to_string(),"sell_residue":sell_residue.to_string(),"sell_tax_bps":sell_bps,"buy_tax_bps":buy_bps,"buy_tax_amount":buy_tax.to_string(),"post_hook_return_amount":post_hook.to_string(),"return_amount":net.to_string(),"pool_return_amount":pool_net.to_string(),"book_return_net":leg.book_return_net.to_string(),"pool_input_actual":leg.pool_input_actual.to_string(),"book_offer_consumed":consumed.to_string(),"book_input_actual":consumed.to_string(),"spread_amount":market_spread.to_string(),"commission_amount":commission.to_string(),"min_return":floor.to_string()}));
         operations.push(json!({"terra_swap":{"offer_asset_info":{"token":{"contract_addr":offer_token}},"ask_asset_info":{"token":{"contract_addr":ask_token}},"hybrid":if book_input==0 && plan.is_none_or(|plan| plan[hop_index].is_none()){Value::Null}else{json!({"pool_input":(economic_input-book_input).to_string(),"book_input":book_input.to_string(),"max_maker_fills":maker_fills,"book_start_hint":null})},"min_return":floor.to_string()}}));
         hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["declared_hybrid"] = operations
             .last()
             .ok_or(diagnostics::Rejection::Accounting)?["terra_swap"]["hybrid"]
             .clone();
+        hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["book_commission_amount"] =
+            json!(leg.book_commission_amount.to_string());
         output = net;
         oldest = oldest.min(mirror.snapshot_at.timestamp_millis());
         if let Some(height) = mirror.block_height {
@@ -891,6 +908,7 @@ fn evaluate_with_plan(
         mirrors: used_mirrors,
         protection_blocked,
         execution_market_spread,
+        economics,
     })
 }
 fn better(a: &Candidate, b: &Candidate) -> bool {
@@ -1072,6 +1090,7 @@ fn response(
         body["execution_metadata"]["execution_market_spread"] =
             json!(decimal_text(c.execution_market_spread));
     }
+    body["economic_attribution"] = attribution::route(c, input, input, c.output, &body);
     body
 }
 
@@ -1328,6 +1347,7 @@ fn final_response(
         .as_i64()?
         .min(n.wrapper.observed_at_ms + 20_000));
     body["execution_metadata"]["wrapper"] = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":input.to_string(),"route_output_amount":c.output.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper});
+    body["economic_attribution"] = attribution::route(c, gross, input, output, &body);
     Some(body)
 }
 struct JobGuard(String);
@@ -1888,7 +1908,7 @@ async fn solve_local_with_plan(
                 let _job = JobGuard(ck.clone());
                 let all = paths(&s, start, goal, 4);
                 let improved = select(&s, &all, amount, spread, book_allowed, maker_fills)
-                    .filter(|c| c.output.saturating_sub(baseline.output) > baseline.output / 1000);
+                    .filter(|c| c.output > baseline.output);
                 let mut g = store().lock().unwrap();
                 if !reviewed_snapshot_current(&g, &namespace, &s, native.as_ref()) {
                     return;
@@ -2032,6 +2052,7 @@ fn progress_local(
 
 mod actor_inventory;
 mod admission;
+mod attribution;
 mod diagnostics;
 mod ingestion;
 mod modes;

@@ -25,6 +25,18 @@ SPEC.loader.exec_module(fixture)
 class BudgetChain(fixture.LocalTerra):
     gas_budget = None
 
+    def query(self, *parts):
+        # SDK53's owned loopback read can transiently close before a response
+        # during heavy fixture activity. Retry only this transport failure;
+        # contract/query failures and all transaction submission remain strict.
+        for attempt in range(3):
+            try:
+                return super().query(*parts)
+            except RuntimeError as error:
+                if 'post failed: Post "http://127.0.0.1:26657": EOF' not in str(error) or attempt == 2:
+                    raise
+                time.sleep(0.25 * (attempt + 1))
+
     def wait(self, response, expect_failure=False):
         if int(response.get('code', 0)) != 0:
             raise RuntimeError('Owned LocalTerra CheckTx rejected')

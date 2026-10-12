@@ -12,6 +12,9 @@ from pathlib import Path
 spec = importlib.util.spec_from_file_location("chain_fixture", Path(__file__).with_name("localterra-route-tax-1381.py"))
 fixture = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixture)
+monitor_spec = importlib.util.spec_from_file_location("owned_inclusion_monitor", Path(__file__).with_name("localterra-offline-gas-1480.py"))
+monitor = importlib.util.module_from_spec(monitor_spec)
+monitor_spec.loader.exec_module(monitor)
 SCALE = 10 ** 18
 
 
@@ -32,7 +35,9 @@ def main():
     parser.add_argument("--code-cache", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    chain = fixture.LocalTerra(args.container, args.code_cache)
+    artifact_provenance = monitor.provenance(args.artifacts)
+    chain = monitor.BudgetChain(args.container, args.code_cache)
+    chain.pending_path = args.output.with_suffix(".pending.private.json")
     owner_key, owner = chain.fresh_trader("200000000000uluna")
     chain.default_key = owner_key
     _, treasury = chain.fresh_trader()
@@ -129,6 +134,9 @@ def main():
     result = {"issue": 1473, "scope": "Owned LocalTerra hook-free 6/18/9 decimal direct and multihop existing-router execution; arithmetic independently checked against contract; no production signing or deployment claim",
               "utc_start": started, "utc_end": datetime.now(timezone.utc).isoformat(), "status": "PASS",
               "source_driver_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              "inclusion_monitor_sha256": hashlib.sha256(Path(__file__).with_name("localterra-offline-gas-1480.py").read_bytes()).hexdigest(),
+              "inclusion_monitor": "Bounded 120-second REST reconciliation of original accepted hash; private pending identity; no resend",
+              "source_artifact_provenance": artifact_provenance,
               "artifacts": codes, "cases": rows, "case_count": len(rows),
               "skips": ["funded tax/hook parity of derived ceiling", "native wrapping", "deployed acceptance"]}
     args.output.write_text(json.dumps(result, indent=2) + "\n")

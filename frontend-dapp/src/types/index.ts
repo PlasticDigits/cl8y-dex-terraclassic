@@ -865,6 +865,8 @@ export interface IndexerRouteExecutionMetadata {
 }
 
 export interface IndexerRouteSolveResponse {
+  /** Bounded advisory diagnostics; runtime reconciliation precedes retail copy. Never signing authority. */
+  economic_attribution?: unknown
   /** When supplied, must be Boolean and agree with the reviewed metadata capability. */
   execution_supported?: boolean
   execution_blocker?: string | null
@@ -892,9 +894,9 @@ export interface IndexerRouteSolveResponse {
   sell_tax_bps?: number
   tax_notes?: string
   router_hops_tax?: boolean
-  /** Fair output at best-route token cross-rate (raw integer). Required positive Uint128 for exact-output sizing (#1376); optional for offer-in (#293). */
+  /** Fair output from independently qualified reference inputs (raw integer). Required positive Uint128 for exact-output sizing (#1376); optional for offer-in (#293). */
   spot_amount_out?: string
-  /** Symmetric deviation vs spot cross-rate (percent string). GitLab #293. */
+  /** Symmetric fair-reference deviation of net output (percent string), including wrapper costs. */
   slippage_percent?: string
   token_in_price_quote?: string
   token_out_price_quote?: string

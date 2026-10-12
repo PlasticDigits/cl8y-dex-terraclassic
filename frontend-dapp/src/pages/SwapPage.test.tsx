@@ -14,6 +14,7 @@ import userEvent from '@testing-library/user-event'
 import { useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SwapPage from './SwapPage'
+import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
 const { mutationEntry } = vi.hoisted(() => ({
   mutationEntry: { run: undefined as undefined | (() => Promise<unknown>) },
 }))
@@ -621,6 +622,48 @@ describe('SwapPage local executable quotes (#1452)', () => {
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('swap-submit')).toBeDisabled()
     else await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+  })
+  it.each([false, true])(
+    'shows one compact explanation and ignores diagnostic injection (tampered=%s)',
+    async (tampered) => {
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        const q = localQuote(from, to, amount, options)
+        q.spot_amount_out = '1010000'
+        attachReferenceAttribution(q)
+        if (tampered) (q.economic_attribution as Record<string, unknown>).dominant_cause = '<script>secret</script>'
+        return q
+      })
+      await ready()
+      expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 0.99%.')
+      expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent(
+        tampered ? 'Cost breakdown unavailable.' : 'Reference and pool prices differ most.'
+      )
+      expect(screen.getByTestId('swap-impact-aside').textContent?.match(/%/g)).toHaveLength(1)
+      expect(document.body).not.toHaveTextContent('<script>secret</script>')
+    }
+  )
+  it('requires renewed consent just above 5% and after amount changes', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())
+      q.spot_amount_out = amount
+      return attachReferenceAttribution(q)
+    })
+    await ready()
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    expect(screen.getByText('Click again to confirm this price difference.')).toBeInTheDocument()
+    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
+    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
+    expect(await import('@/services/terraclassic/router').then((m) => m.executeMultiHopSwap)).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    expect(screen.queryByText('Click again to confirm this price difference.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '2' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    expect(screen.getByText('Click again to confirm this price difference.')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    const router = await import('@/services/terraclassic/router')
+    await waitFor(() => expect(router.executeMultiHopSwap).toHaveBeenCalledTimes(1))
   })
   describe('Swap Settings progressive disclosure (#413)', () => {
     const mockDirectCwPair = () => {

@@ -1452,3 +1452,6 @@ async fn transient_admission_refresh_preserves_original_times_then_known_pause_i
 
 #[path = "scenarios/fee_generation_recovery_1464.rs"]
 mod fee_generation_recovery;
+
+#[path = "scenarios/route_cost_attribution_1483.rs"]
+mod route_cost_attribution;

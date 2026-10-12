@@ -1,5 +1,20 @@
 # Frontend Guide
 
+## Route cost explanation (#1483)
+
+Actual Swap and Trade show one **Fair-reference deviation** percentage and one
+compact fixed cause explanation from reconciled original-cohort diagnostics.
+[RC1483](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) documents its invariants;
+[the API contract](route-solver.md#economic-attribution-1483) defines signed
+raw components and rounding. Malformed, injected, mismatched or unavailable
+attribution shows `Cost breakdown unavailable.` and never supplies signing
+permission. No extra component percentages or network fees enter the swap metric.
+Compare exact raw fair/net ratios for 5/30/99 guards before display rounding;
+Trade and Swap retain >5% consent bound to the current reviewed intent. Original
+expiry, 30% Expert behavior, >=99% refusal and fee/Max/floors remain enforced.
+Verify actual entries using [the checklist](qa/issue-1483/README.md); synthetic
+source tests do not attest physical-wallet or deployed settlement behavior.
+
 ## Local swap quotes (#1452)
 
 Current indexed quote display, preflight and confirmation consume the exact
