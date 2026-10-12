@@ -158,3 +158,6 @@ original report details, funded production/native/USTR/wrapper/tax/hook/book wor
 cases, and production contract provenance remain incomplete. Source/funded plain
 core and live quote subsets do not certify those scopes. The pending PM phone
 card compares approval fees and cancels without signing. #1480 remains open.
+
+[Published evidence and QA follow-up #1482](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1482)
+crosslinks these results, bounded shards and failed-response diagnostics.

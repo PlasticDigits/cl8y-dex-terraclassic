@@ -202,3 +202,6 @@ socket/privacy/clock diagnostics passed 16 twice. Original verdicts, timestamps,
 private provenance/history, independent thin-token manipulation, native/tax/hook/
 book gas calibration, physical wallets or the full arbitrary-state matrix.
 Both issues remain open. Only #1479 documentation AC8 is complete after final links.
+
+[Published evidence and QA follow-up #1482](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1482)
+crosslinks these results, bounded shards and failed-response diagnostics.
