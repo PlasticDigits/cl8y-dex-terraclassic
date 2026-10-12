@@ -14,6 +14,75 @@ async function loadModule() {
 }
 
 describe('indexer client fetchJson', () => {
+  it('does not replay persisted HTTP quotes after the scheduled generation changes (#1479)', async () => {
+    let generation = 'original-publication'
+    let observations = 0
+    const persisted = { execution_metadata: { generation: 'expired-http-copy', expires_at_ms: 1 } }
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      // A browser-cache regression returns an old response without consulting
+      // the publication. Only the explicit live quote policy reaches the server.
+      if (init?.cache !== 'no-store') return new Response(JSON.stringify(persisted))
+      observations++
+      return new Response(
+        JSON.stringify({ execution_metadata: { generation, observed_at_ms: 1000, expires_at_ms: 2000 } })
+      )
+    })
+    const client = await loadModule()
+    const first = await client.getRouteSolve('terra1a', 'terra1b', '1000')
+    generation = 'new-publication'
+    const second = await client.getRouteSolve('terra1a', 'terra1b', '1000')
+    expect(first.execution_metadata?.generation).toBe('original-publication')
+    expect(second.execution_metadata).toEqual({
+      generation: 'new-publication',
+      observed_at_ms: 1000,
+      expires_at_ms: 2000,
+    })
+    expect(observations).toBe(2)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['offer', 'receive', 'progress', 'declared'] as const)(
+    'keeps %s quotes out of HTTP storage without changing request intent or cancellation (#1479)',
+    async (kind) => {
+      vi.mocked(fetch).mockResolvedValue(new Response('{}'))
+      const controller = new AbortController()
+      const client = await loadModule()
+      const options = { signal: controller.signal, maxSpread: '0.05', trader: 'terra1actor' }
+      if (kind === 'offer') await client.getRouteSolve('terra1a', 'terra1b', '1000', options)
+      if (kind === 'receive') await client.getRouteSolveExactOutput('terra1a', 'terra1b', '1000', options)
+      if (kind === 'progress') await client.getRouteSolveProgress('terra1a', 'terra1b', '1000', options)
+      if (kind === 'declared') await client.postRouteSolve('terra1a', 'terra1b', '1000', [null], options)
+      const [url, init] = vi.mocked(fetch).mock.calls[0]
+      expect(init?.cache).toBe('no-store')
+      expect(init?.signal?.aborted).toBe(false)
+      controller.abort()
+      // Existing timeout/abort composition is cleaned up after the completed
+      // fetch; the request must retain its serialized economic intent.
+      if (kind === 'declared') {
+        expect(init?.method).toBe('POST')
+        expect(JSON.parse(init?.body as string)).toMatchObject({
+          amount_in: '1000',
+          hybrid_by_hop: [null],
+          trader: 'terra1actor',
+          max_spread: '0.05',
+        })
+      } else {
+        const query = new URL(url as string, 'https://indexer.invalid').searchParams
+        expect(query.get(kind === 'receive' ? 'amount_out' : 'amount_in')).toBe('1000')
+        expect(query.get('trader')).toBe('terra1actor')
+        expect(query.get('max_spread')).toBe('0.05')
+      }
+      expect(fetch).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('does not change unrelated catalog/history cache policy (#1479)', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response('[]'))
+    const client = await loadModule()
+    await client.getTokens()
+    expect(vi.mocked(fetch).mock.calls[0][1]?.cache).toBeUndefined()
+  })
+
   it('preserves bounded public reasons without exposing private error text or retrying (#1473)', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(

@@ -316,6 +316,7 @@ pub(super) enum Rejection {
     InvalidRequest,
     AmountLimit,
     FairDeviation,
+    ReferencePolicyExcluded,
 }
 impl Rejection {
     pub(super) fn code(self) -> &'static str {
@@ -332,6 +333,7 @@ impl Rejection {
             Self::InvalidRequest => "invalid_request",
             Self::AmountLimit => "amount_too_large",
             Self::FairDeviation => "price_impact_too_high",
+            Self::ReferencePolicyExcluded => "reference_policy_excluded",
         }
     }
     pub(super) fn priority(self) -> u8 {
@@ -349,6 +351,7 @@ impl Rejection {
             Self::TradingBlocked => 8,
             Self::NoRoute => 9,
             Self::InvalidRequest => 10,
+            Self::ReferencePolicyExcluded => 5,
         }
     }
     pub(super) fn error(self) -> Error {
@@ -448,14 +451,13 @@ pub(super) fn reference_rejection(
     input: u128,
 ) -> Rejection {
     for id in [path[0].1, path.last().unwrap().2] {
-        let Some(p) = s.references.prices.get(&id) else {
-            return Rejection::Missing;
-        };
-        if p.decimals > 38 || p.price <= bigdecimal::BigDecimal::from(0) {
-            return Rejection::Unsupported;
-        }
-        if p.as_of > Utc::now() || now_ms().saturating_sub(p.as_of.timestamp_millis()) > 20_000 {
-            return Rejection::Stale;
+        if let Some(reason) = s.references.unavailable_reason(id, Utc::now()) {
+            return match reason {
+                "reference_policy_excluded" => Rejection::ReferencePolicyExcluded,
+                "unsupported_semantics" => Rejection::Unsupported,
+                "stale_observations" => Rejection::Stale,
+                _ => Rejection::Missing,
+            };
         }
     }
     // Both fresh marks exist, but integer conversion is unrepresentable. A

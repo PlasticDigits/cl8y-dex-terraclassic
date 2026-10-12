@@ -688,3 +688,50 @@ Official callers bind the requested response policy. Provided execution-support
 flags must be Boolean and consistent at both levels. The client checks safe
 timestamps and original `expires_at_ms − observed_at_ms ≤ 20,000` during display
 and mutation, preventing future expiry from reviving an old observation.
+
+## Small-market reference eligibility (#1479)
+
+Issue [#1479](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1479),
+[agent instructions](../skills/AGENTS_SMALL_MARKET_REFERENCE.md) and
+[verification](qa/issue-1479/README.md).
+
+`ECONOMIC_USD_TVL_FLOOR` defaults to **10 USD total pair TVL**, following explicit
+user direction on 2026-10-12. `HUB_USD_TVL_FLOOR` remains **100 USD independently
+priced leg depth**. They measure different quantities and must not share a lowered
+configuration value. The existing economic-mark source/identity/anchor/freshness
+policy remains; a positive valuation or lower floor does not waive quote economics,
+unsupported semantics, fee compatibility or protection.
+
+When scheduled evidence proves every qualified candidate falls below the economic
+floor, quote endpoints return 422 `reference_policy_excluded` with fixed compact
+copy. A complete bounded candidate census is required. Missing/stale reserves,
+anchors or alternatives remain 503 missing/stale observations. Diagnostic evidence
+contains no price or executable metadata, preserves original time, expires after
+20 seconds and cannot enter signing. New admitted references supersede exclusion;
+policy/reference changes invalidate affected cached generations.
+
+Scheduled hub prices, economic marks, oracle quorum and policy census share one
+read-only repeatable-read database snapshot. An atomic producer rescaling cannot
+splice the old anchor scale with new token marks. Original freshness still applies.
+
+Progress exposes `quote_eligibility` separately from search `stage`: `policy_excluded`,
+`waiting_for_observations`, `unverified`, or `executable_quote`; optional `quote_blocker`
+is a fixed reason. Idle search without an eligible cached quote says `Local search
+idle`, rather than claiming readiness. `unverified` is not execution permission;
+the actual quote still must pass all current state/context/economic guards.
+
+The client shows one executable receive value or a compact blocker. It can watch
+scheduled progress without repeatedly solving a fixed exclusion, and retry once
+an eligible new generation appears. Requests never accelerate producers or perform
+chain/network validation. Reporting-floor changes do not demonstrate the independent
+thin-token reference policy originally requested under AC3; outstanding acceptance
+remains explicit in [results](qa/issue-1479/RESULTS.md).
+
+Dynamic solve GET/POST, best, exact-output receive and progress responses send
+`Cache-Control: no-store`, including rejection/timeout/rate-limit responses.
+The indexer client explicitly uses fetch `cache: 'no-store'` for this exact family.
+Catalog/history caching remains separate. Local generation-aware/coalesced caches
+retain their original expiry checks; persistent browser HTTP cache does not own
+quote freshness. Controlled A/B trials improved response dispatch with no-store,
+but Chromium transport stalls also occurred afterward; this is not proof that
+all initialized 500/750ms latency acceptance is complete.

@@ -86,8 +86,12 @@ async fn observed_app_with_references(
     // Independent address-bound fixture references: unit prices for unit corridors.
     // Mixed 6/18 example assigns a known economic crossrate below in its fixture.
     if with_references {
-        sqlx::query("INSERT INTO oracle_state(ticker,price_usd,as_of,quality,accepted_sources) VALUES('ustc',1,NOW(),'fresh',ARRAY['mexc','coingecko']) ON CONFLICT(ticker) DO UPDATE SET as_of=NOW(),quality='fresh'").execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO economic_token_marks(contract_address,anchor_ticker,price_usd,as_of) SELECT contract_address,'custc',1,NOW() FROM assets WHERE contract_address IS NOT NULL ON CONFLICT(contract_address) DO UPDATE SET as_of=NOW()") .execute(&pool).await.unwrap();
+        common::reference_marks::seed_reference_marks(
+            &pool,
+            &cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&cfg),
+            &[],
+        )
+        .await;
     }
     for actor in [
         "terra1000000000000000000000000000000000001",

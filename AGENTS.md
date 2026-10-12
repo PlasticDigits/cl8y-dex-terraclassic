@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## Small-market references and offline execution budgets
+
+For small-market reference admission and structural pricing exclusions, follow
+[SM1479-1–SM1479-10](skills/AGENTS_SMALL_MARKET_REFERENCE.md) and run
+`make verify-issue-1479`; use [the checklist](docs/qa/issue-1479/README.md).
+The authorized economic total-TVL floor is $10; the hub independently priced depth
+floor remains $100. Diagnostics do not admit a new fair-price quality class.
+For reviewed local gas/fee/Max/signing consistency, follow
+[OB1480-1–OB1480-10](skills/AGENTS_OFFLINE_SWAP_BUDGET.md) and run
+`make verify-issue-1480`; use [the checklist](docs/qa/issue-1480/README.md).
+Local paths remain offline; unknown execution budgets fail before signing.
+
 ## Trading quote outcomes and defaults
 
 For arbitrary pair/amount rejection classes, indicative pricing, quote recovery or

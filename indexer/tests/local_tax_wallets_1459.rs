@@ -66,10 +66,14 @@ async fn scheduled_uncensused_holders_keep_tax_identity_caps_blackout_and_zero_r
         count, 0,
         "holder coverage must not depend on trader enrollment"
     );
-    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,as_of,quality,accepted_sources) VALUES('ustc',1,NOW(),'fresh',ARRAY['mexc','coingecko']) ON CONFLICT(ticker) DO UPDATE SET as_of=NOW(),quality='fresh'")
-        .execute(&pool).await.unwrap();
-    sqlx::query("INSERT INTO economic_token_marks(contract_address,anchor_ticker,price_usd,as_of) SELECT contract_address,'custc',1,NOW() FROM assets WHERE contract_address IS NOT NULL ON CONFLICT(contract_address) DO UPDATE SET as_of=NOW()")
-        .execute(&pool).await.unwrap();
+    common::reference_marks::seed_reference_marks(
+        &pool,
+        &cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(
+            &common::test_config(),
+        ),
+        &[],
+    )
+    .await;
     let provider = lcd_mock::start_ordinary_code_mock().await;
     let taxed = seeded.token_b.clone();
     let tax_code_token = taxed.clone();

@@ -51,6 +51,34 @@ describe('rejected quote observation recovery (#1473)', () => {
     vi.useRealTimers()
   })
 
+  it('does not solve a policy-excluded market until independent publication admits references (#1479)', async () => {
+    const input = {
+      ...args(),
+      error: new IndexerApiError(422, 'reference_policy_excluded', undefined, undefined, 'first'),
+    }
+    let published = {
+      ...progress('second'),
+      quote_eligibility: 'policy_excluded',
+      quote_blocker: 'reference_policy_excluded',
+    }
+    vi.mocked(getRouteSolveProgress).mockImplementation(async () => published)
+    const { client, wrapper } = setup()
+    const { unmount } = renderHook(() => useQuoteErrorRecovery(input), { wrapper })
+    await tick(1)
+    await tick(30_000)
+    expect(input.refetch).not.toHaveBeenCalled()
+    published = { ...progress('third'), quote_eligibility: 'waiting', quote_blocker: 'missing_observations' }
+    await tick(10_000)
+    expect(input.refetch).not.toHaveBeenCalled()
+    published = { ...progress('fourth'), quote_eligibility: 'unverified', quote_blocker: '' }
+    await tick(10_000)
+    expect(input.refetch).toHaveBeenCalledTimes(1)
+    await tick(30_000)
+    expect(input.refetch).toHaveBeenCalledTimes(1)
+    unmount()
+    client.clear()
+  })
+
   it('does not repeatedly solve deterministic errors and refreshes once for a new published generation', async () => {
     const input = args()
     let generation = 'first'

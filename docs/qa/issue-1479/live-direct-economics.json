@@ -1,0 +1,80 @@
+{
+  "issues": [
+    1479,
+    1480
+  ],
+  "utc_start": "2026-10-12T02:30:08.809386+00:00",
+  "backend_before": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "read_only": true,
+  "cases": [
+    {
+      "offer_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "ask_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "raw_offer": "10000",
+      "expected_net": "4272933",
+      "fee_bps": 180,
+      "contract_return_amount": "4272933",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    },
+    {
+      "offer_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "ask_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "raw_offer": "1000000",
+      "expected_net": "427291631",
+      "fee_bps": 180,
+      "contract_return_amount": "427291631",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    },
+    {
+      "offer_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "ask_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "raw_offer": "10000000",
+      "expected_net": "4272764260",
+      "fee_bps": 180,
+      "contract_return_amount": "4272764260",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    },
+    {
+      "offer_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "ask_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "raw_offer": "100000000",
+      "expected_net": "225682",
+      "fee_bps": 180,
+      "contract_return_amount": "225682",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    },
+    {
+      "offer_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "ask_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "raw_offer": "1000000000",
+      "expected_net": "2256800",
+      "fee_bps": 180,
+      "contract_return_amount": "2256800",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    },
+    {
+      "offer_asset": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "ask_asset": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "raw_offer": "10000000000",
+      "expected_net": "22566146",
+      "fee_bps": 180,
+      "contract_return_amount": "22566146",
+      "matches_independent_math": true,
+      "quote_http": 503,
+      "quote_reason": "missing_observations"
+    }
+  ],
+  "pool_unchanged": true,
+  "backend_after": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "utc_end": "2026-10-12T02:30:30.112167+00:00"
+}

@@ -119,3 +119,12 @@ Use this when debugging **`out of gas`** on swap txs, tuning gas constants, or r
 ## When the user references another repo for “how gas works”
 
 Paths differ by machine. Compare **patterns** (simulate vs fixed gas, adjustment multipliers), not copy-paste numbers, unless the same contracts and message shapes are guaranteed.
+
+## Current reviewed local execution (#1480)
+
+Apply [OB1480](AGENTS_OFFLINE_SWAP_BUDGET.md) for locally prepared offline routes.
+Historical #1222 Stay and #1264 2.71M fixtures do not certify these routes or hold
+an explicitly authorized measured-budget repair. `verify-issue-1222` now tests the
+functional offline/auto-gas boundary; `verify-issue-1264` runs actual Swap-page and
+offline-budget tests without an empty name filter. Keep historical evidence scoped,
+inspect current funded receipts and run `make verify-issue-1480`.

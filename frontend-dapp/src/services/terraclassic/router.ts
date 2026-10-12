@@ -151,7 +151,9 @@ export async function executeMultiHopSwap(
         max_spread: localExecution ? validatedLocalMarketSpread(localExecution)! : maxSpread,
         minimum_receive: minimumReceive,
         to,
-        deadline,
+        deadline: localExecution
+          ? Math.min(deadline ?? Infinity, Math.floor(localExecution.expires_at_ms / 1000))
+          : deadline,
       },
     })
   )
@@ -160,6 +162,7 @@ export async function executeMultiHopSwap(
     ? executeTerraContract(walletAddress, inputTokenAddress, msg, undefined, {
         ...getTerraBroadcastScopeOptions(),
         gasEstimation: 'offline',
+        reviewedQuoteExpiresAtMs: localExecution.expires_at_ms,
       })
     : executeTerraContract(walletAddress, inputTokenAddress, msg)
 }
@@ -530,7 +533,11 @@ export async function executeLocalNativeRoute(
   const w = metadata.wrapper
   if (metadata.policy === 'wrapper_only') {
     assertLocalRouteSubmit(metadata, operations, metadata.input_amount, maxSpread, walletAddress, minimumReceive)
-    const broadcastOptions = { ...getTerraBroadcastScopeOptions(), gasEstimation: 'offline' as const }
+    const broadcastOptions = {
+      ...getTerraBroadcastScopeOptions(),
+      gasEstimation: 'offline' as const,
+      reviewedQuoteExpiresAtMs: metadata.expires_at_ms,
+    }
     return w!.wrap_input
       ? executeTerraContract(
           walletAddress,
@@ -569,7 +576,11 @@ export async function executeLocalNativeRoute(
   }
   assertLocalRouteSubmit(metadata, operations, w.input_amount, maxSpread, walletAddress, minimumReceive)
   const wrappedInput = w.wrap_input ? getWrappedEquivalent(w.input_token)! : w.input_token
-  const broadcastOptions = { ...getTerraBroadcastScopeOptions(), gasEstimation: 'offline' as const }
+  const broadcastOptions = {
+    ...getTerraBroadcastScopeOptions(),
+    gasEstimation: 'offline' as const,
+    reviewedQuoteExpiresAtMs: metadata.expires_at_ms,
+  }
   const send = {
     send: {
       contract: ROUTER_CONTRACT_ADDRESS,
@@ -581,7 +592,7 @@ export async function executeLocalNativeRoute(
             operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
             max_spread: validatedLocalMarketSpread(metadata)!,
             minimum_receive: minimumReceive,
-            deadline,
+            deadline: Math.min(deadline ?? Infinity, Math.floor(metadata.expires_at_ms / 1000)),
             ...(w.unwrap_output ? { unwrap_output: true } : {}),
           },
         })

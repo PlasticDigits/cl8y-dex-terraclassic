@@ -14,8 +14,8 @@ use chrono::{DateTime, Utc};
 
 use super::defillama::COLUMBUS5_GEM_ADDRESSES;
 use super::hub_usd::{
-    is_hub_custc, is_hub_ust1, is_hub_ustr, is_stale, pair_tvl, reserves_usable, same_asset,
-    usd_from_reserves, AssetRef, HubUsdConfig, HubUsdSnapshot, ReservePair,
+    is_hub_custc, is_hub_ust1, is_hub_ustr, is_native_denom, is_stale, pair_tvl, reserves_usable,
+    same_asset, usd_from_reserves, AssetRef, HubMark, HubUsdConfig, HubUsdSnapshot, ReservePair,
 };
 use crate::config::DEFAULT_VFDUSD_ADDRESS;
 
@@ -47,12 +47,11 @@ fn normalize_symbol(symbol: &str) -> String {
 }
 
 fn is_hub_clunc(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
-    if let Some(d) = asset.denom.as_deref() {
-        if d == "uluna" {
-            return true;
-        }
+    if is_native_denom(asset, "uluna") {
+        return true;
     }
     asset.is_cw20
+        && asset.denom.is_none()
         && asset
             .contract_address
             .as_deref()
@@ -137,17 +136,25 @@ fn priced_hub_usd(
     cfg: &HubUsdConfig,
     snap: &HubUsdSnapshot,
 ) -> Option<BigDecimal> {
+    priced_hub_mark(asset, cfg, snap).map(|mark| mark.price_usd.clone())
+}
+
+fn priced_hub_mark<'a>(
+    asset: &AssetRef,
+    cfg: &HubUsdConfig,
+    snap: &'a HubUsdSnapshot,
+) -> Option<&'a HubMark> {
     if is_hub_custc(asset, cfg) {
-        return snap.custc.as_ref().map(|m| m.price_usd.clone());
+        return snap.custc.as_ref();
     }
     if is_hub_clunc(asset, cfg) {
-        return snap.lunc.as_ref().map(|m| m.price_usd.clone());
+        return snap.lunc.as_ref();
     }
     if is_hub_ust1(asset, cfg) {
-        return snap.ust1.as_ref().map(|m| m.price_usd.clone());
+        return snap.ust1.as_ref();
     }
     if is_hub_ustr(asset, cfg) {
-        return snap.ustr.as_ref().map(|m| m.price_usd.clone());
+        return snap.ustr.as_ref();
     }
     None
 }
@@ -234,7 +241,7 @@ pub fn resolve_economic_marks(
             let Some(tvl) = pair_tvl(pair, usd_0, usd_1) else {
                 continue;
             };
-            if tvl < cfg.tvl_floor {
+            if tvl < cfg.economic_tvl_floor {
                 continue;
             }
             let Some(contract) = token.contract_address.as_deref() else {
@@ -292,12 +299,289 @@ pub fn resolve_economic_marks(
     out
 }
 
+/// Diagnose the reporting-floor coupling without admitting a new price class.
+/// A complete candidate census is required by callers: a deeper eligible pool
+/// must not be misclassified because a bounded partial census saw only dust.
+/// Returned values are evidence only and must never enter executable references.
+pub fn economic_floor_exclusions(
+    now: DateTime<Utc>,
+    cfg: &HubUsdConfig,
+    pairs: &[ReservePair],
+    snap: &HubUsdSnapshot,
+) -> Vec<(i32, DateTime<Utc>)> {
+    let mut diagnostic = cfg.clone();
+    diagnostic.economic_tvl_floor = BigDecimal::from(0);
+    diagnostic.max_staleness = std::time::Duration::from_secs(20);
+    let mut qualified = snap.clone();
+    for mark in [
+        &mut qualified.custc,
+        &mut qualified.lunc,
+        &mut qualified.ust1,
+        &mut qualified.ustr,
+    ] {
+        if mark.as_ref().is_some_and(|mark| {
+            mark.price_usd <= BigDecimal::from(0)
+                || mark.as_of.is_none_or(|at| {
+                    at > now || now.signed_duration_since(at).num_milliseconds() > 20_000
+                })
+        }) {
+            *mark = None;
+        }
+    }
+    resolve_economic_marks(now, &diagnostic, pairs, &qualified)
+        .into_iter()
+        .filter(|mark| {
+            mark.tvl_usd < cfg.economic_tvl_floor
+                && mark.as_of <= now
+                && now.signed_duration_since(mark.as_of).num_milliseconds() <= 20_000
+                // A missing/stale alternative may later publish an eligible
+                // reference. Its current absence remains recoverable data loss.
+                && pairs.iter().all(|pair| {
+                    !((pair.asset_0.id == mark.asset_id && is_hub_wrap(&pair.asset_1, cfg))
+                        || (pair.asset_1.id == mark.asset_id && is_hub_wrap(&pair.asset_0, cfg)))
+                        || (usable_pair(now, &diagnostic, pair)
+                            && priced_hub_usd(
+                                if pair.asset_0.id == mark.asset_id { &pair.asset_1 } else { &pair.asset_0 },
+                                cfg,
+                                &qualified,
+                            ).is_some())
+                })
+        })
+        .map(|mark| {
+            let oldest = pairs.iter().filter_map(|pair| {
+                let other = if pair.asset_0.id == mark.asset_id { &pair.asset_1 }
+                    else if pair.asset_1.id == mark.asset_id { &pair.asset_0 }
+                    else { return None; };
+                priced_hub_mark(other, cfg, &qualified)
+                    .and_then(|anchor| anchor.as_of)
+                    .map(|at| at.min(pair.snapshot_at))
+            }).fold(mark.as_of, |oldest, at| oldest.min(at));
+            (mark.asset_id, oldest)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::indexer::hub_usd::{resolve_hub_usd, HubMark, HubTicker};
     use std::str::FromStr;
     use std::time::Duration;
+
+    #[test]
+    fn issue1479_malformed_native_cw20_aliases_cannot_anchor_producer_or_diagnosis() {
+        let now = Utc::now();
+        let mut cfg = cfg();
+        cfg.economic_tvl_floor = bd("10");
+        let token = cw20(20, "SMALL", 6, "terra1small");
+        let mut snap = snap_with_hub(now, &[]);
+        snap.lunc.as_mut().unwrap().as_of = Some(now);
+        snap.custc.as_mut().unwrap().as_of = Some(now);
+        for (denom, wrapped) in [
+            ("uluna", cfg.clunc_address.as_str()),
+            ("uusd", cfg.custc_address.as_str()),
+        ] {
+            let canonical = native(7, "spoofed-symbol", denom, 6);
+            let positive = pair(
+                20,
+                "terra1nativefixture",
+                token.clone(),
+                canonical.clone(),
+                "100000000000",
+                "1000000000000",
+                now,
+            );
+            assert_eq!(
+                resolve_economic_marks(now, &cfg, &[positive.clone()], &snap).len(),
+                1
+            );
+            for mut malformed in [canonical.clone(), cw20(7, "spoofed-symbol", 6, wrapped)] {
+                if malformed.is_cw20 {
+                    malformed.denom = Some(denom.into());
+                } else if malformed.contract_address.is_none() {
+                    malformed.contract_address = Some("terra1spoof".into());
+                }
+                let negative = pair(
+                    20,
+                    "terra1nativefixture",
+                    token.clone(),
+                    malformed,
+                    "100000000000000",
+                    "1000000000",
+                    now,
+                );
+                assert!(resolve_economic_marks(now, &cfg, &[negative.clone()], &snap).is_empty());
+                assert!(economic_floor_exclusions(now, &cfg, &[negative], &snap).is_empty());
+            }
+            let mut contradictory = canonical;
+            contradictory.is_cw20 = true;
+            let negative = pair(
+                20,
+                "terra1nativefixture",
+                token.clone(),
+                contradictory,
+                "100000000000000",
+                "1000000000",
+                now,
+            );
+            assert!(resolve_economic_marks(now, &cfg, &[negative.clone()], &snap).is_empty());
+            assert!(economic_floor_exclusions(now, &cfg, &[negative], &snap).is_empty());
+        }
+    }
+
+    #[test]
+    fn issue1479_separate_ten_dollar_total_tvl_policy_has_exact_boundaries() {
+        let now = Utc::now();
+        let mut cfg = cfg();
+        cfg.economic_tvl_floor = bd(crate::config::DEFAULT_ECONOMIC_USD_TVL_FLOOR);
+        assert_eq!(cfg.tvl_floor, bd(crate::config::DEFAULT_HUB_USD_TVL_FLOOR));
+        let token = cw20(20, "SMALL", 6, "terra1small");
+        let anchor = cw20(7, "cLUNC", 6, "terra1clunc");
+        let mut snap = snap_with_hub(now, &[]);
+        snap.lunc.as_mut().unwrap().as_of = Some(now);
+        for anchor_raw in [
+            62_499_999_999u128,
+            62_500_000_000,
+            62_500_000_001,
+            156_250_000_000,
+        ] {
+            let pair = pair(
+                20,
+                "terra1smallpair",
+                token.clone(),
+                anchor.clone(),
+                "100000000000",
+                &anchor_raw.to_string(),
+                now,
+            );
+            let marks = resolve_economic_marks(now, &cfg, &[pair.clone()], &snap);
+            let excluded = economic_floor_exclusions(now, &cfg, &[pair], &snap);
+            if anchor_raw < 62_500_000_000 {
+                assert!(marks.is_empty());
+                assert_eq!(excluded, vec![(20, now)]);
+            } else {
+                assert_eq!(marks.len(), 1);
+                let expected_total =
+                    BigDecimal::from(anchor_raw) * bd("0.00008") * BigDecimal::from(2)
+                        / BigDecimal::from(1_000_000);
+                assert_eq!(marks[0].tvl_usd, expected_total);
+                assert_eq!(marks[0].as_of, now);
+                assert!(excluded.is_empty());
+            }
+        }
+        // Economic eligibility does not promote a shallow UST1 pool to trusted hub.
+        let shallow_hub = pair(
+            30,
+            "terra1shallowhub",
+            cw20(1, "UST1", 6, "terra1ust1"),
+            cw20(2, "cUSTC", 6, "terra1custc"),
+            "10000000",
+            "1000000000",
+            now,
+        );
+        assert!(
+            resolve_hub_usd(now, &cfg, Some(&bd("0.005")), &[shallow_hub], Some(2))
+                .ust1
+                .is_none()
+        );
+        assert_eq!(cfg.economic_tvl_floor, bd("10"));
+        assert_eq!(cfg.tvl_floor, bd("100"));
+    }
+
+    #[test]
+    fn issue1479_total_tvl_floor_diagnosis_is_not_independent_depth_or_price_admission() {
+        let now = Utc::now();
+        let cfg = cfg();
+        let token = cw20(20, "SMALL", 6, "terra1small");
+        let anchor = cw20(7, "cLUNC", 6, "terra1clunc");
+        let mut snap = snap_with_hub(now, &[]);
+        snap.lunc.as_mut().unwrap().as_of = Some(now);
+        // Independently valued anchor leg = 156250 LUNC * $0.00008 = $12.50.
+        // Self-imputed token leg = $12.50; total-TVL = $25, not $12.50 depth.
+        let small = pair(
+            20,
+            "terra1smallpair",
+            token.clone(),
+            anchor.clone(),
+            "100000000000",
+            "156250000000",
+            now,
+        );
+        assert!(resolve_economic_marks(now, &cfg, &[small.clone()], &snap).is_empty());
+        assert_eq!(
+            economic_floor_exclusions(now, &cfg, &[small.clone()], &snap),
+            vec![(20, now)]
+        );
+        // $100 total TVL is admitted despite only $50 independently priced depth:
+        // preserve the existing reporting policy; do not silently change units.
+        let at_floor = pair(
+            21,
+            "terra1largerpair",
+            token,
+            anchor,
+            "400000000000",
+            "625000000000",
+            now,
+        );
+        let marks = resolve_economic_marks(now, &cfg, &[at_floor.clone()], &snap);
+        assert_eq!(marks.len(), 1);
+        assert_eq!(marks[0].tvl_usd, bd("100"));
+        assert!(economic_floor_exclusions(now, &cfg, &[small, at_floor], &snap).is_empty());
+        assert_eq!(cfg.tvl_floor, bd("100"));
+    }
+
+    #[test]
+    fn issue1479_policy_diagnosis_requires_original_fresh_complete_candidates_and_anchor() {
+        let now = Utc::now();
+        let cfg = cfg();
+        let small = pair(
+            20,
+            "terra1smallpair",
+            cw20(20, "SMALL", 18, "terra1small"),
+            cw20(7, "cLUNC", 6, "terra1clunc"),
+            "100000000000000000000000",
+            "156250000000",
+            now,
+        );
+        let mut snap = snap_with_hub(now, &[]);
+        assert!(economic_floor_exclusions(now, &cfg, &[small.clone()], &snap).is_empty());
+        for anchor_at in [
+            now - chrono::Duration::seconds(21),
+            now + chrono::Duration::seconds(1),
+        ] {
+            snap.lunc.as_mut().unwrap().as_of = Some(anchor_at);
+            assert!(economic_floor_exclusions(now, &cfg, &[small.clone()], &snap).is_empty());
+        }
+        snap.lunc.as_mut().unwrap().as_of = Some(now);
+        let mut unqualified_alternative = small.clone();
+        unqualified_alternative.asset_1 = cw20(2, "cUSTC", 6, "terra1custc");
+        snap.custc = None;
+        assert!(economic_floor_exclusions(
+            now,
+            &cfg,
+            &[small.clone(), unqualified_alternative],
+            &snap
+        )
+        .is_empty());
+        let mut unavailable = small.clone();
+        unavailable.snapshot_at = now - chrono::Duration::seconds(21);
+        assert!(
+            economic_floor_exclusions(now, &cfg, &[small.clone(), unavailable.clone()], &snap)
+                .is_empty()
+        );
+        unavailable.snapshot_at = now;
+        unavailable.reserve_0 = bd("0");
+        assert!(
+            economic_floor_exclusions(now, &cfg, &[small.clone(), unavailable], &snap).is_empty()
+        );
+        let mut circular = small.clone();
+        circular.asset_1 = cw20(30, "cLUNC", 6, "terra1spoof");
+        assert!(economic_floor_exclusions(now, &cfg, &[circular], &snap).is_empty());
+        assert_eq!(
+            economic_floor_exclusions(now, &cfg, &[small], &snap),
+            vec![(20, now)]
+        );
+    }
 
     fn bd(s: &str) -> BigDecimal {
         BigDecimal::from_str(s).unwrap()
@@ -312,6 +596,7 @@ mod tests {
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
             usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: bd("100"),
+            economic_tvl_floor: bd("100"),
             max_staleness: Duration::from_secs(60),
         }
     }

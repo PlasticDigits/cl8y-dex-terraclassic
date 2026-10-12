@@ -71,9 +71,13 @@ pub fn reset_route_graph_cache() {}
 mod local_hook_pricing;
 pub mod local_quote;
 mod local_reference_quote;
+/// SQL-only scheduled reference inspection for owned integration fixtures.
+#[doc(hidden)]
+pub use local_reference_quote::ReferencePrices;
 mod local_wrapper_quote;
 mod route_paths;
 // Historical network solver retained only for arithmetic/regression comparison.
+mod quote_cache_control;
 #[cfg(test)]
 mod route_slippage;
 mod route_solve_progress;
@@ -829,6 +833,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(30),
         ))
+        .layer(axum::middleware::from_fn(quote_cache_control::no_store))
         .with_state(state)
 }
 
@@ -841,10 +846,7 @@ async fn require_quote_chain(
     use axum::response::IntoResponse;
     // Local quotes consume only snapshots attested by scheduled ingestion. Request-time
     // chain probes would violate #1452 and make healthy cached data provider dependent.
-    if matches!(
-        request.uri().path(),
-        "/api/v1/route/solve" | "/api/v1/route/solve/best" | "/api/v1/route/solve/progress"
-    ) {
+    if quote_cache_control::is_local_quote_path(request.uri().path()) {
         return next.run(request).await;
     }
     // Listing books resolve identity before their factory branch attests.

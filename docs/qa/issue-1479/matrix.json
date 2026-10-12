@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "assets": {
+    "USTC": {
+      "identity": "uusd",
+      "decimals": 6
+    },
+    "LUNC": {
+      "identity": "uluna",
+      "decimals": 6
+    },
+    "CL8Y": {
+      "identity": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+      "decimals": 18
+    },
+    "USTR": {
+      "identity": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+      "decimals": 18
+    },
+    "KENA": {
+      "identity": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "decimals": 6
+    },
+    "cLUNC": {
+      "identity": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "decimals": 6
+    }
+  },
+  "pairs": [
+    [
+      "KENA",
+      "cLUNC"
+    ],
+    [
+      "CL8Y",
+      "KENA"
+    ],
+    [
+      "USTC",
+      "KENA"
+    ],
+    [
+      "LUNC",
+      "KENA"
+    ],
+    [
+      "CL8Y",
+      "USTR"
+    ],
+    [
+      "LUNC",
+      "USTR"
+    ],
+    [
+      "USTC",
+      "USTR"
+    ]
+  ],
+  "human_amounts": [
+    "0.000001",
+    "0.001",
+    "0.01",
+    "0.1",
+    "1",
+    "10",
+    "100",
+    "1000",
+    "10000"
+  ],
+  "include_one_raw_unit": true,
+  "max_spreads": [
+    "0.01",
+    "0.05",
+    "0.30"
+  ]
+}

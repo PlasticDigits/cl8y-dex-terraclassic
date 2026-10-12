@@ -1,0 +1,56 @@
+{
+  "scope": "Owned current-artifact route-local tax and atomic invoice checks at12M fixture gas; no native stack, wallet or calibrated tax-envelope assertion",
+  "checks": [
+    {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "zero intermediates",
+          "status": "PASS",
+          "gas_used": "4433745"
+        },
+        {
+          "name": "multi tax intermediates",
+          "status": "PASS",
+          "gas_used": "4558655"
+        },
+        {
+          "name": "owned dust and existing balances",
+          "status": "PASS",
+          "gas_used": "4439873"
+        },
+        {
+          "name": "taxed initial gross",
+          "status": "PASS",
+          "gas_used": "3092758"
+        },
+        {
+          "name": "taxed final buy",
+          "status": "PASS",
+          "gas_used": "1893420"
+        },
+        {
+          "name": "minimum return rollback",
+          "status": "PASS",
+          "gas_used": "4180227"
+        }
+      ]
+    },
+    {
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "invoice atomic rollback",
+          "status": "PASS",
+          "gas_used": "3363114"
+        },
+        {
+          "name": "taxed route plus exact feature invoice",
+          "status": "PASS",
+          "gas_used": "3437384"
+        }
+      ]
+    }
+  ],
+  "public_actor_fields": false
+}

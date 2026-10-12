@@ -1,0 +1,100 @@
+{
+  "utc": "2026-10-12T05:42:51.446181+00:00",
+  "base_revision": "2d1627ffa33eb3e08199acfff574a5b63fcfbd39",
+  "source_dirty_at_verification": true,
+  "runtime_scratch": "owned tmpfs directories; no changed browser budgets or clocks",
+  "scope": "Final reviewed source only; deployed/physical/native-hook gas acceptance is separate",
+  "verifiers": {
+    "1479": {
+      "overall": "PASS WITH SKIPS",
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "source_fingerprint": "032d588980c4a8f70171dafaf309c9b7fbcddfb79581eca622d32840a89069ee",
+      "log_sha256": "89c8e1fb02962ee46a41ff4964dae8b0dddc3208604e2be9b2a75907b7704bda"
+    },
+    "1480": {
+      "overall": "PASS WITH SKIPS",
+      "passed_groups": 10,
+      "failed_groups": 0,
+      "skipped_groups": 3,
+      "source_fingerprint": "032d588980c4a8f70171dafaf309c9b7fbcddfb79581eca622d32840a89069ee",
+      "log_sha256": "1f48512ad18bd7889984848ccac9ac490c304cb92070b9058533354ea838e3a7"
+    },
+    "1452": {
+      "overall": "PASS",
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "source_fingerprint": "3402ce4976cc88756e7d24d2b427e327c4d0532258697b8ed4ec3e5a061155a4",
+      "log_sha256": "e4c410e8e7828eabe132c91e875500f64f0c2e15d0a0d03867b494fe603e4912"
+    },
+    "1473": {
+      "overall": "PASS WITH SKIPS",
+      "passed_groups": 17,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "a646654b8a68e085a1882a744809ab95ffe1a1002d691de1c5089c4e15750a5d",
+      "log_sha256": "d352db7158a6bac1a0c096ed1d6c191c27df36b2590bc40371596c74afc9bdb2"
+    }
+  },
+  "controlled_browser_1473": {
+    "cases": 4250,
+    "provider_requests": 0,
+    "quote_requests": 1989,
+    "useful_latency": {
+      "count": 3948,
+      "p50_ms": 89.69999999925494,
+      "p95_ms": 147.69999999925494,
+      "p99_ms": 166.69999999925494,
+      "max_ms": 212.59999999962747
+    },
+    "latency_by_class": {
+      "1440:initialized_http": {
+        "count": 795,
+        "p50_ms": 110,
+        "p95_ms": 165.5,
+        "p99_ms": 178.59999999962747,
+        "max_ms": 212.59999999962747
+      },
+      "1440:browser_cache_hit": {
+        "count": 1179,
+        "p50_ms": 92.20000000111759,
+        "p95_ms": 143.59999999962747,
+        "p99_ms": 156,
+        "max_ms": 201.90000000037253
+      },
+      "390:initialized_http": {
+        "count": 795,
+        "p50_ms": 88.10000000149012,
+        "p95_ms": 109.09999999962747,
+        "p99_ms": 124,
+        "max_ms": 134.30000000074506
+      },
+      "390:browser_cache_hit": {
+        "count": 1179,
+        "p50_ms": 80.90000000037253,
+        "p95_ms": 103.19999999925494,
+        "p99_ms": 110.19999999925494,
+        "max_ms": 123.5
+      }
+    },
+    "budget_ms": 750,
+    "artifact_sha256": "483b83069407ebce25695465b8f19a41272b9ea6e7ceb6256c263fe25db4c6ba",
+    "receipt_sha256": "a1e5f502441571704652c63e70d1b23f601081b8c865a85d52ae0e07ae36b7fa"
+  },
+  "controlled_browser_1452": {
+    "first_max_ms": 55.9,
+    "retest_max_ms": 53.6,
+    "budget_ms": 500,
+    "quote_triggered_provider_requests": 0
+  },
+  "retained_prior_scope": [
+    "Earlier normal-host browser failures remain FAIL",
+    "Original #1257 full verifier remains FAIL; isolated canonical-identity 39-test retest passed",
+    "Pre-review #1452 PASS belongs to old source; interrupted #1473 has no final verdict",
+    "Core funded budgets unchanged; actual first/retest receipts remain separate"
+  ],
+  "tested_code_commit": "3d9ab090f62d983b58be16bd2ace207ccb42a1cc",
+  "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481"
+}

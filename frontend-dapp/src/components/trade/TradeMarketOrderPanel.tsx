@@ -21,7 +21,7 @@ import { LocalQuoteTokenMetadata } from '@/hooks/useTokenDisplayInfo'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
-import { estimateSwapNetworkFee, estimateTradeMarketNetworkFeeUluna } from '@/services/terraclassic/swapNetworkFee'
+import { tryEstimateSwapNetworkFee, estimateTradeMarketNetworkFeeUluna } from '@/services/terraclassic/swapNetworkFee'
 import { type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { hybridFromSingleHopIndexerOps } from '@/services/terraclassic/swapRouting'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -338,28 +338,37 @@ export function TradeMarketOrderPanel({
       estimateTradeMarketNetworkFeeUluna(
         simQuery.data?.indexerOperations,
         liveHybrid ?? solverHybridForGas ?? undefined,
-        simQuery.data?.taxFundingVersion
+        simQuery.data?.taxFundingVersion,
+        !!simQuery.data?.executionMetadata
       ),
-    [simQuery.data?.indexerOperations, simQuery.data?.taxFundingVersion, liveHybrid, solverHybridForGas]
+    [
+      simQuery.data?.indexerOperations,
+      simQuery.data?.taxFundingVersion,
+      simQuery.data?.executionMetadata,
+      liveHybrid,
+      solverHybridForGas,
+    ]
   )
-  const marketSwapFallback = useMemo(() => {
+  const marketSwapFee = useMemo(() => {
     const ops = simQuery.data?.indexerOperations
     const hybridOn = !!(liveHybrid ?? solverHybridForGas)
     if (ops && (ops.length >= 2 || !!simQuery.data?.executionMetadata || simQuery.data?.taxFundingVersion === 1)) {
-      return estimateSwapNetworkFee({
+      return tryEstimateSwapNetworkFee({
         isDirectWrap: false,
         needsWrapInput: false,
         hopCount: ops.length,
         cw20RouterOperations: ops,
         taxFundingVersion: simQuery.data?.taxFundingVersion,
+        localExecution: !!simQuery.data?.executionMetadata,
       })
     }
-    return estimateSwapNetworkFee({
+    return tryEstimateSwapNetworkFee({
       isDirectWrap: false,
       needsWrapInput: false,
       hopCount: 1,
       cw20DirectPair: true,
       cw20Hybrid: hybridOn,
+      cw20HybridParams: liveHybrid ?? solverHybridForGas,
     })
   }, [
     simQuery.data?.indexerOperations,
@@ -368,12 +377,7 @@ export function TradeMarketOrderPanel({
     liveHybrid,
     solverHybridForGas,
   ])
-  const marketSwapFee = marketSwapFallback
-
-  const marketGasMin = useMemo(() => {
-    const delta = marketSwapFee.feeUluna - marketSwapFallback.feeUluna
-    return delta > 0n ? staticMarketGasMin + delta : staticMarketGasMin
-  }, [marketSwapFee.feeUluna, marketSwapFallback.feeUluna, staticMarketGasMin])
+  const marketGasMin = simQuery.data?.executionMetadata ? marketSwapFee.feeUluna : staticMarketGasMin
 
   const placeNativeGasGate = useMemo(
     () =>
@@ -400,7 +404,7 @@ export function TradeMarketOrderPanel({
     ]
   )
 
-  const combinedOk = placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
+  const combinedOk = !marketSwapFee.coverageError && placeEscrowGate.canPlaceLimit && placeNativeGasGate.canPlaceLimit
   const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
 
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
@@ -493,6 +497,7 @@ export function TradeMarketOrderPanel({
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       if (routeRiskBlocked) throw new Error('Price impact is too high')
       if (!simData) throw new Error('Quote unavailable')
+      if (marketSwapFee.coverageError) throw new Error(marketSwapFee.coverageError)
       const payRaw = submitPayRaw
       const submitMinReceived = minReceived
       const escrowGate = evaluateLimitOrderEscrowPlaceGate(marketAmountHuman, offerDecimals, escrowBalanceQuery)

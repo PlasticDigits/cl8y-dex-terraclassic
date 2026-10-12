@@ -165,6 +165,13 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     .await
     .unwrap();
 
+    // Complete cold API setup before starting the owned reserve observation's
+    // unchanged twenty-second lifetime. The app certifies its separate upstream
+    // oracle handle; that must not make an older pool observation fresh.
+    cl8y_dex_indexer::api::reset_overview_cache();
+    let app = common::build_test_app_with_price(pool.clone(), Some(bd("0.005"))).await;
+    let server = TestServer::new(app);
+
     let now = Utc::now();
     sqlx::query(
         "INSERT INTO pair_reserves (pair_id, reserve_0, reserve_1, fee_bps, snapshot_at)
@@ -206,16 +213,33 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     .execute(&pool)
     .await
     .unwrap();
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
-        .await
-        .unwrap();
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
         .await
         .expect("global stats rollup");
-
-    cl8y_dex_indexer::api::reset_overview_cache();
-    let app = common::build_test_app_with_price(pool.clone(), Some(bd("0.005"))).await;
-    let server = TestServer::new(app);
+    // This is a second original observation of the same owned, unchanged pool,
+    // after cold rollups. It does not rewrite an admitted mark's timestamps.
+    let confirmed_source_at = Utc::now();
+    sqlx::query("UPDATE pair_reserves SET snapshot_at=$3 WHERE pair_id IN ($1,$2)")
+        .bind(thin)
+        .bind(deep)
+        .bind(confirmed_source_at)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let confirmed = hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .unwrap();
+    assert_eq!(
+        confirmed
+            .ust1
+            .as_ref()
+            .unwrap()
+            .as_of
+            .unwrap()
+            .timestamp_micros(),
+        confirmed_source_at.timestamp_micros(),
+        "scheduled mark keeps the original second reserve observation"
+    );
 
     let body: serde_json::Value = server.get("/api/v1/hub-prices").await.json();
     let prices = body["prices"].as_array().unwrap();
@@ -245,7 +269,13 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     assert_eq!(ust1_p["quality"], "bounded_spot");
     assert_eq!(ust1_p["oracle_grade"], false);
     assert_eq!(ust1_p["policy"], "hub-fixed-reference-v1");
-    assert!(ust1_p["as_of"].is_string());
+    assert_eq!(
+        chrono::DateTime::parse_from_rfc3339(ust1_p["as_of"].as_str().unwrap())
+            .unwrap()
+            .timestamp_micros(),
+        confirmed_source_at.timestamp_micros(),
+        "API must not renew the producer's original observation time"
+    );
     assert_eq!(
         ust1_p["priced_leg_depth_usd"]
             .as_str()

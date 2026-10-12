@@ -827,3 +827,14 @@ regressions. Follow [LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and the
 SKIP with overall PASS WITH SKIPS; executed failures remain FAIL. Source PASS
 cannot establish deployed provider health, historical chain reconstruction or
 #1452 zero quote RPC acceptance.
+
+## Small-market floor and offline settlement follow-ups
+
+Run `make verify-issue-1479` and `make verify-issue-1480`. Follow
+[SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md),
+[OB1480](../skills/AGENTS_OFFLINE_SWAP_BUDGET.md) and the separate
+[1479 checklist](qa/issue-1479/README.md) / [1480 checklist](qa/issue-1480/README.md).
+Both runners repeat stable-source functional tests and preserve FAIL/SKIP outcomes.
+The #1264 runner now executes the actual Swap test file without a zero-match name
+filter, plus the strict offline budget suite. Historical 2.71M non-local fixtures
+do not certify the calibrated local route budget.

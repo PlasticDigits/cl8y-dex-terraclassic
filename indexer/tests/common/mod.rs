@@ -1,6 +1,7 @@
 mod database;
 pub mod lcd_mock;
 pub mod local_quotes;
+pub mod reference_marks;
 
 use std::fs::OpenOptions;
 use std::os::unix::io::AsRawFd;
@@ -77,6 +78,7 @@ pub fn test_config() -> Config {
         hub_cl8y_address: cl8y_dex_indexer::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
         usdt_cw20_address: cl8y_dex_indexer::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
         hub_usd_tvl_floor: "100".parse().unwrap(),
+        economic_usd_tvl_floor: "10".parse().unwrap(),
         bsc_rpc_urls: vec![],
         venus_vfdusd_poll_interval_ms: 30_000,
         wrap_mapper_address: None,

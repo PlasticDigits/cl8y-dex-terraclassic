@@ -135,10 +135,15 @@ async fn seed_market(pool: &PgPool) {
 }
 
 async fn seed_reference_marks(pool: &PgPool, cl8y_price: i64) {
-    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW()) ON CONFLICT(ticker) DO UPDATE SET as_of=NOW()")
-        .execute(pool).await.unwrap();
-    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,CASE WHEN contract_address=$1 THEN $2 ELSE 1 END,NOW(),'custc' FROM assets WHERE contract_address IS NOT NULL ON CONFLICT(contract_address) DO UPDATE SET price_usd=EXCLUDED.price_usd,as_of=NOW()")
-        .bind(CL8Y).bind(cl8y_price).execute(pool).await.unwrap();
+    let mut cfg = common::test_config();
+    cfg.hub_custc_address = CUSTC.into();
+    cfg.hub_clunc_address = CLUNC.into();
+    common::reference_marks::seed_reference_marks(
+        pool,
+        &HubUsdConfig::from_indexer_config(&cfg),
+        &[(CL8Y, cl8y_price.into())],
+    )
+    .await;
 }
 
 const COLD_FIXTURE_HTTP_LIMIT: usize = 512;
@@ -162,6 +167,8 @@ fn app_state(pool: PgPool, lcd: LcdClient) -> AppState {
     let mut config = common::test_config();
     config.router_address = Some("terra1routerfixture1452".into());
     config.route_solver_db_hybrid = true;
+    config.hub_custc_address = CUSTC.into();
+    config.hub_clunc_address = CLUNC.into();
     AppState {
         indexer_health: Default::default(),
         pool,

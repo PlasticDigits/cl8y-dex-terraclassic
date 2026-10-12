@@ -6,12 +6,15 @@ import { estimateFeeUlunaAmountForGasLimit, getGasLimitForTx, totalGasLimitForEx
 /**
  * Single source for Terra Classic tx fee envelopes (gas limit × {@link effectiveGasPriceUluna}).
  * Static per-message envelope (broadcast fallback and the fee row before a simulate resolves).
- * A successful swap simulate replaces this gas with `ceil(gas_used × 1.2)` (#1360).
+ * Non-local swap simulation may replace this gas with `ceil(gas_used × 1.2)` (#1360).
+ * Reviewed local entries use the stricter shared offlineSwapGasLimit policy (#1480), without I/O.
  */
 export type TerraClassicFeeEstimate = {
   gasLimit: number
   feeUluna: bigint
   gasPriceUluna: number
+  /** Unknown/over-limit local execution families retain the quote but cannot sign. */
+  coverageError?: string
 }
 
 export function estimateTerraClassicFeeForMsg(msg: Record<string, unknown>): TerraClassicFeeEstimate {

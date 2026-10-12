@@ -7,6 +7,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
+const { nativeBalance } = vi.hoisted(() => ({ nativeBalance: { data: '10000000000' } }))
 vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
   assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
   queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
@@ -42,7 +43,7 @@ vi.mock('@/hooks/useLimitOrderEscrowBalance', () => ({
 }))
 
 vi.mock('@/hooks/useNativeUlunaBalance', () => ({
-  useNativeUlunaBalance: () => ({ data: '10000000000', isLoading: false, isError: false }),
+  useNativeUlunaBalance: () => ({ data: nativeBalance.data, isLoading: false, isError: false }),
 }))
 
 vi.mock('@/services/terraclassic/pair', () => ({
@@ -142,6 +143,7 @@ async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
 describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    nativeBalance.data = '10000000000'
     vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
     useWalletStore.setState({ address: LOCAL_WALLET, walletType: 'simulated', error: null })
     vi.mocked(indexerClient.getTokens).mockResolvedValue(localTokens)
@@ -175,6 +177,36 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     expect(pair.simulateSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
     expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
+  })
+  it('actual Trade fee row and LUNC gate share the one-hop router budget at ±1 uluna (#1480)', async () => {
+    const { rerender } = await ready()
+    await openAdvanced(userEvent.setup())
+    expect(screen.getByTestId('trade-market-network-fee')).toHaveTextContent('~90.64 LUNC')
+    nativeBalance.data = '90639999'
+    rerender(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    nativeBalance.data = '90640000'
+    rerender(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    expect(screen.getByTestId('trade-market-submit')).toBeEnabled()
+    await userEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+    expect(pair.swap).not.toHaveBeenCalled()
   })
   it('signs precisely the reviewed single-hop router operations with positive floors', async () => {
     await ready()

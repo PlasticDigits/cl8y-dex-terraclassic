@@ -78,8 +78,11 @@ try {
     throw new Error(
       "Complete independently hashed root artifact attestation required",
     );
+  const MATRIX_ISSUE = process.env.DEX1473_BROWSER_MATRIX || "1473";
+  if (!["1473", "1479"].includes(MATRIX_ISSUE))
+    throw new Error("Explicit bounded matrix identity required");
   const matrixBytes = fs.readFileSync(
-    path.join(ROOT, "docs/qa/issue-1473/matrix.json"),
+    path.join(ROOT, `docs/qa/issue-${MATRIX_ISSUE}/matrix.json`),
   );
   const matrix = JSON.parse(matrixBytes);
   const pairCorpus =
@@ -100,7 +103,7 @@ try {
     elapsedBudgetExpired = false;
   const runStartedAt = Date.now();
   const receipt = {
-    issue: 1473,
+    issue: Number(MATRIX_ISSUE),
     launch_flags: browserLaunchFlags,
     shared_memory_mode: sharedMemoryMode,
     measurement_clock: "original_input_event_through_confirmed_render_frame",
@@ -393,6 +396,7 @@ try {
             amount_too_large: 422,
             insufficient_liquidity: 422,
             unsupported_semantics: 422,
+            reference_policy_excluded: 422,
             trading_blocked: 422,
             no_route: 422,
             missing_observations: 503,
@@ -825,6 +829,7 @@ try {
                       amount_too_large: "exceeds the supported trade limits",
                       insufficient_liquidity: "insufficient liquidity",
                       unsupported_semantics: "not supported by current pricing",
+                      reference_policy_excluded: "Reliable reference pricing is unavailable",
                       trading_blocked: "Trading is restricted",
                       no_route: "No supported route connects",
                       missing_observations:
