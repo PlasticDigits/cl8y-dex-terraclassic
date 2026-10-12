@@ -1,0 +1,47 @@
+{
+  "issue": 1483,
+  "verdict": "PASS WITH SKIPS",
+  "source_base_revision": "8227ed351a072b69de938dc07d9cfdf0c09d41a7",
+  "source_patch": "Additive OpenAPI response schema patch; final exact fingerprint below",
+  "utc_start": "2026-10-12T14:03:15Z",
+  "source_fingerprint": "2f4730de4ca1a1759598986a69765e2c6af4425669750ba996c76dab953cb248",
+  "passing_groups": 17,
+  "failed_groups": 0,
+  "skipped_groups": 2,
+  "rounds": [
+    {
+      "probe_tests": 7,
+      "wallet_helper_tests": 7,
+      "attribution_tests": 8,
+      "book_commission_tests": 1,
+      "independent_socket_tests": 2,
+      "frontend_tests": 225
+    },
+    {
+      "probe_tests": 7,
+      "wallet_helper_tests": 7,
+      "attribution_tests": 8,
+      "book_commission_tests": 1,
+      "independent_socket_tests": 2,
+      "frontend_tests": 225
+    }
+  ],
+  "socket_budget_ms": 500,
+  "socket_timing": [
+    "1483 same-cohort initialized useful socket budget=500ms: n=14 p50=1.543ms p95=1.892ms p99=1.892ms max=10.523ms",
+    "1483 same-cohort initialized useful socket budget=500ms: n=14 p50=1.492ms p95=1.936ms p99=1.936ms max=10.745ms"
+  ],
+  "tool_sha256": {
+    "scripts/qa/verify-issue-1483.sh": "891147353399ee9511360b1fd4e2fae30a07d5721e2f0edf3d6762ad0a86ff7d",
+    "scripts/qa/probe-route-cost-attribution-1483.py": "4805ee3163cb00c567e28d772b0b285094edd2d29122d4a8b813c1f577774650",
+    "scripts/qa/prepare-wallet-attribution-1483.py": "c4bf5b4723a1104e38478564601ccf6887d3c3c3829cc62a6555e6043428c24e",
+    "scripts/qa/localterra-route-attribution-1483.py": "32900f23721f7e290a7b0ee4f3baa64d3253e8707671f19286bfb516645bb1b0",
+    "scripts/qa/localterra-quote-protection-1473.py": "d714ddca7a50d2f7be467e6729bb57efa3b9910a7e6fcd4af8e1753183f593ce",
+    "scripts/qa/localterra-offline-gas-1480.py": "e0b0079edc0956f58a95e1e64164a1751ba765a639095ae4297079fe6f67a75d"
+  },
+  "scope": "Owned synthetic initialized source/socket/actual entry regression; not deployed or complete wallet acceptance",
+  "unverified_acceptance": [
+    "Full native/unwrap/tax/hook/book/device matrix",
+    "Independent deployed artifacts and sustained browser/monitoring receipts"
+  ]
+}

@@ -1,7 +1,8 @@
 # Native/wrapped route attribution verification
 
 Issue [#1483](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1483).
-Implementation PR/revision: recorded in [RESULTS.md](RESULTS.md).
+Implementation [PR #1484](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1484);
+revision and evidence: [RESULTS.md](RESULTS.md).
 Read [RC1483-1–RC1483-10](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md),
 [the API/rounding contract](../../route-solver.md#economic-attribution-1483),
 [reference integrity](../../../skills/AGENTS_SMALL_MARKET_REFERENCE.md),
@@ -46,7 +47,7 @@ Passing subsets, explicit unavailable checks and genuine failures belong in
 | [ ] | AC4 actual retail explanation | One truthful route percentage/cause in Swap and Trade at desktop/phone; all confirmation/Expert/refusal and signing blocks intact. |
 | [ ] | AC5 execution integrity | Zero request RPC, original context/expiry/gross/floors; owned supported native/wrapped funded net and rejected-floor rollback with gas separate. |
 | [ ] | AC6 repeated/full/live evidence | Stable first/retest boundary/abuse scope, deployed artifacts, useful timing, sanitized monitoring and sustained live replacement cycles; unavailable devices/SQL explicit. |
-| [ ] | AC7 docs/agent guidance | API/rounding/invariants/limits/checklist/issue/PR and skills crosslinks agree with the implementation. |
+| [x] | AC7 docs/agent guidance | API/rounding/invariants/limits/checklist/issue/PR and skills crosslinks agree with the implementation; passing source/OpenAPI/crosslink evidence in RESULTS.md. |
 
 ## Execution and receipts
 
@@ -62,6 +63,23 @@ owned isolated containers/artifacts and public receipt outputs. Inspect each
 driver's ownership and artifact preflight before reuse. Runtime safety controls
 are enforced even when unavailable workflow verification is explicitly skipped.
 
+`scripts/qa/localterra-route-attribution-1483.py` reuses the existing audited
+atomic two-message signer and the bounded original-hash inclusion monitor. Pass
+an explicitly owned `--container`, current checksum/source-verified DEX
+`--artifacts`, rebuilt protected `--wrapper-artifacts`, exact companion
+`--wrapper-source` and private `--output`. It checks supported native wrap plus
+one pool hop and wrapped one-hop settlement at 1/5/30% floors, including actual
+custody/supply/rate/wallet principal and atomic rejected-floor rollback. Its
+12M synthetic gas budget is separate from production offline calibration.
+The companion source/input and byte hashes identify the owned build; they are
+not independent proof of deployed wrapper artifacts.
+
+The #1473 driver now reuses the existing #1480 bounded 120-second REST monitor.
+It retains the accepted original transaction hash privately before polling and
+never rebuilds/resends an accepted or uncertain transaction. The original CLI
+inclusion timeout stays recorded; an included transaction is reconciled before
+only owned state is reset. Current artifact/source preflight also precedes funding.
+
 For human-only wallet review, `prepare-wallet-attribution-1483.py` attests served
 backend/frontend/root artifacts, performs two anonymous read-only quotes, writes
 a sanitized private receipt and opens public Swap links without exposing credentials.
@@ -75,6 +93,29 @@ The helper tests verify secret-free outputs, explicit revision/root binding and
 the bounded public review launch. Fresh actor-bound wallet quotes, selected 5%
 protection and one intentional submit/no-resend remain human checks. Tests do not certify a physical wallet's signed
 fields or production settlement. One human action per cl8y-pm card remains required.
+
+## Bounded deployed explanation matrix
+
+After independently attesting the exact merged frontend/backend/root artifacts,
+run [the live explanation tool](../../../scripts/qa/browser-route-attribution-1483.cjs):
+
+```sh
+EXPECTED_SOURCE_SHA=<exact-merged-40-hex> \
+DEX1483_ATTESTATION_FILE=<independent-attester-pass-json> \
+DEX1483_BROWSER_OUTPUT=/tmp/browser-explanation-live.json \
+bash scripts/with-node.sh -- node scripts/qa/browser-route-attribution-1483.cjs
+```
+
+The source-bound actual validator/clock helpers check 18 desktop/phone cases:
+native 1/1,000/4,000 inputs, actual quoted matching wrapped credits and genuine
+cLUNC/UST1 Trade inputs. Root HTML/JavaScript is checked against the independent
+attestation before/after. Hard caps are 100 API reads, 100 quote reads and 180,000ms;
+writes, actor requests, WebSockets and chain paths are blocked. No wallets or
+screenshots are captured. Original-input useful DOM timing uses the named 750ms
+budget, two frames and fully visible/unclipped matching explanation; socket500
+remains separate. Fixed sanitized receipts use mode0600 and omit private bodies.
+Run `node --test scripts/qa/test-browser-route-attribution-1483.cjs` first/retest;
+passing helper tests cannot replace the actual deployed matrix.
 
 ## Explicit skip policy
 

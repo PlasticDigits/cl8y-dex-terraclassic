@@ -1,8 +1,9 @@
 # Route attribution results (#1483)
 
 Issue: [#1483](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1483).
-Implementation PR and final revision will be linked in the issue completion
-comment. Follow [the checklist](README.md) and
+Implementation [PR #1484](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1484),
+initial implementation `8227ed351a072b69de938dc07d9cfdf0c09d41a7`.
+Final merged/deployed revisions are attested separately. Follow [the checklist](README.md) and
 [RC1483](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md).
 
 ## Supported source scope
@@ -50,6 +51,25 @@ concurrent testing. The failure remains recorded; successful fresh #1479 runs of
 the same original test are tracked separately and no production TTL was relaxed.
 Final stable source first/retest verdicts follow below.
 
+The new verifier's initial wallet-helper command had a filename typo and failed
+both rounds; correcting the path produced passing 7/7 helper tests each round.
+An owned #1473 funded retest later timed out in the historical 45-second CLI
+inclusion acquisition after six positive cases. A bounded owned ledger search
+found the latest included code-5 transaction with the matching RAW18 size-100,
+1%-spread input, but the historical helper did not retain the original hash, so
+this is not exact original-hash attestation. It was never automatically resent.
+The ledger was retained privately before resetting only owned chain state.
+The corrected driver reuses the existing #1480 bounded REST monitor and private
+accepted-hash receipt, with current artifact/source preflight.
+
+The broad #1452 first browser pass succeeded; its retest failed before measurement
+while waiting 20 seconds for Trade input initialization. A fresh owned retry later
+failed the original 30-second navigation clock. Private diagnostic reruns retained
+both original clocks and found separate incomplete receive-output and transport
+timing failures. These remain FAIL until their documented corrections/retests;
+they do not invalidate passing exact raw socket economics, nor establish an app
+or host diagnosis without independent evidence.
+
 A further independent regression reproduced an actual ranking defect: the
 bounded deeper worker evaluated a strictly higher-net three-hop route but did
 not publish it when its improvement was below the undocumented 0.1% threshold.
@@ -76,3 +96,133 @@ provenance preflight; original build recipe/production artifacts are not re-atte
 This subset does not establish native composition, tax/hooks/books or device
 acceptance. Only the explicitly owned isolated chain was created; no shared or
 production state was reset.
+
+## Stable final source verification
+
+[Final focused source receipt](source-final-summary.json): **PASS WITH SKIPS**,
+17 passing groups, zero failures and two explicit complete-funded/device/deployed
+acceptance skips. Both rounds passed 7 public-probe controls, 7 private-wallet
+helper controls, 8 independent attribution tests, 1 per-maker book-commission
+rounding test, 2 same-cohort socket/ranking fixtures and 225 actual frontend tests.
+Types, Rust formatting, helper/verifier syntax, documentation and stable-source
+fingerprint checks pass. Exact source fingerprint:
+`2f4730de4ca1a1759598986a69765e2c6af4425669750ba996c76dab953cb248`.
+The additive API/OpenAPI response schema is separately covered by two passing
+regressions; source/backend/served root attestation remains a separate requirement.
+
+Initialized useful socket timing, 500ms budget, n=14 each round: first
+p50=1.543ms, p95/p99=1.892ms, max=10.523ms; retest p50=1.492ms,
+p95/p99=1.936ms, max=10.745ms. The exact deeper regression improves
+997,000 to 997,498 raw units on one unchanged cohort, while retaining the useful
+initial direct result and original generation/floors. No request-provider calls
+occurred. These are loopback synthetic measurements, not a deployed SLA.
+
+The separate #1480 stable-source retest passed 10 groups, zero failures and three
+explicit broader funded/device skips, with 370 frontend tests per round. Additional
+normal verifier and funded first/retest summaries are recorded as they finish;
+interim source-fingerprint failures remain explicit because source changed during
+those runs. Passing economic assertions cannot be labeled stable final receipts
+until the final checksum is recorded.
+
+## Owned native composition subset
+
+[Native atomic green receipt](funded-native-green-summary.json): 12 positive
+settlements and 24 intentionally rejected hop/final floors passed on fresh owned
+state after fixing the local fixture's narrow read-only loopback EOF handling.
+The earlier run retained eight passing cases before that pre-transaction read
+failed; no accepted transaction was resent. Supported native wrap plus one pool
+hop and wrapped one-hop routes cover 1/5/30% floors and independently chosen
+1/1,000-token inputs. Native positive cases prove custody increases by authorized
+gross, supply increases by exact 98% credit, rate usage increases by gross and
+pre-existing wrapped wallet inventory is unchanged. Wrapped positive cases debit
+only exact principal and leave wrapper custody/supply/rate unchanged. All output
+wallet net/floors reconcile independently; rejected cases restore custody, supply,
+rate, wallet principal, reserves and LP shares. Paid transaction ante fees remain
+separate. Gas used ranged 2,120,583–2,530,859 with an explicit 12M synthetic budget;
+this is not production gas calibration or device inspection. Companion wrapper
+source/input and artifact byte hashes are recorded, with the documented Rust1.83
+release-library recipe; this does not attest a deployed wrapper release.
+
+## Owned infrastructure correction and clean browser evidence
+
+Host disk I/O pressure caused separate owned fixture failures. The native retest
+retained its original accepted hash privately at the unchanged 120-second
+deadline; exact RPC and REST reconciliation subsequently confirmed the intended
+code-5 floor rejection. Another accepted setup transaction reconciled code 0.
+Neither was resent. Original ledgers/failures remain private. Only the owned
+LocalTerra data, future disposable Postgres state and browser/build scratch were
+reprovisioned into bounded tmpfs; runtime durability, budgets, assertions and
+measurement clocks were not relaxed. Active old SQL fixtures kept their cluster
+until their processes completed. Tmpfs does not establish machine-crash persistence.
+
+[Clean original browser first/retest](browser-controlled-summary.json) used
+fresh owned private tmpfs scratch with the original uninstrumented #1452 helper.
+Both rounds passed all 40 cases across desktop/mobile Swap/Trade, maxima 50.6ms
+and 52ms at the historical 250ms budget. There were zero quote-triggered provider
+calls and page errors. Private controls distinguished immediate server flush/body
+delivery from disk-backed renderer stalls. Historical disk-backed failures stay
+recorded; the new passing tests do not rewrite them. This is controlled browser
+evidence, separate from live artifacts and the issue's named 750ms deployed criterion.
+
+## Related security checks
+
+[Normal related-verifier summary](security-verifiers-summary.json) records
+#1391 (6/0/2), #1398 (7/0/0), #1381 (12/0/2), #1390 (14/0/2) and #1396 (28/0/1),
+as PASS/FAIL/SKIP groups respectively. Contract source stayed unchanged; the
+parent's additive API schema edits are explicitly scoped, with final focused
+source evidence recorded separately. Full contract workspace checks covered 1,099
+tests; actual ACL/socket/role and authenticated runtime-login checks passed twice.
+Two original #1396 missing-runtime-role fixture failures were retained, corrected
+only on owned QA clusters, and rerun. Host IPv6-disabled and unavailable broader
+chain/live oracle acceptance remain explicit skips, not production privilege proof.
+
+Final stable #1479 verification passed 12 groups, zero failures and one complete
+funded/live acceptance skip; the original pending-fee gate passed without extending
+its three-second test or four-second production window. Economic reporting remains
+at $10 and independently priced hub depth remains $100.
+
+AC7 is complete in the reviewed source scope: API meaning/nullable OpenAPI schema,
+integer rounding, exact ranking, retail/fee separation, issue/PR/checklist and
+agent playbook links are updated. Protocol/reference/device/verification limits
+remain explicit. AC1–AC6 full boxes remain unchecked pending their complete
+body/comment coverage; individual passing subsets above do not close the issue.
+
+The clean tmpfs native [first](funded-native-tmpfs-first-summary.json) and
+[retest](funded-native-tmpfs-retest-summary.json) each passed 12 positive
+native/wrapped settlements and 24 intentional floor rejections. Both retain the
+same raw principal/custody/supply/rate/output/LP assertions and original
+120-second inclusion deadline. This completes their supported one-hop subset,
+not native-output/tax/hook/book/device or production acceptance. Clean current
+artifact 6/18/9-decimal protection [first](funded-protection-tmpfs-first-summary.json)
+passed all 24 cases at 1/5/30%, with independent wallet net and rejected-floor
+reserve/LP rollback. The matching
+[retest](funded-protection-tmpfs-retest-summary.json) also passed all 24 cases;
+legacy false-spread rejections and poisoned positive floors restored the original
+reserves/LP state, followed by exact code-0 delivery. Included-hash monitoring
+never resubmitted accepted/uncertain transactions. Native output and complete
+tax/hook/book/device/deployed acceptance remain separate.
+
+The first full #1473 controlled browser matrix completed 4,250 scenarios and
+3,948 useful timing samples: p50=88.6ms, p95=145.7ms, p99=166.7ms,
+maximum=1,629.7ms against the unchanged 750ms temporary budget. Four actual timing
+cases failed; its concurrent-source fingerprint also failed. All other source/
+socket/frontend groups passed. The original failed inputs/receipt remain private;
+a complete fresh owned tmpfs rerun keeps the same input clocks/budget and is
+recorded separately once finished. The passing smaller #1452 matrix cannot
+substitute for those failed full-matrix cases.
+
+The complete fresh original #1473 tmpfs rerun passed **all 4,250 scenarios with
+zero failures**. Its 3,948 initialized useful samples measured p50=88.4ms,
+p95=146.2ms, p99=164.1ms and maximum=236.3ms against the same named **750ms**
+temporary browser budget. Original input/transport/DOM clocks and all protection/
+visibility assertions were unchanged. The four original disk-backed timing
+failures and concurrent-source verdict remain retained. This full passing matrix
+completes that controlled source/browser scope; it does not attest deployment.
+
+Root's final public probe tool added canonical Uint128 validation before exporting
+fair/net raw fields plus required initialized native sentinels. Its updated
+**8/8 first and 8/8 retest** tests are separate tool-only evidence; the application
+source fingerprint above remains unchanged. The bounded deployed explanation
+tool's **11/11 first and 11/11 retest** tests cover actual source-bound validators,
+clock/caps, clipping, injection/duplicate/expiry/floor/actor restrictions and the
+750ms boundary. Neither helper test suite claims an executed deployed matrix.

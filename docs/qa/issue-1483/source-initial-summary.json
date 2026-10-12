@@ -1,0 +1,39 @@
+{
+  "issue": 1483,
+  "verdict": "PASS WITH SKIPS",
+  "revision": "d65228c2970a1ec7b11d81000d3f83ceb58132c4 + initial reviewed patch (later committed8227ed35)",
+  "utc_start": "2026-10-12T13:31:36Z",
+  "source_fingerprint": "f109571f0a6d9aedf8c108b249855dafdcac831782ec0c560b564df9effdd56f",
+  "passing_groups": 16,
+  "failed_groups": 0,
+  "skipped_groups": 2,
+  "rounds": [
+    {
+      "probe_tests": 7,
+      "wallet_helper_tests": 7,
+      "attribution_tests": 8,
+      "book_commission_tests": 1,
+      "independent_socket_tests": 2,
+      "frontend_tests": 225
+    },
+    {
+      "probe_tests": 7,
+      "wallet_helper_tests": 7,
+      "attribution_tests": 8,
+      "book_commission_tests": 1,
+      "independent_socket_tests": 2,
+      "frontend_tests": 225
+    }
+  ],
+  "socket_budget_ms": 500,
+  "socket_timing": [
+    "1483 same-cohort initialized useful socket budget=500ms: n=14 p50=1.488ms p95=1.893ms p99=1.893ms max=10.497ms",
+    "1483 same-cohort initialized useful socket budget=500ms: n=14 p50=1.616ms p95=2.235ms p99=2.235ms max=11.277ms"
+  ],
+  "scope": "Owned synthetic initialized source/socket/actual entry regression; not deployed or full wallet acceptance",
+  "limitations": [
+    "Original report unavailable",
+    "Deployed artifact and physical wallet evidence separately required",
+    "Full supported/attack matrix not completed"
+  ]
+}

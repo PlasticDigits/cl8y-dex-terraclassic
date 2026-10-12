@@ -1,0 +1,37 @@
+{
+  "utc_end": "2026-10-12T14:17:17.583119+00:00",
+  "revision": "d65228c2970a1ec7b11d81000d3f83ceb58132c4",
+  "initial_source_fingerprint_1473": "98e94c7e7d2c8afa810c1a22338929d25417bb76414591447a57c59bc8483746",
+  "final_source_fingerprint_1473": "695bfdab03c377f2bebad6366d29e5ab81e52cc932a80b70e56e078008f0823d",
+  "contract_source_fingerprint": "3b9a6511717edd72cad33078ca95d226c92bf62bd9605b58b0a371766c66ed75",
+  "source_change_scope": "Parent additive OpenAPI response-schema edits; contract source unchanged; timing/economic behavior unchanged; final focused source receipt separately pins final fingerprint.",
+  "verifiers": {
+    "1391": {
+      "pass_groups": 6,
+      "fail_groups": 0,
+      "skip_groups": 2
+    },
+    "1398": {
+      "pass_groups": 7,
+      "fail_groups": 0,
+      "skip_groups": 0
+    },
+    "1381": {
+      "pass_groups": 12,
+      "fail_groups": 0,
+      "skip_groups": 2
+    },
+    "1390": {
+      "pass_groups": 14,
+      "fail_groups": 0,
+      "skip_groups": 2
+    },
+    "1396": {
+      "pass_groups": 28,
+      "fail_groups": 0,
+      "skip_groups": 1
+    }
+  },
+  "retained_failure": "1396 first two DB-isolation assertions failed because the owned QA cluster lacked the required runtime fixture role; provisioned least-privilege role and reran normal verifier including authenticated-runtime case. Final28PASS/0FAIL/1hostIPv6skip.",
+  "scope": "Normal local source/owned SQL/socket/role checks; unavailable chain/live oracle scenarios stay separate; no production ACL claim."
+}

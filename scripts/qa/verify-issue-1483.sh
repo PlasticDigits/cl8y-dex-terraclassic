@@ -51,6 +51,7 @@ start
 for attempt in first retest; do
   run "$attempt public probe privacy, cap and attribution boundary" python3 scripts/qa/test-probe-route-cost-attribution-1483.py
   run "$attempt private wallet helper least-scope and no-disclosure boundary" python3 scripts/qa/test-prepare-wallet-attribution-1483.py
+  run "$attempt deployed explanation source, clock and public evidence boundary" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-attribution-1483.cjs
   selected "$attempt signed raw attribution and unavailable boundaries" RUST rust
   selected "$attempt exact-cohort amount-cache ranking, wrapper and zero-RPC sockets" DB sockets
   selected "$attempt actual Swap/Trade explanation and execution guards" FRONTEND frontend
@@ -58,6 +59,7 @@ done
 selected 'frontend types' TYPES bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/tsc -b --pretty false
 selected 'Rust formatting' FORMAT cargo fmt --manifest-path indexer/Cargo.toml -- --check
 run 'verifier syntax' bash -n scripts/qa/verify-issue-1483.sh
+run 'owned funded driver syntax' python3 -c "import ast,pathlib; ast.parse(pathlib.Path('scripts/qa/localterra-route-attribution-1483.py').read_text()); ast.parse(pathlib.Path('scripts/qa/localterra-quote-protection-1473.py').read_text())"
 run 'API, invariants and checklist crosslinks' documentation
 skip 'Complete funded native/wrapped/tax/hook/book/device scope requires actual separate receipts'
 skip 'Independent deployed backend/frontend/contracts, sustained browser timing and monitoring require actual separate receipts'

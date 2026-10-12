@@ -42,6 +42,14 @@ def raw(value, signed=False):
     return int(value)
 
 
+def quoted_outputs(body):
+    net = raw(body["estimated_amount_out_net"])
+    fair = raw(body["spot_amount_out"])
+    if net <= 0 or fair <= 0:
+        raise ValueError("quote_output_shape")
+    return str(net), str(fair)
+
+
 def attribution(body):
     """Check raw reconciliation independently; no received copy or actor fields survive."""
     a = body.get("economic_attribution")
@@ -151,8 +159,9 @@ def probe(revision, require_attribution, cycles):
                         row.update(status=status, outcome=outcome, valid=valid)
                         if outcome == "executable":
                             meta = body["execution_metadata"]
+                            net_output, fair_output = quoted_outputs(body)
                             row.update(generation=meta["generation"], observed_at_ms=meta["observed_at_ms"], expires_at_ms=meta["expires_at_ms"],
-                                       net_amount_out=body["estimated_amount_out_net"], fair_amount_out=body["spot_amount_out"], hop_count=len(meta["hops"]))
+                                       net_amount_out=net_output, fair_amount_out=fair_output, hop_count=len(meta["hops"]))
                             if require_attribution:
                                 row["attribution"] = attribution(body)
                             observed.append(body)
@@ -162,6 +171,8 @@ def probe(revision, require_attribution, cycles):
                             row["socket_budget_pass"] = elapsed <= 500
                         if not valid:
                             failures.append({"cycle": cycle, "pair": row["pair"], "amount": amount, "endpoint": endpoint, "failure_class": outcome})
+                        elif offer == "LUNC" and ask == "USTR" and control == "native_gross" and human in ("1", "1000", "4000") and outcome != "executable":
+                            failures.append({"cycle": cycle, "pair": row["pair"], "amount": amount, "endpoint": endpoint, "failure_class": "required_executable_unavailable", "outcome": outcome})
                     except (ValueError, KeyError, TypeError, OSError, http.client.HTTPException) as error:
                         row.update(valid=False, failure_class=type(error).__name__, elapsed_ms=round((time.perf_counter() - begin) * 1000, 3))
                         failures.append({"cycle": cycle, "pair": row["pair"], "amount": amount, "endpoint": endpoint, "failure_class": type(error).__name__})
@@ -185,7 +196,7 @@ def probe(revision, require_attribution, cycles):
             "read_only": True, "signing": False, "socket_budget_ms": 500, "measurement_clock": "request_start_through_parsing_and_useful_result_validation", "useful_socket_timing": OUTCOMES.common.distribution(useful),
             "failures": failures, "comparisons": comparisons, "samples": rows,
             "limits": ["anonymous public quotes; no reserve/SQL/contract attestation or settlement", "98% matching control is configured test input, not a discovery or historical reproduction", "different-generation responses never establish same-cohort equivalence"],
-            "overall": "FAIL" if failures or any(row.get("socket_budget_pass") is False for row in rows) else "PASS WITH SKIPS"}
+            "overall": "FAIL" if failures or not useful or any(row.get("socket_budget_pass") is False for row in rows) else "PASS WITH SKIPS"}
 
 
 def main():

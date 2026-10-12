@@ -61,6 +61,15 @@ class AttributionBoundary(unittest.TestCase):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 PROBE.health_revision(200, body)
 
+    def test_quote_outputs_reject_prose_and_uint128_overflow_before_export(self):
+        self.assertEqual(PROBE.quoted_outputs(self.quote()), ("900", "1000"))
+        for field in ("spot_amount_out", "estimated_amount_out_net"):
+            for value in ("<script>provider prose", "0", str(1 << 128), "01", "-1"):
+                quote = self.quote()
+                quote[field] = value
+                with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                    PROBE.quoted_outputs(quote)
+
     def test_slow_body_cannot_extend_hard_request_deadline(self):
         class SlowConnection:
             status = 200
