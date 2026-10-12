@@ -6,6 +6,7 @@ export const ROUTE_QUOTE_REASONS = {
   amount_too_large: 'This amount exceeds the supported trade limits.',
   insufficient_liquidity: 'There is insufficient liquidity for this amount.',
   unsupported_semantics: 'This trade is not supported by current pricing.',
+  reference_policy_excluded: 'Reliable reference pricing is unavailable for this market.',
   missing_observations: 'Pricing is temporarily unavailable for this trade.',
   stale_observations: 'Pricing has expired; a fresh quote is needed.',
   accounting_unavailable: 'Pricing could not be calculated safely for this trade.',

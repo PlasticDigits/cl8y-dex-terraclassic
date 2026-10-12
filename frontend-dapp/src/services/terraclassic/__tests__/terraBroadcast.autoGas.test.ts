@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { broadcastTerraExecuteContracts } from '../terraBroadcast'
 import { installSwapGasReaderForTests, type SwapGasReadRequest, type SwapGasReader } from '../swapAutoGas'
 import { AUTO_GAS_FALLBACK_STEP, AUTO_GAS_STEP_TRANSPORT_LIMIT } from '@/utils/constants'
-import { sendHookExecuteSwapOperationsMsg, totalGasLimitForExecuteMsgs } from '../terraGas'
+import { sendHookExecuteSwapOperationsMsg } from '../terraGas'
 
 const mockBroadcastTx = vi.fn()
 const mockPollTx = vi.fn()
@@ -155,7 +155,7 @@ describe('local reviewed route preparation (#1452)', () => {
       onPhaseChange: phases,
     })
     expect(reader).not.toHaveBeenCalled()
-    expect(signedGas()).toBe(BigInt(totalGasLimitForExecuteMsgs([twoHop])))
+    expect(signedGas()).toBe(5_600_000n)
     expect(phases).toHaveBeenCalled()
     expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
   })

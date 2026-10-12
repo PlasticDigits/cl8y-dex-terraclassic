@@ -124,6 +124,53 @@ pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx:
         .collect())
 }
 
+/// Bounded SQL-only scheduled diagnostic census. An overflow is not a complete
+/// census and cannot prove a token has no eligible alternative reference.
+pub async fn quote_reference_census<'e, E>(
+    executor: E,
+) -> Result<Option<Vec<ReservePair>>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = Postgres>,
+{
+    let rows: Vec<PairReserveJoinRow> = sqlx::query_as(&format!(
+        "{RESERVE_INVENTORY_QUERY} ORDER BY p.id LIMIT 513"
+    ))
+    .fetch_all(executor)
+    .await?;
+    if rows.len() > 512 {
+        return Ok(None);
+    }
+    Ok(Some(
+        rows.into_iter()
+            .filter_map(|r| {
+                Some(ReservePair {
+                    pair_id: r.pair_id,
+                    pair_address: r.pair_address,
+                    asset_0: asset_ref(
+                        r.a0_id,
+                        r.a0_symbol,
+                        r.a0_denom,
+                        r.a0_contract,
+                        r.a0_is_cw20,
+                        r.a0_decimals,
+                    ),
+                    asset_1: asset_ref(
+                        r.a1_id,
+                        r.a1_symbol,
+                        r.a1_denom,
+                        r.a1_contract,
+                        r.a1_is_cw20,
+                        r.a1_decimals,
+                    ),
+                    reserve_0: r.reserve_0.unwrap_or_default(),
+                    reserve_1: r.reserve_1.unwrap_or_default(),
+                    snapshot_at: r.snapshot_at.unwrap_or(DateTime::<Utc>::MIN_UTC),
+                })
+            })
+            .collect(),
+    ))
+}
+
 /// Full factory inventory for TVL, including missing reserve rows. A missing observation
 /// carries the minimum timestamp sentinel and must be classified before zero reserves.
 pub async fn list_protocol_reserve_pairs_tx(
@@ -227,7 +274,10 @@ pub async fn get_hub_references(pool: &PgPool) -> Result<Vec<HubReference>, sqlx
         .await
 }
 
-pub async fn get_all_hub_prices(pool: &PgPool) -> Result<Vec<HubPriceRow>, sqlx::Error> {
+pub async fn get_all_hub_prices<'e, E>(executor: E) -> Result<Vec<HubPriceRow>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = Postgres>,
+{
     sqlx::query_as(
         "SELECT ticker, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at, as_of, priced_leg_depth_usd, quality,
          EXISTS (SELECT 1 FROM oracle_state os
@@ -238,7 +288,7 @@ pub async fn get_all_hub_prices(pool: &PgPool) -> Result<Vec<HubPriceRow>, sqlx:
          FROM hub_prices
          ORDER BY ticker",
     )
-    .fetch_all(pool)
+    .fetch_all(executor)
     .await
 }
 

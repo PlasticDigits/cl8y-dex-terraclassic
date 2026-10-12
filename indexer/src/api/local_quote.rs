@@ -129,6 +129,7 @@ pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
                         | "trading_blocked"
                         | "no_route"
                         | "invalid_request"
+                        | "reference_policy_excluded"
                 )
             })
         });
@@ -335,6 +336,9 @@ fn publish(
     let mut refs = references.prices.iter().collect::<Vec<_>>();
     refs.sort_by_key(|(id, _)| **id);
     digest.update(format!("{refs:?}"));
+    let mut exclusions = references.policy_exclusions.iter().collect::<Vec<_>>();
+    exclusions.sort_by_key(|(id, _)| **id);
+    digest.update(format!("{}|{exclusions:?}", references.policy_identity));
     let mut actor_fields = actors.iter().collect::<Vec<_>>();
     actor_fields.sort_by_key(|(address, _)| *address);
     digest.update(format!("{actor_fields:?}"));
@@ -1942,7 +1946,63 @@ fn progress_local(
     }
     let ck = key(&ns, &s, q, spread_atomics(q.max_spread.as_deref())?);
     let searching = g.jobs.contains(&ck);
-    let cached = g.results.contains_key(&ck);
+    let resolve_id = |address: &str| {
+        let wrapped = g
+            .wrappers
+            .get(&ns)
+            .and_then(|w| w.mappings.get(address))
+            .map(|mapping| mapping.cw20.as_str())
+            .unwrap_or(address);
+        s.ids.get(wrapped).copied()
+    };
+    let reference_blocker = [q.token_in.as_str(), q.token_out.as_str()]
+        .into_iter()
+        .find_map(|address| {
+            resolve_id(address).map_or(Some("missing_observations"), |id| {
+                s.references.unavailable_reason(id, Utc::now())
+            })
+        });
+    let cached = reference_blocker.is_none()
+        && g.results.get(&ck).is_some_and(|body| {
+            body["hops"].as_array().is_some_and(|hops| {
+                !hops.is_empty()
+                    && hops.iter().all(|hop| {
+                        hop["pair"].as_str().is_some_and(|pair| {
+                            !crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(pair)
+                                && s.pairs.iter().any(|p| p.contract_address == pair)
+                                && s.config_expiries
+                                    .get(pair)
+                                    .copied()
+                                    .unwrap_or(s.config_expiry_ms)
+                                    > now_ms()
+                        })
+                    })
+            }) && (!matches!(q.token_in.as_str(), "uluna" | "uusd")
+                && !matches!(q.token_out.as_str(), "uluna" | "uusd")
+                || g.wrappers
+                    .get(&ns)
+                    .is_some_and(|wrapper| wrapper.is_fresh(now_ms())))
+                && body["execution_metadata"]["expires_at_ms"]
+                    .as_i64()
+                    .is_some_and(|expires| expires > now_ms())
+                && body["execution_metadata"]["execution_supported"].as_bool() != Some(false)
+                && body["execution_metadata"]["minimum_receive"]
+                    .as_str()
+                    .and_then(|raw| raw.parse::<u128>().ok())
+                    .is_some_and(|floor| floor > 0)
+                && body["router_operations"]
+                    .as_array()
+                    .is_some_and(|operations| !operations.is_empty())
+        });
+    let eligibility = if cached {
+        "executable_quote"
+    } else if reference_blocker == Some("reference_policy_excluded") {
+        "policy_excluded"
+    } else if reference_blocker.is_some() {
+        "waiting_for_observations"
+    } else {
+        "unverified"
+    };
     Ok(super::route_solve_progress::SolveProgress {
         stage: if searching {
             "evaluating"
@@ -1952,17 +2012,21 @@ fn progress_local(
             "idle"
         }
         .into(),
-        done: u32::from(!searching),
+        done: u32::from(cached && !searching),
         total: 1,
         label: if searching {
             "Improving local route"
+        } else if cached {
+            "Local quote cached"
         } else {
-            "Local route ready"
+            "Local search idle"
         }
         .into(),
         cache_hit: cached,
         updated_at_ms: now_ms().max(0) as u64,
         quote_generation: Some(s.generation.clone()),
+        quote_eligibility: Some(eligibility.into()),
+        quote_blocker: reference_blocker.map(str::to_owned),
     })
 }
 
@@ -1973,6 +2037,8 @@ mod ingestion;
 mod modes;
 mod pair_admission;
 mod reverse;
+#[cfg(test)]
+mod small_market_tests;
 #[cfg(test)]
 use reverse::inverse_pool_path;
 #[cfg(test)]
@@ -2337,6 +2403,7 @@ mod tests {
             Err(diagnostics::Rejection::Stale)
         ));
     }
+
     #[test]
     fn issue1473_http_reason_contract_allowlists_and_bounds_private_payloads() {
         let now = now_ms();

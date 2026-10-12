@@ -18,14 +18,16 @@ common = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(common)
 REASONS = {
     "protection": 422, "price_impact_too_high": 422, "amount_too_small": 422, "amount_too_large": 422, "insufficient_liquidity": 422,
-    "unsupported_semantics": 422, "trading_blocked": 422, "no_route": 422,
+    "unsupported_semantics": 422, "reference_policy_excluded": 422, "trading_blocked": 422, "no_route": 422,
     "missing_observations": 503, "stale_observations": 503,
     "accounting_unavailable": 503, "invalid_request": 400,
 }
 
 
-def corpus(profile="full"):
-    matrix = json.loads((ROOT / "docs/qa/issue-1473/matrix.json").read_text())
+def corpus(profile="full", issue=1473):
+    if issue not in (1473, 1479):
+        raise ValueError("bounded matrix identity required")
+    matrix = json.loads((ROOT / f"docs/qa/issue-{issue}/matrix.json").read_text())
     amounts = matrix["human_amounts"]
     pairs = matrix["pairs"]
     if profile == "reproduction":
@@ -199,7 +201,7 @@ def probe(args):
 
     try:
         stage = "corpus"
-        scenarios = list(corpus(args.profile))
+        scenarios = list(corpus(args.profile, getattr(args, "matrix", 1473)))
         if not 1 <= len(scenarios) <= 420:
             raise ValueError()
         for trial in range(args.cycles):
@@ -267,7 +269,7 @@ def probe(args):
             connection.close()
     counts = {reason: sum(row["outcome"] == reason for row in rows) for reason in sorted({row["outcome"] for row in rows})}
     failed = bool(failures) or any(not row["classified"] for row in rows) or (args.enforce_socket_budget and any(row["outcome"] == "executable" and not row["socket_budget_pass"] for row in rows))
-    return {"issue": 1473, "revision": args.revision, "backend_revisions": revisions,
+    return {"issue": getattr(args, "matrix", 1473), "revision": args.revision, "backend_revisions": revisions,
             "utc_start": started, "utc_end": utc_now(),
             "overall": "FAIL" if failed else "PASS WITH SKIPS", "request_count": len(rows),
             "counts": counts, "samples": rows, "prerequisites": prerequisites, "failures": failures,
@@ -282,6 +284,7 @@ def main():
     parser.add_argument("--base-url", default="https://indexer.dex.cl8y.com")
     parser.add_argument("--revision", required=True)
     parser.add_argument("--profile", choices=["reproduction", "census", "full"], default="reproduction")
+    parser.add_argument("--matrix", type=int, choices=[1473, 1479], default=1473)
     parser.add_argument("--endpoints", nargs="+", choices=["solve", "best"], default=["solve"])
     parser.add_argument("--cycles", type=int, default=1)
     parser.add_argument("--cycle-delay", type=float, default=181)

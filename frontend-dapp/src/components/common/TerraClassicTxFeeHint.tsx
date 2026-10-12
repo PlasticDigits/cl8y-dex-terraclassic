@@ -34,6 +34,13 @@ export function TerraClassicTxFeeHint({
   const textSize = compact ? 'text-[10px]' : 'text-xs'
   const lunc = formatTerraClassicFeeLunc(estimate.feeUluna)
 
+  if (estimate.coverageError)
+    return (
+      <p className={className} data-testid={testId}>
+        Network fee unavailable
+      </p>
+    )
+
   return (
     <p
       className={`${textSize} tabular-nums ${className}`.trim()}

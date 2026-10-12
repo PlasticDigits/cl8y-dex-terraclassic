@@ -67,6 +67,8 @@ pub struct HubUsdConfig {
     pub usdt_address: String,
     /// Legacy env name HUB_USD_TVL_FLOOR; applied only to independently priced leg USD depth (#1391).
     pub tvl_floor: BigDecimal,
+    /// Separate total-TVL admission for economic token marks; never hub trust depth.
+    pub economic_tvl_floor: BigDecimal,
     pub max_staleness: Duration,
 }
 
@@ -80,6 +82,7 @@ impl HubUsdConfig {
             cl8y_address: config.hub_cl8y_address.clone(),
             usdt_address: config.usdt_cw20_address.clone(),
             tvl_floor: config.hub_usd_tvl_floor.clone(),
+            economic_tvl_floor: config.economic_usd_tvl_floor.clone(),
             max_staleness: Duration::from_millis(config.book_snapshot_max_staleness_ms()),
         }
     }
@@ -162,10 +165,8 @@ fn addr_eq(a: &str, b: &str) -> bool {
 
 /// Hub cUSTC = configured CW20 **or** native `uusd` (1:1 wrap / USTC). Not symbol match.
 pub fn is_hub_custc(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
-    if let Some(d) = asset.denom.as_deref() {
-        if !asset.is_cw20 && asset.contract_address.is_none() && d == "uusd" {
-            return true;
-        }
+    if is_native_denom(asset, "uusd") {
+        return true;
     }
     asset.is_cw20
         && asset.denom.is_none()
@@ -173,6 +174,11 @@ pub fn is_hub_custc(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
             .contract_address
             .as_deref()
             .is_some_and(|a| addr_eq(a, &cfg.custc_address))
+}
+
+/// Native identity cannot be borrowed by a CW20 or contradictory contract row.
+pub fn is_native_denom(asset: &AssetRef, denom: &str) -> bool {
+    !asset.is_cw20 && asset.contract_address.is_none() && asset.denom.as_deref() == Some(denom)
 }
 
 pub fn is_hub_ust1(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
@@ -477,6 +483,7 @@ mod tests {
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
             usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: bd("100"),
+            economic_tvl_floor: bd("100"),
             max_staleness: Duration::from_secs(60),
         }
     }

@@ -133,7 +133,10 @@ export const FAUCET_DRIP_GAS_LIMIT = 400_000
 
 /** Uluna in `Fee.amount` for one message at `gasLimit` (same math as {@link buildTerraClassicFee}). */
 export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
-  return BigInt(Math.ceil(effectiveGasPriceUluna() * gasLimit))
+  if (!Number.isSafeInteger(gasLimit) || gasLimit <= 0) throw new Error('Invalid transaction gas budget')
+  const amount = Math.ceil(effectiveGasPriceUluna() * gasLimit)
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid transaction fee budget')
+  return BigInt(amount)
 }
 
 /** Clamp to the contract's supported insert-walk range; missing legacy fields use the retail default. */
@@ -192,7 +195,7 @@ export function gasLimitForLimitOrderCancelBatch(orderCount: number): number {
 }
 
 export function buildTerraClassicFee(gasLimit: number): Fee {
-  const feeAmount = Number(estimateFeeUlunaAmountForGasLimit(gasLimit))
+  const feeAmount = estimateFeeUlunaAmountForGasLimit(gasLimit)
 
   return new Fee({
     amount: [

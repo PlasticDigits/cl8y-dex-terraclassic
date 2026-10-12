@@ -38,6 +38,8 @@ pub const DEFAULT_VFDUSD_ADDRESS: &str =
 pub const DEFAULT_USDT_CW20_ADDRESS: &str =
     "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4";
 pub const DEFAULT_HUB_USD_TVL_FLOOR: &str = "100";
+/// Explicit #1479 policy: economic token total-TVL floor, separate from hub trust depth.
+pub const DEFAULT_ECONOMIC_USD_TVL_FLOOR: &str = "10";
 
 /// Deployment profile. `RUN_MODE=prod` enforces explicit production configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,8 +271,10 @@ pub struct Config {
     /// Registry USDT CW20 pin (columbus-5 default; LocalTerra `USDT_CW20_ADDRESS`).
     /// Pair `price_usd` / volume catalog — identity by contract, not ticker (GitLab #1258).
     pub usdt_cw20_address: String,
-    /// Ignore factory pairs below this USD TVL when picking hub sources (default $100).
+    /// Independently priced leg depth required when picking hub sources (default $100).
     pub hub_usd_tvl_floor: BigDecimal,
+    /// Total pair TVL required for economic token marks (default $10; #1479).
+    pub economic_usd_tvl_floor: BigDecimal,
     /// Comma-separated BSC JSON-RPC URLs for Venus `eth_call` (GitLab #571). Empty = do not poll.
     pub bsc_rpc_urls: Vec<String>,
     /// Venus vFDUSD poll cadence (default 30s). Bounded; API reads cache only.
@@ -561,6 +565,11 @@ impl Config {
                 .and_then(|v| BigDecimal::from_str(v.trim()).ok())
                 .filter(|v| *v > BigDecimal::from(0))
                 .unwrap_or_else(|| BigDecimal::from_str(DEFAULT_HUB_USD_TVL_FLOOR).unwrap()),
+            economic_usd_tvl_floor: env::var("ECONOMIC_USD_TVL_FLOOR")
+                .ok()
+                .and_then(|v| BigDecimal::from_str(v.trim()).ok())
+                .filter(|v| *v > BigDecimal::from(0))
+                .unwrap_or_else(|| BigDecimal::from_str(DEFAULT_ECONOMIC_USD_TVL_FLOOR).unwrap()),
             bsc_rpc_urls: env::var("BSC_RPC_URLS")
                 .ok()
                 .map(|s| {
@@ -668,6 +677,8 @@ mod tests {
             "LCD_MAX_BACKOFF_MS",
             "LCD_MAX_HEIGHT_LAG",
             "DATABASE_URL",
+            "HUB_USD_TVL_FLOOR",
+            "ECONOMIC_USD_TVL_FLOOR",
             "FACTORY_ADDRESS",
             "CORS_ORIGINS",
             "RATE_LIMIT_RPS",
@@ -725,6 +736,29 @@ mod tests {
             "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db?sslmode=require"
         )
         .is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn issue1479_economic_total_tvl_default_and_override_do_not_lower_hub_trust_depth() {
+        let _env = clear_config_env();
+        env::set_var("FACTORY_ADDRESS", "terra1factory1479");
+        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var("CORS_ORIGINS", "http://localhost:5173");
+        let defaults = Config::from_env().unwrap();
+        assert_eq!(defaults.economic_usd_tvl_floor, BigDecimal::from(10));
+        assert_eq!(defaults.hub_usd_tvl_floor, BigDecimal::from(100));
+        env::set_var("ECONOMIC_USD_TVL_FLOOR", "25");
+        let changed = Config::from_env().unwrap();
+        assert_eq!(changed.economic_usd_tvl_floor, BigDecimal::from(25));
+        assert_eq!(changed.hub_usd_tvl_floor, BigDecimal::from(100));
+        for malformed in ["0", "-1", "NaN", ""] {
+            env::set_var("ECONOMIC_USD_TVL_FLOOR", malformed);
+            assert_eq!(
+                Config::from_env().unwrap().economic_usd_tvl_floor,
+                BigDecimal::from(10)
+            );
+        }
     }
 
     #[test]

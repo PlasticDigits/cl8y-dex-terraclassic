@@ -1,11 +1,32 @@
 import { useWalletStore } from '@/hooks/useWallet'
 import { renderWithProviders } from '@/test-utils'
-import { LOCAL_FROM, LOCAL_TO, LOCAL_WALLET, localPair, localQuote, localTokens } from '@/test/localRouteFixtures'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import {
+  LOCAL_FROM,
+  LOCAL_TO,
+  LOCAL_WALLET,
+  localPair,
+  localQuote,
+  localTaxQuote,
+  localTokens,
+} from '@/test/localRouteFixtures'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SwapPage from './SwapPage'
+const { mutationEntry } = vi.hoisted(() => ({
+  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>) },
+}))
+vi.mock('@/hooks/useTerraBroadcastMutation', async (importActual) => {
+  const actual = await importActual<typeof import('@/hooks/useTerraBroadcastMutation')>()
+  return {
+    ...actual,
+    useTerraBroadcastMutation: (options: Parameters<typeof actual.useTerraBroadcastMutation>[0]) => {
+      if (options.toastSuccess === 'Swap submitted.') mutationEntry.run = () => options.mutationFn(undefined)
+      return actual.useTerraBroadcastMutation(options)
+    },
+  }
+})
 vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
   assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
   queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
@@ -162,6 +183,7 @@ vi.mock('@/services/terraclassic/router', () => ({
   findRouteWithNativeSupport: vi.fn().mockReturnValue(null),
   simulateNativeSwap: vi.fn().mockResolvedValue({ amount: '1' }),
   executeNativeSwap: vi.fn().mockResolvedValue('tx'),
+  executeLocalNativeRoute: vi.fn().mockResolvedValue('tx'),
   netCw20AfterNativeWrap: vi.fn().mockResolvedValue(1n),
 }))
 
@@ -206,6 +228,7 @@ import { NUMBER_DISPLAY_MODE_KEY, readNumberDisplayMode } from '@/utils/numberDi
 import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
 import { IndexerApiError } from '@/utils/routeQuoteErrors'
+import * as swapFee from '@/services/terraclassic/swapNetworkFee'
 
 function SwapLocationProbe() {
   const { pathname, search } = useLocation()
@@ -257,14 +280,55 @@ describe('SwapPage local executable quotes (#1452)', () => {
     })
   })
   afterEach(() => vi.restoreAllMocks())
-  async function ready() {
-    const rendered = renderWithProviders(<SwapPage />, { route: `/?from=${LOCAL_FROM}&to=${LOCAL_TO}` })
+  async function ready(route = `/?from=${LOCAL_FROM}&to=${LOCAL_TO}`) {
+    const rendered = renderWithProviders(<SwapPage />, { route })
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
     return rendered
   }
+  it.each([false, true])(
+    'mutation entry rejects a queued %s native-pay submission after balance loss (#1480)',
+    async (nativePay) => {
+      if (nativePay) configureNativeTwoHopQuote()
+      const { queryClient } = await ready(nativePay ? `/?from=uluna&to=${LOCAL_TO}` : undefined)
+      expect(screen.getByTestId('swap-network-fee')).toHaveTextContent(nativePay ? '~181.3 LUNC' : '~90.64 LUNC')
+      // Both fixtures still own enough principal. Only the reviewed fee budget
+      // (plus native principal) is short, by one raw uluna.
+      const required = nativePay ? 182_280_000n : 90_640_000n
+      await act(async () => {
+        queryClient.setQueryData(['tokenBalance', LOCAL_WALLET, 'uluna'], (required - 1n).toString())
+      })
+      await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+      // Invoke the actual production mutation entry, bypassing the button to
+      // model a queued submit; the real hook still renders the component normally.
+      await expect(mutationEntry.run!()).rejects.toThrow(/Need .* LUNC for network fee/)
+      const { executeMultiHopSwap, executeLocalNativeRoute } = await import('@/services/terraclassic/router')
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+      expect(executeLocalNativeRoute).not.toHaveBeenCalled()
+      expect(queryWrapMapperConfig).not.toHaveBeenCalled()
+      expect(simulateSwap).not.toHaveBeenCalled()
+    }
+  )
+
+  it('mutation entry rejects unavailable fee coverage before execution preparation (#1480)', async () => {
+    const blocker = 'Network fee unavailable for this route. Refresh the quote.'
+    vi.spyOn(swapFee, 'tryEstimateSwapNetworkFee').mockReturnValue({
+      gasLimit: 0,
+      feeUluna: 0n,
+      gasPriceUluna: 28.325,
+      coverageError: blocker,
+    })
+    renderWithProviders(<SwapPage />, { route: `/?from=${LOCAL_FROM}&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Network fee unavailable')
+    await expect(mutationEntry.run!()).rejects.toThrow(blocker)
+    const { executeMultiHopSwap, executeLocalNativeRoute } = await import('@/services/terraclassic/router')
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    expect(executeLocalNativeRoute).not.toHaveBeenCalled()
+  })
   it('shows one useful local quote and sends actual spread without RPC simulation', async () => {
     await ready()
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
@@ -280,6 +344,89 @@ describe('SwapPage local executable quotes (#1452)', () => {
     expect(getPairDiscountRegistry).not.toHaveBeenCalled()
     expect(queryWrapMapperConfig).not.toHaveBeenCalled()
     expect(getPairPaused).not.toHaveBeenCalled()
+  })
+  it.each([undefined, 1] as const)('actual Swap fee row follows reviewed protocol %s (#1480)', async (version) => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+      version === 1 ? localTaxQuote(from, to, amount, options, 0, 0, amount) : localQuote(from, to, amount, options)
+    )
+    await ready()
+    expect(screen.getByTestId('swap-network-fee')).toHaveTextContent(version === 1 ? '~73.64 LUNC' : '~90.64 LUNC')
+    await userEvent.click(screen.getByTestId('swap-submit'))
+    const { executeMultiHopSwap } = await import('@/services/terraclassic/router')
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(executeMultiHopSwap).mock.calls[0][8]?.tax_funding_version).toBe(version)
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+
+  it('reference policy exclusion is a settled finite blocker, without raw remote prose (#1479)', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(422, 'reference_policy_excluded'))
+    renderWithProviders(<SwapPage />, { route: `/?from=${LOCAL_FROM}&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+    await screen.findByText('Reliable reference pricing is unavailable for this market.')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+    expect(simulateSwap).not.toHaveBeenCalled()
+  })
+  function configureNativeTwoHopQuote() {
+    vi.mocked(getTokenBalance).mockResolvedValue('1000000000')
+    vi.mocked(getAllTokens).mockReturnValue(['uluna', MOCK_LUNC_C, LOCAL_FROM, LOCAL_TO])
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (_from, _to, amount, options) => {
+      const intermediate = _to === LOCAL_FROM ? LOCAL_TO : LOCAL_FROM
+      const first = localQuote(MOCK_LUNC_C, intermediate, amount, options)
+      const second = localQuote(intermediate, _to, amount, options)
+      const quote = {
+        ...second,
+        token_in: 'uluna',
+        hops: [...first.hops, ...second.hops],
+        router_operations: [...first.router_operations!, ...second.router_operations!],
+        intermediate_tokens: [MOCK_LUNC_C, intermediate, _to],
+        execution_metadata: {
+          ...second.execution_metadata!,
+          hops: [...first.execution_metadata!.hops, ...second.execution_metadata!.hops],
+          wrapper: {
+            input_token: 'uluna',
+            output_token: _to,
+            input_amount: amount,
+            route_input_amount: amount,
+            route_output_amount: amount,
+            minimum_receive_base: second.execution_metadata!.minimum_receive,
+            wrap_input: true,
+            unwrap_output: false,
+            treasury: 'terra1treasury',
+            mapper: 'terra1wrap_mapper_mock',
+          },
+        },
+      }
+      return quote
+    })
+    const first = localQuote(MOCK_LUNC_C, LOCAL_FROM)
+    const second = localQuote(LOCAL_FROM, LOCAL_TO)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue({
+      operations: [...first.router_operations!, ...second.router_operations!],
+      needsWrapInput: true,
+      needsUnwrapOutput: false,
+    })
+  }
+  it('native wrap+two-hop fee and Max use the reviewed offline route (#1264 #1480)', async () => {
+    configureNativeTwoHopQuote()
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    expect(screen.getByTestId('swap-network-fee')).toHaveTextContent('~181.3 LUNC')
+    await userEvent.click(screen.getByTestId('swap-pay-max'))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('818.72')
+    await waitFor(() =>
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledWith(
+        'uluna',
+        expect.any(String),
+        '818720000',
+        expect.anything()
+      )
+    )
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
   })
   it('keeps confirmation amounts and positive floors in the submitted single-hop router snapshot', async () => {
     await ready()

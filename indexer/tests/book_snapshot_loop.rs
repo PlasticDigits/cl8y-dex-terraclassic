@@ -320,6 +320,8 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         .mount(&server)
         .await;
     let lcd = LcdClient::new(vec![server.uri()], 5000, 0, "columbus-5");
+    // Cold chain identity acquisition is separate from the component deadline.
+    lcd.attest_endpoints().await.unwrap();
     let budgets = SnapshotLimits {
         concurrency: 2,
         pair_timeout: Duration::from_millis(500),
@@ -540,6 +542,9 @@ async fn issue_1453_pool_success_survives_component_failures() {
                 if component == "timeout" { response.set_delay(Duration::from_secs(1)) } else { response }
             }).mount(&server).await;
         let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
+        // Cancellation below exercises the initialized pool/book component,
+        // while retaining the same shared provider budget and exact deadline.
+        lcd.attest_endpoints().await.unwrap();
         let result = tokio::time::timeout(
             if index == 3 {
                 Duration::from_millis(200)
@@ -813,6 +818,8 @@ async fn issue_1453_background_lanes_refresh_pool_while_book_stalls() {
         .mount(&server)
         .await;
     let lcd = LcdClient::new(vec![server.uri()], 3000, 1000, "columbus-5");
+    // Keep cold attestation outside the one-second lane progress assertion.
+    lcd.attest_endpoints().await.unwrap();
     let task = tokio::spawn(book_snapshot::run_book_snapshot_loop(pool.clone(), lcd, 40));
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
@@ -1397,14 +1404,19 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
         .unwrap();
     sqlx::query("INSERT INTO pair_fee_observations(pair_id,fee_bps,block_height,observed_at) SELECT id,30,900,NOW() FROM pairs")
         .execute(&pool).await.unwrap();
-    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW())")
-        .execute(&pool).await.unwrap();
-    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,1,NOW(),'custc' FROM assets WHERE symbol IN ('RTEA','RTEB')")
-        .execute(&pool).await.unwrap();
+    common::reference_marks::seed_reference_marks(
+        &pool,
+        &cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(
+            &common::test_config(),
+        ),
+        &[],
+    )
+    .await;
     let active = Arc::new(AtomicUsize::new(0));
     let maximum = Arc::new(AtomicUsize::new(0));
     let pools = Arc::new(AtomicUsize::new(0));
     let books = Arc::new(AtomicUsize::new(0));
+    let completed_books = Arc::new(AtomicUsize::new(0));
     let max_pools = Arc::new(AtomicUsize::new(0));
     let max_books = Arc::new(AtomicUsize::new(0));
     let overlap = Arc::new(AtomicUsize::new(0));
@@ -1416,11 +1428,11 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
         .route("/cosmos/base/tendermint/v1beta1/node_info", axum::routing::get(|| async { axum::Json(json!({"default_node_info":{"network":"columbus-5"}})) }))
         .route("/cosmos/base/tendermint/v1beta1/blocks/latest", axum::routing::get(|| async { axum::Json(json!({"block":{"header":{"chain_id":"columbus-5","height":"900","time":"2026-10-10T00:00:00Z"}}})) }))
         .fallback(axum::routing::get({
-            let (active,maximum,pools,books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
+            let (active,maximum,pools,books,completed_books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),completed_books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
             let (token_a,token_b) = (seed.token_a.clone(),seed.token_b.clone());
             let (release_lanes,lane_release) = (release_lanes.clone(),lane_release.clone());
             move |uri: axum::http::Uri, request_headers: axum::http::HeaderMap| {
-                let (active,maximum,pools,books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
+                let (active,maximum,pools,books,completed_books,max_pools,max_books,overlap,requests) = (active.clone(),maximum.clone(),pools.clone(),books.clone(),completed_books.clone(),max_pools.clone(),max_books.clone(),overlap.clone(),requests.clone());
                 let (token_a,token_b) = (token_a.clone(),token_b.clone());
                 let (release_lanes,mut lane_release) = (release_lanes.clone(),lane_release.clone());
                 async move {
@@ -1453,7 +1465,7 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
                         json!({"data":data})
                     } else {json!({"contract_info":{"code_id":"10184","admin":""}})};
                     if is_pool {pools.fetch_sub(1,Ordering::SeqCst);}
-                    if is_book {books.fetch_sub(1,Ordering::SeqCst);}
+                    if is_book {books.fetch_sub(1,Ordering::SeqCst);completed_books.fetch_add(1,Ordering::SeqCst);}
                     active.fetch_sub(1,Ordering::SeqCst);
                     let mut headers = axum::http::HeaderMap::new();
                     if let Some(height) = request_headers.get("x-cosmos-block-height") {headers.insert("x-cosmos-block-height",height.clone());}
@@ -1476,6 +1488,7 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
             ..Default::default()
         },
     );
+    let lane_start_at = chrono::Utc::now();
     let liquidity = tokio::spawn(book_snapshot::run_book_snapshot_loop(
         pool.clone(),
         lcd.clone(),
@@ -1522,6 +1535,36 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
     })
     .await
     .expect("scheduled ordinary-token admission initializes useful quote");
+    // A first useful quote may use seeded or already-complete sibling views.
+    // Shutdown retention is tested only after all four actual trading pools
+    // have completed both original production lanes, with no live fixture I/O.
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let completed: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM pairs p
+                JOIN pair_reserves r ON r.pair_id=p.id
+                JOIN hybrid_pair_reserves h ON h.pair_id=p.id
+                WHERE p.asset_0_id=$1 AND p.asset_1_id=$2
+                  AND r.block_height=900 AND h.block_height=900
+                  AND r.snapshot_at >= $3",
+            )
+            .bind(a)
+            .bind(b)
+            .bind(lane_start_at)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+            if completed == 4
+                && completed_books.load(Ordering::SeqCst) >= 8
+                && active.load(Ordering::SeqCst) == 0
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .expect("all four real pool/hybrid observations complete before shutdown");
     let counters = lcd.provider_counters().await;
     assert!(
         counters.iter().all(|c| c.failures == 0),
@@ -1534,11 +1577,13 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
     tokio::time::sleep(Duration::from_millis(450)).await;
     let count = requests.load(Ordering::SeqCst);
     let response = client.get(&quote_url).send().await.unwrap();
+    let status = response.status();
+    let text = response.text().await.unwrap();
     assert!(
-        response.status().is_success(),
-        "completed scheduled observations remain usable"
+        status.is_success(),
+        "completed scheduled observations remain usable: status={status}, body={text}"
     );
-    let body: serde_json::Value = response.json().await.unwrap();
+    let body: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert!(
         body["estimated_amount_out_net"]
             .as_str()
@@ -1562,6 +1607,8 @@ async fn recovery1464_production_lanes_overlap_scheduled_admission() {
     for row in cl8y_dex_indexer::db::queries::pairs::get_all_pairs(&pool)
         .await
         .unwrap()
+        .into_iter()
+        .filter(|row| row.asset_0_id == a && row.asset_1_id == b)
     {
         let raw = pair_reserves::get_pair_reserves(&pool, row.id)
             .await
@@ -1749,8 +1796,14 @@ async fn recovery1464_owned_workers_wait_for_head_capacity_and_publish_pinned_qu
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW())").execute(&pool).await.unwrap();
-    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,1,NOW(),'custc' FROM assets WHERE symbol IN ('RTEA','RTEB')").execute(&pool).await.unwrap();
+    common::reference_marks::seed_reference_marks(
+        &pool,
+        &cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(
+            &common::test_config(),
+        ),
+        &[],
+    )
+    .await;
     let held = Arc::new(AtomicUsize::new(0));
     let requests = Arc::new(AtomicUsize::new(0));
     let unpinned_pools = Arc::new(AtomicUsize::new(0));

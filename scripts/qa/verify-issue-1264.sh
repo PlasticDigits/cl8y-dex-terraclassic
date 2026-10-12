@@ -3,7 +3,8 @@
 #
 # Does **not** raise WRAP_ROUTER_COMBO_OVERHEAD_GAS (columbus-5 AC1 still unmeasured).
 # Proves:
-#   1. wrap+2hop fixture = 2,710,000 (LUNC and USTC pay share the envelope)
+#   1. Historical non-local wrap+2hop fixture = 2,710,000; reviewed offline
+#      routes use the independently measured #1480 settlement budget.
 #   2. Native wrap path never copies hybrid / book_input (H596-7 / #1280 AC4)
 #   3. USTC Max / gas-gate use bank LUNC, not micro-uusd (G1264-4)
 #   4. Docs/skills crosslinks
@@ -54,7 +55,8 @@ run_frontend_unit() {
     src/utils/__tests__/swapNativeGasBalanceGate.test.ts \
     src/utils/__tests__/maxSpendableAmount.test.ts
   bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
-    src/pages/SwapPage.test.tsx -t "#1264"
+    src/pages/SwapPage.test.tsx \
+    src/services/terraclassic/__tests__/offlineSwapBudget.test.ts
 }
 
 run_docs() {
@@ -86,7 +88,7 @@ run_docs() {
 
 echo ""
 echo "── first pass ──"
-run_step "frontend unit: wrap+2hop 2.71M + USTC LUNC gate + no hybrid on wrap hops" run_frontend_unit
+run_step "frontend unit: historical wrap+2hop 2.71M, actual Swap entry, offline budget, USTC LUNC gate and pool-only wrap" run_frontend_unit
 run_step "docs: #1264 + E10 + H596-7 + G1264" run_docs
 
 echo ""

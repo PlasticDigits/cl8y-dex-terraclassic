@@ -171,3 +171,23 @@ Negative: a memo that only says “gas is high on Classic” fails. Reopening #6
 - [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md) (**G-AUTO-8**)
 - [`skills/AGENTS_EXTENSION_FEE_GUARD.md`](../../skills/AGENTS_EXTENSION_FEE_GUARD.md) (SEC-E08 / #429)
 - Verify: `make verify-issue-1222` · QA [`docs/qa/issue-1222/README.md`](../qa/issue-1222/README.md)
+
+## Measured offline execution follow-up (2026-10-12, #1480)
+
+The original **Stay** decision and no-implementation scope describe the historical
+census. They are not a hold on the explicit measured-execution task in
+[#1480](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1480).
+Reviewed local paths became offline under #1452 and bypass historical simulation.
+Owned current-artifact core pool fixtures reproduced legacy budget insufficiency;
+local execution now uses distinct calibrated legacy/v1 route-context budgets.
+Historical non-local inventory values stay independently tested.
+
+`make verify-issue-1222` retains dated census/documentation and inventory checks,
+and replaces the obsolete production-file git-diff prohibition with functional
+canonical offline-admission / bounded auto-gas tests first/retest. This is a
+verification contract update supported by funded evidence, not a suppressed failure.
+Earlier failed runs remain in the #1480 results. See
+[OB1480](../../skills/AGENTS_OFFLINE_SWAP_BUDGET.md),
+[the checklist](../qa/issue-1480/README.md),
+[measurement scope](../qa/issue-1480/RESULTS.md) and
+[ADR 0014](0014-swap-auto-gas.md).

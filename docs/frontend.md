@@ -2731,3 +2731,38 @@ AMM price impact no longer causes that quote to reject itself. The independently
 verified market-spread ceiling is an internal signing value. Existing compact
 price-impact/Expert/≥99% safeguards remain separate. No new controls or competing
 estimate panels are added. See [the exact integer API contract](route-solver.md#quote-relative-execution-protection).
+
+## Reviewed offline execution budgets (#1480)
+
+Follow [OB1480-1–OB1480-10](../skills/AGENTS_OFFLINE_SWAP_BUDGET.md),
+[the gas policy](adr/0014-swap-auto-gas.md) and
+[the agent checklist](qa/issue-1480/README.md).
+Local reviewed Swap/Trade paths stay offline. Exact work-bearing operations and
+funding/mode fields select a bounded budget, shared by fee display, native pay+fee
+reservation/Max and canonical requested Fee. Unknown/malformed or over-limit
+execution families block before signing rather than receiving a cheap fallback.
+Fee denom stays uluna and fee arithmetic rounds up.
+
+Owned current-artifact core pool-route measurements found legacy router budgets
+insufficient. The calibrated local model adds route-context/settlement overhead
+and preserves separate funding-v1 accounting, existing book/wrapper work costs
+and a final 15M client ceiling. Historical non-local simulation/fallback paths
+retain their own documented policy. Measurements of core synthetic pool routes do
+not establish arbitrary hook, wrapper, token implementation or physical-wallet
+coverage; consult [scoped receipts](qa/issue-1480/RESULTS.md).
+
+The price-impact confirmation remains separate from network fees. Genuine >5%,
+30% Expert and nonwaivable ≥99% protection retain their behavior. Quote-generation,
+original-expiry and reviewed floor/message bindings remain unchanged. Included
+out-of-gas failures and unknown inclusion never cause automatic resend.
+
+## Small-market pricing readiness (#1479)
+
+The economic reporting floor now defaults to $10 under explicit user direction;
+hub backing depth remains $100. See [the API contract](route-solver.md#small-market-reference-eligibility-1479)
+and [SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
+A proved structural reference-policy exclusion shows compact fixed copy instead
+of indefinite price-loading recovery. The client watches scheduled eligibility
+changes without repeated solves for the same policy block. Only a fresh validated
+executable quote fills the receive field or authorizes signing; a catalog market,
+positive TVL or completed search does not.

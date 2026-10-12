@@ -39,6 +39,8 @@ export type ComputeMaxSpendableHumanAmountInput = {
   context: MaxAmountContext
   /** Required for `swap_native` reserve sizing. */
   nativeSwapHints?: NativeSwapMaxHints
+  /** Current reviewed submit budget; native Max must reserve the same fee as signing. */
+  executionFeeUluna?: bigint
   /** `provide_liquidity_native_side`: number of `wrap_deposit` msgs in the combined tx (1 or 2). */
   nativeWrapDepositCount?: 1 | 2
   /** `zap_in`: wrap deposits (0/1) and optional route-in hops. */
@@ -136,7 +138,8 @@ export function computeMaxSpendableHumanAmount(
       if (payCap !== null) spendableRaw = minBigInt(spendableRaw, payCap)
     }
   } else if (input.assetIsNativeUluna) {
-    reserveUluna = maxAmountReserveUlunaForContext(input.context, input)
+    reserveUluna = input.executionFeeUluna ?? maxAmountReserveUlunaForContext(input.context, input)
+    if (reserveUluna < 0n) throw new Error('Invalid transaction fee reserve')
     spendableRaw = balance > reserveUluna ? balance - reserveUluna : 0n
   }
 

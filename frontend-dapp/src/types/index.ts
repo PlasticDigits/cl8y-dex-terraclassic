@@ -908,6 +908,9 @@ export interface IndexerRouteSolveResponse {
 export interface IndexerRouteSolveProgress {
   /** Local admission generation; observing it never starts producer work. Not signing metadata. */
   quote_generation?: string
+  /** Advisory reference eligibility; never executable amount/floor metadata. */
+  quote_eligibility?: string
+  quote_blocker?: string
   stage: string
   done: number
   total: number

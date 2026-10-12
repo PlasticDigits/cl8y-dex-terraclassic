@@ -258,11 +258,26 @@ async function main() {
     );
   const launchFlags = [
     "--no-sandbox",
-    "--disable-dev-shm-usage",
+    "--disable-gpu",
     "--disable-background-timer-throttling",
     "--disable-renderer-backgrounding",
     "--disable-backgrounding-occluded-windows",
   ];
+  let sharedMemoryMode = "platform_default";
+  if (process.platform === "linux") {
+    try {
+      const shm = fs.statfsSync("/dev/shm");
+      if (shm.bavail * shm.bsize >= 256 * 1024 * 1024)
+        sharedMemoryMode = "native_shared_memory";
+      else {
+        sharedMemoryMode = "small_shared_memory_fallback";
+        launchFlags.push("--disable-dev-shm-usage");
+      }
+    } catch {
+      sharedMemoryMode = "unavailable_shared_memory_fallback";
+      launchFlags.push("--disable-dev-shm-usage");
+    }
+  }
   let browserVersion;
   const receipts = [];
   for (const viewport of [
@@ -536,6 +551,7 @@ async function main() {
     browser_channel: "chrome",
     browser_version: browserVersion,
     launch_flags: launchFlags,
+    shared_memory_mode: sharedMemoryMode,
     quote_requests: quoteRequests,
     provider_requests: providerRequests,
     receipts,

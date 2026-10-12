@@ -33,6 +33,16 @@ class Tests(unittest.TestCase):
         self.assertEqual(cl8y["amount"], "1000000000000000000000")
         self.assertEqual(ust1["amount"], "1000000000")
 
+    def test_small_market_and_gas_regression_matrix_is_bounded_and_bidirectional(self):
+        rows = list(probe.corpus(issue=1479))
+        self.assertEqual(len(rows), 420)
+        directions = {row["pair"] for row in rows}
+        for direction in ["KENA->cLUNC", "cLUNC->KENA", "CL8Y->KENA", "KENA->CL8Y", "USTC->KENA", "KENA->USTC", "LUNC->KENA", "KENA->LUNC", "LUNC->USTR", "USTC->USTR", "CL8Y->USTR"]:
+            self.assertIn(direction, directions)
+        self.assertTrue(all(probe.positive_u128(row["amount"]) for row in rows))
+        with self.assertRaises(ValueError):
+            list(probe.corpus(issue=9999))
+
     def test_indicative_is_separate_and_expiry_and_signing_metadata_rejected(self):
         case = next(probe.corpus("reproduction"))
         body = {"error": "protection", "indicative_amount_out": "123", "generation": "a" * 64,
