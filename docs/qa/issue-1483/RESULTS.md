@@ -2,6 +2,8 @@
 
 ## Retail warning follow-up
 
+Implementation: [PR #1485](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1485).
+
 The initial deployed implementation used a technical metric label and left
 overlapping price, confirmation, funding and speculative refresh messages.
 The follow-up uses **Price difference**, moves ordinary <=5% information into
