@@ -1,0 +1,45 @@
+{
+  "issues": [
+    1479,
+    1480
+  ],
+  "utc": "2026-10-12T02:15:26.042526+00:00",
+  "read_only": true,
+  "backend_before": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "backend_after": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "economic_floor_environment_override_present": false,
+  "deployed_default_economic_and_hub_floor": "100",
+  "original_reserves": [
+    {
+      "info": {
+        "token": {
+          "contract_addr": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67"
+        }
+      },
+      "amount": "110044622670234"
+    },
+    {
+      "info": {
+        "token": {
+          "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+        }
+      },
+      "amount": "252903132784"
+    }
+  ],
+  "original_lp_share": "5218100494486",
+  "fee_bps": 180,
+  "hook_count": 0,
+  "configured_provider_count": 3,
+  "configured_provider_bounded_reads": {
+    "endpoint0": "HTTP403",
+    "endpoint1": "pool/fee/hooks/pair successful",
+    "endpoint2": "HTTP403"
+  },
+  "scope": "Read-only original public economics; live scheduled original timestamps/reference DB row remain unverified",
+  "skips": [
+    "Effective runtime DB env redacted by Coolify shown-once protection",
+    "Original scheduled reserve/fee/config/anchor timestamps unavailable without read-only database access",
+    "Exact execution capability query unsupported by deployed contract"
+  ]
+}

@@ -557,3 +557,31 @@ only reviewed public codes and bounded original price-only provenance, never
 private actor/provider bodies or a signable plan. Progress generation observation
 reads local state only and cannot advance scheduled ingestion. Run
 `make verify-issue-1473`; see [agent checklist](qa/issue-1473/README.md).
+
+## Small-market references (#1479)
+
+Apply [SM1479-1–SM1479-10](../skills/AGENTS_SMALL_MARKET_REFERENCE.md) and
+[the verification checklist](qa/issue-1479/README.md). The economic mark policy
+uses total pair TVL with a separately configured $10 default (explicit user
+policy change, 2026-10-12). The hub price policy retains $100 independently priced
+leg depth. Doubling a priced leg to value a token pool is reporting arithmetic,
+not proof of independent backing or an independent token oracle.
+
+Economic marks retain exact canonical identities/decimals, qualified source
+anchors and original freshness. Lowering the reporting floor introduces no new
+quality class and does not certify selected-pool manipulation resistance. Known
+policy exclusions are independently scheduled evidence, never executable prices:
+a complete bounded candidate census and original-fresh qualified anchors are
+required, and evidence expires after 20 seconds. Unknown/stale alternatives stay
+transient. Exclusion and policy threshold participate in quote-generation identity.
+
+Scheduled hub prices, economic marks, oracle quorum and policy census share one
+read-only repeatable-read database snapshot. An atomic producer rescaling cannot
+splice the old anchor scale with new token marks. Original freshness still applies.
+
+`reference_policy_excluded` is a fixed 422 reason. Search completion is separate
+from executable eligibility. No diagnostic, quote, progress, refresh or signing
+preparation drives chain polling/network validation. Existing exact net floors,
+actor/tax/hook bindings and 20-second observation/180-second configuration limits
+remain authoritative. Source evidence and policy authorization do not complete
+all issue acceptance; see [results](qa/issue-1479/RESULTS.md).

@@ -172,6 +172,7 @@ mod tests {
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
             usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: BigDecimal::from(100),
+            economic_tvl_floor: BigDecimal::from(10),
             max_staleness: Duration::from_secs(60),
         }
     }

@@ -30,7 +30,9 @@ import {
   terraTxSignStallMessage,
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
-import { buildTerraClassicFee, totalGasLimitForExecuteMsgs } from './terraGas'
+import { buildTerraClassicFee } from './terraGas'
+import { offlineSwapGasLimit } from './offlineSwapBudget'
+import { assertSignedOfflineSwapFee } from './signedOfflineSwapFee'
 import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 import { withTerraWalletSignLock } from './terraWalletSignLock'
 
@@ -49,7 +51,14 @@ export type TerraBroadcastPhaseChangeContext = {
 export type TerraBroadcastOptions = {
   /** Local executable route preparation uses deterministic gas budgets, without transaction simulation. */
   gasEstimation?: 'offline'
+  /** Original local observation expiry, never renewed by preparation/signing. */
+  reviewedQuoteExpiresAtMs?: number
   onPhaseChange?: (phase: TerraBroadcastPhase, ctx?: TerraBroadcastPhaseChangeContext) => void
+}
+
+function assertReviewedQuoteLive(expiresAtMs?: number): void {
+  if (expiresAtMs != null && (!Number.isSafeInteger(expiresAtMs) || expiresAtMs <= Date.now()))
+    throw new Error('Quote expired. Refresh the quote.')
 }
 
 /** CheckTx / mempool rejections — tx never entered the mempool; safe to fail without recovery. */
@@ -149,16 +158,24 @@ async function broadcastSignedSplitPathAttempt(
   fee: ReturnType<typeof buildTerraClassicFee>,
   entries: TerraExecuteContractEntry[],
   onPhaseChange: TerraBroadcastOptions['onPhaseChange'] | undefined,
-  signOptions?: SignTerraTxRawOptions
+  signOptions?: SignTerraTxRawOptions,
+  offlineReviewed = false,
+  reviewedQuoteExpiresAtMs?: number
 ): Promise<string> {
   onPhaseChange?.('signing')
 
-  const signFn = () => signTerraTxRaw(wallet, unsignedTx, fee, signOptions)
+  const signFn = () => {
+    assertReviewedQuoteLive(reviewedQuoteExpiresAtMs)
+    return signTerraTxRaw(wallet, unsignedTx, fee, signOptions)
+  }
   const { txRaw, txHash, sequence } = await withTerraWalletSignLock(() =>
     shouldApplyKeplrSignStallTimeout(wallet)
       ? withPromiseTimeout(signFn(), TERRA_TX_SIGN_TIMEOUT_MS, terraTxSignStallMessage(walletIsNanoLedger(wallet)))
       : signFn()
   )
+
+  if (offlineReviewed) assertSignedOfflineSwapFee(txRaw.authInfoBytes, fee)
+  assertReviewedQuoteLive(reviewedQuoteExpiresAtMs)
 
   onPhaseChange?.('broadcasting')
 
@@ -206,16 +223,36 @@ async function broadcastSignedSplitPath(
   unsignedTx: UnsignedTx,
   fee: ReturnType<typeof buildTerraClassicFee>,
   entries: TerraExecuteContractEntry[],
-  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange'],
+  offlineReviewed = false,
+  reviewedQuoteExpiresAtMs?: number
 ): Promise<string> {
   try {
-    return await broadcastSignedSplitPathAttempt(wallet, unsignedTx, fee, entries, onPhaseChange, {
-      useCachedSequence: false,
-    })
+    return await broadcastSignedSplitPathAttempt(
+      wallet,
+      unsignedTx,
+      fee,
+      entries,
+      onPhaseChange,
+      {
+        useCachedSequence: false,
+      },
+      offlineReviewed,
+      reviewedQuoteExpiresAtMs
+    )
   } catch (error: unknown) {
     const retry = planAccountSequenceRetry(wallet, error)
     if (!retry) throw error
-    return broadcastSignedSplitPathAttempt(wallet, unsignedTx, fee, entries, onPhaseChange, retry)
+    return broadcastSignedSplitPathAttempt(
+      wallet,
+      unsignedTx,
+      fee,
+      entries,
+      onPhaseChange,
+      retry,
+      offlineReviewed,
+      reviewedQuoteExpiresAtMs
+    )
   }
 }
 
@@ -225,12 +262,14 @@ async function broadcastAtomicWalletPathAttempt(
   fee: ReturnType<typeof buildTerraClassicFee>,
   onPhaseChange: TerraBroadcastOptions['onPhaseChange'] | undefined,
   /** When true, keep code-32 expected sequence in cache; otherwise refresh from chain. */
-  useCachedSequence: boolean
+  useCachedSequence: boolean,
+  reviewedQuoteExpiresAtMs?: number
 ): Promise<string> {
   onPhaseChange?.('signing')
   // cosmes `broadcastTx` reads getAuthInfo(true); seed cache first (#499).
   await wallet.getAuthInfo(useCachedSequence)
   const txHash = await withTerraWalletSignLock(() => {
+    assertReviewedQuoteLive(reviewedQuoteExpiresAtMs)
     onPhaseChange?.('broadcasting')
     return withPromiseTimeout(
       wallet.broadcastTx(unsignedTx, fee),
@@ -255,14 +294,29 @@ async function broadcastAtomicWalletPath(
   wallet: ConnectedWallet,
   unsignedTx: UnsignedTx,
   fee: ReturnType<typeof buildTerraClassicFee>,
-  onPhaseChange?: TerraBroadcastOptions['onPhaseChange']
+  onPhaseChange?: TerraBroadcastOptions['onPhaseChange'],
+  reviewedQuoteExpiresAtMs?: number
 ): Promise<string> {
   try {
-    return await broadcastAtomicWalletPathAttempt(wallet, unsignedTx, fee, onPhaseChange, false)
+    return await broadcastAtomicWalletPathAttempt(
+      wallet,
+      unsignedTx,
+      fee,
+      onPhaseChange,
+      false,
+      reviewedQuoteExpiresAtMs
+    )
   } catch (error: unknown) {
     const retry = planAccountSequenceRetry(wallet, error)
     if (!retry) throw error
-    return broadcastAtomicWalletPathAttempt(wallet, unsignedTx, fee, onPhaseChange, retry.useCachedSequence)
+    return broadcastAtomicWalletPathAttempt(
+      wallet,
+      unsignedTx,
+      fee,
+      onPhaseChange,
+      retry.useCachedSequence,
+      reviewedQuoteExpiresAtMs
+    )
   }
 }
 
@@ -281,6 +335,13 @@ export async function broadcastTerraExecuteContracts(
   if (entries.length === 0) {
     throw new Error('No messages to broadcast')
   }
+  assertReviewedQuoteLive(resolvedOptions?.reviewedQuoteExpiresAtMs)
+
+  const gasLimit =
+    resolvedOptions?.gasEstimation === 'offline'
+      ? offlineSwapGasLimit(entries)
+      : (await resolveBroadcastGasLimit(entries, walletAddress)).gasLimit
+  const fee = buildTerraClassicFee(gasLimit)
 
   const msgs = entries.map(
     (entry) =>
@@ -297,12 +358,6 @@ export async function broadcastTerraExecuteContracts(
     memo: '',
   }
 
-  const gasLimit =
-    resolvedOptions?.gasEstimation === 'offline'
-      ? totalGasLimitForExecuteMsgs(entries)
-      : (await resolveBroadcastGasLimit(entries, walletAddress)).gasLimit
-  const fee = buildTerraClassicFee(gasLimit)
-
   if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
     await prepareStationExtensionForTerraClassicSign(wallet)
   }
@@ -314,10 +369,24 @@ export async function broadcastTerraExecuteContracts(
 
   try {
     if (useSplitPath) {
-      return await broadcastSignedSplitPath(wallet, unsignedTx, fee, entries, onPhaseChange)
+      return await broadcastSignedSplitPath(
+        wallet,
+        unsignedTx,
+        fee,
+        entries,
+        onPhaseChange,
+        resolvedOptions?.gasEstimation === 'offline',
+        resolvedOptions?.reviewedQuoteExpiresAtMs
+      )
     }
 
-    return await broadcastAtomicWalletPath(wallet, unsignedTx, fee, onPhaseChange)
+    return await broadcastAtomicWalletPath(
+      wallet,
+      unsignedTx,
+      fee,
+      onPhaseChange,
+      resolvedOptions?.reviewedQuoteExpiresAtMs
+    )
   } catch (error: unknown) {
     console.error('Terra Classic transaction error:', error)
     throw handleBroadcastError(error)

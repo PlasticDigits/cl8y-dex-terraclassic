@@ -2,7 +2,8 @@
  * Swap-page network fee envelope ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
  * [#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)).
  *
- * Same math as broadcast (`estimateTerraClassicFeeForEntries` / `getGasLimitForTx`).
+ * Reviewed local execution uses offlineSwapGasLimit, shared with canonical broadcast (#1480).
+ * Remaining non-local hints use estimateTerraClassicFeeForEntries / getGasLimitForTx.
  * Native wrap+router uses {@link nativeSwapFeeExecuteMsgs} so Max, hint, and submit stay aligned.
  * Native path stays pool-only — do not attach hybrid here.
  * CW20 multi-hop must pass {@link SwapNetworkFeeHints.cw20RouterOperations} (indexer/submit ops)
@@ -11,14 +12,16 @@
 import type { TerraExecuteContractEntry } from '@/services/terraclassic/terraBroadcast'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import type { AutoGasExecuteEntry } from '@/services/terraclassic/swapAutoGas'
-import { ROUTER_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import { sendHookExecuteSwapOperationsMsg } from '@/services/terraclassic/terraGas'
-import type { HybridSwapParams } from '@/types'
 import {
-  estimateTerraClassicFeeForEntries,
-  estimateTerraClassicFeeForMsg,
-  type TerraClassicFeeEstimate,
-} from './terraClassicFeeEstimate'
+  ROUTER_CONTRACT_ADDRESS,
+  TREASURY_CONTRACT_ADDRESS,
+  WRAP_MAPPER_CONTRACT_ADDRESS,
+  effectiveGasPriceUluna,
+} from '@/utils/constants'
+import { estimateFeeUlunaAmountForGasLimit, sendHookExecuteSwapOperationsMsg } from '@/services/terraclassic/terraGas'
+import { offlineSwapGasLimit, OFFLINE_SWAP_BUDGET_UNAVAILABLE } from './offlineSwapBudget'
+import type { HybridSwapParams } from '@/types'
+import { estimateTerraClassicFeeForEntries, type TerraClassicFeeEstimate } from './terraClassicFeeEstimate'
 import {
   estimateMarketPairSwapSequenceUlunaFeesTotal,
   nativeSwapFeeExecuteMsgs,
@@ -33,6 +36,12 @@ export type SwapNetworkFeeHints = NativeSwapFeeHints & {
   cw20DirectPair?: boolean
   /** Direct-pair hybrid book split is on the wire (never for wrap+multihop). */
   cw20Hybrid?: boolean
+  /** Exact direct-pair book work; a boolean cannot establish its cost. */
+  cw20HybridParams?: HybridSwapParams | null
+  /** Reviewed routes always use the offline policy, including one legacy router hop. */
+  localExecution?: boolean
+  /** Exact native router operations; native composed routes must remain pool-only. */
+  nativeRouterOperations?: SwapOperation[]
   /**
    * Indexer/submit `operations` for CW20 router paths (#679).
    * When `length ≥ 2`, hint uses the same `send` → `execute_swap_operations` envelope as broadcast.
@@ -48,50 +57,69 @@ function entriesFromMsgs(msgs: Array<{ msg: Record<string, unknown> }>): TerraEx
  * Network fee for the Swap submit path. Fee denom is always `uluna` / LUNC.
  */
 export function estimateSwapNetworkFee(hints: SwapNetworkFeeHints): TerraClassicFeeEstimate {
-  if (hints.isDirectUnwrap) {
-    return estimateTerraClassicFeeForMsg({
-      send: { msg: btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: '1' } })) },
-    })
-  }
+  const entries = swapFeeBudgetEntries(hints)
+  const gasLimit = hints.localExecution
+    ? offlineSwapGasLimit(entries)
+    : estimateTerraClassicFeeForEntries(entries).gasLimit
+  return { gasLimit, feeUluna: estimateFeeUlunaAmountForGasLimit(gasLimit), gasPriceUluna: effectiveGasPriceUluna() }
+}
 
-  if (hints.isDirectWrap) {
-    return estimateTerraClassicFeeForMsg({ wrap_deposit_with_minimum: { minimum_receive: '1' } })
-  }
-  if (hints.needsWrapInput || hints.needsUnwrapOutput) {
-    return estimateTerraClassicFeeForEntries(entriesFromMsgs(nativeSwapFeeExecuteMsgs(hints)))
-  }
-
-  if (hints.cw20DirectPair) {
-    if (hints.cw20Hybrid) {
-      return estimateTerraClassicFeeForMsg({
-        swap: { hybrid: { pool_input: '1', book_input: '0', max_maker_fills: 1 } },
-      })
+/** Rendering must not turn an unsupported execution family into a cheap fee or crash the page. */
+export function tryEstimateSwapNetworkFee(hints: SwapNetworkFeeHints): TerraClassicFeeEstimate {
+  try {
+    return estimateSwapNetworkFee(hints)
+  } catch {
+    return {
+      gasLimit: 0,
+      feeUluna: 0n,
+      gasPriceUluna: effectiveGasPriceUluna(),
+      coverageError: OFFLINE_SWAP_BUDGET_UNAVAILABLE,
     }
-    return estimateTerraClassicFeeForMsg({ swap: {} })
   }
+}
 
-  const routerOps = hints.cw20RouterOperations
-  if (routerOps && (routerOps.length >= 2 || (hints.taxFundingVersion === 1 && routerOps.length >= 1))) {
-    const operations = routerOps.map((op) => ({
-      terra_swap: op.terra_swap as unknown as Record<string, unknown>,
-    }))
-    return estimateTerraClassicFeeForMsg(
-      sendHookExecuteSwapOperationsMsg(operations, { funding_version: hints.taxFundingVersion })
-    )
+/** Exact work-bearing message fields shared by the fee row and canonical broadcast classifier.
+ * Amount/floor/deadline validation remains in the reviewed local submit contract. */
+function swapFeeBudgetEntries(hints: SwapNetworkFeeHints): TerraExecuteContractEntry[] {
+  if (hints.taxFundingVersion != null && hints.taxFundingVersion !== 1) throw new Error(OFFLINE_SWAP_BUDGET_UNAVAILABLE)
+  if (hints.isDirectUnwrap)
+    return entriesFromMsgs([
+      {
+        msg: {
+          send: { msg: btoa(JSON.stringify({ unwrap_with_minimum: { recipient: null, minimum_receive: '1' } })) },
+        },
+      },
+    ])
+  if (hints.isDirectWrap) return entriesFromMsgs([{ msg: { wrap_deposit_with_minimum: { minimum_receive: '1' } } }])
+  if (hints.needsWrapInput || hints.needsUnwrapOutput) {
+    const operations = hints.nativeRouterOperations
+    if (operations) {
+      const msg = sendHookExecuteSwapOperationsMsg(
+        operations.map((op) => ({ terra_swap: op.terra_swap as unknown as Record<string, unknown> })),
+        { funding_version: hints.taxFundingVersion, unwrap_output: hints.needsUnwrapOutput }
+      )
+      return entriesFromMsgs(hints.needsWrapInput ? [{ msg: { wrap_deposit: {} } }, { msg }] : [{ msg }])
+    }
+    return entriesFromMsgs(nativeSwapFeeExecuteMsgs(hints))
   }
-
-  const hopCount = Math.max(1, hints.hopCount ?? 1)
-  return estimateTerraClassicFeeForEntries(
-    entriesFromMsgs(
-      nativeSwapFeeExecuteMsgs({
-        isDirectWrap: false,
-        needsWrapInput: false,
-        needsUnwrapOutput: false,
-        hopCount,
-        taxFundingVersion: hints.taxFundingVersion,
-      })
-    )
-  )
+  if (hints.cw20DirectPair) {
+    if (hints.cw20Hybrid && !hints.cw20HybridParams) throw new Error(OFFLINE_SWAP_BUDGET_UNAVAILABLE)
+    return entriesFromMsgs([{ msg: { swap: hints.cw20HybridParams ? { hybrid: hints.cw20HybridParams } : {} } }])
+  }
+  const operations = hints.cw20RouterOperations
+  if (operations && operations.length >= 1)
+    return entriesFromMsgs([
+      {
+        msg: sendHookExecuteSwapOperationsMsg(
+          operations.map((op) => ({ terra_swap: op.terra_swap as unknown as Record<string, unknown> })),
+          { funding_version: hints.taxFundingVersion }
+        ),
+      },
+    ])
+  if (hints.localExecution) throw new Error(OFFLINE_SWAP_BUDGET_UNAVAILABLE)
+  const hops = hints.hopCount ?? 1
+  if (!Number.isSafeInteger(hops) || hops < 1 || hops > 4) throw new Error(OFFLINE_SWAP_BUDGET_UNAVAILABLE)
+  return entriesFromMsgs(nativeSwapFeeExecuteMsgs(hints))
 }
 
 export type SwapAutoGasProbeInput = {
@@ -106,7 +134,8 @@ export type SwapAutoGasProbeInput = {
 }
 
 /**
- * Message shape the fee row simulates. Broadcast still simulates the exact signed messages
+ * Historical non-local auto-gas probe shape; production local Swap/Trade never call this helper.
+ * Remaining non-local broadcast simulates the exact signed messages
  * (deadline and hop min-return enrichment can differ by a few hundred gas).
  * `max_spread` and `minimum_receive` are copied through; this helper does not drop them.
  */
@@ -187,7 +216,8 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
     const swap: Record<string, unknown> = { max_spread: spread }
     if (minimum) swap.minimum_receive = minimum
     if (hints.cw20Hybrid) {
-      swap.hybrid = { pool_input: '1', book_input: '0', max_maker_fills: 1 }
+      if (!hints.cw20HybridParams) return null
+      swap.hybrid = hints.cw20HybridParams
     }
     return [{ contract: input.pairContract, msg: { swap } }]
   }
@@ -202,15 +232,20 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
 export function estimateTradeMarketNetworkFeeUluna(
   routerOperations: SwapOperation[] | undefined,
   hybrid?: HybridSwapParams | null,
-  taxFundingVersion?: 1
+  taxFundingVersion?: 1,
+  localExecution = false
 ): bigint {
-  if (routerOperations && (routerOperations.length >= 2 || (taxFundingVersion === 1 && routerOperations.length > 0))) {
-    const swap = estimateSwapNetworkFee({
+  if (
+    routerOperations &&
+    (routerOperations.length >= 2 || ((taxFundingVersion === 1 || localExecution) && routerOperations.length > 0))
+  ) {
+    const swap = tryEstimateSwapNetworkFee({
       isDirectWrap: false,
       needsWrapInput: false,
       hopCount: routerOperations.length,
       cw20RouterOperations: routerOperations,
       taxFundingVersion,
+      localExecution,
     })
     return swap.feeUluna
   }

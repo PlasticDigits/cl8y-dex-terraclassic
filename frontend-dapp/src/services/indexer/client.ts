@@ -114,6 +114,10 @@ function mergeTimeoutSignal(
 /** Shared timed fetch with one network/timeout retry (parity for JSON + CSV). */
 async function fetchText(path: string, init?: IndexerFetchInit): Promise<string> {
   const { timeoutMs = FETCH_TIMEOUT_MS, signal: externalSignal, ...rest } = init ?? {}
+  // The local solver and React Query own generation/expiry-aware reuse. Persisted
+  // HTTP responses can replay old observations or stall behind browser cache I/O.
+  // Keep catalog/history caching separate from executable quotes and progress.
+  const localQuoteRequest = /^\/api\/v1\/route\/solve(?:\/(?:best|progress))?(?:\?|$)/.test(path)
   let lastError: Error | undefined
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     // Do not retry when the caller (React Query) cancelled the quote — only timeout/network.
@@ -126,6 +130,7 @@ async function fetchText(path: string, init?: IndexerFetchInit): Promise<string>
     try {
       const resp = await fetch(`${INDEXER_URL}${path}`, {
         ...rest,
+        ...(localQuoteRequest ? { cache: 'no-store' as const } : {}),
         signal,
       })
       if (!resp.ok) {

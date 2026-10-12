@@ -68,10 +68,14 @@ pub fn config(mock: &MockServer, trusted: bool) -> Config {
 }
 /// Marks are independently produced fixture observations, never route-derived request values.
 pub async fn seed_marks(pool: &PgPool) {
-    sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',1,'fresh',ARRAY['mexc','coingecko'],NOW()) ON CONFLICT(ticker) DO UPDATE SET as_of=NOW()")
-        .execute(pool).await.unwrap();
-    sqlx::query("INSERT INTO economic_token_marks(contract_address,asset_id,price_usd,as_of,anchor_ticker) SELECT contract_address,id,1,NOW(),'custc' FROM assets WHERE contract_address IS NOT NULL ON CONFLICT(contract_address) DO UPDATE SET price_usd=EXCLUDED.price_usd,as_of=NOW()")
-        .execute(pool).await.unwrap();
+    common::reference_marks::seed_reference_marks(
+        pool,
+        &cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(
+            &common::test_config(),
+        ),
+        &[],
+    )
+    .await;
 }
 pub async fn seed_reserves(pool: &PgPool) {
     for pair in cl8y_dex_indexer::db::queries::pairs::get_all_pairs(pool)

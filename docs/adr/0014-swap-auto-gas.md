@@ -2,7 +2,21 @@
 
 ## Status
 
-Accepted for the dApp sign path ([#1360](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1360)). A signed Keplr swap on columbus-5 remains a later wallet check.
+Accepted for the remaining non-local execute path ([#1360](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1360)). Reviewed local Swap/Trade routes use the offline contract below; the historical auto-gas policy does not apply to them. Physical wallet acceptance remains separate.
+
+## Current local/offline boundary (#1480)
+
+[#1452](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1452) prohibits user-triggered simulation during quote, refresh, preflight and reviewed-route preparation. [#1480](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1480) therefore calibrates generic offline route families from owned funded current-artifact executions rather than enabling this ADR's LCD helper in Swap/Trade.
+
+The [offline classifier](../../frontend-dapp/src/services/terraclassic/offlineSwapBudget.ts) uses **800,000 + 2,400,000 × hops** for legacy router core settlement and **800,000 + 1,800,000 × hops** for funding-v1. Each exceeds 1.2 times the recorded plain-CW20 empty-book maxima for one through four hops. Existing bounded hybrid work, wrap/unwrap settlement and combination overhead remain additive; the complete transaction must fit the **15,000,000** client policy ceiling. That ceiling is not chain-limit attestation. Unknown message variants, funding versions, malformed/oversized hooks, excessive hops/maker caps and over-limit combinations are unavailable for signing, never a BASE_GAS_LIMIT fallback. Calibration runs independently in owned fixtures; UI input cannot schedule it.
+
+The actual Swap/Trade fee row, native balance gate, native Max and canonical offline requested Fee use this shared classifier with the reviewed operation and funding fields. Display rounding does not change integer uluna reservation. One local legacy router hop is a router execute, not the direct-pair allowance sequence. Hybrid previews use the real split/cap instead of an invented zero-book leg. Reviewed legacy metadata cannot inherit a separately cached funding-v1 version.
+
+On split wallet APIs, [signed Fee inspection](../../frontend-dapp/src/services/terraclassic/signedOfflineSwapFee.ts) requires the exact reviewed gas, uluna amount, payer and granter before broadcasting. Both lower and higher wallet rewrites require renewed review. This check applies only to offline reviewed routes; historical global extension guard scope and `preferNoSetFee` remain intact. Atomic Station/LuncDash WalletConnect post exposes no signed bytes before inclusion: requested Fee parity is tested, signed/device behavior remains explicit acceptance work.
+
+The funded generic fixtures do not attest named production USTR routes, arbitrary hooks, community-tax implementations, wrapper dependencies or deployed frontend/backend artifacts. Preserve positive per-hop/post-hook/final floors, gross funding and original reviewed expiry; higher gas grants no additional principal or economic permission. Included code 11 remains terminal and is never automatically resent. Independent [reference-policy exclusion](../../frontend-dapp/src/utils/routeQuoteErrors.ts) is a pricing outcome, not a gas error; it cannot become a zero-impact approval.
+
+Verification and sanitized funded receipts: [issue #1480 checklist](../qa/issue-1480/README.md). The historical invariants below describe the non-local auto-gas policy; helper-only fee-hint tests do not establish current production entry coverage.
 
 ## Context
 

@@ -82,10 +82,15 @@ export function useQuoteErrorRecovery(input: {
     // explicit new ownership, not a timer-driven retry of the earlier A.
     if (attempted.current.intent !== identity) attempted.current = { intent: identity, generations: new Set() }
     const generation = progress.data?.quote_generation
+    const referenceRecovered =
+      rejected?.quoteReason !== 'reference_policy_excluded' ||
+      (['executable_quote', 'unverified'].includes(progress.data?.quote_eligibility ?? '') &&
+        !progress.data?.quote_blocker)
     if (
       !currentIntent ||
       progress.isFetching ||
       !canWatch ||
+      !referenceRecovered ||
       typeof generation !== 'string' ||
       !/^[a-zA-Z0-9:_-]{1,256}$/.test(generation) ||
       generation === rejected?.quoteGeneration

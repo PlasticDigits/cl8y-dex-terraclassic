@@ -1,0 +1,1194 @@
+{
+  "utc_start": "2026-10-12T02:58:59.234240+00:00",
+  "offline_budget_source_sha256": "5e3bfe906e89143ddde38cadd3ff2b8aabb914a5bec3728dee0bebec9faee60e",
+  "offline_budget_source_after_sha256": "5e3bfe906e89143ddde38cadd3ff2b8aabb914a5bec3728dee0bebec9faee60e",
+  "stable_budget_source": true,
+  "offline_budget_values": {
+    "OFFLINE_ROUTER_BASE_GAS": 800000,
+    "OFFLINE_LEGACY_ROUTER_PER_HOP_GAS": 2400000,
+    "OFFLINE_V1_ROUTER_PER_HOP_GAS": 1800000
+  },
+  "issues": [
+    1479,
+    1480
+  ],
+  "utc": "2026-10-12T03:04:07.808314+00:00",
+  "scope": "Owned LocalTerra CW20 hook-free empty-book pool routes; exact requested gas honored; independent net integer arithmetic",
+  "driver_sha256": "ba63af5b579483a6b1054a0001c70bc5d32e63f15328ca4fe60560fdf84c8297",
+  "artifacts": {
+    "source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+    "contract_source_inputs_match_current": true,
+    "contract_input_count": 170,
+    "contract_inputs_sha256": "5f26b67537fed3f78d39ef050f4238d199ff9411fc8270a14e44d77bc37fbaf1",
+    "artifact_attestation": "Current checked-in artifact checksums and complete current contract/package/lock input equivalence; original build recipe not re-attested; pair rebuilt after original receipt",
+    "sha256": {
+      "cl8y_dex_factory": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "cl8y_dex_router": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "cl8y_dex_pair": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "cw20_mintable": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "overall": "PASS",
+  "measurement_only": false,
+  "cases": [
+    {
+      "family": "legacy",
+      "hops": 1,
+      "raw_offer": "10000",
+      "expected_net": "9970",
+      "delivered_net": "9970",
+      "floor": "9472",
+      "offline_budget": 3200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 3200000,
+      "fee_uluna": 90640000,
+      "signed_gas": 3200000,
+      "signed_fee": [
+        {
+          "amount": "90640000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2635723,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9970"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9472"
+        ],
+        "minimum_receive": "9472",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 1,
+      "raw_offer": "1000000",
+      "expected_net": "997000",
+      "delivered_net": "997000",
+      "floor": "947150",
+      "offline_budget": 3200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 3200000,
+      "fee_uluna": 90640000,
+      "signed_gas": 3200000,
+      "signed_fee": [
+        {
+          "amount": "90640000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2638160,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "997000"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947150"
+        ],
+        "minimum_receive": "947150",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 1,
+      "raw_offer": "1000000000",
+      "expected_net": "996990010",
+      "delivered_net": "996990010",
+      "floor": "947140510",
+      "offline_budget": 3200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 3200000,
+      "fee_uluna": 90640000,
+      "signed_gas": 3200000,
+      "signed_fee": [
+        {
+          "amount": "90640000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2639593,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996990010"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947140510"
+        ],
+        "minimum_receive": "947140510",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 2,
+      "raw_offer": "10000",
+      "expected_net": "9940",
+      "delivered_net": "9940",
+      "floor": "9443",
+      "offline_budget": 5600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 5600000,
+      "fee_uluna": 158620000,
+      "signed_gas": 5600000,
+      "signed_fee": [
+        {
+          "amount": "158620000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 4629347,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9970",
+        "9940"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9472",
+          "9443"
+        ],
+        "minimum_receive": "9443",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 2,
+      "raw_offer": "1000000",
+      "expected_net": "993989",
+      "delivered_net": "993989",
+      "floor": "944290",
+      "offline_budget": 5600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 5600000,
+      "fee_uluna": 158620000,
+      "signed_gas": 5600000,
+      "signed_fee": [
+        {
+          "amount": "158620000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 4632199,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996980",
+        "993989"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947131",
+          "944290"
+        ],
+        "minimum_receive": "944290",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 2,
+      "raw_offer": "1000000000",
+      "expected_net": "993969211",
+      "delivered_net": "993969211",
+      "floor": "944270751",
+      "offline_budget": 5600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 5600000,
+      "fee_uluna": 158620000,
+      "signed_gas": 5600000,
+      "signed_fee": [
+        {
+          "amount": "158620000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 4634407,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996970051",
+        "993969211"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947121549",
+          "944270751"
+        ],
+        "minimum_receive": "944270751",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 3,
+      "raw_offer": "10000",
+      "expected_net": "9910",
+      "delivered_net": "9910",
+      "floor": "9415",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6634844,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9970",
+        "9940",
+        "9910"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9472",
+          "9443",
+          "9415"
+        ],
+        "minimum_receive": "9415",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 3,
+      "raw_offer": "1000000",
+      "expected_net": "990968",
+      "delivered_net": "990968",
+      "floor": "941420",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6638164,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996960",
+        "993950",
+        "990968"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947112",
+          "944253",
+          "941420"
+        ],
+        "minimum_receive": "941420",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 3,
+      "raw_offer": "1000000000",
+      "expected_net": "990937817",
+      "delivered_net": "990937817",
+      "floor": "941390927",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6641155,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996950092",
+        "993929474",
+        "990937817"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947102588",
+          "944233001",
+          "941390927"
+        ],
+        "minimum_receive": "941390927",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 4,
+      "raw_offer": "10000",
+      "expected_net": "9880",
+      "delivered_net": "9880",
+      "floor": "9386",
+      "offline_budget": 10400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 10400000,
+      "fee_uluna": 294580000,
+      "signed_gas": 10400000,
+      "signed_fee": [
+        {
+          "amount": "294580000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 8652383,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9970",
+        "9940",
+        "9910",
+        "9880"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9472",
+          "9443",
+          "9415",
+          "9386"
+        ],
+        "minimum_receive": "9386",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 4,
+      "raw_offer": "1000000",
+      "expected_net": "987936",
+      "delivered_net": "987936",
+      "floor": "938540",
+      "offline_budget": 10400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 10400000,
+      "fee_uluna": 294580000,
+      "signed_gas": 10400000,
+      "signed_fee": [
+        {
+          "amount": "294580000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 8656398,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996940",
+        "993910",
+        "990909",
+        "987936"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947093",
+          "944215",
+          "941364",
+          "938540"
+        ],
+        "minimum_receive": "938540",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "legacy",
+      "hops": 4,
+      "raw_offer": "1000000000",
+      "expected_net": "987896039",
+      "delivered_net": "987896039",
+      "floor": "938501238",
+      "offline_budget": 10400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 10400000,
+      "fee_uluna": 294580000,
+      "signed_gas": 10400000,
+      "signed_fee": [
+        {
+          "amount": "294580000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 8660444,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996930133",
+        "993889738",
+        "990878483",
+        "987896039"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_swap_operations",
+        "funding_version": null,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947083627",
+          "944195252",
+          "941334559",
+          "938501238"
+        ],
+        "minimum_receive": "938501238",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": null
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 1,
+      "raw_offer": "10000",
+      "expected_net": "9970",
+      "delivered_net": "9970",
+      "floor": "9472",
+      "offline_budget": 2600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 2600000,
+      "fee_uluna": 73645000,
+      "signed_gas": 2600000,
+      "signed_fee": [
+        {
+          "amount": "73645000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2119486,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9970"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9472"
+        ],
+        "minimum_receive": "9472",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 1,
+      "raw_offer": "1000000",
+      "expected_net": "996920",
+      "delivered_net": "996920",
+      "floor": "947074",
+      "offline_budget": 2600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 2600000,
+      "fee_uluna": 73645000,
+      "signed_gas": 2600000,
+      "signed_fee": [
+        {
+          "amount": "73645000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2120279,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996920"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947074"
+        ],
+        "minimum_receive": "947074",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 1,
+      "raw_offer": "1000000000",
+      "expected_net": "996910176",
+      "delivered_net": "996910176",
+      "floor": "947064668",
+      "offline_budget": 2600000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 2600000,
+      "fee_uluna": 73645000,
+      "signed_gas": 2600000,
+      "signed_fee": [
+        {
+          "amount": "73645000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 2121483,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996910176"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 1,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947064668"
+        ],
+        "minimum_receive": "947064668",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 2,
+      "raw_offer": "10000",
+      "expected_net": "9939",
+      "delivered_net": "9939",
+      "floor": "9443",
+      "offline_budget": 4400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 4400000,
+      "fee_uluna": 124630000,
+      "signed_gas": 4400000,
+      "signed_fee": [
+        {
+          "amount": "124630000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 3593905,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9969",
+        "9939"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9471",
+          "9443"
+        ],
+        "minimum_receive": "9443",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 2,
+      "raw_offer": "1000000",
+      "expected_net": "993850",
+      "delivered_net": "993850",
+      "floor": "944158",
+      "offline_budget": 4400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 4400000,
+      "fee_uluna": 124630000,
+      "signed_gas": 4400000,
+      "signed_fee": [
+        {
+          "amount": "124630000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 3595289,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996900",
+        "993850"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947055",
+          "944158"
+        ],
+        "minimum_receive": "944158",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 2,
+      "raw_offer": "1000000000",
+      "expected_net": "993830111",
+      "delivered_net": "993830111",
+      "floor": "944138606",
+      "offline_budget": 4400000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 4400000,
+      "fee_uluna": 124630000,
+      "signed_gas": 4400000,
+      "signed_fee": [
+        {
+          "amount": "124630000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 3597249,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996890218",
+        "993830111"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 2,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947045708",
+          "944138606"
+        ],
+        "minimum_receive": "944138606",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 3,
+      "raw_offer": "10000",
+      "expected_net": "9909",
+      "delivered_net": "9909",
+      "floor": "9414",
+      "offline_budget": 6200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 6200000,
+      "fee_uluna": 175615000,
+      "signed_gas": 6200000,
+      "signed_fee": [
+        {
+          "amount": "175615000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 5080361,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9969",
+        "9939",
+        "9909"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9471",
+          "9443",
+          "9414"
+        ],
+        "minimum_receive": "9414",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 3,
+      "raw_offer": "1000000",
+      "expected_net": "990789",
+      "delivered_net": "990789",
+      "floor": "941250",
+      "offline_budget": 6200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 6200000,
+      "fee_uluna": 175615000,
+      "signed_gas": 6200000,
+      "signed_fee": [
+        {
+          "amount": "175615000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 5082249,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996880",
+        "993810",
+        "990789"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947036",
+          "944120",
+          "941250"
+        ],
+        "minimum_receive": "941250",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 3,
+      "raw_offer": "1000000000",
+      "expected_net": "990759716",
+      "delivered_net": "990759716",
+      "floor": "941221731",
+      "offline_budget": 6200000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 6200000,
+      "fee_uluna": 175615000,
+      "signed_gas": 6200000,
+      "signed_fee": [
+        {
+          "amount": "175615000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 5084995,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996870262",
+        "993790382",
+        "990759716"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 3,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947026749",
+          "944100863",
+          "941221731"
+        ],
+        "minimum_receive": "941221731",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 4,
+      "raw_offer": "10000",
+      "expected_net": "9879",
+      "delivered_net": "9879",
+      "floor": "9386",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6578633,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "9969",
+        "9939",
+        "9909",
+        "9879"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "10000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "9471",
+          "9443",
+          "9414",
+          "9386"
+        ],
+        "minimum_receive": "9386",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 4,
+      "raw_offer": "1000000",
+      "expected_net": "987737",
+      "delivered_net": "987737",
+      "floor": "938351",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6581140,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996860",
+        "993770",
+        "990729",
+        "987737"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947017",
+          "944082",
+          "941193",
+          "938351"
+        ],
+        "minimum_receive": "938351",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 4,
+      "raw_offer": "1000000000",
+      "expected_net": "987698901",
+      "delivered_net": "987698901",
+      "floor": "938313956",
+      "offline_budget": 8000000,
+      "offline_budget_sufficient": true,
+      "requested_gas": 8000000,
+      "fee_uluna": 226600000,
+      "signed_gas": 8000000,
+      "signed_fee": [
+        {
+          "amount": "226600000",
+          "denom": "uluna"
+        }
+      ],
+      "gas_used": 6584850,
+      "included_code": 0,
+      "expected_hop_outputs": [
+        "996850306",
+        "993750657",
+        "990700401",
+        "987698901"
+      ],
+      "rejected_floor_codes": [
+        5,
+        5
+      ],
+      "failed_floors_wallet_reserves_lp_unchanged": true,
+      "execution_message": {
+        "cw20_send_raw_amount": "1000000000",
+        "method": "execute_route_swap_operations",
+        "funding_version": 1,
+        "operation_count": 4,
+        "hybrid": null,
+        "greedy": null,
+        "per_hop_min_return": [
+          "947007791",
+          "944063125",
+          "941165381",
+          "938313956"
+        ],
+        "minimum_receive": "938313956",
+        "max_spread": "0.05",
+        "deadline": null,
+        "unwrap_output": false
+      },
+      "status": "PASS"
+    }
+  ],
+  "skips": [
+    "native wrap/unwrap",
+    "tax/hook/populated-book bounded worst case",
+    "physical extension/WalletConnect",
+    "original reporter signed transactions",
+    "production settlement"
+  ]
+}

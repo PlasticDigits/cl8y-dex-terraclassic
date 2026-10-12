@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verification for Forgejo #1222 — retail gas envelope vs wallet auto-fee census.
 #
-# Docs / process only (no LocalTerra, no envelope retune):
+# Historical docs census; #1480 adds current functional offline/auto-gas boundary checks:
 #   G-CENSUS-1  one ADR covering hint vs broadcast vs wallet vs measured usage
 #   G-CENSUS-2  dated measurements or explicit unmeasured rows
 #   G-CENSUS-3  G0–G7 scored; Stay vs spawn
@@ -39,17 +39,7 @@ run_step() {
 
 ADR="docs/adr/0004-terraclassic-retail-gas-census.md"
 
-PROD_GAS_FILES=(
-  frontend-dapp/src/services/terraclassic/terraGas.ts
-  frontend-dapp/src/services/terraclassic/hybridSwapGas.ts
-  frontend-dapp/src/services/terraclassic/swapNetworkFee.ts
-  frontend-dapp/src/services/terraclassic/terraClassicFeeEstimate.ts
-  frontend-dapp/src/services/terraclassic/terraBroadcast.ts
-  frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts
-  frontend-dapp/src/services/terraclassic/stationExtensionConfig.ts
-  frontend-dapp/src/utils/extensionSignedFeeGuard.ts
-  frontend-dapp/src/utils/constants.ts
-)
+
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  Forgejo #1222 — Terra Classic retail gas census"
@@ -134,24 +124,13 @@ run_constants_lockstep() {
   grep -qE 'isAtomicWalletConnectPost' frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts
 }
 
-run_no_prod_gas_diff() {
-  local base=""
-  if git rev-parse --verify origin/main >/dev/null 2>&1; then
-    base="$(git merge-base HEAD origin/main)"
-  elif git rev-parse --verify main >/dev/null 2>&1; then
-    base="$(git merge-base HEAD main)"
-  fi
-  if [[ -z "$base" ]]; then
-    echo "no origin/main merge-base — skip git-diff gate (constants lockstep still runs)"
-    return 0
-  fi
-  local dirty
-  dirty="$(git diff --name-only "$base" -- "${PROD_GAS_FILES[@]}" || true)"
-  if [[ -n "$dirty" ]]; then
-    echo "production gas/wallet files changed vs merge-base:" >&2
-    echo "$dirty" >&2
-    return 1
-  fi
+run_current_policy_boundary() {
+  # #1222 was a historical research-only census. #1480 explicitly implements
+  # measured local envelopes; a git-diff prohibition is no longer acceptance.
+  # Exercise canonical offline admission and the separate bounded auto-gas path.
+  run_with_node npm run test:run -- \
+    src/services/terraclassic/__tests__/offlineSwapBudget.test.ts \
+    src/services/terraclassic/__tests__/terraBroadcast.autoGas.test.ts
 }
 
 run_with_node() {
@@ -195,8 +174,8 @@ run_step "docs: README + testing + frontend + skills + AGENTS.md + QA" \
 run_step "lockstep: current envelopes still match census numbers" \
   run_constants_lockstep
 
-run_step "AC5: production gas/wallet files untouched vs merge-base" \
-  run_no_prod_gas_diff
+run_step "current offline/auto-gas policy boundary (#1480 supersedes historical AC5 diff gate)" \
+  run_current_policy_boundary
 
 run_step "unit: mixed hybrid + Network fee + retail inventory (current code)" \
   run_frontend_unit
@@ -206,8 +185,8 @@ echo "── retest ──"
 run_step "retest ADR headings" \
   run_adr_headings
 
-run_step "retest AC5 production files untouched" \
-  run_no_prod_gas_diff
+run_step "retest current offline/auto-gas policy boundary" \
+  run_current_policy_boundary
 
 run_step "retest unit lockstep" \
   run_frontend_unit

@@ -1459,9 +1459,11 @@ async fn q1380_overview_cached_stats_follow_new_liquidity_generations_without_sm
     clean_db(&pool).await;
     reset_overview_cache();
     let server = TestServer::new(common::build_test_app(pool.clone()).await);
-    let ttl = protocol_tvl::max_staleness_from_env().as_secs();
-    let old_as_of = Utc::now() - Duration::seconds(ttl.saturating_sub(1) as i64);
-    let initial = quality_rollup("fresh", Some(bd("100")), old_as_of, 1);
+    // Generation replacement must work while the cached observation is still
+    // fresh. A TTL-minus-one-second setup races the initial DB/API work under
+    // load and can expire before this test even establishes its cached value.
+    // Original-time expiry has dedicated coverage in the adjacent age test.
+    let initial = quality_rollup("fresh", Some(bd("100")), Utc::now(), 1);
     let mut tx = liquidity_snapshots::begin_liquidity_refresh(&pool)
         .await
         .unwrap();
@@ -1496,9 +1498,15 @@ async fn q1380_overview_cached_stats_follow_new_liquidity_generations_without_sm
         .execute(&pool)
         .await
         .unwrap();
-    // Expire the original liquidity observation while the expensive stats cache
-    // remains well inside its 60s lifetime. The committed new generation is fresh.
-    tokio::time::sleep(std::time::Duration::from_millis(2100)).await;
+    // The new generation must replace even a healthy cached liquidity value
+    // immediately, while expensive volume/fee stats keep their original cache.
+    // Waiting for old liquidity expiry would also allow an expiry-only refresh
+    // implementation to pass, which does not establish this generation contract.
+    assert!(
+        Utc::now().signed_duration_since(initial.quality.as_of.unwrap())
+            < Duration::seconds(protocol_tvl::max_staleness_from_env().as_secs() as i64),
+        "generation replacement fixture must still have a fresh original observation"
+    );
     let response = server.get("/api/v1/overview").await;
     response.assert_status_ok();
     let fresh: Value = response.json();

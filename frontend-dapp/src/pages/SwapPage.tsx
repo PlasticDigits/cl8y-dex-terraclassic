@@ -49,7 +49,7 @@ import {
   type SwapOperation,
 } from '@/services/terraclassic/router'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
-import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
+import { tryEstimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import {
@@ -493,38 +493,6 @@ export default function SwapPage() {
   const nativeNeedsUnwrapOutput =
     nativeRouteInfo?.needsUnwrapOutput ??
     (!!toToken && isNativeDenom(toToken) && wrapUnwrapType !== 'wrap' && wrapUnwrapType !== 'unwrap')
-  const payMaxResult = useMemo(() => {
-    if (!balanceQuery.data || offerDecimals == null) {
-      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
-    }
-    return computeMaxSpendableHumanAmount({
-      balanceRaw: balanceQuery.data,
-      decimals: offerDecimals,
-      assetIsNativeUluna: payIsNativeUluna,
-      context: payIsNativeUluna ? 'swap_native' : 'swap_cw20',
-      nativeSwapHints: payIsNativeUluna
-        ? {
-            taxFundingVersion: routerTaxFunding.data === 1 ? 1 : undefined,
-            isDirectWrap: wrapUnwrapType === 'wrap',
-            needsWrapInput: nativeNeedsWrapInput,
-            needsUnwrapOutput: nativeNeedsUnwrapOutput,
-            hopCount: nativeSwapHopCount,
-          }
-        : undefined,
-      extraDebitSellBps: extraDebitSellBpsForExecute(taxSell.sellBps, isMultiHop || routerTaxFunding.data === 1),
-    })
-  }, [
-    balanceQuery.data,
-    offerDecimals,
-    payIsNativeUluna,
-    wrapUnwrapType,
-    nativeNeedsWrapInput,
-    nativeNeedsUnwrapOutput,
-    nativeSwapHopCount,
-    taxSell.sellBps,
-    isMultiHop,
-    routerTaxFunding.data,
-  ])
 
   const wrapMapperActive =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
@@ -1097,6 +1065,18 @@ export default function SwapPage() {
         throw new Error('Hop spread exceeds slippage protection')
       }
       const payRaw = submitPayRaw
+      // Recheck at mutation entry too: a queued submit must not bypass the
+      // displayed native pay+fee gate after cached balance/coverage changes.
+      if (swapNetworkFeeEstimate.coverageError) throw new Error(swapNetworkFeeEstimate.coverageError)
+      const submitGasGate = evaluateSwapNativeGasGate(
+        inputAmount,
+        offerDecimals,
+        payIsNativeUluna,
+        payRaw,
+        payIsNativeUluna ? balanceQuery : ulunaBalanceQuery,
+        swapNetworkFeeEstimate.feeUluna
+      )
+      if (!submitGasGate.canSubmit) throw new Error(submitGasGate.userMessage ?? 'Need LUNC for network fee')
       // Display min uses post-tax `return_amount`; router R3 checks post-fee pre-tax (#512).
       const submitMinReceived =
         simData.executionMetadata?.policy === 'wrapper_only'
@@ -1287,7 +1267,9 @@ export default function SwapPage() {
         ? simData?.indexerOperations
         : undefined
     return {
-      taxFundingVersion: simData?.taxFundingVersion ?? (routerTaxFunding.data === 1 ? 1 : undefined),
+      taxFundingVersion: simData?.executionMetadata
+        ? (simData.executionMetadata.tax_funding_version ?? undefined)
+        : (simData?.taxFundingVersion ?? (routerTaxFunding.data === 1 ? 1 : undefined)),
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
       needsWrapInput: nativeNeedsWrapInput || Boolean(wrapSolvePair?.needsWrapInput),
@@ -1300,6 +1282,9 @@ export default function SwapPage() {
             : cw20HopCount,
       cw20DirectPair: !!isDirect && !wrapOrNative && !simData?.executionMetadata && simData?.taxFundingVersion !== 1,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
+      cw20HybridParams: simData?.indexerOperations?.[0]?.terra_swap.hybrid,
+      localExecution: !!simData?.executionMetadata,
+      nativeRouterOperations: wrapOrNative ? simData?.indexerOperations : undefined,
       cw20RouterOperations,
     }
   }, [
@@ -1318,8 +1303,31 @@ export default function SwapPage() {
     routerTaxFunding.data,
     route?.length,
   ])
-  const swapNetworkFeeFallback = useMemo(() => estimateSwapNetworkFee(swapNetworkFeeHints), [swapNetworkFeeHints])
-  const swapNetworkFeeEstimate = swapNetworkFeeFallback
+  const swapNetworkFeeEstimate = useMemo(() => tryEstimateSwapNetworkFee(swapNetworkFeeHints), [swapNetworkFeeHints])
+
+  const payMaxResult = useMemo(() => {
+    if (!balanceQuery.data || offerDecimals == null) {
+      return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
+    }
+    return computeMaxSpendableHumanAmount({
+      balanceRaw: balanceQuery.data,
+      decimals: offerDecimals,
+      assetIsNativeUluna: payIsNativeUluna,
+      context: payIsNativeUluna ? 'swap_native' : 'swap_cw20',
+      executionFeeUluna: swapNetworkFeeEstimate.coverageError
+        ? BigInt(balanceQuery.data)
+        : swapNetworkFeeEstimate.feeUluna,
+      extraDebitSellBps: extraDebitSellBpsForExecute(taxSell.sellBps, isMultiHop || routerTaxFunding.data === 1),
+    })
+  }, [
+    balanceQuery.data,
+    offerDecimals,
+    payIsNativeUluna,
+    taxSell.sellBps,
+    isMultiHop,
+    routerTaxFunding.data,
+    swapNetworkFeeEstimate,
+  ])
 
   const swapGasGate =
     offerDecimals == null
@@ -1396,6 +1404,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (extraDebitGate.blockSubmit) {
     buttonText = defaultActionLabel
+    buttonDisabled = true
+  } else if (swapNetworkFeeEstimate.coverageError) {
+    buttonText = 'Network fee unavailable'
     buttonDisabled = true
   } else if (hasPositiveInputAmount && !swapGasGate.canSubmit) {
     buttonText = swapGasGate.userMessage ?? 'Need LUNC for network fee'

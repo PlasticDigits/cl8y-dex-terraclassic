@@ -2029,3 +2029,10 @@ verify-issue-1464:
 .PHONY: verify-issue-1473
 verify-issue-1473:
 	bash scripts/verify-issue-1473.sh
+
+.PHONY: verify-issue-1479 verify-issue-1480
+verify-issue-1479:
+	bash scripts/verify-issue-1479.sh
+
+verify-issue-1480:
+	bash scripts/verify-issue-1480.sh
