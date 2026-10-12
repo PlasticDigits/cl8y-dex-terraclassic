@@ -103,3 +103,8 @@ and the [agent checklist](../docs/qa/issue-1473/README.md).
 Missing/stale data waits and original client-cache expiry are documented in the
 [follow-up review](../docs/qa/issue-1473/WARMUP.md); neither drives producers nor
 relaxes economic reference admission. Run `make verify-issue-1473`.
+
+Generic route cost attribution, exact-amount cache ranking and consistent fair-reference
+explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
+[the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
+explanation never changes reference quality, funding, floors or signing admission.

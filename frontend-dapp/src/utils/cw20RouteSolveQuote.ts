@@ -20,6 +20,7 @@ import {
 import { validateWrapperOnlyQuote } from '@/utils/localWrapperOnlyQuote'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
+import { routeEconomicExplanation } from '@/utils/routeEconomicExplanation'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 
 /** Observation-pinned indexed quote. Missing executable metadata never starts a chain lookup. */
@@ -34,6 +35,7 @@ export type Cw20RouteSolveQuote = {
   executeAmountOut?: string
   spread_amount: string
   commission_amount: string
+  economicExplanation: string
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
@@ -119,6 +121,7 @@ async function validateRouteSolveQuote(
         idx.spot_amount_out,
         idx.slippage_percent
       ),
+      economicExplanation: routeEconomicExplanation(idx),
       spotAmountOut: idx.spot_amount_out,
       indexerQuoteKind: idx.quote_kind,
       indexerOperations: [],
@@ -242,6 +245,7 @@ async function validateRouteSolveQuote(
     spread_amount: '0',
     commission_amount: '0',
     routeSlippagePercent: resolveRouteSlippagePercent(displayNet, idx.spot_amount_out, idx.slippage_percent),
+    economicExplanation: routeEconomicExplanation(idx),
     spotAmountOut: idx.spot_amount_out,
     indexerQuoteKind: idx.quote_kind,
     indexerOperations: opsForQuote,

@@ -131,8 +131,6 @@ import {
   HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
   isSlippageCustomOutOfRange,
   persistSlippageCustomInput,
-  ROUTE_EXECUTION_SLIPPAGE_LABEL,
-  ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
   sanitizeSlippageCustomInput,
   SLIPPAGE_PROTECTION_LABEL,
   TRANSACTION_DEADLINE_LABEL,
@@ -165,9 +163,7 @@ import {
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
 } from '@/utils/swapRouteDisplay'
 import {
-  parseSlippagePercent,
   resolveSwapExpectedSlippagePercent,
-  slippageSeverityClass,
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
   SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
 } from '@/utils/swapRouteSlippage'
@@ -202,6 +198,7 @@ interface SwapSimData {
    */
   routerMinReceiveBase?: string
   /** Indexer best-route cross-rate slippage (GitLab #293). */
+  economicExplanation?: string
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
@@ -230,7 +227,6 @@ export default function SwapPage() {
 
   const swapCustomSlippagePctInputId = useId()
   const swapCustomDeadlineInputId = useId()
-  const routeSlippageTooltipId = useId()
   const swapHybridBookLegAmountInputId = useId()
   const swapHybridMaxMakersInputId = useId()
   const swapYouPayAmountInputId = useId()
@@ -249,6 +245,7 @@ export default function SwapPage() {
   const [customSlippage, setCustomSlippage] = useState('')
   const [customDeadlineMinutes, setCustomDeadlineMinutes] = useState('')
   const [showImpactConfirm, setShowImpactConfirm] = useState(false)
+  const impactAcceptedQuoteRef = useRef<string | null>(null)
   const impactReviewedQuoteRef = useRef<string | null>(null)
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
   const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
@@ -1060,7 +1057,13 @@ export default function SwapPage() {
       if (!simData) throw new Error('Quote unavailable')
       if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
         throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
-      if (routeSlippageBlocked) throw new Error('Price impact is too high')
+      if (
+        (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
+        impactAcceptedQuoteRef.current !== impactReviewKey
+      )
+        throw new Error('Review the price difference first.')
+      impactAcceptedQuoteRef.current = null
+      if (routeSlippageBlocked) throw new Error('Price difference is too high')
       if (simData.routePreflight?.anyHopExceedsMaxSpread) {
         throw new Error('Hop spread exceeds slippage protection')
       }
@@ -1177,6 +1180,29 @@ export default function SwapPage() {
   const expectedSlippagePct = simData
     ? resolveSwapExpectedSlippagePercent(simData.routeSlippagePercent, hopSpreadPercent)
     : null
+
+  const impactReviewKey = JSON.stringify([
+    address,
+    fromToken,
+    toToken,
+    rawInputAmount,
+    bookInputHuman,
+    hybridMaxMakers,
+    slippageTolerance,
+    deadlineSeconds,
+    expertMode,
+    simData?.routeSlippagePercent,
+    submitPayRaw,
+    simData?.executionMetadata,
+    simData?.executionOperations,
+    simData?.return_amount,
+  ])
+  useEffect(() => {
+    if (impactReviewedQuoteRef.current !== impactReviewKey) {
+      impactAcceptedQuoteRef.current = null
+      setShowImpactConfirm(false)
+    }
+  }, [impactReviewKey])
 
   const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
 
@@ -1425,7 +1451,7 @@ export default function SwapPage() {
     buttonText = 'Trade unavailable'
     buttonDisabled = true
   } else if (routeSlippageBlocked) {
-    buttonText = 'Price impact is too high'
+    buttonText = 'Price difference is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Hop spread exceeds slippage protection'
@@ -2242,46 +2268,6 @@ export default function SwapPage() {
                           )}
                         </div>
                       )}
-                    {priceImpact !== null && (
-                      <>
-                        <div
-                          className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                          style={{ color: 'var(--ink-dim)' }}
-                          data-testid="swap-expected-slippage"
-                        >
-                          <span className="inline-flex items-center gap-1 uppercase text-xs tracking-wide font-medium">
-                            {ROUTE_EXECUTION_SLIPPAGE_LABEL}
-                            <span
-                              className="inline-flex h-4 w-4 cursor-help select-none items-center justify-center rounded-full border border-white/25 text-[9px] font-bold leading-none normal-case"
-                              tabIndex={0}
-                              role="img"
-                              aria-label="Price impact help"
-                              aria-describedby={routeSlippageTooltipId}
-                              title={ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
-                            >
-                              i
-                            </span>
-                            <span id={routeSlippageTooltipId} className="sr-only">
-                              {ROUTE_EXECUTION_SLIPPAGE_TOOLTIP}
-                            </span>
-                          </span>
-                          <span className={slippageSeverityClass(parseSlippagePercent(priceImpact) ?? 0)}>
-                            {priceImpact}%
-                          </span>
-                        </div>
-                        {simData?.routeSlippagePercent &&
-                          !(
-                            expectedSlippagePct != null &&
-                            expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT &&
-                            hopSpreadPercent != null &&
-                            Math.abs(parseFloat(hopSpreadPercent) - expectedSlippagePct) > 0.009
-                          ) && (
-                            <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-                              Hop spread: {hopSpreadPercent ?? '—'}%.
-                            </p>
-                          )}
-                      </>
-                    )}
                     <button
                       type="button"
                       onClick={handleOpenSettings}
@@ -2312,22 +2298,23 @@ export default function SwapPage() {
             )}
 
             <SwapImpactAside
+              economicExplanation={simData?.economicExplanation}
               routeSlippagePct={expectedSlippagePct}
               worstHopPercent={simData?.routePreflight?.worstSpreadPercent}
             />
             {routeSlippageBlocked && (
               <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
-                <p className="font-semibold mb-1">Price impact is too high</p>
+                <p className="font-semibold mb-1">Price difference is too high</p>
                 {theaterRouteQuote ? (
                   <p className="mb-2" data-testid="swap-theater-quote-blocked">
-                    Price impact is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This quote is not
-                    executable. Expert Mode cannot waive it.
+                    Fair-reference deviation is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This
+                    quote is not executable. Expert Mode cannot waive it.
                   </p>
                 ) : (
                   <>
                     <p className="mb-2">
-                      Price impact is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert Mode
-                      to continue.
+                      Fair-reference deviation is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable
+                      Expert Mode to continue.
                     </p>
                     <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
                       Dangerous: Enable Expert Mode to Swap Anyway:{' '}
@@ -2446,8 +2433,11 @@ export default function SwapPage() {
             />
             {showImpactConfirm && !routeSlippageBlocked && isWalletConnected && (
               <div className="alert-error mb-3 text-xs">
-                <p className="font-semibold mb-1">High price impact warning</p>
-                <p>{priceImpact}% price impact — click again to confirm.</p>
+                <p className="font-semibold mb-1">High fair-reference deviation</p>
+                <p>Click again to confirm this price difference.</p>
+                <button type="button" className="underline" onClick={() => setShowImpactConfirm(false)}>
+                  Cancel
+                </button>
               </div>
             )}
             <button
@@ -2460,25 +2450,15 @@ export default function SwapPage() {
                 if (extraDebitGate.blockSubmit) return
                 if (
                   priceImpact &&
-                  (parseSlippagePercent(priceImpact) ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
-                  (!showImpactConfirm ||
-                    impactReviewedQuoteRef.current !==
-                      JSON.stringify([
-                        submitPayRaw,
-                        simData?.executionMetadata,
-                        simData?.executionOperations,
-                        simData?.return_amount,
-                      ]))
+                  (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
+                  (!showImpactConfirm || impactReviewedQuoteRef.current !== impactReviewKey)
                 ) {
-                  impactReviewedQuoteRef.current = JSON.stringify([
-                    submitPayRaw,
-                    simData?.executionMetadata,
-                    simData?.executionOperations,
-                    simData?.return_amount,
-                  ])
+                  impactAcceptedQuoteRef.current = null
+                  impactReviewedQuoteRef.current = impactReviewKey
                   setShowImpactConfirm(true)
                   return
                 }
+                impactAcceptedQuoteRef.current = impactReviewKey
                 setShowImpactConfirm(false)
                 swapMutation.mutate()
               }}

@@ -1,5 +1,21 @@
 # Indexer — Invariants, Business Logic, and Security
 
+## Exact route cost attribution (#1483)
+
+Apply [RC1483-1–RC1483-10](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and run
+`make verify-issue-1483` with [the checklist](qa/issue-1483/README.md). Generic
+`spot_bridge_v1` diagnostics project original reserve/actual stage boundaries
+into raw final-output units and reconcile signed wrapper/trading/market/reference
+components exactly to independent fair minus delivered net. No attribution
+observation, RPC or counterfactual execution occurs during requests. Missing or
+inconsistent stages yield unavailable diagnostics without weakening execution.
+Exact amount-specific ranking, original observation/generation/expiry, reference
+quality/depth floors, gross funding/taxes/hooks and positive floors are preserved.
+Book taker commissions are explicit stage evidence alongside pool commissions;
+neither gas nor displayed percentage determines a route preference. See
+[the formula and schema](route-solver.md#economic-attribution-1483) and
+[bounded evidence/limits](qa/issue-1483/RESULTS.md).
+
 ## Local quote observations (#1452)
 
 Current indexed quote display, preflight and confirmation consume the exact

@@ -1,0 +1,101 @@
+{
+  "issue": 1483,
+  "scope": "Owned LocalTerra CW20 hook-free empty-book pool routes; exact requested gas honored; independent net integer arithmetic",
+  "utc_start": "2026-10-12T13:12:43.210672+00:00",
+  "utc_end": "2026-10-12T13:18:58.887114+00:00",
+  "driver_sha256": "ba63af5b579483a6b1054a0001c70bc5d32e63f15328ca4fe60560fdf84c8297",
+  "contract_artifacts": {
+    "source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+    "contract_source_inputs_match_current": true,
+    "contract_input_count": 170,
+    "contract_inputs_sha256": "5f26b67537fed3f78d39ef050f4238d199ff9411fc8270a14e44d77bc37fbaf1",
+    "artifact_attestation": "Current checked-in artifact checksums and complete current contract/package/lock input equivalence; original build recipe not re-attested; pair rebuilt after original receipt",
+    "sha256": {
+      "cl8y_dex_factory": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "cl8y_dex_router": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "cl8y_dex_pair": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "cw20_mintable": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "stable_budget_source": true,
+  "offline_budget_source_sha256": "5e3bfe906e89143ddde38cadd3ff2b8aabb914a5bec3728dee0bebec9faee60e",
+  "status": "PASS",
+  "settlements": 24,
+  "rejected_floor_transactions": 48,
+  "all_exact_net_and_floor_checks": true,
+  "all_rejected_floor_rollbacks": true,
+  "signed_requested_gas_agrees": true,
+  "by_family_hops": [
+    {
+      "family": "legacy",
+      "hops": 1,
+      "n": 3,
+      "maximum_used_gas": 2639581,
+      "requested_gas": 3200000,
+      "all_code_zero": true
+    },
+    {
+      "family": "legacy",
+      "hops": 2,
+      "n": 3,
+      "maximum_used_gas": 4634418,
+      "requested_gas": 5600000,
+      "all_code_zero": true
+    },
+    {
+      "family": "legacy",
+      "hops": 3,
+      "n": 3,
+      "maximum_used_gas": 6641156,
+      "requested_gas": 8000000,
+      "all_code_zero": true
+    },
+    {
+      "family": "legacy",
+      "hops": 4,
+      "n": 3,
+      "maximum_used_gas": 8660451,
+      "requested_gas": 10400000,
+      "all_code_zero": true
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 1,
+      "n": 3,
+      "maximum_used_gas": 2121482,
+      "requested_gas": 2600000,
+      "all_code_zero": true
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 2,
+      "n": 3,
+      "maximum_used_gas": 3597250,
+      "requested_gas": 4400000,
+      "all_code_zero": true
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 3,
+      "n": 3,
+      "maximum_used_gas": 5084995,
+      "requested_gas": 6200000,
+      "all_code_zero": true
+    },
+    {
+      "family": "route_local_v1",
+      "hops": 4,
+      "n": 3,
+      "maximum_used_gas": 6584851,
+      "requested_gas": 8000000,
+      "all_code_zero": true
+    }
+  ],
+  "unverified_scope": [
+    "native wrap/unwrap",
+    "tax/hook/populated-book bounded worst case",
+    "physical extension/WalletConnect",
+    "original reporter signed transactions",
+    "production settlement"
+  ]
+}

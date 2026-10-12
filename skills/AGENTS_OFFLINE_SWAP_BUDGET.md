@@ -20,3 +20,8 @@ and [RT1381](AGENTS_ROUTE_LOCAL_TAX.md).
 | OB1480-8 | Price protection and gas failures remain distinct. Genuine >5% confirmation, >30% Expert and ≥99% protection remain. Missing/malformed references never mean zero impact. |
 | OB1480-9 | Included code 11 and unknown inclusion never trigger automatic resend. Preserve sequence mismatch recovery and one intentional submit flow. |
 | OB1480-10 | Run `make verify-issue-1480` and applicable existing verifiers first/retest. Calibration needs funded current-artifact evidence, independently derived net balances and rollback, not constants mirrored in assertions. Skips remain unchecked; source and synthetic settlement cannot attest physical wallets or deployed contract artifacts. |
+
+Generic route cost attribution, exact-amount cache ranking and consistent fair-reference
+explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
+[the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
+explanation never changes reference quality, funding, floors or signing admission.

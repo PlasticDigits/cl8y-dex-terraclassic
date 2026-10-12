@@ -7,6 +7,7 @@ import {
   resolveSwapExpectedSlippagePercent,
   indexerWalletAmountMismatch,
   symmetricSlippagePercentFromRaw,
+  preciseFairDeviationPercent,
 } from './swapRouteSlippage'
 
 describe('swapRouteSlippage (GitLab #293)', () => {
@@ -41,5 +42,26 @@ describe('swapRouteSlippage (GitLab #293)', () => {
     expect(indexerWalletAmountMismatch('950000', '940000')).toBe(true)
     expect(indexerWalletAmountMismatch('940000', '940000')).toBe(false)
     expect(indexerWalletAmountMismatch('940001', '940000')).toBe(false)
+  })
+})
+
+describe('exact reference protection boundaries #1483', () => {
+  it.each([5, 30, 99])('retains exact %s%% threshold and both adjacent raw units', (threshold) => {
+    const fair = 10n ** 36n
+    const boundary = (fair * BigInt(100 - threshold)) / 100n
+    expect(Number(preciseFairDeviationPercent(boundary.toString(), fair.toString()))).toBe(threshold)
+    expect(Number(preciseFairDeviationPercent((boundary - 1n).toString(), fair.toString()))).toBeGreaterThan(threshold)
+    expect(Number(preciseFairDeviationPercent((boundary + 1n).toString(), fair.toString()))).toBeLessThan(threshold)
+    expect(Number(preciseFairDeviationPercent(fair.toString(), (boundary - 1n).toString()))).toBeGreaterThan(threshold)
+  })
+  it('does not accept a low server metric after malformed fair reference', () => {
+    expect(resolveRouteSlippagePercent('1', 'bad', '0')).toBeUndefined()
+    expect(resolveRouteSlippagePercent('1', '0', '0')).toBeUndefined()
+  })
+  it('does not round a 5.001% risk into 5% consent exemption', () => {
+    expect(Number(resolveRouteSlippagePercent('949990', '1000000', '0'))).toBeGreaterThan(5)
+  })
+  it.each(['-1', 'Infinity', '5junk', '1e1', '101', 'NaN'])('rejects malformed percent %s', (raw) => {
+    expect(parseSlippagePercent(raw)).toBeNull()
   })
 })

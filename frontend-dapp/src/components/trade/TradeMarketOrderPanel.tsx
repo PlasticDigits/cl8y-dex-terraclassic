@@ -55,10 +55,15 @@ import {
 } from '@/utils/quoteDebounce'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
-import { acquireGuidanceShowsQuoteOnly, acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
+import {
+  SWAP_FUNDED_HIGH_IMPACT_PCT,
+  acquireGuidanceShowsQuoteOnly,
+  acquireReduceHiddenForBroadcastPhase,
+} from '@/utils/swapPayAcquireGuidance'
 import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
-import { impactAsideOutsideDetails, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
+import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
+import { resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
@@ -70,7 +75,7 @@ import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useId, useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 interface MarketSimData {
   executionMetadata?: import('@/types').IndexerRouteExecutionMetadata
@@ -87,6 +92,7 @@ interface MarketSimData {
   indexerOperations?: SwapOperation[]
   routePreflight?: SwapRoutePreflightSpread
   indexerAmountReconciled?: boolean
+  economicExplanation?: string
   routeSlippagePercent?: string
 }
 
@@ -151,6 +157,8 @@ export function TradeMarketOrderPanel({
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const acceptedImpactKeyRef = useRef<string | null>(null)
+  const [reviewedImpactKey, setReviewedImpactKey] = useState<string | null>(null)
   const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
   const debouncedHybridMaxMakers = useDebouncedValue(hybridMaxMakers, SIM_QUOTE_DEBOUNCE_MS)
 
@@ -412,10 +420,7 @@ export function TradeMarketOrderPanel({
     simQuery.data?.routeSlippagePercent,
     simQuery.data?.routePreflight?.worstSpreadPercent ?? null
   )
-  const marketImpactAside = impactAsideOutsideDetails({
-    routeSlippagePct: expectedSlippagePct,
-    worstHopPercent: simQuery.data?.routePreflight?.worstSpreadPercent,
-  })
+
   const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
   const routeRiskBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
 
@@ -480,6 +485,28 @@ export function TradeMarketOrderPanel({
     isNativePay: !fromToken?.startsWith('terra1'),
   })
 
+  const impactReviewKey = JSON.stringify([
+    pairAddr,
+    side,
+    address,
+    rawInputAmount,
+    bookInputHuman,
+    hybridMaxMakers,
+    slippageTolerance,
+    deadlineSeconds,
+    expertMode,
+    simData?.executionMetadata,
+    simData?.executionOperations,
+    simData?.return_amount,
+    simData?.routeSlippagePercent,
+  ])
+  useEffect(() => {
+    acceptedImpactKeyRef.current = null
+    setReviewedImpactKey(null)
+  }, [impactReviewKey])
+  const needsImpactConsent = expectedSlippagePct != null && expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT
+  const showImpactConfirm = needsImpactConsent && reviewedImpactKey === impactReviewKey
+
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Market swap submitted.',
     mutationFn: async () => {
@@ -495,7 +522,10 @@ export function TradeMarketOrderPanel({
       }
       if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
-      if (routeRiskBlocked) throw new Error('Price impact is too high')
+      if (needsImpactConsent && acceptedImpactKeyRef.current !== impactReviewKey)
+        throw new Error('Review the price difference first.')
+      acceptedImpactKeyRef.current = null
+      if (routeRiskBlocked) throw new Error('Price difference is too high')
       if (!simData) throw new Error('Quote unavailable')
       if (marketSwapFee.coverageError) throw new Error(marketSwapFee.coverageError)
       const payRaw = submitPayRaw
@@ -546,6 +576,7 @@ export function TradeMarketOrderPanel({
     onSuccess: () => {
       sounds.playSuccess()
       setMarketAmountHuman('')
+      setReviewedImpactKey(null)
       queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       queryClient.invalidateQueries({ queryKey: ['pool'] })
       queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
@@ -660,30 +691,34 @@ export function TradeMarketOrderPanel({
     rawInputAmount !== '0' &&
     isSubmitReady &&
     !pricingDataPending &&
-    !extraDebitGate.blockSubmit
+    !extraDebitGate.blockSubmit &&
+    !routeRiskBlocked &&
+    !priceImpactTooHigh
 
   const submitLabel = !isWalletConnected
     ? 'Connect Wallet'
-    : pricingDataPending
-      ? 'Wait for price'
-      : extraDebitGate.insufficientBalance
-        ? 'Insufficient Balance'
-        : hasPositivePay && !decimalsResolved
-          ? decimalsPending
-            ? 'Loading decimals…'
-            : 'Token decimals unavailable'
-          : terraBroadcastPendingButtonLabel(
-              swapMutation.phase,
-              swapMutation.isPending,
-              priceImpactTooHigh
-                ? 'Hop spread exceeds slippage protection'
-                : routeRiskBlocked
-                  ? 'Price impact is too high'
-                  : liveSplit?.bookExceedsPay
-                    ? 'Book leg exceeds pay'
-                    : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-              'Submitting…'
-            )
+    : showImpactConfirm && canSubmit
+      ? 'Confirm market swap'
+      : pricingDataPending
+        ? 'Wait for price'
+        : extraDebitGate.insufficientBalance
+          ? 'Insufficient Balance'
+          : hasPositivePay && !decimalsResolved
+            ? decimalsPending
+              ? 'Loading decimals…'
+              : 'Token decimals unavailable'
+            : terraBroadcastPendingButtonLabel(
+                swapMutation.phase,
+                swapMutation.isPending,
+                priceImpactTooHigh
+                  ? 'Hop spread exceeds slippage protection'
+                  : routeRiskBlocked
+                    ? 'Price difference is too high'
+                    : liveSplit?.bookExceedsPay
+                      ? 'Book leg exceeds pay'
+                      : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+                'Submitting…'
+              )
 
   const swapMutate = swapMutation.mutate
   const swapPhase = swapMutation.phase
@@ -701,7 +736,11 @@ export function TradeMarketOrderPanel({
       onClick: () => {
         if (!interactive) return
         if (!isWalletConnected) openWalletModal()
-        else swapMutate()
+        else if (needsImpactConsent && !showImpactConfirm) setReviewedImpactKey(impactReviewKey)
+        else {
+          acceptedImpactKeyRef.current = impactReviewKey
+          swapMutate()
+        }
       },
       phase: swapPhase,
       pendingTxHash: swapPendingTxHash,
@@ -712,6 +751,9 @@ export function TradeMarketOrderPanel({
     }),
     [
       canSubmit,
+      needsImpactConsent,
+      showImpactConfirm,
+      impactReviewKey,
       isPaused,
       submitLabel,
       interactive,
@@ -810,6 +852,15 @@ export function TradeMarketOrderPanel({
           <p data-testid="trade-market-quote-only" className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
             Quote only
           </p>
+        )}
+
+        {!pricingDataPending && simData && rawInputAmount !== '0' && !showReceiveCalculating && (
+          <SwapImpactAside
+            routeSlippagePct={expectedSlippagePct}
+            worstHopPercent={simData.routePreflight?.worstSpreadPercent}
+            economicExplanation={simData.economicExplanation}
+            testId="trade-market-impact-aside"
+          />
         )}
 
         <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
@@ -936,15 +987,6 @@ export function TradeMarketOrderPanel({
                       </p>
                     </div>
                   )}
-                  {marketImpactAside?.kind === 'route' ? (
-                    <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
-                      Price impact {marketImpactAside.percent}%.
-                    </p>
-                  ) : marketImpactAside?.kind === 'worst_hop' ? (
-                    <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
-                      Worst hop spread (sim): {marketImpactAside.percent}%
-                    </p>
-                  ) : null}
                   <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
                   {marketRouteLine && (
                     <div
@@ -983,6 +1025,15 @@ export function TradeMarketOrderPanel({
             </div>
           )}
         </div>
+
+        {showImpactConfirm && canSubmit && (
+          <p className="alert-error text-xs" data-testid="trade-market-impact-confirm">
+            High fair-reference deviation. Click again to confirm.
+            <button type="button" className="ml-2 underline" onClick={() => setReviewedImpactKey(null)}>
+              Cancel
+            </button>
+          </p>
+        )}
 
         <SwapPayAcquireGuidanceBanner
           guidance={payAcquireGuidance}

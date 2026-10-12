@@ -1,16 +1,18 @@
 import { impactAsideOutsideDetails } from '@/utils/swapRouteSlippage'
 
 /**
- * One percent outside collapsed trade details (#1360).
- * High-impact route slippage replaces a different worst-hop line.
+ * One aggregate fair-reference percentage and bounded explanation in both entry flows.
+ * Per-hop spreads remain separate diagnostic metrics, never an adjacent percentage.
  */
 export function SwapImpactAside({
   routeSlippagePct,
   worstHopPercent,
+  economicExplanation,
   testId = 'swap-impact-aside',
 }: {
   routeSlippagePct: number | null
   worstHopPercent: string | null | undefined
+  economicExplanation?: string
   testId?: string
 }) {
   const aside = impactAsideOutsideDetails({ routeSlippagePct, worstHopPercent })
@@ -18,7 +20,7 @@ export function SwapImpactAside({
   if (aside.kind === 'route') {
     return (
       <p className="mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }} data-testid={testId}>
-        Price impact {aside.percent}%.
+        Fair-reference deviation {aside.percent}%. {economicExplanation ?? 'Cost breakdown unavailable.'}
       </p>
     )
   }

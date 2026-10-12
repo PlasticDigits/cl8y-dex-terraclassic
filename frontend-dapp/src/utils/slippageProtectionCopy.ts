@@ -57,10 +57,10 @@ export function isSlippageCustomOutOfRange(sanitized: string): boolean {
 export const HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT = 5
 
 /** Route execution-quality metric (#293) — distinct from tolerance. */
-export const ROUTE_EXECUTION_SLIPPAGE_LABEL = 'Expected slippage'
+export const ROUTE_EXECUTION_SLIPPAGE_LABEL = 'Fair-reference deviation'
 
 export const ROUTE_EXECUTION_SLIPPAGE_TOOLTIP =
-  'Execution-quality estimate vs fair cross-rate token prices. This is not your slippage protection setting in Settings.'
+  'Difference between delivered output and fair-reference output, including swap costs. Network fee and slippage protection are separate.'
 
 export const TRANSACTION_DEADLINE_LABEL = 'Transaction deadline'
 
