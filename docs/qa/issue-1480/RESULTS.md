@@ -1,7 +1,7 @@
 # Offline-budget implementation and scoped verification
 
 Issue: [#1480](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1480).
-Implementation PR: publication pending; updated before final issue comment.
+Implementation PR: [#1481](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481).
 Policy: [OB1480](../../../skills/AGENTS_OFFLINE_SWAP_BUDGET.md).
 Checklist: [README](README.md). Source started at
 `2d1627ffa33eb3e08199acfff574a5b63fcfbd39` in an isolated worktree.

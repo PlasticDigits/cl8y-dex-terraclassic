@@ -1,7 +1,7 @@
 # Small-market implementation and scoped verification
 
 Issue: [#1479](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1479).
-Implementation PR: publication pending; updated before final issue comment.
+Implementation PR: [#1481](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481).
 Policy: [SM1479](../../../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
 Checklist: [README](README.md). Source started at
 `2d1627ffa33eb3e08199acfff574a5b63fcfbd39` in an isolated worktree.

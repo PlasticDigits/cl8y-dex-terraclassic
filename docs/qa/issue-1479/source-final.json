@@ -94,5 +94,7 @@
     "Original #1257 full verifier remains FAIL; isolated canonical-identity 39-test retest passed",
     "Pre-review #1452 PASS belongs to old source; interrupted #1473 has no final verdict",
     "Core funded budgets unchanged; actual first/retest receipts remain separate"
-  ]
+  ],
+  "tested_code_commit": "3d9ab090f62d983b58be16bd2ace207ccb42a1cc",
+  "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481"
 }
