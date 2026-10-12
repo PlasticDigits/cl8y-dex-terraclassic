@@ -1,0 +1,111 @@
+{
+  "utc_start": "2026-10-12T06:00:30.095392+00:00",
+  "scope": "Bounded public projections of original anchor/quorum times and public prices. Sequential reads are not a consistent original SQL/economic reference cohort, compatible fee/config tuple, or deployed execution acceptance. No chain/provider queries, actor fields, credentials or private endpoints.",
+  "backend_before": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "hub_prices": [
+    {
+      "ticker": "custc",
+      "asset_id": 10,
+      "price_usd": "0.00540400",
+      "source_pair": null,
+      "asset_address": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+      "tvl_usd": null,
+      "updated_at": "2026-10-12T06:00:30.501499+00:00",
+      "as_of": "2026-10-12T06:00:20.585100+00:00",
+      "max_age_seconds": 300,
+      "quality": "external_quorum",
+      "oracle_grade": false,
+      "policy": "hub-fixed-reference-v1",
+      "priced_leg_depth_usd": null,
+      "divergence_pct": null,
+      "reference_at": null
+    },
+    {
+      "ticker": "lunc",
+      "asset_id": 12,
+      "price_usd": "0.00005121",
+      "source_pair": null,
+      "asset_address": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "tvl_usd": null,
+      "updated_at": "2026-10-12T06:00:30.501499+00:00",
+      "as_of": "2026-10-12T06:00:20.585082+00:00",
+      "max_age_seconds": 300,
+      "quality": "external_quorum",
+      "oracle_grade": false,
+      "policy": "hub-fixed-reference-v1",
+      "priced_leg_depth_usd": null,
+      "divergence_pct": null,
+      "reference_at": null
+    },
+    {
+      "ticker": "ust1",
+      "asset_id": 9,
+      "price_usd": "0.97547735966021022600",
+      "source_pair": "terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f",
+      "asset_address": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+      "tvl_usd": "97704.722840477480",
+      "updated_at": "2026-10-12T06:00:30.501499+00:00",
+      "as_of": "2026-10-12T06:00:20.498981+00:00",
+      "max_age_seconds": 20,
+      "quality": "bounded_spot",
+      "oracle_grade": false,
+      "policy": "hub-fixed-reference-v1",
+      "priced_leg_depth_usd": "48852.361420238740",
+      "divergence_pct": "2.66436930999380008400",
+      "reference_at": "2026-10-06T11:55:56.372034+00:00"
+    },
+    {
+      "ticker": "ustr",
+      "asset_id": 11,
+      "price_usd": "0.00620395543293161800",
+      "source_pair": "terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy",
+      "asset_address": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+      "tvl_usd": "39855.74386649900701289700",
+      "updated_at": "2026-10-12T06:00:30.501499+00:00",
+      "as_of": "2026-10-12T06:00:20.498981+00:00",
+      "max_age_seconds": 20,
+      "quality": "bounded_spot",
+      "oracle_grade": false,
+      "policy": "hub-fixed-reference-v1",
+      "priced_leg_depth_usd": "19927.87193324950350644800",
+      "divergence_pct": "4.31577030579175853500",
+      "reference_at": "2026-10-06T11:56:58.141387+00:00"
+    }
+  ],
+  "oracle_state": [
+    {
+      "ticker": "ustc",
+      "price_usd": "0.00540200000000000100",
+      "quality": "fresh",
+      "as_of": "2026-10-12T06:00:30.585149+00:00",
+      "age_seconds": 2,
+      "max_age_seconds": 300,
+      "source_count": 2,
+      "quorum": 2,
+      "source_policy": "cex-quorum-v1",
+      "accepted_sources": [
+        "kucoin",
+        "mexc"
+      ]
+    },
+    {
+      "ticker": "lunc",
+      "price_usd": "0.00005121",
+      "quality": "fresh",
+      "as_of": "2026-10-12T06:00:30.585121+00:00",
+      "age_seconds": 3,
+      "max_age_seconds": 300,
+      "source_count": 2,
+      "quorum": 2,
+      "source_policy": "cex-quorum-v1",
+      "accepted_sources": [
+        "kucoin",
+        "mexc"
+      ]
+    }
+  ],
+  "backend_after": "ea627f7b0e8d5ebc9fde2bb5b243f451cf159f4d",
+  "revision_stable": true,
+  "read_count": 5,
+  "utc_end": "2026-10-12T06:00:34.758174+00:00"
+}

@@ -1,0 +1,7 @@
+{
+  "application_revision": "0395459971312c31f87d502ef7822733a7250238",
+  "application_input_files": 1165,
+  "application_input_fingerprint": "1031399107d4540e353749acbec0c121614eaa3a9e5d83c00f84bc5bbbe9715a",
+  "unchanged": true,
+  "scope": "Tracked app sources, smartcontracts and package/Cargo manifests/locks exactly equal deployed revision; evidence and QA helpers differ. No app redeployment requested."
+}

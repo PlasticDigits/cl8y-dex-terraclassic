@@ -1,0 +1,18 @@
+{
+  "revision": "0395459971312c31f87d502ef7822733a7250238",
+  "utc": "2026-10-12T06:16:47.870110+00:00",
+  "applications": {
+    "frontend": {
+      "status": "finished",
+      "commit": "0395459971312c31f87d502ef7822733a7250238",
+      "log_error_pattern_count": 3
+    },
+    "backend": {
+      "status": "finished",
+      "commit": "0395459971312c31f87d502ef7822733a7250238",
+      "log_error_pattern_count": 21
+    }
+  },
+  "operator_scope": "Explicit Coolify deployment; bounded90-read/15min polling; no rawprivate bodies/logs/URLs/actorfields",
+  "overall": "PASS"
+}

@@ -19,6 +19,157 @@ spec.loader.exec_module(probe)
 
 
 class Tests(unittest.TestCase):
+    @staticmethod
+    def executable_fixture():
+        case = next(probe.corpus("reproduction"))
+        body = {"token_in": case["token_in"], "token_out": case["token_out"],
+                "estimated_amount_out_net": "9000", "router_operations": [{"terra_swap": {"min_return": "8550"}}],
+                "execution_metadata": {"input_amount": case["amount"], "generation": "a" * 64,
+                    "observed_at_ms": 1000, "expires_at_ms": 21000,
+                    "protection_policy": "quote_relative_v1", "max_spread": "0.05",
+                    "minimum_receive": "8550", "execution_market_spread": "0.157894736842105264",
+                    "hops": [{"pool_return_amount": "9000", "commission_amount": "0", "book_return_net": "0",
+                              "pool_input_actual": "1000", "book_offer_consumed": "0", "spread_amount": "900",
+                              "return_amount": "9000", "min_return": "8550"}]}}
+        case = {**case, "spread": "0.05"}
+        return case, body
+
+    def test_failed_quote_diagnostic_distinguishes_expiry_future_lifetime_and_shape(self):
+        case, good = self.executable_fixture()
+        self.assertEqual(probe.classify(200, good, case, 2000), ("executable", True))
+        for changes, reason in [({"expires_at_ms": 2000}, "observation_expired"),
+                                ({"observed_at_ms": 2001}, "observation_in_future"),
+                                ({"expires_at_ms": 21001}, "observation_lifetime"),
+                                ({"observed_at_ms": True}, "observation_shape"),
+                                ({"expires_at_ms": "private-url"}, "observation_shape")]:
+            with self.subTest(reason=reason, changes=changes):
+                body = json.loads(json.dumps(good))
+                body["execution_metadata"].update(changes)
+                self.assertEqual(probe.classify(200, body, case, 2000), ("client_validation", False))
+                diagnostic = probe.validation_diagnostic(body, case, 2000)
+                self.assertIn(reason, diagnostic["reasons"])
+                self.assertEqual(diagnostic["validation_at_ms"], 2000)
+                self.assertNotIn("private-url", json.dumps(diagnostic))
+        self.assertEqual(probe.validation_diagnostic([], case, 2000),
+                         {"reasons": ["quote_shape"], "validation_at_ms": 2000})
+
+    def test_failed_quote_diagnostic_identifies_policy_and_selected_net_floors(self):
+        case, good = self.executable_fixture()
+        for changes, reason in [({"protection_policy": "unknown-policy"}, "protection_policy_mismatch"),
+                                ({"max_spread": "0.30"}, "spread_mismatch"),
+                                ({"minimum_receive": "8549"}, "minimum_receive_invalid")]:
+            body = json.loads(json.dumps(good))
+            body["execution_metadata"].update(changes)
+            self.assertFalse(probe.classify(200, body, case, 2000)[1])
+            diagnostic = probe.validation_diagnostic(body, case, 2000)
+            self.assertIn(reason, diagnostic["reasons"])
+            self.assertEqual(diagnostic["estimated_amount_out_net"], "9000")
+            self.assertEqual(diagnostic["input_amount"], case["amount"])
+            self.assertNotIn("unknown-policy", json.dumps(diagnostic))
+        good["execution_metadata"]["hops"][0].update(return_amount="19", min_return="18")
+        self.assertFalse(probe.classify(200, good, case, 2000)[1])
+        diagnostic = probe.validation_diagnostic(good, case, 2000)
+        self.assertEqual(diagnostic["reasons"], ["hop_floor_invalid"])
+        self.assertEqual(diagnostic["hop_floors"], [{"return_amount": "19", "min_return": "18"}])
+
+    def test_failed_quote_diagnostic_unknown_causes_are_not_guessed(self):
+        case, body = self.executable_fixture()
+        # The market ceiling arithmetic fails, while the exported simple checks pass.
+        body["execution_metadata"]["execution_market_spread"] = "0.2"
+        self.assertFalse(probe.classify(200, body, case, 2000)[1])
+        diagnostic = probe.validation_diagnostic(body, case, 2000)
+        self.assertEqual(diagnostic["reasons"], ["unclassified_validation"])
+        self.assertNotIn("router_operations", diagnostic)
+
+    def test_failed_quote_diagnostic_rejects_injection_and_caps_scalar_and_hop_export(self):
+        case, body = self.executable_fixture()
+        sentinel = "https://private.invalid/actor?digest=do-not-export"
+        meta = body["execution_metadata"]
+        body.update(private_actor=sentinel, trader=sentinel, url=sentinel, estimated_amount_out_net="9" * 100000)
+        body["router_operations"][0]["terra_swap"].update(actor=sentinel, private_prose=sentinel)
+        meta.update(generation=sentinel, protection_policy=sentinel, max_spread="0." + "1" * 100000,
+                    minimum_receive=str(2 ** 128), observed_at_ms=2 ** 53, expires_at_ms=True)
+        meta["hops"] = [{"return_amount": "19", "min_return": "18", "private_actor": sentinel,
+                         "pool_return_amount": sentinel, "pair": sentinel}] * 10000
+        diagnostic = probe.validation_diagnostic(body, case, 2000)
+        encoded = json.dumps(diagnostic)
+        self.assertNotIn(sentinel, encoded)
+        self.assertNotIn("private", encoded)
+        self.assertNotIn("generation", encoded)
+        self.assertNotIn("router_operations", encoded)
+        for field in ("estimated_amount_out_net", "minimum_receive", "observed_at_ms", "expires_at_ms", "max_spread"):
+            self.assertNotIn(field, diagnostic)
+        self.assertTrue(diagnostic["hop_floors_truncated"])
+        self.assertEqual(len(diagnostic["hop_floors"]), 8)
+        self.assertLess(len(encoded), 2000)
+        for value in [True, -1, 2 ** 53, "2000", float("inf")]:
+            self.assertNotIn("validation_at_ms", probe.validation_diagnostic({}, case, value))
+
+    def test_socket_failed_200_uses_verdict_clock_and_valid_rows_stay_unchanged(self):
+        case, good = self.executable_fixture()
+        revision = "f" * 40
+        quote_count = 0
+        sentinel = "private-response-never-export"
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_GET(self):
+                nonlocal quote_count
+                if self.path == "/health":
+                    body = {"git_sha": revision}
+                else:
+                    quote_count += 1
+                    body = json.loads(json.dumps(good))
+                    body["private_actor"] = sentinel
+                    if quote_count == 1:
+                        body["execution_metadata"]["expires_at_ms"] = 2000
+                    else:
+                        body["execution_metadata"].update(observed_at_ms=49000, expires_at_ms=69000)
+                payload = json.dumps(body).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        args = SimpleNamespace(base_url=f"http://127.0.0.1:{server.server_port}", revision=revision,
+                               cycles=1, cycle_delay=181, endpoints=["solve"], profile="reproduction",
+                               interval=0.5, enforce_socket_budget=False)
+        original_classify = probe.classify
+        clocks = []
+        try:
+            with patch.object(probe.time, "time", return_value=2.0) as clock, patch.object(probe.time, "sleep"), \
+                    patch.object(probe, "corpus", return_value=iter([case, case])):
+                def advancing_classify(status, body, scenario, now_ms):
+                    clocks.append(now_ms)
+                    result = original_classify(status, body, scenario, now_ms)
+                    clock.return_value = 50.0  # Diagnostics must not sample this newer clock.
+                    return result
+
+                with patch.object(probe, "classify", side_effect=advancing_classify):
+                    result = probe.probe(args)
+            self.assertEqual(clocks, [2000, 50000])
+            self.assertEqual(quote_count, 2)
+            self.assertEqual(result["overall"], "FAIL")
+            failed, passed = result["samples"]
+            self.assertEqual(failed["outcome"], "client_validation")
+            self.assertFalse(failed["classified"])
+            self.assertFalse(failed["socket_budget_pass"])
+            self.assertEqual(failed["validation_diagnostic"]["validation_at_ms"], 2000)
+            self.assertIn("observation_expired", failed["validation_diagnostic"]["reasons"])
+            self.assertEqual(passed["outcome"], "executable")
+            self.assertTrue(passed["classified"])
+            self.assertNotIn("validation_diagnostic", passed)
+            self.assertNotIn(sentinel, json.dumps(result))
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join()
+
     def test_all_pairs_directions_amounts_and_protection_settings(self):
         rows = list(probe.corpus())
         self.assertEqual(len(rows), 420)

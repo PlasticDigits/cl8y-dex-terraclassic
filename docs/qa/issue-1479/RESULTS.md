@@ -125,3 +125,80 @@ measurement clocks/budgets. Earlier normal-host FAILs remain retained. The previ
 completed 1452 run belongs to pre-review source;1473 was explicitly interrupted for
 the review fixes and has no final verdict. Controlled source success does not
 establish live deployed acceptance or physical wallets.
+
+
+## Publication and deployed checks
+
+[Implementation PR #1481](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1481)
+merged to `0395459971312c31f87d502ef7822733a7250238`. Both Coolify apps finished and
+report healthy. [Initial attestation](deployment-attestation.json) and
+[post-matrix attestation](attestation-final.json) separately pin backend, frontend
+deployment and served root script hashes to that revision. Lazy chunks, production
+contract binaries and physical signers remain separate scope.
+
+Normal merge returned 405 and ordinary main push was protected. After bounded
+inspection of genuine passing/pending checks, the explicitly authorized per-merge
+`force_merge` option bound to exact PR head completed without changing protection,
+faking status or force-pushing Git. [Publication/CI receipt](publication-ci.json)
+retains pending-at-merge; [hosted pipeline 422](https://ci.cl8y.com/repos/7/pipeline/422/1)
+subsequently passed every required step. The unpublished local merge was backed up
+and equal-tree soft reconciliation preserved all pre-existing dirty files.
+
+[Six original direct KENA offers](live-direct-economics-after.json) now return
+validated executable quotes matching independent raw reserves/180-bps arithmetic
+and contract simulation exactly in both directions, with positive upward-rounded
+5% net floors. The old backend returned 503 for those same offers. No production
+signing/broadcast occurred; pool state and backend revision remained unchanged.
+
+[Full API matrix](live-api-full.json) completed 1,680 requests (420 cases, solve/best,
+first/retest beyond 181 seconds): 1,116 validated executable, 217 dust, 322 unsupported,
+12 impact blockers and 12 transient missing observations. Warm/reused useful
+p50/p95/p99/max 288.52/290.259/291.06/291.94 ms meet 500 ms. Overall remains **FAIL**
+for one HTTP 200 client-validation rejection, USTR→CL8Y human 1 at 5% in the first
+solve. Its original body was not retained and its cause stays **unproved**.
+Same-case retest passed. [Exact-input replay](live-client-validation-replay.json)
+passed 12 executable validations; its separate cold 883.045 ms result remains
+**FAIL** against 500 ms, while warm 11 max 292.380 ms is recorded separately.
+
+[Original unsharded browser run](live-browser-original-incomplete.json) is **FAIL**:
+710/840 samples at the unchanged 30-minute cap, plus 1,110.9/1,101.2 ms latency
+failures. [Generic bounded shards](live-browser-aggregate.json) completed all 840
+unique cases, both orientations/viewports/cycles, with zero failures and 558 useful
+quotes. Useful p50/p95/p99/max 376.9/414.4/444.9/467.3 ms meet 750 ms. Each run stays
+under 30 minutes/2,200 reads and preserves the 181-second gap and original input-to-
+visible-frame clock. Cache classes have 269 observed misses, zero observed hits and
+289 unobserved results; this does not establish full hit/miss acceptance.
+
+[Transport replay](live-latency-transport-summary.json) observed six reused HTTP3
+requests at 298.357–300.033 ms send→headers, 304.4–312.4 ms fetch→headers and 1.3–2.9 ms
+JSON, no long tasks, no writes, and no-store. Original stalls were not reproduced;
+no code cause was demonstrated. Its repeated cached-quote DOM timer was invalid
+instrumentation and is excluded; original genuine failures remain retained.
+
+[Monitoring](monitoring-after.json) uses fixed 15-minute Loki aggregates only:
+indexer 1,050 lines/eight error-pattern/172 capacity-pattern lines; frontend 7,616
+lines/113 error-pattern lines. These are operational clues, not quote or accounting
+proof. Prometheus is **SKIP**, no datasource provisioned.
+[Build classifications](deployment-log-summary.json) retain three missing temporary-
+container cleanup matches per app and zero detected compiler-error/fatal/panic
+patterns, with generic Error-identifier matches separate. [Narrow runtime aggregate categories](monitoring-error-classes.json) identify eight
+backend HTTP503 patterns and zero panic/fatal patterns. Frontend generic matches
+remain unclassified by these narrow missing-file/permission/upstream/panic queries;
+they are not silently renamed successful checks. No raw log lines, credentials,
+actor identifiers or private endpoints are published.
+
+[Original public anchors](live-public-original-anchor-views.json) and
+[bounded capability](readonly-wire-db-capability.json) narrow the baseline: both
+floor overrides were unset, public quorum has two venues, but private atomic SQL/
+economic/configuration rows remain unavailable. The existing broker permits
+forwarding only; the legacy API token returned 401. Sequential projections are
+not an original atomic cohort or reconstruction of the earlier 00:21 report.
+
+Application source stays identical to deployed `03954599`; follow-up changes are
+evidence/docs and QA-only deterministic selection plus bounded failed-response
+diagnostics. Shard/parser/coverage/actual-DOM helper tests passed 17 twice; probe
+socket/privacy/clock diagnostics passed 16 twice. Original verdicts, timestamps,
+500/750 ms limits and read/runtime caps are unchanged. These subsets do not complete
+private provenance/history, independent thin-token manipulation, native/tax/hook/
+book gas calibration, physical wallets or the full arbitrary-state matrix.
+Both issues remain open. Only #1479 documentation AC8 is complete after final links.

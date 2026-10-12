@@ -1,0 +1,12 @@
+{
+  "utc": "2026-10-12T05:50:17.452465+00:00",
+  "scope": "Existing operator identity; one bounded readonly SSH capability probe; no provider or database mutation",
+  "return_code": 0,
+  "sanitized_response_available": true,
+  "stdout_bytes": 60,
+  "ssh_readonly_command": true,
+  "ssh_agent_available": true,
+  "remote_shell_exec_available": false,
+  "database_forwarding_available": false,
+  "capability_reason": "Reviewed existing forwarding-only SSH policy; forced true command and port22-only forwarding. No policy changes."
+}

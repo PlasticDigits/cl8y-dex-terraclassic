@@ -1,0 +1,104 @@
+{
+  "utc": "2026-10-12T06:07:04.551075+00:00",
+  "pr": 1481,
+  "head": "e0120861867cd52fc43f72fbf399f15fcba29d93",
+  "normal_merge_http": 405,
+  "ordinary_main_push": "protected_branch_rejected",
+  "hosted_pipeline": 422,
+  "ci_status_before": "pending",
+  "ci_steps_before": [
+    {
+      "name": "git",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "postgres",
+      "state": "running",
+      "exit_code": 0
+    },
+    {
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "indexer-lib",
+      "state": "running",
+      "exit_code": 0
+    },
+    {
+      "name": "indexer-postgres",
+      "state": "pending",
+      "exit_code": 0
+    },
+    {
+      "name": "functional-required",
+      "state": "pending",
+      "exit_code": 0
+    }
+  ],
+  "force_merge": true,
+  "authorization": "Explicit user override of unavailable workflow holds, relayed by root; exact-head per-merge action only",
+  "scope": "No branch protection changes, fabricated statuses, force Git pushes, or hook bypasses",
+  "merge_http": 200,
+  "merged": true,
+  "merge_commit_sha": "0395459971312c31f87d502ef7822733a7250238",
+  "state": "closed",
+  "ci_status_after": "success",
+  "ci_steps_after": [
+    {
+      "name": "git",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "postgres",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0
+    },
+    {
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0
+    }
+  ],
+  "hosted_pipeline_url": "https://ci.cl8y.com/repos/7/pipeline/422/1",
+  "documented_merge_schema": "https://git.cl8y.com/swagger.v1.json",
+  "scope_after": "Genuine hosted success followed pending-only merge override; exact PR head unchanged"
+}
