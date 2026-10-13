@@ -103,6 +103,8 @@ Its 12M synthetic requested gas does not certify production calibration.
 
 ## Current canonical publication supplement
 
+Canonical publication and actor-proof implementation: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).
+
 [Current source receipt](core-final-summary.json) and
 [fresh controlled matrix](core-controlled-browser-final-summary.json) repeat all
 fourteen applicable named verifiers after the canonical identity, scheduled

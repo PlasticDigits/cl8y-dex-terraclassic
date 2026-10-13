@@ -41,3 +41,5 @@ Neutral entry implementation: [PR #1492](https://git.cl8y.com/code/cl8y-dex-terr
 Canonical publication, bounded preparation and actor-proof safety are documented
 in [the current source supplement](../docs/qa/issue-1489/RESULTS.md#final-canonical-publication-source-supplement)
 and [its fourteen-verifier receipt](../docs/qa/issue-1489/core-final-summary.json).
+
+Canonical publication implementation: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).

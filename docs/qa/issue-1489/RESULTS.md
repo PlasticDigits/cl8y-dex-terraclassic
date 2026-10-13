@@ -345,6 +345,8 @@ receipts. The original actor-race and compiler/setup failure logs are retained.
 
 ## Final canonical publication source supplement
 
+Implementation and review: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).
+
 [Current source receipt](core-final-summary.json) binds the modified worktree on
 base `af79043096ecf80b0d85fab443f60e3f9c7c5eed` to product SHA256
 `ef69138e8f0b5081e4bdb5d9a375fc1f0d78a022f13affb5422d295b7c03dca7`.
