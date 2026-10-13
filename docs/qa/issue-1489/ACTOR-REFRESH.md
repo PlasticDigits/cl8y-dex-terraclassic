@@ -55,3 +55,5 @@ p50/p95/p99/maximum useful latency is 94.9/156.1/172.5/264.2ms at the original
 750ms clock. This source/owned-fixture evidence does not reclassify prior
 production UNVERIFIED or browser FAIL receipts. Final independent deployment
 and sustained live acceptance remain separate.
+
+Combined implementation and review: [PR #1494](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1494).

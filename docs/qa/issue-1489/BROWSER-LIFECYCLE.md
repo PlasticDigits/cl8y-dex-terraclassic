@@ -47,3 +47,5 @@ verifier fingerprints.
 See the [#1489 checklist](README.md),
 [RD1489](../../../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [RC1483](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md).
+
+Combined implementation and review: [PR #1494](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1494).
