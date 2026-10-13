@@ -2792,6 +2792,8 @@ positive TVL or completed search does not.
 
 ## Automatic route improvement and progress (#1489)
 
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
 Follow [RD1489](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [the checklist](qa/issue-1489/README.md), preserving
 [#1483 economic explanation](qa/issue-1483/README.md). Native progress uses the

@@ -604,6 +604,8 @@ all issue acceptance; see [results](qa/issue-1479/RESULTS.md).
 
 ## Bounded automatic discovery (#1489)
 
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
 Apply [RD1489-1–RD1489-10](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [the checklist](qa/issue-1489/README.md). Preserve a useful short first quote,
 then compare bounded eligible deeper candidates by exact delivered net. Unchanged

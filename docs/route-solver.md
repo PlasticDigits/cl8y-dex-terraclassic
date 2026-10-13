@@ -808,6 +808,8 @@ all initialized 500/750ms latency acceptance is complete.
 <a id="automatic-discovery-1489"></a>
 ## Automatic discovery (#1489)
 
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
 [RD1489](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [the verification checklist](qa/issue-1489/README.md) extend the
 [#1483 attribution contract](#economic-attribution-1483). A useful direct/two-pool-hop

@@ -1,4 +1,5 @@
 # Automatic route discovery verification
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 
 Issue [#1489](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1489);
 follow-up to [#1483](../issue-1483/README.md).
@@ -47,7 +48,7 @@ verified subsets and unavailable scope in [RESULTS.md](RESULTS.md).
 | [ ] | AC4 actual clients | Desktop/phone Swap/Trade adopt improvements, exact progress intent, pinned review and factual concise copy; exact controls remain. |
 | [ ] | AC5 economic execution | Original raw attribution/context/expiry/funding/floors, zero RPC and owned native-three-hop/wrapped settlement plus atomic rejected-floor rollback. |
 | [ ] | AC6 repeated/deployed evidence | Stable boundary/state/resource/abuse first/retest, artifact attestation and sustained initialized live clocks/monitoring. Missing SQL/device/contract evidence explicit. |
-| [ ] | AC7 documentation | API/search/progress/invariants/checklist/skills/issue/fix and #1483 crosslinks agree. |
+| [x] | AC7 documentation | API/search/progress/invariants/checklist/skills/issue/fix and #1483 crosslinks agree. |
 
 ## Commands and scope
 

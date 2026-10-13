@@ -1,4 +1,5 @@
 # Bounded automatic route discovery (#1489)
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 
 Apply to skeleton enumeration, exact-amount deeper discovery, producer revision
 invalidation, job contention, progress and Swap/Trade adoption. Issue:
