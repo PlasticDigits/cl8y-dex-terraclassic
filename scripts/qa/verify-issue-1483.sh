@@ -53,6 +53,7 @@ PY
 start
 for attempt in first retest; do
   run "$attempt public probe privacy, cap and attribution boundary" python3 scripts/qa/test-probe-route-cost-attribution-1483.py
+  run "$attempt complete root script identity, path and hash boundary" python3 scripts/qa/test-attest-trading-quotes-1473.py
   run "$attempt private wallet helper least-scope and no-disclosure boundary" python3 scripts/qa/test-prepare-wallet-attribution-1483.py
   run "$attempt deployed explanation source, clock and public evidence boundary" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-attribution-1483.cjs
   selected "$attempt signed raw attribution and unavailable boundaries" RUST rust

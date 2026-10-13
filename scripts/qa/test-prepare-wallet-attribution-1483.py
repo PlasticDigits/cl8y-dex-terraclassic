@@ -67,8 +67,10 @@ class Reader:
         self.reads += 1
         self.requests.append(url)
         if url == PREP.ATTEST.FRONTEND + "/":
-            return b'<script src="/assets/root.js"></script>'
-        if url.endswith("/assets/root.js"):
+            return (b'<script src="/bootstrap/theme.js"></script>'
+                    b'<script src="/bootstrap/trade-shell.js"></script>'
+                    b'<script src="/assets/root.js"></script>')
+        if url.endswith(("/assets/root.js", "/bootstrap/theme.js", "/bootstrap/trade-shell.js")):
             return b"owned root fixture"
         if url.endswith("/health"):
             return json.dumps({"git_sha": self.revision}).encode()
@@ -98,7 +100,7 @@ class WalletPreparation(unittest.TestCase):
         self.assertEqual(result["samples"]["matched_credit_clunc"]["raw_input"], "980000")
         self.assertIn("amount=1", result["links"]["native_1_lunc"])
         self.assertIn("amount=0.98", result["links"]["matched_credit_clunc"])
-        self.assertEqual(len(result["frontend"]["artifact"]["root_scripts"]), 1)
+        self.assertEqual(len(result["frontend"]["artifact"]["root_scripts"]), 3)
         self.assertLessEqual(reader.reads, PREP.ATTEST.MAX_READS)
         self.assertNotIn("private-response-sentinel", json.dumps(result))
         self.assertNotIn("execution_metadata", json.dumps(result))

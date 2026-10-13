@@ -353,3 +353,49 @@ owned scratch from the correct frontend cwd. Durations are 225.67s and 225.64s;
 original assertions/clocks and all rejection/masking conditions remain intact.
 No application or signing code changed for this full-suite correction. Hosted
 CI is rerun on the corrected commit before merge; the failed431 receipt remains.
+
+## Deployed root-script verification correction
+
+Implementation: [PR #1488](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1488).
+
+PR #1485 merged normally after hosted432 passed every mandatory job. The exact
+verified tree deployed as `33ef64a99e65f0b0c7116e79bb7c6860b303beda`; both Coolify
+jobs finished with matching revision and zero fatal build-log matches. The
+post-deployment API probe passed 176 reads over two cycles separated by 185s,
+including 148 executable useful results: p50/p95/p99/max
+288.940/291.812/292.481/292.752ms at the unchanged 500ms socket budget.
+
+The first live UI checker failed before any user-flow measurement (zero samples,
+two reads): it assumed all external root scripts were under `/assets/`, while the
+app also serves `/bootstrap/theme.js` and `/bootstrap/trade-shell.js`. The initial
+attester filtered those bootstrap paths, so its root coverage was incomplete.
+That failed checker run remains recorded. The correction hashes every external
+root script and checks full ordered path/basename/hash/byte-length identity;
+known bootstrap plus canonical assets remain within the existing cap of eight.
+Unknown, duplicate, ambiguous, foreign or traversal paths and base overrides
+fail closed. Inline code remains bound by the full HTML hash. Tool hash/HEAD/dirty
+provenance is separate from the unchanged deployed product revision.
+
+Meaningful root-parser first/retest tests pass 9/9 each, browser-control tests
+18/18 each and the same seven secret/no-sign wallet-helper tests each. Updated
+wallet fixtures attest all three roots in 13 bounded reads. No app, API, market,
+fee, signing or contract behavior changed in this verification-tool correction.
+
+[Stronger all-root attestation](deployment-warning-all-roots.json) passes for the
+same deployed #1485 revision. [Live API receipt](live-warning-quotes.json)
+independently validates the 176-read replacement-cycle probe. Actual live UI
+[first](browser-warning-first.json) and [retest](browser-warning-retest.json)
+both pass **all 18 desktop/phone cases**, with 86 bounded API reads and 26 quote
+reads per round. Each round has zero writes, actor requests, measured provider
+requests and WebSockets. Fourteen low-risk cases per round verify that Signing
+details open; four higher-risk cases have one visible price notice. All three
+root script paths/hashes/byte counts match independently before and after.
+Tool revision/hash/dirty fields remain explicit; these are pre-commit corrected
+verification tools against the unchanged deployed product. Physical wallets and
+settlement remain separate. Useful original-input browser timing stays under the
+unchanged 750ms budget; exact per-sample timing is retained in both receipts.
+
+The corrected complete focused first/retest passes **21 groups, zero failures and
+two external acceptance skips**, including the new root-artifact boundary group.
+The application source fingerprint remains unchanged:
+`bd5abc96c16b4d2167a1c9dfa6b23030003c366494cad1d630f85352ab6ce31c`.

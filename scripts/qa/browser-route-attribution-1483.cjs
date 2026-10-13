@@ -152,6 +152,100 @@ function sharedSources() {
   };
 }
 
+function checkRootPaths(paths) {
+  assert(
+    Array.isArray(paths) &&
+      paths.length > 0 &&
+      paths.length <= 8 &&
+      paths.every(
+        (value) =>
+          typeof value === "string" &&
+          value.length <= 160 &&
+          !value.includes("..") &&
+          (value === "/bootstrap/theme.js" ||
+            value === "/bootstrap/trade-shell.js" ||
+            /^\/assets\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.js$/.test(value)),
+      ) &&
+      paths.includes("/bootstrap/theme.js") &&
+      paths.includes("/bootstrap/trade-shell.js") &&
+      paths.some((value) => value.startsWith("/assets/")) &&
+      new Set(paths).size === paths.length &&
+      new Set(paths.map((value) => path.posix.basename(value))).size ===
+        paths.length,
+    "RootScripts",
+  );
+  return paths;
+}
+
+function rootScriptPaths(html) {
+  assert(Buffer.byteLength(html) <= 128 * 1024, "RootHtmlBudget");
+  // Parse all script src attributes, including uppercase and unquoted HTML.
+  // No script execution or external resources are enabled in this parser.
+  const dom = new (frontend("jsdom").JSDOM)(html.toString());
+  try {
+    assert(!dom.window.document.querySelector("base[href]"), "RootBase");
+    return checkRootPaths(
+      Array.from(dom.window.document.querySelectorAll("script[src]"), (node) =>
+        node.getAttribute("src"),
+      ),
+    );
+  } finally {
+    dom.window.close();
+  }
+}
+
+function checkServedArtifact(actual, expected) {
+  const roots = (artifact) =>
+    artifact.root_scripts.map(({ asset, path, sha256, bytes }) => ({
+      asset,
+      path,
+      sha256,
+      bytes,
+    }));
+  assert(
+    actual.html_sha256 === expected.html_sha256 &&
+      JSON.stringify(roots(actual)) === JSON.stringify(roots(expected)),
+    "ServedArtifact",
+  );
+}
+
+function toolSourceProvenance(source, committed, gitHead) {
+  return {
+    tool_path: "scripts/qa/browser-route-attribution-1483.cjs",
+    tool_sha256: crypto.createHash("sha256").update(source).digest("hex"),
+    tool_git_head: gitHead,
+    tool_dirty: !committed || !source.equals(committed),
+  };
+}
+
+function toolProvenance() {
+  const source = fs.readFileSync(__filename);
+  let committed = null,
+    gitHead = null;
+  try {
+    gitHead = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: ROOT,
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 4096,
+    })
+      .toString()
+      .trim();
+    assert(/^[0-9a-f]{40}$/.test(gitHead), "ToolRevision");
+    committed = execFileSync(
+      "git",
+      ["show", gitHead + ":scripts/qa/browser-route-attribution-1483.cjs"],
+      {
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 128 * 1024,
+      },
+    );
+  } catch {
+    committed = null;
+  }
+  return toolSourceProvenance(source, committed, gitHead);
+}
+
 function checkAttestation(attested, sha) {
   assert(/^[0-9a-f]{40}$/.test(sha || ""), "RevisionShape");
   assert(
@@ -172,11 +266,16 @@ function checkAttestation(attested, sha) {
       artifact.root_scripts.length <= 8 &&
       artifact.root_scripts.every(
         (row) =>
-          /^[-A-Za-z0-9_.]+\.js$/.test(row.asset || "") &&
-          /^[0-9a-f]{64}$/.test(row.sha256 || ""),
+          typeof row.path === "string" &&
+          row.asset === path.posix.basename(row.path) &&
+          /^[0-9a-f]{64}$/.test(row.sha256 || "") &&
+          Number.isSafeInteger(row.bytes) &&
+          row.bytes > 0 &&
+          row.bytes <= 8 * 1024 * 1024,
       ),
     "ArtifactShape",
   );
+  checkRootPaths(artifact.root_scripts.map((row) => row.path));
   return artifact;
 }
 
@@ -451,6 +550,7 @@ async function run() {
     measured = false;
   const receipt = {
     issue: 1483,
+    ...toolProvenance(),
     revision: SHA,
     utc_start: new Date().toISOString(),
     browser_budget_ms: 750,
@@ -520,39 +620,22 @@ async function run() {
     const health = JSON.parse(await bounded(BACKEND + "/health", 4096));
     assert(health.git_sha === SHA, "BackendRevision");
     const html = await bounded(FRONTEND + "/", 128 * 1024);
-    const scripts = [
-      ...html.toString().matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/g),
-    ].map((row) => row[1]);
-    assert(
-      scripts.length > 0 &&
-        scripts.length <= 8 &&
-        scripts.every((asset) => /^\/assets\/[-A-Za-z0-9_.]+\.js$/.test(asset)),
-      "RootScripts",
-    );
+    const scripts = rootScriptPaths(html);
     const roots = [];
-    for (const asset of scripts)
+    for (const scriptPath of scripts) {
+      const payload = await bounded(FRONTEND + scriptPath, 8 * 1024 * 1024);
       roots.push({
-        asset: path.basename(asset),
-        sha256: crypto
-          .createHash("sha256")
-          .update(await bounded(FRONTEND + asset, 8 * 1024 * 1024))
-          .digest("hex"),
+        asset: path.posix.basename(scriptPath),
+        path: scriptPath,
+        sha256: crypto.createHash("sha256").update(payload).digest("hex"),
+        bytes: payload.length,
       });
+    }
     const actual = {
       html_sha256: crypto.createHash("sha256").update(html).digest("hex"),
       root_scripts: roots,
     };
-    assert(
-      actual.html_sha256 === artifact.html_sha256 &&
-        JSON.stringify(roots) ===
-          JSON.stringify(
-            artifact.root_scripts.map(({ asset, sha256 }) => ({
-              asset,
-              sha256,
-            })),
-          ),
-      "ServedArtifact",
-    );
+    checkServedArtifact(actual, artifact);
     receipt.artifacts.push(actual);
   };
   const timer = setTimeout(() => {
@@ -937,6 +1020,10 @@ async function run() {
 module.exports = {
   sharedSources,
   checkAttestation,
+  checkRootPaths,
+  rootScriptPaths,
+  checkServedArtifact,
+  toolSourceProvenance,
   installRuntime,
   measurementSource,
   browserSampleFailed,
@@ -951,6 +1038,7 @@ if (require.main === module)
     .catch(() => {
       const failure = {
         issue: 1483,
+        ...toolProvenance(),
         overall: "FAIL",
         failure_class: "PrerequisiteValidation",
         completed: false,

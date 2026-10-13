@@ -9,6 +9,7 @@ import re
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 
 FRONTEND = "https://dex.cl8y.com"
@@ -16,6 +17,9 @@ BACKEND = "https://indexer.dex.cl8y.com"
 REVISION = re.compile(r"[0-9a-f]{40}")
 APP_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
 MAX_READS = 16
+MAX_ROOT_SCRIPTS = 8
+BOOTSTRAP_PATHS = frozenset(("/bootstrap/theme.js", "/bootstrap/trade-shell.js"))
+ASSET_PATH = re.compile(r"/assets/[A-Za-z0-9_-][A-Za-z0-9_.-]*\.js")
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -112,18 +116,59 @@ def deployment(reader, app_id, domain):
             "deployment_finished_at_utc": utc_time(latest.get("finished_at"))}
 
 
+class RootScriptManifest(HTMLParser):
+    """Enumerate every external root script without evaluating or fetching HTML.
+
+    Only canonical public root-relative paths are permitted. Validate the whole
+    manifest before fetching any script; unknown entries must never be silently
+    filtered out of deployment evidence. Error labels contain no received text.
+    """
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.paths = []
+        self.basenames = set()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "base" and any(name == "href" for name, _ in attrs):
+            raise ValueError("root_base_unsupported")
+        if tag != "script":
+            return
+        sources = [value for name, value in attrs if name == "src"]
+        if not sources:
+            # Inline code remains bound by the exact root HTML hash.
+            return
+        if len(sources) != 1 or sources[0] is None:
+            raise ValueError("artifact_path_shape")
+        path = sources[0]
+        if (len(path) > 160 or ".." in path
+                or not (path in BOOTSTRAP_PATHS or ASSET_PATH.fullmatch(path))):
+            raise ValueError("artifact_path_shape")
+        basename = path.rsplit("/", 1)[-1]
+        if path in self.paths or basename in self.basenames:
+            raise ValueError("duplicate_root_artifact")
+        if len(self.paths) >= MAX_ROOT_SCRIPTS:
+            raise ValueError("root_artifact_bound")
+        self.paths.append(path)
+        self.basenames.add(basename)
+
+
 def artifacts(reader):
     html = reader.read(FRONTEND + "/", 128 * 1024)
-    paths = re.findall(rb'<script\b[^>]*\bsrc=["\']([^"\']+)["\']', html)
-    paths = [value.decode("utf8") for value in paths if value.startswith(b"/assets/") and value.endswith(b".js")]
-    if not paths or len(paths) > 8:
+    manifest = RootScriptManifest()
+    manifest.feed(html.decode("utf8"))
+    manifest.close()
+    paths = manifest.paths
+    if (not paths or not BOOTSTRAP_PATHS.issubset(paths)
+            or not any(ASSET_PATH.fullmatch(path) for path in paths)):
         raise ValueError("root_artifact_bound")
     result = []
     for asset in paths:
-        if not re.fullmatch(r"/assets/[A-Za-z0-9_.-]+\.js", asset):
-            raise ValueError("artifact_path_shape")
         payload = reader.read(FRONTEND + asset, 8 * 1024 * 1024)
-        result.append({"asset": asset.rsplit("/", 1)[-1], "sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)})
+        if not payload:
+            raise ValueError("root_artifact_empty")
+        result.append({"asset": asset.rsplit("/", 1)[-1], "path": asset,
+                       "sha256": hashlib.sha256(payload).hexdigest(), "bytes": len(payload)})
     return {"html_sha256": hashlib.sha256(html).hexdigest(), "root_scripts": result}
 
 
