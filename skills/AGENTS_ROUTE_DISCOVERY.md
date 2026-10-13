@@ -43,3 +43,5 @@ in [the current source supplement](../docs/qa/issue-1489/RESULTS.md#final-canoni
 and [its fourteen-verifier receipt](../docs/qa/issue-1489/core-final-summary.json).
 
 Canonical publication implementation: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).
+
+Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](../docs/qa/issue-1489/BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.

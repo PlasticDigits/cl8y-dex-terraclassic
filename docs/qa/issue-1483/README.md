@@ -139,3 +139,5 @@ settlement, HTTP200 or diagnostics cannot certify original reporter economics,
 independent deployed contract/device behavior or production settlement. Keep
 missing criteria unchecked, provide concise human-only cl8y-pm cards and leave
 the issue open until every acceptance requirement passes.
+
+Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](../issue-1489/BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.
