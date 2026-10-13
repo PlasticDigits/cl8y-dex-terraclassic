@@ -2821,3 +2821,14 @@ changes and original expiry clear stale display/notice state. A newly validated
 quote may legitimately move above or below exact 5%; no warning hysteresis or
 threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
+
+With no known operational blocker, the native entry displays **Enter Amount**
+for an empty/zero amount. Debouncing,
+initial pay/receive quoting or missing observations show their calculating/pricing
+state, rather than inferring wrapper unavailability from an intentionally empty
+local wrapper cache. Positive known pause/treasury mismatch and terminal failures
+still block signing; invalid dust/precision/overflow input and expired original
+context remain unusable. Display predicates never replace guarded mutation or
+budget validation. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[the follow-up evidence](qa/issue-1489/RESULTS.md#supplemental-entry-and-effective-market-identity).

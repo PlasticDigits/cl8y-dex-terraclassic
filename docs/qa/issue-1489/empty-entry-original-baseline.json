@@ -1,0 +1,74 @@
+{
+  "issue": 1489,
+  "baseline_revision": "74e7ad03629832076f59614e6b37ee868fe62c9c",
+  "final_followup_acceptance": false,
+  "utc_start": "2026-10-13T07:31:36.527Z",
+  "driver_sha256": "165a49121cba120c0698e8ce67bcbbaf5895c13ee8253b205691f0fd48db127d",
+  "read_only": true,
+  "signing": false,
+  "screenshots": false,
+  "samples": [
+    {
+      "viewport": "desktop",
+      "seconds_after_amount_input_ready": 0,
+      "amount_empty": true,
+      "wrapping_unavailable_count": 1
+    },
+    {
+      "viewport": "desktop",
+      "seconds_after_amount_input_ready": 5,
+      "amount_empty": true,
+      "wrapping_unavailable_count": 1
+    },
+    {
+      "viewport": "phone",
+      "seconds_after_amount_input_ready": 0,
+      "amount_empty": true,
+      "wrapping_unavailable_count": 1
+    },
+    {
+      "viewport": "phone",
+      "seconds_after_amount_input_ready": 5,
+      "amount_empty": true,
+      "wrapping_unavailable_count": 1
+    }
+  ],
+  "reads": 4,
+  "blocked_writes": 0,
+  "blocked_actors": 0,
+  "blocked_provider_reads": 0,
+  "blocked_websockets": 0,
+  "completed": true,
+  "overall": "FAIL",
+  "scope": "Fresh anonymous default Swap with untouched empty amount on actual desktop/phone browsers; fixed warning counts only. No amount/protection/reporter reconstruction, signing, screenshots or actor-linked data.",
+  "utc_end": "2026-10-13T07:32:03.029Z",
+  "independent_attestation": {
+    "overall": "PASS",
+    "revision": "74e7ad03629832076f59614e6b37ee868fe62c9c",
+    "receipt_sha256": "b727bb421f3a6627f687bf380218f01b30c0505c127e149f0805388887836785",
+    "served_root_html_sha256": "32b61a6764e06fa6046b0d49c079eb582b7c2cb1f6a352c26d9d27978f42213b",
+    "served_root_scripts": [
+      {
+        "asset": "theme.js",
+        "path": "/bootstrap/theme.js",
+        "sha256": "6b0a6f50dd342a54d8ee98bbf1219160dd5a589e4a8a79582ae224abdabd8238",
+        "bytes": 266
+      },
+      {
+        "asset": "trade-shell.js",
+        "path": "/bootstrap/trade-shell.js",
+        "sha256": "2b8f53acdfafa4e5419dcd052ebafb13790124e91cf21b5dec75377921b9ec34",
+        "bytes": 869
+      },
+      {
+        "asset": "index-CyHPkQ1d.js",
+        "path": "/assets/index-CyHPkQ1d.js",
+        "sha256": "af9d465f298675f9e8da7179e0f7c14702eff9eeff9a77534302315e8ecba827",
+        "bytes": 181855
+      }
+    ],
+    "health_revision_rechecked_after_capture": "74e7ad03629832076f59614e6b37ee868fe62c9c",
+    "health_status_after_capture": "ok"
+  },
+  "retained_private_receipt_sha256": "6b23adad2cf0e89c15a60617d6380254ad2c25820bde1fc6a267bdbe091a0bee"
+}

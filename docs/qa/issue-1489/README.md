@@ -20,13 +20,18 @@ Neutral native entry follow-up: [EMPTY-ENTRY.md](EMPTY-ENTRY.md).
    or migration credentials must never be used for integration tests.
 3. Cover relevant versus unrelated producer changes, all four occupied slots,
    repeated cache hits, cancellation, original expiry, bounded dense/cyclic
-   enumeration and native three-hop promotion. Compare exact gross native,
+   enumeration and native three-hop promotion. Repeated stale inputs with identical
+   preserved qualified views must retain canonical identity and original deadlines;
+   collection insertion order cannot change it, while true economic changes must. Compare exact gross native,
    matched-credit wrapped and equal-gross wrapped separately. Compare declared
    plans and supported receive with their own objective and constraints.
 4. Check actual desktop/phone Swap/Trade adoption, exact progress intent,
    cancellation and reviewed transaction pinning. Confirm one selected-route
    notice and exact >5%, >30%, >=99% protections; diagnostics cannot authorize
-   signing or replace unavailable attribution/reference/budget evidence.
+   signing or replace unavailable attribution/reference/budget evidence. Check a
+   fresh empty/zero native entry and pending pay/receive quotes: neutral entry or
+   truthful calculating/pricing state, no inferred wrapping failure. Positive
+   known pause/treasury mismatch and terminal unsupported states stay blocked.
 5. Execute owned native three-hop and wrapped controls and rejected hop/final
    floors. Independently reconcile reserves, output wallet net and atomic
    rollback. Ante/network fees remain outside economic rollback. Synthetic
@@ -95,6 +100,17 @@ It creates fresh contracts/pools, independently checks all reserves and delivere
 net, and rejects each hop/final floor with atomic economic rollback. Current DEX
 artifact/input hashes and exact wrapper source/artifact hashes are required.
 Its 12M synthetic requested gas does not certify production calibration.
+
+## Current canonical publication supplement
+
+Canonical publication and actor-proof implementation: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).
+
+[Current source receipt](core-final-summary.json) and
+[fresh controlled matrix](core-controlled-browser-final-summary.json) repeat all
+fourteen applicable named verifiers after the canonical identity, scheduled
+preparation and actor-proof corrections. See [the measured scope and retained
+failures](RESULTS.md#final-canonical-publication-source-supplement). These checks
+do not replace deployed or physical acceptance.
 
 ## Explicit skip policy
 

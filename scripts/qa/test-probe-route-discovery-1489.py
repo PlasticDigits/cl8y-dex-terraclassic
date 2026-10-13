@@ -20,7 +20,125 @@ def quote(net):
                                    "wrapper": {"input_amount": "10000", "route_input_amount": "9800", "wrap_input": True, "unwrap_output": False}}}
 
 
+def observed(net, endpoint, start, finish, *, generation="a", expires=21000):
+    body = quote(net)
+    body["search_complete"] = True
+    body["execution_metadata"].update(generation=generation * 64, observed_at_ms=1000, expires_at_ms=expires)
+    return {"body": body, "endpoint": endpoint, "request_started": start, "validated_at": finish,
+            "wall_ms": int(1000 + finish * 1000), "eligible": True}
+
+
+class PromotionWindowTests(unittest.TestCase):
+    def window(self, expires=21000):
+        first = observed(63, "solve", 0, .2, expires=expires)
+        declared = observed(84, "declared_three_pool_hops", .3, .6, expires=expires)
+        return PROBE.PromotionWindow(declared, [first, declared])
+
+    def fill(self, window, net=84, start=1):
+        for index, endpoint in enumerate(("solve", "best", "automatic_post")):
+            t = start + index * .2
+            window.observe(observed(net, endpoint, t, t + .1))
+
+    def test_incompatible_reads_cannot_early_break_or_claim_convergence(self):
+        window = self.window()
+        window.observe(observed(63, "best", .7, .8, generation="b"))
+        self.assertIsNotNone(window.next_pending_endpoint())
+        self.assertEqual(window.verdict(.9, 1900)["status"], "PENDING")
+        self.fill(window)
+        self.assertEqual(window.verdict(1.6, 2600)["status"], "PASS")
+
+    def test_late_higher_post_requires_fresh_gets_without_resetting_clock(self):
+        window = self.window()
+        self.fill(window)
+        window.observe(observed(90, "automatic_post", 2.7, 2.9))
+        self.assertEqual(window.started, 0)
+        self.assertEqual(window.deadline, 3)
+        self.assertEqual(window.maximum_net, 90)
+        self.assertFalse(window.ready("solve"))
+        window.observe(observed(84, "solve", 2.95, 3.1))
+        self.assertEqual(window.verdict(3.1, 4100)["status"], "FAIL")
+
+    def test_predeadline_short_read_is_not_retrospective_deadline_failure(self):
+        window = self.window()
+        window.observe(observed(63, "best", 1, 1.1))
+        result = window.verdict(3.1, 4100)
+        self.assertEqual(result["status"], "UNVERIFIED")
+        self.assertNotEqual(result["reason"], "same_cohort_inferior_after_deadline")
+
+    def test_late_benchmark_cannot_retrospectively_fail_an_earlier_get(self):
+        window = self.window()
+        window.observe(observed(84, "solve", 3, 3.1))
+        window.observe(observed(90, "automatic_post", 3.2, 3.4))
+        self.assertEqual(window.deadline, 3)
+        self.assertEqual(window.verdict(3.5, 4500)["reason"], "benchmark_not_known_within_original_window")
+
+    def test_request_started_before_benchmark_cannot_prove_promotion_miss(self):
+        window = self.window()
+        window.observe(observed(63, "solve", .4, 3.1))
+        self.assertEqual(window.verdict(3.2, 4200)["status"], "UNVERIFIED")
+
+    def test_expiry_wins_and_later_cohort_cannot_relabel_original(self):
+        window = self.window(expires=2500)
+        key, deadline = window.key, window.deadline
+        self.assertAlmostEqual(deadline, 1.5)
+        window.observe(observed(100, "best", 1, 1.1, generation="b", expires=30000))
+        self.assertEqual(window.key, key)
+        self.assertEqual(window.deadline, deadline)
+        self.assertEqual(window.verdict(1.6, 2600)["reason"], "original_cohort_expired")
+
+    def test_only_after_benchmark_gets_can_certify_and_late_success_is_unverified(self):
+        window = self.window()
+        self.fill(window)
+        window.observe(observed(90, "automatic_post", 2.7, 2.9))
+        self.fill(window, net=90, start=3.1)
+        self.assertEqual(window.verdict(3.8, 4800)["status"], "UNVERIFIED")
+
+    def test_unstable_original_cohort_never_yields_pass(self):
+        window = self.window()
+        for endpoint in ("solve", "best", "automatic_post"):
+            window.observe(observed(100, endpoint, 2, 2.1, generation="b"))
+        result = window.verdict(3.1, 4100)
+        self.assertEqual(result["status"], "UNVERIFIED")
+        self.assertEqual(result["reason"], "original_compatible_cohort_unavailable")
+
+
 class CohortTests(unittest.TestCase):
+    def test_progress_eligibility_only_emits_fixed_safe_enums(self):
+        for value in ("executable_quote", "waiting_for_observations", "policy_excluded", "unverified"):
+            self.assertEqual(PROBE.progress_eligibility({"quote_eligibility": value}), value)
+        for value in (None, False, {"actor": "private"}, "private-actor", "<script>provider prose</script>"):
+            self.assertEqual(PROBE.progress_eligibility({"quote_eligibility": value}), "other")
+
+    def test_fast_classified_503_never_counts_as_useful_socket_acceptance(self):
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                self.sock, self.path = object(), ""
+
+            def request(self, _method, path, **_kwargs):
+                self.path = path
+
+            def getresponse(self):
+                self.status = 200 if self.path == "/health" or "/progress?" in self.path else 503
+                return self
+
+            def read(self, _limit):
+                return json.dumps({"git_sha": "a" * 40} if self.path == "/health" else {"error": "missing_observations"}).encode()
+
+            def close(self):
+                pass
+
+        previous = signal.getsignal(signal.SIGALRM)
+        try:
+            with patch.object(PROBE.http.client, "HTTPSConnection", Connection):
+                receipt = PROBE.run("a" * 40, 1)
+            self.assertEqual(receipt["overall"], "FAIL")
+            self.assertEqual(receipt["initialized_useful_socket_timing"]["samples"], 0)
+            quotes = [row for row in receipt["samples"] if row["endpoint"] != "progress"]
+            self.assertTrue(all(not row["initialized_socket_budget_pass"] for row in quotes))
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous)
+
     def test_unavailable_attribution_cannot_be_counted_as_eligible_or_compared(self):
         forged = quote(85)
         forged["execution_metadata"]["policy"] = "pool_only"

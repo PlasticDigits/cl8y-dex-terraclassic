@@ -840,3 +840,19 @@ pub(crate) fn retained_views(
 #[cfg(test)]
 #[path = "fee_phase_tests.rs"]
 mod tests;
+
+/// Release only an owned, completed positive unit fixture; unavailable in production.
+#[cfg(test)]
+pub(crate) fn retire_completed_test_namespace(namespace: &str) {
+    let mut reg = registry().lock().unwrap();
+    if let Some(owned) = reg.namespaces.get(namespace) {
+        assert!(
+            owned
+                .entries
+                .values()
+                .all(|entry| entry.phase.is_none() && !entry.negative),
+            "cannot retire active or negative fee evidence"
+        );
+    }
+    reg.namespaces.remove(namespace);
+}

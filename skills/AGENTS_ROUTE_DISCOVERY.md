@@ -12,7 +12,7 @@ Run `make verify-issue-1489` and the applicable related verifiers below.
 | ID | Required behavior |
 | --- | --- |
 | RD1489-1 | Preserve a useful short-path first result; rank every evaluated eligible improvement by exact delivered net output for the exact amount and supported policy. Never prefer an address, symbol, displayed percentage or TVL. |
-| RD1489-2 | Successful unchanged producer validation must not revoke compatible original economics. Actual changed fee, negative/cancelled required reads, timeout, reserve/book/configuration/reference/wrapper/freeze changes still invalidate unsafe results. Never relabel an old cohort or renew its original expiry. |
+| RD1489-2 | Successful unchanged producer validation must not revoke compatible original economics. Hash the effective qualified market after preserving newer views and filtering rejected views; identical effective observations must not acquire history-dependent generations or depend on HashMap insertion order. Actual changed fee, negative/cancelled required reads, timeout, reserve/book/configuration/reference/wrapper/freeze changes still invalidate unsafe results. Capture actor guard proofs when the authoritative blacklist observation completes, before optional discount/enrichment awaits; reconcile late admission against the bounded authoritative ledger. Fresh unblocks keep conservative fees until new fee evidence completes, and recycled actor records cannot reuse an old proof. Complete inventory resets revoke omitted per-actor discount proofs, including late admission without an expected configuration epoch; repeated unchanged inventories retain stable versions. Never relabel an old cohort or renew its original expiry. |
 | RD1489-3 | Bound active work and deferred scheduling; identical exact intents coalesce. Capacity release must give deferred work a finite retry opportunity. Cache hits cannot permanently strand useful short results. Expired, cancelled or invalidated work cannot publish. |
 | RD1489-4 | Preserve four pool hops, 1,024 paths and 16,384 edge visits. Native wrapping is a separate message. Report truncated bounded discovery truthfully; a best evaluated candidate is not proof of a global optimum. |
 | RD1489-5 | Solve, best and progress bind the same original native identity, gross amount, spread/protection, mode, actor/tier and generation. Declared POST splits retain their own constraints; receive sizing retains its documented minimum-input objective and bounded inverse scope. |
@@ -37,3 +37,9 @@ The neutral native entry fix and directed checks are documented in
 [EMPTY-ENTRY.md](../docs/qa/issue-1489/EMPTY-ENTRY.md).
 
 Neutral entry implementation: [PR #1492](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1492).
+
+Canonical publication, bounded preparation and actor-proof safety are documented
+in [the current source supplement](../docs/qa/issue-1489/RESULTS.md#final-canonical-publication-source-supplement)
+and [its fourteen-verifier receipt](../docs/qa/issue-1489/core-final-summary.json).
+
+Canonical publication implementation: [PR #1493](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1493).

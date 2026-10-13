@@ -1,0 +1,234 @@
+{
+  "issue": 1489,
+  "recorded_at_utc": "2026-10-13T11:35:04.063571+00:00",
+  "overall": "PASS WITH SKIPS",
+  "source": {
+    "base_revision": "af79043096ecf80b0d85fab443f60e3f9c7c5eed",
+    "working_tree_modified": true,
+    "product_scope": [
+      "indexer/src",
+      "indexer/tests",
+      "frontend-dapp/src",
+      "smartcontracts/contracts",
+      "smartcontracts/packages"
+    ],
+    "sha256": "ef69138e8f0b5081e4bdb5d9a375fc1f0d78a022f13affb5422d295b7c03dca7"
+  },
+  "validation_rounds": [
+    {
+      "round": "controls-first",
+      "passed_tests": 22,
+      "failed_tests": 0,
+      "existing_ignored_tests": 0,
+      "seconds": 5.34,
+      "useful_http_quotes": 53,
+      "maximum_initialized_http_ms": 5,
+      "private_log_sha256": "0293da5933839c08e5bbac1485d22b1a2f9c654268d287a61e2bb2d63cec6466"
+    },
+    {
+      "round": "controls-retest",
+      "passed_tests": 22,
+      "failed_tests": 0,
+      "existing_ignored_tests": 0,
+      "seconds": 5.47,
+      "useful_http_quotes": 56,
+      "maximum_initialized_http_ms": 57,
+      "private_log_sha256": "0f2f82793aa54d96b1658e806ccc4b1bc4bdeba0e8c21be446bab726d365063a"
+    },
+    {
+      "round": "full-parallel-first",
+      "passed_tests": 816,
+      "failed_tests": 0,
+      "existing_ignored_tests": 1,
+      "seconds": 13.35,
+      "useful_http_quotes": 60,
+      "maximum_initialized_http_ms": 5,
+      "private_log_sha256": "24fc5f08ff61d83e1ea42cd23dd5da3260f16474cbf83afe27c4ad09ec67d120"
+    },
+    {
+      "round": "full-parallel-retest",
+      "passed_tests": 816,
+      "failed_tests": 0,
+      "existing_ignored_tests": 1,
+      "seconds": 13.12,
+      "useful_http_quotes": 57,
+      "maximum_initialized_http_ms": 4,
+      "private_log_sha256": "2e12b00cf785f1f86d5e5f9db85c9523709efd586ea70e4b91617115573c2760"
+    }
+  ],
+  "affected_verifiers": [
+    {
+      "issue": 1464,
+      "passed_groups": 11,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "3b3934a45f28eb56f8070164ffa8ed2f143e9754ce9cc9ca26be05993fd5cd5b",
+      "private_log_sha256": "423203b49e7e6bfde0e45ec91b5d17386a766815d03f705d9c8a553b5ee80463"
+    },
+    {
+      "issue": 1453,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "808f8a3ebf276e0521850f01bf27bb3c65c140dfaa2cfc293a52a2480da3036f"
+    },
+    {
+      "issue": 1394,
+      "passed_groups": 23,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "f1214936a1514b084d676622b62a4c291560542a1e03d162759bd92ff5b45a46"
+    },
+    {
+      "issue": 1452,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": "3bb874aaef6a4c5733bbaa51a94568d36fff82e5a983584225e3e63bb062669d",
+      "private_log_sha256": "1b9b6551a1118d39d6fcfec37a46f3bd87ed0435dcc4191c7ece27e89cb27cc9"
+    },
+    {
+      "issue": 1483,
+      "passed_groups": 21,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "8e097e90c096a0b2203ba0676499e99d4a25dfa084a67ac78d67ee8e9dc9ac81",
+      "private_log_sha256": "1a4c27c853de309c683fb035999e9b7bb24e8a28ee0735c7a63ac833b6f1c446"
+    },
+    {
+      "issue": 1489,
+      "passed_groups": 20,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "5e3a41088b57f3f779c83196811f0969ab984e4814e94e9ba9bbd2315c8d1948",
+      "private_log_sha256": "e57f1eacf1d2ea1400a3e8a03e41540d00f85b7317433f353d5cebc62c32e2fb"
+    },
+    {
+      "issue": 1473,
+      "passed_groups": 17,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "71a87c75f50c730a990ee73a31c5bd8ccf63224eb7e0b1aded81116d25f0185b",
+      "private_log_sha256": "9cca0b01a164745b364364323efc6f3949d6788457417ea85444b69c29948b05"
+    },
+    {
+      "issue": 1479,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "verifier_fingerprint": "8e097e90c096a0b2203ba0676499e99d4a25dfa084a67ac78d67ee8e9dc9ac81",
+      "private_log_sha256": "de7ce6499ac7a16b57ecda93ea4f7f895e34a65b379e0b85f9b92296bd15fa8d"
+    },
+    {
+      "issue": 1480,
+      "passed_groups": 10,
+      "failed_groups": 0,
+      "skipped_groups": 3,
+      "verifier_fingerprint": "8e097e90c096a0b2203ba0676499e99d4a25dfa084a67ac78d67ee8e9dc9ac81",
+      "private_log_sha256": "31e8e7e994f9384dd1c183d2aaa482a2590973303bb703dbd83899cf2e32cd36"
+    },
+    {
+      "issue": 1391,
+      "passed_groups": 6,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "893e23650e176f424097115422627dcb0d49155c25da768b1b39c4e397d3286e"
+    },
+    {
+      "issue": 1398,
+      "passed_groups": 7,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "802bb2a4559f109f3bfa3bf6f061aa388b10d5f91e61016329b039e98526addf"
+    },
+    {
+      "issue": 1381,
+      "passed_groups": 13,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "a748243e3f322f13c95fbec7f00b0de8557452e0f59909c8ef6d20a2b5722cbc"
+    },
+    {
+      "issue": 1390,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "80e4955df51ccd609076ec225040297e067ec6fcf514eb14cb4f03aa6017b0a8"
+    },
+    {
+      "issue": 1396,
+      "passed_groups": 28,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "728ce52653b4f6bcca0efb25b22d8639d757039a19cb1498dc209305ad623772"
+    }
+  ],
+  "totals": {
+    "passed_groups": 208,
+    "failed_groups": 0,
+    "skipped_groups": 21
+  },
+  "maximum_shape_scope": "Synthetic admitted maximum512 pairs x2048 ordered book rows; actual scheduled publication/initialized TCP HTTP, one Tokio worker. Not a production census or settlement/gas receipt. Original500ms clock and four quote workers unchanged; at most two owned CPU preparation jobs, canceled awaiters cannot commit.",
+  "retained_executed_failures": [
+    {
+      "scope": "Identical effective preserved views acquired different recursive generations.",
+      "private_log_sha256": "77a9ef61e797331c9aa5ca9f518e110a0135f3fd0598264af5f211c20747cb70"
+    },
+    {
+      "scope": "Actual initialized useful HTTP request on one Tokio worker took 2497.948ms during synchronous maximum-shape publication, over the original 500ms clock.",
+      "private_log_sha256": "58b458f1ca29a97c752c822d0916c94fb6189c95d19213ef9375ea0acebfde7c"
+    },
+    {
+      "scope": "Late admission recreated actor approval after a completed known blacklist.",
+      "private_log_sha256": "d64e02fab54a25228a45eae9142a2791feb1d386910c3e3243813d6c1437a631"
+    },
+    {
+      "scope": "Local Store complete inventory reset accepted an omitted actor old 8% discount proof.",
+      "private_log_sha256": "9111d3f820c8b9841e48c08c801c87dc69b9486932b38e7f6c186f0972818946"
+    },
+    {
+      "scope": "Actual pending admission without expected configuration epoch restored the reset 8% discount.",
+      "private_log_sha256": "52212a1eb942c7a92f85e948f302b069fab895ce0714720ecd6da59d4a20c109"
+    },
+    {
+      "scope": "Configured owned LocalTerra test chain1GiB tmpfs exhausted after hours of fixture use, preventing key creation. Reset only exact-owned container with same image and original1GiB budget, invalidate only new core code cache, then rerun full configured verifier.",
+      "private_log_sha256": "9d22118cd25b7580caf1031255d32780e843971d7bcc72e74bb25abc48fd99dc"
+    },
+    {
+      "scope": "Shared global cache fixture invalidation triggered missing-entry panic and mutex poison under default parallel tests; selective shared-fixture isolation fixes tests without serializing production concurrency.",
+      "private_log_sha256": "ff065b6f1c98b33418be442a8f2fbead6ae0a6ae6d5f84411a0c84aad963cc1f"
+    }
+  ],
+  "controlled_browser": "core-controlled-browser-final-summary.json",
+  "original_lower_layer_receipts": "related-final-summary.json; retain original fingerprints and failures separately; all fourteen current named verifiers are repeated on frozen final source",
+  "current_discovery_clients_and_tools": {
+    "frontend_files_per_round": 12,
+    "frontend_tests_per_round": 317,
+    "api_helper_tests_per_round": 17,
+    "monitor_boundary_tests_per_round": 2,
+    "custody_scope_tests_per_round": 9,
+    "first_retest": true
+  },
+  "already_deployed_ui": "EMPTY-ENTRY.md / PR1492 / af79043096ecf80b0d85fab443f60e3f9c7c5eed; frontend bytes unchanged in this core follow-up",
+  "owned_chain_reset": {
+    "owner_verified": true,
+    "container": "dex-1489-owned-localterra",
+    "recreated_same_image_id": true,
+    "same_tmpfs_bytes": 1073741824,
+    "published_ports": 0,
+    "persistent_data_mounts": 0,
+    "chain_id": "localterra",
+    "height": 2,
+    "only_new_core_tax_cache_invalidated": true,
+    "production_reset": false
+  },
+  "production_reset_or_signing": false,
+  "remaining_acceptance": "Final core deployment/all roots, sustained original-cohort API/browser clocks, independently atomic production SQL/reserves, mapper/treasury artifact/capability correspondence, physical wallets and missing Prometheus source remain separate unchecked criteria."
+}

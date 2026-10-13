@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "partial": false,
+  "stage": "complete",
+  "frontend_artifact_sha256": "5530018c76b0cc25ebaa3144e7987b22e0ec9a338416c565f93753b2d9ba5094",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "source_revision": "af79043096ecf80b0d85fab443f60e3f9c7c5eed",
+  "source_dirty": true,
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "truncated": false,
+  "browser_version": "151.0.7922.137",
+  "browser_latency_budget_ms": 750,
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1989,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 92.3999999910593,
+    "p95_ms": 152.30000001192093,
+    "p99_ms": 170.70000000298023,
+    "max_ms": 244.90000000596046
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 96.70000000298023,
+    "p95_ms": 166.59999999403954,
+    "p99_ms": 191.59999999403954,
+    "max_ms": 229.5
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 795,
+      "p50_ms": 114.90000000596046,
+      "p95_ms": 168.29999999701977,
+      "p99_ms": 191.79999999701977,
+      "max_ms": 235.8999999910593
+    },
+    "1440:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 98,
+      "p95_ms": 150.20000000298023,
+      "p99_ms": 163.29999999701977,
+      "max_ms": 244.90000000596046
+    },
+    "390:initialized_http": {
+      "count": 795,
+      "p50_ms": 88,
+      "p95_ms": 108.90000000596046,
+      "p99_ms": 118.59999999403954,
+      "max_ms": 144.59999999403954
+    },
+    "390:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 83.09999999403954,
+      "p95_ms": 105.20000000298023,
+      "p99_ms": 113.8999999910593,
+      "max_ms": 129.6000000089407
+    }
+  },
+  "case_count": 4250,
+  "failure_count": 0,
+  "private_full_receipt_sha256": "4005569b9c29982ad0fb0d970f1655b132c1d87510e48814270e76a2d84cb10b",
+  "base_revision": "af79043096ecf80b0d85fab443f60e3f9c7c5eed",
+  "working_tree_modified": true,
+  "product_source_sha256": "ef69138e8f0b5081e4bdb5d9a375fc1f0d78a022f13affb5422d295b7c03dca7"
+}

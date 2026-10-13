@@ -83,6 +83,7 @@ impl Work {
                     .map(|mirror| 512usize.saturating_mul(mirror.bids.len() + mirror.asks.len()))
                     .fold(0usize, usize::saturating_add),
             )
+            .saturating_add(512usize.saturating_mul(s.view_hashes.len()))
             .saturating_add(4096)
     }
     fn current(&self, g: &Store) -> bool {
@@ -312,9 +313,55 @@ mod tests {
 }
 
 #[cfg(test)]
+mod identity_memory_tests {
+    use super::*;
+    #[test]
+    fn issue1489_cached_view_identity_counts_toward_original_pending_budget() {
+        let source = super::super::tests::fixture();
+        let q = super::super::tests::request(1);
+        let body = json!({"execution_metadata":{"input_amount":"1","observed_at_ms":now_ms(),"expires_at_ms":now_ms()+1000}});
+        let uncached = Arc::new(source.clone());
+        let before = Work::new(
+            "memory1489".into(),
+            "memory1489",
+            &uncached,
+            &q,
+            None,
+            1,
+            2,
+            SCALE / 20,
+            &body,
+        )
+        .retained_bytes();
+        let mut source = source;
+        generation::prepare(&mut source);
+        let entries = source.view_hashes.len();
+        let source = Arc::new(source);
+        let after = Work::new(
+            "memory1489".into(),
+            "memory1489",
+            &source,
+            &q,
+            None,
+            1,
+            2,
+            SCALE / 20,
+            &body,
+        )
+        .retained_bytes();
+        assert_eq!(after - before, 512 * entries);
+        assert_eq!(MAX_PENDING_BYTES, 16 * 1024 * 1024);
+        assert_eq!(MAX_JOBS, 4);
+    }
+}
+
+#[cfg(test)]
 mod expiry_tests {
     use super::*;
+    // Fee-negative fixtures intentionally clear the process-wide result cache.
+    // Share their test lock while retaining actual concurrent worker assertions.
     #[tokio::test]
+    #[serial_test::serial]
     async fn issue1489_expired_active_job_never_promotes_or_renews_original_quote() {
         let namespace = "expired-active1489";
         let mut source = super::super::tests::fixture();
@@ -430,6 +477,7 @@ mod capacity_tests {
 mod direct_admission_tests {
     use super::*;
     #[tokio::test]
+    #[serial_test::serial]
     async fn issue1489_large_qualified_context_uses_free_worker_without_pending_budget() {
         let namespace = "large-context1489";
         let mut source = super::super::tests::fixture();

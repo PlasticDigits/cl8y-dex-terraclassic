@@ -251,7 +251,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         .wallet_actor_cursors
         .retain(|token, _| live_assets.contains(token));
     retain_wallet_ledgers(&mut admission.tax_wallets, &live_assets);
-    let previous = ingestion::observed_actor_contexts(&namespace);
+    let (previous, mut actor_proof) = ingestion::observed_actor_contexts_with_proof(&namespace);
     let mut actors = retained_blocks(&previous).map_err(|e| {
         mark_actor_capacity_exhausted(&mut store().lock().unwrap(), &namespace);
         e
@@ -273,7 +273,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
         if let Some(factory) = state.factory_address.as_deref() {
             for address in &actor_addresses {
                 refresh_actor_context(
-                    &namespace, address, &mut actors, &mut actor_observed_at,
+                    &namespace, address, &mut actors, &mut actor_observed_at, &mut actor_proof,
                     previous.get(address).copied(),
                     async { query(state, factory, json!({"blacklist_check":{"wallet":address,"tokens":[],"pairs":[],"pair":null}})).await.and_then(|v| v["wallet_blacklisted"].as_bool()) },
                     async {
@@ -296,7 +296,16 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
     );
     // Publish newly observed wallet guards before slow token/pair discovery;
     // cancellation of that work must not leave a known block in a warm cache.
-    publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
+    publish_admission(
+        state,
+        &namespace,
+        &admission,
+        &assets,
+        &addresses,
+        &actors,
+        &actor_proof,
+    )
+    .await?;
     let mut tokens: HashMap<String, (u64, i64, Option<tax::TokenObservation>)> = HashMap::new();
     let mut attempted_tokens = HashSet::new();
     let mut pending_wallet_tokens = HashSet::new();
@@ -517,7 +526,16 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
             );
         }
         // Required static policy is useful before optional wallet work begins.
-        publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
+        publish_admission(
+            state,
+            &namespace,
+            &admission,
+            &assets,
+            &addresses,
+            &actors,
+            &actor_proof,
+        )
+        .await?;
         for address in [a, b] {
             if !pending_wallet_tokens.remove(address) {
                 continue;
@@ -533,6 +551,7 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                 &static_observation,
                 &actor_addresses,
                 &mut actor_observed_at,
+                &mut actor_proof,
                 &mut actors,
                 &previous,
             )
@@ -548,10 +567,28 @@ pub async fn ingest_once(state: &AppState) -> Result<(), sqlx::Error> {
                     observation.inherit_wallet_contexts(current);
                 }
             }
-            publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await?;
+            publish_admission(
+                state,
+                &namespace,
+                &admission,
+                &assets,
+                &addresses,
+                &actors,
+                &actor_proof,
+            )
+            .await?;
         }
     }
-    publish_admission(state, &namespace, &admission, &assets, &addresses, &actors).await
+    publish_admission(
+        state,
+        &namespace,
+        &admission,
+        &assets,
+        &addresses,
+        &actors,
+        &actor_proof,
+    )
+    .await
 }
 /// Revoke only an existing positive manager approval on completed negative flags.
 /// This runs before the actor's balance await, so cancellation cannot restore it.
@@ -601,6 +638,7 @@ async fn enrich_wallets(
     static_observation: &tax::TokenObservation,
     actor_addresses: &[String],
     actor_observed_at: &mut HashMap<String, i64>,
+    actor_proof: &mut actor_versions::Proof,
     actors: &mut HashMap<String, (u16, bool)>,
     previous: &HashMap<String, (u16, bool)>,
 ) -> Result<bool, sqlx::Error> {
@@ -640,7 +678,7 @@ async fn enrich_wallets(
             admission.holder_cursors.insert(address.to_owned(), next);
             if let Some(factory) = state.factory_address.as_deref() {
                 for actor in holders {
-                    refresh_actor_context(namespace,&actor,actors,actor_observed_at,previous.get(&actor).copied(),
+                    refresh_actor_context(namespace,&actor,actors,actor_observed_at,actor_proof,previous.get(&actor).copied(),
                         async {query(state,factory,json!({"blacklist_check":{"wallet":actor,"tokens":[],"pairs":[],"pair":null}})).await.and_then(|v|v["wallet_blacklisted"].as_bool())},
                         async {Some(0)}).await?;
                     if actors.get(&actor).is_some_and(|(_, blocked)| !blocked) {
@@ -740,6 +778,7 @@ async fn refresh_actor_context(
     address: &str,
     actors: &mut HashMap<String, (u16, bool)>,
     observed: &mut HashMap<String, i64>,
+    proof: &mut actor_versions::Proof,
     previous: Option<(u16, bool)>,
     blacklist: impl std::future::Future<Output = Option<bool>>,
     discount: impl std::future::Future<Output = Option<u16>>,
@@ -747,9 +786,11 @@ async fn refresh_actor_context(
     let observed_at = now_ms();
     let blocked = blacklist.await;
     if blocked == Some(true) {
-        ingestion::publish_known_block(namespace, address)?;
+        let version = ingestion::publish_actor_guard(namespace, address, true)?;
+        proof.observed(address, version);
     } else if blocked == Some(false) {
-        ingestion::publish_known_unblock(namespace, address)?;
+        let version = ingestion::publish_actor_guard(namespace, address, false)?;
+        proof.observed(address, version);
         // Preserve this completed authoritative guard before optional fees await.
         observed.insert(address.to_owned(), observed_at);
         insert_actor(actors, address.to_owned(), (0, false))?;
@@ -810,6 +851,7 @@ async fn publish_admission(
     assets: &[assets::AssetRow],
     addresses: &HashMap<i32, String>,
     actors: &HashMap<String, (u16, bool)>,
+    actor_proof: &actor_versions::Proof,
 ) -> Result<(), sqlx::Error> {
     let fresh = fresh_observations(admission, now_ms());
     // Membership and original deadlines must share one capture. A pair can
@@ -902,7 +944,7 @@ async fn publish_admission(
     }
     pairs.sort_by(|a, b| a.contract_address.cmp(&b.contract_address));
     identity.sort();
-    publish(
+    let mut pending = publication(
         namespace.to_string(),
         pairs,
         addresses.clone(),
@@ -924,6 +966,8 @@ async fn publish_admission(
         taxes,
         None,
     );
+    pending.actor_proof = actor_proof.clone();
+    pending.scheduled().await?;
     Ok(())
 }
 /// Test setup drains the capped inventory; production never calls this helper.
@@ -954,6 +998,7 @@ mod tests {
         ingestion::publish_known_block(namespace, "cleared").unwrap();
         let mut actors = HashMap::from([("cleared".into(), (0, true))]);
         let mut observed = HashMap::new();
+        let mut proof = actor_versions::Proof::default();
         let started = tokio::time::Instant::now();
         let completed = actor_slice(
             async {
@@ -962,6 +1007,7 @@ mod tests {
                     "blocked",
                     &mut actors,
                     &mut observed,
+                    &mut proof,
                     None,
                     async { Some(true) },
                     async { panic!("blocked wallet cannot query discount") },
@@ -972,6 +1018,7 @@ mod tests {
                     "cleared",
                     &mut actors,
                     &mut observed,
+                    &mut proof,
                     Some((0, true)),
                     async { Some(false) },
                     async {
@@ -1310,5 +1357,60 @@ mod tests {
         assert!(
             super::super::score(&snapshot, &candidate.path, 10u128.pow(18), SCALE / 20).is_none()
         );
+    }
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn issue1489_guard_proof_before_discount_await_rejects_old_discount_and_block() {
+        let namespace = "discount-await1489";
+        let actor = super::super::publication_tests::address(31000);
+        let mut source = super::super::tests::fixture();
+        source.namespace = namespace.into();
+        source.actors.insert(actor.clone(), (1000, false));
+        let make = super::super::publication_tests::pending;
+        make(source.clone()).scheduled().await.unwrap();
+        let (discount_tx, discount_rx) = tokio::sync::oneshot::channel();
+        let refresh_actor = actor.clone();
+        let refresh = tokio::spawn(async move {
+            let mut actors = HashMap::new();
+            let mut observed = HashMap::new();
+            let mut proof = actor_versions::Proof::default();
+            refresh_actor_context(
+                namespace,
+                &refresh_actor,
+                &mut actors,
+                &mut observed,
+                &mut proof,
+                None,
+                async { Some(false) },
+                async { Some(discount_rx.await.unwrap()) },
+            )
+            .await
+            .unwrap();
+            (actors, proof)
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while store().lock().unwrap().snapshots[namespace].actors[&actor] != (0, false) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        ingestion::publish_known_block(namespace, &actor).unwrap();
+        ingestion::publish_known_unblock(namespace, &actor).unwrap();
+        discount_tx.send(1000u16).unwrap();
+        let (actors, proof) = refresh.await.unwrap();
+        source.actors = actors;
+        let mut stale = make(source);
+        stale.actor_proof = proof;
+        stale.scheduled().await.unwrap();
+        assert_eq!(
+            store().lock().unwrap().snapshots[namespace].actors[&actor],
+            (0, false),
+            "completed stale discount cannot restore fees after a newer guard observation"
+        );
+        let mut g = store().lock().unwrap();
+        g.snapshots.remove(namespace);
+        g.early_actor_blocks.remove(namespace);
+        g.actor_versions.remove(namespace);
     }
 }
