@@ -626,3 +626,35 @@ changes and original expiry clear stale display/notice state. A newly validated
 quote may legitimately move above or below exact 5%; no warning hysteresis or
 threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
+
+Effective market identity is canonical after newer-view preservation and fee
+qualification. Repeated stale producer inputs that retain identical admitted
+views preserve identity; producer history and HashMap insertion order do not
+enter the hash. Namespace, token identities, qualification contexts, reserve
+height/time/fee/freshness, pool companions, ordered book FIFO, tax/actor/hook and
+reference/policy observations remain bound. Changed observations still invalidate.
+Monotone tightened validity, authoritative negatives, fee/freeze/protocol guards
+and wrapper identity remain independent. Preserved views keep their original
+per-pair qualification deadlines; successful refresh never renews existing work.
+See [the follow-up evidence](qa/issue-1489/RESULTS.md#supplemental-entry-and-effective-market-identity).
+
+
+Scheduled reserve/admission publication owns at most **two** CPU preparation
+jobs, independent of the four discovery workers. Immutable book/context hashing
+runs outside both the quote lock and the async executor; canceled awaiters cannot
+commit, and their CPU permits remain owned until preparation finishes. Final
+publication on the live caller retains epoch/fee/protocol validation and composes
+sorted per-view digests bound to their actual immutable Arc, kind and address.
+Missing/detached bindings fail closed. The original 16 MiB pending budget also
+counts cached identity entries; neither work nor namespace/actor limits expand.
+
+Authoritative actor guard proofs are captured before optional discount awaits.
+Final bounded actor reconciliation and hashing preserve newer blacklists and
+fresh conservative unblocks, including guard changes during CPU preparation.
+New records use distinct versions after recycling; repeated existing unchanged
+positive observations do not churn identity. Complete inventory resets revoke omitted
+per-actor discount proofs even for admission without an expected configuration
+epoch; repeated unchanged inventories retain stable versions. Replacement stays
+within 2,048 records per namespace and 32 namespaces. These invariants preserve
+original expiry, floor/consent checks and offline request behavior.

@@ -256,3 +256,121 @@ At the original 750ms clock, p50/p95/p99/max are 93.6/153.8/171.4/298.0ms.
 Prior routing and prior-head CI evidence remain separately identified; this new
 source requires its own genuine hosted CI and deployed acceptance. No private
 report/image context is part of these receipts.
+
+## Supplemental entry and effective market identity
+
+[Independent deployed empty-entry baseline](empty-entry-original-baseline.json)
+records an actual failure on merged `74e7ad03629832076f59614e6b37ee868fe62c9c`.
+Fresh anonymous desktop and phone entries each show the unavailable-wrapping
+notice at zero and five seconds with an untouched empty amount. The separately
+attested served roots/backend match that revision; four read requests produce
+zero writes, actors, provider reads or signing. This is independent of any private
+report and retains the actual FAIL verdict.
+
+The [Swap entry fix](../../../frontend-dapp/src/pages/SwapPage.tsx) gates wrapper
+presentation on positive, representable current intent and its settled local outcome. Empty/zero input with no known operational blocker shows Enter Amount;
+debounce, initial pay/receive requests and missing observations retain truthful
+calculating/pricing states. Positive cached pause/treasury mismatch, unsupported
+outcomes, invalid dust/precision/overflow, expired original context and unknown
+budgets remain blocked. Signing/mutation validators are unchanged.
+
+[A separate bounded baseline API observation](api-original-baseline.json) retains
+its original FAIL verdict and exposes premature probe comparison:
+it ended on a generation change and retrospectively compared an earlier
+incomplete GET with a higher candidate learned by a later POST. That receipt does
+not establish a missed three-second promotion deadline. An independent sixteen
+read/five-second triage observes ten generations and several same-cohort
+short-to-deep promotions in the next GET; no retained higher-known candidate
+remains inferior for three seconds. Identical selected-path observation/expiry
+alone cannot establish that the whole admitted market is unchanged.
+
+A deterministic backend regression nevertheless reproduces a real identity
+fault: preserving newer qualified mirrors mixed the previous opaque generation
+into the next hash. Repeated identical delayed inputs with unchanged effective
+views changed generation recursively, and HashMap iteration influenced the fold.
+Publication now hashes the effective qualified snapshot after preservation and
+fee filtering in [the canonical identity module](../../../indexer/src/api/local_quote/generation.rs). Namespace/addresses/qualification, height/time/freshness/fees,
+ordered book FIFO/owner, pool companions, taxes/actors/hooks and reference/policy
+inputs stay bound; the existing negative, fee/freeze/protocol, validity and wrapper
+guards are unchanged. Preserved per-pair deadlines cannot renew. New controls
+check collection order, original deadlines and genuine changed economic inputs.
+Current follow-up source/results and genuine CI/deployed receipts remain separate
+from the earlier routing and notice-retention fingerprints above.
+
+The corrected probe pins the declared discriminator's exact original cohort,
+starts at its earliest matching request start and caps the three-second window at
+the original expiry. It does not reset the clock after producer changes or a
+late benchmark, and a compatible post-benchmark GET is required. A prior
+incomplete GET is not retroactively failed when a later POST improves; missing
+original-cohort coverage remains UNVERIFIED. A proven deadline miss still fails;
+fast 503 responses cannot count as useful executable socket results. This
+verification correction does not relax production quote admission.
+
+The first default-parallel verifier failed because a global fee-negative fixture
+cleared the result cache while the expired-job fixture still expected its own
+entry. Its held-lock assertion then poisoned the registry, causing cascading
+failures. Uncaptured reproduction identifies the original missing-entry panic;
+shared-global fixtures now consistently use the existing test lock while their
+internal worker contention remains concurrent. The new publication fixture also
+retires only its owned completed namespace. Production invalidation, caps and
+mutex behavior are unchanged; the failure receipts remain retained.
+
+A maximum current-book shape (512 pairs × 2,048 orders) took 2,396ms to hash in
+debug. The original synchronous scheduled shape then failed an actual initialized
+HTTP quote on a single async worker at 2,497.948ms against the unchanged 500ms
+clock. Correct preparation uses two bounded CPU jobs and live-caller publication.
+Earlier development first/retest controls preserved original generation/expiry
+and checked positive floors/available signed attribution; 52/54 useful HTTP
+responses had maximum 3ms. Final frozen-source measurements are recorded below
+and in the current source receipt. The profile owns an isolated subprocess for its fixed 512-marker budget and
+runs as a normal nonignored regression. Its prices/reserves/addresses are synthetic,
+not production census, settlement or gas calibration. Fixture setup failures are
+separate from the valid deadline RED receipt.
+
+A controlled pending-admission regression also reproduced an old actor map
+restoring approval after a known blacklist. Actor proofs now bind the completed
+blacklist observation before optional discount/enrichment awaits. Commit reconciles
+newer authoritative block/unblock information and hashes final bounded actor state;
+a stale discount cannot replace the conservative fee after an unblock. New actor
+record versions prevent recycling from accepting old proofs. Exact producer and
+snapshot safety gates remain independent, and topology stays nonexecutable/advisory.
+A separate deterministic local-store and actual pending-admission RED reproduced
+a complete inventory reset restoring an omitted actor’s old 8% discount. Omitted
+tombstones now receive the fresh reset revision, revoking their per-actor proofs;
+repeated unchanged inventories keep stable versions. Both original RED logs are
+retained. Final focused controls and full parallel tests are recorded in the
+current-source supplemental receipt; full parallel and affected source/integration verifiers remain separate
+receipts. The original actor-race and compiler/setup failure logs are retained.
+
+
+## Final canonical publication source supplement
+
+[Current source receipt](core-final-summary.json) binds the modified worktree on
+base `af79043096ecf80b0d85fab443f60e3f9c7c5eed` to product SHA256
+`ef69138e8f0b5081e4bdb5d9a375fc1f0d78a022f13affb5422d295b7c03dca7`.
+All fourteen named applicable verifiers repeat on this source: **208 PASS, zero
+final FAIL, 21 explicit acceptance SKIPs**. Focused controls pass **22 tests per
+round**; the actual default-parallel library passes **816 per round**, with one
+existing ignored benchmark separately exercised by the applicable verifiers.
+The current discovery verifier also repeats 317 frontend tests, 17 API helper
+controls and two monitoring controls per round. Earlier receipts retain their
+original fingerprints.
+
+[Fresh complete controlled browser matrix](core-controlled-browser-final-summary.json)
+records 4,250 cases, zero failures/provider requests and 3,948 validated useful
+quotes. Original-input useful latency p50/p95/p99/maximum is
+92.4/152.3/170.7/244.9ms against the unchanged 750ms budget. The synthetic maximum
+publication profile retains its actual single-Tokio-worker HTTP clock and original
+500ms budget; all four final focused/full rounds pass. This is source/owned-fixture
+evidence, separate from final production deployment and settlement.
+
+The first configured tax verifier retained **12 PASS, one FAIL, two SKIPs** when
+the long-running owned LocalTerra chain exhausted its original **1GiB tmpfs**
+before creating a test key. Only that exact-owner disposable container was reset,
+with the same pinned image, original budget, no published ports or persistent data
+mounts; only the new core tax code cache was invalidated. The full configured
+verifier then passed **13 PASS, zero FAIL, two SKIPs**. The first failure and reset
+receipt remain in the current-source evidence; production was neither reset nor
+signed. Independent deployed clocks, atomic production SQL/reserves, complete
+mapper/treasury artifact and capability correspondence, and physical-wallet
+acceptance remain unchecked.

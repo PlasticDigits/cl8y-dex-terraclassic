@@ -45,7 +45,25 @@ pub(super) fn clear_known_block(namespace: &str, address: &str) {
 /// An authoritative unblock uses conservative fees immediately. Optional fee
 /// provider delay/cancellation cannot keep an old blacklist approval or discount.
 pub(super) fn publish_known_unblock(namespace: &str, address: &str) -> Result<(), sqlx::Error> {
-    let mut g = store().lock().unwrap();
+    apply_known_unblock(&mut store().lock().unwrap(), namespace, address)
+}
+fn apply_known_unblock(g: &mut Store, namespace: &str, address: &str) -> Result<(), sqlx::Error> {
+    let before = g
+        .snapshots
+        .get(namespace)
+        .and_then(|s| s.actors.get(address).copied());
+    let was_blocked = g
+        .early_actor_blocks
+        .get(namespace)
+        .is_some_and(|b| b.contains(address));
+    actor_versions::observe(
+        g,
+        namespace,
+        address,
+        (0, false),
+        was_blocked || before.is_some_and(|c| c != (0, false)),
+    )?;
+
     if let Some(blocks) = g.early_actor_blocks.get_mut(namespace) {
         blocks.remove(address);
     }
@@ -57,11 +75,12 @@ pub(super) fn publish_known_unblock(namespace: &str, address: &str) -> Result<()
     }
     let mut snapshot = (*previous).clone();
     if let Err(error) = insert_actor(&mut snapshot.actors, address.to_owned(), (0, false)) {
-        mark_actor_capacity_exhausted(&mut g, namespace);
+        mark_actor_capacity_exhausted(g, namespace);
         return Err(error);
     }
     g.next_config_epoch = g.next_config_epoch.saturating_add(1);
     snapshot.config_epoch = g.next_config_epoch;
+    snapshot.actor_revision = actor_versions::revision(g, namespace);
     snapshot.generation = format!(
         "{:x}",
         Sha256::digest(format!(
@@ -73,7 +92,31 @@ pub(super) fn publish_known_unblock(namespace: &str, address: &str) -> Result<()
     g.results.clear();
     Ok(())
 }
+pub(super) fn publish_actor_guard(
+    namespace: &str,
+    address: &str,
+    blocked: bool,
+) -> Result<u64, sqlx::Error> {
+    let mut g = store().lock().unwrap();
+    if blocked {
+        apply_known_block(&mut g, namespace, address)?;
+    } else {
+        apply_known_unblock(&mut g, namespace, address)?;
+    }
+    Ok(actor_versions::capture(
+        &g,
+        namespace,
+        &HashMap::from([(address.into(), (0, blocked))]),
+    )
+    .entries_version(address)
+    .expect("completed guard has a proof"))
+}
 pub(super) fn observed_actor_contexts(namespace: &str) -> HashMap<String, (u16, bool)> {
+    observed_actor_contexts_with_proof(namespace).0
+}
+pub(super) fn observed_actor_contexts_with_proof(
+    namespace: &str,
+) -> (HashMap<String, (u16, bool)>, actor_versions::Proof) {
     let g = store().lock().unwrap();
     let mut actors = g
         .snapshots
@@ -83,7 +126,8 @@ pub(super) fn observed_actor_contexts(namespace: &str) -> HashMap<String, (u16, 
     if let Some(blocks) = g.early_actor_blocks.get(namespace) {
         actors.extend(blocks.iter().map(|actor| (actor.clone(), (0, true))));
     }
-    actors
+    let proof = actor_versions::capture(&g, namespace, &actors);
+    (actors, proof)
 }
 fn apply_known_block(g: &mut Store, namespace: &str, address: &str) -> Result<(), sqlx::Error> {
     if g.early_actor_blocks.len() >= 32 && !g.early_actor_blocks.contains_key(namespace) {
@@ -100,6 +144,18 @@ fn apply_known_block(g: &mut Store, namespace: &str, address: &str) -> Result<()
         return Err(actor_capacity_error());
     }
     let newly_observed = blocks.insert(address.to_owned());
+    let before = g
+        .snapshots
+        .get(namespace)
+        .and_then(|s| s.actors.get(address).copied());
+    actor_versions::observe(
+        g,
+        namespace,
+        address,
+        (0, true),
+        newly_observed || before.is_some_and(|c| !c.1),
+    )?;
+
     if newly_observed {
         // Includes cold observations, so an older complete inventory scan can
         // never clear a guard merely because initialization has not finished.
@@ -127,6 +183,7 @@ fn apply_known_block(g: &mut Store, namespace: &str, address: &str) -> Result<()
         g.next_config_epoch = g.next_config_epoch.saturating_add(1);
     }
     snapshot.config_epoch = g.next_config_epoch;
+    snapshot.actor_revision = actor_versions::revision(g, namespace);
     snapshot.generation = format!(
         "{:x}",
         Sha256::digest(format!(
@@ -226,7 +283,7 @@ pub(super) fn retained_blocks(
     }
     Ok(blocks)
 }
-fn actor_capacity_error() -> sqlx::Error {
+pub(super) fn actor_capacity_error() -> sqlx::Error {
     sqlx::Error::Protocol("Local actor observation capacity exhausted".into())
 }
 /// Fees can fall back conservatively; an observed block is never a capacity victim.
@@ -326,7 +383,7 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
             }
         }
     }
-    publish(
+    publication(
         ns,
         s.pairs.clone(),
         s.addresses.clone(),
@@ -350,7 +407,9 @@ pub async fn refresh_reserves(state: &AppState) -> Result<(), sqlx::Error> {
         s.policy_identity.clone(),
         s.taxes.clone(),
         Some(s.config_epoch),
-    );
+    )
+    .scheduled()
+    .await?;
     Ok(())
 }
 

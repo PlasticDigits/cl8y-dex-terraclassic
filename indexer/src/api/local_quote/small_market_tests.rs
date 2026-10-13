@@ -182,6 +182,7 @@ fn issue1479_small_market_ten_dollar_policy_quotes_exact_bidirectional_net_and_u
 }
 
 #[test]
+#[serial_test::serial]
 fn issue1479_idle_search_is_not_quote_readiness_and_expired_cache_is_not_ready() {
     let namespace = "issue1479-progress-distinct-readiness";
     let s = fixture();

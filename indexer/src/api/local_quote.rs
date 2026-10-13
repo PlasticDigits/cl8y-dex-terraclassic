@@ -31,6 +31,8 @@ struct Snapshot {
     mirrors: HashMap<String, Arc<sim::HopMirror>>,
     // Independently complete pool tuples; never relabel or splice an old book.
     pool_mirrors: HashMap<String, Arc<sim::HopMirror>>,
+    // Prehashed immutable views keep scheduled publication off the quote lock.
+    view_hashes: Arc<generation::ViewHashes>,
     pair_contexts: HashMap<String, String>,
     max_age_ms: u64,
     hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
@@ -40,6 +42,7 @@ struct Snapshot {
     // Monotone invalidation for shortened validity windows; ordinary refreshes
     // retain it, so a later identical refresh cannot resurrect an old cache key.
     validity_revision: u64,
+    actor_revision: u64,
     references: super::local_reference_quote::ReferencePrices,
     actors: HashMap<String, (u16, bool)>,
     discounted_pairs: HashSet<String>,
@@ -61,6 +64,8 @@ struct Store {
     hits: u64,
     started: u64,
     next_config_epoch: u64,
+    next_actor_version: u64,
+    actor_versions: HashMap<String, actor_versions::Namespace>,
     actor_refresh_cursors: HashMap<String, usize>,
     actor_capacity_exhausted: HashSet<String>,
     actor_capacity_registry_exhausted: bool,
@@ -264,6 +269,14 @@ fn preserve_newer_mirrors(snapshot: &mut Snapshot, current: &Snapshot) {
                 )
             {
                 *incoming = previous.clone();
+                let hashes = Arc::make_mut(&mut snapshot.view_hashes);
+                let key = (address.clone(), pool_view);
+                if let Some(previous_hash) = current.view_hashes.get(&key) {
+                    hashes.insert(key, previous_hash.clone());
+                } else {
+                    hashes.remove(&key);
+                }
+
                 let expiry = current
                     .config_expiries
                     .get(address)
@@ -274,13 +287,6 @@ fn preserve_newer_mirrors(snapshot: &mut Snapshot, current: &Snapshot) {
                     .entry(address.clone())
                     .and_modify(|at| *at = (*at).min(expiry))
                     .or_insert(expiry);
-                snapshot.generation = format!(
-                    "{:x}",
-                    Sha256::digest(format!(
-                        "{}|preserved|{}|{pool_view}|{}|{}",
-                        snapshot.generation, address, previous.snapshot_at, current.generation
-                    ))
-                );
             }
         }
     }
@@ -304,90 +310,10 @@ fn publish(
     taxes: HashMap<String, tax::TokenObservation>,
     expected_config_epoch: Option<u64>,
 ) {
-    let mut digest = Sha256::new();
-    let mut ordered: Vec<_> = mirrors.iter().collect();
-    ordered.sort_by_key(|(address, _)| *address);
-    for (address, m) in ordered {
-        digest.update(format!(
-            "{address}|{}|{}|{}|{:?}|{}|{}|{}",
-            m.asset_0_addr,
-            m.asset_1_addr,
-            m.fee_bps,
-            m.block_height,
-            m.snapshot_at,
-            m.reserve_0,
-            m.reserve_1
-        ));
-        for order in m.bids.iter().chain(&m.asks) {
-            digest.update(format!(
-                "{}|{}|{}|{}|{:?}",
-                order.order_id, order.side, order.price, order.remaining, order.expires_at
-            ));
-        }
-    }
-    // Admission changes invalidate quotes even if reserve amounts did not change.
-    let mut admitted: Vec<_> = pairs
-        .iter()
-        .map(|p| (&p.contract_address, p.asset_0_id, p.asset_1_id))
-        .collect();
-    admitted.sort();
-    digest.update(format!("{admitted:?}"));
-    let mut hook_keys = hooks.iter().collect::<Vec<_>>();
-    hook_keys.sort_by_key(|(k, _)| *k);
-    for (address, prices) in hook_keys {
-        digest.update(format!("{address}|{:?}", prices.observation_identity()));
-    }
-    let mut refs = references.prices.iter().collect::<Vec<_>>();
-    refs.sort_by_key(|(id, _)| **id);
-    digest.update(format!("{refs:?}"));
-    let mut exclusions = references.policy_exclusions.iter().collect::<Vec<_>>();
-    exclusions.sort_by_key(|(id, _)| **id);
-    digest.update(format!("{}|{exclusions:?}", references.policy_identity));
-    let mut actor_fields = actors.iter().collect::<Vec<_>>();
-    actor_fields.sort_by_key(|(address, _)| *address);
-    digest.update(format!("{actor_fields:?}"));
-    let mut discounted = discounted_pairs.iter().collect::<Vec<_>>();
-    discounted.sort();
-    digest.update(format!("{discounted:?}"));
-    let mut tax_fields = taxes.iter().collect::<Vec<_>>();
-    tax_fields.sort_by_key(|(address, _)| *address);
-    for (address, token) in tax_fields {
-        let mut registered = token.pairs.iter().collect::<Vec<_>>();
-        registered.sort();
-        digest.update(format!(
-            "{address}|{}|{}|{}|{}|{:?}|{registered:?}|{:?}|{}",
-            token.code_id,
-            token.buy_bps,
-            token.sell_bps,
-            token.observed_at_ms,
-            token.max_wallet,
-            token.actors,
-            token.policy_identity
-        ));
-    }
-    digest.update(&policy_identity);
-    let mut pool_keys = pool_mirrors.iter().collect::<Vec<_>>();
-    pool_keys.sort_by_key(|(address, _)| *address);
-    for (address, mirror) in pool_keys {
-        digest.update(format!(
-            "pool|{address}|{}|{}|{}|{:?}|{}|{}|{}",
-            mirror.asset_0_addr,
-            mirror.asset_1_addr,
-            mirror.fee_bps,
-            mirror.block_height,
-            mirror.snapshot_at,
-            mirror.reserve_0,
-            mirror.reserve_1,
-        ));
-    }
-    let generation = format!("{:x}", digest.finalize());
-    let ids = addresses.iter().map(|(id, a)| (a.clone(), *id)).collect();
-    let mut snapshot = Snapshot {
-        namespace: namespace.clone(),
-        generation,
+    publication(
+        namespace,
         pairs,
         addresses,
-        ids,
         mirrors,
         pool_mirrors,
         max_age_ms,
@@ -395,8 +321,53 @@ fn publish(
         config_expiry_ms,
         config_expiries,
         pair_contexts,
+        references,
+        actors,
+        discounted_pairs,
+        policy_identity,
+        taxes,
+        expected_config_epoch,
+    )
+    .prepare()
+    .commit();
+}
+
+fn publication(
+    namespace: String,
+    pairs: Vec<pairs::PairRow>,
+    addresses: HashMap<i32, String>,
+    mirrors: HashMap<String, Arc<sim::HopMirror>>,
+    pool_mirrors: HashMap<String, Arc<sim::HopMirror>>,
+    max_age_ms: u64,
+    hooks: HashMap<String, super::local_hook_pricing::CachedHookPrices>,
+    config_expiry_ms: i64,
+    config_expiries: HashMap<String, i64>,
+    pair_contexts: HashMap<String, String>,
+    references: super::local_reference_quote::ReferencePrices,
+    actors: HashMap<String, (u16, bool)>,
+    discounted_pairs: HashSet<String>,
+    policy_identity: String,
+    taxes: HashMap<String, tax::TokenObservation>,
+    expected_config_epoch: Option<u64>,
+) -> publication::Pending {
+    let ids = addresses.iter().map(|(id, a)| (a.clone(), *id)).collect();
+    let snapshot = Snapshot {
+        namespace: namespace.clone(),
+        generation: String::new(),
+        pairs,
+        addresses,
+        ids,
+        mirrors,
+        pool_mirrors,
+        view_hashes: Arc::default(),
+        max_age_ms,
+        hooks,
+        config_expiry_ms,
+        config_expiries,
+        pair_contexts,
         config_epoch: expected_config_epoch.unwrap_or(0),
         validity_revision: 0,
+        actor_revision: 0,
         references,
         actors,
         discounted_pairs,
@@ -406,82 +377,15 @@ fn publish(
         tax_trader: None,
         protocol_actor_tokens: HashMap::new(),
     };
-    let mut g = store().lock().unwrap();
-    // A reserve pass may finish after admission publishes a new policy epoch.
-    // Compare and replace under one lock so old reads cannot restore old guards.
-    if expected_config_epoch.is_some_and(|expected| {
-        !g.snapshots
-            .get(&namespace)
-            .is_some_and(|current| current.config_epoch == expected)
-    }) {
-        return;
+    let actor_proof =
+        actor_versions::capture(&store().lock().unwrap(), &namespace, &snapshot.actors);
+    publication::Pending {
+        snapshot,
+        expected_config_epoch,
+        actor_proof,
+        #[cfg(test)]
+        start_barrier: None,
     }
-    if g.snapshots.len() >= 32 && !g.snapshots.contains_key(&namespace) {
-        return;
-    }
-    if let Some(current) = g.snapshots.get(&namespace) {
-        preserve_newer_mirrors(&mut snapshot, current);
-        snapshot.validity_revision = current
-            .validity_revision
-            .saturating_add(u64::from(validity_tightened(&snapshot, current)));
-    }
-    let qualifications = snapshot
-        .pairs
-        .iter()
-        .filter_map(|pair| {
-            snapshot
-                .pair_contexts
-                .get(&pair.contract_address)
-                .map(|context| crate::indexer::fee_phase::Qualification {
-                    pair_id: pair.id,
-                    assets: (pair.asset_0_id, pair.asset_1_id),
-                    context: context.clone(),
-                    expiry_ms: snapshot
-                        .config_expiries
-                        .get(&pair.contract_address)
-                        .copied()
-                        .unwrap_or(snapshot.config_expiry_ms),
-                    max_age_ms: snapshot.max_age_ms,
-                    mirror: snapshot.mirrors.get(&pair.contract_address).cloned(),
-                    pool_mirror: snapshot.pool_mirrors.get(&pair.contract_address).cloned(),
-                })
-        })
-        .collect();
-    if !snapshot.pair_contexts.is_empty()
-        && !crate::indexer::fee_phase::qualify(&namespace, qualifications)
-    {
-        g.actor_capacity_registry_exhausted = true;
-        g.results.clear();
-        return;
-    }
-    for (pool_view, views) in [
-        (false, &mut snapshot.mirrors),
-        (true, &mut snapshot.pool_mirrors),
-    ] {
-        views.retain(|address, mirror| {
-            crate::indexer::fee_phase::permits_view(
-                &namespace,
-                mirror.pair_id,
-                mirror.block_height,
-                mirror.snapshot_at,
-                pool_view,
-            ) && snapshot
-                .pairs
-                .iter()
-                .any(|pair| &pair.contract_address == address)
-        });
-    }
-    protocol_guards::clear_admitted_false(
-        &mut g,
-        &namespace,
-        &snapshot,
-        expected_config_epoch.is_none(),
-    );
-    if expected_config_epoch.is_none() {
-        g.next_config_epoch = g.next_config_epoch.saturating_add(1);
-        snapshot.config_epoch = g.next_config_epoch;
-    }
-    g.snapshots.insert(namespace, Arc::new(snapshot));
 }
 
 /// Called by a scheduled producer before failure cleanup awaits. Existing CPU
@@ -2158,15 +2062,20 @@ fn progress_local(
 }
 
 mod actor_inventory;
+mod actor_versions;
 mod admission;
 mod attribution;
 mod diagnostics;
 #[cfg(test)]
 mod discovery_tests;
+mod generation;
 mod ingestion;
 mod jobs;
 mod modes;
 mod pair_admission;
+mod publication;
+#[cfg(test)]
+mod publication_tests;
 mod reverse;
 #[cfg(test)]
 mod small_market_tests;
@@ -2260,11 +2169,13 @@ mod tests {
             generation: "fixture".into(),
             config_epoch: 0,
             validity_revision: 0,
+            actor_revision: 0,
             ids: addresses.iter().map(|(id, a)| (a.clone(), *id)).collect(),
             addresses: addresses.clone(),
             pairs,
             mirrors,
             pool_mirrors: HashMap::new(),
+            view_hashes: Arc::default(),
             max_age_ms: 20_000,
             hooks: HashMap::new(),
             config_expiry_ms: now_ms() + 180_000,
@@ -2577,6 +2488,7 @@ mod tests {
         assert_eq!(clean, json!({"error":"protection"}));
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn issue1473_request_amounts_reject_noncanonical_and_overflow_without_discovery() {
         for raw in [
             "0",
@@ -2702,6 +2614,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn topology_releases_registry_before_structural_cache_and_leaves_it_usable() {
         let namespace = "1452-topology-registry-reentry";
         let s = fixture();
@@ -2729,6 +2642,7 @@ mod tests {
         assert!(store().lock().is_ok());
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn actor_capacity_quarantine_blocks_warm_quotes_topology_and_progress() {
         let namespace = "actor-capacity-quarantine-fixture";
         let s = fixture();
@@ -2814,6 +2728,7 @@ mod tests {
         }
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn inverse_uses_eligible_longer_baseline_when_all_short_targets_fail_protection() {
         let mut s = fixture();
         for (name, m) in s.mirrors.iter_mut() {
@@ -3079,6 +2994,7 @@ mod tests {
         assert!(score(&s, &p, required - 1, SCALE / 20).is_none_or(|c| c.output < 100));
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn fixed_snapshot_refresh_reuses_exact_amount_cache_without_reenrichment() {
         let s = fixture();
         initialize_for_test(
@@ -3114,6 +3030,7 @@ mod tests {
         );
     }
     #[test]
+    #[serial_test::serial]
     fn delayed_reserve_publication_cannot_restore_previous_admission_epoch() {
         let namespace = "1452-policy-publication-regression".to_owned();
         let publish_fixture = |s: Snapshot, expected| {
@@ -3209,6 +3126,7 @@ mod tests {
         }
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn manual_split_post_prices_exact_controls_and_binds_cache_identity() {
         let mut s = fixture();
         let mut direct = s
@@ -3335,6 +3253,7 @@ mod tests {
         .is_none());
     }
     #[tokio::test]
+    #[serial_test::serial]
     async fn zero_hop_wrapper_sizing_is_local_positive_and_explicitly_cannot_sign() {
         use super::super::local_wrapper_quote::{NativeMapping, WrapperSnapshot};
         let namespace = "zero-wrapper1452";

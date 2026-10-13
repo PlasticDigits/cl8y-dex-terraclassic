@@ -132,6 +132,7 @@ fn request() -> route_solver::SolveRouteParams {
 }
 
 #[tokio::test]
+#[serial_test::serial]
 async fn issue1489_native_three_hop_promotes_after_saturation_and_unchanged_producers() {
     let namespace = "discovery1489-native";
     let snapshot = fixture(namespace);
@@ -344,6 +345,7 @@ fn issue1489_ineligible_native_higher_net_cannot_suppress_eligible_lower_alterna
 }
 
 #[test]
+#[serial_test::serial]
 fn issue1489_tighter_windows_invalidate_without_refresh_epoch_churn() {
     let namespace = "validity1489";
     let mut source = tests::fixture();
@@ -436,6 +438,7 @@ fn issue1489_tighter_windows_invalidate_without_refresh_epoch_churn() {
 }
 
 #[tokio::test]
+#[serial_test::serial]
 async fn issue1489_native_without_mode_flags_remains_pool_only_when_wrapped_books_win() {
     let namespace = "native-book1489";
     let mut s = tests::fixture();
@@ -499,4 +502,77 @@ async fn issue1489_native_without_mode_flags_remains_pool_only_when_wrapped_book
         hybrid.output.to_string()
     );
     assert!(!wrapped["router_operations"][0]["terra_swap"]["hybrid"].is_null());
+}
+
+#[test]
+#[serial_test::serial]
+fn issue1489_repeated_preserved_views_keep_identical_effective_generation() {
+    let namespace = "preserved-generation1489";
+    let mut source = fixture(namespace);
+    source.pair_contexts = source
+        .pairs
+        .iter()
+        .map(|p| (p.contract_address.clone(), format!("1489-{}", p.id)))
+        .collect();
+    source.config_expiries = source
+        .pairs
+        .iter()
+        .map(|p| (p.contract_address.clone(), source.config_expiry_ms))
+        .collect();
+    let publish_fixture = |s: Snapshot| {
+        publish(
+            namespace.into(),
+            s.pairs,
+            s.addresses,
+            s.mirrors,
+            s.pool_mirrors,
+            s.max_age_ms,
+            s.hooks,
+            s.config_expiry_ms,
+            s.config_expiries,
+            s.pair_contexts,
+            s.references,
+            s.actors,
+            s.discounted_pairs,
+            s.policy_identity,
+            s.taxes,
+            None,
+        );
+    };
+    publish_fixture(source.clone());
+    let original = store().lock().unwrap().snapshots[namespace].clone();
+    let mut delayed = source.clone();
+    delayed.config_expiry_ms += 10_000;
+    for expiry in delayed.config_expiries.values_mut() {
+        *expiry += 10_000;
+    }
+
+    for mirror in delayed.mirrors.values_mut() {
+        let mirror = Arc::make_mut(mirror);
+        mirror.snapshot_at -= chrono::Duration::milliseconds(1000);
+        mirror.block_height = Some(9);
+        mirror.reserve_0 /= 2;
+    }
+    publish_fixture(delayed.clone());
+    let first = store().lock().unwrap().snapshots[namespace].clone();
+    assert_eq!(
+        first.mirrors["discovery1489-103"].reserve_0,
+        original.mirrors["discovery1489-103"].reserve_0
+    );
+    assert_eq!(
+        first.config_expiries, original.config_expiries,
+        "preserving views also preserves their original qualification deadlines"
+    );
+    assert_eq!(
+        first.generation, original.generation,
+        "preserved effective economics must not acquire a new history-dependent generation"
+    );
+    publish_fixture(delayed);
+    let repeated = store().lock().unwrap().snapshots[namespace].clone();
+    assert_eq!(
+        repeated.generation, original.generation,
+        "identical delayed input cannot recursively churn generation"
+    );
+    store().lock().unwrap().snapshots.remove(namespace);
+    fee_phase::retire_completed_test_namespace(namespace);
 }

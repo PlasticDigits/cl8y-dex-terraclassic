@@ -152,6 +152,9 @@ fn apply_recovery(
         g.actor_capacity_registry_exhausted = true;
         return false;
     }
+    if actor_versions::authoritative_inventory(g, namespace, &actors).is_err() {
+        return false;
+    }
     let blocks = actors.keys().cloned().collect();
     if let Some(previous) = g.snapshots.get(namespace).cloned() {
         let mut snapshot = (*previous).clone();
@@ -167,6 +170,7 @@ fn apply_recovery(
         );
         g.next_config_epoch = g.next_config_epoch.saturating_add(1);
         snapshot.config_epoch = g.next_config_epoch;
+        snapshot.actor_revision = actor_versions::revision(g, namespace);
         g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
     } else {
         // The complete inventory also supplies cold guards before any economic
@@ -181,6 +185,50 @@ fn apply_recovery(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn issue1489_complete_inventory_revokes_pending_admission_discount() {
+        let namespace = "inventory-pending-admission1489";
+        let actor = publication_tests::address(31000);
+        let mut snapshot = super::super::tests::fixture();
+        snapshot.namespace = namespace.into();
+        snapshot.actors.insert(actor.clone(), (800, false));
+        publication_tests::pending(snapshot.clone())
+            .scheduled()
+            .await
+            .unwrap();
+        ingestion::publish_known_unblock(namespace, &actor).unwrap();
+        let pending = publication_tests::pending(snapshot);
+        assert!(pending.expected_config_epoch.is_none());
+        {
+            let mut g = store().lock().unwrap();
+            let epoch = g.snapshots[namespace].config_epoch;
+            assert!(apply_recovery(
+                &mut g,
+                namespace,
+                HashMap::new(),
+                Some(epoch)
+            ));
+            assert!(g.snapshots[namespace].actors.is_empty());
+        }
+        pending.scheduled().await.unwrap();
+        let actual = store().lock().unwrap().snapshots[namespace]
+            .actors
+            .get(&actor)
+            .copied()
+            .unwrap_or((0, false));
+        {
+            let mut g = store().lock().unwrap();
+            g.snapshots.remove(namespace);
+            g.actor_versions.remove(namespace);
+            g.early_actor_blocks.remove(namespace);
+        }
+        assert_eq!(
+            actual,
+            (0, false),
+            "late admission must not restore a reset discount"
+        );
+    }
     fn page(entries: Vec<(Vec<u8>, Vec<u8>)>, next: Option<&str>) -> Value {
         json!({"models":entries.into_iter().map(|(k,v)|json!({"key":k.iter().map(|b|format!("{b:02X}")).collect::<String>(),"value":STANDARD.encode(v)})).collect::<Vec<_>>(),"pagination":{"next_key":next}})
     }
