@@ -462,6 +462,183 @@ describe('SwapPage local executable quotes (#1452)', () => {
     expect(simulateSwap).not.toHaveBeenCalled()
     expect(simulateMultiHopSwap).not.toHaveBeenCalled()
   })
+
+  it('loads the native entry with an empty amount without inferring unavailable wrapping (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    const catalog = await import('@/utils/pairCatalogRank')
+    vi.spyOn(catalog, 'defaultRetailSwapTokenPair').mockReturnValue(['uluna', LOCAL_TO])
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Enter Amount')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Missing parameters')
+  })
+  it.each(['', '0'])('returns to neutral native entry after clearing to %s (#1489)', async (empty) => {
+    configureNativeTwoHopQuote()
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: empty } })
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Enter Amount')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow()
+    const { executeLocalNativeRoute } = await import('@/services/terraclassic/router')
+    expect(executeLocalNativeRoute).not.toHaveBeenCalled()
+  })
+  it('waits through native pay debounce/initial quote without an unavailable claim, then uses validated context (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    const nativeSolve = vi.mocked(indexerClient.getRouteSolve).getMockImplementation()!
+    let finish: (() => void) | undefined
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (...args) => {
+      await new Promise<void>((resolve) => {
+        finish = resolve
+      })
+      return nativeSolve(...args)
+    })
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    await waitFor(() => expect(finish).toBeDefined())
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Calculating')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    await expect(mutationEntry.run!()).rejects.toThrow('Quote unavailable')
+    await act(async () => {
+      finish!()
+    })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    expect(screen.getByTestId('swap-you-receive')).not.toHaveValue('')
+    expect(queryWrapMapperConfig).not.toHaveBeenCalled()
+  })
+  it('keeps missing native observations in a truthful pricing wait (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(503, 'missing_observations'))
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    await expect(mutationEntry.run!()).rejects.toThrow()
+  })
+  it('does not turn impossible native pay dust into an endless loading state (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '0.0000001' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toHaveTextContent('Quote unavailable'))
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+  })
+  it('retains real positive native unsupported and treasury-mismatch refusals (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(422, 'unsupported_semantics'))
+    const { queryClient } = renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-quote-error')).toBeInTheDocument())
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Quote unavailable')
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(() => new Promise(() => {}))
+    await act(async () => {
+      queryClient.setQueryData(['wrapMapperConfig'], {
+        treasury: 'terra1incorrect',
+        paused: false,
+        fee_wrap_bps: 100,
+        fee_unwrap_bps: 100,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    })
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wrap treasury misconfigured')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Quote unavailable')
+    const { executeLocalNativeRoute } = await import('@/services/terraclassic/router')
+    expect(executeLocalNativeRoute).not.toHaveBeenCalled()
+  })
+  it('handles native receive-target pending and below-precision intent without false wrapping status (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    const nativeSolve = vi.mocked(indexerClient.getRouteSolve).getMockImplementation()!
+    let finish: (() => void) | undefined
+    vi.spyOn(indexerClient, 'getRouteSolveExactOutput').mockImplementation(async (from, to, target, options) => {
+      await new Promise<void>((resolve) => {
+        finish = resolve
+      })
+      const q = await nativeSolve(from, to, target, options)
+      return { ...q, sizing_mode: 'local_pool_exact_output', required_amount_in: target, target_amount_out: target }
+    })
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-receive'), { target: { value: '1' } })
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    await waitFor(() => expect(finish).toBeDefined())
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Calculating')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await act(async () => {
+      finish!()
+    })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '0.0000001' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toHaveTextContent('Increase receive amount'))
+    expect(screen.getByTestId('swap-receive-amount-error')).toBeInTheDocument()
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+  })
+
+  it('treats an expired native wrapper quote as stale pricing, not global unavailability (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    const { queryClient } = renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    const count = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
+    const future = Date.now() + 20_000
+    vi.spyOn(Date, 'now').mockReturnValue(future)
+    await act(async () => {
+      queryClient.setQueriesData({ queryKey: ['simulation'] }, (old: unknown) => old && { ...(old as object) })
+    })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue(''))
+    expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(count)
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Quote unavailable')
+  })
+  it('retains a real cached wrapper pause at a positive amount (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    const { queryClient } = renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    await screen.findByTestId('swap-you-pay-amount')
+    await act(async () => {
+      queryClient.setQueryData(['wrapMapperConfig'], {
+        treasury: 'terra1treasury',
+        paused: true,
+        fee_wrap_bps: 100,
+        fee_unwrap_bps: 100,
+      })
+    })
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wrapping is Temporarily Paused'))
+    expect(screen.getByTestId('swap-pair-paused-banner')).toHaveTextContent('Wrapping is paused')
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow('Trading is paused')
+    const { executeLocalNativeRoute } = await import('@/services/terraclassic/router')
+    expect(executeLocalNativeRoute).not.toHaveBeenCalled()
+  })
+  it('rejects oversized native input without starting an indefinite quote (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(422, 'invalid_request'))
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), {
+      target: { value: '340282366920938463463374607431768211456' },
+    })
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Enter Amount')
+    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(screen.getByTestId('swap-submit')).not.toHaveTextContent('Calculating')
+    expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow()
+  })
   it('native wrap+two-hop fee and Max use the reviewed offline route (#1264 #1480)', async () => {
     configureNativeTwoHopQuote()
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })

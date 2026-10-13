@@ -1117,6 +1117,35 @@ export default function SwapPage() {
 
   const indexerOutage = detectSwapIndexerOutage(simQuery, simData)
   const hasPositiveInputAmount = isPositiveDecimalAmount(inputAmount)
+  // The offline wrapper cache is unknown before a current local quote exists.
+  // Empty/debouncing/loading intent is not evidence of wrapper unavailability.
+  // These presentation predicates never replace execution or budget validation.
+  const hasCurrentWrapperContext =
+    hasSettledSimQuote && !!simData?.executionMetadata?.wrapper && (!reverseQuoteActive || reverseQuoteReady)
+  const hasRawWrapperQuoteIntent = reverseQuoteActive ? reverseAskRaw !== '0' : rawInputAmount !== '0'
+  const wrapperQuotePending =
+    inputAmount !== debouncedInputAmount ||
+    !simInputIntentCurrent ||
+    simQuery.isPlaceholderData ||
+    simQuery.isLoading ||
+    simQuery.isFetching ||
+    (hasRawWrapperQuoteIntent &&
+      isExpiredLocalQuote(simQuery.data) &&
+      !simQuery.isError &&
+      (!reverseQuoteActive || !reverseQuery.isError)) ||
+    pricingDataPending ||
+    (reverseQuoteActive && reverseAskRaw !== '0' && !reverseQuoteReady && !reverseQuery.isError)
+  const showWrapTreasuryBlocker = hasPositiveInputAmount && !hasCurrentWrapperContext && wrapTreasuryMismatch
+  const showWrapSafetyBlocker =
+    hasPositiveInputAmount &&
+    hasRawWrapperQuoteIntent &&
+    !hasCurrentWrapperContext &&
+    wrapSafetyUnavailable &&
+    !wrapperQuotePending &&
+    !simQuery.isError &&
+    (!reverseQuoteActive || !reverseQuery.isError)
+  const waitingForWrapperQuote =
+    hasPositiveInputAmount && !hasCurrentWrapperContext && wrapSafetyUnavailable && wrapperQuotePending
   const simQuoteUnavailable =
     !pricingDataPending &&
     !isWrapOrUnwrap &&
@@ -1393,10 +1422,10 @@ export default function SwapPage() {
   } else if (!hasRoute) {
     buttonText = 'No Route'
     buttonDisabled = true
-  } else if (wrapTreasuryMismatch && !simData?.executionMetadata?.wrapper) {
+  } else if (showWrapTreasuryBlocker) {
     buttonText = WRAP_TREASURY_MISCONFIGURED_CTA
     buttonDisabled = true
-  } else if (wrapSafetyUnavailable && !simData?.executionMetadata?.wrapper) {
+  } else if (showWrapSafetyBlocker) {
     buttonText = WRAP_CONFIG_UNAVAILABLE_CTA
     buttonDisabled = true
   } else if (isWrapPaused) {
@@ -1417,6 +1446,9 @@ export default function SwapPage() {
   } else if (!decimalsResolved) {
     buttonText = decimalsPending ? 'Loading decimals…' : 'Token decimals unavailable'
     buttonDisabled = true
+  } else if (receiveTargetBelowPrecision) {
+    buttonText = 'Increase receive amount'
+    buttonDisabled = true
   } else if (pricingDataPending) {
     buttonText = 'Wait for price'
     buttonDisabled = true
@@ -1428,6 +1460,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (extraDebitGate.blockSubmit) {
     buttonText = defaultActionLabel
+    buttonDisabled = true
+  } else if (waitingForWrapperQuote) {
+    buttonText = simLoadingLabel
     buttonDisabled = true
   } else if (swapNetworkFeeEstimate.coverageError) {
     buttonText = 'Network fee unavailable'
@@ -1478,7 +1513,7 @@ export default function SwapPage() {
     ['outage', !!indexerOutage],
     ['wrapper', !!simData && !executableOutput],
     ['rate', isRateLimitExceeded],
-    ['config', !simData?.executionMetadata?.wrapper && (wrapTreasuryMismatch || wrapSafetyUnavailable)],
+    ['config', showWrapTreasuryBlocker || showWrapSafetyBlocker],
     ['acquire', isWalletConnected && payAcquireGuidance.kind.startsWith('insufficient')],
     [
       'funding',
