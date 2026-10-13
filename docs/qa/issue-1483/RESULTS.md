@@ -356,6 +356,8 @@ CI is rerun on the corrected commit before merge; the failed431 receipt remains.
 
 ## Deployed root-script verification correction
 
+Implementation: [PR #1488](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1488).
+
 PR #1485 merged normally after hosted432 passed every mandatory job. The exact
 verified tree deployed as `33ef64a99e65f0b0c7116e79bb7c6860b303beda`; both Coolify
 jobs finished with matching revision and zero fatal build-log matches. The
@@ -392,3 +394,8 @@ Tool revision/hash/dirty fields remain explicit; these are pre-commit corrected
 verification tools against the unchanged deployed product. Physical wallets and
 settlement remain separate. Useful original-input browser timing stays under the
 unchanged 750ms budget; exact per-sample timing is retained in both receipts.
+
+The corrected complete focused first/retest passes **21 groups, zero failures and
+two external acceptance skips**, including the new root-artifact boundary group.
+The application source fingerprint remains unchanged:
+`bd5abc96c16b4d2167a1c9dfa6b23030003c366494cad1d630f85352ab6ce31c`.

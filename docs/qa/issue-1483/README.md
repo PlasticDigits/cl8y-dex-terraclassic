@@ -3,6 +3,7 @@
 Issue [#1483](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1483).
 Implementation [PR #1484](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1484);
 retail warning follow-up [PR #1485](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1485);
+all-root verification correction [PR #1488](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1488);
 revision and evidence: [RESULTS.md](RESULTS.md).
 Read [RC1483-1–RC1483-10](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md),
 [the API/rounding contract](../../route-solver.md#economic-attribution-1483),

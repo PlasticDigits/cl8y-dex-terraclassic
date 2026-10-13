@@ -6,6 +6,8 @@ fair-reference explanations or Swap/Trade review. Issue:
 Implementation: [PR #1484](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1484).
 Read [the rounding/API contract](../docs/route-solver.md#economic-attribution-1483)
 and [the agent checklist](../docs/qa/issue-1483/README.md).
+Root verification correction: [PR #1488](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1488).
+
 Retail warning implementation: [PR #1485](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1485).
 
 Run `make verify-issue-1483` and the applicable existing verifiers listed there.
