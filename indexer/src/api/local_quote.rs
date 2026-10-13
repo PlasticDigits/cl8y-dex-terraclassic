@@ -2061,6 +2061,7 @@ fn progress_local(
     })
 }
 
+mod actor_fees;
 mod actor_inventory;
 mod actor_versions;
 mod admission;

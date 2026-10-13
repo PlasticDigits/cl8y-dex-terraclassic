@@ -112,6 +112,10 @@ preparation and actor-proof corrections. See [the measured scope and retained
 failures](RESULTS.md#final-canonical-publication-source-supplement). These checks
 do not replace deployed or physical acceptance.
 
+The follow-up [actor refresh contract](ACTOR-REFRESH.md) retains unchanged valid
+economics while rejecting stale guard/fee authority. Original live UNVERIFIED and
+executed browser failures remain separate from final combined verification.
+
 ## Explicit skip policy
 
 **PASS WITH SKIPS** applies only when every executed check passes.
