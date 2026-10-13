@@ -1,0 +1,84 @@
+{
+  "incident": "Coolify indexer rollout rejected by schema readiness before indexing writes",
+  "failed_revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+  "previous_served_revision": "b26b762c4a870251d780715eac6eea4e2db5c14e",
+  "deployment_uuid": "8shjesyvapaz5rflhzgqamdu",
+  "migration": {
+    "version": 20261009145300,
+    "count_before": 65,
+    "count_after": 66,
+    "separate_process": true,
+    "effective_identity": "Existing migrator via authenticated bootstrap owner session",
+    "original_history_preserved": true,
+    "roles_credentials_memberships_unchanged": true,
+    "runtime_permission_denials": 4,
+    "new_table_dml_grants_verified": true
+  },
+  "snapshot": {
+    "database": "postgres",
+    "bytes": 56912661,
+    "sha256": "5aafb8063ccbdbf356f6fbf3e5b77eacbdbf45ddd054baf4205ca3df18ac91bc",
+    "observed_at_utc": "2026-10-10T06:30:00.172181+00:00",
+    "structurally_valid": true
+  },
+  "production_acceptance": {
+    "public_health": "ok",
+    "served_revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+    "overview_http_status": 200,
+    "indexed_height_first": 30772109,
+    "indexed_height_second": 30772132,
+    "first_observed_at_utc": "2026-10-10T06:30:52.816219+00:00",
+    "second_observed_at_utc": "2026-10-10T06:33:02.974549+00:00",
+    "coolify_deployment_status": "finished",
+    "coolify_finished_at_utc": "2026-10-10T06:31:20.000000Z"
+  },
+  "cleanup": {
+    "job_stopped": true,
+    "bootstrap_credential_removed": true,
+    "private_backup_retained": true,
+    "revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+    "completed_at_utc": "2026-10-10T06:33:12.471268+00:00"
+  },
+  "local_verification": {
+    "local_revision": "736be444100ba84887a6619336c83d2848258884",
+    "dirty_scope": "docs/runbooks/indexer-database-isolation.md only",
+    "command": "make verify-issue-1396",
+    "disposable_cluster": true,
+    "pass": 28,
+    "fail": 0,
+    "skip": 3,
+    "result": "PASS WITH SKIPS",
+    "skip_reasons": [
+      "Published-loopback socket on a custom Docker bridge unavailable on this host; internal bridge and host IPv4 confinement checks passed",
+      "Host loopback IPv6 disabled by kernel",
+      "Optional explicitly provisioned authenticated-runtime login fixture absent; fresh real role ACL probes passed"
+    ],
+    "initial_run": "Interrupted during unavailable custom-bridge host socket preflight, before timeout assertion; rerun with the documented reason-bearing bridge-host skip",
+    "completed_at_utc": "2026-10-10T06:32:26.749750+00:00"
+  },
+  "independent_review": {
+    "review": "PASS",
+    "agent": "migration_review",
+    "scope": "Prepared maintenance source and artifacts; production execution separate",
+    "revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+    "forward_migrations": 66,
+    "allowed_pending": [
+      20261009145300
+    ],
+    "history_snapshot_role_credential_and_acl_guards_reviewed": true
+  },
+  "scope": "Production migration and deployment recovery. No new failover, historical liquidity repair or zero quote RPC acceptance claim.",
+  "final_configuration_confirmation": {
+    "indexer_status": "running:healthy",
+    "migration_job_status": "exited:unhealthy",
+    "source_setting_restored": true,
+    "runtime_privileged_environment_absent": true,
+    "maintenance_bootstrap_env_absent": true,
+    "runtime_dsn": "Secret remains redacted by Coolify; actual runtime readiness established by startup and public health"
+  },
+  "later_live_route_check": {
+    "result": "FAIL",
+    "receipt": "route-api-check-20261010.json",
+    "note": "The earlier deployment/startup and indexing observations passed at their recorded times. Subsequent routing checks found no usable quotes and repeated provider-related restarts; sustained trading readiness is not established."
+  }
+}
