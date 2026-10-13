@@ -63,6 +63,44 @@ migration secrets in the server's Coolify resource. Local setup is not a product
 migration runner. Production role/exposure acceptance remains a separately recorded
 execution against that deployment.
 
+## Coolify deployment rejected by schema readiness
+
+`database schema version differs from this binary` means the database marker does
+not match the binary's required schema version. For an upgrade with pending
+migrations, prepare the database through the release's standalone migration step.
+If the database is ahead of the binary, follow the [rollback decision](rollback-decision.md)
+instead of lowering the marker. Coolify can retain
+the previous healthy container after rejecting the new container; check both the
+failed deployment's commit and the public `/health` revision before diagnosing an
+outage. A healthy old revision does not establish acceptance of the new release.
+
+1. Prepare a separate maintenance job for the exact failed commit. Compare all
+   applied forward migration checksums with that release and restrict its pending
+   migration allowlist to the reviewed changes. Keep database credentials runtime
+   only in that job, with no build arguments or serving-app migration secrets.
+2. Run read-only inspection while the old indexer serves. Prepare and review the
+   snapshot, migration and ACL verification steps before stopping it. Retain the
+   private snapshot on a persistent maintenance volume.
+3. Stop the serving indexer and confirm its database sessions have closed. Take
+   and validate the snapshot, then run the release's `cl8y-dex-indexer migrate`
+   with the existing migrator's effective identity and the actual runtime role.
+   Verify the schema marker, full original migration history, new runtime grants
+   and runtime permission denials. Preserve role identities, credentials and
+   ownership; never edit migration checksums or update the marker by hand.
+4. Deploy the exact release, check its public `/health` revision and indexing
+   progress, then stop the maintenance job and remove its database credential.
+   Retain the snapshot and secret-free receipt. Restore the serving application's
+   original source setting after exact revision acceptance if it was temporarily
+   pinned for this operation.
+
+Each release that adds migrations needs this separate migration step before its
+server rollout. Adding startup migration privileges to the server would break
+DB1396-1 and DB1396-2.
+
+The [2026-10-10 deployment receipt](../qa/indexer-deployment-20261010.json)
+records recovery of the failed `c5cc674f` rollout through migration
+`20261009145300`, with the snapshot retained and the maintenance credential removed.
+
 ## Rollback
 
 Stop the new process. If no incompatible schema change occurred, restore the

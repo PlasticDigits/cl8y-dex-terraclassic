@@ -1,0 +1,486 @@
+{
+  "result": "FAIL",
+  "revision": "c5cc674f2d32655b1f4ee7521dd5f34aa196a8ab",
+  "checked_at_utc": "2026-10-10T06:40:38.134435+00:00",
+  "endpoint": "https://indexer.dex.cl8y.com/api/v1/route/solve",
+  "scope": "Read-only public API requests from the workspace in South Korea; no wallet context and no transactions",
+  "request_count": 24,
+  "usable_quote_count": 0,
+  "summary": [
+    {
+      "route": "LUNC -> cUSTC",
+      "samples": 6,
+      "usable_quotes": 0,
+      "http_status_counts": {
+        "422": 4,
+        "503": 2
+      },
+      "reused_connection_error_latency_ms": {
+        "n": 3,
+        "median": 289.15,
+        "min": 288.84,
+        "max": 289.64
+      }
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "samples": 6,
+      "usable_quotes": 0,
+      "http_status_counts": {
+        "422": 3,
+        "502": 1,
+        "503": 2
+      },
+      "reused_connection_error_latency_ms": {
+        "n": 3,
+        "median": 289.33,
+        "min": 289.26,
+        "max": 291.09
+      }
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "samples": 6,
+      "usable_quotes": 0,
+      "http_status_counts": {
+        "422": 2,
+        "503": 4
+      },
+      "reused_connection_error_latency_ms": {
+        "n": 3,
+        "median": 289.72,
+        "min": 289.25,
+        "max": 290.38
+      }
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "samples": 6,
+      "usable_quotes": 0,
+      "http_status_counts": {
+        "422": 1,
+        "503": 5
+      },
+      "reused_connection_error_latency_ms": {
+        "n": 3,
+        "median": 290.49,
+        "min": 289.39,
+        "max": 291.13
+      }
+    }
+  ],
+  "initial_new_connection_latency_ms": {
+    "min": 846.61,
+    "max": 1009.07
+  },
+  "notes": [
+    "Latency samples are error response times, not useful quote latency; they cannot satisfy the <250 ms useful-output criterion.",
+    "Tested raw integer amounts using 6 decimals for LUNC/ALPHA/cUSTC and 18 for CL8Y/USTR.",
+    "Initial inputs: 10000 LUNC, 1 CL8Y, 100 USTR, 1 ALPHA at default 5% protection. Repeated samples used 1% protection.",
+    "Smaller inputs: 100 LUNC, 0.01 CL8Y, 1 USTR, 0.1 ALPHA at 1% and 30% protection. No usable quote.",
+    "LUNC requests also tested pool_only=true, matching the native frontend route.",
+    "Logs show LCD/provider failures, stale pool observations and indexer task exits followed by restarts. These establish operational instability; the exact empty route-admission cause is not isolated.",
+    "This live check does not count upstream calls or establish zero request-triggered RPC; no source change or full local verification was performed."
+  ],
+  "diagnostics": {
+    "selected_diagnostics": [
+      "2026-10-10T06:37:05.179537Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=81 missing_reserve_count=0 max_reserve_age_ms=17277 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:05.189233Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=101 missing_reserve_count=0 max_reserve_age_ms=17285 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:15.090213Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=4 missing_reserve_count=0 max_reserve_age_ms=27188 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:15.092709Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=6 missing_reserve_count=0 max_reserve_age_ms=27190 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:25.089778Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=3 missing_reserve_count=0 max_reserve_age_ms=37187 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:25.092895Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=7 missing_reserve_count=0 max_reserve_age_ms=37190 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:35.091390Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=5 missing_reserve_count=0 max_reserve_age_ms=47189 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:35.412437Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=326 missing_reserve_count=0 max_reserve_age_ms=47510 future_reserve_timestamp_count=0 block_height=Some(30772190)",
+      "2026-10-10T06:37:45.093195Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=6 missing_reserve_count=0 max_reserve_age_ms=57191 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:37:48.610824Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=22 failed_pair_count=0 cycle_elapsed_ms=3525 missing_reserve_count=0 max_reserve_age_ms=3524 future_reserve_timestamp_count=0 block_height=Some(30772191)",
+      "2026-10-10T06:37:54.361441Z ERROR cl8y_dex_indexer: Indexer exited with error: LCD error at height 30772168: All LCD endpoints failed: all provider circuits open",
+      "2026-10-10T06:37:54.361507Z  WARN cl8y_dex_indexer: Indexer task ended",
+      "2026-10-10T06:37:54.673230Z  INFO cl8y_dex_indexer::startup: Starting CL8Y DEX indexer (RUN_MODE=Prod)",
+      "2026-10-10T06:38:09.474725Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=13 missing_reserve_count=0 max_reserve_age_ms=24388 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:10.863240Z ERROR cl8y_dex_indexer: Indexer exited with error: LCD error at height 30772169: LCD provider admission deferred",
+      "2026-10-10T06:38:10.863390Z  WARN cl8y_dex_indexer: Indexer task ended",
+      "2026-10-10T06:38:11.155224Z  INFO cl8y_dex_indexer::startup: Starting CL8Y DEX indexer (RUN_MODE=Prod)",
+      "2026-10-10T06:38:27.123977Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=2 failed_pair_count=20 cycle_elapsed_ms=1458 missing_reserve_count=0 max_reserve_age_ms=42038 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:27.433964Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=1 failed_pair_count=21 cycle_elapsed_ms=1761 missing_reserve_count=0 max_reserve_age_ms=42348 future_reserve_timestamp_count=0 block_height=Some(30772198)",
+      "2026-10-10T06:38:35.668016Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=3 missing_reserve_count=0 max_reserve_age_ms=50582 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:35.670375Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=5 missing_reserve_count=0 max_reserve_age_ms=50584 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:45.668042Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=3 missing_reserve_count=0 max_reserve_age_ms=60582 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:45.669182Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=4 missing_reserve_count=0 max_reserve_age_ms=60583 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:38:47.305429Z ERROR cl8y_dex_indexer: Indexer exited with error: block 30772171 failed after 5 attempts; indexer halted (see indexer_failed_blocks)",
+      "2026-10-10T06:38:47.305474Z  WARN cl8y_dex_indexer: Indexer task ended",
+      "2026-10-10T06:38:47.608090Z  INFO cl8y_dex_indexer::startup: Starting CL8Y DEX indexer (RUN_MODE=Prod)",
+      "2026-10-10T06:39:01.924160Z  INFO cl8y_dex_indexer::indexer::book_snapshot: Book snapshot cycle completed pair_count=22 refreshed_pair_count=0 failed_pair_count=22 cycle_elapsed_ms=94 missing_reserve_count=0 max_reserve_age_ms=76837 future_reserve_timestamp_count=0 block_height=None",
+      "2026-10-10T06:39:03.107364Z ERROR cl8y_dex_indexer: Indexer exited with error: LCD error at height 30772171: LCD provider admission deferred",
+      "2026-10-10T06:39:03.107443Z  WARN cl8y_dex_indexer: Indexer task ended",
+      "2026-10-10T06:39:03.418236Z  INFO cl8y_dex_indexer::startup: Starting CL8Y DEX indexer (RUN_MODE=Prod)"
+    ]
+  },
+  "samples": [
+    {
+      "route": "ALPHA -> CL8Y",
+      "human_input": 1,
+      "status": 422,
+      "elapsed_ms": 868.23,
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "1000000"
+      },
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "human_input": 1,
+      "status": 422,
+      "elapsed_ms": 865.87,
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "1000000000000000000"
+      },
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "human_input": 10000,
+      "status": 422,
+      "elapsed_ms": 1009.07,
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "10000000000"
+      },
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "human_input": 100,
+      "status": 422,
+      "elapsed_ms": 846.61,
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000000000000000"
+      },
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000",
+        "max_spread": "0.01",
+        "pool_only": "true"
+      },
+      "status": 422,
+      "elapsed_ms": 280.14,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000",
+        "max_spread": "0.3",
+        "pool_only": "true"
+      },
+      "status": 422,
+      "elapsed_ms": 281.13,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "10000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 422,
+      "elapsed_ms": 281.59,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      }
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "10000000000000000",
+        "max_spread": "0.3"
+      },
+      "status": 502,
+      "elapsed_ms": 1311.18,
+      "response": {
+        "error_text": "Bad Gateway"
+      }
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 279.81,
+      "response": {
+        "error_text": "no available server\n"
+      }
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.3"
+      },
+      "status": 503,
+      "elapsed_ms": 279.83,
+      "response": {
+        "error_text": "no available server\n"
+      }
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "100000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 279.8,
+      "response": {
+        "error_text": "no available server\n"
+      }
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "100000",
+        "max_spread": "0.3"
+      },
+      "status": 503,
+      "elapsed_ms": 280.16,
+      "response": {
+        "error_text": "no available server\n"
+      }
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "sample": 0,
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "10000000000",
+        "max_spread": "0.01",
+        "pool_only": "true"
+      },
+      "status": 422,
+      "elapsed_ms": 289.64,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      },
+      "observed_at_utc": "2026-10-10T06:39:19.034798+00:00"
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "sample": 0,
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 422,
+      "elapsed_ms": 291.09,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      },
+      "observed_at_utc": "2026-10-10T06:39:19.726339+00:00"
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "sample": 0,
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 422,
+      "elapsed_ms": 289.72,
+      "response": {
+        "error_text": "No eligible route within the selected protection"
+      },
+      "observed_at_utc": "2026-10-10T06:39:20.416481+00:00"
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "sample": 0,
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "1000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 289.39,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:21.106281+00:00"
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "sample": 1,
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "10000000000",
+        "max_spread": "0.01",
+        "pool_only": "true"
+      },
+      "status": 503,
+      "elapsed_ms": 288.84,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:21.795573+00:00"
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "sample": 1,
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 289.33,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:22.485336+00:00"
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "sample": 1,
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 289.25,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:23.174921+00:00"
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "sample": 1,
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "1000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 290.49,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:23.865885+00:00"
+    },
+    {
+      "route": "LUNC -> cUSTC",
+      "sample": 2,
+      "query": {
+        "token_in": "uluna",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "10000000000",
+        "max_spread": "0.01",
+        "pool_only": "true"
+      },
+      "status": 503,
+      "elapsed_ms": 289.15,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:24.555481+00:00"
+    },
+    {
+      "route": "CL8Y -> USTR",
+      "sample": 2,
+      "query": {
+        "token_in": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "token_out": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "amount_in": "1000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 289.26,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:25.245143+00:00"
+    },
+    {
+      "route": "USTR -> cUSTC",
+      "sample": 2,
+      "query": {
+        "token_in": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+        "token_out": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+        "amount_in": "100000000000000000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 290.38,
+      "response": {
+        "error_text": "no available server\n"
+      },
+      "observed_at_utc": "2026-10-10T06:39:25.935965+00:00"
+    },
+    {
+      "route": "ALPHA -> CL8Y",
+      "sample": 2,
+      "query": {
+        "token_in": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+        "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "amount_in": "1000000",
+        "max_spread": "0.01"
+      },
+      "status": 503,
+      "elapsed_ms": 291.13,
+      "response": {
+        "error_text": "Local execution quote unavailable; refresh after indexed data recovers"
+      },
+      "observed_at_utc": "2026-10-10T06:39:26.627534+00:00"
+    }
+  ]
+}
