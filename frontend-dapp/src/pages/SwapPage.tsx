@@ -3,7 +3,6 @@ import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
-import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
 import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { FeeDiscountRegistryWarning } from '@/components/feeDiscount/FeeDiscountRegistryWarning'
@@ -11,6 +10,7 @@ import { FeeDiscountUnregisteredCta } from '@/components/feeDiscount/FeeDiscount
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapAdvancedSettings } from '@/components/swap/SwapAdvancedSettings'
+import { firstTradingNotice, isPreSignTradingError } from '@/utils/tradingNotice'
 import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
@@ -18,7 +18,6 @@ import { SwapSharePairLabel } from '@/components/swap/SwapSharePairLabel'
 import { FeeDisplay, RetryError, Spinner, TokenSearchSelect, TxResultAlert } from '@/components/ui'
 import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
-import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 import { useAssetDecimals } from '@/hooks/useAssetDecimals'
 import { useCoarseNarrowViewport } from '@/hooks/useCoarseNarrowViewport'
 import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
@@ -54,7 +53,6 @@ import { type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoute
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import {
   checkRateLimitExceeded,
-  getNativeForWrapped,
   queryPausedState,
   queryWrapMapperConfig,
   wrapMapperFeeBps,
@@ -72,7 +70,7 @@ import {
 } from '@/types'
 import { CODE_ID_FROZEN_CTA } from '@/utils/assetCodeIdFreeze'
 import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
-import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
@@ -163,9 +161,9 @@ import {
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
 } from '@/utils/swapRouteDisplay'
 import {
+  formatTradingPriceDifference,
   resolveSwapExpectedSlippagePercent,
   SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
-  SWAP_EXTREME_SLIPPAGE_WARNING_PCT,
 } from '@/utils/swapRouteSlippage'
 import { readSwapSettingsAdvancedOpen, writeSwapSettingsAdvancedOpen } from '@/utils/swapSettingsAdvanced'
 import {
@@ -325,12 +323,6 @@ export default function SwapPage() {
       : null
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
-  const showHybridBookSubmitWarning = useMemo(() => {
-    if (!isDirect || !fromToken.startsWith('terra1')) return false
-    const t = bookInputHuman.trim()
-    if (!t) return false
-    return isPositiveDecimalAmount(t)
-  }, [isDirect, fromToken, bookInputHuman])
 
   /** CW20-only paths may be solvable via indexer hybrid graph even when the local pair list BFS misses (e.g. hop cap). */
   const indexerCw20Eligible =
@@ -454,24 +446,6 @@ export default function SwapPage() {
     : nativeRouteInfo?.needsWrapInput || wrapSolvePair?.needsWrapInput || false
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
 
-  /** Denom for wrap-mapper rate_limit query (wrap input, unwrap output, or wrapped CW20's native). */
-  const wrapRateLimitDenom = useMemo(() => {
-    if (wrapDenom) return wrapDenom
-    if (wrapUnwrapType === 'unwrap' && isNativeDenom(toToken)) return toToken
-    if (nativeRouteInfo?.needsWrapInput && isNativeDenom(fromToken)) return fromToken
-    if (isNativeDenom(fromToken)) return fromToken
-    if (isNativeDenom(toToken)) return toToken
-    if (fromToken) {
-      const n = getNativeForWrapped(fromToken)
-      if (n) return n
-    }
-    if (toToken) {
-      const n = getNativeForWrapped(toToken)
-      if (n) return n
-    }
-    return null
-  }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
-
   /** Fee-paying native is LUNC only — USTC (`uusd`) wraps but pays gas in uluna (#1264 G1264-4). */
   const payIsNativeUluna = isNativeUlunaDenom(fromToken)
   const payIsNativeDenom = isNativeDenom(fromToken)
@@ -498,11 +472,6 @@ export default function SwapPage() {
       nativeRouteInfo?.needsUnwrapOutput ||
       wrapSolvePair?.needsUnwrapOutput ||
       false)
-
-  const showWrapRateLimitStatus =
-    !!WRAP_MAPPER_CONTRACT_ADDRESS &&
-    !!wrapRateLimitDenom &&
-    (isWrapOrUnwrap || wrapMapperActive || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
 
   const wrapMapperConfigQuery = useQuery({
     queryKey: ['wrapMapperConfig'],
@@ -1038,8 +1007,12 @@ export default function SwapPage() {
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Swap submitted.',
+    toastOnError: false,
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
+      if (isPairPaused || isWrapPaused) throw new Error('Trading is paused.')
+      if (isPairCodeIdFrozen) throw new Error('Trading is temporarily unavailable.')
+      if (tradingBlacklist.blocked) throw new Error('Trading is restricted.')
       if (!decimalsResolved || offerDecimals == null || receiveDecimals == null) {
         throw new Error('Token decimals unavailable')
       }
@@ -1057,15 +1030,15 @@ export default function SwapPage() {
       if (!simData) throw new Error('Quote unavailable')
       if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
         throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
+      if (routeSlippageBlocked) throw new Error('Price difference is too high')
       if (
         (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
         impactAcceptedQuoteRef.current !== impactReviewKey
       )
-        throw new Error('Review the price difference first.')
+        throw new Error('Confirm the price difference first.')
       impactAcceptedQuoteRef.current = null
-      if (routeSlippageBlocked) throw new Error('Price difference is too high')
       if (simData.routePreflight?.anyHopExceedsMaxSpread) {
-        throw new Error('Hop spread exceeds slippage protection')
+        throw new Error('Quote exceeds your price protection.')
       }
       const payRaw = submitPayRaw
       // Recheck at mutation entry too: a queued submit must not bypass the
@@ -1208,8 +1181,6 @@ export default function SwapPage() {
 
   const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
   const routeSlippageBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
-
-  const extremeSlippageWarning = expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
 
   const directHybridBookSplit = useMemo(
     () =>
@@ -1454,7 +1425,7 @@ export default function SwapPage() {
     buttonText = 'Price difference is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
-    buttonText = 'Hop spread exceeds slippage protection'
+    buttonText = 'Quote exceeds price protection'
     buttonDisabled = true
   } else if (simQuery.isLoading || simQuoteStale) {
     buttonText = simLoadingLabel
@@ -1463,9 +1434,57 @@ export default function SwapPage() {
     buttonText = terraBroadcastPendingButtonLabel(swapMutation.phase, true, defaultActionLabel, defaultPendingLabel)
     buttonDisabled = true
   } else if (showImpactConfirm) {
-    buttonText = `Confirm ${defaultActionLabel} (${priceImpact}% impact)`
+    buttonText = `Confirm ${defaultActionLabel}`
     buttonDisabled = false
   }
+
+  const primaryNotice = firstTradingNotice([
+    ['tx', swapMutation.isError && !isPreSignTradingError(swapMutation.error)],
+    ['paused', isPairPaused || isWrapPaused],
+    ['frozen', isPairCodeIdFrozen],
+    ['restricted', tradingBlacklist.blocked],
+    ['route', !hasRoute && hasPositiveInputAmount],
+    ['precision', receiveTargetBelowPrecision],
+    ['pricing', pricingDataPending],
+    ['receive', reverseQuoteActive && (reverseQuery.isError || receiveDecimalsUnavailable)],
+    ['retry', showSimRetryError],
+    ['outage', !!indexerOutage],
+    ['wrapper', !!simData && !executableOutput],
+    ['rate', isRateLimitExceeded],
+    ['config', !simData?.executionMetadata?.wrapper && (wrapTreasuryMismatch || wrapSafetyUnavailable)],
+    ['acquire', isWalletConnected && payAcquireGuidance.kind.startsWith('insufficient')],
+    [
+      'funding',
+      !!swapNetworkFeeEstimate.coverageError ||
+        (isWalletConnected && (extraDebitGate.blockSubmit || (hasPositiveInputAmount && !swapGasGate.canSubmit))),
+    ],
+    ['hop', simData?.routePreflight?.anyHopExceedsMaxSpread === true],
+    [
+      'price',
+      !simQuoteStale &&
+        !simQuoteUnavailable &&
+        expectedSlippagePct != null &&
+        expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
+    ],
+    ['tx', swapMutation.isError],
+  ] as const)
+
+  if (
+    primaryNotice === 'tx' &&
+    showImpactConfirm &&
+    !buttonDisabled &&
+    expectedSlippagePct != null &&
+    expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT
+  )
+    buttonText = `Confirm ${defaultActionLabel} (${formatTradingPriceDifference(expectedSlippagePct)}%)`
+
+  const lastErrorIntentRef = useRef(impactReviewKey)
+  const { error: lastMutationError, reset: resetMutationError } = swapMutation
+  useEffect(() => {
+    const changed = lastErrorIntentRef.current !== impactReviewKey
+    lastErrorIntentRef.current = impactReviewKey
+    if (changed && isPreSignTradingError(lastMutationError)) resetMutationError()
+  }, [impactReviewKey, lastMutationError, resetMutationError])
 
   const handleSlippagePreset = useCallback(
     (value: number) => {
@@ -1617,7 +1636,7 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {indexerOutage && !pricingDataPending && (
+            {primaryNotice === 'outage' && !pricingDataPending && (
               <MarketDataServiceOutageBanner
                 testId="swap-market-data-outage-banner"
                 title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
@@ -1626,11 +1645,7 @@ export default function SwapPage() {
               />
             )}
 
-            {showFeeDiscountRegistryWarning && (
-              <FeeDiscountRegistryWarning testId="swap-fee-discount-registry-warning" />
-            )}
-
-            {receiveTargetBelowPrecision && (
+            {primaryNotice === 'precision' && (
               <p role="alert" className="alert-error text-xs mb-4" data-testid="swap-receive-amount-error">
                 Receive target is below token precision. Increase the receive amount.
               </p>
@@ -1638,7 +1653,8 @@ export default function SwapPage() {
 
             {pricingDataPending && <QuoteDataLoadingProgress testId="swap-price-data-loading" />}
 
-            {reverseQuoteActive &&
+            {primaryNotice === 'receive' &&
+              reverseQuoteActive &&
               reverseQuery.isError &&
               isIndexerRouteValidationError(reverseQuery.error) &&
               hasPositiveInputAmount &&
@@ -1648,7 +1664,8 @@ export default function SwapPage() {
                   {humanizeUserFacingErrorFromUnknown(reverseQuery.error)}
                 </p>
               )}
-            {reverseQuoteActive &&
+            {primaryNotice === 'receive' &&
+              reverseQuoteActive &&
               (reverseQuery.isError || receiveDecimalsUnavailable) &&
               hasPositiveInputAmount &&
               inputAmount === debouncedInputAmount &&
@@ -1674,7 +1691,8 @@ export default function SwapPage() {
                 />
               )}
 
-            {showSimRetryError &&
+            {primaryNotice === 'retry' &&
+              showSimRetryError &&
               (isIndexerRouteValidationError(simQuery.error) ? (
                 <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-quote-error">
                   {humanizeUserFacingErrorFromUnknown(simQuery.error)}
@@ -1688,22 +1706,11 @@ export default function SwapPage() {
                 />
               ))}
 
-            {simData && !executableOutput && (
+            {primaryNotice === 'wrapper' && simData && !executableOutput && (
               <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-wrapper-quote-error">
                 This conversion cannot protect your minimum receive.
               </p>
             )}
-
-            {simQuery.isError &&
-              indexerOutage &&
-              !isWrapOrUnwrap &&
-              hasPositiveInputAmount &&
-              !payInputsPendingForReceive &&
-              !simQuery.isFetching && (
-                <p className="alert-error text-xs mb-4" data-testid="swap-quote-unavailable">
-                  {humanizeUserFacingErrorFromUnknown(simQuery.error)}
-                </p>
-              )}
 
             {/* Slippage Settings */}
             {showSettings && (
@@ -1836,7 +1843,7 @@ export default function SwapPage() {
                   <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                     <label
                       className="flex items-center gap-2 text-xs cursor-pointer"
-                      title={`When off, swaps with price impact above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% (vs best-route token prices) are blocked.`}
+                      title={`Trades with a price difference above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% require Expert Mode.`}
                     >
                       <input
                         type="checkbox"
@@ -2109,19 +2116,6 @@ export default function SwapPage() {
                     className="m-0"
                   />
                 </div>
-                {priceImpact !== null && (
-                  <>
-                    {extremeSlippageWarning && (
-                      <div className="alert-error !text-xs" data-testid="swap-extreme-slippage-warning" role="alert">
-                        <p className="font-semibold mb-1">Extreme price impact ({priceImpact}%)</p>
-                        <p>
-                          This quote is far from the fair cross-rate. It may exploit mispriced pools or show a
-                          misleadingly good multi-hop path. Proceed only if you understand the risk.
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
                 <details data-testid="swap-trade-details">
                   <summary
                     className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none"
@@ -2297,91 +2291,47 @@ export default function SwapPage() {
               </div>
             )}
 
-            <SwapImpactAside
-              economicExplanation={simData?.economicExplanation}
-              routeSlippagePct={expectedSlippagePct}
-              worstHopPercent={simData?.routePreflight?.worstSpreadPercent}
-            />
-            {routeSlippageBlocked && (
-              <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
-                <p className="font-semibold mb-1">Price difference is too high</p>
-                {theaterRouteQuote ? (
-                  <p className="mb-2" data-testid="swap-theater-quote-blocked">
-                    Fair-reference deviation is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This
-                    quote is not executable. Expert Mode cannot waive it.
-                  </p>
-                ) : (
-                  <>
-                    <p className="mb-2">
-                      Fair-reference deviation is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable
-                      Expert Mode to continue.
-                    </p>
-                    <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
-                      Dangerous: Enable Expert Mode to Swap Anyway:{' '}
-                      <button
-                        type="button"
-                        className="underline font-semibold uppercase tracking-wide"
-                        style={{ color: 'var(--cyan)' }}
-                        onClick={() => setShowExpertModeModal(true)}
-                        data-testid="swap-enable-expert-mode"
-                      >
-                        Enable Expert Mode
-                      </button>
-                    </p>
-                  </>
-                )}
-              </div>
+            {primaryNotice === 'price' && (
+              <SwapImpactAside
+                economicExplanation={simData?.economicExplanation}
+                routeSlippagePct={expectedSlippagePct}
+                blocked={routeSlippageBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
+                confirming={showImpactConfirm && isWalletConnected}
+                onCancel={() => setShowImpactConfirm(false)}
+                onEnableExpert={() => setShowExpertModeModal(true)}
+              />
             )}
-            {simData?.routePreflight?.anyHopExceedsMaxSpread && (
-              <div className="alert-error mb-3 text-xs" role="alert">
-                <p className="font-semibold mb-1">Insufficient liquidity for this trade size</p>
-                <p>
-                  Route impact exceeds your {slippageTolerance}% protection — try a smaller amount or another route.
-                </p>
-              </div>
-            )}
-            {(showHybridBookSubmitWarning ||
-              simData?.indexerQuoteKind === 'indexer_hybrid_lcd' ||
-              simData?.indexerQuoteKind === 'indexer_hybrid_lcd_degraded') && (
+            {primaryNotice === 'config' && (
               <p className="alert-error mb-3 text-xs" role="alert">
-                Quote may change before submit.{' '}
-                <a
-                  href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Docs
-                </a>
+                Wrapping is temporarily unavailable.
               </p>
             )}
-            {isPairPaused && (
+            {primaryNotice === 'hop' && (
+              <p className="alert-error mb-3 text-xs" role="alert">
+                Quote exceeds your price protection.
+              </p>
+            )}
+            {primaryNotice === 'paused' && (
               <div className="alert-error mb-3 text-xs space-y-2" role="alert" data-testid="swap-pair-paused-banner">
                 <p>
-                  Pair paused.{' '}
+                  {isPairPaused ? 'Pair paused.' : 'Wrapping is paused.'}{' '}
                   <a className="underline" href={USER_INCIDENT_FAQ_HREF} target="_blank" rel="noopener noreferrer">
                     Docs
                   </a>
                 </p>
               </div>
             )}
-            {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="swap-pair-code-id-frozen-banner" />}
-            {tradingBlacklist.blocked && tradingBlacklist.message && (
+            {primaryNotice === 'frozen' && (
+              <p className="alert-error mb-3 text-xs" role="alert" data-testid="swap-pair-code-id-frozen-banner">
+                Trading is temporarily unavailable.
+              </p>
+            )}
+            {primaryNotice === 'restricted' && tradingBlacklist.message && (
               <div className="alert-error mb-3 text-xs" role="alert">
                 <p>{tradingBlacklist.message}</p>
               </div>
             )}
-            {showWrapRateLimitStatus && wrapRateLimitDenom && (
-              <div className="mb-3 shell-panel px-3 py-2" data-testid="swap-wrap-rate-limit-panel">
-                <WrapRateLimitStatus
-                  enabled={false}
-                  denom={wrapRateLimitDenom}
-                  symbol={getTokenDisplaySymbol(wrapRateLimitDenom)}
-                  testId="swap-wrap-rate-limit"
-                />
-              </div>
-            )}
-            {isRateLimitExceeded && (
+            {primaryNotice === 'rate' && (
               <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-wrap-rate-limit-banner">
                 <p>{WRAP_RATE_LIMIT_EXCEEDED_MESSAGE}</p>
               </div>
@@ -2394,6 +2344,17 @@ export default function SwapPage() {
                 >
                   Signing details
                 </summary>
+                {expectedSlippagePct != null && expectedSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT && (
+                  <SwapImpactAside
+                    details
+                    routeSlippagePct={expectedSlippagePct}
+                    economicExplanation={simData.economicExplanation}
+                    testId="swap-price-details"
+                  />
+                )}
+                {showFeeDiscountRegistryWarning && (
+                  <FeeDiscountRegistryWarning testId="swap-fee-discount-registry-warning" />
+                )}
                 <SwapPreSubmitSummary
                   offerSymbol={getTokenDisplaySymbol(fromToken)}
                   receiveSymbol={getTokenDisplaySymbol(toToken)}
@@ -2417,28 +2378,17 @@ export default function SwapPage() {
               </details>
             )}
             {/* Swap Button */}
-            <SwapPayAcquireGuidanceBanner
-              guidance={
-                payAcquireGuidance.kind === 'high_impact' && (routeSlippageBlocked || showImpactConfirm)
-                  ? { ...payAcquireGuidance, message: null }
-                  : payAcquireGuidance
-              }
-              testIdPrefix="swap"
-              hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
-              onReduce={(human) => {
-                setExactField('input')
-                setInputAmount(human)
-                setShowImpactConfirm(false)
-              }}
-            />
-            {showImpactConfirm && !routeSlippageBlocked && isWalletConnected && (
-              <div className="alert-error mb-3 text-xs">
-                <p className="font-semibold mb-1">High fair-reference deviation</p>
-                <p>Click again to confirm this price difference.</p>
-                <button type="button" className="underline" onClick={() => setShowImpactConfirm(false)}>
-                  Cancel
-                </button>
-              </div>
+            {primaryNotice === 'acquire' && (
+              <SwapPayAcquireGuidanceBanner
+                guidance={payAcquireGuidance}
+                testIdPrefix="swap"
+                hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
+                onReduce={(human) => {
+                  setExactField('input')
+                  setInputAmount(human)
+                  setShowImpactConfirm(false)
+                }}
+              />
             )}
             <button
               onClick={() => {
@@ -2479,8 +2429,8 @@ export default function SwapPage() {
               className="mt-2 text-[10px] font-mono break-all"
             />
 
-            {swapMutation.isError && (
-              <div className="mt-4">
+            {primaryNotice === 'tx' && swapMutation.isError && (
+              <div className="mt-4" role="alert" data-testid="swap-tx-error">
                 <TxResultAlert type="error" message={humanizeUserFacingErrorFromUnknown(swapMutation.error)} />
               </div>
             )}

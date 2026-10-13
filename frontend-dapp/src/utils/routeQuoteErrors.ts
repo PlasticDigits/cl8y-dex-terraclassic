@@ -1,7 +1,7 @@
 /** Public local-quote outcomes (#1473). No remote text or executable plan crosses this boundary. */
 export const ROUTE_QUOTE_REASONS = {
   protection: 'This amount exceeds the selected price protection.',
-  price_impact_too_high: 'Price impact is too high for this trade.',
+  price_impact_too_high: 'Price difference is too high for this trade.',
   amount_too_small: 'This amount is too small to receive a positive output.',
   amount_too_large: 'This amount exceeds the supported trade limits.',
   insufficient_liquidity: 'There is insufficient liquidity for this amount.',

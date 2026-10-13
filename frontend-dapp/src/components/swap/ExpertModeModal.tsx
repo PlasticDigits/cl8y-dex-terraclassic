@@ -30,19 +30,14 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
     <Modal isOpen={isOpen} onClose={handleClose} title="Enable Expert Mode" panelClassName="max-w-md">
       <div className="space-y-4 text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
         <p>
-          Expert Mode disables the automatic block on swaps with very high price impact (above{' '}
-          <strong style={{ color: 'var(--ink)' }}>30%</strong> vs best-route token prices).
+          Expert Mode permits price differences above <strong style={{ color: 'var(--ink)' }}>30%</strong>; you may
+          receive much less than expected or a suspiciously favorable quote.
         </p>
         <p>
-          High price impact often means the quoted route uses thin or mispriced pools. You may receive far fewer tokens
-          than the fair cross-rate, or a quote that looks too good to be true on multi-hop paths.
-        </p>
-        <p>
-          Your selected tolerance still protects the quoted net output and each hop's receive minimum. Separate
-          market-spread checks protect the quoted execution; the 99% price-impact guard always applies.
+          Your selected price protection and receive minimums still apply; differences of 99% or more remain blocked.
         </p>
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
-          Only enable Expert Mode if you understand the execution risk.
+          Only enable this mode if you understand the risk.
         </p>
         <div className="space-y-2">
           <label htmlFor="expert-mode-confirm" className="block text-xs font-medium uppercase tracking-wide">

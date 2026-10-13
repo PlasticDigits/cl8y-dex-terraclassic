@@ -1,0 +1,49 @@
+{
+  "issue": 1483,
+  "scope": "Retail warning follow-up stable source, owned disposable SQL children and fresh React fixtures; deployment and custody separate",
+  "base_revision": "db46e30a5011ee4cbd1998c1c97a34d966b07003",
+  "dirty": true,
+  "source_fingerprint": "18f7de57c89921e51ff480a7e87d611ed6325b8e7aefd4a06cdc1e2522132ea2",
+  "utc_start": "2026-10-12T23:15:51Z",
+  "utc_recorded": "2026-10-12T23:17:43.164790+00:00",
+  "overall": "PASS WITH SKIPS",
+  "groups": {
+    "passed": 19,
+    "failed": 0,
+    "skipped": 2
+  },
+  "each_round": {
+    "public_probe_controls": 8,
+    "private_wallet_helper_controls": 7,
+    "browser_tool_controls": 13,
+    "raw_attribution_tests": 8,
+    "book_commission_tests": 1,
+    "same_cohort_socket_tests": 2,
+    "frontend_files": 13,
+    "frontend_tests": 286
+  },
+  "useful_socket_budget_ms": 500,
+  "socket_rounds": [
+    {
+      "round": "first",
+      "n": 14,
+      "p50_ms": 1.438,
+      "p95_ms": 1.683,
+      "p99_ms": 1.683,
+      "max_ms": 9.925
+    },
+    {
+      "round": "retest",
+      "n": 14,
+      "p50_ms": 2.317,
+      "p95_ms": 2.85,
+      "p99_ms": 2.85,
+      "max_ms": 15.165
+    }
+  ],
+  "production_config_build": "PASS; public VITE values only, credentials stripped from child",
+  "skips": [
+    "Complete funded native/wrapped/tax/hook/book/device acceptance",
+    "Independent deployed and sustained browser/monitoring evidence requires separate receipts"
+  ]
+}

@@ -4,6 +4,7 @@ import {
   LOCAL_FROM,
   LOCAL_TO,
   LOCAL_WALLET,
+  LOCAL_PAIR,
   localPair,
   localQuote,
   localTaxQuote,
@@ -16,14 +17,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SwapPage from './SwapPage'
 import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
 const { mutationEntry } = vi.hoisted(() => ({
-  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>) },
+  mutationEntry: { run: undefined as undefined | (() => Promise<unknown>), toastOnError: true },
 }))
 vi.mock('@/hooks/useTerraBroadcastMutation', async (importActual) => {
   const actual = await importActual<typeof import('@/hooks/useTerraBroadcastMutation')>()
   return {
     ...actual,
     useTerraBroadcastMutation: (options: Parameters<typeof actual.useTerraBroadcastMutation>[0]) => {
-      if (options.toastSuccess === 'Swap submitted.') mutationEntry.run = () => options.mutationFn(undefined)
+      if (options.toastSuccess === 'Swap submitted.') {
+        mutationEntry.run = () => options.mutationFn(undefined)
+        mutationEntry.toastOnError = options.toastOnError !== false
+      }
       return actual.useTerraBroadcastMutation(options)
     },
   }
@@ -281,6 +285,10 @@ describe('SwapPage local executable quotes (#1452)', () => {
     })
   })
   afterEach(() => vi.restoreAllMocks())
+  it('uses one inline error surface while retaining success notifications', async () => {
+    renderWithProviders(<SwapPage />)
+    expect(mutationEntry.toastOnError).toBe(false)
+  })
   async function ready(route = `/?from=${LOCAL_FROM}&to=${LOCAL_TO}`) {
     const rendered = renderWithProviders(<SwapPage />, { route })
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
@@ -608,6 +616,70 @@ describe('SwapPage local executable quotes (#1452)', () => {
     expect(screen.getByTestId('swap-submit')).toBeDisabled()
     expect(simulateSwap).not.toHaveBeenCalled()
   })
+  it('does not warn about disconnected balances when the quote is available', async () => {
+    useWalletStore.setState({ address: null, walletType: null })
+    vi.mocked(getConnectedWallet).mockReturnValue(null)
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Connect Wallet')
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
+    expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Price difference')
+    expect(document.body).not.toHaveTextContent(/Balance unavailable|Need LUNC|Cost breakdown unavailable/i)
+  })
+  it('preserves unknown transaction status and makes a changed high quote explicit before signing', async () => {
+    const router = await import('@/services/terraclassic/router')
+    vi.mocked(router.executeMultiHopSwap).mockRejectedValueOnce(
+      new Error('Broadcast status unknown — the transaction may still confirm.')
+    )
+    await ready()
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/unknown|confirm/i))
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94n) / 100n).toString())
+      q.spot_amount_out = amount
+      return attachReferenceAttribution(q)
+    })
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '2' } })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    expect(screen.getByRole('alert')).toHaveTextContent(/unknown|confirm/i)
+    fireEvent.click(screen.getByTestId('swap-submit'))
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Confirm Swap (6.00%)')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(router.executeMultiHopSwap).toHaveBeenCalledTimes(1)
+    vi.mocked(router.executeMultiHopSwap).mockResolvedValue('txhash123')
+  })
+  it.each(['paused', 'frozen', 'restricted'] as const)(
+    'rejects current %s state at direct mutation entry and shows one actual blocker',
+    async (kind) => {
+      const { queryClient, rerender } = await ready()
+      await act(async () => {
+        queryClient.setQueryData(['pairPaused', LOCAL_PAIR], { paused: true })
+        queryClient.setQueryData(['pairCodeIdFreeze', LOCAL_PAIR], { frozen: true })
+        vi.mocked(useTradingBlacklist).mockReturnValue({
+          ...TRADING_BLACKLIST_ALLOWED,
+          blocked: true,
+          message: 'Trading restricted.',
+        })
+        if (kind !== 'paused') queryClient.setQueryData(['pairPaused', LOCAL_PAIR], { paused: false })
+        if (kind === 'restricted') queryClient.setQueryData(['pairCodeIdFreeze', LOCAL_PAIR], { frozen: false })
+        rerender(<SwapPage />)
+      })
+      await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+      await expect(mutationEntry.run!()).rejects.toThrow(
+        kind === 'paused'
+          ? 'Trading is paused.'
+          : kind === 'frozen'
+            ? 'Trading is temporarily unavailable.'
+            : 'Trading is restricted.'
+      )
+      expect(screen.getAllByRole('alert')).toHaveLength(1)
+      expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+      const router = await import('@/services/terraclassic/router')
+      expect(router.executeMultiHopSwap).not.toHaveBeenCalled()
+    }
+  )
   it.each([40, 99])('preserves the %s%% route risk guard with Expert Mode', async (impact) => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
       const q = localQuote(from, to, amount, options)
@@ -619,6 +691,9 @@ describe('SwapPage local executable quotes (#1452)', () => {
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+    await expect(mutationEntry.run!()).rejects.toThrow('Price difference is too high')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(document.body).not.toHaveTextContent(/fair-reference|Quote may change|Worst hop spread/i)
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('swap-submit')).toBeDisabled()
     else await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
@@ -634,11 +709,15 @@ describe('SwapPage local executable quotes (#1452)', () => {
         return q
       })
       await ready()
-      expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 0.99%.')
-      expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent(
-        tampered ? 'Cost breakdown unavailable.' : 'Reference and pool prices differ most.'
+      expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Price difference 0.99%')
+      expect(screen.getByTestId('swap-price-details')).toHaveTextContent(
+        tampered ? 'Price difference 0.99%.' : 'different pricing'
       )
-      expect(screen.getByTestId('swap-impact-aside').textContent?.match(/%/g)).toHaveLength(1)
+      expect(screen.getByTestId('swap-price-details')).not.toHaveTextContent(/unavailable|breakdown|reference/i)
+      expect(screen.getByTestId('swap-price-details').textContent?.match(/%/g)).toHaveLength(1)
+      expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-pre-submit-details')).not.toHaveAttribute('open')
+      expect(screen.queryAllByRole('alert')).toHaveLength(0)
       expect(document.body).not.toHaveTextContent('<script>secret</script>')
     }
   )
@@ -650,17 +729,19 @@ describe('SwapPage local executable quotes (#1452)', () => {
     })
     await ready()
     fireEvent.click(screen.getByTestId('swap-submit'))
-    expect(screen.getByText('Click again to confirm this price difference.')).toBeInTheDocument()
-    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
-    await expect(mutationEntry.run!()).rejects.toThrow('Review the price difference first.')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('click again to confirm.')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    await expect(mutationEntry.run!()).rejects.toThrow('Confirm the price difference first.')
+    await expect(mutationEntry.run!()).rejects.toThrow('Confirm the price difference first.')
     expect(await import('@/services/terraclassic/router').then((m) => m.executeMultiHopSwap)).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
-    expect(screen.queryByText('Click again to confirm this price difference.')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-impact-aside')).not.toHaveTextContent('click again to confirm.')
     fireEvent.click(screen.getByTestId('swap-submit'))
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '2' } })
     await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
     fireEvent.click(screen.getByTestId('swap-submit'))
-    expect(screen.getByText('Click again to confirm this price difference.')).toBeInTheDocument()
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('click again to confirm.')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
     fireEvent.click(screen.getByTestId('swap-submit'))
     const router = await import('@/services/terraclassic/router')
     await waitFor(() => expect(router.executeMultiHopSwap).toHaveBeenCalledTimes(1))

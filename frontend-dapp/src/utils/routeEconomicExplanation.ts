@@ -73,19 +73,23 @@ export function routeEconomicExplanation(quote: IndexerRouteSolveResponse): stri
   const matches = abs.map((n, i) => (n === largest ? i : -1)).filter((i) => i >= 0)
   const cause = matches.length === 1 ? COMPONENTS[matches[0]] : 'mixed'
   if (attribution.dominant_cause !== cause) return UNAVAILABLE_ECONOMIC_EXPLANATION
-  if (amounts.every((amount) => amount === 0n)) return 'No difference from the fair reference.'
+  if (amounts.every((amount) => amount === 0n)) return 'Matches reference prices'
   switch (cause) {
     case 'wrapper_loss':
-      return amounts[0] >= 0n ? 'Wrapping costs contribute most.' : UNAVAILABLE_ECONOMIC_EXPLANATION
+      return amounts[0] >= 0n ? 'Wrapping costs' : UNAVAILABLE_ECONOMIC_EXPLANATION
     case 'trading_cost':
-      return amounts[1] >= 0n ? 'Trading fees, taxes and hooks contribute most.' : UNAVAILABLE_ECONOMIC_EXPLANATION
+      return amounts[1] >= 0n ? 'Trading costs' : UNAVAILABLE_ECONOMIC_EXPLANATION
     case 'market_movement':
       return amounts[2] >= 0n
-        ? 'Trade size and available liquidity contribute most.'
-        : 'Pool or book execution improves the output most.'
+        ? Array.isArray(metadata.hops) &&
+          metadata.hops.length > 0 &&
+          metadata.hops.every((hop) => hop?.book_offer_consumed === '0')
+          ? 'Limited liquidity'
+          : 'Pool and order pricing'
+        : 'Better pool or order pricing'
     case 'reference_divergence':
-      return 'Reference and pool prices differ most.'
+      return 'Different pricing'
     default:
-      return 'Several costs and price differences contribute.'
+      return 'Combined costs and pricing'
   }
 }

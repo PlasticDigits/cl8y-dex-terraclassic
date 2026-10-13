@@ -2,13 +2,21 @@
 
 ## Route cost explanation (#1483)
 
-Actual Swap and Trade show one **Fair-reference deviation** percentage and one
-compact fixed cause explanation from reconciled original-cohort diagnostics.
+Actual Swap and Trade label the aggregate **Price difference**. Quotes within
+the ordinary 5% review threshold keep that metric and their cost explanation in
+the existing Signing details. A larger difference has one concise notice tied
+to the current action; confirmation updates that notice instead of adding a
+second warning. Only the highest-priority active operational blocker is shown.
+Pause, freeze, blacklist, funding, fee, protection and signing gates still apply
+independently, and required risk acknowledgements remain visible.
 [RC1483](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) documents its invariants;
 [the API contract](route-solver.md#economic-attribution-1483) defines signed
 raw components and rounding. Malformed, injected, mismatched or unavailable
-attribution shows `Cost breakdown unavailable.` and never supplies signing
-permission. No extra component percentages or network fees enter the swap metric.
+attribution supplies no cause explanation or signing permission. A missing
+advisory breakdown is silent in the primary flow; it is not an execution error.
+No extra component percentages or network fees enter the swap metric. Technical
+fair-reference terminology stays in API and agent documentation. Follow the
+[cognitive-load rules](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md).
 Compare exact raw fair/net ratios for 5/30/99 guards before display rounding;
 Trade and Swap retain >5% consent bound to the current reviewed intent. Original
 expiry, 30% Expert behavior, >=99% refusal and fee/Max/floors remain enforced.

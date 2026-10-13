@@ -83,6 +83,15 @@ export function resolveSwapExpectedSlippagePercent(
   return Number.isFinite(hop) ? hop : null
 }
 
+/** Display cannot collapse an exact risk transition onto its threshold. */
+export function formatTradingPriceDifference(percent: number): string {
+  const rounded = percent.toFixed(2)
+  for (const threshold of [5, 30, 99]) {
+    if (Number(rounded) === threshold && percent !== threshold) return `${percent > threshold ? '>' : '<'}${threshold}`
+  }
+  return rounded
+}
+
 export type ImpactAsideOutsideDetails = { kind: 'route'; percent: string } | { kind: 'worst_hop'; percent: string }
 
 /**

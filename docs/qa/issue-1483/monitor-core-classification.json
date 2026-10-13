@@ -1,0 +1,36 @@
+{
+  "issue": 1483,
+  "scope": "Original core deployment monitoring window; fixed source-message classification, no log lines",
+  "line_limit": 32,
+  "matched_lines": 2,
+  "counts": {
+    "provider_timeout": 0,
+    "provider_capacity": 0,
+    "provider_connectivity": 0,
+    "historical_policy_rejection": 0,
+    "database": 0,
+    "integrity_halt": 0,
+    "panic": 0,
+    "http_client_rejection": 0,
+    "http_data_unavailable": 0,
+    "trace_response_failure": 0
+  },
+  "read_count": 4,
+  "source_locations": [
+    [
+      "indexer/src/lcd/mod.rs:68",
+      "indexer/src/indexer/fee_discount_registry_health.rs:111"
+    ],
+    [
+      "indexer/src/lcd/mod.rs:68",
+      "indexer/src/indexer/fee_discount_registry_health.rs:111"
+    ]
+  ],
+  "window_start_utc": "2026-10-12T22:25:18Z",
+  "window_end_utc": "2026-10-12T22:40:20Z",
+  "classification": {
+    "fee_discount_registry_probe_failure": 2,
+    "registry_probe_recovered_at_followup": true,
+    "current_consecutive_lcd_failures": 0
+  }
+}

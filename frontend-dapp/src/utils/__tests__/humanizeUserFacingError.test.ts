@@ -118,14 +118,16 @@ describe('sanitizeOpaqueErrorMessage', () => {
 
 describe('humanizeUserFacingError', () => {
   it('still applies Terra tx classifiers', () => {
-    expect(humanizeUserFacingError('Transaction failed: Max spread assertion')).toMatch(/slippage/)
+    expect(humanizeUserFacingError('Transaction failed: Max spread assertion')).toBe(
+      'Price protection rejected this swap; refresh the quote.'
+    )
   })
 
   it('humanizes nested Transaction failed + full wasm Max spread log (GitLab #134)', () => {
     const raw =
       'Transaction failed: failed to execute message; message index: 0: dispatch: submessages: Max spread assertion: actual spread (0.969) exceeds max allowed (0.01): execute wasm contract failed'
     const out = humanizeUserFacingError(raw)
-    expect(out).toContain('Trade rejected')
+    expect(out).toBe('Price protection rejected this swap; refresh the quote.')
     expect(out).not.toMatch(/execute wasm contract failed/)
   })
 

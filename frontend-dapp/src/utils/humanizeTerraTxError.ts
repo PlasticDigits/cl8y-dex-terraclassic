@@ -75,28 +75,19 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
     return INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
   }
   if (/Max spread assertion/i.test(inner)) {
-    return (
-      'Trade rejected: price impact exceeds your slippage protection on at least one pool hop. ' +
-      'Try a smaller amount, pick a deeper pool route, or raise slippage protection in Settings (higher protection increases execution risk).'
-    )
+    return 'Price protection rejected this swap; refresh the quote.'
   }
   if (/material pool leg|InsufficientPoolLeg/i.test(inner)) {
-    return (
-      'Trade rejected: this hybrid route sends too little through the pool while using the limit book without a belief price. ' +
-      'Increase the pool leg (at least 10% of the swap), add a belief price, or use pool-only / book-only with appropriate slippage guards.'
-    )
+    return 'This pool and order split is unsupported; refresh the quote.'
   }
   if (/zero net output with book_input|ZeroPoolNetForHybrid/i.test(inner)) {
-    return (
-      'Trade rejected: the pool leg produced no output while a book leg was requested. ' +
-      'Check hybrid split and pool liquidity, or set a belief price for book-heavy routes.'
-    )
+    return 'This route produced no pool output; refresh the quote.'
   }
   if (/Limit batch placed no rungs|LimitInsertStepsExceeded|insert exceeded max adjust steps/i.test(inner)) {
     return 'No limit orders fit within the selected placement effort. Increase Placement gas or choose a price closer to the book.'
   }
   if (/Insufficient liquidity/i.test(inner)) {
-    return 'The pool cannot take this size or the unfilled limit-book remainder. Try a smaller amount or a deeper route.'
+    return 'Insufficient liquidity for this quote; refresh it.'
   }
   if (/addr_validate errored|decoding bech32 failed|invalid checksum/i.test(inner)) {
     return INVALID_TERRA_ADDRESS_CHECKSUM_TX_MSG

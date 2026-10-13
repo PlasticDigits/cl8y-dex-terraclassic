@@ -807,7 +807,7 @@ try {
                       '[data-testid="swap-quote-error"],[data-testid="swap-quote-unavailable"],[data-testid="swap-quote-retry-error"],[data-testid="swap-wrapper-quote-error"]';
                     const reasonCopy = {
                       protection: "selected price protection",
-                      price_impact_too_high: "Price impact is too high",
+                      price_impact_too_high: "Price difference is too high",
                       amount_too_small:
                         "too small to receive a positive output",
                       amount_too_large: "exceeds the supported trade limits",

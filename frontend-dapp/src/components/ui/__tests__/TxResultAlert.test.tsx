@@ -46,7 +46,7 @@ describe('TxResultAlert', () => {
     const raw =
       'Transaction failed: failed to execute message; message index: 0: Max spread assertion: actual spread (0.969) exceeds max allowed (0.01): execute wasm contract failed'
     render(<TxResultAlert type="error" message={raw} />)
-    expect(screen.getByText(/Trade rejected: price impact/)).toBeInTheDocument()
+    expect(screen.getByText(/Price protection rejected this swap; refresh the quote\./)).toBeInTheDocument()
     expect(screen.queryByText(/execute wasm contract failed/)).not.toBeInTheDocument()
   })
 

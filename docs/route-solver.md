@@ -58,9 +58,13 @@ path. This improves later quotes without replacing any already reviewed intent.
 Per-hop `book_commission_amount` separately records actual book taker commissions;
 existing `commission_amount` retains its pool-commission meaning.
 
-Actual Swap and Trade use one compact fixed cause explanation only after client
-schema/reconciliation/quote binding checks. Missing or tampered diagnostics show
-`Cost breakdown unavailable.` Diagnostics cannot authorize signing or replace
+Actual Swap and Trade use the plain **Price difference** label and a compact
+fixed cause explanation only after client schema/reconciliation/quote binding
+checks. Ordinary <=5% details stay behind existing Signing details. Higher-risk
+quotes and confirmation share one actionable notice, and active blockers have
+one presentation priority. Missing or tampered advisory diagnostics are silent
+in the primary flow. Every execution gate still applies independently.
+Diagnostics cannot authorize signing or replace
 original gross input, generation, expiry, positive floors or offline fee budgets.
 Remaining protocol/reference/device/deployment limits are recorded in
 [results](qa/issue-1483/RESULTS.md).

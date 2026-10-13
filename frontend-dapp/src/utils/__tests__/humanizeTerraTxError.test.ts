@@ -39,8 +39,8 @@ describe('tryHumanizeTerraTxMessage — existing branches (regression coverage)'
       'failed to execute message; message index: 0: dispatch: submessages: Max spread assertion: actual spread (0.969) exceeds max allowed (0.01): execute wasm contract failed'
     const out = tryHumanizeTerraTxMessage(raw)
     expect(out).not.toBeNull()
-    expect(out).toContain('Trade rejected')
-    expect(out).toContain('slippage protection')
+    expect(out).toBe('Price protection rejected this swap; refresh the quote.')
+    expect(out).not.toMatch(/price impact|smaller|raise|hop/i)
   })
 
   it('humanizes LimitOrder map key not found errors (binary key)', () => {
@@ -275,8 +275,8 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
       const out = tryHumanizeTerraTxMessage(
         'failed to execute message; message index: 0: Insufficient liquidity: execute wasm contract failed'
       )
-      expect(out).toContain('unfilled limit-book remainder')
-      expect(out).toContain('smaller amount')
+      expect(out).toBe('Insufficient liquidity for this quote; refresh it.')
+      expect(out).not.toMatch(/smaller|deeper|raise/i)
     })
 
     it('explains when every placement rung exceeded the bounded book walk', () => {

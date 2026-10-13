@@ -115,7 +115,7 @@ describe('executeTerraContract', () => {
     })
 
     await expect(executeTerraContract('terra1sender', 'terra1contract', { swap: {} })).rejects.toThrow(
-      'Trade rejected: price impact exceeds your slippage protection'
+      'Transaction failed: Price protection rejected this swap; refresh the quote.'
     )
   })
 
