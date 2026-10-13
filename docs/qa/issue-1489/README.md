@@ -6,6 +6,7 @@ Issue [#1489](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1489);
 follow-up to [#1483](../issue-1483/README.md).
 Apply [RD1489-1–RD1489-10](../../../skills/AGENTS_ROUTE_DISCOVERY.md).
 Implementation and receipts: [RESULTS.md](RESULTS.md).
+Neutral native entry follow-up: [EMPTY-ENTRY.md](EMPTY-ENTRY.md).
 
 ## Procedure
 
