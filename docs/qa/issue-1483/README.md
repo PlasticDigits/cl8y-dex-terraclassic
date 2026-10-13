@@ -115,13 +115,18 @@ bash scripts/with-node.sh -- node scripts/qa/browser-route-attribution-1483.cjs
 
 The source-bound actual validator/clock helpers check 18 desktop/phone cases:
 native 1/1,000/4,000 inputs, actual quoted matching wrapped credits and genuine
-cLUNC/UST1 Trade inputs. Root HTML/JavaScript is checked against the independent
-attestation before/after. Hard caps are 100 API reads, 100 quote reads and 180,000ms;
+cLUNC/UST1 Trade inputs. Every external root script is checked against the independent
+attestation before/after, including `/bootstrap/theme.js`,
+`/bootstrap/trade-shell.js` and canonical `/assets/` scripts. Both bootstrap
+files and at least one asset are required within the existing eight-script cap;
+unknown paths, duplicates, traversal and base overrides fail before fetching. Hard caps are 100 API reads, 100 quote reads and 180,000ms;
 writes, actor requests, WebSockets and chain paths are blocked. No wallets or
 screenshots are captured. Original-input useful DOM timing uses the named 750ms
 budget, two frames and fully visible/unclipped matching explanation; socket500
 remains separate. Fixed sanitized receipts use mode0600 and omit private bodies.
-Run `node --test scripts/qa/test-browser-route-attribution-1483.cjs` first/retest;
+Receipts include the tool byte hash, Git HEAD and dirty status independently of
+the deployed product revision. Run the actual root-parser Python tests and
+`node --test scripts/qa/test-browser-route-attribution-1483.cjs` first/retest;
 passing helper tests cannot replace the actual deployed matrix.
 
 ## Explicit skip policy

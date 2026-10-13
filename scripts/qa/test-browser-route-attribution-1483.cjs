@@ -3,6 +3,10 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const path = require("node:path");
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
+const { spawnSync } = require("node:child_process");
 const { createRequire } = require("node:module");
 const frontend = createRequire(
   path.resolve(__dirname, "../../frontend-dapp/package.json"),
@@ -11,6 +15,10 @@ const { JSDOM } = frontend("jsdom");
 const {
   sharedSources,
   checkAttestation,
+  checkRootPaths,
+  rootScriptPaths,
+  checkServedArtifact,
+  toolSourceProvenance,
   installRuntime,
   measurementSource,
   browserSampleFailed,
@@ -28,7 +36,16 @@ function attestation() {
       deployment_status: "finished",
       artifact: {
         html_sha256: "b".repeat(64),
-        root_scripts: [{ asset: "index.js", sha256: "c".repeat(64) }],
+        root_scripts: [
+          "/bootstrap/theme.js",
+          "/bootstrap/trade-shell.js",
+          "/assets/index-Bt81tS2x.js",
+        ].map((path) => ({
+          asset: path.split("/").at(-1),
+          path,
+          sha256: "c".repeat(64),
+          bytes: 100,
+        })),
       },
     },
     backend: { git_sha: sha },
@@ -218,7 +235,7 @@ test("independent deployment/source/root hashes are mandatory", () => {
       a.frontend.source_sha = "d".repeat(40);
     },
     (a) => {
-      a.frontend.artifact.root_scripts[0].asset = "../private";
+      a.frontend.artifact.root_scripts[0].path = "/assets/../private.js";
     },
     (a) => {
       a.backend_deployment.deployment_status = "running";
@@ -229,6 +246,187 @@ test("independent deployment/source/root hashes are mandatory", () => {
     assert.throws(() => checkAttestation(a, sha));
   }
 });
+test("all bootstrap and canonical asset roots are parsed, ordered and hashed", () => {
+  const roots = attestation().frontend.artifact.root_scripts;
+  const paths = roots.map((row) => row.path);
+  assert.deepEqual(
+    rootScriptPaths(
+      `<SCRIPT SRC=${paths[0]}></SCRIPT><script src='${paths[1]}'></script><script type="module" src="${paths[2]}"></script>`,
+    ),
+    paths,
+  );
+  assert.deepEqual(checkRootPaths([...paths, "/assets/extra-123.js"]), [
+    ...paths,
+    "/assets/extra-123.js",
+  ]);
+  const artifact = attestation().frontend.artifact;
+  assert.doesNotThrow(() =>
+    checkServedArtifact(structuredClone(artifact), artifact),
+  );
+  for (const mutate of [
+    (a) => {
+      a.html_sha256 = "d".repeat(64);
+    },
+    (a) => {
+      a.root_scripts[0].sha256 = "d".repeat(64);
+    },
+    (a) => {
+      a.root_scripts[1].sha256 = "d".repeat(64);
+    },
+    (a) => {
+      a.root_scripts[2].sha256 = "d".repeat(64);
+    },
+    (a) => {
+      a.root_scripts[0].path = "/assets/theme.js";
+    },
+    (a) => {
+      a.root_scripts.reverse();
+    },
+    (a) => {
+      a.root_scripts[2].bytes++;
+    },
+  ]) {
+    const actual = structuredClone(artifact);
+    mutate(actual);
+    assert.throws(
+      () => checkServedArtifact(actual, artifact),
+      /ServedArtifact/,
+    );
+  }
+});
+
+test("root manifests reject unknown, foreign, traversal, duplicate and missing scripts", () => {
+  const paths = attestation().frontend.artifact.root_scripts.map(
+    (row) => row.path,
+  );
+  for (const bad of [
+    "/bootstrap/unknown.js",
+    "/bootstrap/Theme.js",
+    "/assets/../private.js",
+    "/assets/%2e%2e.js",
+    "/assets/.hidden.js",
+    "/assets/index.js?x=1",
+    "/assets/index.js#x",
+    "assets/index.js",
+    "https://dex.cl8y.com/assets/index.js",
+    "//evil.test/assets/index.js",
+    "/assets/" + "x".repeat(160) + ".js",
+    "",
+  ]) {
+    assert.throws(() => checkRootPaths([...paths, bad]), /RootScripts/);
+    assert.throws(
+      () =>
+        rootScriptPaths(
+          paths.map((p) => `<script src="${p}"></script>`).join("") +
+            `<SCRIPT SRC="${bad}"></SCRIPT>`,
+        ),
+      /RootScripts/,
+    );
+  }
+  for (const bad of [
+    [],
+    paths.slice(1),
+    paths.slice(0, 2),
+    [...paths, paths[0]],
+    [...paths, "/assets/theme.js"],
+    [...paths, ...Array.from({ length: 6 }, (_, i) => `/assets/extra${i}.js`)],
+  ]) {
+    assert.throws(() => checkRootPaths(bad), /RootScripts/);
+  }
+  assert.throws(
+    () =>
+      rootScriptPaths(
+        '<base href="https://evil.test/">' +
+          paths.map((p) => `<script src=${p}></script>`).join(""),
+      ),
+    /RootBase/,
+  );
+  assert.throws(
+    () => rootScriptPaths("x".repeat(128 * 1024 + 1)),
+    /RootHtmlBudget/,
+  );
+});
+
+test("attested root paths, basenames, byte bounds and duplicate identity are mandatory", () => {
+  for (const mutate of [
+    (a) => {
+      delete a.root_scripts[0].path;
+    },
+    (a) => {
+      a.root_scripts[0].asset = "different.js";
+    },
+    (a) => {
+      a.root_scripts[0].bytes = 0;
+    },
+    (a) => {
+      a.root_scripts[0].bytes = 8 * 1024 * 1024 + 1;
+    },
+    (a) => {
+      a.root_scripts[0].bytes = 1.5;
+    },
+    (a) => {
+      a.root_scripts.push(a.root_scripts[0]);
+    },
+  ]) {
+    const a = attestation();
+    mutate(a.frontend.artifact);
+    assert.throws(() => checkAttestation(a, sha));
+  }
+});
+
+test("tool provenance hashes exact executed bytes and reports dirty source independently", () => {
+  const source = Buffer.from("tool source");
+  const clean = toolSourceProvenance(source, Buffer.from(source), sha);
+  assert.equal(
+    clean.tool_sha256,
+    crypto.createHash("sha256").update(source).digest("hex"),
+  );
+  assert.equal(clean.tool_dirty, false);
+  assert.equal(clean.tool_git_head, sha);
+  assert.equal(
+    toolSourceProvenance(source, Buffer.from("older tool"), sha).tool_dirty,
+    true,
+  );
+  assert.equal(toolSourceProvenance(source, null, null).tool_dirty, true);
+});
+
+test("actual prerequisite-failure receipt retains tool hash and dirty provenance", () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "dex1483-root-receipt-"),
+  );
+  const attestationFile = path.join(directory, "attestation.json");
+  const output = path.join(directory, "receipt.json");
+  const tool = path.join(__dirname, "browser-route-attribution-1483.cjs");
+  try {
+    fs.writeFileSync(attestationFile, "{}", { mode: 0o600 });
+    const result = spawnSync(process.execPath, [tool], {
+      env: {
+        PATH: process.env.PATH,
+        EXPECTED_SOURCE_SHA: sha,
+        DEX1483_ATTESTATION_FILE: attestationFile,
+        DEX1483_BROWSER_OUTPUT: output,
+      },
+      timeout: 10000,
+      maxBuffer: 4096,
+    });
+    assert.equal(result.status, 1);
+    const receipt = JSON.parse(fs.readFileSync(output, "utf8"));
+    assert.equal(receipt.failure_class, "PrerequisiteValidation");
+    assert.equal(
+      receipt.tool_sha256,
+      crypto.createHash("sha256").update(fs.readFileSync(tool)).digest("hex"),
+    );
+    assert.equal(typeof receipt.tool_dirty, "boolean");
+    assert.match(receipt.tool_git_head, /^[a-f0-9]{40}$/);
+    assert.equal(receipt.read_only, true);
+    assert.equal(receipt.signing, false);
+    assert.deepEqual(receipt.samples, []);
+    assert.equal(fs.statSync(output).mode & 0o777, 0o600);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("reuses actual validator and rejects original expiry, actors and lowered floors", () => {
   const f = fixture();
   const params = f.row.params;
