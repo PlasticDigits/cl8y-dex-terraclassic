@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const frontend = createRequire(path.join(ROOT, 'frontend-dapp/package.json'));
 const FRONTEND = 'https://dex.cl8y.com';
 const BACKEND = 'https://indexer.dex.cl8y.com';
+const { recordThenClearInput, countBoundedRead, recordRequestDiagnostic } = require('./browser-case-lifecycle.cjs');
 const MAX_READS = 600;
 const assert = (value, code) => { if (!value) throw new Error(code); };
 
@@ -60,6 +61,7 @@ async function run() {
     'SourceRevision');
   for (const file of ['frontend-dapp/src/utils/routeEconomicExplanation.ts',
     'frontend-dapp/src/utils/swapRouteSlippage.ts', 'scripts/qa/browser-live-trading-quotes-1473.cjs',
+    'scripts/qa/browser-case-lifecycle.cjs',
     'scripts/qa/browser-route-attribution-1483.cjs']) {
     assert(execFileSync('git', ['show', sha + ':' + file], { cwd: ROOT, maxBuffer: 256 * 1024 })
       .equals(fs.readFileSync(path.join(ROOT, file))), 'LocalValidatorRevision');
@@ -72,13 +74,16 @@ async function run() {
   const receipt = { issue: 1489, expected_revision: sha, utc_start: new Date().toISOString(),
     tool_sha256: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
     read_only: true, signing: false, samples: [], artifacts: [], completed: false,
-    browser_budget_ms: 750, cycles_seconds: [0, 25, 185] };
+    browser_budget_ms: 750, cycles_seconds: [0, 25, 185], request_families: {} };
   let browser;
   let reads = 0, writes = 0, actors = 0, providers = 0, sockets = 0;
   const output = process.env.DEX1489_BROWSER_OUTPUT || '/tmp/dex1489-browser.json';
   const save = () => fs.writeFileSync(output, JSON.stringify(receipt, null, 2) + '\n', { mode: 0o600 });
   const publicRead = async (url, bound) => {
-    assert(++reads <= MAX_READS, 'ReadBudget');
+    const budget = countBoundedRead(reads, MAX_READS);
+    reads = budget.attempted;
+    recordRequestDiagnostic(receipt.request_families, new URL(url).pathname, budget.allowed);
+    assert(budget.allowed, 'ReadBudget');
     const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(15000) });
     assert(response.ok, 'PublicRead');
     const reader = response.body.getReader(), chunks = [];
@@ -133,7 +138,12 @@ async function run() {
           const request = route.request(), url = new URL(request.url());
           if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method())) { writes++; return route.abort(); }
           if (url.searchParams.has('trader') || url.searchParams.has('sender')) { actors++; return route.abort(); }
-          if (url.origin === BACKEND && url.pathname.startsWith('/api/') && ++reads > MAX_READS) return route.abort();
+          if (url.origin === BACKEND && url.pathname.startsWith('/api/')) {
+            const budget = countBoundedRead(reads, MAX_READS);
+            reads = budget.attempted;
+            recordRequestDiagnostic(receipt.request_families, url.pathname, budget.allowed);
+            if (!budget.allowed) return route.abort();
+          }
           if (/(?:cosmos|cosmwasm|abci_query|lcd|rpc)(?:\/|$)/.test(url.pathname) ||
               (['fetch', 'xhr'].includes(request.resourceType()) && ![FRONTEND, BACKEND].includes(url.origin))) {
             providers++; return route.abort();
@@ -207,7 +217,8 @@ async function run() {
           original_generation: latest?.generation, original_observed_ms: latest?.observed,
           original_expires_ms: latest?.expires });
         row.failed = sampleFailed(row);
-        receipt.samples.push(row); save();
+        // Preserve the entire 3.5s adoption observation before making this case idle.
+        await recordThenClearInput(pay, () => { receipt.samples.push(row); save(); });
       }));
     }
     await attest();

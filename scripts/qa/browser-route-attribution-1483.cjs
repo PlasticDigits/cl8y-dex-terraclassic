@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 // Bounded anonymous deployed Swap/Trade explanation checks. No signing or screenshots.
 const fs = require("node:fs");
+const {
+  preserveFailureClass,
+  countBoundedRead,
+  recordRequestDiagnostic,
+} = require("./browser-case-lifecycle.cjs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { execFileSync } = require("node:child_process");
@@ -523,6 +528,7 @@ async function run() {
     "frontend-dapp/src/utils/routeEconomicExplanation.ts",
     "frontend-dapp/src/utils/swapRouteSlippage.ts",
     "scripts/qa/browser-live-trading-quotes-1473.cjs",
+    "scripts/qa/browser-case-lifecycle.cjs",
   ]) {
     const committed = execFileSync("git", ["show", SHA + ":" + file], {
       cwd: ROOT,
@@ -563,6 +569,7 @@ async function run() {
     samples: [],
     completed: false,
     artifacts: [],
+    request_families: {},
     skips: [
       "Physical device and wallet signing",
       "Settlement and independent contract reserves",
@@ -593,7 +600,14 @@ async function run() {
   };
   const bounded = async (url, limit) => {
     assert(Date.now() - started < elapsedLimit && apiReads < 100, "ReadBudget");
-    apiReads++;
+    const budget = countBoundedRead(apiReads, 100);
+    apiReads = budget.attempted;
+    recordRequestDiagnostic(
+      receipt.request_families,
+      new URL(url).pathname,
+      budget.allowed,
+    );
+    assert(budget.allowed, "ReadBudget");
     const response = await fetch(url, {
       signal: AbortSignal.timeout(
         Math.min(10000, elapsedLimit - (Date.now() - started)),
@@ -639,7 +653,7 @@ async function run() {
     receipt.artifacts.push(actual);
   };
   const timer = setTimeout(() => {
-    receipt.failure_class = "ElapsedBudget";
+    receipt.failure_class ??= "ElapsedBudget";
     void ownedBrowser?.close().catch(() => {});
   }, elapsedLimit);
   timer.unref();
@@ -717,9 +731,15 @@ async function run() {
         }
         const api = url.origin === BACKEND && url.pathname.startsWith("/api/");
         if (api) {
-          apiReads++;
-          if (apiReads > 100) {
-            receipt.failure_class = "ReadBudget";
+          const budget = countBoundedRead(apiReads, 100);
+          apiReads = budget.attempted;
+          recordRequestDiagnostic(
+            receipt.request_families,
+            url.pathname,
+            budget.allowed,
+          );
+          if (!budget.allowed) {
+            receipt.failure_class ??= "ReadBudget";
             return route.abort("blockedbyclient");
           }
         }
@@ -997,8 +1017,14 @@ async function run() {
     assert(receipt.samples.length === 18, "IncompleteCorpus");
     receipt.completed = true;
   } catch (error) {
-    receipt.failure_class =
-      error.name === "TimeoutError" ? "TimeoutError" : "BoundedCheckFailure";
+    receipt.failure_class = preserveFailureClass(
+      receipt.failure_class,
+      error.message === "ReadBudget"
+        ? "ReadBudget"
+        : error.name === "TimeoutError"
+          ? "TimeoutError"
+          : "BoundedCheckFailure",
+    );
   } finally {
     measured = false;
     clearTimeout(timer);

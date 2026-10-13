@@ -15,6 +15,7 @@ files.update(Path('scripts/qa').glob('*1489*'))
 files.update(Path(p) for p in [
     'indexer/Cargo.toml', 'indexer/Cargo.lock', 'frontend-dapp/package.json', 'frontend-dapp/package-lock.json',
     'scripts/qa/verify-followup-common.sh', 'scripts/qa/browser-route-attribution-1483.cjs',
+    'scripts/qa/browser-case-lifecycle.cjs', 'scripts/qa/test-browser-case-lifecycle.cjs',
     'scripts/qa/browser-live-trading-quotes-1473.cjs', 'scripts/qa/probe-route-cost-attribution-1483.py',
     'scripts/qa/prepare-wallet-attribution-1483.py', 'scripts/qa/test-prepare-wallet-attribution-1483.py',
     'scripts/qa/localterra-route-attribution-1483.py', 'scripts/qa/attest-trading-quotes-1473.py',
@@ -75,7 +76,7 @@ for attempt in first retest; do
   run "$attempt live probe original cohort and privacy boundary" python3 scripts/qa/test-probe-route-discovery-1489.py
   run "$attempt fixed monitoring aggregate classification boundary" python3 scripts/qa/test-probe-route-monitoring-1489.py
   run "$attempt private preparation no-sign, custody and scope boundary" python3 scripts/qa/test-prepare-wallet-attribution-1483.py
-  run "$attempt actual browser progress intent and useful output guards" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-discovery-1489.cjs
+  run "$attempt actual browser progress intent and useful output guards" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-discovery-1489.cjs scripts/qa/test-browser-case-lifecycle.cjs
   selected "$attempt discovery resource/cohort/producer regressions" RUST rust
   selected "$attempt native deeper promotion and exact API intents" DB sockets
   selected "$attempt actual Swap/Trade progress, adoption and review" FRONTEND frontend

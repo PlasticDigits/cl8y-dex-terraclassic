@@ -4,6 +4,25 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 ISSUE=1483
 source scripts/qa/verify-followup-common.sh
+fingerprint() {
+  python3 - <<'PYHASH'
+import hashlib
+from pathlib import Path
+files = set()
+for root in ['indexer/src', 'indexer/tests', 'frontend-dapp/src', 'smartcontracts/contracts', 'smartcontracts/packages']:
+    files.update(p for p in Path(root).rglob('*') if p.is_file())
+files.update(Path('scripts/qa').glob('*1483*'))
+files.update(Path(p) for p in [
+    'scripts/qa/verify-followup-common.sh', 'scripts/qa/browser-case-lifecycle.cjs',
+    'scripts/qa/test-browser-case-lifecycle.cjs', 'scripts/qa/browser-live-trading-quotes-1473.cjs',
+    'scripts/qa/attest-trading-quotes-1473.py', 'scripts/qa/test-attest-trading-quotes-1473.py',
+])
+h = hashlib.sha256()
+for p in sorted(files):
+    if p.is_file(): h.update(str(p).encode() + b'\0' + p.read_bytes() + b'\0')
+print(h.hexdigest())
+PYHASH
+}
 rust() {
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::attribution -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1483 -- --test-threads=1
@@ -55,7 +74,7 @@ for attempt in first retest; do
   run "$attempt public probe privacy, cap and attribution boundary" python3 scripts/qa/test-probe-route-cost-attribution-1483.py
   run "$attempt complete root script identity, path and hash boundary" python3 scripts/qa/test-attest-trading-quotes-1473.py
   run "$attempt private wallet helper least-scope and no-disclosure boundary" python3 scripts/qa/test-prepare-wallet-attribution-1483.py
-  run "$attempt deployed explanation source, clock and public evidence boundary" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-attribution-1483.cjs
+  run "$attempt deployed explanation source, clock and public evidence boundary" bash scripts/with-node.sh -- node --test scripts/qa/test-browser-route-attribution-1483.cjs scripts/qa/test-browser-case-lifecycle.cjs
   selected "$attempt signed raw attribution and unavailable boundaries" RUST rust
   selected "$attempt exact-cohort amount-cache ranking, wrapper and zero-RPC sockets" DB sockets
   selected "$attempt actual Swap/Trade explanation and execution guards" FRONTEND frontend

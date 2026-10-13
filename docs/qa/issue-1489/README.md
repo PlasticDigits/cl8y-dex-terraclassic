@@ -121,3 +121,5 @@ manually constrained quote cannot establish automatic convergence, independent
 production reserves, physical-device signing or production settlement. Leave
 the issue open unless all body/comment requirements pass. Human-only custody
 actions belong in concise cl8y-pm inbox cards; engineering stays with agents.
+
+Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.
