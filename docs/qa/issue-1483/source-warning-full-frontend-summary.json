@@ -1,0 +1,29 @@
+{
+  "issue": 1483,
+  "scope": "Full frontend Vitest from frontend-dapp cwd, maxWorkers=2, fresh owned TMPDIR for each round; no assertion or clock relaxation",
+  "base_revision": "8d59c9e412fce344280f4fd92149babc88f1dce4",
+  "dirty": true,
+  "source_fingerprint": "bd5abc96c16b4d2167a1c9dfa6b23030003c366494cad1d630f85352ab6ce31c",
+  "utc_recorded": "2026-10-13T00:00:59.657711+00:00",
+  "rounds": [
+    {
+      "round": "first",
+      "files_passed": 368,
+      "tests_passed": 3365,
+      "tests_failed": 0,
+      "duration_seconds": 225.67
+    },
+    {
+      "round": "retest",
+      "files_passed": 368,
+      "tests_passed": 3365,
+      "tests_failed": 0,
+      "duration_seconds": 225.64
+    }
+  ],
+  "overall": "PASS",
+  "retained_failures": [
+    "Hosted431 two obsolete wrapper-copy assertions:3363PASS,2FAIL",
+    "Wrong-cwd local first attempt failed static WalletModal public-file lookup; no application change"
+  ]
+}

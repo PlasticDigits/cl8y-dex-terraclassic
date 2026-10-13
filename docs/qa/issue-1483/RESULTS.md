@@ -322,3 +322,34 @@ unchanged files; none was added by this patch. The related receipt documents its
 frontend/package/config-only fingerprint recipe, distinct from the focused
 five-directory source fingerprint. Every mandatory acknowledgement and execution
 condition remains independent of which one notice is presented.
+
+## Full-suite copy correction
+
+Hosted [pipeline 431](https://ci.cl8y.com/repos/7/pipeline/431/1) retained two
+obsolete shared-error-wrapper text expectations. The other 3,363 frontend tests
+passed; subsequent backend jobs were skipped by the failed dependency and are
+not claimed as passing CI. Both expectations now require the exact short price
+protection message while preserving nested raw-log masking. Independent review
+passed 146 tests across six SDK/error-boundary/wrapper files. No application,
+principal, signing or guard code changed.
+
+[Post-CI focused first/retest](source-warning-post-ci-summary.json) passes all
+19 runnable groups, zero failures and the same two external skips on fingerprint
+`bd5abc96c16b4d2167a1c9dfa6b23030003c366494cad1d630f85352ab6ce31c`.
+Both rounds pass 286 frontend tests, with fresh owned disposable SQL/React state.
+Each initialized useful socket round has 14 samples: first
+p50/p95/p99/max 1.460/1.714/1.714/10.392ms, retest
+1.451/1.750/1.750/10.592ms at the unchanged 500ms budget.
+
+The first full local invocation used repository cwd instead of the frontend cwd
+and failed WalletModal's static public-file lookup; that executed setup failure
+remains retained. Corrected full runs use the same frontend cwd and two workers
+as hosted CI, fresh owned scratch and original assertions/clocks. Their final
+counts and a new hosted verdict are separate from the failed pipeline.
+
+[Complete frontend first/retest](source-warning-full-frontend-summary.json)
+passes all **368 files and 3,365 tests in each round**, with two workers and fresh
+owned scratch from the correct frontend cwd. Durations are 225.67s and 225.64s;
+original assertions/clocks and all rejection/masking conditions remain intact.
+No application or signing code changed for this full-suite correction. Hosted
+CI is rerun on the corrected commit before merge; the failed431 receipt remains.
