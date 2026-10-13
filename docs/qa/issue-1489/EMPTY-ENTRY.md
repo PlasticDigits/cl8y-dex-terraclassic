@@ -2,6 +2,7 @@
 
 This presentation follow-up to [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490)
 addresses [#1489](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1489).
+Implementation: [PR #1492](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1492).
 Follow [RD1489-7](../../../skills/AGENTS_ROUTE_DISCOVERY.md),
 [RC1483](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and
 [TQ1473](../../../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md).

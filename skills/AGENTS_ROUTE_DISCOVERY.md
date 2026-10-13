@@ -35,3 +35,5 @@ Related verification: `1483`, `1452`, `1473`, `1479`, `1480`, `1464`, `1453`,
 
 The neutral native entry fix and directed checks are documented in
 [EMPTY-ENTRY.md](../docs/qa/issue-1489/EMPTY-ENTRY.md).
+
+Neutral entry implementation: [PR #1492](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1492).
