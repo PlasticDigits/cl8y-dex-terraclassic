@@ -281,6 +281,40 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
     expect(vi.mocked(executeMultiHopSwap).mock.calls[0][5]).toBe('893000')
   })
+
+  it('retains its current 5.51% notice during unchanged background refresh while signing stays blocked (#1489)', async () => {
+    let pinned: ReturnType<typeof localQuote> | undefined
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, '944900')
+      q.spot_amount_out = '1000000'
+      pinned = attachReferenceAttribution(q)
+      return pinned
+    })
+    const { queryClient } = await ready()
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+    let finish: ((value: ReturnType<typeof localQuote>) => void) | undefined
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    await act(async () => {
+      void queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
+    })
+    await waitFor(() => expect(finish).toBeDefined())
+    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.9449')
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow()
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    await act(async () => {
+      finish!(pinned!)
+    })
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+  })
   it('requires renewed consent above 5%, cancel and changed quote', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
       const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())

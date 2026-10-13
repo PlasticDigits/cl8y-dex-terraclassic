@@ -1,4 +1,5 @@
 # Bounded automatic route discovery (#1489)
+
 Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 
 Apply to skeleton enumeration, exact-amount deeper discovery, producer revision
@@ -16,7 +17,7 @@ Run `make verify-issue-1489` and the applicable related verifiers below.
 | RD1489-4 | Preserve four pool hops, 1,024 paths and 16,384 edge visits. Native wrapping is a separate message. Report truncated bounded discovery truthfully; a best evaluated candidate is not proof of a global optimum. |
 | RD1489-5 | Solve, best and progress bind the same original native identity, gross amount, spread/protection, mode, actor/tier and generation. Declared POST splits retain their own constraints; receive sizing retains its documented minimum-input objective and bounded inverse scope. |
 | RD1489-6 | Frontend adoption watches eligible delivered-net improvements as well as newly published generations. An unchanged generation can contain a better result. Progress is advisory, never an execution permission. Reviewed transactions remain pinned during consent/signing. |
-| RD1489-7 | One factual retail notice describes selected-route economics. It cannot imply that all eligible routes have insufficient liquidity. Keep exact 5/30/99 controls, unknown-budget refusal, offline preparation and original reference quality. |
+| RD1489-7 | One factual retail notice describes selected-route economics. It cannot imply that all eligible routes have insufficient liquidity. When a same-intent unexpired quote and receive amount remain displayed during background refresh, retain that quote's notice while conservative signing stays blocked. Clear old-intent/expired notices; update thresholds only when a newly validated quote changes. Never suppress genuine >5% changes or add hysteresis across 5%. Keep exact 5/30/99 controls, unknown-budget refusal, offline preparation and original reference quality. |
 | RD1489-8 | Preserve gross authorization, actual wrapper credit, signed raw-output attribution, upward-rounded positive hop/final floors, taxes/hooks, blacklist/pause/freeze, capable-asset repetition and owned refunds. Network fees remain separate. |
 | RD1489-9 | Quote/progress/review requests read initialized observations and trigger zero RPC. Independently scheduled ingestion owns observations. Tests own disposable databases and fixtures; never reset production or shared infrastructure. |
 | RD1489-10 | Retain failed inputs and actual failure verdicts. Repeat stable final source checks, separately attest backend/frontend/root/contracts, and run sustained API/browser checks beyond 20s/180s. Socket <=500ms and browser <=750ms retain original useful-result clocks. Explicit SKIP leaves acceptance unchecked; HTTP200, source tests or generation equality alone never prove settlement. |

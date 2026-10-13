@@ -1,0 +1,76 @@
+{
+  "issue": 1489,
+  "recorded_at_utc": "2026-10-13T06:45:04.231836+00:00",
+  "overall": "PASS WITH SKIPS",
+  "previous_published_head": "f44745fe341ecbd4d20d69791e7f84485681a0a1",
+  "working_tree_source_fingerprint": "92c331987da2d6c192a22d5be88307df971f4e68dc2d09ea0e4bf7f37de37728",
+  "frontend_source_fingerprint": "338efc8b5732f0767b89f4249144f0979bbe8f102f24cc97407349b5be78b5ea",
+  "actual_component_regression": {
+    "retained_original_red_log_sha256": "93636151931ba9e4f7ea7eb270c77110aa3424596041d378c3a8f86847636e12",
+    "synthetic_fair_raw": "1000000",
+    "synthetic_net_raw": "944900",
+    "deviation_percent": "5.51",
+    "unchanged_receive": "0.9449",
+    "scope": "Actual Swap component on prior head; same input/generation/original expiry. Pending refresh incorrectly hid the notice while keeping receive. New tests preserve signing refusal, exact threshold updates, intent clearing and original expiry. Trade retention control stays correct."
+  },
+  "focused_first_retest": {
+    "files_per_round": 7,
+    "tests_per_round": 134,
+    "typecheck": "PASS",
+    "lint_errors": 0,
+    "existing_lint_warnings": 5
+  },
+  "full_frontend_first_retest": {
+    "files_per_round": 370,
+    "tests_per_round": 3386,
+    "first_utc_start": "2026-10-13T06:14:21Z",
+    "first_seconds": 245.3,
+    "retest_utc_start": "2026-10-13T06:19:07Z",
+    "retest_seconds": 244.56,
+    "source_before_after_identical": true
+  },
+  "focused_discovery_first_retest": {
+    "backend_units_per_round": 9,
+    "owned_socket_fixture_per_round": 1,
+    "frontend_tests_per_round": 306,
+    "api_probe_controls_per_round": 7,
+    "monitor_controls_per_round": 2,
+    "wallet_scope_controls_per_round": 9,
+    "browser_controls_per_round": 6
+  },
+  "affected_verifiers": [
+    {
+      "issue": 1489,
+      "passed_groups": 20,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "92c331987da2d6c192a22d5be88307df971f4e68dc2d09ea0e4bf7f37de37728",
+      "private_log_sha256": "4182fc3617987f1a0be0a70c03802903908706fdb7d597687fa7157878435eca"
+    },
+    {
+      "issue": 1483,
+      "passed_groups": 21,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "4fdb47e8b0d5e9c884a72a9553afd278136908dc14e2fd031861d3d985f3e1bd",
+      "private_log_sha256": "2c9732ad3ef76ab5593c30aea71483881ab5f3f13ce137e3bd7b0f064cdc28c6"
+    },
+    {
+      "issue": 1473,
+      "passed_groups": 17,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "f3ee12f71ae5067a75c9ab2e50b6f94899c902fac46ae6bccf2f7779a4b1e647",
+      "private_log_sha256": "dbc75ffca86373f594f2056f73cc65ff01ffd496049f024823f1acaf30fc7f07"
+    }
+  ],
+  "totals": {
+    "passed_groups": 58,
+    "failed_groups": 0,
+    "skipped_groups": 6
+  },
+  "controlled_browser": "notice-controlled-browser-final-summary.json",
+  "original_routing_evidence_unchanged": "source-final-summary.json",
+  "signing_thresholds_review_pinning_or_routing_math_changed": false,
+  "remaining_acceptance": "Deployed sustained clocks/actual browser and independently attested roots, atomic production SQL/reserves, mapper/treasury correspondence and physical wallet evidence stay separate; original skips remain unchecked."
+}

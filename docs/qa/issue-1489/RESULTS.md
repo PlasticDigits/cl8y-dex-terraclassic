@@ -1,4 +1,5 @@
 # Route discovery results (#1489)
+
 Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 
 Issue: [#1489](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1489).
@@ -36,7 +37,7 @@ completes. Unavailable evidence stays **SKIP** with unchecked criteria; executed
 failures remain **FAIL**. Passing implementation subsets cannot certify complete
 issue acceptance, independent production SQL or physical wallet settlement.
 
-## Final implementation and stable source
+## Original routing implementation verification
 
 [Source receipt](source-final-summary.json) records **20 PASS, zero FAIL and two
 external-acceptance SKIPs**, repeated on exact unchanged product/tool fingerprint
@@ -211,3 +212,47 @@ the original-input/frame 750ms budget, aggregate p50/p95/p99/max are
 legacy QA file is restored rather than replacing historical evidence. The nine
 initial timing failures remain in their separate retained summary. These owned
 fixture clocks do not establish live deployment or production custody.
+
+## Supplemental same-quote notice retention
+
+An independent actual Swap component regression on PR head `f44745fe` held a
+validated quote with fair `1000000` and delivered net `944900` (5.51% difference).
+The displayed receive stayed `0.9449` with unchanged input/generation/original
+expiry while a background GET was pending, but the price notice disappeared.
+The signing-stale predicate included any fetch and was incorrectly reused for
+notice visibility. This reproduces a presentation defect with synthetic public
+fixture inputs; it is not a reconstruction of any private report or image.
+
+The generic display predicate now retains the notice with the current settled,
+unexpired quote. Signing remains blocked during refresh and guarded mutation
+entry still refuses it. New actual Swap regressions cover unchanged refresh,
+exact 5%/±one raw unit transitions, immediate old-intent clearing and original
+expiry. A Trade control proves its existing same-quote notice/signing behavior.
+No routing arithmetic, consent thresholds, Expert/99% refusal, quote admission or
+transaction pinning is relaxed. The original routing receipts above retain their
+original fingerprints; supplemental final source evidence is recorded separately.
+
+[Independent old-deployment CL8Y→USTR observation](cl8y-ustr-original-observation.json)
+uses a newly selected anonymous 500-CL8Y input and 5% protection. All twelve
+read-only solve/best responses validate. The first ten deliver
+`40754129352501916981342` raw USTR against fair `52449818012233666974893` (22.2988%);
+the last two deliver `30794523762966498277416` (41.2876%) on a different route.
+Those are genuine output/route changes requiring truthful notice updates. They
+do not reproduce unchanged-quote flicker, imply a missing alternative's atomic
+eligibility, or reconstruct an unavailable historical amount/protection. No
+private image, reporter context, wallet/actor data or production signing is
+published. This observation cannot authorize suppressing a legitimate >5% notice.
+
+[Supplemental stable notice-retention evidence](notice-retention-final-summary.json)
+passes 58 affected verifier groups with zero failures and six external skips:
+`verify-issue-1489`, `1483` and `1473`, each repeating stable source. The current
+whole source fingerprint is `92c331987da2d6c192a22d5be88307df971f4e68dc2d09ea0e4bf7f37de37728`.
+Both full frontend rounds pass 370 files/3,386 tests; the focused actual component
+rounds pass 134 tests each, with unchanged source, types and lint passing.
+Discovery regression rounds retain nine backend cases and now 306 frontend tests.
+[Supplemental controlled browser](notice-controlled-browser-final-summary.json)
+passes all 4,250 cases with zero failures/provider requests and 3948 useful outputs.
+At the original 750ms clock, p50/p95/p99/max are 93.6/153.8/171.4/298.0ms.
+Prior routing and prior-head CI evidence remain separately identified; this new
+source requires its own genuine hosted CI and deployed acceptance. No private
+report/image context is part of these receipts.

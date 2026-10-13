@@ -766,6 +766,89 @@ describe('SwapPage local executable quotes (#1452)', () => {
       expect(document.body).not.toHaveTextContent('<script>secret</script>')
     }
   )
+
+  it('keeps a current 5.51% notice visible during an unchanged background refresh (#1489)', async () => {
+    let pinned: ReturnType<typeof localQuote> | undefined
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, '944900')
+      q.spot_amount_out = '1000000'
+      pinned = attachReferenceAttribution(q)
+      return pinned
+    })
+    const { queryClient } = await ready()
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+    let finish: ((value: ReturnType<typeof localQuote>) => void) | undefined
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        })
+    )
+    await act(async () => {
+      void queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    })
+    await waitFor(() => expect(finish).toBeDefined())
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.9449')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+    await expect(mutationEntry.run!()).rejects.toThrow()
+    const { executeMultiHopSwap } = await import('@/services/terraclassic/router')
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    await act(async () => {
+      finish!(pinned!)
+    })
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+  })
+  it('updates the notice at exact 5% only after a newly validated quote changes (#1489)', async () => {
+    let output = '944900'
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, output)
+      q.spot_amount_out = '1000000'
+      return attachReferenceAttribution(q)
+    })
+    const { queryClient } = await ready()
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('5.51%')
+    for (const [next, visible, percent] of [
+      ['950000', false, '5.00%'],
+      ['950001', false, '<5%'],
+      ['949999', true, '>5%'],
+      ['944900', true, '5.51%'],
+    ] as const) {
+      output = next
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      })
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue(String(Number(next) / 1_000_000)))
+      if (visible) expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent(percent)
+      else {
+        expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+        expect(screen.getByTestId('swap-price-details')).toHaveTextContent(percent)
+      }
+    }
+  })
+  it('clears old-intent notice immediately and stops showing it at original expiry (#1489)', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, '944900')
+      q.spot_amount_out = '1000000'
+      q.execution_metadata!.expires_at_ms = Date.now() + 1000
+      return attachReferenceAttribution(q)
+    })
+    const { queryClient } = await ready()
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('5.51%')
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(() => new Promise(() => {}))
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '2' } })
+    expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
+    await waitFor(() => expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('5.51%'))
+    await act(async () => {
+      void queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue(''), { timeout: 2000 })
+    expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-submit')).toBeDisabled()
+  })
   it('requires renewed consent just above 5% and after amount changes', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
       const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())

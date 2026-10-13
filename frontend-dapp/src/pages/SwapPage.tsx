@@ -1488,7 +1488,9 @@ export default function SwapPage() {
     ['hop', simData?.routePreflight?.anyHopExceedsMaxSpread === true],
     [
       'price',
-      !simQuoteStale &&
+      // Background refresh blocks signing but retains the current fresh quote
+      // and its factual price notice. Intent changes and expiry still clear both.
+      hasSettledSimQuote &&
         !simQuoteUnavailable &&
         expectedSlippagePct != null &&
         expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,

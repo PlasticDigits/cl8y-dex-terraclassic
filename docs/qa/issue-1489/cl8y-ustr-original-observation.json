@@ -1,0 +1,588 @@
+{
+  "scope": "Independently chosen anonymous500CL8Y at5%protection; reportedamount/actor unavailable; doesnotreproducehistoricalusercontext",
+  "utc": "2026-10-13T06:10:31.395266+00:00",
+  "read_only": true,
+  "signing": false,
+  "revisions": [
+    "4cb5736574072130e8e14a5ea2e297d3062e8212",
+    "4cb5736574072130e8e14a5ea2e297d3062e8212"
+  ],
+  "samples": [
+    {
+      "offset_seconds": 0,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 283.146,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "ff15c64709b6c51e9318317c64982185da2645216ea18a7cbc68e9c280b9cc5a",
+      "observed_at_ms": 1791871796453,
+      "expires_at_ms": 1791871816453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 0,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 280.755,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "ff15c64709b6c51e9318317c64982185da2645216ea18a7cbc68e9c280b9cc5a",
+      "observed_at_ms": 1791871796453,
+      "expires_at_ms": 1791871816453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 2,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 283.02,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "decdd8afe2da35c64ae5154feb5c590fca4d4564ae64fd5c83723bb685dc2487",
+      "observed_at_ms": 1791871796453,
+      "expires_at_ms": 1791871816453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 2,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 281.609,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "caf8ac310afd62e0b6f9d32c80adb09f9b0045281bf0f0ba222738b45b33d18c",
+      "observed_at_ms": 1791871796453,
+      "expires_at_ms": 1791871816453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 10,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 281.411,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "df0c1de20330657c85bc00c93b2917e37454e770173c07801ec4f20f2f6c2cb8",
+      "observed_at_ms": 1791871806453,
+      "expires_at_ms": 1791871826453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 10,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 282.493,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "2dc3a8bef5fde18f2a3ed2de359f3c433cbcd6a1ecfba899034dcf2acfb63059",
+      "observed_at_ms": 1791871806453,
+      "expires_at_ms": 1791871826453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 12,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 281.945,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "e16c5e82b3d37a6bd7f18a94688cc44e328356c71db45b37264cd17f5f97a7ce",
+      "observed_at_ms": 1791871806453,
+      "expires_at_ms": 1791871826453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 12,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 282.312,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "ec779a757e002abcf18bf4d012f99ad56b8e161b24a360e2e1fdbe8c16351596",
+      "observed_at_ms": 1791871806453,
+      "expires_at_ms": 1791871826453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 20,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 281.406,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "800451e0f6caea96bee6a1abe40555a6e54aea216daea9577258a37bac2ad810",
+      "observed_at_ms": 1791871816453,
+      "expires_at_ms": 1791871836453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 20,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 280.928,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "9389427270698649037289",
+        "reference_divergence": "84137945773874",
+        "trading_cost": "2306261304895155182388",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "40754129352501916981342",
+      "deviation_percent": "22.29881647445142144577896700",
+      "generation": "e2f0230c479891aacfa6e74f5d06d08b51b3ced397d6c062d84aa15a79e5b070",
+      "observed_at_ms": 1791871816453,
+      "expires_at_ms": 1791871836453,
+      "minimum_receive": "38716422884876821132275",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "return_amount": "47333330338",
+          "min_return": "44966663822",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "258184258",
+          "min_return": "245275046",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "40754129352501916981342",
+          "min_return": "38716422884876821132275",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 25,
+      "endpoint": "solve",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 281.208,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "19957823857872653581120",
+        "reference_divergence": "-2525963696328622216303",
+        "trading_cost": "4223434087723137332660",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "30794523762966498277416",
+      "deviation_percent": "41.28764420920617074999959496",
+      "generation": "6f41d4bba8c50cac71f0062844bf878656e886bebf0a0165d2c3efb9c3a351fc",
+      "observed_at_ms": 1791871816453,
+      "expires_at_ms": 1791871836453,
+      "minimum_receive": "29254797574818173363546",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+          "return_amount": "23357686131487",
+          "min_return": "22189801824913",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "194477272",
+          "min_return": "184753409",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "30794523762966498277416",
+          "min_return": "29254797574818173363546",
+          "hybrid": false
+        }
+      ]
+    },
+    {
+      "offset_seconds": 25,
+      "endpoint": "best",
+      "status": "available",
+      "outcome": "executable",
+      "valid": true,
+      "elapsed_ms": 280.014,
+      "dominant_cause": "market_movement",
+      "components": {
+        "market_movement": "19957823857872653581120",
+        "reference_divergence": "-2525963696328622216303",
+        "trading_cost": "4223434087723137332660",
+        "wrapper_loss": "0"
+      },
+      "fair_amount_out": "52449818012233666974893",
+      "net_amount_out": "30794523762966498277416",
+      "deviation_percent": "41.28764420920617074999959496",
+      "generation": "6f41d4bba8c50cac71f0062844bf878656e886bebf0a0165d2c3efb9c3a351fc",
+      "observed_at_ms": 1791871816453,
+      "expires_at_ms": 1791871836453,
+      "minimum_receive": "29254797574818173363546",
+      "policy": "pool_only",
+      "search_complete": null,
+      "hop_count": 3,
+      "hops": [
+        {
+          "offer_token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "ask_token": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+          "return_amount": "23357686131487",
+          "min_return": "22189801824913",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+          "ask_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "return_amount": "194477272",
+          "min_return": "184753409",
+          "hybrid": false
+        },
+        {
+          "offer_token": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+          "ask_token": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+          "return_amount": "30794523762966498277416",
+          "min_return": "29254797574818173363546",
+          "hybrid": false
+        }
+      ]
+    }
+  ]
+}

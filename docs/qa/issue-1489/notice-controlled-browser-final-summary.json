@@ -1,0 +1,63 @@
+{
+  "recorded_at_utc": "2026-10-13T06:42:44.228Z",
+  "source_revision": "f44745fe341ecbd4d20d69791e7f84485681a0a1",
+  "frontend_artifact_sha256": "74c106b8c3dafd3ae3cefc484f6d81f65097576885c5537e396979d36be02d7e",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "scope": "Controlled owned HTTP/browser integer constant-product fixture; production artifacts, actual settlement, nonzero wrapper fees and deployed acceptance are separate; native fixtures use zero-fee observed wrappers over genuine CW20 factory identities. Seven requested pairs plus arbitrary 9/12-decimal identities, both directions, first/retest. Disconnected wallet; no broadcast.",
+  "partial": false,
+  "truncated": false,
+  "browser_latency_budget_ms": 750,
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1988,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 93.6000000089407,
+    "p95_ms": 153.80000001192093,
+    "p99_ms": 171.40000000596046,
+    "max_ms": 298
+  },
+  "latency_by_class": {
+    "1440:initialized_http": {
+      "count": 795,
+      "p50_ms": 115.59999999403954,
+      "p95_ms": 167.5,
+      "p99_ms": 190.79999999701977,
+      "max_ms": 298
+    },
+    "1440:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 101.40000000596046,
+      "p95_ms": 155,
+      "p99_ms": 169.79999999701977,
+      "max_ms": 210.59999999403954
+    },
+    "390:initialized_http": {
+      "count": 795,
+      "p50_ms": 88.8999999910593,
+      "p95_ms": 110.70000000298023,
+      "p99_ms": 122,
+      "max_ms": 141.8999999910593
+    },
+    "390:browser_cache_hit": {
+      "count": 1179,
+      "p50_ms": 83,
+      "p95_ms": 105.8999999910593,
+      "p99_ms": 114.79999999701977,
+      "max_ms": 131
+    }
+  },
+  "blocker_latency": {
+    "count": 302,
+    "p50_ms": 95,
+    "p95_ms": 168.79999999701977,
+    "p99_ms": 184.29999999701977,
+    "max_ms": 218.40000000596046
+  },
+  "issue": 1489,
+  "total_cases": 4250,
+  "failed_cases": 0,
+  "raw_private_receipt_sha256": "64067f94d13ff6060a7b163fff81b3dda617387f6737b6f40b4c247360f30814",
+  "overall": "PASS",
+  "scope_note": "Supplemental final notice-retention source; owned controlled browser fixture, not live deployment or signing."
+}

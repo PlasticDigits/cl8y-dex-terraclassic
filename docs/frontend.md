@@ -2813,3 +2813,11 @@ normal quote through the existing validator. It aborts on intent changes, declar
 plans, receive sizing, consent/review or signing. Advisory errors stop this observer;
 the existing normal refresh cadence remains independent. No timer renews the
 original at-most-20-second observation window.
+
+The #1489 price notice follows the same current, unexpired quote that supplies
+the displayed receive amount. A same-intent background fetch may block signing
+without hiding that factual notice; it does not grant signing permission. Intent
+changes and original expiry clear stale display/notice state. A newly validated
+quote may legitimately move above or below exact 5%; no warning hysteresis or
+threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
