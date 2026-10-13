@@ -1,0 +1,292 @@
+{
+  "issues": [
+    1489,
+    1381
+  ],
+  "status": "PASS",
+  "driver_sha256": "d19069b7c704a404d6fae46fdc3ea23165efab08d746d63bb57bc0e9f0608d72",
+  "owned_localterra_only": true,
+  "production_signing": false,
+  "fresh_factories_pools_signers_per_round": true,
+  "stored_code_checksums_verified_against_current_tracked_artifacts": true,
+  "artifact_attestation": "Current tracked WASM checksums and actual stored-code checksums; original build recipe not re-attested.",
+  "synthetic_requested_gas": 12000000,
+  "gas_is_not_production_calibration": true,
+  "first_retest_exact_economics_equal_excluding_gas": true,
+  "rounds": [
+    {
+      "round": "first",
+      "status": "PASS",
+      "utc": "2026-10-13T04:40:49.913807+00:00",
+      "check_count": 6,
+      "successful_settlement_count": 5,
+      "intentional_rollback_count": 1,
+      "query_count_forward_reverse_fresh_forward": 18,
+      "rows": [
+        {
+          "scenario": "zero intermediates",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "946429267575517734",
+          "reverse_required_gross": "1009999020096990300",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "946429267575517734",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4434038
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "BETA",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "894890444760655030",
+          "reverse_required_gross": "1009999060288001788",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "894890444760655030",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4558895
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "946421488752678839",
+          "reverse_required_gross": "1009999100473034445",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "946421488752678839",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4440171
+        },
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "route_symbols": [
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000",
+          "forward_expected_net": "994000246661929123",
+          "reverse_required_gross": "1010000",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "994000246661929123",
+          "wallet_input_debit": "1010000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 3092967
+        },
+        {
+          "scenario": "taxed final buy",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "961650",
+          "reverse_required_gross": "1009999140652088252",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "961650",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 1893537
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "BETA",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "894880862313485362",
+          "reverse_required_gross": "1009999180825163192",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "0",
+          "wallet_input_debit": "0",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": false,
+          "atomic_rollback": true,
+          "gas_used": 4180516
+        }
+      ]
+    },
+    {
+      "round": "retest",
+      "status": "PASS",
+      "utc": "2026-10-13T04:40:46.140993+00:00",
+      "check_count": 6,
+      "successful_settlement_count": 5,
+      "intentional_rollback_count": 1,
+      "query_count_forward_reverse_fresh_forward": 18,
+      "rows": [
+        {
+          "scenario": "zero intermediates",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "946429267575517734",
+          "reverse_required_gross": "1009999020096990300",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "946429267575517734",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4434038
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "BETA",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "894890444760655030",
+          "reverse_required_gross": "1009999060288001788",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "894890444760655030",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4558926
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "946421488752678839",
+          "reverse_required_gross": "1009999100473034445",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "946421488752678839",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 4440175
+        },
+        {
+          "scenario": "taxed initial gross",
+          "status": "PASS",
+          "route_symbols": [
+            "ALPHA",
+            "UST1",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000",
+          "forward_expected_net": "994000246661929123",
+          "reverse_required_gross": "1010000",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "994000246661929123",
+          "wallet_input_debit": "1010000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 3092967
+        },
+        {
+          "scenario": "taxed final buy",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "961650",
+          "reverse_required_gross": "1009999140652088252",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "961650",
+          "wallet_input_debit": "1010000000000000000",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": true,
+          "atomic_rollback": false,
+          "gas_used": 1893537
+        },
+        {
+          "scenario": "minimum return rollback",
+          "status": "PASS",
+          "route_symbols": [
+            "CL8Y",
+            "ALPHA",
+            "BETA",
+            "USTR"
+          ],
+          "gross_authorized_input": "1010000000000000000",
+          "forward_expected_net": "894880862313485362",
+          "reverse_required_gross": "1009999180825163192",
+          "forward_after_reverse_sufficient_checked": true,
+          "delivered_net": "0",
+          "wallet_input_debit": "0",
+          "router_dust_preserved": true,
+          "intermediate_wallet_not_spent": true,
+          "tax_sinks_collected": false,
+          "atomic_rollback": true,
+          "gas_used": 4180517
+        }
+      ]
+    }
+  ],
+  "skips": [
+    "legacy-to-current contract migration: no reviewed legacy artifacts supplied",
+    "production settlement and physical-wallet inclusion",
+    "tax-hook populated-book modes outside this six-case contract fixture"
+  ],
+  "scope": "Actual owned route-funded tax settlement/reverse-query/rollback controls with 6/18 decimals, two taxed intermediates and pre-existing wallet/router balances; no source tests substituted for chain execution."
+}

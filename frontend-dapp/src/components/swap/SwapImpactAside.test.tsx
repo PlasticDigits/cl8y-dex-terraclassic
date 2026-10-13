@@ -9,10 +9,10 @@ describe('necessary price notices', () => {
     expect(screen.queryByText(/Price difference/)).not.toBeInTheDocument()
   })
   it('shows one sentence, one metric and one consent action', () => {
-    render(<SwapImpactAside routeSlippagePct={13.04} economicExplanation="Limited liquidity" confirming />)
+    render(<SwapImpactAside routeSlippagePct={13.04} economicExplanation="Selected pool price movement" confirming />)
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Price difference 13.04% — limited liquidity; click again to confirm.'
+      'Price difference 13.04% — selected pool price movement; click again to confirm.'
     )
     expect(screen.getByRole('alert').textContent?.match(/%/g)).toHaveLength(1)
     expect(screen.getByRole('alert')).not.toHaveTextContent(/reference|breakdown|hop|Review before/i)

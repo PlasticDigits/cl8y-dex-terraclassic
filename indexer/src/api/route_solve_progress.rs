@@ -66,6 +66,13 @@ pub struct SolveProgress {
     pub quote_eligibility: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quote_blocker: Option<String>,
+    /// Same-intent delivered net; advisory, never execution authorization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub best_amount_out: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_complete: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_truncated: Option<bool>,
 }
 
 #[derive(Clone)]
@@ -145,6 +152,9 @@ fn set_progress(
             quote_generation: None,
             quote_eligibility: None,
             quote_blocker: None,
+            best_amount_out: None,
+            search_complete: None,
+            search_truncated: None,
         },
         started_at: now,
         terminal_at: None,
@@ -159,6 +169,9 @@ fn set_progress(
         quote_generation: None,
         quote_eligibility: None,
         quote_blocker: None,
+        best_amount_out: None,
+        search_complete: None,
+        search_truncated: None,
     };
     if terminal {
         entry.terminal_at = Some(now);
@@ -239,6 +252,9 @@ fn idle_progress() -> SolveProgress {
         quote_generation: None,
         quote_eligibility: None,
         quote_blocker: None,
+        best_amount_out: None,
+        search_complete: None,
+        search_truncated: None,
     }
 }
 

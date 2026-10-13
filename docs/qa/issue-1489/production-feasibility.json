@@ -1,0 +1,83 @@
+{
+  "scope": "read_only_production_feasibility",
+  "backend_application_matches": 1,
+  "detail_read": "available",
+  "detail_field_names": [
+    "additional_servers",
+    "additional_servers_count",
+    "compose_parsing_version",
+    "custom_docker_run_options",
+    "docker_compose",
+    "docker_compose_custom_build_command",
+    "docker_compose_custom_start_command",
+    "docker_compose_domains",
+    "docker_compose_location",
+    "docker_compose_raw",
+    "docker_registry_image_name",
+    "docker_registry_image_tag",
+    "dockerfile",
+    "dockerfile_location",
+    "dockerfile_target_build",
+    "environment",
+    "environment_id",
+    "server_status"
+  ],
+  "environment_read": "available",
+  "environment_schema_keys": [
+    "comment",
+    "created_at",
+    "is_buildpack_control",
+    "is_buildtime",
+    "is_coolify",
+    "is_literal",
+    "is_multiline",
+    "is_preview",
+    "is_really_required",
+    "is_required",
+    "is_runtime",
+    "is_shared",
+    "is_shown_once",
+    "key",
+    "order",
+    "real_value",
+    "updated_at",
+    "uuid",
+    "value",
+    "version"
+  ],
+  "database_configuration_variable_names": [
+    "DATABASE_URL",
+    "ROUTE_SOLVER_DB_HYBRID",
+    "ROUTE_SOLVER_DB_HYBRID"
+  ],
+  "required_configuration_available": {
+    "DATABASE_URL": false,
+    "LCD_URL": false,
+    "LCD_URLS": true,
+    "RPC_URL": false,
+    "FACTORY_ADDRESS": true,
+    "ROUTER_ADDRESS": true,
+    "WRAP_MAPPER_ADDRESS": true
+  },
+  "contract_address_shapes": {
+    "FACTORY_ADDRESS": true,
+    "ROUTER_ADDRESS": true,
+    "WRAP_MAPPER_ADDRESS": true
+  },
+  "database_url_records": [
+    {
+      "preview": false,
+      "value_present": false,
+      "real_value_present": false,
+      "real_value_dsn_shaped": false,
+      "value_dsn_shaped": false
+    }
+  ],
+  "shared_environment_fields_present": {
+    "environment_variables": false,
+    "environment_variables_preview": false,
+    "docker_compose_raw": false,
+    "docker_compose": false
+  },
+  "ssh_host_shell_scope": "documented_cl8y_ops_no_shell_no_sudo"
+}

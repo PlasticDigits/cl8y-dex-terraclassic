@@ -5,9 +5,10 @@ import { stripAllDeclaredHybrid } from '@/utils/hybridHopOfferPartition'
 /**
  * Native wrap-enter / unwrap-exit mapping for GET `/route/solve` (#1218).
  *
- * Indexer graph nodes are CW20 contract ids only. Retail Swap maps `uluna`→cLUNC and
- * `uusd`→cUSTC (and the reverse on unwrap-exit) **on the client** before solve.
- * Direct 1:1 wrap/unwrap stays mapper-only.
+ * Maps the graph endpoints for route availability/display only. Quotes and progress
+ * keep the original native identity and gross amount; the indexer owns wrapper
+ * credit and policy admission (#1489). Wrapping consumes no pool-hop budget.
+ * Direct 1:1 wrap/unwrap has no pool-route mapping.
  */
 
 export type WrapMappedSolvePair = {

@@ -678,9 +678,9 @@ impl FeePhaseGuard {
                 phase.pending = false;
                 // Preserve the original marker deadline; completion is not renewal.
             }
-            if matches!(outcome, Outcome::Validated) {
-                ns.revision = ns.revision.saturating_add(1);
-            }
+            // Positive producer completion does not change a published tuple.
+            // Changed fees already take the Negative branch above; actual tuple
+            // publication and context qualification own economic invalidation.
         }
     }
 }

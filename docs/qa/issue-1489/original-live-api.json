@@ -1,0 +1,58 @@
+{
+  "issue": 1489,
+  "revision": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "utc_end": "2026-10-13T03:05:05.655233+00:00",
+  "overall": "FAIL",
+  "driver_sha256": "d8a907140ad9af4af1453e6084386b7345207e12eb41e3d9007aeba318876c6d",
+  "requests": 7,
+  "cohort_comparisons": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "same_original_cohort": true,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 0,
+      "endpoint": "automatic_post",
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 0,
+      "endpoint": "best",
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": true
+    }
+  ],
+  "initialized_useful_socket_timing": {
+    "samples": 4,
+    "p50_ms": 276.526,
+    "p95_ms": 277.541,
+    "p99_ms": 277.541,
+    "max_ms": 277.541
+  },
+  "failures": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "failure_class": "automatic_inferior_same_cohort"
+    }
+  ],
+  "skips": [
+    "independent SQL/reserves",
+    "production settlement",
+    "physical wallets",
+    "browser adoption"
+  ],
+  "cycle_offsets_seconds": [
+    0
+  ],
+  "scope": "Retained original deployed behavior; historical development tool hashes/semantic scope differ from final tool. No settlement or complete acceptance claim."
+}

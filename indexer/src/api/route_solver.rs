@@ -430,9 +430,16 @@ pub struct RouteSolveResponse {
     /// Reserved: max chain lag vs mirror `block_height` (future).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mirror_max_block_lag: Option<i64>,
-    /// True when path search was truncated by the concurrency cap (#324).
+    /// True when bounded discovery cannot prove exhaustiveness: path/work cap
+    /// or the existing receive inverse-path cap was reached (#1489).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search_truncated: Option<bool>,
+    /// Completion of this bounded exact-intent pass; never global optimality.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_complete: Option<bool>,
+    /// Graph pool-hop cap. Native wrapping does not consume a graph hop.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_max_pool_hops: Option<u32>,
     /// Independently qualified fair output in final-token raw units. Native
     /// composition values the authorized gross principal, retaining wrapper loss.
     #[serde(skip_serializing_if = "Option::is_none")]

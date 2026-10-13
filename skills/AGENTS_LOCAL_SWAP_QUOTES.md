@@ -108,3 +108,9 @@ Generic route cost attribution, exact-amount cache ranking and consistent fair-r
 explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
 [the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
 explanation never changes reference quality, funding, floors or signing admission.
+
+Bounded automatic deeper discovery, producer invalidation and exact progress/client
+adoption also follow [RD1489](AGENTS_ROUTE_DISCOVERY.md) and
+[the checklist](../docs/qa/issue-1489/README.md). Run `make verify-issue-1489`.
+Same-generation higher-net publication must reach active clients through normal
+validation while reviewed transactions remain pinned.

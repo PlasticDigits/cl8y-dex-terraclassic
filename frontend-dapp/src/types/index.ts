@@ -910,6 +910,10 @@ export interface IndexerRouteSolveResponse {
 export interface IndexerRouteSolveProgress {
   /** Local admission generation; observing it never starts producer work. Not signing metadata. */
   quote_generation?: string
+  /** Advisory exact-intent published best; must refetch and validate before adoption. */
+  best_amount_out?: string
+  search_complete?: boolean
+  search_truncated?: boolean
   /** Advisory reference eligibility; never executable amount/floor metadata. */
   quote_eligibility?: string
   quote_blocker?: string

@@ -1,0 +1,202 @@
+{
+  "issue": 1489,
+  "revision": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "utc_start": "2026-10-13T03:16:20.016950+00:00",
+  "utc_end": "2026-10-13T03:19:27.512767+00:00",
+  "overall": "FAIL",
+  "requests": 28,
+  "cohort_comparisons": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 0,
+      "endpoint": "automatic_post",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 0,
+      "endpoint": "best",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 1,
+      "endpoint": "solve",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 1,
+      "endpoint": "automatic_post",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 1,
+      "endpoint": "best",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 2,
+      "endpoint": "solve",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "63386134401366040994",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 2,
+      "endpoint": "automatic_post",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 2,
+      "endpoint": "best",
+      "same_declared_discriminator_cohort": false,
+      "promotion_elapsed_seconds": 0.831,
+      "same_original_cohort": true,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    }
+  ],
+  "initial_cohort_comparisons": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 0,
+      "endpoint": "automatic_post",
+      "same_original_cohort": false,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 0,
+      "endpoint": "best",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 1,
+      "endpoint": "solve",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 1,
+      "endpoint": "automatic_post",
+      "same_original_cohort": false,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 1,
+      "endpoint": "best",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 2,
+      "endpoint": "solve",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 2,
+      "endpoint": "automatic_post",
+      "same_original_cohort": false,
+      "automatic_net": "84720682440611877695",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 2,
+      "endpoint": "best",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "84720682440611877695",
+      "automatic_not_worse": false
+    }
+  ],
+  "initialized_useful_socket_timing": {
+    "samples": 21,
+    "p50_ms": 277.21,
+    "p95_ms": 280.35,
+    "p99_ms": 281.733,
+    "max_ms": 281.733
+  },
+  "failures": [
+    {
+      "cycle": 2,
+      "endpoint": "best",
+      "failure_class": "automatic_inferior_same_cohort"
+    }
+  ],
+  "skips": [
+    "automatic/declared compatible-cohort convergence unverified",
+    "independent SQL/reserves",
+    "production settlement",
+    "physical wallets",
+    "browser adoption"
+  ],
+  "cycle_offsets_seconds": [
+    0,
+    25,
+    185
+  ],
+  "all_cycles_solve_best_convergence_verified": false,
+  "scope": "Retained original deployed behavior; historical development tool hashes/semantic scope differ from final tool. No settlement or complete acceptance claim."
+}

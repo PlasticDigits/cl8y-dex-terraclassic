@@ -44,10 +44,12 @@ def main():
     parser.add_argument("--wrapper-artifacts", type=Path, required=True)
     parser.add_argument("--wrapper-source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--pool-hops", type=int, choices=(1, 3), default=1,
+                        help="One-hop attribution or three-hop native discovery settlement control")
     args = parser.parse_args()
     label = subprocess.run(["docker", "inspect", "--format", '{{index .Config.Labels "cl8y.qa.owner"}}',
                             args.container], capture_output=True, text=True, check=True).stdout.strip()
-    assert label == "dex-1479-1480", "Owned isolated fixture family label required"
+    assert label == ("dex-1489" if args.pool_hops == 3 else "dex-1479-1480"), "Owned isolated fixture family label required"
     artifacts = GAS.provenance(args.artifacts)
     source_inputs = {}
     for p in sorted(args.wrapper_source.rglob("*")):
@@ -76,7 +78,7 @@ def main():
         "name": "Native Attribution Fixture " + symbol, "symbol": symbol, "decimals": 6,
         "initial_balances": [{"address": owner, "amount": "1000000000000000"}],
         "mint": {"minter": owner, "cap": None}, "marketing": None}, "native1483-" + symbol)
-        for symbol in ("WRAP", "OUT")]
+        for symbol in (("WRAP", "MIDONE", "MIDTWO", "OUT") if args.pool_hops == 3 else ("WRAP", "OUT"))]
     chain.execute(tokens[0], {"add_minter": {"minter": mapper}})
     chain.execute(mapper, {"set_denom_mapping": {"denom": "uluna", "cw20_addr": tokens[0]}})
     chain.execute(treasury, {"set_denom_wrapper": {"denom": "uluna", "wrapper": mapper}})
@@ -90,43 +92,57 @@ def main():
         "whitelisted_code_ids": [codes["cw20_mintable"]], "pair_creation_fee_uluna": "0"}, "native1483-factory")
     router = chain.instantiate(codes["cl8y_dex_router"], {"factory": factory}, "native1483-router")
     infos = [FIXTURE.asset(token) for token in tokens]
-    chain.execute(factory, {"create_pair": {"asset_infos": infos}})
-    pair = chain.smart(factory, {"pair": {"asset_infos": infos}})["pair"]["contract_addr"]
-    for token in tokens:
-        chain.execute(token, {"increase_allowance": {"spender": pair, "amount": "100000000000"}})
-    chain.execute(pair, {"provide_liquidity": {"assets": [
-        {"info": info, "amount": "10000000000"} for info in infos], "slippage_tolerance": None}})
+    pairs = []
+    for index in range(args.pool_hops):
+        pair_infos = infos[index:index + 2]
+        chain.execute(factory, {"create_pair": {"asset_infos": pair_infos}})
+        pair = chain.smart(factory, {"pair": {"asset_infos": pair_infos}})["pair"]["contract_addr"]
+        pairs.append(pair)
+        for token in tokens[index:index + 2]:
+            chain.execute(token, {"increase_allowance": {"spender": pair, "amount": "100000000000"}})
+        chain.execute(pair, {"provide_liquidity": {"assets": [
+            {"info": info, "amount": "10000000000"} for info in pair_infos], "slippage_tolerance": None}})
 
     def bank(address):
         return next((int(c["amount"]) for c in chain.query("bank", "balances", address)["balances"]
                      if c["denom"] == "uluna"), 0)
 
     def economics():
-        return {"pool": chain.smart(pair, {"pool": {}}), "treasury_custody": bank(treasury),
+        return {"pools": [chain.smart(pair, {"pool": {}}) for pair in pairs], "treasury_custody": bank(treasury),
                 "wallet_tokens": [chain.balance(token, owner) for token in tokens],
+                "fee_recipient_tokens": [chain.balance(token, recipient) for token in tokens],
+                "router_tokens": [chain.balance(token, router) for token in tokens],
                 "wrapper_supply": chain.smart(tokens[0], {"token_info": {}})["total_supply"],
                 "wrapper_rate": chain.smart(mapper, {"rate_limit": {"denom": "uluna"}})["amount_used"]}
 
     rows = []
     for native in (True, False):
-        for gross in (1_000_000, 1_000_000_000):
+        for gross in ((1_000_000, 1_000_000_000, 10_000_000_000) if args.pool_hops == 3 else (1_000_000, 1_000_000_000)):
             for tolerance in (10**16, 5 * 10**16, 3 * 10**17):
                 credit = gross - gross * 200 // 10_000 if native else gross
-                reserves = {x["info"]["token"]["contract_addr"]: int(x["amount"])
-                            for x in chain.smart(pair, {"pool": {}})["assets"]}
-                rin, rout = (reserves[token] for token in tokens)
-                raw = credit * rout // (rin + credit)
-                net = raw - raw * 30 // 10_000
+                net, market, expected_hops, reserves_before = credit, tolerance, [], []
+                for index, pair in enumerate(pairs):
+                    reserves = {x["info"]["token"]["contract_addr"]: int(x["amount"])
+                                for x in chain.smart(pair, {"pool": {}})["assets"]}
+                    rin, rout = (reserves[token] for token in tokens[index:index + 2])
+                    offer = net
+                    raw = offer * rout // (rin + offer)
+                    net = raw - raw * 30 // 10_000
+                    expected_hops.append(net)
+                    reserves_before.append({"offer_reserve": str(rin), "ask_reserve": str(rout),
+                                            "offer_amount": str(offer), "gross_pool_output": str(raw),
+                                            "commission_amount": str(raw - net), "expected_net": str(net)})
+                    ideal = offer * rout // rin
+                    numerator = min(ideal - raw, raw)
+                    market = max(market, min(SCALE, ((numerator * SCALE + raw * tolerance) * SCALE
+                                  + raw * (SCALE - tolerance) - 1) // (raw * (SCALE - tolerance))))
                 minimum = floor(net, tolerance)
-                ideal = credit * rout // rin
-                numerator = min(ideal - raw, raw)
-                market = min(SCALE, ((numerator * SCALE + raw * tolerance) * SCALE
-                                    + raw * (SCALE - tolerance) - 1) // (raw * (SCALE - tolerance)))
+                hop_floors = [floor(value, tolerance) for value in expected_hops]
 
-                def entries(hop_min, final_min):
-                    op = {"terra_swap": {"offer_asset_info": infos[0], "ask_asset_info": infos[1],
-                          "hybrid": None, "min_return": str(hop_min)}}
-                    hook = {"execute_route_swap_operations": {"funding_version": 1, "operations": [op],
+                def entries(hop_mins, final_min):
+                    operations = [{"terra_swap": {"offer_asset_info": infos[index], "ask_asset_info": infos[index + 1],
+                                  "hybrid": None, "min_return": str(hop_min)}} for index, hop_min in enumerate(hop_mins)]
+                    hook = {"execute_route_swap_operations": {"funding_version": 1, "operations": operations,
                             "max_spread": decimal_text(market), "minimum_receive": str(final_min),
                             "to": owner, "deadline": None, "unwrap_output": False}}
                     result = [{"contract": tokens[0], "msg": {"send": {"contract": router,
@@ -138,16 +154,30 @@ def main():
 
                 original = economics()
                 rejects = []
-                for hop_min, final_min in ((net + 1, minimum), (minimum, net + 1)):
-                    failed = chain.multi_execute(entries(hop_min, final_min), key, expect_failure=True)
+                rejection_floors = []
+                for index, expected_net in enumerate(expected_hops):
+                    rejected = list(hop_floors)
+                    rejected[index] = expected_net + 1
+                    rejection_floors.append((rejected, minimum))
+                rejection_floors.append((hop_floors, net + 1))
+                for rejected_hops, final_min in rejection_floors:
+                    failed = chain.multi_execute(entries(rejected_hops, final_min), key, expect_failure=True)
                     assert economics() == original, "Atomic floor rejection changed wrapper/pool/wallet economic state"
                     rejects.append(int(failed["code"]))
-                before = chain.balance(tokens[1], owner)
-                included = chain.multi_execute(entries(minimum, minimum), key)
-                delivered = chain.balance(tokens[1], owner) - before
+                before = chain.balance(tokens[-1], owner)
+                included = chain.multi_execute(entries(hop_floors, minimum), key)
+                delivered = chain.balance(tokens[-1], owner) - before
                 assert delivered == net and delivered >= minimum
                 assert int(included["code"]) == 0
                 settled = economics()
+                assert settled["wallet_tokens"][1:-1] == original["wallet_tokens"][1:-1], "Router leaked intermediate tokens to wallet"
+                assert settled["router_tokens"] == original["router_tokens"], "Router retained funded route residue"
+                for index, independent in enumerate(reserves_before):
+                    actual = {asset["info"]["token"]["contract_addr"]: int(asset["amount"])
+                              for asset in settled["pools"][index]["assets"]}
+                    assert actual[tokens[index]] == int(independent["offer_reserve"]) + int(independent["offer_amount"])
+                    assert actual[tokens[index + 1]] == int(independent["ask_reserve"]) - int(independent["gross_pool_output"])
+                    assert settled["fee_recipient_tokens"][index + 1] - original["fee_recipient_tokens"][index + 1] == int(independent["commission_amount"])
                 if native:
                     assert settled["treasury_custody"] - original["treasury_custody"] == gross
                     assert int(settled["wrapper_supply"]) - int(original["wrapper_supply"]) == credit
@@ -160,15 +190,17 @@ def main():
                 rows.append({"native": native, "gross_input": str(gross), "credited_route_input": str(credit),
                              "tolerance_atomics": str(tolerance), "expected_net": str(net), "delivered_net": str(delivered),
                              "minimum_receive": str(minimum), "included_code": 0, "gas_used": int(included["gas_used"]),
+                             "pool_hops": args.pool_hops, "independent_reserves_and_hop_economics": reserves_before,
+                             "hop_minimum_receive": [str(value) for value in hop_floors],
                              "rejected_codes": rejects, "atomic_wrapper_pool_wallet_rollback": True})
                 print(json.dumps({"native": native, "gross_input": str(gross), "status": "PASS"}), flush=True)
-    result = {"issue": 1483, "status": "PASS", "utc_start": utc_start,
+    result = {"issue": 1489 if args.pool_hops == 3 else 1483, "status": "PASS", "utc_start": utc_start,
               "utc_end": datetime.now(timezone.utc).isoformat(), "driver_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               "dex_artifacts": artifacts, "wrapper_source_revision": wrapper_revision,
               "wrapper_source_inputs_sha256": hashlib.sha256(json.dumps(source_inputs, sort_keys=True).encode()).hexdigest(),
               "wrapper_source_input_count": len(source_inputs), "wrapper_artifact_sha256": wrapper_hashes,
               "wrapper_build": "Rust 1.83.0 locked release libraries; no wasm-opt; owned synthetic fixture only",
-              "scope": "Owned native-wrap plus one pool hop and wrapped one-hop route; exact independent net and atomic rollback",
+              "scope": f"Owned native-wrap plus {args.pool_hops} pool hops and wrapped control; exact independent net and each-hop/final-floor atomic rollback",
               "synthetic_requested_gas": 12_000_000, "gas_is_not_production_calibration": True,
               "cases": rows, "case_count": len(rows), "economic_rollback_excludes_paid_ante_fees": True,
               "skips": ["native output composition", "tax/hook/populated-book", "physical wallets", "production settlement"]}

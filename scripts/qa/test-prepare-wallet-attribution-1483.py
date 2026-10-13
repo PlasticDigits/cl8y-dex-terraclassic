@@ -112,6 +112,19 @@ class WalletPreparation(unittest.TestCase):
             PREP.prepare(SHA, reader)
         self.assertEqual(reader.requests, [])
 
+    def test_issue1489_preparation_requires_actual_three_hop_native_control(self):
+        reader = Reader()
+        with self.assertRaisesRegex(ValueError, "required_native_route_unavailable"):
+            PREP.prepare(SHA, reader, required_pool_hops=3)
+        self.assertEqual(sum("/api/v1/route/solve?" in url for url in reader.requests), 1)
+
+    def test_issue1489_preparation_envelope_is_closed_before_contact(self):
+        for gross, hops in [("0", 3), ("100000000000", 3), ("10000000000", 4)]:
+            reader = Reader()
+            with self.subTest(gross=gross, hops=hops), self.assertRaisesRegex(ValueError, "unsupported_preparation_scope"):
+                PREP.prepare(SHA, reader, gross=gross, required_pool_hops=hops)
+            self.assertEqual(reader.reads, 0)
+
     def test_missing_attribution_or_unsafe_floor_never_prepares(self):
         for field, mutation in [
             ("economic_attribution", {"version": 1, "status": "unavailable", "method": "spot_bridge_v1"}),

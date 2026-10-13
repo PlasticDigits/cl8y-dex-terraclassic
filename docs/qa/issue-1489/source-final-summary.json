@@ -1,0 +1,68 @@
+{
+  "issue": 1489,
+  "overall": "PASS WITH SKIPS",
+  "revision_base": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "working_tree_source_fingerprint": "92dff16a357c80f9c1d713061b6bfc0d13d2ea89bbcb9828bf9174173eb92c17",
+  "fingerprint_scope": "product source, manifests/locks and actual issue1489 QA tools plus shared validators",
+  "utc_recorded": "2026-10-13T05:39:37.581387+00:00",
+  "groups": {
+    "passed": 20,
+    "failed": 0,
+    "skipped": 2
+  },
+  "rounds": {
+    "first": {
+      "new_backend_units": 9,
+      "owned_socket_fixture": 1,
+      "frontend_tests": 302,
+      "api_probe_controls": 7,
+      "monitor_controls": 2,
+      "wallet_scope_controls": 9,
+      "browser_controls": 6
+    },
+    "retest": {
+      "new_backend_units": 9,
+      "owned_socket_fixture": 1,
+      "frontend_tests": 302,
+      "api_probe_controls": 7,
+      "monitor_controls": 2,
+      "wallet_scope_controls": 9,
+      "browser_controls": 6
+    }
+  },
+  "full_frontend": {
+    "files_per_round": 370,
+    "tests_per_round": 3382,
+    "first_seconds": 399.39,
+    "retest_seconds": 271.42,
+    "source_fingerprint": "f36efd3e9a7d18b89ac6ab198d49b0fae2e357bc192befe4f22059812fed40f1"
+  },
+  "lint": {
+    "errors": 0,
+    "existing_warnings": 5
+  },
+  "production_configured_frontend_build": "PASS",
+  "skips": [
+    "deployed artifacts and sustained live acceptance recorded separately",
+    "funded/independent SQL/physical custody evidence recorded separately"
+  ],
+  "retained_failures": [
+    "native output-cap fixture initially selected legacy protection incorrectly; explicit quote_relative fixture corrected without weakening L9",
+    "first source verification changed during independent safety corrections; final unchanged-source first/retest repeated",
+    "wallet-preparation test initially counted root/health requests as quotes; assertion corrected to count actual solve requests",
+    "owned fixture initially used wrong tmpfs directory; known pending transaction reconciled before owned reset",
+    "related receive-API scope text assertion corrected without changing its minimum-input objective",
+    "controlled 4250-case browser run recorded nine useful-output timings above750ms; original clocks retained pending clean reset/retest",
+    "borrowed prior temporary QA control exhausted tmpfs; no shared reset, new dedicated4GiB QA cluster provisioned with fresh scoped credentials",
+    "authenticated1396 fixture twice correctly rejected runtimeCONNECT on a second owned database; only that unused owned fixture grant revoked, full first/retest28groups pass"
+  ],
+  "preliminary_focused_scope": {
+    "fingerprint": "3cc38e6c2f4de457d4f09733a09f02743e678997e2612dfcb08eca3e0971504d",
+    "backend_units_per_round": 8,
+    "groups_passed": 20,
+    "failures": 0
+  },
+  "owned_qa_cluster": "fresh dedicated admin-marked control; disposable per-process child databases; inactive owned children cleaned after suites",
+  "controlled_full_browser": "controlled-browser-final-summary.json",
+  "related_verifiers": "related-final-summary.json"
+}

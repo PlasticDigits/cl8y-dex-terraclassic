@@ -540,7 +540,16 @@ pub(super) fn amount_error(
         input,
         spread,
         native,
-        select_detailed(s, paths, input, spread, book_allowed, maker_fills, plan),
+        select_detailed(
+            s,
+            paths,
+            input,
+            spread,
+            book_allowed,
+            maker_fills,
+            plan,
+            native,
+        ),
     )
 }
 

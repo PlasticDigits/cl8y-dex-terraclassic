@@ -601,3 +601,28 @@ preparation drives chain polling/network validation. Existing exact net floors,
 actor/tax/hook bindings and 20-second observation/180-second configuration limits
 remain authoritative. Source evidence and policy authorization do not complete
 all issue acceptance; see [results](qa/issue-1479/RESULTS.md).
+
+## Bounded automatic discovery (#1489)
+
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
+Apply [RD1489-1–RD1489-10](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[the checklist](qa/issue-1489/README.md). Preserve a useful short first quote,
+then compare bounded eligible deeper candidates by exact delivered net. Unchanged
+positive producer validation cannot revoke compatible original economics;
+authoritative negatives and real fee/configuration/reference/market/wrapper/freeze
+changes still invalidate unsafe work. Original observation/expiry never renews.
+Temporary four-job saturation must retry deferred coalesced intents fairly;
+cache hits cannot permanently strand a short route. Wrapping does not consume a
+pool hop. Report truncated enumeration honestly and preserve all finite limits.
+Progress binds the actual native/gross/protection/mode intent and stays advisory.
+All [#1483 attribution](qa/issue-1483/README.md), offline request, economic
+reference, funding, floor, tax/hook and review invariants remain independent.
+
+The #1489 price notice follows the same current, unexpired quote that supplies
+the displayed receive amount. A same-intent background fetch may block signing
+without hiding that factual notice; it does not grant signing permission. Intent
+changes and original expiry clear stale display/notice state. A newly validated
+quote may legitimately move above or below exact 5%; no warning hysteresis or
+threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).

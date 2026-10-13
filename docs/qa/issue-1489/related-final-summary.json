@@ -1,0 +1,136 @@
+{
+  "issue": 1489,
+  "recorded_at_utc": "2026-10-13T05:39:37.581387+00:00",
+  "overall": "PASS WITH SKIPS",
+  "verifiers": [
+    {
+      "issue": 1489,
+      "passed_groups": 20,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "92dff16a357c80f9c1d713061b6bfc0d13d2ea89bbcb9828bf9174173eb92c17",
+      "private_log_sha256": "f5f3fd24f01885f9c155f82961ac3f4f85e7f4d7c62550a2c85f17ed0fab11e0",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1483,
+      "passed_groups": 21,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "6f5ca389a3a3a8b779738a0e6da9cce65e3a1202df2880fb61bd493b276cc301",
+      "private_log_sha256": "7cc4bcfa880f8c4ecc2645e2f21926205f1f9e2885cce6f10015e11dc895355a",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1452,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "source_fingerprint": "9f48ebc9aeea3464ced6649b65681bc7ed666a1630aa88a1eebc37becc089901",
+      "private_log_sha256": "016b98cbfab4f14f2af75e79fea47c57aaf6b854a4354a94ef80d995f62d73b7",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1473,
+      "passed_groups": 17,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "ad7bf4c7e3bbb0a2211be98f6972d82cff1af24ba8a2304d628908d8048b4957",
+      "private_log_sha256": "79bcf1ab0111f7d0bcb47653c0920a640ac9965c344892c8e1ce19ddce322c05",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1479,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "source_fingerprint": "6f5ca389a3a3a8b779738a0e6da9cce65e3a1202df2880fb61bd493b276cc301",
+      "private_log_sha256": "360517bbe9fce7602dc1b1cdbb309cacc29751e4c54c277ab7905ce194e80a0b",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1480,
+      "passed_groups": 10,
+      "failed_groups": 0,
+      "skipped_groups": 3,
+      "source_fingerprint": "6f5ca389a3a3a8b779738a0e6da9cce65e3a1202df2880fb61bd493b276cc301",
+      "private_log_sha256": "5feedd11f826949b15676de05e4f431812f24672f14777db2901e7012c8d360a",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1464,
+      "passed_groups": 11,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": "c70bc5ae1703e5cac595827ca8ff63c7020606f9099bab92c2a8b40f9c884e49",
+      "private_log_sha256": "4798500e8e4ea81127fdd1411ea5e88772ad2059074b75eeb8ae93203be12e08",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1453,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": null,
+      "private_log_sha256": "57c96b6459fe48a2a7ef56403d31527e9399d21af0bd55ea711375f7fe821586",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1391,
+      "passed_groups": 6,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": null,
+      "private_log_sha256": "f0d5a7a2eb5bc061e0a61a53fadd98d24e250489ab449aa5dc4eb8ae14c4a20d",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1398,
+      "passed_groups": 7,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "source_fingerprint": null,
+      "private_log_sha256": "5edc73dffb33ec93ad7f8a96cf929b025dbf25448176d826e2c2a860b7e34c9b",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1381,
+      "passed_groups": 13,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": null,
+      "private_log_sha256": "f0d75c2196a3a469c952578f92bfd9a1bda89c347fd5b673d78b47ef5e366748",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1390,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "source_fingerprint": null,
+      "private_log_sha256": "164d1d8c341d9938850e71b20ccbd173d9ee6d748cdf48ec815ec740d3eaba50",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    },
+    {
+      "issue": 1396,
+      "passed_groups": 28,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "source_fingerprint": null,
+      "private_log_sha256": "7f8ef5237b20e3ca23b1f86ff178887589483e70ecc926f319c64df487fe0f31",
+      "scope": "source/local owned fixtures; all explicit acceptance skips remain unchecked"
+    }
+  ],
+  "totals": {
+    "passed_groups": 185,
+    "failed_groups": 0,
+    "skipped_groups": 21
+  },
+  "retained_executed_failures": [
+    "initial1452 receive objective compatibility assertion fixed without changing its objective",
+    "initial1473 nine useful clocks above750ms; fresh owned infrastructure final complete4250-case matrix passes original clocks",
+    "initial1381 missing default fixture container; real configured owned chain verification passes",
+    "authenticated1396 fixture twice correctly rejected runtimeCONNECT on a second owned database; only that unused owned fixture grant revoked, full first/retest28groups pass"
+  ],
+  "production_reset_or_signing": false
+}

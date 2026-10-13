@@ -2789,3 +2789,35 @@ of indefinite price-loading recovery. The client watches scheduled eligibility
 changes without repeated solves for the same policy block. Only a fresh validated
 executable quote fills the receive field or authorizes signing; a catalog market,
 positive TVL or completed search does not.
+
+## Automatic route improvement and progress (#1489)
+
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
+Follow [RD1489](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[the checklist](qa/issue-1489/README.md), preserving
+[#1483 economic explanation](qa/issue-1483/README.md). Native progress uses the
+original native identity and gross amount, together with the solve's protection,
+spread and mode. A wrapped progress key with native gross does not describe the
+same solve. Adopt an eligible higher-net quote within the same generation as well
+as new generations; retain the quote's original expiry. Consent and signing keep
+reviewed operations, input, fees and floors pinned. Progress cannot authorize a
+transaction or make expired data fresh. One concise notice describes costs and
+movement on the selected route without asserting scarcity across all eligible
+routes. Exact >5%, >30%, >=99% protections and unknown-budget refusal remain.
+
+The bounded improvement observer polls advisory progress about once per second
+until the original quote expires or bounded discovery completes. It only reacts
+to strictly higher raw output in the same original generation, and requests a
+normal quote through the existing validator. It aborts on intent changes, declared
+plans, receive sizing, consent/review or signing. Advisory errors stop this observer;
+the existing normal refresh cadence remains independent. No timer renews the
+original at-most-20-second observation window.
+
+The #1489 price notice follows the same current, unexpired quote that supplies
+the displayed receive amount. A same-intent background fetch may block signing
+without hiding that factual notice; it does not grant signing permission. Intent
+changes and original expiry clear stale display/notice state. A newly validated
+quote may legitimately move above or below exact 5%; no warning hysteresis or
+threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).

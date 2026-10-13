@@ -37,6 +37,9 @@ struct Snapshot {
     config_expiry_ms: i64,
     config_expiries: HashMap<String, i64>,
     config_epoch: u64,
+    // Monotone invalidation for shortened validity windows; ordinary refreshes
+    // retain it, so a later identical refresh cannot resurrect an old cache key.
+    validity_revision: u64,
     references: super::local_reference_quote::ReferencePrices,
     actors: HashMap<String, (u16, bool)>,
     discounted_pairs: HashSet<String>,
@@ -54,6 +57,7 @@ struct Store {
     wrappers: HashMap<String, super::local_wrapper_quote::WrapperSnapshot>,
     results: HashMap<String, Value>,
     jobs: HashSet<String>,
+    deferred_jobs: std::collections::VecDeque<jobs::Work>,
     hits: u64,
     started: u64,
     next_config_epoch: u64,
@@ -392,6 +396,7 @@ fn publish(
         config_expiries,
         pair_contexts,
         config_epoch: expected_config_epoch.unwrap_or(0),
+        validity_revision: 0,
         references,
         actors,
         discounted_pairs,
@@ -416,6 +421,9 @@ fn publish(
     }
     if let Some(current) = g.snapshots.get(&namespace) {
         preserve_newer_mirrors(&mut snapshot, current);
+        snapshot.validity_revision = current
+            .validity_revision
+            .saturating_add(u64::from(validity_tightened(&snapshot, current)));
     }
     let qualifications = snapshot
         .pairs
@@ -923,6 +931,7 @@ struct Selection {
     indicative: Option<Candidate>,
     rejected: Option<diagnostics::Rejection>,
 }
+#[allow(clippy::too_many_arguments)]
 fn select_detailed(
     s: &Snapshot,
     paths: &[Vec<route_paths::PathHop>],
@@ -931,6 +940,7 @@ fn select_detailed(
     book_allowed: bool,
     maker_fills: u32,
     plan: Option<&[Option<route_solver::HybridHopJson>]>,
+    native: Option<&NativeContext>,
 ) -> Selection {
     let splits = if book_allowed && plan.is_none() {
         vec![0, amount / 2, amount]
@@ -940,8 +950,18 @@ fn select_detailed(
     let mut selected = Selection::default();
     for path in paths {
         for book in &splits {
-            let reason = match evaluate_with_plan(s, path, amount, spread, *book, maker_fills, plan)
-            {
+            let evaluated = evaluate_with_plan(s, path, amount, spread, *book, maker_fills, plan)
+                .and_then(|candidate| {
+                    if let Some(reason) = native.and_then(|n| {
+                        native_candidate_rejection(n, &candidate, amount)
+                            .or_else(|| native_fair_rejection(s, n, &candidate, amount))
+                    }) {
+                        Err(reason)
+                    } else {
+                        Ok(candidate)
+                    }
+                });
+            let reason = match evaluated {
                 Ok(candidate) if !candidate.protection_blocked => {
                     if selected
                         .executable
@@ -982,7 +1002,17 @@ fn select(
     book_allowed: bool,
     maker_fills: u32,
 ) -> Option<Candidate> {
-    select_detailed(s, paths, amount, spread, book_allowed, maker_fills, None).executable
+    select_detailed(
+        s,
+        paths,
+        amount,
+        spread,
+        book_allowed,
+        maker_fills,
+        None,
+        None,
+    )
+    .executable
 }
 
 fn response(
@@ -1094,6 +1124,21 @@ fn response(
     body
 }
 
+fn validity_tightened(current: &Snapshot, reviewed: &Snapshot) -> bool {
+    observation_max_age(current) < observation_max_age(reviewed)
+        || reviewed.pairs.iter().any(|pair| {
+            current
+                .config_expiries
+                .get(&pair.contract_address)
+                .copied()
+                .unwrap_or(current.config_expiry_ms)
+                < reviewed
+                    .config_expiries
+                    .get(&pair.contract_address)
+                    .copied()
+                    .unwrap_or(reviewed.config_expiry_ms)
+        })
+}
 fn admission_generation(s: &Snapshot) -> String {
     let frozen = crate::indexer::asset_code_id_freeze::snapshot_frozen_pair_addresses();
     let mut relevant = s
@@ -1105,10 +1150,12 @@ fn admission_generation(s: &Snapshot) -> String {
     relevant.sort();
     let mut h = Sha256::new();
     h.update(format!(
-        "{}|{relevant:?}|fee:{}|protection:{}",
+        "{}|{relevant:?}|fee:{}|protection:{}|validity:{}|max_age:{}",
         s.generation,
         crate::indexer::fee_phase::revision(&s.namespace),
-        s.quote_relative_protection
+        s.quote_relative_protection,
+        s.validity_revision,
+        observation_max_age(s)
     ));
     format!("{:x}", h.finalize())
 }
@@ -1157,9 +1204,12 @@ fn reviewed_snapshot_current(
     let Some(current) = g.snapshots.get(namespace) else {
         return false;
     };
-    if current.config_epoch != reviewed.config_epoch {
+    if validity_tightened(current, reviewed) {
         return false;
     }
+    // A routine configuration refresh can advance its ingestion epoch while
+    // retaining exactly the same economics. The full published generation binds
+    // policies/references/tuples; negatives change that generation immediately.
     let mut generation = protocol_guards::generation(g, namespace, current);
     if native.is_some() {
         let Some(wrapper) = g.wrappers.get(namespace) else {
@@ -1174,6 +1224,12 @@ fn native_candidate_rejection(
     c: &Candidate,
     input: u128,
 ) -> Option<diagnostics::Rejection> {
+    if c.operations
+        .iter()
+        .any(|op| !op["terra_swap"]["hybrid"].is_null())
+    {
+        return Some(diagnostics::Rejection::Unsupported);
+    }
     if !n.wrapper.is_fresh(now_ms()) {
         return Some(diagnostics::Rejection::Stale);
     }
@@ -1355,6 +1411,7 @@ impl Drop for JobGuard {
     fn drop(&mut self) {
         if let Ok(mut g) = store().lock() {
             g.jobs.remove(&self.0);
+            jobs::drain(&mut g);
         }
     }
 }
@@ -1516,6 +1573,9 @@ async fn solve_local_with_plan(
     let mut q = request.clone();
     let wrap = matches!(q.token_in.as_str(), "uluna" | "uusd");
     let unwrap = matches!(q.token_out.as_str(), "uluna" | "uusd");
+    if (wrap || unwrap) && plan.is_some_and(|plan| plan.iter().any(Option::is_some)) {
+        return Err(diagnostics::Rejection::Unsupported.error());
+    }
     let native = if wrap || unwrap {
         let w = store()
             .lock()
@@ -1754,11 +1814,35 @@ async fn solve_local_with_plan(
             .cloned()
         {
             g.hits += 1;
+            // A cache hit must not strand a short result rejected by a full
+            // queue. Retry/coalesce using the original immutable cohort.
+            if plan.is_none()
+                && q.amount_in.is_some()
+                && body["search_complete"] != true
+                && jobs::needs_work(&g, &ck)
+            {
+                jobs::enqueue(
+                    &mut g,
+                    jobs::Work::new(
+                        ck.clone(),
+                        namespace,
+                        &snapshot,
+                        q,
+                        native.as_ref(),
+                        start,
+                        goal,
+                        spread,
+                        &body,
+                    ),
+                );
+            }
             return Ok(Json(body));
         }
     }
-    let book_allowed =
-        q.pool_only != Some(true) && q.hybrid_optimize != Some(false) && q.amount_out.is_none();
+    let book_allowed = native.is_none()
+        && q.pool_only != Some(true)
+        && q.hybrid_optimize != Some(false)
+        && q.amount_out.is_none();
     let maker_fills = crate::hybrid_limits::clamp_max_maker_fills(q.max_maker_fills.unwrap_or(8));
     let select_amount = |paths: &[Vec<route_paths::PathHop>], amount| {
         select_detailed(
@@ -1769,9 +1853,16 @@ async fn solve_local_with_plan(
             book_allowed,
             maker_fills,
             plan,
+            native.as_ref(),
         )
     };
-    let mut initial = paths(&snapshot, start, goal, 2);
+    let mut discovery = skeletons::discovery(
+        &snapshot,
+        start,
+        goal,
+        if q.amount_out.is_some() { 4 } else { 2 },
+    );
+    let mut initial = discovery.paths.clone();
     let mut selected = q
         .amount_in
         .as_deref()
@@ -1784,7 +1875,8 @@ async fn solve_local_with_plan(
             .as_ref()
             .is_some_and(|result| result.executable.is_none())
     {
-        initial = paths(&snapshot, start, goal, 4);
+        discovery = skeletons::discovery(&snapshot, start, goal, 4);
+        initial = discovery.paths.clone();
         selected = q
             .amount_in
             .as_deref()
@@ -1829,10 +1921,14 @@ async fn solve_local_with_plan(
         considered = initial.len().min(64);
         let (mut best, mut rejected) =
             reverse::select_inverse_detailed(&snapshot, &initial, target, spread);
-        if best.is_none() && initial.iter().all(|p| p.len() <= 2) {
-            let longer = paths(&snapshot, start, goal, 4)
-                .into_iter()
-                .filter(|p| p.len() > 2)
+        // Preserve the supported conditional longer-path pass when the first
+        // 64 bounded inversions contain only failing short alternatives.
+        if best.is_none() {
+            let longer = initial
+                .iter()
+                .skip(64)
+                .filter(|path| path.len() > 2)
+                .cloned()
                 .collect::<Vec<_>>();
             considered += longer.len().min(64);
             let (candidate, reason) =
@@ -1878,6 +1974,12 @@ async fn solve_local_with_plan(
             )
         }
     })?;
+    let complete =
+        q.amount_out.is_some() || plan.is_some() || initial.iter().any(|path| path.len() > 2);
+    if q.amount_out.is_some() && initial.len() > 64 {
+        discovery.truncated = true;
+    }
+    discovery.annotate(&mut body, complete);
     if plan.is_some() {
         body["execution_metadata"]["policy"] = json!("declared_hybrid_manual");
         body["optimality_scope"] = json!(
@@ -1895,35 +1997,23 @@ async fn solve_local_with_plan(
         g.results.insert(ck.clone(), body.clone());
         if plan.is_none()
             && q.amount_in.is_some()
-            && g.jobs.len() < MAX_JOBS
-            && g.jobs.insert(ck.clone())
+            && body["search_complete"] != true
+            && jobs::needs_work(&g, &ck)
         {
-            g.started += 1;
-            let q = q.clone();
-            let s = snapshot.clone();
-            let baseline = candidate.clone();
-            let native = native.clone();
-            let namespace = namespace.to_string();
-            tokio::task::spawn_blocking(move || {
-                let _job = JobGuard(ck.clone());
-                let all = paths(&s, start, goal, 4);
-                let improved = select(&s, &all, amount, spread, book_allowed, maker_fills)
-                    .filter(|c| c.output > baseline.output);
-                let mut g = store().lock().unwrap();
-                if !reviewed_snapshot_current(&g, &namespace, &s, native.as_ref()) {
-                    return;
-                }
-                if let Some(c) = improved {
-                    if g.results.contains_key(&ck) {
-                        if let Some(body) =
-                            final_response(&s, &q, &c, amount, spread, all.len(), native.as_ref())
-                        {
-                            g.results.insert(ck.clone(), body);
-                        }
-                    }
-                }
-                g.jobs.remove(&ck);
-            });
+            jobs::enqueue(
+                &mut g,
+                jobs::Work::new(
+                    ck.clone(),
+                    namespace,
+                    &snapshot,
+                    q,
+                    native.as_ref(),
+                    start,
+                    goal,
+                    spread,
+                    &body,
+                ),
+            );
         }
     }
     Ok(Json(body))
@@ -1958,6 +2048,7 @@ fn progress_local(
         return Err(unavailable());
     }
     let mut s = protocol_guards::derive(&g, &ns, g.snapshots.get(&ns).ok_or_else(unavailable)?);
+    s.quote_relative_protection = q.protection_policy.as_deref() == Some("quote_relative_v1");
     if matches!(q.token_in.as_str(), "uluna" | "uusd")
         || matches!(q.token_out.as_str(), "uluna" | "uusd")
     {
@@ -1965,7 +2056,11 @@ fn progress_local(
         s.generation = wrapper_generation(&s.generation, w);
     }
     let ck = key(&ns, &s, q, spread_atomics(q.max_spread.as_deref())?);
-    let searching = g.jobs.contains(&ck);
+    let searching = g.jobs.contains(&ck) || g.deferred_jobs.iter().any(|work| work.key == ck);
+    let search_complete = g
+        .results
+        .get(&ck)
+        .is_some_and(|body| body["search_complete"] == true);
     let resolve_id = |address: &str| {
         let wrapped = g
             .wrappers
@@ -2032,7 +2127,7 @@ fn progress_local(
             "idle"
         }
         .into(),
-        done: u32::from(cached && !searching),
+        done: u32::from(cached && !searching && search_complete),
         total: 1,
         label: if searching {
             "Improving local route"
@@ -2047,6 +2142,18 @@ fn progress_local(
         quote_generation: Some(s.generation.clone()),
         quote_eligibility: Some(eligibility.into()),
         quote_blocker: reference_blocker.map(str::to_owned),
+        best_amount_out: cached
+            .then(|| {
+                g.results[&ck]["estimated_amount_out_net"]
+                    .as_str()
+                    .map(str::to_owned)
+            })
+            .flatten(),
+        search_complete: Some(search_complete),
+        search_truncated: g
+            .results
+            .get(&ck)
+            .and_then(|body| body["search_truncated"].as_bool()),
     })
 }
 
@@ -2054,7 +2161,10 @@ mod actor_inventory;
 mod admission;
 mod attribution;
 mod diagnostics;
+#[cfg(test)]
+mod discovery_tests;
 mod ingestion;
+mod jobs;
 mod modes;
 mod pair_admission;
 mod reverse;
@@ -2149,6 +2259,7 @@ mod tests {
             namespace: "unit1452".into(),
             generation: "fixture".into(),
             config_epoch: 0,
+            validity_revision: 0,
             ids: addresses.iter().map(|(id, a)| (a.clone(), *id)).collect(),
             addresses: addresses.clone(),
             pairs,

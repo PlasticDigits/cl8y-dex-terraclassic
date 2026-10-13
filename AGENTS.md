@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Bounded automatic route discovery
+
+For deeper candidate discovery/promotion, producer invalidation, job contention,
+progress intent or client adoption, follow
+[RD1489-1–RD1489-10](skills/AGENTS_ROUTE_DISCOVERY.md) and run
+`make verify-issue-1489`; use [the checklist](docs/qa/issue-1489/README.md).
+Rank exact delivered net within supported original economics and bounded search.
+Unrelated producer validation cannot strand deferred improvements; genuine
+negative/policy changes still revoke unsafe work. Reviews remain pinned.
+
 ## Route economic attribution and amount-specific ranking
 
 For native/wrapped route cost attribution, amount-cache ranking or Swap/Trade

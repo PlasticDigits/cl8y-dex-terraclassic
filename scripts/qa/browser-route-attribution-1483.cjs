@@ -12,9 +12,9 @@ const BACKEND = "https://indexer.dex.cl8y.com";
 const COPIES = [
   "Wrapping costs",
   "Trading costs",
-  "Limited liquidity",
-  "Pool and order pricing",
-  "Better pool or order pricing",
+  "Selected pool price movement",
+  "Selected pool and order pricing",
+  "Better selected pool or order pricing",
   "Different pricing",
   "Combined costs and pricing",
   "Matches reference prices",

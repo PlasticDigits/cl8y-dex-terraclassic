@@ -1,0 +1,133 @@
+{
+  "issue": 1473,
+  "overall": "FAIL",
+  "scope": "Retained controlled browser original timing failure; original750ms initialized clock unchanged",
+  "scenarios": 4250,
+  "failure_count": 9,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 88.89999999850988,
+    "p95_ms": 148.79999999701977,
+    "p99_ms": 169.10000000149012,
+    "max_ms": 3970.39999999851
+  },
+  "failures": [
+    {
+      "viewport": 1440,
+      "pair": [
+        "LUNC",
+        "cUSTC"
+      ],
+      "amount": "1000",
+      "max_spread": "0.05",
+      "useful_output_ms": 1204.5,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 1440,
+      "pair": [
+        "cUSTC",
+        "LUNC"
+      ],
+      "amount": "0.001",
+      "max_spread": "0.05",
+      "useful_output_ms": 2160.1999999955297,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 1440,
+      "pair": [
+        "cUSTC",
+        "LUNC"
+      ],
+      "amount": "10",
+      "max_spread": "0.05",
+      "useful_output_ms": 2763.60000000149,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 1440,
+      "pair": [
+        "cUSTC",
+        "LUNC"
+      ],
+      "amount": "1",
+      "max_spread": "0.05",
+      "useful_output_ms": 2489.5,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 390,
+      "pair": [
+        "USTR",
+        "CL8Y"
+      ],
+      "amount": "100",
+      "max_spread": "0.01",
+      "useful_output_ms": 3970.39999999851,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 390,
+      "pair": [
+        "USTR",
+        "CL8Y"
+      ],
+      "amount": "14.999999999999999953",
+      "max_spread": "0.01",
+      "useful_output_ms": 773.7999999970198,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 390,
+      "pair": [
+        "USTR",
+        "cUSTC"
+      ],
+      "amount": "0.000001333333335112",
+      "max_spread": "0.01",
+      "useful_output_ms": 2240.5999999940395,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 390,
+      "pair": [
+        "USTR",
+        "cUSTC"
+      ],
+      "amount": "0.000001333333335113",
+      "max_spread": "0.01",
+      "useful_output_ms": 894.2000000029802,
+      "validated_execution_quote": true,
+      "request_attempts": 1,
+      "failure": "initialized useful output exceeded 750ms"
+    },
+    {
+      "viewport": 390,
+      "pair": [
+        "CUSTOM9",
+        "CUSTOM12"
+      ],
+      "amount": "10",
+      "max_spread": "0.01",
+      "useful_output_ms": 802.4000000059605,
+      "validated_execution_quote": true,
+      "request_attempts": 0,
+      "failure": "initialized useful output exceeded 750ms"
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "scope": "independent_read_only_contract_inventory",
+  "utc_start": "2026-10-13T04:01:40.354344+00:00",
+  "requested_original_backend_revision": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "production_sql": "SKIP_database_connection_not_exposed_by_authorized_environment_read",
+  "signed_or_broadcast": false,
+  "quote_triggered_provider_requests": false,
+  "provider_read_budget": 48,
+  "backend_revision_before": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "provider_availability_probes": [
+    {
+      "index": 0,
+      "status": 200,
+      "expected_chain": true
+    }
+  ],
+  "chain_id": "columbus-5",
+  "requested_height": "30814394",
+  "router_capabilities": {
+    "funding_version": 1,
+    "settlement_version": 1
+  },
+  "wrapper_floor_capabilities": {
+    "mapper": null,
+    "wrapper_treasury": null
+  },
+  "contracts": [
+    {
+      "role": "factory",
+      "contract": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "code_id": 11711,
+      "artifact": {
+        "code_id": 11711,
+        "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 441400
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cl8y_dex_factory.wasm"
+    },
+    {
+      "role": "router",
+      "contract": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+      "code_id": 11712,
+      "artifact": {
+        "code_id": 11712,
+        "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 409961
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cl8y_dex_router.wasm"
+    },
+    {
+      "role": "mapper",
+      "contract": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2",
+      "code_id": 11574,
+      "artifact": {
+        "code_id": 11574,
+        "sha256": "a9bf140f8502d4d44a487d859c76da99749659f78af17daabdfac814bb160234",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 273460
+      },
+      "matches_current_optimized_artifact": false
+    },
+    {
+      "role": "corridor_pair_0",
+      "contract": "terra17l7eqc5j8vkm09up55etfggpr6y92ka6p03yc765mt3nerqcnhdsl6l7jq",
+      "code_id": 11715,
+      "artifact": {
+        "code_id": 11715,
+        "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 648646
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cl8y_dex_pair.wasm"
+    },
+    {
+      "role": "corridor_pair_1",
+      "contract": "terra1qfa8hn0tnu33mnpahl382ekyd4873gmp2vsvcm3apw526tnrh8aqtrknvf",
+      "code_id": 11715,
+      "artifact": {
+        "code_id": 11715,
+        "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 648646
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cl8y_dex_pair.wasm"
+    },
+    {
+      "role": "corridor_pair_2",
+      "contract": "terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy",
+      "code_id": 11715,
+      "artifact": {
+        "code_id": 11715,
+        "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 648646
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cl8y_dex_pair.wasm"
+    },
+    {
+      "role": "corridor_token_0",
+      "contract": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+      "code_id": 10184,
+      "artifact": {
+        "code_id": 10184,
+        "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 343866
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cw20_mintable.wasm"
+    },
+    {
+      "role": "corridor_token_1",
+      "contract": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+      "code_id": 10184,
+      "artifact": {
+        "code_id": 10184,
+        "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 343866
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cw20_mintable.wasm"
+    },
+    {
+      "role": "corridor_token_2",
+      "contract": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+      "code_id": 10184,
+      "artifact": {
+        "code_id": 10184,
+        "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 343866
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cw20_mintable.wasm"
+    },
+    {
+      "role": "corridor_token_3",
+      "contract": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4",
+      "code_id": 10184,
+      "artifact": {
+        "code_id": 10184,
+        "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 343866
+      },
+      "matches_current_optimized_artifact": true,
+      "matched_artifact": "cw20_mintable.wasm"
+    },
+    {
+      "role": "wrapper_treasury",
+      "contract": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+      "code_id": 11667,
+      "artifact": {
+        "code_id": 11667,
+        "sha256": "c91720e640c0c4de4a87ce48d85472b8dc421104d35dae1db1d020b8d37a9ea0",
+        "matches_chain_checksum": true,
+        "artifact_bytes": 354963
+      },
+      "matches_current_optimized_artifact": false
+    }
+  ],
+  "backend_revision_after": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "independent_corridor_reserves_and_fees": [
+    {
+      "pair": "terra17l7eqc5j8vkm09up55etfggpr6y92ka6p03yc765mt3nerqcnhdsl6l7jq",
+      "pool_height_acknowledged": false,
+      "fee_height_acknowledged": false,
+      "assets": [
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+            }
+          },
+          "amount": "19422801747634"
+        },
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
+            }
+          },
+          "amount": "1013900707731165595895"
+        }
+      ],
+      "total_share": "140331010250649873",
+      "fee_bps": 180
+    },
+    {
+      "pair": "terra1qfa8hn0tnu33mnpahl382ekyd4873gmp2vsvcm3apw526tnrh8aqtrknvf",
+      "pool_height_acknowledged": false,
+      "fee_height_acknowledged": false,
+      "assets": [
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+            }
+          },
+          "amount": "10348555733"
+        },
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
+            }
+          },
+          "amount": "9663184240791846460272"
+        }
+      ],
+      "total_share": "10000000000000000",
+      "fee_bps": 180
+    },
+    {
+      "pair": "terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy",
+      "pool_height_acknowledged": false,
+      "fee_height_acknowledged": false,
+      "assets": [
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+            }
+          },
+          "amount": "20076038829"
+        },
+        {
+          "info": {
+            "token": {
+              "contract_addr": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
+            }
+          },
+          "amount": "3268571252528512109774189"
+        }
+      ],
+      "total_share": "256124365017914795",
+      "fee_bps": 180
+    }
+  ],
+  "utc_end": "2026-10-13T04:02:08.157493+00:00",
+  "provider_reads": 31,
+  "pinned_height_response_acknowledgements": 3,
+  "atomic_public_chain_height_acknowledged": false,
+  "reviewed_source_artifact_match": {
+    "factory": "PASS",
+    "router": "PASS",
+    "mapper": "SKIP_no_matching_reviewed_current_artifact",
+    "corridor_pair_0": "PASS",
+    "corridor_pair_1": "PASS",
+    "corridor_pair_2": "PASS",
+    "corridor_token_0": "PASS",
+    "corridor_token_1": "PASS",
+    "corridor_token_2": "PASS",
+    "corridor_token_3": "PASS",
+    "wrapper_treasury": "SKIP_no_matching_reviewed_current_artifact"
+  },
+  "production_settlement": "SKIP_no_signing",
+  "errors": [
+    {
+      "check": "mapper_floor_capabilities",
+      "class": "HTTPError",
+      "http_status": 500
+    },
+    {
+      "check": "wrapper_treasury_floor_capabilities",
+      "class": "HTTPError",
+      "http_status": 500
+    }
+  ],
+  "contract_inventory_overall": "PASS",
+  "capability_checks_overall": "PASS_WITH_SKIPS",
+  "economic_pool_snapshot_overall": "UNATTESTED_PINNED_HEIGHT",
+  "driver_sha256": "880857465af9595f463bdbc831d6d11f2d864e91cf1235c6cc3d29e9e3ed718c",
+  "artifact_scope_note": "Parent attested current smartcontract source equivalence; independent SHA256 comparison against existing optimized main-checkout artifacts. No contract build or deployment performed."
+}

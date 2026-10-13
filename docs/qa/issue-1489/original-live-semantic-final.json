@@ -1,0 +1,86 @@
+{
+  "issue": 1489,
+  "revision": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "utc_start": "2026-10-13T03:27:10.764175+00:00",
+  "utc_end": "2026-10-13T03:27:14.144284+00:00",
+  "overall": "PASS WITH SKIPS",
+  "driver_sha256": "fa6d88ca312f27530919d58c082a9ea1067047daefd5fa36744409a9559e673e",
+  "requests": 10,
+  "cohort_comparisons": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "same_declared_discriminator_cohort": true,
+      "promotion_elapsed_seconds": 0.836,
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "84048266732619771357",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 0,
+      "endpoint": "automatic_post",
+      "same_declared_discriminator_cohort": true,
+      "promotion_elapsed_seconds": 0.836,
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "84048266732619771357",
+      "automatic_not_worse": true
+    },
+    {
+      "cycle": 0,
+      "endpoint": "best",
+      "same_declared_discriminator_cohort": true,
+      "promotion_elapsed_seconds": 0.837,
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "84048266732619771357",
+      "automatic_not_worse": true
+    }
+  ],
+  "initial_cohort_comparisons": [
+    {
+      "cycle": 0,
+      "endpoint": "solve",
+      "same_original_cohort": false,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 0,
+      "endpoint": "automatic_post",
+      "same_original_cohort": true,
+      "automatic_net": "63386134401366040994",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": false
+    },
+    {
+      "cycle": 0,
+      "endpoint": "best",
+      "same_original_cohort": true,
+      "automatic_net": "84048266732619771357",
+      "declared_net": "83864895115238012908",
+      "automatic_not_worse": true
+    }
+  ],
+  "initialized_useful_socket_timing": {
+    "samples": 7,
+    "p50_ms": 279.31,
+    "p95_ms": 280.305,
+    "p99_ms": 280.305,
+    "max_ms": 280.305
+  },
+  "failures": [],
+  "skips": [
+    "independent SQL/reserves",
+    "production settlement",
+    "physical wallets",
+    "browser adoption"
+  ],
+  "cycle_offsets_seconds": [
+    0
+  ],
+  "all_cycles_solve_best_convergence_verified": true,
+  "scope": "Retained original deployed behavior; historical development tool hashes/semantic scope differ from final tool. No settlement or complete acceptance claim."
+}

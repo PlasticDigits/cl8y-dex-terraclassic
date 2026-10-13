@@ -4,10 +4,27 @@ use super::*;
 
 const MAX_SKELETONS: usize = 128;
 type Paths = Vec<Vec<route_paths::PathHop>>;
+#[derive(Clone)]
+pub(super) struct Discovery {
+    pub paths: Paths,
+    pub truncated: bool,
+}
+impl Discovery {
+    pub fn annotate(&self, body: &mut Value, complete: bool) {
+        body["search_complete"] = json!(complete);
+        body["search_truncated"] = json!(self.truncated);
+        body["search_max_pool_hops"] = json!(route_solver::GET_DEFAULT_MAX_HOPS);
+        body["optimality_scope"] = if body["target_amount_out"].is_null() {
+            json!("Best delivered net among evaluated eligible paths; bounded discovery may omit alternatives")
+        } else {
+            json!("Minimum raw gross input among evaluated eligible local pool paths; bounded discovery may omit alternatives")
+        };
+    }
+}
 
 #[derive(Default)]
 pub(super) struct SkeletonCache {
-    entries: HashMap<String, Arc<Paths>>,
+    entries: HashMap<String, Arc<Discovery>>,
     hits: u64,
     misses: u64,
 }
@@ -35,6 +52,9 @@ fn key(s: &Snapshot, start: i32, goal: i32, depth: usize) -> String {
 }
 
 pub(super) fn paths(s: &Snapshot, start: i32, goal: i32, depth: usize) -> Paths {
+    discovery(s, start, goal, depth).paths
+}
+pub(super) fn discovery(s: &Snapshot, start: i32, goal: i32, depth: usize) -> Discovery {
     let depth = depth.min(route_solver::GET_DEFAULT_MAX_HOPS);
     let key = key(s, start, goal, depth);
     {
@@ -46,10 +66,10 @@ pub(super) fn paths(s: &Snapshot, start: i32, goal: i32, depth: usize) -> Paths 
     }
     // Enumeration is CPU-bounded. Concurrent background discovery may race,
     // but publication coalesces identical structure without waiting on I/O.
-    let paths = route_paths::find_paths_top_k_with_work_budget(
+    let (paths, truncated) = route_paths::find_paths_top_k_with_work_budget(
         start, goal, &s.pairs, depth, 1024, MAX_WORK,
-    )
-    .0;
+    );
+    let paths = Discovery { paths, truncated };
     let mut cache = store().lock().unwrap();
     if !cache.skeletons.entries.contains_key(&key) {
         if cache.skeletons.entries.len() >= MAX_SKELETONS {

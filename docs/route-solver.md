@@ -804,3 +804,58 @@ retain their original expiry checks; persistent browser HTTP cache does not own
 quote freshness. Controlled A/B trials improved response dispatch with no-store,
 but Chromium transport stalls also occurred afterward; this is not proof that
 all initialized 500/750ms latency acceptance is complete.
+
+<a id="automatic-discovery-1489"></a>
+## Automatic discovery (#1489)
+
+Implementation: [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
+
+[RD1489](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[the verification checklist](qa/issue-1489/README.md) extend the
+[#1483 attribution contract](#economic-attribution-1483). A useful direct/two-pool-hop
+quote precedes bounded deeper evaluation, which ranks exact delivered net output.
+Four pool hops remain the graph limit; native wrapping is a separate message.
+The existing 1,024-path/16,384-edge search bounds remain. A truncated enumeration
+only establishes the best evaluated eligible result, not an exhaustive optimum.
+
+Successful unchanged producer validation does not create new economics. Real
+fee/policy/freeze/reference/reserve/book/wrapper changes still revoke incompatible
+work. Results preserve their original generation, observation and expiry. Routine
+configuration refresh must be distinguished from changed qualified semantics.
+Temporary job saturation requires coalesced bounded deferred scheduling rather
+than permanently returning a cached short winner. Progress must use the exact
+native identity/gross amount/protection/mode/context of solve, and client adoption
+must detect improvements within an unchanged generation. Progress/explanation
+never authorizes signing; already reviewed transactions remain pinned.
+
+Declared POST plans remain restricted to their actual declared per-hop budgets
+and maker caps. Receive sizing retains its minimum-input objective and bounded
+inverse candidate scope; it is not a claim of exhaustive exact-output optimality.
+Offline requests do not drive ingestion or extend original expiry. Raw attribution,
+reference quality, exact funding, positive floors and 5/30/99 controls remain
+mandatory. Current tests, deadline and deployment limits belong in
+[RESULTS.md](qa/issue-1489/RESULTS.md).
+
+The discovery scheduler retains the existing **four active jobs** and coalesces
+at most **256 deferred intents**, equal to the existing result-cache bound, within
+a conservative **16 MiB pending snapshot/book/context budget**. Snapshot references
+are shared with their reviewed work, and coalesced hits avoid another allocation. Slot
+release drains the FIFO without another quote request. Invalid/expired/cache-evicted
+work is discarded; cache hits retry admission if queue capacity was unavailable.
+The finite search bounds constrain work, rather than promise a wall-clock SLA under
+arbitrary CPU contention. The named initialized verification target is **3 seconds**
+for promotion after capacity release, always before the original expiry; the
+retained regression also enforces a 2-second fixture deadline. The initial useful
+socket/browser budgets remain separate. `search_complete` means the bounded pass
+finished, `search_truncated` means enumeration/inverse limits may omit alternatives,
+and `search_max_pool_hops` states the four-hop cap. Progress additionally exposes
+`best_amount_out` only for an original fresh executable cached quote. These fields
+never widen execution admission or assert exhaustive market optimality.
+
+The #1489 price notice follows the same current, unexpired quote that supplies
+the displayed receive amount. A same-intent background fetch may block signing
+without hiding that factual notice; it does not grant signing permission. Intent
+changes and original expiry clear stale display/notice state. A newly validated
+quote may legitimately move above or below exact 5%; no warning hysteresis or
+threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).

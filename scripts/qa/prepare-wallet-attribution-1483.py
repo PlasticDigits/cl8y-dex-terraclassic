@@ -54,7 +54,7 @@ def quote(reader, offer, ask, amount):
     explanation = PROBE.attribution(body)
     if explanation["status"] != "available":
         raise ValueError("attribution_unavailable")
-    return body, {"raw_input": amount, "minimum_receive": metadata["minimum_receive"],
+    return body, {"raw_input": amount, "pool_hops": len(metadata["hops"]), "minimum_receive": metadata["minimum_receive"],
                   "generation": metadata["generation"], "observed_at_ms": metadata["observed_at_ms"],
                   "expires_at_ms": metadata["expires_at_ms"], "attribution": explanation}
 
@@ -67,9 +67,11 @@ def link(offer, ask, raw_amount, decimals):
     return ATTEST.FRONTEND + "/?" + urlencode({"from": offer, "to": ask, "amount": human})
 
 
-def prepare(revision, reader):
+def prepare(revision, reader, gross=GROSS, required_pool_hops=None):
     if not ATTEST.REVISION.fullmatch(revision):
         raise ValueError("exact_revision_required")
+    if gross not in (GROSS, "10000000000") or required_pool_hops not in (None, 3):
+        raise ValueError("unsupported_preparation_scope")
     apps = ATTEST.discover(reader, {"frontend": "dex.cl8y.com", "backend": "indexer.dex.cl8y.com"})
     frontend = ATTEST.deployment(reader, apps["frontend"], "dex.cl8y.com")
     backend = ATTEST.deployment(reader, apps["backend"], "indexer.dex.cl8y.com")
@@ -80,29 +82,34 @@ def prepare(revision, reader):
     if health.get("git_sha") != revision:
         raise ValueError("health_revision_mismatch")
     identities = assets()
-    native, native_summary = quote(reader, identities["LUNC"]["identity"], identities["USTR"]["identity"], GROSS)
+    native, native_summary = quote(reader, identities["LUNC"]["identity"], identities["USTR"]["identity"], gross)
+    if required_pool_hops is not None and native_summary["pool_hops"] != required_pool_hops:
+        raise ValueError("required_native_route_unavailable")
     wrapper = native["execution_metadata"]["wrapper"]
     credit = wrapper["route_input_amount"]
-    if (wrapper["input_amount"] != GROSS or wrapper["wrap_input"] is not True
-            or wrapper["unwrap_output"] is not False or not 0 < PROBE.raw(credit) <= int(GROSS)
+    if (wrapper["input_amount"] != gross or wrapper["wrap_input"] is not True
+            or wrapper["unwrap_output"] is not False or not 0 < PROBE.raw(credit) <= int(gross)
             or native["execution_metadata"]["hops"][0]["offer_token"] != identities["cLUNC"]["identity"]
             or native["execution_metadata"]["hops"][0]["offer_amount"] != credit):
         raise ValueError("native_credit_unavailable")
     wrapped, wrapped_summary = quote(reader, identities["cLUNC"]["identity"], identities["USTR"]["identity"], credit)
     if wrapped["execution_metadata"].get("wrapper") is not None:
         raise ValueError("wrapped_control_scope")
+    if required_pool_hops is not None and wrapped_summary["pool_hops"] != required_pool_hops:
+        raise ValueError("required_wrapped_route_unavailable")
     health = json.loads(reader.read(ATTEST.BACKEND + "/health", 4096))
     now = int(time.time() * 1000)
     if health.get("git_sha") != revision or any(now >= sample["expires_at_ms"] for sample in (native_summary, wrapped_summary)):
         raise ValueError("preparation_expired_or_replaced")
+    native_label = "native_1_lunc" if gross == GROSS else "native_10000_lunc"
     links = {
-        "native_1_lunc": link(identities["LUNC"]["identity"], identities["USTR"]["identity"], GROSS, identities["LUNC"]["decimals"]),
+        native_label: link(identities["LUNC"]["identity"], identities["USTR"]["identity"], gross, identities["LUNC"]["decimals"]),
         "matched_credit_clunc": link(identities["cLUNC"]["identity"], identities["USTR"]["identity"], credit, identities["cLUNC"]["decimals"]),
     }
-    return {"issue": 1483, "status": "PREPARED", "revision": revision,
+    return {"issue": 1489 if required_pool_hops == 3 else 1483, "status": "PREPARED", "revision": revision,
             "utc": datetime.now(timezone.utc).isoformat(), "read_only": True, "signing": False,
             "frontend": {**frontend, "artifact": artifact}, "backend": backend,
-            "samples": {"native_1_lunc": native_summary, "matched_credit_clunc": wrapped_summary},
+            "samples": {native_label: native_summary, "matched_credit_clunc": wrapped_summary},
             "links": links, "read_count": reader.reads,
             "limits": ["Preparation is not settlement or signing permission; obtain a fresh quote in the wallet.",
                        "Anonymous sequential quotes do not prove a common reserve cohort or actor/tier execution.",
@@ -131,15 +138,17 @@ def open_links(links):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision", required=True)
+    parser.add_argument("--input-raw", choices=(GROSS, "10000000000"), default=GROSS)
+    parser.add_argument("--pool-hops", type=int, choices=(3,), help="Require native and wrapped three-pool-hop controls for #1489")
     parser.add_argument("--output", type=Path, default=Path.home() / ".local/state/cl8y-dex/issue-1483/wallet-preparation.json")
     parser.add_argument("--open", action="store_true", help="Open both public Swap links only after all read-only checks pass")
     args = parser.parse_args(argv)
     try:
-        result = prepare(args.revision, ATTEST.Reader())
+        result = prepare(args.revision, ATTEST.Reader(), args.input_raw, args.pool_hops)
     except Exception as error:
         # No exception prose, request URLs, response bodies, credentials or
         # actor fields cross the terminal/private-receipt boundary.
-        result = {"issue": 1483, "status": "FAILED", "read_only": True, "signing": False,
+        result = {"issue": 1489 if args.pool_hops == 3 else 1483, "status": "FAILED", "read_only": True, "signing": False,
                   "failure_class": type(error).__name__}
     args.output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with os.fdopen(os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as receipt:
