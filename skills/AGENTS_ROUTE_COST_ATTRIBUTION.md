@@ -42,3 +42,8 @@ unavailable. Newly chosen public or synthetic inputs do not reproduce the
 historical report. Current spot attribution describes an arithmetic bridge, not
 a new independent oracle or proof of manipulation-free markets. See
 [results and remaining limits](../docs/qa/issue-1483/RESULTS.md).
+
+Discovery/promotion follow-up: [#1489](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1489),
+[RD1489](AGENTS_ROUTE_DISCOVERY.md), [checklist](../docs/qa/issue-1489/README.md).
+Preserve this exact signed attribution contract when fixing deeper search,
+unrelated producer churn, deferred jobs and selected-route explanation.

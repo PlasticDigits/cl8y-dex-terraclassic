@@ -1,3 +1,4 @@
+import { useRouteQuotePromotion } from '@/hooks/useRouteQuotePromotion'
 import { slippagePercentToMaxSpread } from '@/utils/slippageConstraint'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
@@ -650,6 +651,35 @@ export function TradeMarketOrderPanel({
     trader: address ?? undefined,
     maxMakerFills: debouncedHybridMaxMakers,
     maxSpread: maxSpreadStr,
+    refetch: simQuery.refetch,
+  })
+  useRouteQuotePromotion({
+    enabled:
+      interactive &&
+      hasSettledSimQuote &&
+      !isPositiveDecimalAmount(bookInputHuman) &&
+      !simQuery.isFetching &&
+      !simQuery.isError &&
+      !showImpactConfirm &&
+      !swapMutation.isPending,
+    intentKey: JSON.stringify([
+      pairAddr,
+      side,
+      debouncedRawInputAmount,
+      debouncedBookInputHuman,
+      debouncedHybridMaxMakers,
+      slippageTolerance,
+      address,
+      offerDecimals,
+      receiveDecimals,
+    ]),
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amount: debouncedRawInputAmount,
+    trader: quoteTrader?.trader,
+    maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: maxSpreadStr,
+    quote: simQuery.data,
     refetch: simQuery.refetch,
   })
   const receiveRaw = simData?.return_amount

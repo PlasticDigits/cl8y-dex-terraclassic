@@ -1455,3 +1455,6 @@ mod fee_generation_recovery;
 
 #[path = "scenarios/route_cost_attribution_1483.rs"]
 mod route_cost_attribution;
+
+#[path = "scenarios/route_discovery_1489.rs"]
+mod route_discovery_1489;

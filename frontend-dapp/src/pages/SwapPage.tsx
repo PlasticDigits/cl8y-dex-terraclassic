@@ -28,6 +28,7 @@ import { usePairPaused } from '@/hooks/usePairPaused'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useRouterTaxFunding } from '@/hooks/useRouterTaxFunding'
 import { useRouteSolveProgress } from '@/hooks/useRouteSolveProgress'
+import { useRouteQuotePromotion } from '@/hooks/useRouteQuotePromotion'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
@@ -804,6 +805,8 @@ export default function SwapPage() {
 
   const routeSolveProgressEnabled =
     !isWrapOrUnwrap &&
+    !reverseQuoteActive &&
+    !isPositiveDecimalAmount(debouncedBookInputHuman) &&
     (wrapSolvePair
       ? wrapSolvePair.tokenIn.startsWith('terra1') && wrapSolvePair.tokenOut.startsWith('terra1')
       : !nativeRouteInfo && fromToken.startsWith('terra1') && toToken.startsWith('terra1')) &&
@@ -816,12 +819,14 @@ export default function SwapPage() {
   } = useRouteSolveProgress({
     enabled: routeSolveProgressEnabled,
     isFetching: simQuery.isFetching,
-    tokenIn: wrapSolvePair?.tokenIn ?? fromToken,
-    tokenOut: wrapSolvePair?.tokenOut ?? toToken,
+    tokenIn: fromToken,
+    tokenOut: toToken,
     amountIn: debouncedRawInputAmount,
     trader: quoteTrader?.trader,
     knownDiscountBps: undefined,
     maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: slippagePercentToMaxSpread(slippageTolerance),
+    poolOnly: isNativeDenom(fromToken) || isNativeDenom(toToken),
   })
 
   // Settled for *current* sim key only — placeholder keepPreviousData is prior-key stale (#496).
@@ -1176,6 +1181,28 @@ export default function SwapPage() {
       setShowImpactConfirm(false)
     }
   }, [impactReviewKey])
+
+  useRouteQuotePromotion({
+    enabled:
+      routeSolveProgressEnabled &&
+      !reverseQuoteActive &&
+      !isPositiveDecimalAmount(bookInputHuman) &&
+      hasSettledSimQuote &&
+      !simQuery.isFetching &&
+      !simQuery.isError &&
+      !showImpactConfirm &&
+      !swapMutation.isPending,
+    intentKey: JSON.stringify(simQueryKey),
+    tokenIn: fromToken,
+    tokenOut: toToken,
+    amount: debouncedRawInputAmount,
+    trader: quoteTrader?.trader,
+    maxMakerFills: debouncedHybridMaxMakers,
+    maxSpread: slippagePercentToMaxSpread(slippageTolerance),
+    poolOnly: isNativeDenom(fromToken) || isNativeDenom(toToken),
+    quote: simQuery.data,
+    refetch: simQuery.refetch,
+  })
 
   const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
 

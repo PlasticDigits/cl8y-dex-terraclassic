@@ -553,6 +553,8 @@ async fn evaluate_candidate(
     };
     let intermediate_tokens = build_intermediate_tokens(&resolved_route);
     let body = RouteSolveResponse {
+        search_complete: None,
+        search_max_pool_hops: None,
         economic_attribution: None,
         execution_metadata: None,
         required_amount_in: None,
@@ -1197,6 +1199,8 @@ mod concurrent_solve_tests {
         CandidateEval {
             index,
             body: RouteSolveResponse {
+                search_complete: None,
+                search_max_pool_hops: None,
                 economic_attribution: None,
                 execution_metadata: None,
                 required_amount_in: None,

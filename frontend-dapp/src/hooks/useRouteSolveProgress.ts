@@ -18,6 +18,8 @@ export type UseRouteSolveProgressArgs = {
   /** When set (including 0), omit `trader` and pass `discount_bps` (#694). */
   knownDiscountBps?: number
   maxMakerFills?: number
+  maxSpread?: string
+  poolOnly?: boolean
 }
 
 /**
@@ -34,6 +36,8 @@ export function useRouteSolveProgress({
   trader,
   knownDiscountBps,
   maxMakerFills,
+  maxSpread,
+  poolOnly,
 }: UseRouteSolveProgressArgs): {
   progress: RouteSolveProgressSnapshot | null
   fetchStartedAtMs: number | null
@@ -62,7 +66,8 @@ export function useRouteSolveProgress({
       return
     }
 
-    setFetchStartedAtMs((prev) => prev ?? Date.now())
+    setProgress(null)
+    setFetchStartedAtMs(Date.now())
     const ac = new AbortController()
     abortRef.current?.abort()
     abortRef.current = ac
@@ -78,6 +83,8 @@ export function useRouteSolveProgress({
         const next = await getRouteSolveProgress(tin, tout, amt, {
           ...traderParams,
           maxMakerFills,
+          maxSpread,
+          poolOnly,
           signal: ac.signal,
         })
         if (!cancelled && !ac.signal.aborted) {
@@ -114,7 +121,7 @@ export function useRouteSolveProgress({
       window.clearInterval(tickId)
       ac.abort()
     }
-  }, [enabled, isFetching, tokenIn, tokenOut, amountIn, trader, knownDiscountBps, maxMakerFills])
+  }, [enabled, isFetching, tokenIn, tokenOut, amountIn, trader, knownDiscountBps, maxMakerFills, maxSpread, poolOnly])
 
   return { progress, fetchStartedAtMs, nowMs }
 }

@@ -161,6 +161,15 @@ async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
 describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(indexerClient.getRouteSolveProgress).mockResolvedValue({
+      stage: 'idle',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: false,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+    })
     useDexStore.setState({ expertMode: false, slippageTolerance: 5 })
     nativeBalance.data = '10000000000'
     vi.mocked(indexerClient.postRouteSolve).mockRejectedValue(new Error('indexer unavailable'))
@@ -219,6 +228,59 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       expect(screen.getByTestId('trade-market-advanced')).toHaveAttribute('data-open', 'false')
     }
   )
+  it('adopts a validated higher-net quote from same-intent progress (#1489)', async () => {
+    const { queryClient } = await ready()
+    vi.mocked(indexerClient.getRouteSolveProgress).mockResolvedValue({
+      stage: 'done',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: true,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+      best_amount_out: '1100000',
+      search_complete: true,
+    })
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+      localQuote(from, to, amount, options, '1100000')
+    )
+    await queryClient.invalidateQueries({ queryKey: ['routeQuotePromotion'] })
+    await waitFor(() => expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1.1'))
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('1.045')
+    expect(pair.simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('keeps the reviewed transaction pinned when a better quote becomes available (#1489)', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, '940000')
+      q.spot_amount_out = '1000000'
+      return attachReferenceAttribution(q)
+    })
+    const { queryClient } = await ready()
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm')
+    vi.mocked(indexerClient.getRouteSolveProgress).mockResolvedValue({
+      stage: 'done',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: true,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+      best_amount_out: '990000',
+      search_complete: true,
+    })
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+      localQuote(from, to, amount, options, '990000')
+    )
+    const solves = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
+    await queryClient.invalidateQueries({ queryKey: ['routeQuotePromotion'] })
+    expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(solves)
+    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.94')
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(executeMultiHopSwap).mock.calls[0][5]).toBe('893000')
+  })
   it('requires renewed consent above 5%, cancel and changed quote', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
       const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())

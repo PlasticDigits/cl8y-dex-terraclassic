@@ -84,9 +84,9 @@ export function routeEconomicExplanation(quote: IndexerRouteSolveResponse): stri
         ? Array.isArray(metadata.hops) &&
           metadata.hops.length > 0 &&
           metadata.hops.every((hop) => hop?.book_offer_consumed === '0')
-          ? 'Limited liquidity'
-          : 'Pool and order pricing'
-        : 'Better pool or order pricing'
+          ? 'Selected pool price movement'
+          : 'Selected pool and order pricing'
+        : 'Better selected pool or order pricing'
     case 'reference_divergence':
       return 'Different pricing'
     default:

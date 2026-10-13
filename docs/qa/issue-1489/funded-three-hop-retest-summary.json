@@ -1,0 +1,472 @@
+{
+  "issue": 1489,
+  "status": "PASS",
+  "utc_start": "2026-10-13T03:27:49.653213+00:00",
+  "utc_end": "2026-10-13T03:36:54.326125+00:00",
+  "driver_sha256": "482543f479e30465ca660fcacc314a2d0c59ff3475186d94bfd6096da5ea3ab4",
+  "wrapper_source_revision": "519c2766e5be0a3788a4c920ad879b641a50aa74",
+  "wrapper_source_inputs_sha256": "6a6bb1f694fcc0bc474e06cb55777e40f5402f25bce56ec5955cc72caa96d9df",
+  "wrapper_source_input_count": 47,
+  "wrapper_artifact_sha256": {
+    "treasury": "9223b22d5bb04ee06379a8d2c158a4b11da75d79ca4e2c37d9b17c65fe8da9b7",
+    "wrap_mapper": "65b9b952e7079198398abcf9d9d2973c31f59d88a5b3ba7d0ee7a3e094fae0bf"
+  },
+  "case_count": 18,
+  "synthetic_requested_gas": 12000000,
+  "gas_is_not_production_calibration": true,
+  "economic_rollback_excludes_paid_ante_fees": true,
+  "skips": [
+    "native output composition",
+    "tax/hook/populated-book",
+    "physical wallets",
+    "production settlement"
+  ],
+  "cases": [
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "970922",
+      "delivered_net": "970922",
+      "minimum_receive": "961213",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "967195",
+        "964199",
+        "961213"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5485256
+    },
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "970352",
+      "delivered_net": "970352",
+      "minimum_receive": "921835",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "927934",
+        "924879",
+        "921835"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5490278
+    },
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "969784",
+      "delivered_net": "969784",
+      "minimum_receive": "678849",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "683607",
+        "681224",
+        "678849"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5490664
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "749887534",
+      "delivered_net": "749887534",
+      "minimum_receive": "742388659",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "880461061",
+        "805673493",
+        "742388659"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5494078
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "472899538",
+      "delivered_net": "472899538",
+      "minimum_receive": "449254562",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "706461183",
+        "555729479",
+        "449254562"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5494308
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "325454447",
+      "delivered_net": "325454447",
+      "minimum_receive": "227818113",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "441721372",
+        "308535846",
+        "227818113"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5494469
+    },
+    {
+      "native": true,
+      "gross_input": "10000000000",
+      "credited_route_input": "9800000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "1073557925",
+      "delivered_net": "1073557925",
+      "minimum_receive": "1062822346",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "3286070567",
+        "1713540127",
+        "1062822346"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5495585
+    },
+    {
+      "native": true,
+      "gross_input": "10000000000",
+      "credited_route_input": "9800000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "260705539",
+      "delivered_net": "260705539",
+      "minimum_receive": "247670263",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "1254126800",
+        "474510420",
+        "247670263"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5494972
+    },
+    {
+      "native": true,
+      "gross_input": "10000000000",
+      "credited_route_input": "9800000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "117518111",
+      "delivered_net": "117518111",
+      "minimum_receive": "82262678",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "496342519",
+        "166162775",
+        "82262678"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5494560
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "8698",
+      "delivered_net": "8698",
+      "minimum_receive": "8612",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "55050",
+        "17688",
+        "8612"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5081846
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "8697",
+      "delivered_net": "8697",
+      "minimum_receive": "8263",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "52823",
+        "16972",
+        "8263"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5081953
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "8697",
+      "delivered_net": "8697",
+      "minimum_receive": "6088",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "38921",
+        "12506",
+        "6088"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5081954
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "8460046",
+      "delivered_net": "8460046",
+      "minimum_receive": "8375446",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "53773729",
+        "17224007",
+        "8375446"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5084705
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "8011110",
+      "delivered_net": "8011110",
+      "minimum_receive": "7610555",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "49273848",
+        "15688107",
+        "7610555"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5084702
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "7596985",
+      "delivered_net": "7596985",
+      "minimum_receive": "5317890",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "34705710",
+        "10986737",
+        "5317890"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5084694
+    },
+    {
+      "native": false,
+      "gross_input": "10000000000",
+      "credited_route_input": "10000000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "58806559",
+      "delivered_net": "58806559",
+      "minimum_receive": "58218494",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "393283909",
+        "121439356",
+        "58218494"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5085607
+    },
+    {
+      "native": false,
+      "gross_input": "10000000000",
+      "credited_route_input": "10000000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "38766598",
+      "delivered_net": "38766598",
+      "minimum_receive": "36828269",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "261887270",
+        "77915963",
+        "36828269"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5085373
+    },
+    {
+      "native": false,
+      "gross_input": "10000000000",
+      "credited_route_input": "10000000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "27479075",
+      "delivered_net": "27479075",
+      "minimum_receive": "19235353",
+      "pool_hops": 3,
+      "hop_minimum_receive": [
+        "141747280",
+        "41090811",
+        "19235353"
+      ],
+      "rejected_codes": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true,
+      "gas_used": 5085355
+    }
+  ],
+  "scope": "Owned native wrap plus three pool hops and equal-gross wrapped controls; independent exact economics and rollback; synthetic artifacts/gas only.",
+  "floor_rejection_count": 72,
+  "repeat_comparison": {
+    "independently_initialized_owned_fixtures": true,
+    "synthetic_wallet_count_per_fixture": [
+      2,
+      2
+    ],
+    "synthetic_wallets_disjoint_checked_privately": true,
+    "contract_address_permutation_tested": false,
+    "note": "Distinct generated synthetic wallets; deterministic contract addresses may repeat across independent chains. Contract address-order discovery is covered separately by source regressions.",
+    "case_pairs_compared": 18,
+    "exact_economics_equal": true,
+    "compared_case_fields": [
+      "native",
+      "gross_input",
+      "credited_route_input",
+      "tolerance_atomics",
+      "expected_net",
+      "delivered_net",
+      "minimum_receive",
+      "pool_hops",
+      "hop_minimum_receive",
+      "independent_reserves_and_hop_economics",
+      "rejected_codes",
+      "atomic_wrapper_pool_wallet_rollback"
+    ],
+    "driver_hash_equal_and_matches_current_source": true,
+    "dex_artifact_hashes_equal": true,
+    "wrapper_artifact_hashes_equal": true,
+    "gas_calibration_claim": false
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "issues": [
+    1489,
+    1391
+  ],
+  "status": "PASS",
+  "driver_sha256": "9b104b433ca917a6b9978e75e0261f30f365608838df7deb4ff0303cf90abc91",
+  "replay_test_source_sha256": "f687e43a07e4dbe138bae1b15a59fedff6287e5ade6d537c68c6017f0388c100",
+  "owned_localterra_only": true,
+  "production_signing": false,
+  "stored_factory_pair_cw20_checksums_match_current_tracked_artifacts": true,
+  "fresh_factories_pools_wallets_per_round": true,
+  "first_retest_exact_reserves_lp_shares_equal": true,
+  "rounds": [
+    {
+      "round": "first",
+      "included_transaction_count": 19,
+      "snapshot_count": 3,
+      "stages": [
+        {
+          "stage": "before",
+          "utc": "2026-10-13T04:42:26.392175+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "1000000000",
+                "CUSTC": "200000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "CUSTC": "400000000000"
+              },
+              "total_lp_share": "20000000000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        },
+        {
+          "stage": "canonical_reserve_shift",
+          "utc": "2026-10-13T04:42:27.321421+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "689655173",
+                "CUSTC": "290000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "CUSTC": "400000000000"
+              },
+              "total_lp_share": "20000000000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        },
+        {
+          "stage": "candidate_depth_loss",
+          "utc": "2026-10-13T04:42:28.512257+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "689655173",
+                "CUSTC": "290000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "100050",
+                "CUSTC": "40020000"
+              },
+              "total_lp_share": "2001000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "round": "retest",
+      "included_transaction_count": 19,
+      "snapshot_count": 3,
+      "stages": [
+        {
+          "stage": "before",
+          "utc": "2026-10-13T04:42:27.126264+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "1000000000",
+                "CUSTC": "200000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "CUSTC": "400000000000"
+              },
+              "total_lp_share": "20000000000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        },
+        {
+          "stage": "canonical_reserve_shift",
+          "utc": "2026-10-13T04:42:28.114970+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "689655173",
+                "CUSTC": "290000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "CUSTC": "400000000000"
+              },
+              "total_lp_share": "20000000000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        },
+        {
+          "stage": "candidate_depth_loss",
+          "utc": "2026-10-13T04:42:29.625130+00:00",
+          "pairs": {
+            "ust1-custc": {
+              "reserves_raw": {
+                "UST1": "689655173",
+                "CUSTC": "290000000000"
+              },
+              "total_lp_share": "14142135623"
+            },
+            "ustr-custc": {
+              "reserves_raw": {
+                "USTR": "100050",
+                "CUSTC": "40020000"
+              },
+              "total_lp_share": "2001000"
+            },
+            "ustr-ust1": {
+              "reserves_raw": {
+                "USTR": "1000000000",
+                "UST1": "1000000000"
+              },
+              "total_lp_share": "1000000000"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "processor_replay": {
+    "first": {
+      "status": "PASS",
+      "passed_tests": 2,
+      "actual_chain_reserve_attack_case": "real_canonical_reserve_shift_and_lp_withdrawal_are_contained"
+    },
+    "retest": {
+      "status": "PASS",
+      "passed_tests": 2,
+      "actual_chain_reserve_attack_case": "real_canonical_reserve_shift_and_lp_withdrawal_are_contained"
+    }
+  },
+  "scope": "Real owned canonical-pool reserve shift and candidate LP withdrawal, replayed into production hub processor in separate disposable databases. Synthetic certified external-oracle quorum and advanced bootstrap fixture clock are explicit controls, not live CEX or production ingestion evidence.",
+  "unverified": [
+    "broader production LP automation execution/recovery: no such funded driver implemented in this receipt",
+    "production scheduled ingestion or independently observed real CEX prices",
+    "physical-wallet and production settlement; synthetic gas is not production calibration"
+  ]
+}

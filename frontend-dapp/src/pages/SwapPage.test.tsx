@@ -417,6 +417,51 @@ describe('SwapPage local executable quotes (#1452)', () => {
       needsUnwrapOutput: false,
     })
   }
+  it('native progress watches original gross identity, pool mode and selected protection (#1489)', async () => {
+    configureNativeTwoHopQuote()
+    useDexStore.setState({ slippageTolerance: 3 })
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
+    fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '10000' } })
+    await waitFor(() =>
+      expect(indexerClient.getRouteSolveProgress).toHaveBeenCalledWith(
+        'uluna',
+        expect.any(String),
+        '10000000000',
+        expect.objectContaining({ poolOnly: true, maxSpread: '0.03', maxMakerFills: 8 })
+      )
+    )
+    const solve = vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)!
+    expect(indexerClient.getRouteSolveProgress).toHaveBeenCalledWith(
+      solve[0],
+      solve[1],
+      solve[2],
+      expect.objectContaining({ poolOnly: true, maxSpread: '0.03' })
+    )
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
+  it('adopts a higher same-cohort publication by refetching validated operations (#1489)', async () => {
+    const { queryClient } = await ready()
+    vi.mocked(indexerClient.getRouteSolveProgress).mockResolvedValue({
+      stage: 'done',
+      done: 1,
+      total: 1,
+      label: 'Local route ready',
+      cache_hit: true,
+      updated_at_ms: Date.now(),
+      quote_generation: 'fixture1',
+      best_amount_out: '1100000',
+      search_complete: true,
+    })
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+      localQuote(from, to, amount, options, '1100000')
+    )
+    await queryClient.invalidateQueries({ queryKey: ['routeQuotePromotion'] })
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.1'))
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('1.045')
+    expect(simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
+  })
   it('native wrap+two-hop fee and Max use the reviewed offline route (#1264 #1480)', async () => {
     configureNativeTwoHopQuote()
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })

@@ -247,8 +247,12 @@ fn find_paths_bounded(
             .cmp(&b.len())
             .then_with(|| cmp_path_pair_addresses(a, b))
     });
+    // Hitting either cap prevents proving exhaustive discovery. At an exact
+    // boundary this is deliberately conservative: no extra probe may exceed the
+    // existing budget simply to certify that there is no next path.
+    let truncated = work_left == 0 || found.len() >= max_paths;
     found.truncate(max_paths);
-    (found, expansions, work_left == 0)
+    (found, expansions, truncated)
 }
 
 fn cmp_path_pair_addresses(left: &[PathHop], right: &[PathHop]) -> Ordering {

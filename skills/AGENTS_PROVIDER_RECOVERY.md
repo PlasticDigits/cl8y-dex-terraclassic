@@ -140,3 +140,9 @@ and zero request RPC in [owned-worker controls](../indexer/tests/scenarios/fee_g
 Arbitrary pair/amount reason classification, non-executable protection estimates,
 intent recovery and identity entry defaults follow [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md)
 and the [agent checklist](../docs/qa/issue-1473/README.md). Run `make verify-issue-1473`.
+
+Automatic candidate convergence under unchanged producer validation and job
+contention follows [RD1489](AGENTS_ROUTE_DISCOVERY.md) and
+[the checklist](../docs/qa/issue-1489/README.md). Run `make verify-issue-1489`.
+Positive unchanged validation is not a new economics revision; authoritative
+changed fees, negatives, context changes and expiry remain real invalidations.

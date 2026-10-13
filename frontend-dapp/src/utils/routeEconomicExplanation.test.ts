@@ -15,7 +15,7 @@ describe('bounded advisory economic explanation #1483', () => {
   it.each([
     ['wrapper_loss', ['150000', '50000', '0', '0'], 'Wrapping costs'],
     ['trading_cost', ['0', '160000', '40000', '0'], 'Trading costs'],
-    ['market_movement', ['0', '50000', '250000', '-100000'], 'Limited liquidity'],
+    ['market_movement', ['0', '50000', '250000', '-100000'], 'Selected pool price movement'],
     ['mixed', ['100000', '100000', '0', '0'], 'Combined costs and pricing'],
   ])('derives %s from signed same-denomination terms', (cause, values, copy) => {
     const q = fixture(),

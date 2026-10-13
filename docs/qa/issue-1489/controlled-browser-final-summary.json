@@ -1,0 +1,58 @@
+{
+  "issue": 1489,
+  "scope": "Controlled owned desktop/phone browser constant-product fixture; nonzero wrapper fees, deployment and production settlement remain separate. Final source repeats original input/frame clocks after owned infrastructure reset.",
+  "overall": "PASS",
+  "recorded_at_utc": "2026-10-13T05:25:34.770Z",
+  "source_revision_base": "4cb5736574072130e8e14a5ea2e297d3062e8212",
+  "frontend_artifact_sha256": "60b376335c3b5cea040a2e89af133e25c012e8307f6c053b90091919fe895a94",
+  "matrix_sha256": "009cde25524dd4b43db90bded8f9724bb488110c2d260d27a6a49f7e38d23f0e",
+  "raw_receipt_sha256": "ca9b5097747b28f8c6333b94b0c92ea8553b47c0ca35c061ee8ee02956f65241",
+  "partial": false,
+  "truncated": false,
+  "browser_latency_budget_ms": 750,
+  "measurement_clock": "original_input_event_through_confirmed_render_frame",
+  "provider_requests": 0,
+  "quote_requests": 1989,
+  "total_cases": 4250,
+  "failed_cases": 0,
+  "useful_quote_latency": {
+    "count": 3948,
+    "p50_ms": 92.59999999403954,
+    "p95_ms": 151.6000000089407,
+    "p99_ms": 166.5,
+    "max_ms": 203.5
+  },
+  "rounds": {
+    "first": {
+      "cases": 2124,
+      "useful_quote_latency": {
+        "count": 1974,
+        "p50_ms": 94.79999999701977,
+        "p95_ms": 155.79999999701977,
+        "p99_ms": 172.20000000298023,
+        "max_ms": 199.1000000089407
+      }
+    },
+    "retest": {
+      "cases": 2124,
+      "useful_quote_latency": {
+        "count": 1974,
+        "p50_ms": 90.1000000089407,
+        "p95_ms": 133.70000000298023,
+        "p99_ms": 159.79999999701977,
+        "max_ms": 203.5
+      }
+    },
+    "negative": {
+      "cases": 2,
+      "useful_quote_latency": {
+        "count": 0,
+        "p50_ms": null,
+        "p95_ms": null,
+        "p99_ms": null,
+        "max_ms": null
+      }
+    }
+  },
+  "initial_nine_timing_failures_retained": "controlled-browser-initial-failure-summary.json"
+}
