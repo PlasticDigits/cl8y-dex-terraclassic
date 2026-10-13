@@ -1,0 +1,216 @@
+{
+  "issue": 1489,
+  "recorded_at_utc": "2026-10-13T14:25:33.324469+00:00",
+  "overall": "PASS WITH SKIPS",
+  "source": {
+    "base_revision": "8500370c2d4475accca879064ad61fe186ccfd18",
+    "qa_cherry_pick": "c403a888",
+    "working_tree_modified": true,
+    "recorded_at_utc": "2026-10-13T13:17:53.858633+00:00",
+    "product_sha256": "e8382e1294fd51fede902d1a6c8e7912b82ad9fbb4cdf43f208f37e030935506"
+  },
+  "source_scope": [
+    "indexer/src",
+    "indexer/tests",
+    "frontend-dapp/src",
+    "smartcontracts/contracts",
+    "smartcontracts/packages"
+  ],
+  "validation_rounds": [
+    {
+      "round": "controls-first",
+      "passed_tests": 30,
+      "failed_tests": 0,
+      "existing_ignored_tests": 0,
+      "seconds": 5.92,
+      "useful_http_quotes": 60,
+      "maximum_initialized_http_ms": 6,
+      "private_log_sha256": "404caff7325edd0eb8bf21ff2421f20ce93b3a018664440b06f87b0029288bca"
+    },
+    {
+      "round": "controls-retest",
+      "passed_tests": 30,
+      "failed_tests": 0,
+      "existing_ignored_tests": 0,
+      "seconds": 5.82,
+      "useful_http_quotes": 57,
+      "maximum_initialized_http_ms": 7,
+      "private_log_sha256": "92d98d1996a85251dd4d078e054f67531a66bcf73847f1f96e8c1ff8535f679c"
+    },
+    {
+      "round": "full-first",
+      "passed_tests": 824,
+      "failed_tests": 0,
+      "existing_ignored_tests": 1,
+      "seconds": 13.13,
+      "useful_http_quotes": 56,
+      "maximum_initialized_http_ms": 5,
+      "private_log_sha256": "cd4c25f27773dc2a5c023c29f9a531d3c3f9376d551d6dfefbb434324bd0c98c"
+    },
+    {
+      "round": "full-retest",
+      "passed_tests": 824,
+      "failed_tests": 0,
+      "existing_ignored_tests": 1,
+      "seconds": 13.09,
+      "useful_http_quotes": 56,
+      "maximum_initialized_http_ms": 5,
+      "private_log_sha256": "958ca201b45d43e188f2bc23f01861389f748ec913c05e41283a8bb01f099e75"
+    }
+  ],
+  "verifiers": [
+    {
+      "issue": 1464,
+      "passed_groups": 11,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "6582ddc6a42beb27ba00b9bccd5c696f8beadb0e191f285328586e4ff9852802",
+      "private_log_sha256": "090928153af852cb35f07cff22297da743ca378bb292873215a6dd9c32f7f83f"
+    },
+    {
+      "issue": 1453,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "8059bdde6ffd09936a6a9d64fff6e261cfee0ddf05eb7209a968e338e9a9dc17"
+    },
+    {
+      "issue": 1394,
+      "passed_groups": 23,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "3d777394be67510b61af52e150e29ad5416d91f1ee5ef7b898cf2dd76e02404b"
+    },
+    {
+      "issue": 1452,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": "f9afcf13ace99764d4c1b4f75991c221e068d6c22a70590d5d8a02081d9d00bc",
+      "private_log_sha256": "13cf48426ff4060ee81bbce22d38e531fc8b4b13e3a23067eb35ff5d1d56ea4f"
+    },
+    {
+      "issue": 1483,
+      "passed_groups": 21,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "85788e321c129120567f9d70fc883af7781fa645ea095387af66ef93d8ec0c2e",
+      "private_log_sha256": "5ec3c370b6c782b0bcc03c3f7122fd7984dd83a663cb84b8b2de71f666fde535"
+    },
+    {
+      "issue": 1489,
+      "passed_groups": 20,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "fd49e130b179a06a2a69cae8f3b71c965a811203f77277411f2d318dca08fa0b",
+      "private_log_sha256": "40cf9ef466e3feaeae1995e60c48d5d33c2247ed573a85df990b3c702cecc5d0"
+    },
+    {
+      "issue": 1473,
+      "passed_groups": 17,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": "f6c14b745158427fa28513f0710f3d0aaf3ecc6c5a66585961b8d95cb0071b18",
+      "private_log_sha256": "11666064770d17242de81ff3cc885f4c0c16aa00d5d721db60efd62a5ccc505f"
+    },
+    {
+      "issue": 1479,
+      "passed_groups": 12,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "verifier_fingerprint": "45e81b3ecf8a9359735666b9941a5d47de25633d924b5a57b048bfeac5d0bf12",
+      "private_log_sha256": "c304578c4330dba0afecbf4a52c0c838b3562e93f09df99e7c821d85996f2123"
+    },
+    {
+      "issue": 1480,
+      "passed_groups": 10,
+      "failed_groups": 0,
+      "skipped_groups": 3,
+      "verifier_fingerprint": "45e81b3ecf8a9359735666b9941a5d47de25633d924b5a57b048bfeac5d0bf12",
+      "private_log_sha256": "d7afe938c380b33d698c84e6179c01581ffbd3caf865e4c4c8c61ce898ed1906"
+    },
+    {
+      "issue": 1391,
+      "passed_groups": 6,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "8e54b7fd4d9216ea01c79a07341dbdbc5174c95a0a90e395f416ea3684727b31"
+    },
+    {
+      "issue": 1398,
+      "passed_groups": 7,
+      "failed_groups": 0,
+      "skipped_groups": 0,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "3c01efa3c5aa6c2e9cf0fdd0e914624641d7046598af498856691096b738c3d3"
+    },
+    {
+      "issue": 1381,
+      "passed_groups": 13,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "9d7f1b47034fe7d05e4b7b4834d1672a63e2bddeef42c47c1c430723792364e4"
+    },
+    {
+      "issue": 1390,
+      "passed_groups": 14,
+      "failed_groups": 0,
+      "skipped_groups": 2,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "6494f3c70a7421178bf513c87581281bc5bbf7642c08e1f411a24ce3c74a21a3"
+    },
+    {
+      "issue": 1396,
+      "passed_groups": 28,
+      "failed_groups": 0,
+      "skipped_groups": 1,
+      "verifier_fingerprint": null,
+      "private_log_sha256": "c5ec3a88a1f54a0be465c98a814dffb5a332a3b92b6970f86b244f4ec044e9af"
+    }
+  ],
+  "totals": {
+    "passed_groups": 208,
+    "failed_groups": 0,
+    "skipped_groups": 21
+  },
+  "retained_executed_reds": [
+    {
+      "scope": "Routine false guard reset fresh verified8% discount to0.",
+      "private_log_sha256": "30edc6cc956279c5c8e1547a8e1312c5964198c7b185a82de7c3afd49d2f3822"
+    },
+    {
+      "scope": "Actual samefalse/same8% refresh changed anonymous quote cohort with original expiry preserved.",
+      "private_log_sha256": "d06d0721a929e5b48c531348cedd316e6b000b67d738f1a87066ad15eb17015b"
+    },
+    {
+      "scope": "Older8% fee completion replaced newer4% through actual admission.",
+      "private_log_sha256": "1654dba58a7f498d79d6f31e3ec1d77f94c3837fe99c96d1220db5be6849adcb"
+    },
+    {
+      "scope": "False guard query begun before knownblock restored approval and8% afterward.",
+      "private_log_sha256": "bc41730773e0f21a09b28ab56dccf2313e55eb6f875cd4a655e935490313fa36"
+    }
+  ],
+  "owned_chain_reset": {
+    "owner_verified": true,
+    "container": "dex-1489-owned-localterra",
+    "recreated_same_image_id": true,
+    "same_tmpfs_bytes": 1073741824,
+    "published_ports": 0,
+    "persistent_data_mounts": 0,
+    "chain_id": "localterra",
+    "height": 6,
+    "only_new_core_tax_cache_invalidated": true,
+    "production_reset": false
+  },
+  "controlled_browser": "actor-refresh-controlled-browser-summary.json",
+  "qa_lifecycle_scope": "BROWSER-LIFECYCLE.md; original850read-budget failures remainFAIL; no page-leak claim",
+  "original850_live_scope": "All6APIoriginalCwindowsUNVERIFIED, independentall-root/usefulclocks alone do not provecohortconvergence; originalbrowserFAILretained",
+  "production_causality_claimed": false,
+  "production_reset_or_signing": false,
+  "remaining_acceptance": "Final combineddeployment/currentallroots and actual sustainedAPI/browser/monitoring remainseparate; atomicprodSQL/reserves, completewrapperartifacts/capabilities and physicalwallet criteria unchecked"
+}

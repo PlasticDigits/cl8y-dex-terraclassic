@@ -658,3 +658,19 @@ per-actor discount proofs even for admission without an expected configuration
 epoch; repeated unchanged inventories retain stable versions. Replacement stays
 within 2,048 records per namespace and 32 namespaces. These invariants preserve
 original expiry, floor/consent checks and offline request behavior.
+
+
+### Stable positive actor refresh
+
+An unchanged unblocked observation retains previously verified, unexpired fees
+while its independently scheduled optional fee read runs. It does not renew the
+snapshot's original deadlines or mutate its economic generation. True unblocks,
+expired fees, failed/cancelled current fee reads and changed fees remain
+conservative and revoke old proofs. Each bounded actor record retains only the
+latest fee query nonce; an older completion or prepared publication cannot replace
+a newer verified context or extend its deadlines. Blacklist false responses bind
+authority captured before the query starts, so they cannot clear a block learned
+while awaiting the response. Fresh queries after that authority may unblock.
+See [the actor refresh evidence](qa/issue-1489/ACTOR-REFRESH.md),
+[fee observation implementation](../indexer/src/api/local_quote/actor_fees.rs) and
+[RD1489-2](../skills/AGENTS_ROUTE_DISCOVERY.md).

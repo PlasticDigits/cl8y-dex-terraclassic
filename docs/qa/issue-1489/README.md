@@ -112,6 +112,12 @@ preparation and actor-proof corrections. See [the measured scope and retained
 failures](RESULTS.md#final-canonical-publication-source-supplement). These checks
 do not replace deployed or physical acceptance.
 
+Combined actor/QA follow-up implementation: [PR #1494](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1494).
+
+The follow-up [actor refresh contract](ACTOR-REFRESH.md) retains unchanged valid
+economics while rejecting stale guard/fee authority. Original live UNVERIFIED and
+executed browser failures remain separate from final combined verification.
+
 ## Explicit skip policy
 
 **PASS WITH SKIPS** applies only when every executed check passes.
@@ -121,3 +127,5 @@ manually constrained quote cannot establish automatic convergence, independent
 production reserves, physical-device signing or production settlement. Leave
 the issue open unless all body/comment requirements pass. Human-only custody
 actions belong in concise cl8y-pm inbox cards; engineering stays with agents.
+
+Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.

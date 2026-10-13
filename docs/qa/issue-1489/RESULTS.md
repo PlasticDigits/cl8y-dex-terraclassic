@@ -376,3 +376,15 @@ receipt remain in the current-source evidence; production was neither reset nor
 signed. Independent deployed clocks, atomic production SQL/reserves, complete
 mapper/treasury artifact and capability correspondence, and physical-wallet
 acceptance remain unchecked.
+
+
+## Stable positive actor refresh supplement
+
+[Actor refresh and guarded completion](ACTOR-REFRESH.md) documents the actual
+source REDs, query-start authority, ordered fee completions, cancellation and
+original-deadline controls. [Final combined receipt](actor-refresh-final-summary.json)
+repeats all fourteen commands with 208 PASS, zero FAIL and 21 explicit SKIPs,
+30 focused tests and 824 default-parallel tests per round. The complete 4,250-case
+controlled matrix passes with useful maximum 264.2ms. The prior `8500370c`
+production six-cohort UNVERIFIED windows and actual browser read-budget failures
+remain unchanged; neither timing nor matching roots alone proves convergence.

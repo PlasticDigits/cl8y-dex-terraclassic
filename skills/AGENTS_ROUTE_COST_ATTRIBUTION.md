@@ -47,3 +47,5 @@ Discovery/promotion follow-up: [#1489](https://git.cl8y.com/code/cl8y-dex-terrac
 [RD1489](AGENTS_ROUTE_DISCOVERY.md), [checklist](../docs/qa/issue-1489/README.md).
 Preserve this exact signed attribution contract when fixing deeper search,
 unrelated producer churn, deferred jobs and selected-route explanation.
+
+Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](../docs/qa/issue-1489/BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.

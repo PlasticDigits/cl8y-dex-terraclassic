@@ -5,6 +5,7 @@ use super::*;
 struct Entry {
     version: u64,
     context: (u16, bool),
+    fee_query: u64,
 }
 #[derive(Default)]
 pub(super) struct Namespace {
@@ -15,10 +16,14 @@ pub(super) struct Namespace {
 pub(super) struct Proof {
     revision: u64,
     entries: HashMap<String, Option<u64>>,
+    fee_queries: HashMap<String, u64>,
 }
 impl Proof {
     pub(super) fn entries_version(&self, actor: &str) -> Option<u64> {
         self.entries.get(actor).copied().flatten()
+    }
+    pub(super) fn observed_fee(&mut self, actor: &str, query: u64) {
+        self.fee_queries.insert(actor.into(), query);
     }
     pub(super) fn observed(&mut self, actor: &str, version: u64) {
         self.entries.insert(actor.into(), Some(version));
@@ -28,6 +33,7 @@ pub(super) fn capture(g: &Store, ns: &str, actors: &HashMap<String, (u16, bool)>
     let current = g.actor_versions.get(ns);
     Proof {
         revision: current.map_or(0, |n| n.revision),
+        fee_queries: HashMap::new(),
         entries: actors
             .keys()
             .map(|actor| {
@@ -83,8 +89,76 @@ pub(super) fn observe(
     if changed {
         n.revision = version;
     }
-    n.entries.insert(actor.into(), Entry { version, context });
+    let fee_query = n.entries.get(actor).map_or(0, |entry| entry.fee_query);
+    n.entries.insert(
+        actor.into(),
+        Entry {
+            version,
+            context,
+            fee_query,
+        },
+    );
     Ok(version)
+}
+pub(super) fn guard_current(g: &Store, ns: &str, actor: &str, proof: &Proof) -> bool {
+    let expected = proof.entries_version(actor);
+    let current = g.actor_versions.get(ns);
+    current
+        .and_then(|n| n.entries.get(actor))
+        .map(|e| e.version)
+        == expected
+        && (expected.is_some() || proof.revision == current.map_or(0, |n| n.revision))
+}
+pub(super) fn guard_context(g: &Store, ns: &str, actor: &str) -> Option<(u16, bool)> {
+    g.actor_versions
+        .get(ns)?
+        .entries
+        .get(actor)
+        .map(|e| e.context)
+}
+pub(super) fn begin_fee(g: &mut Store, ns: &str, actor: &str, version: u64) -> Option<u64> {
+    let entry = g.actor_versions.get_mut(ns)?.entries.get_mut(actor)?;
+    if entry.version != version || entry.context.1 {
+        return None;
+    }
+    g.next_actor_version = g
+        .next_actor_version
+        .checked_add(1)
+        .expect("actor fee epoch exhausted");
+    entry.fee_query = g.next_actor_version;
+    Some(entry.fee_query)
+}
+pub(super) fn fee_current(g: &Store, ns: &str, actor: &str, version: u64, query: u64) -> bool {
+    g.actor_versions
+        .get(ns)
+        .and_then(|n| n.entries.get(actor))
+        .is_some_and(|e| e.version == version && e.fee_query == query && !e.context.1)
+}
+pub(super) fn publication_fees_current(g: &Store, ns: &str, proof: &Proof) -> bool {
+    proof.fee_queries.iter().all(|(actor, query)| {
+        g.actor_versions
+            .get(ns)
+            .and_then(|n| n.entries.get(actor))
+            .is_some_and(|e| e.fee_query == *query)
+    })
+}
+pub(super) fn accept_fee(
+    g: &mut Store,
+    ns: &str,
+    actor: &str,
+    context: (u16, bool),
+    changed: bool,
+) -> Result<u64, sqlx::Error> {
+    if changed {
+        return observe(g, ns, actor, context, true);
+    }
+    let entry = g
+        .actor_versions
+        .get_mut(ns)
+        .and_then(|n| n.entries.get_mut(actor))
+        .expect("fee completion requires a current bounded guard record");
+    entry.context = context;
+    Ok(entry.version)
 }
 pub(super) fn reconcile(g: &mut Store, s: &mut Snapshot, proof: &Proof) -> Result<(), sqlx::Error> {
     let current = g.actor_versions.get(&s.namespace);
@@ -163,6 +237,7 @@ pub(super) fn authoritative_inventory(
             Entry {
                 version,
                 context: *context,
+                fee_query: 0,
             },
         );
     }
@@ -176,6 +251,7 @@ pub(super) fn authoritative_inventory(
         entries.entry(actor).or_insert(Entry {
             version: if changed { revision } else { entry.version },
             context: (0, false),
+            fee_query: 0,
         });
     }
     g.actor_versions

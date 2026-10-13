@@ -136,7 +136,7 @@ pub(super) async fn recover(state: &AppState) -> bool {
     }
     apply_recovery(&mut g, &namespace, actors, expected_epoch)
 }
-fn apply_recovery(
+pub(super) fn apply_recovery(
     g: &mut Store,
     namespace: &str,
     actors: HashMap<String, (u16, bool)>,

@@ -56,13 +56,27 @@ fn apply_known_unblock(g: &mut Store, namespace: &str, address: &str) -> Result<
         .early_actor_blocks
         .get(namespace)
         .is_some_and(|b| b.contains(address));
+    let fresh_positive = !was_blocked
+        && before.is_some_and(|c| !c.1)
+        && g.snapshots
+            .get(namespace)
+            .is_some_and(|s| s.config_expiry_ms > now_ms())
+        && !actor_versions::guard_context(g, namespace, address).is_some_and(|c| c.1);
+    let guard_context = if fresh_positive {
+        actor_versions::guard_context(g, namespace, address).unwrap_or(before.unwrap())
+    } else {
+        (0, false)
+    };
     actor_versions::observe(
         g,
         namespace,
         address,
-        (0, false),
-        was_blocked || before.is_some_and(|c| c != (0, false)),
+        guard_context,
+        was_blocked || (!fresh_positive && before.is_some_and(|c| c != (0, false))),
     )?;
+    if fresh_positive {
+        return Ok(());
+    }
 
     if let Some(blocks) = g.early_actor_blocks.get_mut(namespace) {
         blocks.remove(address);
@@ -91,6 +105,30 @@ fn apply_known_unblock(g: &mut Store, namespace: &str, address: &str) -> Result<
     g.snapshots.insert(namespace.to_owned(), Arc::new(snapshot));
     g.results.clear();
     Ok(())
+}
+pub(super) fn publish_observed_guard(
+    namespace: &str,
+    address: &str,
+    blocked: bool,
+    started: &actor_versions::Proof,
+) -> Result<Option<u64>, sqlx::Error> {
+    let mut g = store().lock().unwrap();
+    // A false response may authorize an unblock only if no newer authority
+    // replaced the state observed when its query started. True stays conservative.
+    if !blocked && !actor_versions::guard_current(&g, namespace, address, started) {
+        return Ok(None);
+    }
+    if blocked {
+        apply_known_block(&mut g, namespace, address)?;
+    } else {
+        apply_known_unblock(&mut g, namespace, address)?;
+    }
+    Ok(actor_versions::capture(
+        &g,
+        namespace,
+        &HashMap::from([(address.into(), (0, blocked))]),
+    )
+    .entries_version(address))
 }
 pub(super) fn publish_actor_guard(
     namespace: &str,
@@ -477,6 +515,51 @@ pub(super) async fn load_qualified_mirror(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn issue1489_expired_positive_fee_cannot_survive_or_renew_on_same_guard() {
+        let ns = "expired-positive-fee1489";
+        let mut g = Store::default();
+        let mut snapshot = super::super::tests::fixture();
+        snapshot.namespace = ns.into();
+        snapshot.config_expiry_ms = now_ms() - 1;
+        snapshot.actors.insert("actor".into(), (800, false));
+        g.snapshots.insert(ns.into(), Arc::new(snapshot.clone()));
+        let old_version = actor_versions::observe(&mut g, ns, "actor", (0, false), false).unwrap();
+        let old = actor_versions::capture(&g, ns, &snapshot.actors);
+        apply_known_unblock(&mut g, ns, "actor").unwrap();
+        assert_eq!(g.snapshots[ns].actors["actor"], (0, false));
+        assert_eq!(g.snapshots[ns].config_expiry_ms, snapshot.config_expiry_ms);
+        assert_ne!(
+            actor_versions::capture(&g, ns, &snapshot.actors).entries_version("actor"),
+            Some(old_version)
+        );
+        actor_versions::reconcile(&mut g, &mut snapshot, &old).unwrap();
+        assert_eq!(snapshot.actors["actor"], (0, false));
+    }
+    #[test]
+    fn issue1489_same_unblocked_observation_keeps_verified_discount_and_proof() {
+        let namespace = "unchanged-actor-refresh1489";
+        let actor = "actor";
+        let mut g = Store::default();
+        let mut snapshot = super::super::tests::fixture();
+        snapshot.namespace = namespace.into();
+        snapshot.actors.insert(actor.into(), (800, false));
+        let original = Arc::new(snapshot);
+        g.snapshots.insert(namespace.into(), Arc::clone(&original));
+        let version = actor_versions::observe(&mut g, namespace, actor, (0, false), false).unwrap();
+        apply_known_unblock(&mut g, namespace, actor).unwrap();
+        let current = &g.snapshots[namespace];
+        assert_eq!(
+            current.actors[actor],
+            (800, false),
+            "same positive guard must not clear verified fees while the optional read awaits"
+        );
+        assert!(Arc::ptr_eq(&original, current));
+        assert_eq!(
+            actor_versions::capture(&g, namespace, &current.actors).entries_version(actor),
+            Some(version)
+        );
+    }
 
     #[test]
     fn known_block_publication_is_synchronous_and_invalidates_warm_approval_without_enrichment() {

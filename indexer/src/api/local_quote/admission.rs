@@ -784,19 +784,40 @@ async fn refresh_actor_context(
     discount: impl std::future::Future<Output = Option<u16>>,
 ) -> Result<(), sqlx::Error> {
     let observed_at = now_ms();
-    let blocked = blacklist.await;
-    if blocked == Some(true) {
-        let version = ingestion::publish_actor_guard(namespace, address, true)?;
-        proof.observed(address, version);
-    } else if blocked == Some(false) {
-        let version = ingestion::publish_actor_guard(namespace, address, false)?;
-        proof.observed(address, version);
-        // Preserve this completed authoritative guard before optional fees await.
-        observed.insert(address.to_owned(), observed_at);
-        insert_actor(actors, address.to_owned(), (0, false))?;
+    let started = actor_versions::capture(
+        &store().lock().unwrap(),
+        namespace,
+        &HashMap::from([(address.to_owned(), (0, false))]),
+    );
+    let mut blocked = blacklist.await;
+    if let Some(value) = blocked {
+        if let Some(version) =
+            ingestion::publish_observed_guard(namespace, address, value, &started)?
+        {
+            proof.observed(address, version);
+            if !value {
+                // Completed guard proof precedes the optional fee observation.
+                observed.insert(address.to_owned(), observed_at);
+                insert_actor(actors, address.to_owned(), (0, false))?;
+            }
+        } else {
+            blocked = None;
+        }
     }
     let fee = if blocked == Some(false) {
-        discount.await
+        let version = proof
+            .entries_version(address)
+            .expect("completed guard has a proof");
+        if let Some(observation) = actor_fees::Observation::begin(namespace, address, version) {
+            proof.observed_fee(address, observation.query);
+            let fee = discount.await;
+            if let Some(version) = observation.complete(fee)? {
+                proof.observed(address, version);
+            }
+            fee
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -1360,6 +1381,216 @@ mod tests {
     }
     #[tokio::test]
     #[serial_test::serial]
+    async fn issue1489_old_false_response_cannot_clear_newer_known_block() {
+        for inventory in [false, true] {
+            let namespace = if inventory {
+                "delayed-false-inventory1489"
+            } else {
+                "delayed-false-guard1489"
+            };
+            let actor = super::super::publication_tests::address(33002);
+            let mut source = super::super::tests::fixture();
+            source.namespace = namespace.into();
+            source.actors.insert(actor.clone(), (800, false));
+            super::super::publication_tests::pending(source)
+                .scheduled()
+                .await
+                .unwrap();
+            let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+            let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+            let refresh_actor = actor.clone();
+            let refresh = tokio::spawn(async move {
+                refresh_actor_context(
+                    namespace,
+                    &refresh_actor,
+                    &mut HashMap::new(),
+                    &mut HashMap::new(),
+                    &mut actor_versions::Proof::default(),
+                    Some((800, false)),
+                    async {
+                        ready_tx.send(()).unwrap();
+                        Some(response_rx.await.unwrap())
+                    },
+                    async { Some(800) },
+                )
+                .await
+                .unwrap();
+            });
+            ready_rx.await.unwrap();
+            if inventory {
+                let mut g = store().lock().unwrap();
+                let epoch = g.snapshots[namespace].config_epoch;
+                assert!(actor_inventory::apply_recovery(
+                    &mut g,
+                    namespace,
+                    HashMap::from([(actor.clone(), (0, true))]),
+                    Some(epoch)
+                ));
+            } else {
+                ingestion::publish_known_block(namespace, &actor).unwrap();
+            }
+            response_tx.send(false).unwrap();
+            refresh.await.unwrap();
+            let blocked = store().lock().unwrap().snapshots[namespace].actors[&actor];
+            // An explicit false query started after the new authority may unblock,
+            // but it cannot inherit the old discount without fresh fee evidence.
+            refresh_actor_context(
+                namespace,
+                &actor,
+                &mut HashMap::new(),
+                &mut HashMap::new(),
+                &mut actor_versions::Proof::default(),
+                Some((0, true)),
+                async { Some(false) },
+                async { None },
+            )
+            .await
+            .unwrap();
+            let unblocked = store().lock().unwrap().snapshots[namespace].actors[&actor];
+            {
+                let mut g = store().lock().unwrap();
+                g.snapshots.remove(namespace);
+                g.actor_versions.remove(namespace);
+                g.early_actor_blocks.remove(namespace);
+            }
+            assert_eq!(
+                blocked,
+                (0, true),
+                "a false read started before the new authority cannot approve it afterward"
+            );
+            assert_eq!(
+                unblocked,
+                (0, false),
+                "only a fresh query may unblock, with conservative fees"
+            );
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn issue1489_same_guard_and_fee_keep_original_quote_cohort_during_refresh() {
+        let namespace = "same-positive-fee1489";
+        let actor = super::super::publication_tests::address(33000);
+        let mut source = super::super::tests::fixture();
+        source.namespace = namespace.into();
+        source.actors.insert(actor.clone(), (800, false));
+        let make = super::super::publication_tests::pending;
+        make(source.clone()).scheduled().await.unwrap();
+        let q = super::super::tests::request(10u128.pow(18));
+        let original = solve_local(namespace, &q).await.unwrap().0;
+        let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+        let (fee_tx, fee_rx) = tokio::sync::oneshot::channel();
+        let refresh_actor = actor.clone();
+        let refresh = tokio::spawn(async move {
+            let mut actors = HashMap::new();
+            let mut observed = HashMap::new();
+            let mut proof = actor_versions::Proof::default();
+            refresh_actor_context(
+                namespace,
+                &refresh_actor,
+                &mut actors,
+                &mut observed,
+                &mut proof,
+                Some((800, false)),
+                async { Some(false) },
+                async {
+                    ready_tx.send(()).unwrap();
+                    Some(fee_rx.await.unwrap())
+                },
+            )
+            .await
+            .unwrap();
+            (actors, proof)
+        });
+        ready_rx.await.unwrap();
+        let during = solve_local(namespace, &q).await.unwrap().0;
+        fee_tx.send(800u16).unwrap();
+        let (actors, proof) = refresh.await.unwrap();
+        source.actors = actors;
+        let mut pending = make(source);
+        pending.actor_proof = proof;
+        pending.scheduled().await.unwrap();
+        let after = solve_local(namespace, &q).await.unwrap().0;
+        {
+            let mut g = store().lock().unwrap();
+            g.snapshots.remove(namespace);
+            g.actor_versions.remove(namespace);
+            g.early_actor_blocks.remove(namespace);
+        }
+        for quote in [during, after] {
+            assert_eq!(
+                quote["execution_metadata"]["generation"],
+                original["execution_metadata"]["generation"],
+                "unchanged optional fee refresh cannot revoke the anonymous cohort"
+            );
+            assert_eq!(
+                quote["execution_metadata"]["expires_at_ms"],
+                original["execution_metadata"]["expires_at_ms"]
+            );
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn issue1489_older_fee_completion_cannot_replace_newer_discount() {
+        let namespace = "overlapping-positive-fee1489";
+        let actor = super::super::publication_tests::address(33001);
+        let mut source = super::super::tests::fixture();
+        source.namespace = namespace.into();
+        source.actors.insert(actor.clone(), (800, false));
+        let make = super::super::publication_tests::pending;
+        make(source.clone()).scheduled().await.unwrap();
+        let mut refreshes = Vec::new();
+        let mut completions = Vec::new();
+        for _ in 0..2 {
+            let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+            let (fee_tx, fee_rx) = tokio::sync::oneshot::channel();
+            let refresh_actor = actor.clone();
+            refreshes.push(tokio::spawn(async move {
+                let mut actors = HashMap::new();
+                let mut observed = HashMap::new();
+                let mut proof = actor_versions::Proof::default();
+                refresh_actor_context(
+                    namespace,
+                    &refresh_actor,
+                    &mut actors,
+                    &mut observed,
+                    &mut proof,
+                    Some((800, false)),
+                    async { Some(false) },
+                    async {
+                        ready_tx.send(()).unwrap();
+                        Some(fee_rx.await.unwrap())
+                    },
+                )
+                .await
+                .unwrap();
+                (actors, proof)
+            }));
+            completions.push(fee_tx);
+            ready_rx.await.unwrap();
+        }
+        for (index, discount) in [(1, 400u16), (0, 800u16)] {
+            completions.remove(index).send(discount).unwrap();
+            let (actors, proof) = refreshes.remove(index).await.unwrap();
+            let mut refreshed = source.clone();
+            refreshed.actors = actors;
+            let mut pending = make(refreshed);
+            pending.actor_proof = proof;
+            pending.scheduled().await.unwrap();
+        }
+        let actual = store().lock().unwrap().snapshots[namespace].actors[&actor];
+        {
+            let mut g = store().lock().unwrap();
+            g.snapshots.remove(namespace);
+            g.actor_versions.remove(namespace);
+            g.early_actor_blocks.remove(namespace);
+        }
+        assert_eq!(actual, (400, false), "late older fees cannot restore an old higher discount or discard the newer verified fee");
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
     async fn issue1489_guard_proof_before_discount_await_rejects_old_discount_and_block() {
         let namespace = "discount-await1489";
         let actor = super::super::publication_tests::address(31000);
@@ -1369,6 +1600,7 @@ mod tests {
         let make = super::super::publication_tests::pending;
         make(source.clone()).scheduled().await.unwrap();
         let (discount_tx, discount_rx) = tokio::sync::oneshot::channel();
+        let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
         let refresh_actor = actor.clone();
         let refresh = tokio::spawn(async move {
             let mut actors = HashMap::new();
@@ -1382,19 +1614,16 @@ mod tests {
                 &mut proof,
                 None,
                 async { Some(false) },
-                async { Some(discount_rx.await.unwrap()) },
+                async {
+                    ready_tx.send(()).unwrap();
+                    Some(discount_rx.await.unwrap())
+                },
             )
             .await
             .unwrap();
             (actors, proof)
         });
-        tokio::time::timeout(Duration::from_secs(2), async {
-            while store().lock().unwrap().snapshots[namespace].actors[&actor] != (0, false) {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .unwrap();
+        ready_rx.await.unwrap();
         ingestion::publish_known_block(namespace, &actor).unwrap();
         ingestion::publish_known_unblock(namespace, &actor).unwrap();
         discount_tx.send(1000u16).unwrap();

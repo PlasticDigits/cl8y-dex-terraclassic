@@ -73,6 +73,10 @@ impl Prepared {
         if g.snapshots.len() >= 32 && !g.snapshots.contains_key(&namespace) {
             return;
         }
+        if !actor_versions::publication_fees_current(&g, &namespace, &self.pending.actor_proof) {
+            tracing::info!(target: "route_discovery", stage = "discarded", reason = "fee_observation_superseded", "bounded route discovery");
+            return;
+        }
         if actor_versions::reconcile(&mut g, &mut snapshot, &self.pending.actor_proof).is_err() {
             mark_actor_capacity_exhausted(&mut g, &namespace);
             g.results.clear();
