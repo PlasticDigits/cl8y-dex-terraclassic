@@ -1,0 +1,20 @@
+{
+  "deployed_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "scope": "Completed Coolify build logs; runtime monitoring and acceptance are separate",
+  "applications": [
+    {
+      "label": "frontend",
+      "status": "finished",
+      "commit": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+      "log_count": 58,
+      "fatal_pattern_count": 0
+    },
+    {
+      "label": "backend",
+      "status": "finished",
+      "commit": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+      "log_count": 301,
+      "fatal_pattern_count": 0
+    }
+  ]
+}

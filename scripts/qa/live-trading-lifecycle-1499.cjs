@@ -20,7 +20,14 @@ const SHARD = Number(process.env.DEX_LIVE_SHARD);
 const {
   installInputClock,
   eligibleQuotesAtSnapshot,
+  displayedQuoteRetention,
+  matchingDisplayedQuotes,
+  updateDisplayedQuoteOwners,
 } = require("./live-input-clock-1499.cjs");
+const {
+  installReadGuard,
+  nativeBlockRules,
+} = require("./live-read-guard-1499.cjs");
 const REASONS = {
   protection: 422,
   price_impact_too_high: 422,
@@ -39,7 +46,7 @@ const REASONS = {
 const receipt = {
   issues: [1498, 1499, 1500],
   expected_revision: SHA,
-  qa_measurement_version: "foreground_in_page_v2",
+  qa_measurement_version: "foreground_native_transport_qualified_ownership_v5",
   shard: SHARD,
   shard_count: 3,
   expected_window_count: 4,
@@ -334,8 +341,11 @@ async function windowCase(c, view, viewport) {
     responses: [],
     failures: [],
     failure_details: [],
+    display_ownership_qualifications: [],
     first_useful_ms: null,
     first_dom_ms: null,
+    first_observed_dom_ms: null,
+    first_qualified_dom_ms: null,
     response_probe_failures: [],
     completed: false,
   };
@@ -343,56 +353,40 @@ async function windowCase(c, view, viewport) {
     baseline = null,
     lastSignature = null,
     latest = null,
-    windowEnded = false;
+    windowEnded = false,
+    displayedOwnership = { signature: null, owners: [], unavailable: false };
   const problem = (code) => {
     if (!row.failures.includes(code)) row.failures.push(code);
   };
-  await context.routeWebSocket("**/*", (s) => {
-    blockedOther++;
-    s.close();
+  await context.addInitScript(installReadGuard, {
+    frontend: FE,
+    backend: BE,
+    remaining: QUOTE_BUDGET - quotes,
   });
-  await context.route("**/*", async (route) => {
-    const r = route.request(),
-      u = new URL(r.url());
-    if (!["GET", "HEAD", "OPTIONS"].includes(r.method())) {
-      blockedWrites++;
-      return route.abort();
-    }
-    if (u.protocol === "data:") return route.continue();
-    const provider = /\/cosmwasm\/|\/cosmos\/|\/terra\/|\/rpc(?:\/|$)/.test(
-      u.pathname,
-    );
-    if (provider) {
-      blockedProvider++;
-      return route.abort();
-    }
+  const network = await context.newCDPSession(page);
+  await network.send("Network.enable");
+  await network.send("Network.setBlockedURLs", nativeBlockRules(FE, BE));
+  // Passive accounting only; no Fetch.enable/request-paused roundtrip for normal GETs.
+  page.on("request", (request) => {
+    const url = new URL(request.url());
     if (
-      ![FE, BE].includes(u.origin) &&
-      !["image", "font", "stylesheet"].includes(r.resourceType())
+      url.pathname.startsWith("/api/v1/route/solve") &&
+      ["GET", "HEAD", "OPTIONS"].includes(request.method())
     ) {
-      blockedOther++;
-      return route.abort();
-    }
-    if (u.origin === BE && u.searchParams.has("trader")) {
-      blockedWrites++;
-      return route.abort();
-    }
-    if (u.pathname.startsWith("/api/v1/route/solve")) {
-      if (quotes >= QUOTE_BUDGET) {
-        rejectedQuoteAttempts++;
-        problem("quote_budget");
-        return route.abort();
-      }
       quotes++;
       routeReads[
-        u.pathname.endsWith("/progress")
+        url.pathname.endsWith("/progress")
           ? "progress"
-          : u.pathname.endsWith("/best")
+          : url.pathname.endsWith("/best")
             ? "best"
             : "solve"
       ]++;
+      if (quotes > QUOTE_BUDGET) problem("quote_budget");
     }
-    return route.continue();
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method()))
+      problem("actual_write_violation");
+    if (/\/(?:cosmwasm|cosmos|terra|rpc)(?:\/|$)/.test(url.pathname))
+      problem("actual_provider_violation");
   });
   page.on("pageerror", () => problem("browser_page_error"));
   page.on("response", (response) => {
@@ -501,10 +495,18 @@ async function windowCase(c, view, viewport) {
               height: r.height,
             };
           }),
+          read_guard: window.__liveReadGuard1499,
           sample_epoch_ms: sampleEpochMs,
           visibility: document.visibilityState,
           hidden: document.hidden,
           clockCandidates: window.__liveClock1499?.candidates ?? [],
+          clockDomObservations: window.__liveClock1499?.dom_observations ?? [],
+          clockDiagnostics: {
+            long_task_observer_available:
+              window.__liveClock1499?.long_task_observer_available,
+            long_tasks: window.__liveClock1499?.long_tasks ?? [],
+            frame_gaps: window.__liveClock1499?.frame_gaps ?? [],
+          },
           inputAge:
             window.__liveInputStarted == null
               ? null
@@ -512,6 +514,19 @@ async function windowCase(c, view, viewport) {
         };
       });
       row.samples++;
+      if (
+        row.first_observed_dom_ms == null &&
+        state.clockDomObservations.length
+      )
+        row.first_observed_dom_ms = state.clockDomObservations[0].at_ms;
+      if (state.read_guard?.rejected) problem("quote_budget");
+      if (
+        state.read_guard?.writes ||
+        state.read_guard?.providers ||
+        state.read_guard?.actors ||
+        state.read_guard?.workers
+      )
+        problem("blocked_unsafe_request_attempt");
       if (state.visibility !== "visible" || state.hidden)
         problem("nonforeground_observation");
       const candidate = state.clockCandidates.find((clock) =>
@@ -525,7 +540,9 @@ async function windowCase(c, view, viewport) {
       );
       if (candidate && row.first_useful_ms == null) {
         row.first_dom_ms = candidate.first_dom_ms;
+        row.first_qualified_dom_ms = candidate.first_dom_ms;
         row.first_useful_ms = candidate.input_to_paint_ms;
+        row.first_clock_diagnostics = state.clockDiagnostics;
         if (row.first_useful_ms > 750) problem("browser_useful_over750");
         receipt.active_clock = {
           case: c.label,
@@ -560,10 +577,42 @@ async function windowCase(c, view, viewport) {
       )
         problem("layout_contract");
       const eligible = eligibleQuotesAtSnapshot(events, state.sample_epoch_ms),
-        matching = eligible.find(
-          (e) => human(e.output, c.outDecimals) === state.value,
-        );
-      if (!state.value && eligible.length) {
+        matchingOwners = matchingDisplayedQuotes(
+          eligible,
+          state,
+          (raw) => human(raw, c.outDecimals),
+          metric,
+        ),
+        matching = matchingOwners[0];
+      const displayedSignature = state.value
+        ? JSON.stringify([state.value, state.slippage, state.fee])
+        : null;
+      displayedOwnership = updateDisplayedQuoteOwners(
+        displayedOwnership,
+        displayedSignature,
+        matchingOwners,
+      );
+      const displayedOwners = displayedOwnership.owners;
+      const retention = displayedQuoteRetention(
+        displayedOwners,
+        events,
+        state.sample_epoch_ms,
+        displayedOwnership.unavailable,
+      );
+      if (
+        !state.value &&
+        ["ambiguous", "unavailable"].includes(retention) &&
+        row.display_ownership_qualifications.length < 32
+      )
+        row.display_ownership_qualifications.push({
+          sample_epoch_ms: state.sample_epoch_ms,
+          scope:
+            retention === "unavailable"
+              ? "owner_bound_unavailable"
+              : "identical_display_cohort_ownership_unavailable",
+          possible_original_expiries: displayedOwners.map((e) => e.expires),
+        });
+      if (!state.value && retention === "unexpired") {
         problem("unexpired_quote_blank");
         if (row.failure_details.length < 32)
           row.failure_details.push({
@@ -571,7 +620,7 @@ async function windowCase(c, view, viewport) {
             sample_epoch_ms: state.sample_epoch_ms,
             input_age_ms: state.inputAge,
             latest_reason: latest?.reason ?? null,
-            original_expiries: eligible.map((e) => e.expires),
+            original_expiries: displayedOwners.map((e) => e.expires),
           });
       }
       if (
@@ -605,14 +654,12 @@ async function windowCase(c, view, viewport) {
       }
       if (state.unsupported && latest?.reason !== "unsupported_semantics")
         problem("unsupported_without_typed_negative");
-      if (matching) {
-        if (
-          matching.metrics &&
-          (state.slippage !== "Slippage " + metric(matching.slippage) ||
-            state.fee !== "Fee " + metric(matching.fee))
-        )
-          problem("metric_display_mismatch");
-      }
+      if (
+        state.value &&
+        !matching &&
+        eligible.some((e) => human(e.output, c.outDecimals) === state.value)
+      )
+        problem("metric_display_mismatch");
       const signature = JSON.stringify([
         state.value,
         state.loading,
@@ -636,6 +683,12 @@ async function windowCase(c, view, viewport) {
       }
       await page.waitForTimeout(200);
     }
+    const guard = await page.evaluate(() => window.__liveReadGuard1499);
+    row.read_guard = guard;
+    blockedWrites += guard?.writes ?? 0;
+    blockedProvider += guard?.providers ?? 0;
+    blockedOther += (guard?.unexpected ?? 0) + (guard?.workers ?? 0);
+    rejectedQuoteAttempts += guard?.rejected ?? 0;
     windowEnded = true;
     await page.evaluate(() => window.__liveClock1499?.stop());
     await Promise.all([...pending]);
@@ -688,6 +741,7 @@ async function main() {
     "live-trading-lifecycle-1499.cjs",
     "live-input-clock-1499.cjs",
     "live-quote-economics-1500.cjs",
+    "live-read-guard-1499.cjs",
   ].map((file) => ({
     file,
     sha256: hash(fs.readFileSync(path.join(__dirname, file))),

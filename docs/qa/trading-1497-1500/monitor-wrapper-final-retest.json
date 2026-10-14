@@ -1,0 +1,173 @@
+{
+  "utc": "2026-10-14T10:26:35+00:00",
+  "revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "read_only": true,
+  "coverage_start_utc": "2026-10-14T09:48:32+00:00",
+  "coverage_end_utc": "2026-10-14T10:26:35+00:00",
+  "retest_end_utc": "2026-10-14T10:26:18.339000+00:00",
+  "coverage": "Complete contiguous <=15-minute intervals from rounded-down retest start through post-retest collection; earlier first-run windows are excluded.",
+  "interval_count": 3,
+  "maximum_interval_seconds": 900,
+  "grafana": {
+    "database": "ok",
+    "version": "11.5.2"
+  },
+  "totals": {
+    "backend": {
+      "lines": 2641.0,
+      "error_word_pattern": 21.0,
+      "http503_trace": 21.0,
+      "provider_capacity_pattern": 434.0,
+      "fatal_integrity_pattern": 0.0,
+      "database_error_pattern": 0.0
+    },
+    "frontend": {
+      "lines": 727.0,
+      "error_word_pattern": 11.0,
+      "http5xx_access": 0.0,
+      "nginx_severe": 0.0
+    }
+  },
+  "intervals": [
+    {
+      "start_utc": "2026-10-14T09:48:32+00:00",
+      "end_utc": "2026-10-14T10:03:32+00:00",
+      "duration_seconds": 900,
+      "counts": {
+        "backend": {
+          "lines": 1037.0,
+          "error_word_pattern": 11.0,
+          "http503_trace": 11.0,
+          "provider_capacity_pattern": 161.0,
+          "fatal_integrity_pattern": 0.0,
+          "database_error_pattern": 0.0,
+          "classification_sample_count": 11,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        },
+        "frontend": {
+          "lines": 322.0,
+          "error_word_pattern": 5.0,
+          "http5xx_access": 0.0,
+          "nginx_severe": 0.0,
+          "classification_sample_count": 5,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        }
+      },
+      "cause_classes": [
+        {
+          "family": "backend",
+          "cause_class": "http503_trace_reason_not_logged",
+          "count": 11,
+          "first_utc": "2026-10-14T09:49:46.782604+00:00",
+          "last_utc": "2026-10-14T09:58:05.859694+00:00"
+        },
+        {
+          "family": "frontend",
+          "cause_class": "successful_http200_error_filename_access",
+          "count": 5,
+          "first_utc": "2026-10-14T09:49:21.281240+00:00",
+          "last_utc": "2026-10-14T10:03:08.903834+00:00"
+        }
+      ],
+      "aggregate_complete": true
+    },
+    {
+      "start_utc": "2026-10-14T10:03:32+00:00",
+      "end_utc": "2026-10-14T10:18:32+00:00",
+      "duration_seconds": 900,
+      "counts": {
+        "backend": {
+          "lines": 1027.0,
+          "error_word_pattern": 4.0,
+          "http503_trace": 4.0,
+          "provider_capacity_pattern": 172.0,
+          "fatal_integrity_pattern": 0.0,
+          "database_error_pattern": 0.0,
+          "classification_sample_count": 4,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        },
+        "frontend": {
+          "lines": 268.0,
+          "error_word_pattern": 4.0,
+          "http5xx_access": 0.0,
+          "nginx_severe": 0.0,
+          "classification_sample_count": 4,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        }
+      },
+      "cause_classes": [
+        {
+          "family": "backend",
+          "cause_class": "http503_trace_reason_not_logged",
+          "count": 4,
+          "first_utc": "2026-10-14T10:11:06.520550+00:00",
+          "last_utc": "2026-10-14T10:15:47.701636+00:00"
+        },
+        {
+          "family": "frontend",
+          "cause_class": "successful_http200_error_filename_access",
+          "count": 4,
+          "first_utc": "2026-10-14T10:06:25.481186+00:00",
+          "last_utc": "2026-10-14T10:16:29.101433+00:00"
+        }
+      ],
+      "aggregate_complete": true
+    },
+    {
+      "start_utc": "2026-10-14T10:18:32+00:00",
+      "end_utc": "2026-10-14T10:26:35+00:00",
+      "duration_seconds": 483,
+      "counts": {
+        "backend": {
+          "lines": 577.0,
+          "error_word_pattern": 6.0,
+          "http503_trace": 6.0,
+          "provider_capacity_pattern": 101.0,
+          "fatal_integrity_pattern": 0.0,
+          "database_error_pattern": 0.0,
+          "classification_sample_count": 6,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        },
+        "frontend": {
+          "lines": 137.0,
+          "error_word_pattern": 2.0,
+          "http5xx_access": 0.0,
+          "nginx_severe": 0.0,
+          "classification_sample_count": 2,
+          "classification_sample_capped": false,
+          "classification_complete": true
+        }
+      },
+      "cause_classes": [
+        {
+          "family": "backend",
+          "cause_class": "http503_trace_reason_not_logged",
+          "count": 6,
+          "first_utc": "2026-10-14T10:18:56.606740+00:00",
+          "last_utc": "2026-10-14T10:24:57.627800+00:00"
+        },
+        {
+          "family": "frontend",
+          "cause_class": "successful_http200_error_filename_access",
+          "count": 2,
+          "first_utc": "2026-10-14T10:19:47.743032+00:00",
+          "last_utc": "2026-10-14T10:23:02.877841+00:00"
+        }
+      ],
+      "aggregate_complete": true
+    }
+  ],
+  "prometheus": {
+    "status": "SKIP",
+    "reason": "no_prometheus_datasource_provisioned"
+  },
+  "read_count": 39,
+  "maximum_reads": 51,
+  "classification_scope": "Fixed sanitized cause/time classes from bounded 256-line error samples per family per interval; capped flags explicit, aggregate counters independent of sample limit. HTTP503 traces omit request/typed reason and cannot alone establish warmup or harmlessness; compare live typed API receipts.",
+  "privacy": "No raw logs, actor identifiers, endpoint strings, credentials, auth metadata, private resource identifiers or task bodies."
+}

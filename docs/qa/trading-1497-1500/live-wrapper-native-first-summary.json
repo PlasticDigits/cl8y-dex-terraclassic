@@ -1,0 +1,191 @@
+{
+  "scope": "Native-transport original first receipt retained; active-display ownership correction is a separate later QA version, not retroactive PASS",
+  "revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "verdict": "FAIL",
+  "shards": [
+    {
+      "shard": 0,
+      "completed": true,
+      "read_counts": {
+        "quote_reads": 433,
+        "read_count": 15,
+        "route_reads": {
+          "solve": 103,
+          "progress": 330,
+          "best": 0
+        },
+        "blocked_write_attempts": null,
+        "blocked_provider_attempts": null
+      },
+      "helper": null,
+      "windows": [
+        {
+          "case": "USTC->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 934,
+          "first_useful_ms": 411.30000000074506,
+          "first_dom_ms": 337.80000000074506,
+          "failures": []
+        },
+        {
+          "case": "USTC->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 938,
+          "first_useful_ms": 414.4000000022352,
+          "first_dom_ms": 342,
+          "failures": []
+        },
+        {
+          "case": "CL8Y->USTC",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 938,
+          "first_useful_ms": 456.19999999925494,
+          "first_dom_ms": 368,
+          "failures": []
+        },
+        {
+          "case": "CL8Y->USTC",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 938,
+          "first_useful_ms": 414,
+          "first_dom_ms": 348.5,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "shard": 1,
+      "completed": true,
+      "read_counts": {
+        "quote_reads": 450,
+        "read_count": 15,
+        "route_reads": {
+          "solve": 103,
+          "progress": 347,
+          "best": 0
+        },
+        "blocked_write_attempts": null,
+        "blocked_provider_attempts": null
+      },
+      "helper": null,
+      "windows": [
+        {
+          "case": "CL8Y->cLUNC",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 927,
+          "first_useful_ms": 496.1000000014901,
+          "first_dom_ms": 467.69999999925494,
+          "failures": []
+        },
+        {
+          "case": "CL8Y->cLUNC",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 936,
+          "first_useful_ms": 419,
+          "first_dom_ms": 394.6000000014901,
+          "failures": [
+            "unexpired_quote_blank"
+          ]
+        },
+        {
+          "case": "cLUNC->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 936,
+          "first_useful_ms": 403.19999999925494,
+          "first_dom_ms": 372.80000000074506,
+          "failures": []
+        },
+        {
+          "case": "cLUNC->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 938,
+          "first_useful_ms": 379,
+          "first_dom_ms": 365.5999999977648,
+          "failures": []
+        }
+      ]
+    },
+    {
+      "shard": 2,
+      "completed": true,
+      "read_counts": {
+        "quote_reads": 420,
+        "read_count": 15,
+        "route_reads": {
+          "solve": 97,
+          "progress": 323,
+          "best": 0
+        },
+        "blocked_write_attempts": null,
+        "blocked_provider_attempts": null
+      },
+      "helper": null,
+      "windows": [
+        {
+          "case": "UST1->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 927,
+          "first_useful_ms": 1509.800000000745,
+          "first_dom_ms": 1412.300000000745,
+          "failures": [
+            "browser_useful_over750"
+          ]
+        },
+        {
+          "case": "UST1->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 937,
+          "first_useful_ms": 398.5999999977648,
+          "first_dom_ms": 345.69999999925494,
+          "failures": []
+        },
+        {
+          "case": "CL8Y->UST1",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 927,
+          "first_useful_ms": 465.70000000298023,
+          "first_dom_ms": 375.20000000298023,
+          "failures": []
+        },
+        {
+          "case": "CL8Y->UST1",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 938,
+          "first_useful_ms": 410.80000000074506,
+          "first_dom_ms": 344.9000000022352,
+          "failures": []
+        }
+      ]
+    }
+  ],
+  "investigation": {
+    "UST1_desktop": {
+      "input_epoch_ms": 1791968847414,
+      "body_elapsed_ms": 336,
+      "first_dom_ms": 1412.300000000745,
+      "two_frame_useful_ms": 1509.800000000745,
+      "next_matching_solve_elapsed_ms": 7967,
+      "cause": "Post-body renderer/browser scheduling unproven; no old long-task instrumentation. Executed latency failure retained."
+    },
+    "cLUNC_phone_blank": {
+      "classification": "confirmed_QA_historical_unused_quote_false_flag",
+      "sample_epoch_ms": 1791969116993,
+      "last_displayed_improvement_original_expiry": 1791969116918,
+      "inactive_lower_output_original_expiry": 1791969126089,
+      "displayed_expiry_delta_ms": 75,
+      "scope": "No positive retained display proof can use the unused lower-output cohort"
+    }
+  }
+}

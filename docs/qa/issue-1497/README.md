@@ -48,3 +48,5 @@ Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassi
 Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).
 
 AC1/AC7 completion is backed by [deployed first/retest](../trading-1497-1500/RESULTS.md#deployed-trade-firstretest), 30/30 checks. Other rows retain incomplete browser or wallet scope even where source regressions pass.
+
+Latest producer deployment and retained live failures: [release results](../trading-1497-1500/RESULTS.md#producer-deployment-and-final-acceptance-scope). These scopes do not check incomplete acceptance rows.

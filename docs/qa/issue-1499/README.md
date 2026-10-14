@@ -76,3 +76,5 @@ independent API stage checks: [LIVE.md](LIVE.md).
 
 Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501).
 Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).
+
+Latest producer deployment and retained live failures: [release results](../trading-1497-1500/RESULTS.md#producer-deployment-and-final-acceptance-scope). These scopes do not check incomplete acceptance rows.

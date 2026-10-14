@@ -6,7 +6,11 @@ The lifecycle driver checks the attested complete served root/script hashes befo
 and after, plus public backend health. No prior deployment or repository HEAD is
 silently accepted. The driver has no wallet, screenshot or broadcast capability;
 non-read methods, blockchain-provider paths and unrelated script/XHR requests are
-blocked. Only sanitized response classes, public raw quote output, original
+blocked by pre-app fetch/XHR/beacon/form/worker guards and native CDP URL rules.
+Known public GETs use native browser transport without Playwright Fetch routing.
+Only the exact public tokenlist image URLs are allowed outside frontend/backend
+origins; redirects cannot escape the native deny rules. An owned actual-Chrome
+regression verifies native allow/deny support before deployed runs. Only sanitized response classes, public raw quote output, original
 observation/expiry clocks, DOM values/metrics and geometry enter its0600 receipt.
 No generation/context digest, actor, credentials, upstream text or raw body enters
 its report.
@@ -44,7 +48,26 @@ original-expiry eligibility uses that capture clock rather than later CDP/Node
 delivery time. Precise failure details retain expiry deltas for investigation.
 Every200ms sample checks fixed
 Pay/Receive/summary/status geometry, one persistent DETAILS, one network-fee row,
-no page overflow, exact unexpired display ownership and typed unsupported status.
+no page overflow, retention of the last actually displayed matching output/metrics
+and typed unsupported status. Older unused different-output quotes cannot revive
+that display after its original expiry. Identical output/metrics across overlapping
+cohorts cannot independently prove which response the client adopted; mixed
+expired/unexpired owners are recorded as qualified ownership unavailable rather
+than a fabricated retention failure or proven acceptance. The earlier native
+transport first receipt and its historical-quote false flag remain archived.
+Unchanged output/metrics retain every possible original owner, including expired
+ones, until a distinguishable DOM transition. Matching uses output and displayed
+metrics together. The owner union is bounded by the600-read shard budget; overflow
+explicitly makes ownership unavailable rather than proving a newer adoption.
+Bounded browser long-task/frame-gap diagnostics preserve the original input clock
+when a useful result exceeds its budget; diagnostics never reset that clock.
+`first_observed_dom_ms` records the earliest visible DOM observation independently;
+`first_qualified_dom_ms` (legacy alias `first_dom_ms`) precedes the first validated
+two-frame paint. An aborted candidate or blank followed by identical output can
+retry on the same original input clock. Frozen v4 live receipts predate these final
+QA corrections, retain their executed helper hashes and verdicts, and are not
+relabelled as v5 live acceptance. Final v5 corrections have isolated first/retest
+regression coverage, without another full trial to seek a passing result.
 First useful output is confirmed through two render frames against the750ms
 browser budget. The independent initialized API first/retest probes use500ms;
 loading, transport errors and typed blockers never count as useful output.
@@ -61,7 +84,8 @@ production access:
 ```sh
 node --test scripts/qa/test-live-quote-economics-1500.cjs \
   scripts/qa/test-live-input-clock-1499.cjs \
-  scripts/qa/test-live-trading-lifecycle-1499.cjs
+  scripts/qa/test-live-trading-lifecycle-1499.cjs \
+  scripts/qa/test-live-read-guard-1499.cjs
 node --check scripts/qa/live-trading-lifecycle-1499.cjs
 ```
 

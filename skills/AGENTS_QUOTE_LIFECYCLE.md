@@ -40,3 +40,11 @@ chain-integrity failures remain non-executable without becoming a capability cla
 router configuration remains a real negative, and successful malformed schema
 reads must never manufacture a compatible configuration. Preserve all independent
 signing validations rather than using the display helper in mutation authorization.
+
+Live QA: [bounded measurement procedure](../docs/qa/issue-1499/LIVE.md) and
+[retained release evidence](../docs/qa/trading-1497-1500/RESULTS.md#producer-deployment-and-final-acceptance-scope).
+Keep original input clocks and separately report first observed DOM versus a
+validated two-frame paint. Read-only guards must preserve native transport for
+allowed reads and enforce budgets before sending. Historical unused different
+outputs are not current display owners; indistinguishable overlapping cohorts
+remain qualified rather than proof of adoption. Executed failures stay FAIL.

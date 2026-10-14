@@ -1,0 +1,643 @@
+{
+  "revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "qa_version": "foreground_native_transport_active_display_v4",
+  "verdict": "FAIL",
+  "scope": "First three-process cohort retained with strict latency/expiry/setup/budget failures; shared browser scheduling/callback delays independently recorded. Retest uses unchanged helper sequential shards, not retroactive rewrite.",
+  "shards": [
+    {
+      "shard": 0,
+      "overall": "FAIL",
+      "completed": false,
+      "reads": 315,
+      "failures": [
+        "elapsed_budget"
+      ],
+      "qa_helper_hashes": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        },
+        {
+          "file": "live-read-guard-1499.cjs",
+          "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+        }
+      ],
+      "windows": [
+        {
+          "case": "USTC->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 884,
+          "first_useful_ms": 465.69999999925494,
+          "first_dom_ms": 358,
+          "failures": [],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [],
+            "frame_gaps": []
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 499,
+            "admitted": 97,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "USTC->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 693,
+          "first_useful_ms": 7827.300000000745,
+          "first_dom_ms": 7755.099999997765,
+          "failures": [
+            "browser_useful_over750",
+            "unvalidated_or_expired_display",
+            "browser_client_validation:original_window"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [],
+            "frame_gaps": [
+              {
+                "at_ms": 7401.800000000745,
+                "duration_ms": 448.80000000074506
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 439,
+            "admitted": 60,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "CL8Y->USTC",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 757,
+          "first_useful_ms": 390.30000000074506,
+          "first_dom_ms": 360.30000000074506,
+          "failures": [
+            "browser_client_validation:original_window",
+            "unvalidated_or_expired_display"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [],
+            "frame_gaps": []
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 363,
+            "admitted": 76,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "CL8Y->USTC",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 686,
+          "first_useful_ms": 67533.60000000149,
+          "first_dom_ms": 67207.30000000075,
+          "failures": [
+            "browser_client_validation:original_window",
+            "browser_useful_over750"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 10.300000000745058,
+                "duration_ms": 6214
+              },
+              {
+                "at_ms": 6225.300000000745,
+                "duration_ms": 4521
+              },
+              {
+                "at_ms": 11511.900000002235,
+                "duration_ms": 114
+              },
+              {
+                "at_ms": 11626.300000000745,
+                "duration_ms": 1507
+              },
+              {
+                "at_ms": 13135.300000000745,
+                "duration_ms": 162
+              },
+              {
+                "at_ms": 33031.900000002235,
+                "duration_ms": 766
+              },
+              {
+                "at_ms": 33981.5,
+                "duration_ms": 744
+              },
+              {
+                "at_ms": 34781.5,
+                "duration_ms": 1065
+              },
+              {
+                "at_ms": 67148.10000000149,
+                "duration_ms": 60
+              }
+            ],
+            "frame_gaps": [
+              {
+                "at_ms": 11512.10000000149,
+                "duration_ms": 11501.300000000745
+              },
+              {
+                "at_ms": 22224.800000000745,
+                "duration_ms": 10712.699999999255
+              },
+              {
+                "at_ms": 30950.70000000298,
+                "duration_ms": 8725.900000002235
+              },
+              {
+                "at_ms": 33842.60000000149,
+                "duration_ms": 810.6999999992549
+              },
+              {
+                "at_ms": 34769.400000002235,
+                "duration_ms": 787.9000000022352
+              },
+              {
+                "at_ms": 35890.5,
+                "duration_ms": 1108.8999999985099
+              },
+              {
+                "at_ms": 46468.70000000298,
+                "duration_ms": 9453.900000002235
+              },
+              {
+                "at_ms": 51938.20000000298,
+                "duration_ms": 1881.2000000029802
+              },
+              {
+                "at_ms": 66805.40000000224,
+                "duration_ms": 1441.800000000745
+              },
+              {
+                "at_ms": 67533.60000000149,
+                "duration_ms": 323.1000000014901
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 285,
+            "admitted": 78,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        }
+      ]
+    },
+    {
+      "shard": 1,
+      "overall": "FAIL",
+      "completed": true,
+      "reads": 290,
+      "failures": [],
+      "qa_helper_hashes": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        },
+        {
+          "file": "live-read-guard-1499.cjs",
+          "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+        }
+      ],
+      "windows": [
+        {
+          "case": "CL8Y->cLUNC",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 900,
+          "first_useful_ms": 7807.199999999255,
+          "first_dom_ms": 7779.300000000745,
+          "failures": [
+            "browser_useful_over750"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 4349.199999999255,
+                "duration_ms": 1790
+              }
+            ],
+            "frame_gaps": [
+              {
+                "at_ms": 7430,
+                "duration_ms": 1295.6000000014901
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 528,
+            "admitted": 68,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "CL8Y->cLUNC",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 730,
+          "first_useful_ms": 29948.400000002235,
+          "first_dom_ms": 29930.300000000745,
+          "failures": [
+            "browser_useful_over750",
+            "unvalidated_or_expired_display",
+            "browser_client_validation:original_window"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [],
+            "frame_gaps": [
+              {
+                "at_ms": 6549.10000000149,
+                "duration_ms": 300.1000000014901
+              },
+              {
+                "at_ms": 29874.10000000149,
+                "duration_ms": 7075.800000000745
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 462,
+            "admitted": 66,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "cLUNC->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 715,
+          "first_useful_ms": 627.8999999985099,
+          "first_dom_ms": 544.1000000014901,
+          "failures": [
+            "unvalidated_or_expired_display",
+            "browser_client_validation:original_window"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 88.30000000074506,
+                "duration_ms": 381
+              }
+            ],
+            "frame_gaps": [
+              {
+                "at_ms": 472.19999999925494,
+                "duration_ms": 383.80000000074506
+              },
+              {
+                "at_ms": 13054,
+                "duration_ms": 12426.10000000149
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 390,
+            "admitted": 72,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "cLUNC->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 734,
+          "first_useful_ms": 412,
+          "first_dom_ms": 348.80000000074506,
+          "failures": [],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [],
+            "frame_gaps": []
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 310,
+            "admitted": 80,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        }
+      ]
+    },
+    {
+      "shard": 2,
+      "overall": "FAIL",
+      "completed": false,
+      "reads": 209,
+      "failures": [],
+      "qa_helper_hashes": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        },
+        {
+          "file": "live-read-guard-1499.cjs",
+          "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+        }
+      ],
+      "windows": [
+        {
+          "case": "UST1->CL8Y",
+          "viewport": "desktop",
+          "completed": true,
+          "samples": 820,
+          "first_useful_ms": 7899.199999999255,
+          "first_dom_ms": 7776.29999999702,
+          "failures": [
+            "browser_useful_over750",
+            "unvalidated_or_expired_display"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 6138.5,
+                "duration_ms": 1259
+              }
+            ],
+            "frame_gaps": []
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 528,
+            "admitted": 68,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "UST1->CL8Y",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 704,
+          "first_useful_ms": 109798.59999999776,
+          "first_dom_ms": 109725.30000000075,
+          "failures": [
+            "unvalidated_or_expired_display",
+            "browser_client_validation:original_window",
+            "browser_useful_over750"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 16691.39999999851,
+                "duration_ms": 8437
+              },
+              {
+                "at_ms": 35440.5,
+                "duration_ms": 9183
+              },
+              {
+                "at_ms": 67489.39999999851,
+                "duration_ms": 141
+              },
+              {
+                "at_ms": 67889.30000000075,
+                "duration_ms": 537
+              },
+              {
+                "at_ms": 85979,
+                "duration_ms": 825
+              },
+              {
+                "at_ms": 94472.80000000075,
+                "duration_ms": 4459
+              }
+            ],
+            "frame_gaps": [
+              {
+                "at_ms": 10165.599999997765,
+                "duration_ms": 6004.199999999255
+              },
+              {
+                "at_ms": 14923.599999997765,
+                "duration_ms": 4758
+              },
+              {
+                "at_ms": 25131.300000000745,
+                "duration_ms": 8439.900000002235
+              },
+              {
+                "at_ms": 26025.599999997765,
+                "duration_ms": 836.8999999985099
+              },
+              {
+                "at_ms": 26234.300000000745,
+                "duration_ms": 193.10000000149012
+              },
+              {
+                "at_ms": 32466.599999997765,
+                "duration_ms": 609.1999999992549
+              },
+              {
+                "at_ms": 44623,
+                "duration_ms": 9199.10000000149
+              },
+              {
+                "at_ms": 55866.89999999851,
+                "duration_ms": 942.6999999992549
+              },
+              {
+                "at_ms": 59463.599999997765,
+                "duration_ms": 3582.099999997765
+              },
+              {
+                "at_ms": 66792,
+                "duration_ms": 4752.60000000149
+              },
+              {
+                "at_ms": 67488.69999999925,
+                "duration_ms": 696.6999999992549
+              },
+              {
+                "at_ms": 67680.39999999851,
+                "duration_ms": 191
+              },
+              {
+                "at_ms": 68478.30000000075,
+                "duration_ms": 588.9000000022352
+              },
+              {
+                "at_ms": 75606.19999999925,
+                "duration_ms": 1017.1999999992549
+              },
+              {
+                "at_ms": 78766.89999999851,
+                "duration_ms": 3160.699999999255
+              },
+              {
+                "at_ms": 79386,
+                "duration_ms": 619.1000000014901
+              },
+              {
+                "at_ms": 85955.59999999776,
+                "duration_ms": 983.6999999992549
+              },
+              {
+                "at_ms": 98973.39999999851,
+                "duration_ms": 12995.699999999255
+              },
+              {
+                "at_ms": 109414.5,
+                "duration_ms": 10441.10000000149
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 460,
+            "admitted": 68,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        },
+        {
+          "case": "CL8Y->UST1",
+          "viewport": "desktop",
+          "completed": false,
+          "samples": 0,
+          "first_useful_ms": null,
+          "first_dom_ms": null,
+          "failures": [
+            "TimeoutError"
+          ],
+          "first_clock_diagnostics": null,
+          "ownership_qualifications": [],
+          "guard": null
+        },
+        {
+          "case": "CL8Y->UST1",
+          "viewport": "phone",
+          "completed": true,
+          "samples": 744,
+          "first_useful_ms": 1249.199999999255,
+          "first_dom_ms": 413.30000000074506,
+          "failures": [
+            "browser_useful_over750",
+            "unvalidated_or_expired_display",
+            "browser_client_validation:original_window"
+          ],
+          "first_clock_diagnostics": {
+            "long_task_observer_available": true,
+            "long_tasks": [
+              {
+                "at_ms": 324.1000000014901,
+                "duration_ms": 66
+              }
+            ],
+            "frame_gaps": [
+              {
+                "at_ms": 1249.199999999255,
+                "duration_ms": 831.3999999985099
+              }
+            ]
+          },
+          "ownership_qualifications": [],
+          "guard": {
+            "remaining": 392,
+            "admitted": 68,
+            "rejected": 0,
+            "writes": 0,
+            "providers": 0,
+            "actors": 0,
+            "unexpected": 0,
+            "workers": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2409 @@
+{
+  "expected_runtime_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "attestation": "/tmp/dex-1497-1500/attestation-wrapper-final.json",
+  "scope": "Sanitized anonymous read-only selected6direction desktop/phone lifecycle/API metrics; no wallets, writes, provider calls, raw response bodies, actors, generation digests or screenshots. No server-side zero-RPC/independent oracle/contract/funded settlement acceptance claim.",
+  "overall": "FAIL",
+  "closure": "All relevant latency/readiness/expiry/setup acceptance has not passed; failed criteria remain open. Passing subsets do not rewrite failed trials.",
+  "phases": [
+    {
+      "phase": "wrapper_first",
+      "scope": "Foreground original CDP-intercepted transport first; real Missing recovery and latency FAIL retained",
+      "executed_combined_verdict": "FAIL",
+      "quote_progress_reads": 1328,
+      "complete_sustained_windows": 12,
+      "expected_windows": 12,
+      "shards": [
+        {
+          "shard": 0,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-first-0.json",
+          "receipt_sha256": "5718e0b1e3686ae35e5e0481e1bd229e71b76809e1fdca527789b9a8725202bf",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 504,
+          "route_reads": {
+            "solve": 131,
+            "progress": 373,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_in_page_v2",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "6a1112709046cfed552ab088d324d115c26f197bdac2279f349483c218aada22"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_first",
+              "status": 503,
+              "reason": "missing_observations",
+              "elapsed_ms": 301.3080800000007,
+              "useful": false,
+              "metrics": null,
+              "failure": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 503,
+              "reason": "missing_observations",
+              "elapsed_ms": 300.44153300000016,
+              "useful": false,
+              "metrics": null,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_first",
+              "status": 503,
+              "reason": "missing_observations",
+              "elapsed_ms": 301.53249400000004,
+              "useful": false,
+              "metrics": null,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_retest",
+              "status": 503,
+              "reason": "missing_observations",
+              "elapsed_ms": 301.54344500000025,
+              "useful": false,
+              "metrics": null,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190119,
+              "samples": 937,
+              "first_useful_ms": 37530.5,
+              "first_dom_ms": 37503.099999997765,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190040,
+              "samples": 939,
+              "first_useful_ms": 384.4000000022352,
+              "first_dom_ms": 370.1000000014901,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190203,
+              "samples": 932,
+              "first_useful_ms": 1139,
+              "first_dom_ms": 1042.8999999985099,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190018,
+              "samples": 939,
+              "first_useful_ms": 414.8999999985099,
+              "first_dom_ms": 351.8999999985099,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            }
+          ]
+        },
+        {
+          "shard": 1,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-first-1.json",
+          "receipt_sha256": "38dd2b3fc92f80e2d47d6bf497861c221c50e24eae1d939b0e50cf2f1264d3a1",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 429,
+          "route_reads": {
+            "solve": 117,
+            "progress": 312,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_in_page_v2",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "6a1112709046cfed552ab088d324d115c26f197bdac2279f349483c218aada22"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.4875119999997,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.22984499999984,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 290.9743520000002,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 290.52810899999986,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190167,
+              "samples": 937,
+              "first_useful_ms": 36811.599999997765,
+              "first_dom_ms": 36788.39999999851,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190188,
+              "samples": 939,
+              "first_useful_ms": 413.9000000022352,
+              "first_dom_ms": 349.1000000014901,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190214,
+              "samples": 936,
+              "first_useful_ms": 2783.300000000745,
+              "first_dom_ms": 2752.5,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190068,
+              "samples": 937,
+              "first_useful_ms": 538.8999999985099,
+              "first_dom_ms": 534.5999999977648,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            }
+          ]
+        },
+        {
+          "shard": 2,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-first-2.json",
+          "receipt_sha256": "730c82f60d17aad92c9ea0217f67a97f10b9ba006017b9875e0e46f845d43bd3",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 395,
+          "route_reads": {
+            "solve": 107,
+            "progress": 288,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_in_page_v2",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "6a1112709046cfed552ab088d324d115c26f197bdac2279f349483c218aada22"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 285.822236,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 284.09742599999936,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 286.57140099999924,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 285.0646939999997,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190088,
+              "samples": 939,
+              "first_useful_ms": 34233.5,
+              "first_dom_ms": 34214.10000000149,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190067,
+              "samples": 939,
+              "first_useful_ms": 416.9000000022352,
+              "first_dom_ms": 353.30000000074506,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190111,
+              "samples": 939,
+              "first_useful_ms": 371.6000000014901,
+              "first_dom_ms": 347.70000000298023,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190062,
+              "samples": 939,
+              "first_useful_ms": 371.19999999925494,
+              "first_dom_ms": 348.69999999925494,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "native_transport_first",
+      "scope": "Native transport first; UST1 latency FAIL and confirmed unused historical-cohort false flag retained",
+      "executed_combined_verdict": "FAIL",
+      "quote_progress_reads": 1303,
+      "complete_sustained_windows": 12,
+      "expected_windows": 12,
+      "shards": [
+        {
+          "shard": 0,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-native-first-0.json",
+          "receipt_sha256": "6aee07c8fc24974921b7593fa09470bcd8c1ed8a962fdbf6d1dc01158315ed8c",
+          "executed_overall": "PASS",
+          "completed": true,
+          "quote_progress_reads": 433,
+          "route_reads": {
+            "solve": 103,
+            "progress": 330,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_v3",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "4e8de872869743671476efc1fd0e9eee04b40ad8bcf4fcc75a313f006545f751"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 288.2522650000001,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.2547510000004,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.1902479999999,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.67866200000026,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190061,
+              "samples": 934,
+              "first_useful_ms": 411.30000000074506,
+              "first_dom_ms": 337.80000000074506,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 471,
+                "admitted": 125,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190126,
+              "samples": 938,
+              "first_useful_ms": 414.4000000022352,
+              "first_dom_ms": 342,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 360,
+                "admitted": 111,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190205,
+              "samples": 938,
+              "first_useful_ms": 456.19999999925494,
+              "first_dom_ms": 368,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 246,
+                "admitted": 114,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190042,
+              "samples": 938,
+              "first_useful_ms": 414,
+              "first_dom_ms": 348.5,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 167,
+                "admitted": 79,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 1,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-native-first-1.json",
+          "receipt_sha256": "9422ba93d68c78b1a3e33c13a98b6feb6802381e958c3643e817377c0ed6572a",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 450,
+          "route_reads": {
+            "solve": 103,
+            "progress": 347,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_v3",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "4e8de872869743671476efc1fd0e9eee04b40ad8bcf4fcc75a313f006545f751"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 288.7532119999996,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 288.64668100000017,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 289.4901749999999,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 288.10349399999996,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190062,
+              "samples": 927,
+              "first_useful_ms": 496.1000000014901,
+              "first_dom_ms": 467.69999999925494,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 488,
+                "admitted": 108,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190180,
+              "samples": 936,
+              "first_useful_ms": 419,
+              "first_dom_ms": 394.6000000014901,
+              "failures": [
+                "unexpired_quote_blank"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 338,
+                "admitted": 150,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190168,
+              "samples": 936,
+              "first_useful_ms": 403.19999999925494,
+              "first_dom_ms": 372.80000000074506,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 233,
+                "admitted": 105,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190080,
+              "samples": 938,
+              "first_useful_ms": 379,
+              "first_dom_ms": 365.5999999977648,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 150,
+                "admitted": 83,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 2,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-native-first-2.json",
+          "receipt_sha256": "84c33640e114ebcd4fda3a17564c7906164182083fca602ae5279bbb09f9a226",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 420,
+          "route_reads": {
+            "solve": 97,
+            "progress": 323,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_v3",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "4e8de872869743671476efc1fd0e9eee04b40ad8bcf4fcc75a313f006545f751"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "be95f2ac1e8887dd29b3d8917ca4568f39adb0d1bb38d08aca6dfc7898ebc44a"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 285.98858800000016,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 283.7159950000005,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 286.35505100000046,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 284.14645800000017,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190102,
+              "samples": 927,
+              "first_useful_ms": 1509.800000000745,
+              "first_dom_ms": 1412.300000000745,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 489,
+                "admitted": 107,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190060,
+              "samples": 937,
+              "first_useful_ms": 398.5999999977648,
+              "first_dom_ms": 345.69999999925494,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 361,
+                "admitted": 128,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190051,
+              "samples": 927,
+              "first_useful_ms": 465.70000000298023,
+              "first_dom_ms": 375.20000000298023,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 256,
+                "admitted": 105,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190075,
+              "samples": 938,
+              "first_useful_ms": 410.80000000074506,
+              "first_dom_ms": 344.9000000022352,
+              "failures": [],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": null,
+              "read_guard": {
+                "remaining": 180,
+                "admitted": 76,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "active_ownership_first",
+      "scope": "Frozen v4 three independent browser processes; shared stalls, latency, expiry, setup and wall-budget failures retained",
+      "executed_combined_verdict": "FAIL",
+      "quote_progress_reads": 814,
+      "complete_sustained_windows": 11,
+      "expected_windows": 12,
+      "shards": [
+        {
+          "shard": 0,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-first-0.json",
+          "receipt_sha256": "c8052c979d0732f9604481cd19bbecdd0b597e2cec74d638ed7d7b60b6468646",
+          "executed_overall": "FAIL",
+          "completed": false,
+          "quote_progress_reads": 315,
+          "route_reads": {
+            "solve": 81,
+            "progress": 234,
+            "best": 0
+          },
+          "read_count": 14,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [
+            "elapsed_budget"
+          ],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 286.7336150000001,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 286.66601700000047,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 286.54495900000074,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.5649370000001,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190922,
+              "samples": 884,
+              "first_useful_ms": 465.69999999925494,
+              "first_dom_ms": 358,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 499,
+                "admitted": 97,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 196942,
+              "samples": 693,
+              "first_useful_ms": 7827.300000000745,
+              "first_dom_ms": 7755.099999997765,
+              "failures": [
+                "browser_useful_over750",
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": [
+                  {
+                    "at_ms": 7401.800000000745,
+                    "duration_ms": 448.80000000074506
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 439,
+                "admitted": 60,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190076,
+              "samples": 757,
+              "first_useful_ms": 390.30000000074506,
+              "first_dom_ms": 360.30000000074506,
+              "failures": [
+                "browser_client_validation:original_window",
+                "unvalidated_or_expired_display"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 363,
+                "admitted": 76,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190206,
+              "samples": 686,
+              "first_useful_ms": 67533.60000000149,
+              "first_dom_ms": 67207.30000000075,
+              "failures": [
+                "browser_client_validation:original_window",
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 10.300000000745058,
+                    "duration_ms": 6214
+                  },
+                  {
+                    "at_ms": 6225.300000000745,
+                    "duration_ms": 4521
+                  },
+                  {
+                    "at_ms": 11511.900000002235,
+                    "duration_ms": 114
+                  },
+                  {
+                    "at_ms": 11626.300000000745,
+                    "duration_ms": 1507
+                  },
+                  {
+                    "at_ms": 13135.300000000745,
+                    "duration_ms": 162
+                  },
+                  {
+                    "at_ms": 33031.900000002235,
+                    "duration_ms": 766
+                  },
+                  {
+                    "at_ms": 33981.5,
+                    "duration_ms": 744
+                  },
+                  {
+                    "at_ms": 34781.5,
+                    "duration_ms": 1065
+                  },
+                  {
+                    "at_ms": 67148.10000000149,
+                    "duration_ms": 60
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 11512.10000000149,
+                    "duration_ms": 11501.300000000745
+                  },
+                  {
+                    "at_ms": 22224.800000000745,
+                    "duration_ms": 10712.699999999255
+                  },
+                  {
+                    "at_ms": 30950.70000000298,
+                    "duration_ms": 8725.900000002235
+                  },
+                  {
+                    "at_ms": 33842.60000000149,
+                    "duration_ms": 810.6999999992549
+                  },
+                  {
+                    "at_ms": 34769.400000002235,
+                    "duration_ms": 787.9000000022352
+                  },
+                  {
+                    "at_ms": 35890.5,
+                    "duration_ms": 1108.8999999985099
+                  },
+                  {
+                    "at_ms": 46468.70000000298,
+                    "duration_ms": 9453.900000002235
+                  },
+                  {
+                    "at_ms": 51938.20000000298,
+                    "duration_ms": 1881.2000000029802
+                  },
+                  {
+                    "at_ms": 66805.40000000224,
+                    "duration_ms": 1441.800000000745
+                  },
+                  {
+                    "at_ms": 67533.60000000149,
+                    "duration_ms": 323.1000000014901
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 285,
+                "admitted": 78,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 1,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-first-1.json",
+          "receipt_sha256": "03789a400417d783e320702f6b42367beda0374073e2ebd7c54664f31a1db42b",
+          "executed_overall": "FAIL",
+          "completed": true,
+          "quote_progress_reads": 290,
+          "route_reads": {
+            "solve": 75,
+            "progress": 215,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.07217500000024,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.65521699999954,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.69961200000034,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.8107709999995,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 198610,
+              "samples": 900,
+              "first_useful_ms": 7807.199999999255,
+              "first_dom_ms": 7779.300000000745,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 4349.199999999255,
+                    "duration_ms": 1790
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 7430,
+                    "duration_ms": 1295.6000000014901
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 528,
+                "admitted": 68,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190113,
+              "samples": 730,
+              "first_useful_ms": 29948.400000002235,
+              "first_dom_ms": 29930.300000000745,
+              "failures": [
+                "browser_useful_over750",
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": [
+                  {
+                    "at_ms": 6549.10000000149,
+                    "duration_ms": 300.1000000014901
+                  },
+                  {
+                    "at_ms": 29874.10000000149,
+                    "duration_ms": 7075.800000000745
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 462,
+                "admitted": 66,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 192099,
+              "samples": 715,
+              "first_useful_ms": 627.8999999985099,
+              "first_dom_ms": 544.1000000014901,
+              "failures": [
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 88.30000000074506,
+                    "duration_ms": 381
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 472.19999999925494,
+                    "duration_ms": 383.80000000074506
+                  },
+                  {
+                    "at_ms": 13054,
+                    "duration_ms": 12426.10000000149
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 390,
+                "admitted": 72,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190041,
+              "samples": 734,
+              "first_useful_ms": 412,
+              "first_dom_ms": 348.80000000074506,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 310,
+                "admitted": 80,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 2,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-first-2.json",
+          "receipt_sha256": "ddecc356c25280e3ddf952fcdb4b432ec5b2892140dadacbf8ddbe1b4a6c8440",
+          "executed_overall": "FAIL",
+          "completed": false,
+          "quote_progress_reads": 209,
+          "route_reads": {
+            "solve": 57,
+            "progress": 152,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.3724229999998,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.82966599999963,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.7852329999996,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 287.290798,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190045,
+              "samples": 820,
+              "first_useful_ms": 7899.199999999255,
+              "first_dom_ms": 7776.29999999702,
+              "failures": [
+                "browser_useful_over750",
+                "unvalidated_or_expired_display"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 6138.5,
+                    "duration_ms": 1259
+                  }
+                ],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 528,
+                "admitted": 68,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190134,
+              "samples": 704,
+              "first_useful_ms": 109798.59999999776,
+              "first_dom_ms": 109725.30000000075,
+              "failures": [
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window",
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 16691.39999999851,
+                    "duration_ms": 8437
+                  },
+                  {
+                    "at_ms": 35440.5,
+                    "duration_ms": 9183
+                  },
+                  {
+                    "at_ms": 67489.39999999851,
+                    "duration_ms": 141
+                  },
+                  {
+                    "at_ms": 67889.30000000075,
+                    "duration_ms": 537
+                  },
+                  {
+                    "at_ms": 85979,
+                    "duration_ms": 825
+                  },
+                  {
+                    "at_ms": 94472.80000000075,
+                    "duration_ms": 4459
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 10165.599999997765,
+                    "duration_ms": 6004.199999999255
+                  },
+                  {
+                    "at_ms": 14923.599999997765,
+                    "duration_ms": 4758
+                  },
+                  {
+                    "at_ms": 25131.300000000745,
+                    "duration_ms": 8439.900000002235
+                  },
+                  {
+                    "at_ms": 26025.599999997765,
+                    "duration_ms": 836.8999999985099
+                  },
+                  {
+                    "at_ms": 26234.300000000745,
+                    "duration_ms": 193.10000000149012
+                  },
+                  {
+                    "at_ms": 32466.599999997765,
+                    "duration_ms": 609.1999999992549
+                  },
+                  {
+                    "at_ms": 44623,
+                    "duration_ms": 9199.10000000149
+                  },
+                  {
+                    "at_ms": 55866.89999999851,
+                    "duration_ms": 942.6999999992549
+                  },
+                  {
+                    "at_ms": 59463.599999997765,
+                    "duration_ms": 3582.099999997765
+                  },
+                  {
+                    "at_ms": 66792,
+                    "duration_ms": 4752.60000000149
+                  },
+                  {
+                    "at_ms": 67488.69999999925,
+                    "duration_ms": 696.6999999992549
+                  },
+                  {
+                    "at_ms": 67680.39999999851,
+                    "duration_ms": 191
+                  },
+                  {
+                    "at_ms": 68478.30000000075,
+                    "duration_ms": 588.9000000022352
+                  },
+                  {
+                    "at_ms": 75606.19999999925,
+                    "duration_ms": 1017.1999999992549
+                  },
+                  {
+                    "at_ms": 78766.89999999851,
+                    "duration_ms": 3160.699999999255
+                  },
+                  {
+                    "at_ms": 79386,
+                    "duration_ms": 619.1000000014901
+                  },
+                  {
+                    "at_ms": 85955.59999999776,
+                    "duration_ms": 983.6999999992549
+                  },
+                  {
+                    "at_ms": 98973.39999999851,
+                    "duration_ms": 12995.699999999255
+                  },
+                  {
+                    "at_ms": 109414.5,
+                    "duration_ms": 10441.10000000149
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 460,
+                "admitted": 68,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "desktop",
+              "completed": false,
+              "elapsed_ms": null,
+              "samples": 0,
+              "first_useful_ms": null,
+              "first_dom_ms": null,
+              "failures": [
+                "TimeoutError"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": [],
+              "read_guard": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190089,
+              "samples": 744,
+              "first_useful_ms": 1249.199999999255,
+              "first_dom_ms": 413.30000000074506,
+              "failures": [
+                "browser_useful_over750",
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 324.1000000014901,
+                    "duration_ms": 66
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 1249.199999999255,
+                    "duration_ms": 831.3999999985099
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 392,
+                "admitted": 68,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "unchanged_sequential_retest",
+      "scope": "Same executed v4 helpers as active first; one browser shard at a time; native FAIL, cLUNC and factory PASS",
+      "executed_combined_verdict": "FAIL",
+      "quote_progress_reads": 1022,
+      "complete_sustained_windows": 11,
+      "expected_windows": 12,
+      "shards": [
+        {
+          "shard": 0,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-retest-0.json",
+          "receipt_sha256": "8ed54ecbed112ef6edd8567fb26ed7f25b32c8bb02e89c6a1c59c994c1d099fa",
+          "executed_overall": "FAIL",
+          "completed": false,
+          "quote_progress_reads": 326,
+          "route_reads": {
+            "solve": 75,
+            "progress": 251,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 302.0857819999992,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 300.7902529999992,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 302.69666699999925,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->USTC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 301.4010180000005,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "desktop",
+              "completed": false,
+              "elapsed_ms": null,
+              "samples": 0,
+              "first_useful_ms": null,
+              "first_dom_ms": null,
+              "failures": [
+                "TimeoutError"
+              ],
+              "first_clock_diagnostics": null,
+              "display_ownership_qualifications": [],
+              "read_guard": null
+            },
+            {
+              "case": "USTC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 192599,
+              "samples": 857,
+              "first_useful_ms": 468.19999999925494,
+              "first_dom_ms": 403.5,
+              "failures": [
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 500,
+                "admitted": 96,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190156,
+              "samples": 854,
+              "first_useful_ms": 652.5999999977648,
+              "first_dom_ms": 624,
+              "failures": [
+                "unvalidated_or_expired_display",
+                "browser_client_validation:original_window"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [
+                  {
+                    "at_ms": 68.69999999925494,
+                    "duration_ms": 81
+                  },
+                  {
+                    "at_ms": 184.19999999925494,
+                    "duration_ms": 107
+                  }
+                ],
+                "frame_gaps": [
+                  {
+                    "at_ms": 149.19999999925494,
+                    "duration_ms": 137.19999999925494
+                  },
+                  {
+                    "at_ms": 339.80000000074506,
+                    "duration_ms": 155.20000000298023
+                  }
+                ]
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 380,
+                "admitted": 120,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->USTC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190212,
+              "samples": 939,
+              "first_useful_ms": 12536.5,
+              "first_dom_ms": 12468.699999999255,
+              "failures": [
+                "browser_useful_over750"
+              ],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 274,
+                "admitted": 106,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 1,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-retest-1.json",
+          "receipt_sha256": "31f62031a1e7bf98cdc0d16dd5810f3ac69933ff8735f891d3b8d87546e6fd27",
+          "executed_overall": "PASS",
+          "completed": true,
+          "quote_progress_reads": 309,
+          "route_reads": {
+            "solve": 86,
+            "progress": 223,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 284.60975899999994,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 284.3031600000004,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 285.03292899999997,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 283.82050700000036,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190175,
+              "samples": 938,
+              "first_useful_ms": 366.80000000074506,
+              "first_dom_ms": 344.5,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 520,
+                "admitted": 76,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->cLUNC",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190170,
+              "samples": 938,
+              "first_useful_ms": 379.9000000022352,
+              "first_dom_ms": 355.70000000298023,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 440,
+                "admitted": 80,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190199,
+              "samples": 934,
+              "first_useful_ms": 445.80000000074506,
+              "first_dom_ms": 361.5,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 361,
+                "admitted": 79,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "cLUNC->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190110,
+              "samples": 938,
+              "first_useful_ms": 407.30000000074506,
+              "first_dom_ms": 341,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 291,
+                "admitted": 70,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        },
+        {
+          "shard": 2,
+          "receipt": "/tmp/dex-1497-1500/live-wrapper-active-retest-2.json",
+          "receipt_sha256": "a17c777b9eec4429313f41414ac05263eb0eb6daa88128cfbe9d74da0d02ba87",
+          "executed_overall": "PASS",
+          "completed": true,
+          "quote_progress_reads": 387,
+          "route_reads": {
+            "solve": 93,
+            "progress": 294,
+            "best": 0
+          },
+          "read_count": 15,
+          "blocked_writes": 0,
+          "blocked_provider": 0,
+          "blocked_other": 0,
+          "failures": [],
+          "qa_version": "foreground_native_transport_active_display_v4",
+          "executed_helper_hashes": [
+            {
+              "file": "live-trading-lifecycle-1499.cjs",
+              "sha256": "7d7c0be26ad60f1bd70f9668b22975606df69847ba14490c02288b14d81ad9de"
+            },
+            {
+              "file": "live-input-clock-1499.cjs",
+              "sha256": "e1febcd4b35f6c088e0ded6c0443749cfeb8efa459ff2992963b613a2ec1e94e"
+            },
+            {
+              "file": "live-quote-economics-1500.cjs",
+              "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+            },
+            {
+              "file": "live-read-guard-1499.cjs",
+              "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+            }
+          ],
+          "initialized_api": [
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.8120349999999,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "UST1->CL8Y",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 290.489595,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_first",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 291.0624779999998,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            },
+            {
+              "case": "CL8Y->UST1",
+              "phase": "initialized_retest",
+              "status": 200,
+              "reason": null,
+              "elapsed_ms": 290.6509809999998,
+              "useful": true,
+              "metrics": true,
+              "failure": null
+            }
+          ],
+          "windows": [
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190156,
+              "samples": 938,
+              "first_useful_ms": 369.19999999925494,
+              "first_dom_ms": 339.3999999985099,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 501,
+                "admitted": 95,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "UST1->CL8Y",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190069,
+              "samples": 927,
+              "first_useful_ms": 411.80000000074506,
+              "first_dom_ms": 343,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 409,
+                "admitted": 92,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "desktop",
+              "completed": true,
+              "elapsed_ms": 190078,
+              "samples": 937,
+              "first_useful_ms": 379.29999999701977,
+              "first_dom_ms": 350.19999999925494,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 322,
+                "admitted": 87,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            },
+            {
+              "case": "CL8Y->UST1",
+              "viewport": "phone",
+              "completed": true,
+              "elapsed_ms": 190128,
+              "samples": 938,
+              "first_useful_ms": 365.30000000074506,
+              "first_dom_ms": 340.5,
+              "failures": [],
+              "first_clock_diagnostics": {
+                "long_task_observer_available": true,
+                "long_tasks": [],
+                "frame_gaps": []
+              },
+              "display_ownership_qualifications": [],
+              "read_guard": {
+                "remaining": 213,
+                "admitted": 109,
+                "rejected": 0,
+                "writes": 0,
+                "providers": 0,
+                "actors": 0,
+                "unexpected": 0,
+                "workers": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "final_qa_version": "foreground_native_transport_qualified_ownership_v5",
+  "final_helper_hashes": [
+    {
+      "file": "live-trading-lifecycle-1499.cjs",
+      "sha256": "78805da679fd3c34468ad3bdcb7f1b137d4eaf7065925826604691c1af38bb1f"
+    },
+    {
+      "file": "live-input-clock-1499.cjs",
+      "sha256": "71bb62cbbff17f2f2ca2f109ac12841ef42a51e3fa1bfb8a4353736a3e930333"
+    },
+    {
+      "file": "live-quote-economics-1500.cjs",
+      "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+    },
+    {
+      "file": "live-read-guard-1499.cjs",
+      "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+    }
+  ],
+  "final_qa_corrections": "After frozen retest only: blank/aborted identical-value paint retry on original input clock; earliest observed DOM separate from qualified paint; expired possible owners retained across unchanged signatures;600union overflow unavailable; output+metrics compatible matching. Final helpers have isolated first/retest tests, not a new full live trial. Unknown advisory metrics match only the exact product labels Slippage Unavailable / Fee Unavailable; invented zero fails in unknown-only and mixed-cohort controls.",
+  "qualifications": [
+    {
+      "phase": "native_transport_first",
+      "case": "UST1->CL8Y desktop",
+      "original_paint_ms": 1509.800000000745,
+      "first_qualified_dom_ms": 1412.300000000745,
+      "cause": "No old LongTask record or second solve before7967ms; post-body delay unproven. Executed timing FAIL retained.",
+      "input_to_body_ms": 336
+    },
+    {
+      "phase": "native_transport_first",
+      "case": "CL8Y->cLUNC phone",
+      "classification": "confirmed_QA_unused_historical_cohort_false_flag",
+      "sample_epoch_ms": 1791969116993,
+      "displayed_owner_expiry_ms": 1791969116918,
+      "inactive_different_output_expiry_ms": 1791969126089
+    },
+    {
+      "phase": "active_ownership_first",
+      "case": "UST1->CL8Y phone",
+      "first_sampled_visible_dom_upper_bound_ms": 420.80000000074506,
+      "body_elapsed_ms": 331,
+      "first_qualified_paint_ms": 109798.59999999776,
+      "qualification": "Old clock did not retry identical value after aborted paint/blank; reported qualified-dom is not earliest observed DOM. LongTasks and6\u201313sec framegaps observed. No retrospective750ms PASS."
+    },
+    {
+      "phase": "active_ownership_first",
+      "classification": "native_CDP_delivery_lag",
+      "case": "UST1->CL8Y phone",
+      "wire_body_elapsed_ms": 18292.0087890625,
+      "Node_body_elapsed_ms": 25175,
+      "callback_lag_ms": 6882.9911855468745,
+      "qualification": "No interception; body delivery/renderer scheduling can constrain proof of expiry ownership. Raw FAILs remain."
+    }
+  ],
+  "regression_first_log": "/tmp/dex-1497-1500/final-helper-first.log",
+  "regression_retest_log": "/tmp/dex-1497-1500/final-helper-retest.log",
+  "full_trial_after_v5": "NOT RUN by coordinator instruction; no green-seeking rerun",
+  "final_regressions": {
+    "first": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0
+    },
+    "retest": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0
+    },
+    "format": "PASS",
+    "driver_syntax": "PASS",
+    "diff_check": "PASS"
+  },
+  "review": "Independent review confirmed owner union, compatible matcher and blank/aborted clock changes; final unknown-metrics fabricated-zero defect corrected with a dedicated regression."
+}
