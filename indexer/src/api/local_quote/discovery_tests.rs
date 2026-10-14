@@ -109,7 +109,7 @@ fn native(namespace: &str) -> super::super::local_wrapper_quote::WrapperSnapshot
         fee_wrap_bps: 200,
         fee_unwrap_bps: 200,
         tax_atomics: None,
-        router_unwrap_supported: false,
+        router_unwrap_supported: Some(false),
         mapper_floor_version: Some(1),
         treasury_floor_version: Some(1),
     }
@@ -306,7 +306,7 @@ fn issue1489_ineligible_native_higher_net_cannot_suppress_eligible_lower_alterna
     let amount = 9_800_000_000;
     let short = independent(amount, &s, &[101, 102]);
     let mut wrapper = native("cap");
-    wrapper.router_unwrap_supported = true;
+    wrapper.router_unwrap_supported = Some(true);
     wrapper.tax_atomics = Some(0);
     wrapper.mappings.insert(
         "uusd".into(),

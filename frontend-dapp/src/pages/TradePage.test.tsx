@@ -12,7 +12,7 @@ import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import * as factory from '@/services/terraclassic/factory'
 import * as routerService from '@/services/terraclassic/router'
 import * as indexerClient from '@/services/indexer/client'
-import type { IndexerPair } from '@/types'
+import { indexerPairToPairInfo, type IndexerPair } from '@/types'
 import { CL8Y_TOKEN_ADDRESS } from '@/utils/constants'
 
 // Match route params in component tests; merely setting MemoryRouter's URL
@@ -36,8 +36,8 @@ function LayoutParityShell() {
   return <Outlet key={location.pathname} />
 }
 
-function renderTradeRoutes(initialEntries: string[], opts?: { layoutParity?: boolean }) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+function renderTradeRoutes(initialEntries: string[], opts?: { layoutParity?: boolean; queryClient?: QueryClient }) {
+  const queryClient = opts?.queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   const tradeRoutes = [
     { path: '/trade', element: <TradePage /> },
     { path: '/trade/:pairAddr', element: <TradePage /> },
@@ -302,7 +302,23 @@ describe('TradePage', () => {
     }
   })
 
-  it('redirects a fresh bare /trade to native USTC pay without inventing a factory pair (#1473)', async () => {
+  it('keeps ambiguous genuine native factory queries in Trade (#1497)', async () => {
+    const factoryPair = {
+      contract_addr: PAIR,
+      liquidity_token: mockIndexerPair.lp_token!,
+      asset_infos: [{ native_token: { denom: 'uusd' } }, { token: { contract_addr: CL8Y_TOKEN_ADDRESS } }],
+    }
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [factoryPair, { ...factoryPair, contract_addr: 'terra1pair0000000000000000000000000000000002' }],
+    })
+    const router = renderTradeRoutes([`/trade?from=uusd&to=${CL8Y_TOKEN_ADDRESS}`])
+    await screen.findByRole('combobox', { name: 'Trading pair' })
+    expect(router.state.location.pathname).toBe('/trade')
+    expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+  })
+
+  it.each(['/trade', '/trade/'])('opens the genuine advanced workspace from bare %s (#1497)', async (entry) => {
     vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
       pairs: [
         {
@@ -312,11 +328,12 @@ describe('TradePage', () => {
         },
       ],
     })
-    const router = renderTradeRoutes(['/trade'])
-    await screen.findByTestId('native-swap-entry')
-    expect(router.state.location.pathname).toBe('/')
-    expect(new URLSearchParams(router.state.location.search).get('from')).toBe('uusd')
-    expect(new URLSearchParams(router.state.location.search).get('to')).toBe(CL8Y_TOKEN_ADDRESS)
+    const router = renderTradeRoutes([entry], { layoutParity: true })
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    expect(screen.getByTestId('trade-order-tab-market')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('trade-order-tab-limit')).toBeInTheDocument()
+    expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
     expect(vi.mocked(indexerClient.getPair)).not.toHaveBeenCalledWith('uusd')
   })
 
@@ -326,6 +343,128 @@ describe('TradePage', () => {
     expect(await screen.findByTestId('trade-onboarding-strip')).toBeInTheDocument()
     await user.click(screen.getByTestId('trade-onboarding-dismiss'))
     expect(screen.queryByTestId('trade-onboarding-strip')).not.toBeInTheDocument()
+  })
+
+  it('retains a truthful Trade selector with empty discovery (#1497)', async () => {
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({ pairs: [] })
+    const router = renderTradeRoutes(['/trade'], { layoutParity: true })
+    const selector = await screen.findByRole('combobox', { name: 'Trading pair' })
+    expect(selector).toHaveAttribute('placeholder', 'No eligible trading pairs')
+    expect(router.state.location.pathname).toBe('/trade')
+    expect(screen.getByTestId('trade-page-heading')).toBeInTheDocument()
+    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
+  })
+
+  it('keeps production gem-only discovery in an honest Trade empty state (#1497)', async () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    vi.mocked(indexerClient.getAllPairsPaged).mockResolvedValue([
+      {
+        ...mockIndexerPair,
+        asset_0: {
+          ...mockIndexerPair.asset_0,
+          symbol: 'EMBER',
+          contract_addr: 'terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94',
+        },
+        asset_1: {
+          ...mockIndexerPair.asset_1,
+          symbol: 'CORAL',
+          contract_addr: 'terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena',
+        },
+      },
+    ])
+    try {
+      const router = renderTradeRoutes(['/trade'], { layoutParity: true })
+      const selector = await screen.findByRole('combobox', { name: 'Trading pair' })
+      await userEvent.setup().click(selector)
+      expect(await screen.findByText('No eligible trading pairs')).toBeInTheDocument()
+      expect(screen.queryAllByRole('option')).toHaveLength(0)
+      expect(router.state.location.pathname).toBe('/trade')
+      expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('retains Trade intent through catalog outage and manual recovery (#1497)', async () => {
+    vi.mocked(indexerClient.getAllPairsPaged)
+      .mockRejectedValueOnce(new Error('Indexer API error: 503 Service Unavailable'))
+      .mockResolvedValue([mockIndexerPair])
+    const router = renderTradeRoutes(['/trade'], { layoutParity: true })
+    const retry = await screen.findByRole('button', { name: 'Retry' })
+    expect(router.state.location.pathname).toBe('/trade')
+    expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
+    await userEvent.setup().click(retry)
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+  })
+
+  it.each([false, true])('catalog shuffle %s keeps deterministic bare Trade selection (#1497)', async (reversed) => {
+    const other = { ...mockIndexerPair, pair_address: 'terra1pair0000000000000000000000000000000002' }
+    vi.mocked(indexerClient.getAllPairsPaged).mockResolvedValue(
+      reversed ? [other, mockIndexerPair] : [mockIndexerPair, other]
+    )
+    const router = renderTradeRoutes(['/trade'], { layoutParity: true })
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+  })
+
+  it('canonicalizes late discovery with replace so Back returns to the previous destination (#1497)', async () => {
+    let resolveCatalog!: (pairs: IndexerPair[]) => void
+    vi.mocked(indexerClient.getAllPairsPaged).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCatalog = resolve
+        })
+    )
+    const router = renderTradeRoutes(['/', '/trade'], { layoutParity: true })
+    expect(router.state.location.pathname).toBe('/trade')
+    await act(async () => resolveCatalog([mockIndexerPair]))
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    await act(async () => {
+      await router.navigate(-1)
+    })
+    expect(router.state.location.pathname).toBe('/')
+    await act(async () => {
+      await router.navigate(1)
+    })
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+  })
+
+  it('cannot let a late bare-entry catalog override a newer deliberate deep link (#1497)', async () => {
+    let resolveCatalog!: (pairs: IndexerPair[]) => void
+    vi.mocked(indexerClient.getAllPairsPaged).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCatalog = resolve
+        })
+    )
+    const other = { ...mockIndexerPair, pair_address: 'terra1pair0000000000000000000000000000000002' }
+    const router = renderTradeRoutes(['/trade'], { layoutParity: true })
+    await act(async () => {
+      await router.navigate(`/trade/${other.pair_address}`)
+    })
+    await act(async () => resolveCatalog([mockIndexerPair, other]))
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${other.pair_address}`)
+    expect(screen.queryByTestId('native-swap-entry')).not.toBeInTheDocument()
+  })
+
+  it('catalog reordering cannot overwrite a deliberate pair route (#1497)', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const other = { ...mockIndexerPair, pair_address: 'terra1pair0000000000000000000000000000000002' }
+    vi.mocked(indexerClient.getAllPairsPaged).mockResolvedValue([other, mockIndexerPair])
+    const router = renderTradeRoutes([`/trade/${other.pair_address}`], { layoutParity: true, queryClient })
+    await screen.findByTestId('trade-sub-lg-workspace')
+    await act(async () => {
+      queryClient.setQueryData(['allPairs'], { pairs: [mockIndexerPair, other].map(indexerPairToPairInfo) })
+    })
+    expect(router.state.location.pathname).toBe(`/trade/${other.pair_address}`)
+    expect(screen.getByTestId('trade-order-tab-market')).toBeInTheDocument()
   })
 
   it('defaults tape and wallet history to collapsed on first visit (GitLab #417)', async () => {
@@ -845,7 +984,7 @@ describe('TradePage', () => {
     expect(pairInput.value).toContain('000002')
   })
 
-  it('leaves bare /trade unselected when configured default identities are missing (#1473)', async () => {
+  it('selects a factory market even when Swap default identities are missing (#1497)', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     const router = createMemoryRouter(
       [
@@ -863,8 +1002,8 @@ describe('TradePage', () => {
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Trading pair' })).toBeEnabled()
     })
-    expect(router.state.location.pathname).toBe('/trade')
-    expect(screen.queryByTestId('trade-sub-lg-workspace')).not.toBeInTheDocument()
+    await screen.findByTestId('trade-sub-lg-workspace')
+    expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
   })
 
   it('switches trade workspace when a different pair is selected from search (GitLab #301)', async () => {

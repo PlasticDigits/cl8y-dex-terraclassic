@@ -333,8 +333,7 @@ export function PairSearchSelect({
   const awaitingIndexer =
     useIndexerSearch && !useLocalFallback && (pairsQuery.isLoading || (pairsQuery.isFetching && !pairsQuery.data))
 
-  const showEmptyState =
-    open && options.length === 0 && !awaitingIndexer && (queryReady || useLocalFallback) && localSearchQuery.length > 0
+  const showEmptyState = open && options.length === 0 && !awaitingIndexer && (queryReady || useLocalFallback)
 
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
@@ -447,7 +446,7 @@ export function PairSearchSelect({
               ) : null}
               {showEmptyState ? (
                 <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
-                  No pairs match your search
+                  {localSearchQuery.length > 0 ? 'No pairs match your search' : 'No eligible trading pairs'}
                 </li>
               ) : null}
               {options.map((opt, index) => {

@@ -1359,6 +1359,22 @@ pub struct LocalLegQuote {
     pub book_commission_amount: u128,
     pub pool_input_actual: u128,
 }
+/// Public, actor-free original book price/escrow terms for advisory independent
+/// fee-free reconstruction. Preserve walk order and the contract's scan budget.
+pub(crate) fn fee_free_book_terms(mirror: &HopMirror, offer: &str) -> Vec<(u128, u128)> {
+    let (rows, side) = if offer == mirror.asset_0_addr {
+        (&mirror.bids, "bid")
+    } else {
+        (&mirror.asks, "ask")
+    };
+    let now = Utc::now().timestamp().max(0) as u64;
+    rows.iter()
+        .take(MAX_SCAN_STEPS as usize)
+        .filter(|row| row.side == side && !order_is_expired(row, now))
+        .filter_map(economic_order_terms)
+        .map(|(remaining, price, _)| (remaining, price))
+        .collect()
+}
 pub fn quote_local_leg(
     mirror: &HopMirror,
     offer_token: &str,

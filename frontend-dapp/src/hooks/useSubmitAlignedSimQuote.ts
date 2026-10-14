@@ -6,8 +6,8 @@ import {
 } from '@/utils/quoteDebounce'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import type { UseQueryResult } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
-import { isExpiredLocalQuote, localQuoteExpiryMs } from '@/utils/localQuoteFreshness'
+import { useMemo } from 'react'
+import { useLocalQuoteExpired } from '@/hooks/useLocalQuoteExpired'
 
 export type SubmitAlignedSimQuote<T extends { return_amount: string }> = {
   /** Raw pay amount aligned with the debounced sim query key — use for on-chain submit. */
@@ -47,20 +47,22 @@ export function useSubmitAlignedSimQuote<T extends { return_amount: string; inde
     hybrid,
   } = params
 
-  const [, refreshExpiry] = useState(0)
-  useEffect(() => {
-    const expiry = localQuoteExpiryMs(simQuery.data)
-    if (expiry === undefined || !Number.isFinite(expiry) || expiry <= Date.now()) return
-    const timer = window.setTimeout(() => refreshExpiry((value) => value + 1), expiry - Date.now() + 1)
-    return () => window.clearTimeout(timer)
-  }, [simQuery.data])
-  const expired = isExpiredLocalQuote(simQuery.data)
+  const expired = useLocalQuoteExpired(simQuery.data)
   const isQuoteStale =
     expired ||
     isSubmitQuoteStale(rawInputAmount, debouncedRawInputAmount, simQuery.isPlaceholderData, simQuery.isFetching, hybrid)
 
   // Retain the last useful same-key baseline on refresh failure; isError still blocks submit.
-  const simData = expired ? undefined : simQuery.data
+  // Fetching only blocks mutation; a new draft/placeholder must immediately
+  // discard incompatible amounts, economics and notices, including A→B→A.
+  const incompatibleIntent = isSubmitQuoteStale(
+    rawInputAmount,
+    debouncedRawInputAmount,
+    simQuery.isPlaceholderData,
+    false,
+    hybrid
+  )
+  const simData = expired || incompatibleIntent ? undefined : simQuery.data
 
   const submitPayload = useMemo(
     () =>

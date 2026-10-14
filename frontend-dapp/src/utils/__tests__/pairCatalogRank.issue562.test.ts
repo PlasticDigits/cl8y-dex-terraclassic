@@ -114,14 +114,14 @@ describe('production discovery filters (A1 / A3 / A4)', () => {
   it('defaults Swap to native USTC and configured CL8Y when gems lead the factory set (#1473)', () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
-    const pair = defaultRetailSwapTokenPair([RUBY, QUARTZ, UST1, CUSTC, 'uluna', CL8Y, 'uusd'])
+    const pair = defaultRetailSwapTokenPair([RUBY, QUARTZ, UST1, CUSTC, 'uluna', CL8Y, 'uusd'], CL8Y)
     expect(pair).toEqual(['uusd', CL8Y])
   })
 
   it('leaves selection empty when either default execution identity is absent (#1473)', () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
-    expect(defaultRetailSwapTokenPair(['uluna', CUSTC, UST1, RUBY])).toBeUndefined()
+    expect(defaultRetailSwapTokenPair(['uluna', CUSTC, UST1, RUBY], CL8Y)).toBeUndefined()
   })
 
   it('uses the same native pay direction across every catalog permutation (#1473)', () => {
@@ -133,7 +133,7 @@ describe('production discovery filters (A1 / A3 / A4)', () => {
       )
     }
     for (const catalog of permutations(ids)) {
-      expect(defaultRetailSwapTokenPair(catalog)).toEqual(['uusd', CL8Y])
+      expect(defaultRetailSwapTokenPair(catalog, CL8Y)).toEqual(['uusd', CL8Y])
     }
   })
 
@@ -149,7 +149,7 @@ describe('production discovery filters (A1 / A3 / A4)', () => {
       ['uusd', 'uusd', CL8Y],
       ['uusd', CL8Y, CL8Y.toUpperCase()],
     ]) {
-      expect(defaultRetailSwapTokenPair(catalog)).toBeUndefined()
+      expect(defaultRetailSwapTokenPair(catalog, CL8Y)).toBeUndefined()
     }
     expect(defaultRetailSwapTokenPair(['uusd', CL8Y], '')).toBeUndefined()
     expect(defaultRetailSwapTokenPair(['uusd', CL8Y], 'terra1spoof')).toBeUndefined()

@@ -10,7 +10,7 @@ export function firstTradingNotice<K extends string>(candidates: readonly (reado
 export function isPreSignTradingError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : ''
   if (message === LOCAL_ROUTE_UNAVAILABLE || message === OFFLINE_SWAP_BUDGET_UNAVAILABLE) return true
-  return /^(Connect wallet|Missing parameters|Token decimals unavailable|Quote unavailable|Insufficient Balance|Confirm the price difference first\.|User rejected request|Request rejected|Signing cancelled|Signing canceled|Transaction rejected by user|Trading is paused\.|Trading is temporarily unavailable\.|Trading is restricted\.|Price difference is too high|Quote exceeds your price protection\.)$/i.test(
+  return /^(Connect wallet|Missing parameters|Token decimals unavailable|Quote unavailable|Insufficient Balance|Confirm the (?:price difference|fair-reference deviation) first\.|User rejected request|Request rejected|Signing cancelled|Signing canceled|Transaction rejected by user|Trading is paused\.|Trading is temporarily unavailable\.|Trading is restricted\.|(?:Price difference|Fair-reference deviation) is too high|Quote exceeds your price protection\.)$/i.test(
     message
   )
 }

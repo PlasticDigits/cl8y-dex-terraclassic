@@ -73,3 +73,15 @@ requests retain direct L9 admission. Price-only data never becomes retail receiv
 or a signing plan. Read [the current contract](route-solver.md#quote-relative-execution-protection),
 [TQ1473](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md) and
 [agent checks](qa/issue-1473/README.md).
+
+## Current presentation (#1498 / #1500)
+
+The original reference safeguards remain separate from expected order slippage.
+One Slippage/Fee/actual token row sits below Pay/Receive. A fixed status envelope
+and one persistent DETAILS disclosure follow. DETAILS contains trading/tax/hook/
+wrapper costs with final-output denomination, one separate LUNC network fee,
+protection/deadline and the positive checked current minimum, including disconnected
+quotes. All values belong to the same validated original quote; anonymous display
+never grants signing permission. This supersedes older separate route-card and
+Trade details/Signing details presentation. See [SL1498](../skills/AGENTS_SWAP_LAYOUT.md),
+[OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md) and [release evidence](qa/trading-1497-1500/RESULTS.md).

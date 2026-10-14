@@ -674,3 +674,5 @@ while awaiting the response. Fresh queries after that authority may unblock.
 See [the actor refresh evidence](qa/issue-1489/ACTOR-REFRESH.md),
 [fee observation implementation](../indexer/src/api/local_quote/actor_fees.rs) and
 [RD1489-2](../skills/AGENTS_ROUTE_DISCOVERY.md).
+
+Expected order Slippage and trading Fee (#1500) are separate from original fair-reference risk deviation. Follow [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md) and the [metric contract](route-solver.md#expected-order-slippage-1500); costs use one DETAILS disclosure.

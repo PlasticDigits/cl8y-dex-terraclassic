@@ -30,11 +30,12 @@ export function ExpertModeModal({ isOpen, onClose, onEnable }: ExpertModeModalPr
     <Modal isOpen={isOpen} onClose={handleClose} title="Enable Expert Mode" panelClassName="max-w-md">
       <div className="space-y-4 text-sm leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
         <p>
-          Expert Mode permits price differences above <strong style={{ color: 'var(--ink)' }}>30%</strong>; you may
-          receive much less than expected or a suspiciously favorable quote.
+          Expert Mode permits fair-reference deviation above <strong style={{ color: 'var(--ink)' }}>30%</strong>; you
+          may receive much less than expected or a suspiciously favorable quote.
         </p>
         <p>
-          Your selected price protection and receive minimums still apply; differences of 99% or more remain blocked.
+          Your selected price protection and receive minimums still apply; fair-reference deviation of 99% or more
+          remains blocked.
         </p>
         <p className="font-semibold" style={{ color: 'var(--color-warning, #f59e0b)' }}>
           Only enable this mode if you understand the risk.

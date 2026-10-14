@@ -243,7 +243,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
-    await user.click(screen.getByText(/trade details/i))
+    await user.click(screen.getByText(/^DETAILS$/))
 
     expect(getPairDiscountRegistry).not.toHaveBeenCalled()
     expect(document.querySelector('.line-through')).toBeNull()
@@ -267,7 +267,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
-    await user.click(screen.getByText(/trade details/i))
+    await user.click(screen.getByText(/^DETAILS$/))
 
     expect(getPairDiscountRegistry).not.toHaveBeenCalled()
     expect(getTraderDiscount).not.toHaveBeenCalled()

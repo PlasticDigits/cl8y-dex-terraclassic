@@ -1,4 +1,6 @@
 import { isValidTerraAddress } from '@/utils/constants'
+import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { SWAP_QUERY_AMOUNT_MAX_CHARS } from '@/utils/swapQueryParams'
 
 /** Router location state for invalid/unknown pair notices (survives Layout keyed-Outlet remount — GitLab #358). */
 export type TradePageLocationState = {
@@ -11,18 +13,19 @@ export type TradePageLocationState = {
 
 export function getTradePageInvalidLinkNotice(state: unknown): string | null {
   const s = state as TradePageLocationState | null | undefined
-  return s?.invalidPair ?? null
+  return typeof s?.invalidPair === 'string' ? s.invalidPair : null
 }
 
 export function getTradePageUnknownPairNotice(state: unknown): string | null {
   const s = state as TradePageLocationState | null | undefined
-  return s?.unknownPair ?? null
+  return typeof s?.unknownPair === 'string' ? s.unknownPair : null
 }
 
 export function getTradePageTicketPrefill(state: unknown): { amountHuman: string | null; side: 'bid' | 'ask' | null } {
   const s = state as TradePageLocationState | null | undefined
+  const amount = typeof s?.ticketAmount === 'string' ? s.ticketAmount.trim() : ''
   return {
-    amountHuman: s?.ticketAmount?.trim() || null,
+    amountHuman: amount.length <= SWAP_QUERY_AMOUNT_MAX_CHARS && isPositiveDecimalAmount(amount) ? amount : null,
     side: s?.ticketSide === 'ask' || s?.ticketSide === 'bid' ? s.ticketSide : null,
   }
 }

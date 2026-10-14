@@ -21,6 +21,7 @@ import { validateWrapperOnlyQuote } from '@/utils/localWrapperOnlyQuote'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { routeEconomicExplanation } from '@/utils/routeEconomicExplanation'
+import { routeOrderMetrics, type RouteOrderCosts } from '@/utils/routeOrderMetrics'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 
 /** Observation-pinned indexed quote. Missing executable metadata never starts a chain lookup. */
@@ -36,6 +37,9 @@ export type Cw20RouteSolveQuote = {
   spread_amount: string
   commission_amount: string
   economicExplanation: string
+  orderSlippagePercent: number | null
+  tradingFeePercent: number | null
+  orderCosts: RouteOrderCosts | null
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
@@ -108,6 +112,7 @@ async function validateRouteSolveQuote(
       trader: baseQuoteTrader?.trader,
       sender: baseQuoteTrader?.sender,
     })
+    const orderMetrics = routeOrderMetrics(idx)
     return {
       return_amount: idx.estimated_amount_out!,
       minimumReceive: metadata.minimum_receive,
@@ -122,6 +127,9 @@ async function validateRouteSolveQuote(
         idx.slippage_percent
       ),
       economicExplanation: routeEconomicExplanation(idx),
+      orderSlippagePercent: orderMetrics.orderSlippagePercent,
+      tradingFeePercent: orderMetrics.tradingFeePercent,
+      orderCosts: orderMetrics.costs,
       spotAmountOut: idx.spot_amount_out,
       indexerQuoteKind: idx.quote_kind,
       indexerOperations: [],
@@ -235,6 +243,7 @@ async function validateRouteSolveQuote(
   }
 
   const displayNet = idx.estimated_amount_out!
+  const orderMetrics = routeOrderMetrics(idx)
 
   return {
     return_amount: displayNet,
@@ -246,6 +255,9 @@ async function validateRouteSolveQuote(
     commission_amount: '0',
     routeSlippagePercent: resolveRouteSlippagePercent(displayNet, idx.spot_amount_out, idx.slippage_percent),
     economicExplanation: routeEconomicExplanation(idx),
+    orderSlippagePercent: orderMetrics.orderSlippagePercent,
+    tradingFeePercent: orderMetrics.tradingFeePercent,
+    orderCosts: orderMetrics.costs,
     spotAmountOut: idx.spot_amount_out,
     indexerQuoteKind: idx.quote_kind,
     indexerOperations: opsForQuote,

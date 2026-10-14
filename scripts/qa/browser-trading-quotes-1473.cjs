@@ -791,11 +791,21 @@ async function main() {
       )
         externalRequests++;
     });
-    // Defaults are inspected through the same production bundle on both entries.
+    // Swap funding and Trade factory entry are distinct contracts (#1497).
     for (const entry of ["/", "/trade"]) {
       process.stderr.write(`default ${viewport.width} ${entry}\n`);
       await page.goto(origin + entry);
       await acknowledge(page);
+      if (entry === "/trade") {
+        await page.getByTestId("trade-order-tab-market").waitFor({ timeout: 20000 });
+        await page.getByTestId("trade-order-tab-limit").waitFor({ timeout: 20000 });
+        const pathname = new URL(page.url()).pathname;
+        if (!pairs.some((pair) => pathname === `/trade/${pair.pair_address}`))
+          throw new Error("Trade entry did not preserve a genuine factory workspace");
+        if (await page.getByTestId("swap-you-pay-amount").count())
+          throw new Error("Bare Trade entry unexpectedly rendered Swap");
+        continue;
+      }
       await page.getByTestId("swap-you-pay-amount").waitFor({ timeout: 20000 });
       if (
         (await page

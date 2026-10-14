@@ -1,11 +1,9 @@
 import { formatTradingPriceDifference } from '@/utils/swapRouteSlippage'
 import { SWAP_FUNDED_HIGH_IMPACT_PCT } from '@/utils/swapPayAcquireGuidance'
-import { UNAVAILABLE_ECONOMIC_EXPLANATION } from '@/utils/routeEconomicExplanation'
 
 /** One actionable price notice; optional low-risk information stays in signing details. */
 export function SwapImpactAside({
   routeSlippagePct,
-  economicExplanation,
   details = false,
   blocked,
   confirming = false,
@@ -25,19 +23,13 @@ export function SwapImpactAside({
 }) {
   if (routeSlippagePct == null || !Number.isFinite(routeSlippagePct)) return null
   if (!details && routeSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT) return null
-  const explanation =
-    economicExplanation &&
-    economicExplanation !== UNAVAILABLE_ECONOMIC_EXPLANATION &&
-    economicExplanation !== 'Matches reference prices'
-      ? economicExplanation.toLowerCase()
-      : null
-  const metric = `Price difference ${formatTradingPriceDifference(routeSlippagePct)}%`
+  const metric = `Fair-reference deviation ${formatTradingPriceDifference(routeSlippagePct)}%`
   const sentence =
     blocked === 'extreme'
       ? `${metric} is too high.`
       : blocked === 'expert'
         ? `${metric} requires Expert Mode.`
-        : `${metric}${explanation ? ` — ${explanation}` : ''}${!details && confirming ? '; click again to confirm' : ''}.`
+        : `${metric}${!details && confirming ? '; click again to confirm' : ''}.`
   return (
     <div
       className={details ? 'text-[11px] sm:text-xs' : 'alert-error mb-3 text-xs'}

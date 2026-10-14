@@ -25,7 +25,8 @@ pub struct WrapperSnapshot {
     pub fee_wrap_bps: u16,
     pub fee_unwrap_bps: u16,
     pub tax_atomics: Option<u128>,
-    pub router_unwrap_supported: bool,
+    /// None means the scheduled router prerequisite was unavailable.
+    pub router_unwrap_supported: Option<bool>,
     pub mapper_floor_version: Option<u8>,
     pub treasury_floor_version: Option<u8>,
 }
@@ -94,7 +95,7 @@ impl WrapperSnapshot {
         wrapped: u128,
         now: i64,
     ) -> Option<(String, u128, u128)> {
-        if !self.router_unwrap_supported {
+        if self.router_unwrap_supported != Some(true) {
             return None;
         }
         self.unwrap_output_direct(denom, wrapped, now)
@@ -287,9 +288,9 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
                 .query_contract_bounded(router, &json!({"config":{}}), 8_192)
                 .await
                 .ok();
-            cfg.is_some_and(|v| v["wrap_mapper"].as_str() == Some(mapper))
+            cfg.map(|v| v["wrap_mapper"].as_str() == Some(mapper))
         } else {
-            false
+            Some(false)
         };
         let mut caps = HashMap::new();
         for denom in mappings.keys() {
@@ -312,7 +313,7 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
         }
         (rate, supported)
     } else {
-        (None, false)
+        (None, None)
     };
     // Optional capability failures preserve useful arithmetic but never signing.
     // This work has a separate deadline and shares the scheduled provider budget.
@@ -363,7 +364,7 @@ mod tests {
             fee_wrap_bps: 200,
             fee_unwrap_bps: 200,
             tax_atomics: Some(15_000_000_000_000_000),
-            router_unwrap_supported: true,
+            router_unwrap_supported: Some(true),
             mapper_floor_version: None,
             treasury_floor_version: None,
         }
@@ -454,7 +455,7 @@ mod tests {
     #[test]
     fn direct_unwrap_keeps_arithmetic_without_router_but_never_waives_tax_or_expiry() {
         let mut s = fixture();
-        s.router_unwrap_supported = false;
+        s.router_unwrap_supported = Some(false);
         assert!(s.unwrap_output("uluna", 10_000, 1000).is_none());
         assert_eq!(
             s.unwrap_output_direct("uluna", 10_000, 1000),

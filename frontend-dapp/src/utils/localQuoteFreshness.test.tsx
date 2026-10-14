@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
+import { useLocalQuoteExpired } from '@/hooks/useLocalQuoteExpired'
 import { IndexerApiError } from '@/utils/routeQuoteErrors'
 import { LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import { isExpiredLocalQuote, localQuoteRefetchInterval, localQuoteStaleTime } from './localQuoteFreshness'
@@ -47,7 +48,7 @@ describe('original local quote expiry', () => {
     client.clear()
   })
 
-  it('refreshes active local arithmetic at original expiry without renewing cached metadata', async () => {
+  it('starts a bounded refresh before original expiry without renewing cached metadata', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
     const original = quote(initialTime + 2_000)
     client.setQueryData(['active'], original, { updatedAt: initialTime })
@@ -66,7 +67,7 @@ describe('original local quote expiry', () => {
       { wrapper }
     )
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_999)
+      await vi.advanceTimersByTimeAsync(999)
     })
     expect(fetchQuote).not.toHaveBeenCalled()
     await act(async () => {
@@ -75,6 +76,38 @@ describe('original local quote expiry', () => {
     expect(fetchQuote).toHaveBeenCalledTimes(1)
     expect(isExpiredLocalQuote(result.current.data)).toBe(false)
     expect(original.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
+    unmount()
+    client.clear()
+  })
+
+  it('keeps the ten-second refresh deadline during frequent unrelated observer renders (#1499)', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    client.setQueryData(['render-churn'], quote(initialTime + 20_000), { updatedAt: initialTime })
+    const fetchQuote = vi.fn(async () => quote(Date.now() + 20_000))
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+    const { rerender, unmount } = renderHook(
+      () =>
+        useQuery({
+          queryKey: ['render-churn'],
+          queryFn: fetchQuote,
+          staleTime: localQuoteStaleTime,
+          refetchInterval: localQuoteRefetchInterval,
+        }),
+      { initialProps: 0, wrapper }
+    )
+    for (let tick = 1; tick <= 99; tick++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100)
+      })
+      rerender(tick)
+    }
+    expect(fetchQuote).not.toHaveBeenCalled()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(101)
+    })
+    expect(fetchQuote).toHaveBeenCalledTimes(1)
     unmount()
     client.clear()
   })
@@ -131,7 +164,12 @@ describe('original local quote expiry', () => {
     )
     expect(result.current.isSubmitReady).toBe(true)
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2_001)
+      await vi.advanceTimersByTimeAsync(1_999)
+    })
+    expect(result.current.simData).toBe(data)
+    expect(result.current.isSubmitReady).toBe(true)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
     })
     expect(result.current.isQuoteStale).toBe(true)
     expect(result.current.simData).toBeUndefined()
@@ -141,10 +179,128 @@ describe('original local quote expiry', () => {
     unmount()
   })
 
+  it('keeps the original display during early refresh, expires during a slow response, then adopts only new provenance', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    const original = quote(initialTime + 2_000)
+    client.setQueryData(['slow-refresh'], original, { updatedAt: initialTime })
+    let finish: ((value: ReturnType<typeof quote>) => void) | undefined
+    const fetchQuote = vi.fn(
+      () =>
+        new Promise<ReturnType<typeof quote>>((resolve) => {
+          finish = resolve
+        })
+    )
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+    const { result, unmount } = renderHook(
+      () => {
+        const query = useQuery({
+          queryKey: ['slow-refresh'],
+          queryFn: fetchQuote,
+          staleTime: localQuoteStaleTime,
+          refetchInterval: localQuoteRefetchInterval,
+        })
+        return useSubmitAlignedSimQuote({
+          rawInputAmount: '100',
+          debouncedRawInputAmount: '100',
+          slippageTolerance: 5,
+          simQuery: query,
+        })
+      },
+      { wrapper }
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_001)
+    })
+    expect(fetchQuote).toHaveBeenCalledTimes(1)
+    expect(result.current.simData).toBe(original)
+    expect(result.current.isSubmitReady).toBe(false)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(998)
+    })
+    expect(result.current.simData).toBe(original)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(result.current.simData).toBeUndefined()
+    expect(result.current.submitPayload).toBeUndefined()
+    expect(fetchQuote).toHaveBeenCalledTimes(1)
+    const replacement = quote(Date.now() + 20_000)
+    await act(async () => {
+      finish!(replacement)
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(result.current.simData).toEqual(replacement)
+    expect(result.current.isSubmitReady).toBe(true)
+    expect(original.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
+    unmount()
+    client.clear()
+  })
+
+  it('rearms a browser timer that fires1ms early against the same original deadline (#1499)', async () => {
+    const data = quote(initialTime + 2_000)
+    const setTimer = window.setTimeout.bind(window)
+    const early = vi
+      .spyOn(window, 'setTimeout')
+      .mockImplementationOnce((callback, delay) => setTimer(callback, Number(delay) - 1))
+    const { result, unmount } = renderHook(() =>
+      useSubmitAlignedSimQuote({
+        rawInputAmount: '100',
+        debouncedRawInputAmount: '100',
+        slippageTolerance: 5,
+        simQuery: { data, isLoading: false, isError: false, isFetching: false, isPlaceholderData: false },
+      })
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_999)
+    })
+    expect(result.current.simData).toBe(data)
+    expect(result.current.isSubmitReady).toBe(true)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(result.current.simData).toBeUndefined()
+    expect(result.current.isSubmitReady).toBe(false)
+    expect(data.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
+    unmount()
+    early.mockRestore()
+  })
+
+  it('expires the receive snapshot independently when its own timer fires1ms early (#1499)', async () => {
+    const data = { offerAmount: '100', quote: quote(initialTime + 2_000) }
+    const setTimer = window.setTimeout.bind(window)
+    const early = vi
+      .spyOn(window, 'setTimeout')
+      .mockImplementationOnce((callback, delay) => setTimer(callback, Number(delay) - 1))
+    const { result, unmount } = renderHook(() => useLocalQuoteExpired(data))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_999)
+    })
+    expect(result.current).toBe(false)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(result.current).toBe(true)
+    expect(data.quote.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
+    unmount()
+    early.mockRestore()
+  })
+
+  it('bounds timer delay for malformed far-future local metadata without overflowing into a callback loop', () => {
+    const timer = vi.spyOn(window, 'setTimeout')
+    const data = quote(initialTime + 2_147_484_647)
+    const { unmount } = renderHook(() => useLocalQuoteExpired(data))
+    expect(timer).toHaveBeenCalledWith(expect.any(Function), 2_147_483_647)
+    expect(data.executionMetadata.expires_at_ms).toBe(initialTime + 2_147_484_647)
+    unmount()
+    timer.mockRestore()
+  })
+
   it('uses the receive quote original expiry and keeps refresh bounded without retrying known missing data', () => {
     const nested = { offerAmount: '100', quote: quote(initialTime + 2_000) }
     expect(localQuoteStaleTime({ state: { data: nested, dataUpdatedAt: initialTime } })).toBe(2_000)
-    expect(localQuoteRefetchInterval({ state: { data: nested, fetchStatus: 'idle' } })).toBe(2_000)
+    expect(localQuoteRefetchInterval({ state: { data: nested, fetchStatus: 'idle' } })).toBe(1_000)
     vi.setSystemTime(initialTime + 1_999)
     expect(localQuoteRefetchInterval({ state: { data: nested, fetchStatus: 'idle' } })).toBe(1_000)
     expect(localQuoteRefetchInterval({ state: { data: nested, fetchStatus: 'fetching' } })).toBe(false)

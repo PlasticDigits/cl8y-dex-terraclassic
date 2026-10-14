@@ -1,0 +1,401 @@
+{
+  "issue": 1483,
+  "status": "PASS",
+  "utc_start": "2026-10-14T04:17:03.164246+00:00",
+  "utc_end": "2026-10-14T04:19:49.855343+00:00",
+  "driver_sha256": "482543f479e30465ca660fcacc314a2d0c59ff3475186d94bfd6096da5ea3ab4",
+  "dex_artifacts": {
+    "source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+    "contract_source_inputs_match_current": true,
+    "contract_input_count": 170,
+    "contract_inputs_sha256": "5f26b67537fed3f78d39ef050f4238d199ff9411fc8270a14e44d77bc37fbaf1",
+    "artifact_attestation": "Current checked-in artifact checksums and complete current contract/package/lock input equivalence; original build recipe not re-attested; pair rebuilt after original receipt",
+    "sha256": {
+      "cl8y_dex_factory": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "cl8y_dex_router": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "cl8y_dex_pair": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "cw20_mintable": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "wrapper_source_revision": "519c2766e5be0a3788a4c920ad879b641a50aa74",
+  "wrapper_source_inputs_sha256": "a52751eb0201eb658f18ada2eff10933e15fa6da81ab898063cb116719fc29b0",
+  "wrapper_source_input_count": 47,
+  "wrapper_artifact_sha256": {
+    "treasury": "9223b22d5bb04ee06379a8d2c158a4b11da75d79ca4e2c37d9b17c65fe8da9b7",
+    "wrap_mapper": "65b9b952e7079198398abcf9d9d2973c31f59d88a5b3ba7d0ee7a3e094fae0bf"
+  },
+  "wrapper_build": "Rust 1.83.0 locked release libraries; no wasm-opt; owned synthetic fixture only",
+  "scope": "Owned native-wrap plus 1 pool hops and wrapped control; exact independent net and each-hop/final-floor atomic rollback",
+  "synthetic_requested_gas": 12000000,
+  "gas_is_not_production_calibration": true,
+  "cases": [
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "976964",
+      "delivered_net": "976964",
+      "minimum_receive": "967195",
+      "included_code": 0,
+      "gas_used": 2527328,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "10000000000",
+          "ask_reserve": "10000000000",
+          "offer_amount": "980000",
+          "gross_pool_output": "979903",
+          "commission_amount": "2939",
+          "expected_net": "976964"
+        }
+      ],
+      "hop_minimum_receive": [
+        "967195"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "976772",
+      "delivered_net": "976772",
+      "minimum_receive": "927934",
+      "included_code": 0,
+      "gas_used": 2529179,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "10000980000",
+          "ask_reserve": "9999020097",
+          "offer_amount": "980000",
+          "gross_pool_output": "979711",
+          "commission_amount": "2939",
+          "expected_net": "976772"
+        }
+      ],
+      "hop_minimum_receive": [
+        "927934"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": true,
+      "gross_input": "1000000",
+      "credited_route_input": "980000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "976581",
+      "delivered_net": "976581",
+      "minimum_receive": "683607",
+      "included_code": 0,
+      "gas_used": 2529310,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "10001960000",
+          "ask_reserve": "9998040386",
+          "offer_amount": "980000",
+          "gross_pool_output": "979519",
+          "commission_amount": "2938",
+          "expected_net": "976581"
+        }
+      ],
+      "hop_minimum_receive": [
+        "683607"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "889354607",
+      "delivered_net": "889354607",
+      "minimum_receive": "880461061",
+      "included_code": 0,
+      "gas_used": 2531011,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "10002940000",
+          "ask_reserve": "9997060867",
+          "offer_amount": "980000000",
+          "gross_pool_output": "892030699",
+          "commission_amount": "2676092",
+          "expected_net": "889354607"
+        }
+      ],
+      "hop_minimum_receive": [
+        "880461061"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "743643350",
+      "delivered_net": "743643350",
+      "minimum_receive": "706461183",
+      "included_code": 0,
+      "gas_used": 2531040,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "10982940000",
+          "ask_reserve": "9105030168",
+          "offer_amount": "980000000",
+          "gross_pool_output": "745880992",
+          "commission_amount": "2237642",
+          "expected_net": "743643350"
+        }
+      ],
+      "hop_minimum_receive": [
+        "706461183"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": true,
+      "gross_input": "1000000000",
+      "credited_route_input": "980000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "631030531",
+      "delivered_net": "631030531",
+      "minimum_receive": "441721372",
+      "included_code": 0,
+      "gas_used": 2531041,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "11962940000",
+          "ask_reserve": "8359149176",
+          "offer_amount": "980000000",
+          "gross_pool_output": "632929318",
+          "commission_amount": "1898787",
+          "expected_net": "631030531"
+        }
+      ],
+      "hop_minimum_receive": [
+        "441721372"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "595108",
+      "delivered_net": "595108",
+      "minimum_receive": "589157",
+      "included_code": 0,
+      "gas_used": 2120741,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "12942940000",
+          "ask_reserve": "7726219858",
+          "offer_amount": "1000000",
+          "gross_pool_output": "596898",
+          "commission_amount": "1790",
+          "expected_net": "595108"
+        }
+      ],
+      "hop_minimum_receive": [
+        "589157"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "595016",
+      "delivered_net": "595016",
+      "minimum_receive": "565266",
+      "included_code": 0,
+      "gas_used": 2120771,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "12943940000",
+          "ask_reserve": "7725622960",
+          "offer_amount": "1000000",
+          "gross_pool_output": "596806",
+          "commission_amount": "1790",
+          "expected_net": "595016"
+        }
+      ],
+      "hop_minimum_receive": [
+        "565266"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000",
+      "credited_route_input": "1000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "594924",
+      "delivered_net": "594924",
+      "minimum_receive": "416447",
+      "included_code": 0,
+      "gas_used": 2120771,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "12944940000",
+          "ask_reserve": "7725026154",
+          "offer_amount": "1000000",
+          "gross_pool_output": "596714",
+          "commission_amount": "1790",
+          "expected_net": "594924"
+        }
+      ],
+      "hop_minimum_receive": [
+        "416447"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "10000000000000000",
+      "expected_net": "552222091",
+      "delivered_net": "552222091",
+      "minimum_receive": "546699871",
+      "included_code": 0,
+      "gas_used": 2122119,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "12945940000",
+          "ask_reserve": "7724429440",
+          "offer_amount": "1000000000",
+          "gross_pool_output": "553883742",
+          "commission_amount": "1661651",
+          "expected_net": "552222091"
+        }
+      ],
+      "hop_minimum_receive": [
+        "546699871"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "50000000000000000",
+      "expected_net": "478326158",
+      "delivered_net": "478326158",
+      "minimum_receive": "454409851",
+      "included_code": 0,
+      "gas_used": 2122153,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "13945940000",
+          "ask_reserve": "7170545698",
+          "offer_amount": "1000000000",
+          "gross_pool_output": "479765454",
+          "commission_amount": "1439296",
+          "expected_net": "478326158"
+        }
+      ],
+      "hop_minimum_receive": [
+        "454409851"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    },
+    {
+      "native": false,
+      "gross_input": "1000000000",
+      "credited_route_input": "1000000000",
+      "tolerance_atomics": "300000000000000000",
+      "expected_net": "418332685",
+      "delivered_net": "418332685",
+      "minimum_receive": "292832880",
+      "included_code": 0,
+      "gas_used": 2122186,
+      "pool_hops": 1,
+      "independent_reserves_and_hop_economics": [
+        {
+          "offer_reserve": "14945940000",
+          "ask_reserve": "6690780244",
+          "offer_amount": "1000000000",
+          "gross_pool_output": "419591459",
+          "commission_amount": "1258774",
+          "expected_net": "418332685"
+        }
+      ],
+      "hop_minimum_receive": [
+        "292832880"
+      ],
+      "rejected_codes": [
+        5,
+        5
+      ],
+      "atomic_wrapper_pool_wallet_rollback": true
+    }
+  ],
+  "case_count": 12,
+  "economic_rollback_excludes_paid_ante_fees": true,
+  "skips": [
+    "native output composition",
+    "tax/hook/populated-book",
+    "physical wallets",
+    "production settlement"
+  ]
+}

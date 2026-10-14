@@ -1110,7 +1110,7 @@ mod wrapper_tests {
             fee_wrap_bps: 200,
             fee_unwrap_bps: 0,
             tax_atomics: None,
-            router_unwrap_supported: false,
+            router_unwrap_supported: Some(false),
             mapper_floor_version: None,
             treasury_floor_version: None,
         };

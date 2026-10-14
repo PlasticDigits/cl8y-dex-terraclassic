@@ -9,7 +9,7 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
 3. **Blocking errors** ≤ 1 short sentence + optional **Docs** / **Guide** control. Swap/Trade unfunded pay is one sentence + `/ust1` or `/wrap` Guide ([#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678) **A678-9**) — not an oracle lecture. Playbook: [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md).
 4. **Never** show `token0`, `token1`, or raw `bid`/`ask` in retail UI — use token **symbols** and **Buy** / **Sell**.
 5. **Keep** safety gates, risk acknowledgement (`NFA_SHORT`), and accurate error *conditions* — only shorten wording.
-6. Prefer progressive disclosure (`<details>Signing details</details>`) over always-on grids.
+6. Prefer progressive disclosure (one persistent `<details>DETAILS</details>`) over always-on grids.
 7. **Docs link never replaces blocking errors** — optional depth only; do not remove risk ack, required footer, or trust-boundary warnings to save space.
 8. **Silence over instructional fluff** — if Settings already enable a feature, do not add Execution copy telling the user to enable it. Example: hybrid on + empty Swap book leg → no “add a book leg” notice ([GitLab **#492**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/492), [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)).
 9. **No always-on educational / cross-nav / fee-trivia banners** on feature pages. **Do not ship or merge** copy that:
@@ -78,3 +78,5 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 ## Shared copy modules
 
 Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)), `communityTaxMigrateCopy.ts` (`/token/migrate` Unlock {X} + examples, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)).
+
+Swap layout is governed by [SL1498](AGENTS_SWAP_LAYOUT.md); order metrics and fair-reference risk are governed by [OS1500](AGENTS_ORDER_SLIPPAGE.md).
