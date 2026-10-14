@@ -1,0 +1,16 @@
+{
+  "pipeline_url": "https://ci.cl8y.com/repos/7/pipeline/456/1",
+  "commit": "b8db3066b8881246a713656b3ccc4a4cda5c28e4",
+  "status": "success",
+  "completed_steps": [
+    "git",
+    "postgres",
+    "gitleaks",
+    "contracts",
+    "frontend",
+    "indexer-lib",
+    "indexer-postgres",
+    "functional-required"
+  ],
+  "merge_sha": "9dfa373f989ca9684c00ce40bc0525265243dfe9"
+}

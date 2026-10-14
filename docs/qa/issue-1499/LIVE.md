@@ -15,7 +15,8 @@ its report.
 # The coordinator supplies the independently attested final revision and file.
 EXPECTED_SOURCE_SHA="$DEPLOYED_FINAL_SHA" \
 DEX_LIVE_ATTESTATION=/tmp/dex-final-attestation.json \
-DEX_LIVE_OUTPUT=/tmp/dex1499-live-first.json \
+DEX_LIVE_SHARD=0 \
+DEX_LIVE_OUTPUT=/tmp/dex1499-live-shard0-first.json \
 bash scripts/with-node.sh -- node scripts/qa/live-trading-lifecycle-1499.cjs
 ```
 
@@ -24,12 +25,24 @@ Node wrapper if the script is not executable. An optional `DEX_LIVE_CLUNC` may
 supply the exact public configured cLUNC execution identity; otherwise the bounded
 public token catalog must identify exactly one cLUNC. Ambiguity fails setup.
 Explicit native USTC↔CL8Y132, CL8Y↔cLUNC13 and the arbitrary factory UST1↔CL8Y1
-controls run unchanged for190seconds each at1280×900 and390×844, at most four
-owned pages concurrently. This covers both20s and180s windows in the selected
-cohort, with a16minute global wall budget and600 total quote/progress reads.
-This does not claim the full amount/protection/manual/wallet/Trade matrix.
+controls run unchanged for190seconds each at1280×900 and390×844. Explicit
+`DEX_LIVE_SHARD=0`, `1` or `2` selects respectively the native, cLUNC or arbitrary
+factory bidirectional group. Each shard has four sequential foreground windows
+in its own browser process, a16minute wall budget and600 total quote/progress
+reads; all three shards form an explicit12-window,1800-read maximum cohort.
+Independent shards may run in separate processes concurrently; a browser never
+hosts competing measurement tabs. Useful DOM and two-frame paint clocks are
+recorded inside the foreground page from its original input event, independently
+of later Node polling. The original four-concurrent-tab shared600-read trial
+remains FAIL: its budget accounting included normal1Hz advisory progress and
+its two-RAF Node roundtrip inflated some paint clocks. Corrected shard results
+never rewrite that receipt. This selected cohort does not claim the full amount,
+protection/manual/wallet/Trade matrix.
 Settings/DETAILS and both amount fields are prepared before the original input
-clock; measurement never resets that clock. Every200ms sample checks fixed
+clock; measurement never resets that clock. Every200ms sample records its browser wall clock before reading DOM fields;
+original-expiry eligibility uses that capture clock rather than later CDP/Node
+delivery time. Precise failure details retain expiry deltas for investigation.
+Every200ms sample checks fixed
 Pay/Receive/summary/status geometry, one persistent DETAILS, one network-fee row,
 no page overflow, exact unexpired display ownership and typed unsupported status.
 First useful output is confirmed through two render frames against the750ms
@@ -47,6 +60,7 @@ production access:
 
 ```sh
 node --test scripts/qa/test-live-quote-economics-1500.cjs \
+  scripts/qa/test-live-input-clock-1499.cjs \
   scripts/qa/test-live-trading-lifecycle-1499.cjs
 node --check scripts/qa/live-trading-lifecycle-1499.cjs
 ```

@@ -25,3 +25,6 @@ Live acceptance also requires separately attested served frontend/backend/root
 and contract artifacts, original useful-output socket <=500ms/browser <=750ms
 timing and sustained Grafana/Loki/Prometheus observations. Synthetic source
 arithmetic cannot independently attest an oracle or physical wallet signing.
+
+Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501).
+Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).

@@ -30,7 +30,7 @@ comments at investigation. Related old quote/source verifiers are retained.
 
 ## Evidence and retained limits
 
-All 16 required/relevant source verifier commands completed with passing available checks. Explicit unavailable acceptance remains separate; deployment and sustained live acceptance are the next release steps. [Source receipt](source-verification.json) records scopes and failed-run retention.
+All 16 required/relevant source verifier commands completed with passing available checks. Explicit unavailable acceptance remains separate; deployed sustained acceptance is recorded separately below. [Source receipt](source-verification.json) records scopes and failed-run retention.
 
 Focused checks already passed: Trade entry/navigation; 164 lifecycle frontend
 checks and two backend classification/recovery cases; 102 shared metric/frontend
@@ -138,3 +138,130 @@ were unchanged by this final placement correction.
 The #1381 driver also executed funded route-tax migration, funding and atomic
 invoice/token/native flows successfully. Its raw receipts include synthetic test
 actors/contracts and remain private; no production custody is claimed.
+
+## Merged release and deployment
+
+[PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501)
+merged implementation `b8db3066b8881246a713656b3ccc4a4cda5c28e4` into main
+`9dfa373f989ca9684c00ce40bc0525265243dfe9`. The
+[required CI receipt](ci-release.json) records all eight successful pipeline steps.
+Both Coolify deployments finished at that exact main revision. The
+[independent deployment attestation](deployment-attestation.json) matches backend
+health, finished frontend/backend metadata and complete served root script hashes.
+The [build-log summary](deployment-build-summary.json) records zero fatal patterns
+across 100 frontend and 372 backend build messages. Runtime logs and live browser
+acceptance remain separate from successful builds.
+
+After merge, both main and the feature worktree synchronized with origin/main.
+Later QA-helper or evidence-only edits do not attest a new deployed revision;
+release receipts continue to name the actual deployed revision above.
+
+The additional `make verify-issue-713` run passed all eight available checks;
+its LocalTerra frontend URL-sync smoke remained unavailable because that exact
+frontend/deployment environment was not prepared. Its internal skipped-as-PASS
+label is explicitly recorded as SKIP here, rather than funded/live acceptance.
+
+Physical-wallet preparation successfully attested the same revision and obtained
+native/matched-credit positive-floor controls. It is read-only and cannot establish
+physical signed gas or settlement. The remaining physical-wallet action was
+submitted using the [inbox-assigner skill](https://git.cl8y.com/PlasticDigits/cl8y-pm/src/branch/main/skills/inbox-assigner/SKILL.md)
+to cl8y-pm as a queued card linked to
+[the operator tracking issue](https://git.cl8y.com/PlasticDigits/cl8y-pm/issues/143).
+The API rejected a direct DEX link; the accepted card includes the DEX issue URL
+and an exact secret-consuming preparation command, without credential values.
+One fresh reviewed physical-wallet attempt remains human custody. Completing
+that card cannot establish unrelated contract/oracle/matrix acceptance.
+
+## Deployed Trade first/retest
+
+[First](live-trade-first.json) and [retest](live-trade-retest.json) each pass
+15/15 checks across 1440/900/390 px (30/30 total): fresh direct entry with risk
+acknowledgement, selected-market reload, genuine deep link with Market/Limit
+tabs, all navigation surfaces, repeated clicks and Back/Forward. Root and Trade
+asset hashes match the independently attested deployed revision. No wallet
+connect/sign/broadcast is performed. Connected-wallet, full prefill/abuse,
+outage/offline and stale-chunk browser acceptance remain separate.
+
+The [original live receipt](live-trade-first-original-failed.json) retains its
+13/15 verdict. The compact-header link has ARIA role `menuitem`; the QA helper
+incorrectly searched `link`. A helper-only role-aware selector correction
+resolved both that check and its dependent history check. The corrected receipt
+records the helper patch/hash separately from deployed application provenance.
+The corrected #1497 source verifier also passed 159 tests and type/crosslink
+checks. No product behavior was changed by this QA correction.
+
+## Retained deployed lifecycle failure and producer follow-up
+
+The [original concurrent-tab summary](live-lifecycle-original-failed-summary.json)
+retains FAIL. A foreground, sequential four-window shard per independent browser
+corrects background paint timing and accounts for the existing one-Hz advisory
+progress traffic: 600 solve/progress reads and 16 minutes per shard, three shards,
+12 total windows and 1,800 maximum reads. It does not reinterpret the original
+shared-600-cap failure. The [foreground first summary](live-foreground-first-summary.json)
+also remains FAIL: 12 completed 190-second windows, 11,032 samples and 1,163 reads,
+with zero writes/provider calls. Five useful browser timings exceed 750ms,
+including 11.25/23.41-second native-receive recovery. Geometry, matching economics
+and unexpired retention passed their available checks, rather than the full run.
+One old DOM-versus-later-Node expiry signal remains an executed, unresolved
+failure; the observer now captures epoch/eligibility at the same in-page instant
+and reports detailed expiry evidence for the next run. This is a QA correction,
+not proof that the original signal was harmless.
+
+A bounded independent cLUNC diagnostic measured 374ms from cold original input
+and 97ms after a deliberate new warm input. It does not erase the original
+1,519ms failure; its slower original sample was already 1,397ms at response body,
+well before DOM/paint. Other retained 834/951ms samples were similarly delayed
+before body arrival. No input clock is reset to make these timings pass.
+
+Native-output publication had a concrete scheduling defect: four independent
+reads ran sequentially inside one two-second optional phase, and any timeout
+discarded already completed required fields. The follow-up observes those fields
+concurrently under the same absolute deadline and retains individual successes.
+Mapper/treasury floor capabilities use the same bounded independence. Unknown
+required tax/router/caps still refuse execution; protected wrap requires both
+capabilities. Original poll-start freshness, two permits/four RPS, the 7.9-second
+publication margin and eight-second outer deadline remain enforced. There are no
+new provider queries, detached tasks, stale reuse or request-triggered RPC.
+
+Focused producer first/retest each pass 13 tests, including seven new adversarial
+cases: original pacing/call counts, slow unrelated cap, unknown required tax,
+genuine unsupported configuration, cancellation/permit release, partial floor
+capabilities and zero-budget/no reads. The real LCD ingestion-budget test passes
+first/retest too. Each test owns fresh scheduling/budget state. Broader verifier
+and new deployment results are recorded separately after their completion.
+
+## Scoped Trade recovery evidence
+
+[Recovery summary](live-trade-recovery-summary.json): injected catalog/panel API
+outage, offline lazy import, one-shot stale chunk and repeated stale chunk with
+explicit reload, across desktop/phone. The first 8/10 FAIL retains two desktop
+30-second readiness timeouts with insufficient earlier diagnostic detail; its
+unchanged retest passes 10/10 with matched per-case root/Trade bytes, bounded
+1/2/3-document counts and zero provider/mutation/hash mismatches. Interrupted
+optional asset-body reads during intentional reloads are reported separately.
+Synthetic consumer recovery is not actual provider-outage acceptance. Connected
+wallets and the earlier unclassified readiness waits keep AC6 incomplete.
+The exact executed helper is archived; later formatting-only changes are
+identified separately in the receipt. The original short-wait/selector and
+body-cancellation QA failures are also retained privately.
+
+## Final producer source verification
+
+[Producer verification receipt](wrapper-producer-verification.json) records final
+runtime input hashes. #1499 passes 10/0/1, #1483 and #1464 pass their available
+source/socket/frontend checks with explicit external skips. #1452 passes all
+library/socket/frontend/type/format/source groups on first/retest but its full
+command retains FAIL (13/1/0): one controlled desktop sample measured 401.2ms
+against 250ms. Headers started promptly, body completion was delayed 364.6ms,
+and no frontend long task was recorded. No deterministic product/transport cause
+was established, and TCP_NODELAY was already enabled.
+
+After resetting the owned HTTP/browser fixtures, the exact failed browser step
+passes first/retest, 40/40 samples each, maxima 49.9/48.0ms against unchanged
+250ms; both have zero provider requests. All 88 observed fixture socket finishes
+were within 0.403ms. These targeted passes supplement the unchanged passing
+source groups; they do not relabel the original full command or lost live clocks.
+No unrelated already-passing group was repeated merely to erase that failure.
+The next merged producer release's exact deployment and live first/retest verdicts
+are recorded in the linked issues' comments; earlier deployed receipts above
+continue to describe 9dfa only. Physical signing and full acceptance remain open.

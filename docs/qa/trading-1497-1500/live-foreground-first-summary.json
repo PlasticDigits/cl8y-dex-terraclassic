@@ -1,0 +1,266 @@
+{
+  "deployed_revision": "9dfa373f989ca9684c00ce40bc0525265243dfe9",
+  "phase": "foreground_first_retained",
+  "overall": "FAIL",
+  "scope": "12 selected190-second windows; geometry/retention/metric partial passes do not erase latency or unresolved expiry-classification failures",
+  "quote_progress_reads": 1163,
+  "solve_reads": 320,
+  "progress_reads": 843,
+  "cohort_read_budget": 1800,
+  "blocked_writes": 0,
+  "blocked_provider": 0,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190051,
+      "samples": 922,
+      "first_dom_ms": 343.79999999701977,
+      "first_useful_ms": 373.3999999985099,
+      "responses": 26,
+      "typed_missing": 5,
+      "typed_unsupported": 0,
+      "metrics_validated": 21,
+      "failures": [],
+      "cancelled_probe_count": 1
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190106,
+      "samples": 934,
+      "first_dom_ms": 787.2000000029802,
+      "first_useful_ms": 833.6000000014901,
+      "responses": 28,
+      "typed_missing": 7,
+      "typed_unsupported": 0,
+      "metrics_validated": 21,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190052,
+      "samples": 939,
+      "first_dom_ms": 11225,
+      "first_useful_ms": 11252.39999999851,
+      "responses": 30,
+      "typed_missing": 23,
+      "typed_unsupported": 0,
+      "metrics_validated": 7,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "cancelled_probe_count": 1
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 192950,
+      "samples": 910,
+      "first_dom_ms": 23393.10000000149,
+      "first_useful_ms": 23412.5,
+      "responses": 20,
+      "typed_missing": 8,
+      "typed_unsupported": 0,
+      "metrics_validated": 12,
+      "failures": [
+        "browser_useful_over750",
+        "unvalidated_or_expired_display"
+      ],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190151,
+      "samples": 921,
+      "first_dom_ms": 1413.199999999255,
+      "first_useful_ms": 1518.8999999985099,
+      "responses": 20,
+      "typed_missing": 0,
+      "typed_unsupported": 0,
+      "metrics_validated": 20,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190080,
+      "samples": 935,
+      "first_dom_ms": 352.0999999977648,
+      "first_useful_ms": 419.3999999985099,
+      "responses": 29,
+      "typed_missing": 6,
+      "typed_unsupported": 0,
+      "metrics_validated": 23,
+      "failures": [],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190253,
+      "samples": 927,
+      "first_dom_ms": 409.29999999701977,
+      "first_useful_ms": 435.5,
+      "responses": 28,
+      "typed_missing": 8,
+      "typed_unsupported": 0,
+      "metrics_validated": 20,
+      "failures": [],
+      "cancelled_probe_count": 1
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190153,
+      "samples": 871,
+      "first_dom_ms": 349.6000000014901,
+      "first_useful_ms": 402.80000000074506,
+      "responses": 22,
+      "typed_missing": 0,
+      "typed_unsupported": 0,
+      "metrics_validated": 22,
+      "failures": [],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190209,
+      "samples": 933,
+      "first_dom_ms": 344.6000000014901,
+      "first_useful_ms": 374.30000000074506,
+      "responses": 21,
+      "typed_missing": 0,
+      "typed_unsupported": 0,
+      "metrics_validated": 21,
+      "failures": [],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190167,
+      "samples": 937,
+      "first_dom_ms": 899,
+      "first_useful_ms": 951.3999999985099,
+      "responses": 28,
+      "typed_missing": 7,
+      "typed_unsupported": 0,
+      "metrics_validated": 21,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190174,
+      "samples": 930,
+      "first_dom_ms": 359.3999999985099,
+      "first_useful_ms": 387.30000000074506,
+      "responses": 28,
+      "typed_missing": 6,
+      "typed_unsupported": 0,
+      "metrics_validated": 22,
+      "failures": [],
+      "cancelled_probe_count": 2
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 194060,
+      "samples": 873,
+      "first_dom_ms": 350,
+      "first_useful_ms": 373,
+      "responses": 22,
+      "typed_missing": 0,
+      "typed_unsupported": 0,
+      "metrics_validated": 22,
+      "failures": [],
+      "cancelled_probe_count": 0
+    }
+  ],
+  "artifact_refs": [
+    {
+      "shard": 0,
+      "helpers": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "cc8268651ab0cc32c2afa35e144457d8439ef35147c9647318832230730b51bf"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "ffa263f8229899f7c170f287468d361a3e7a53717deec81636cf56b52c101827"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        }
+      ],
+      "html_sha256": "06aec14ecea3333f684ea696c94f519f1a1941ad65106fbd88165166e4313dea",
+      "artifacts_unchanged": true
+    },
+    {
+      "shard": 1,
+      "helpers": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "cc8268651ab0cc32c2afa35e144457d8439ef35147c9647318832230730b51bf"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "ffa263f8229899f7c170f287468d361a3e7a53717deec81636cf56b52c101827"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        }
+      ],
+      "html_sha256": "06aec14ecea3333f684ea696c94f519f1a1941ad65106fbd88165166e4313dea",
+      "artifacts_unchanged": true
+    },
+    {
+      "shard": 2,
+      "helpers": [
+        {
+          "file": "live-trading-lifecycle-1499.cjs",
+          "sha256": "cc8268651ab0cc32c2afa35e144457d8439ef35147c9647318832230730b51bf"
+        },
+        {
+          "file": "live-input-clock-1499.cjs",
+          "sha256": "ffa263f8229899f7c170f287468d361a3e7a53717deec81636cf56b52c101827"
+        },
+        {
+          "file": "live-quote-economics-1500.cjs",
+          "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+        }
+      ],
+      "html_sha256": "06aec14ecea3333f684ea696c94f519f1a1941ad65106fbd88165166e4313dea",
+      "artifacts_unchanged": true
+    }
+  ],
+  "completed_window_count": 12,
+  "sample_count": 11032
+}
