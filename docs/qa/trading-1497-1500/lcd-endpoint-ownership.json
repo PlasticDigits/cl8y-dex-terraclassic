@@ -1,0 +1,21 @@
+{
+  "utc": "2026-10-14T10:17:28.013864+00:00",
+  "read_only": true,
+  "explicit_configuration": true,
+  "configured_provider_count": 3,
+  "configured_builtin_public_provider_count": 2,
+  "ownership_unproven_provider_count": 1,
+  "inspected_application_count": 55,
+  "inspected_service_count": 4,
+  "confirmed_owned_resource_count": 0,
+  "current_workstation_identity_probe": {
+    "expected_chain_http200_count": 1,
+    "http403_count": 2,
+    "scope": "One request per configured provider from workstation egress; does not establish production availability or historical-query support."
+  },
+  "conclusion": "No owned Coolify resource was confirmed by exact in-memory hostname matching. Current reachable chain identity does not prove required scheduled historical semantics; an unverified provider alone does not establish a credential or operator task.",
+  "mutations": 0,
+  "restarts": 0,
+  "operator_cards_created": 0,
+  "scope": "Aggregated ownership/availability findings only; no endpoint strings/indexes, names, credentials, auth metadata or private resource identifiers."
+}

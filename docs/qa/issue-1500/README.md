@@ -19,7 +19,7 @@ establish live deployment or funded settlement. Record receipts in RESULTS.md.
 | [ ] | AC3 | Actual desktop/phone Swap/Trade Slippage/Fee/route row, one DETAILS disclosure and gas once. |
 | [ ] | AC4 | Malformed canonical values, numerator/denominator, operations/cohort, expiry/context and same-intent lifecycle attacks fail appropriately. |
 | [ ] | AC5 | Original reference quality, delivered-net ranking, 5/30/99 protections, funding/floors and offline signing budgets pass; independent funded net/rollback receipts separate. |
-| [ ] | AC6 | API/types/consumer/risk wording/docs/agent guidance distinguish all metrics consistently. |
+| [x] | AC6 | API/types/consumer/risk wording/docs/agent guidance distinguish all metrics consistently. |
 
 Live acceptance also requires separately attested served frontend/backend/root
 and contract artifacts, original useful-output socket <=500ms/browser <=750ms
@@ -28,3 +28,7 @@ arithmetic cannot independently attest an oracle or physical wallet signing.
 
 Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501).
 Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).
+
+Latest producer deployment and retained live failures: [release results](../trading-1497-1500/RESULTS.md#producer-deployment-and-final-acceptance-scope). These scopes do not check incomplete acceptance rows.
+
+AC6 is completed by the merged API/types/consumer/copy/docs and OS1500 guidance. All other rows retain their independent execution and live verification limits.

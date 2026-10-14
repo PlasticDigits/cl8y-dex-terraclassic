@@ -265,3 +265,97 @@ No unrelated already-passing group was repeated merely to erase that failure.
 The next merged producer release's exact deployment and live first/retest verdicts
 are recorded in the linked issues' comments; earlier deployed receipts above
 continue to describe 9dfa only. Physical signing and full acceptance remain open.
+
+## Producer deployment and final acceptance scope
+
+[PR #1502](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1502)
+merged the bounded producer correction into main
+`14055610ebe86fd3640ff85e8adc15e16785c6dd`. The
+[CI receipt](ci-wrapper-release.json) records eight successful steps in
+[pipeline 458](https://ci.cl8y.com/repos/7/pipeline/458/1). Both Coolify deployments
+finished on that revision; [independent attestation](deployment-wrapper-attestation.json)
+matches their metadata, public backend health and served complete root scripts.
+Frontend runtime bytes are unchanged from the preceding release. Later QA/helper
+and evidence commits do not claim a newer deployed application revision.
+
+[Trade live first/retest](live-wrapper-trade-summary.json) again pass 15/15 each
+across desktop, compact-header and phone, with independently matched root/Trade
+assets. Connected wallets and the earlier recovery-readiness failures remain
+separate incomplete scope.
+
+The [intercepted first](live-wrapper-intercepted-first-summary.json),
+[native-transport first](live-wrapper-native-first-summary.json) and
+[active-display first](live-wrapper-active-first-summary.json) retain their FAIL
+verdicts. Playwright routing inserted a CDP Fetch roundtrip; the read-only helper
+now uses pre-app guards and tested native URL rules. Active display ownership
+tracks the adopted visible cohort instead of treating unused older improvements
+as a required fallback. Original input, response observation, expiry, 750ms
+browser budget and read limits are unchanged. Concurrent-process trials also
+recorded multi-second long tasks/frame gaps and delayed Node/CDP delivery.
+Those diagnostics qualify causal attribution; they do not turn failed latency,
+readiness or expiry checks into passes.
+
+[Provider ownership inspection](lcd-endpoint-ownership.json) found three explicit
+configured URLs, two public-provider hosts and one host of unproven ownership.
+None matched the scoped Coolify application/service inventory. Workstation
+node-info probes are a different egress path and cannot establish production
+provider health. No confirmed owned service repair or credential action was
+identified; no provider list, timeout, freshness or signing safeguards changed.
+Production redundancy and complete sustained availability remain unverified.
+
+The unused-maker diagnostic consistency defect is fixed with original bounded
+maker-term binding and independent replay regressions. The synthetic discrepancy
+affected advisory economics; original fair-risk/signing checks remained enforced.
+No independently demonstrated security vulnerability was found in that minor
+consistency defect, so no speculative security issue was filed.
+
+The current physical-wallet preparation is PREPARED and independently attests
+`14055610ebe86fd3640ff85e8adc15e16785c6dd`. A queued **Verify the updated quote
+in your physical wallet** inbox card supplies its exact secret-consuming command
+and five review/one-approval/outcome steps. It explicitly supersedes the earlier
+9dfa card, whose revision pin refuses this release. The assigner API cannot
+withdraw or edit that older card; it has not been marked cancelled. The
+[operator tracking comment](https://git.cl8y.com/PlasticDigits/cl8y-pm/issues/143)
+explains which card to use. Physical signed gas and settlement remain incomplete.
+
+The [complete final lifecycle ledger](live-lifecycle-all-14055-summary.json) records all four executed phases and distinct helper hashes. The final unchanged-helper sequential retest uses 1,022 reads, with 11/12 completed sustained windows, and one browser at a time after
+stopping only owned disposable fixtures. cLUNC and arbitrary factory groups each
+pass all four 190-second desktop/phone windows (maximum first useful paint
+446ms/412ms). The native group remains FAIL: one setup timeout, a 12.536-second
+reverse-phone recovery and unresolved original-window/expiry observer flags.
+That combined result is FAIL; no extra full trial was run to seek a pass.
+
+Post-receipt QA review found that indistinguishable overlapping display cohorts
+could lose an expired possible owner on a later sample, and same-output quotes
+with differing fee/slippage labels could be checked against the wrong response.
+The helper corrections preserve possible owners until a distinguishable display
+transition and select output-plus-metric compatible evidence. Blank or aborted
+two-frame candidates rearm for the same value without resetting original input;
+first observed DOM and qualified paint are reported separately. Meaningful
+regressions cover these sequences. Executed helper hashes remain separate from
+corrected QA-tool bytes, and earlier expiry/latency failures are not reclassified.
+
+[Final Grafana/Loki receipt](monitor-wrapper-final-retest.json) covers the entire
+sequential retest, 09:48:32–10:26:35 UTC, in three contiguous intervals. All bounded
+cause samples are complete. Twenty-one backend error matches are HTTP503 traces,
+including six in the final warmed interval; availability loss is ongoing. There
+are zero fatal/integrity/database patterns. Eleven frontend matches are
+successful HTTP200 accesses to error-named files, with zero HTTP5xx/NGINX severe
+patterns. Grafana database health is OK. Prometheus remains SKIP because no
+datasource is provisioned. These logs omit typed503 reason/request linkage and
+do not independently establish safe display, provider cause or useful latency.
+
+Final status: implementation and exact application deployment are completed;
+full acceptance remains incomplete. All four issues stay open. No unavailable
+check blocks reporting or merges, and no executed failure becomes PASS WITH
+SKIPS. Current physical-wallet work is queued; remaining source-shape, live
+provider/timing, independently matched settlement and oracle/contract evidence
+are recorded in the individual checklists and issue-specific comments.
+
+Final QA regression first/retest each pass 27/27, including six new clock/owner/
+metric cases (including unavailable metrics refusing fabricated zero) and an actual owned-Chrome native transport allow/deny/redirect
+check. Final helper syntax and Prettier checks pass. The two owned disposable
+LocalTerra/Postgres containers were removed after receipt archival; shared and
+production infrastructure was untouched. Raw receipts and failed trials remain
+in private task/thread storage; public summaries omit actors, credentials and
+private endpoints.
