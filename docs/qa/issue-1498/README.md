@@ -30,3 +30,6 @@ bash scripts/with-node.sh -- node scripts/qa/browser-local-quotes-1452.cjs
 First/retest final source. Reset only the owned browser/DB/chain fixtures after a
 failure. Publish only sanitized bounded receipts; never credentials, wallet/session
 identities, private endpoints, raw deployment/provider logs or reporter details.
+
+Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501).
+Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).

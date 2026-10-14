@@ -28,6 +28,11 @@ const receipt = {
     cwd: root,
     encoding: "utf8",
   }).stdout.trim(),
+  qa_helper_sha256: createHash("sha256")
+    .update(fs.readFileSync(__filename))
+    .digest("hex"),
+  provenance_scope:
+    "source_revision and source_dirty identify the local QA checkout. Deployed application source is independently attested; served asset hashes bind these browser findings to its frontend.",
   trials: [],
   served_assets: [],
   verdict: "FAIL",
@@ -80,8 +85,11 @@ async function tradeClick(page, width) {
   const nav = page.locator(
     width < 768 ? "nav.app-mobile-nav-shell" : "nav.app-desktop-nav",
   );
-  if (width >= 768 && width < 1200)
+  if (width >= 768 && width < 1200) {
     await nav.getByRole("button", { name: /^More/ }).click();
+    await nav.getByRole("menuitem", { name: "Trade", exact: true }).click();
+    return;
+  }
   await nav.getByRole("link", { name: "Trade", exact: true }).click();
 }
 async function main() {

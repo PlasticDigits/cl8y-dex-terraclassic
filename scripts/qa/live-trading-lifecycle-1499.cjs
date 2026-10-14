@@ -16,6 +16,11 @@ const FE = "https://dex.cl8y.com",
 const SHA = process.env.EXPECTED_SOURCE_SHA,
   ATTEST = process.env.DEX_LIVE_ATTESTATION,
   OUT = process.env.DEX_LIVE_OUTPUT;
+const SHARD = Number(process.env.DEX_LIVE_SHARD);
+const {
+  installInputClock,
+  eligibleQuotesAtSnapshot,
+} = require("./live-input-clock-1499.cjs");
 const REASONS = {
   protection: 422,
   price_impact_too_high: 422,
@@ -34,6 +39,14 @@ const REASONS = {
 const receipt = {
   issues: [1498, 1499, 1500],
   expected_revision: SHA,
+  qa_measurement_version: "foreground_in_page_v2",
+  shard: SHARD,
+  shard_count: 3,
+  expected_window_count: 4,
+  cohort_maximum_windows: 12,
+  shard_quote_progress_budget: 600,
+  cohort_quote_progress_budget: 1800,
+  concurrency_per_browser: 1,
   utc_start: new Date().toISOString(),
   read_only: true,
   signing: false,
@@ -52,6 +65,8 @@ const receipt = {
 let browser,
   quotes = 0,
   readCount = 0,
+  rejectedQuoteAttempts = 0,
+  routeReads = { solve: 0, progress: 0, best: 0 },
   blockedWrites = 0,
   blockedProvider = 0,
   blockedOther = 0;
@@ -71,6 +86,8 @@ function save() {
         ...receipt,
         utc_end: new Date().toISOString(),
         quote_reads: quotes,
+        rejected_quote_attempts: rejectedQuoteAttempts,
+        route_reads: routeReads,
         read_count: readCount,
         blocked_writes: blockedWrites,
         blocked_provider: blockedProvider,
@@ -220,7 +237,9 @@ function safeError(error) {
     : "probe_unavailable";
 }
 async function probe(c, phase) {
-  if (++quotes > QUOTE_BUDGET) throw Error("quote_budget");
+  if (quotes >= QUOTE_BUDGET) throw Error("quote_budget");
+  quotes++;
+  routeReads.solve++;
   const p = params(c),
     t = performance.now();
   try {
@@ -314,13 +333,17 @@ async function windowCase(c, view, viewport) {
     transitions: [],
     responses: [],
     failures: [],
+    failure_details: [],
     first_useful_ms: null,
+    first_dom_ms: null,
+    response_probe_failures: [],
     completed: false,
   };
   let inputAt = 0,
     baseline = null,
     lastSignature = null,
-    latest = null;
+    latest = null,
+    windowEnded = false;
   const problem = (code) => {
     if (!row.failures.includes(code)) row.failures.push(code);
   };
@@ -355,10 +378,19 @@ async function windowCase(c, view, viewport) {
       return route.abort();
     }
     if (u.pathname.startsWith("/api/v1/route/solve")) {
-      if (++quotes > QUOTE_BUDGET) {
+      if (quotes >= QUOTE_BUDGET) {
+        rejectedQuoteAttempts++;
         problem("quote_budget");
         return route.abort();
       }
+      quotes++;
+      routeReads[
+        u.pathname.endsWith("/progress")
+          ? "progress"
+          : u.pathname.endsWith("/best")
+            ? "best"
+            : "solve"
+      ]++;
     }
     return route.continue();
   });
@@ -392,28 +424,39 @@ async function windowCase(c, view, viewport) {
       latest = events.at(-1);
       row.responses.push(e);
       if (status !== 200 && !reason) problem("browser_unclassified_outcome");
-    })().catch(() => problem("browser_response_probe_failed"));
+    })().catch((error) => {
+      const requestFailure = response.request().failure()?.errorText;
+      const cancelled = requestFailure === "net::ERR_ABORTED";
+      const closing = windowEnded;
+      row.response_probe_failures.push({
+        phase: closing ? "closing" : "observing",
+        at_ms: Date.now() - inputAt,
+        class: cancelled ? "request_cancelled" : safeError(error),
+      });
+      if (!closing && !cancelled)
+        problem("observing_response_probe_unavailable");
+    });
     pending.add(work);
     work.finally(() => pending.delete(work));
   });
   try {
     const pay = await setup(page, c);
+    await page.bringToFront();
     inputAt = Date.now();
-    await pay.evaluate((n) => {
-      window.__liveInputStarted = null;
-      n.addEventListener(
-        "input",
-        () => {
-          window.__liveInputStarted = performance.now();
-        },
-        { once: true },
-      );
-    });
+    await page.evaluate(installInputClock);
     await pay.fill(c.amount);
+    inputAt = await page.evaluate(
+      () => window.__liveClock1499.started_epoch_ms,
+    );
     const deadline = Date.now() + DURATION;
     while (Date.now() < deadline) {
       ensure();
+      if (quotes >= QUOTE_BUDGET) {
+        problem("quote_budget");
+        break;
+      }
       const state = await page.evaluate(() => {
+        const sampleEpochMs = Date.now();
         const ids = [
             "swap-you-pay-amount",
             "swap-you-receive",
@@ -458,6 +501,10 @@ async function windowCase(c, view, viewport) {
               height: r.height,
             };
           }),
+          sample_epoch_ms: sampleEpochMs,
+          visibility: document.visibilityState,
+          hidden: document.hidden,
+          clockCandidates: window.__liveClock1499?.candidates ?? [],
           inputAge:
             window.__liveInputStarted == null
               ? null
@@ -465,6 +512,34 @@ async function windowCase(c, view, viewport) {
         };
       });
       row.samples++;
+      if (state.visibility !== "visible" || state.hidden)
+        problem("nonforeground_observation");
+      const candidate = state.clockCandidates.find((clock) =>
+        events.some(
+          (e) =>
+            e.useful &&
+            human(e.output, c.outDecimals) === clock.value &&
+            e.observed <= clock.paint_epoch_ms &&
+            e.expires > clock.paint_epoch_ms,
+        ),
+      );
+      if (candidate && row.first_useful_ms == null) {
+        row.first_dom_ms = candidate.first_dom_ms;
+        row.first_useful_ms = candidate.input_to_paint_ms;
+        if (row.first_useful_ms > 750) problem("browser_useful_over750");
+        receipt.active_clock = {
+          case: c.label,
+          viewport: view,
+          first_dom_ms: row.first_dom_ms,
+          first_useful_ms: row.first_useful_ms,
+          visibility: state.visibility,
+        };
+        process.stderr.write(
+          JSON.stringify({ event: "first_useful", ...receipt.active_clock }) +
+            "\n",
+        );
+        save();
+      }
       if (!baseline && state.geometry.every(Boolean)) baseline = state.geometry;
       if (
         baseline &&
@@ -484,37 +559,53 @@ async function windowCase(c, view, viewport) {
         state.overflow
       )
         problem("layout_contract");
-      const negative = latest && latest.status === 422,
-        eligible = events.filter(
-          (e) => e.useful && e.expires > Date.now() && !negative,
-        ),
+      const eligible = eligibleQuotesAtSnapshot(events, state.sample_epoch_ms),
         matching = eligible.find(
           (e) => human(e.output, c.outDecimals) === state.value,
         );
-      if (!state.value && eligible.length) problem("unexpired_quote_blank");
+      if (!state.value && eligible.length) {
+        problem("unexpired_quote_blank");
+        if (row.failure_details.length < 32)
+          row.failure_details.push({
+            code: "unexpired_quote_blank",
+            sample_epoch_ms: state.sample_epoch_ms,
+            input_age_ms: state.inputAge,
+            latest_reason: latest?.reason ?? null,
+            original_expiries: eligible.map((e) => e.expires),
+          });
+      }
       if (
         state.value &&
         !matching &&
         events.some((e) => e.useful) &&
         pending.size === 0 &&
-        (!latest || Date.now() - latest.absolute_at > 250)
-      )
+        (!latest || state.sample_epoch_ms - latest.absolute_at > 250)
+      ) {
         problem("unvalidated_or_expired_display");
+        if (row.failure_details.length < 32)
+          row.failure_details.push({
+            code: "unvalidated_or_expired_display",
+            sample_epoch_ms: state.sample_epoch_ms,
+            evaluated_epoch_ms: Date.now(),
+            input_age_ms: state.inputAge,
+            value: state.value,
+            latest_status: latest?.status ?? null,
+            latest_reason: latest?.reason ?? null,
+            same_output_quotes: events
+              .filter(
+                (e) =>
+                  e.useful && human(e.output, c.outDecimals) === state.value,
+              )
+              .map((e) => ({
+                observed_at_ms: e.observed,
+                expires_at_ms: e.expires,
+                expiry_delta_ms: state.sample_epoch_ms - e.expires,
+              })),
+          });
+      }
       if (state.unsupported && latest?.reason !== "unsupported_semantics")
         problem("unsupported_without_typed_negative");
       if (matching) {
-        if (row.first_useful_ms == null) {
-          await page.evaluate(
-            () =>
-              new Promise((r) =>
-                requestAnimationFrame(() => requestAnimationFrame(r)),
-              ),
-          );
-          row.first_useful_ms = await page.evaluate(
-            () => performance.now() - window.__liveInputStarted,
-          );
-          if (row.first_useful_ms > 750) problem("browser_useful_over750");
-        }
         if (
           matching.metrics &&
           (state.slippage !== "Slippage " + metric(matching.slippage) ||
@@ -533,6 +624,7 @@ async function windowCase(c, view, viewport) {
         if (row.transitions.length < 120)
           row.transitions.push({
             at_ms: state.inputAge,
+            sample_epoch_ms: state.sample_epoch_ms,
             value: state.value,
             loading: state.loading,
             unsupported: state.unsupported,
@@ -544,9 +636,12 @@ async function windowCase(c, view, viewport) {
       }
       await page.waitForTimeout(200);
     }
+    windowEnded = true;
+    await page.evaluate(() => window.__liveClock1499?.stop());
     await Promise.all([...pending]);
-    row.completed = true;
+    row.original_input_epoch_ms = inputAt;
     row.elapsed_ms = Date.now() - inputAt;
+    row.completed = row.elapsed_ms >= 185000;
     row.original_observation_windows = events
       .filter((e) => e.useful)
       .map((e) => ({ observed_at_ms: e.observed, expires_at_ms: e.expires }));
@@ -555,6 +650,7 @@ async function windowCase(c, view, viewport) {
   } catch (e) {
     problem(safeError(e));
   } finally {
+    windowEnded = true;
     receipt.windows.push(row);
     save();
     await context.close();
@@ -570,6 +666,7 @@ async function windowCase(c, view, viewport) {
 }
 async function main() {
   if (
+    ![0, 1, 2].includes(SHARD) ||
     !/^[0-9a-f]{40}$/.test(SHA || "") ||
     !ATTEST ||
     !OUT ||
@@ -587,6 +684,14 @@ async function main() {
     att.backend_deployment?.deployment_status !== "finished"
   )
     throw Error("independent_attestation_mismatch");
+  receipt.qa_helper_hashes = [
+    "live-trading-lifecycle-1499.cjs",
+    "live-input-clock-1499.cjs",
+    "live-quote-economics-1500.cjs",
+  ].map((file) => ({
+    file,
+    sha256: hash(fs.readFileSync(path.join(__dirname, file))),
+  }));
   receipt.artifact_before = await artifacts(att.frontend.artifact);
   const health = await read(BE + "/health", 4096);
   if (JSON.parse(health.bytes).git_sha !== SHA)
@@ -616,15 +721,17 @@ async function main() {
     ["UST1", "CL8Y", "1"],
     ["CL8Y", "UST1", "1"],
   ];
-  const cases = groups.map(([a, b, amount]) => ({
-    label: a + "->" + b,
-    from: assets[a].identity,
-    to: assets[b].identity,
-    inDecimals: assets[a].decimals,
-    outDecimals: assets[b].decimals,
-    amount,
-    native: a === "USTC" || b === "USTC",
-  }));
+  const cases = groups
+    .slice(SHARD * 2, SHARD * 2 + 2)
+    .map(([a, b, amount]) => ({
+      label: a + "->" + b,
+      from: assets[a].identity,
+      to: assets[b].identity,
+      inDecimals: assets[a].decimals,
+      outDecimals: assets[b].decimals,
+      amount,
+      native: a === "USTC" || b === "USTC",
+    }));
   for (const c of cases) {
     await probe(c, "initialized_first");
     await probe(c, "initialized_retest");
@@ -650,21 +757,19 @@ async function main() {
           windowCase(c, view, viewport),
     ),
   );
-  let cursor = 0;
-  await Promise.all(
-    Array.from({ length: 4 }, async () => {
-      while (cursor < tasks.length) {
-        const task = tasks[cursor++];
-        await task();
-      }
-    }),
-  );
+  for (const task of tasks) {
+    if (quotes >= QUOTE_BUDGET) {
+      fail("quote_budget");
+      break;
+    }
+    await task();
+  }
   receipt.artifact_after = await artifacts(att.frontend.artifact);
   const finalHealth = JSON.parse((await read(BE + "/health", 4096)).bytes);
   if (finalHealth.git_sha !== SHA)
     throw Error("final_backend_revision_mismatch");
   receipt.completed =
-    receipt.windows.length === 12 && receipt.windows.every((w) => w.completed);
+    receipt.windows.length === 4 && receipt.windows.every((w) => w.completed);
   if (blockedWrites || blockedProvider) fail("prohibited_request_attempts");
   receipt.overall =
     receipt.failures.length ||

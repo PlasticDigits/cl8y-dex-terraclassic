@@ -1,0 +1,143 @@
+{
+  "expected_revision": "9dfa373f989ca9684c00ce40bc0525265243dfe9",
+  "utc_start": "2026-10-14T06:28:42.039Z",
+  "utc_end": "2026-10-14T06:38:50.566Z",
+  "completed": true,
+  "overall": "FAIL",
+  "quote_reads": 1160,
+  "browser_budget_ms": 750,
+  "socket_budget_ms": 500,
+  "duration_per_case_ms": 190000,
+  "raw_receipt_sha256": "72f6ea0e58052da4bdaee1169018f41edacfd6ea30bb5ac8a5ee87fcf4b3de8d",
+  "api_positive_count": 12,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "first_useful_ms": 3681.5,
+      "elapsed_ms": 190085,
+      "completed": true,
+      "failures": [
+        "browser_useful_over750"
+      ]
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "first_useful_ms": 3522.5,
+      "elapsed_ms": 190123,
+      "completed": true,
+      "failures": [
+        "browser_useful_over750"
+      ]
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "first_useful_ms": 3225.60000000149,
+      "elapsed_ms": 190023,
+      "completed": true,
+      "failures": [
+        "browser_useful_over750",
+        "browser_response_probe_failed"
+      ]
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "first_useful_ms": 561.3000000007451,
+      "elapsed_ms": 190041,
+      "completed": true,
+      "failures": [
+        "browser_response_probe_failed"
+      ]
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "desktop",
+      "first_useful_ms": 987.2999999988824,
+      "elapsed_ms": 190034,
+      "completed": true,
+      "failures": [
+        "browser_useful_over750",
+        "quote_budget"
+      ]
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "phone",
+      "first_useful_ms": 1146.5,
+      "elapsed_ms": 190092,
+      "completed": true,
+      "failures": [
+        "browser_useful_over750",
+        "quote_budget"
+      ]
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "desktop",
+      "first_useful_ms": 491.30000000074506,
+      "elapsed_ms": 190115,
+      "completed": true,
+      "failures": [
+        "quote_budget"
+      ]
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "phone",
+      "first_useful_ms": 460.5,
+      "elapsed_ms": 190216,
+      "completed": true,
+      "failures": [
+        "quote_budget"
+      ]
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "desktop",
+      "first_useful_ms": null,
+      "elapsed_ms": 190093,
+      "completed": true,
+      "failures": [
+        "quote_budget",
+        "no_useful_browser_quote"
+      ]
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "phone",
+      "first_useful_ms": null,
+      "elapsed_ms": 190212,
+      "completed": true,
+      "failures": [
+        "quote_budget",
+        "no_useful_browser_quote"
+      ]
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "desktop",
+      "first_useful_ms": null,
+      "elapsed_ms": 190095,
+      "completed": true,
+      "failures": [
+        "quote_budget",
+        "no_useful_browser_quote"
+      ]
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "phone",
+      "first_useful_ms": null,
+      "elapsed_ms": 190198,
+      "completed": true,
+      "failures": [
+        "quote_budget",
+        "no_useful_browser_quote"
+      ]
+    }
+  ],
+  "scope": "Original four concurrent tab QA run retained as FAIL. Background painting and combined solve/progress cap are under investigation; no live latency acceptance."
+}

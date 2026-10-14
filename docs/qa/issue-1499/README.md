@@ -73,3 +73,6 @@ source passes or a single positive quote.
 
 Bounded anonymous final-deployment command, safe request/receipt budgets and
 independent API stage checks: [LIVE.md](LIVE.md).
+
+Merged implementation: [PR #1501](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1501).
+Exact deployment and subsequent live receipts: [joint release results](../trading-1497-1500/RESULTS.md#merged-release-and-deployment).

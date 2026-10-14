@@ -149,6 +149,89 @@ async fn observe_floor_protocol(state: &AppState, address: &str) -> Option<u8> {
     floor_protocol(&response)
 }
 
+#[derive(Debug, Default, PartialEq)]
+struct OutputObservations {
+    tax_atomics: Option<u128>,
+    router_supported: Option<bool>,
+    uluna_cap: Option<u128>,
+    uusd_cap: Option<u128>,
+}
+
+async fn bounded_observation<F, T>(deadline: tokio::time::Instant, observation: F) -> Option<T>
+where
+    F: std::future::Future<Output = Option<T>>,
+{
+    tokio::time::timeout_at(deadline, observation)
+        .await
+        .ok()
+        .flatten()
+}
+
+/// Independent scheduled reads share the same absolute subdeadline and the
+/// caller's existing LCD pacing/permits. A slow unrelated denom must not erase
+/// completed required fields. Dropping this future cancels all local work.
+async fn collect_output_observations<T, R, L, U>(
+    remaining: std::time::Duration,
+    tax: T,
+    router: R,
+    uluna: L,
+    uusd: U,
+) -> OutputObservations
+where
+    T: std::future::Future<Output = Option<u128>>,
+    R: std::future::Future<Output = Option<bool>>,
+    L: std::future::Future<Output = Option<u128>>,
+    U: std::future::Future<Output = Option<u128>>,
+{
+    if remaining.is_zero() {
+        return OutputObservations::default();
+    }
+    let deadline = tokio::time::Instant::now() + remaining;
+    let (tax, router, uluna, uusd) = tokio::join!(
+        bounded_observation(deadline, tax),
+        bounded_observation(deadline, router),
+        bounded_observation(deadline, uluna),
+        bounded_observation(deadline, uusd),
+    );
+    OutputObservations {
+        tax_atomics: tax,
+        router_supported: router,
+        uluna_cap: uluna,
+        uusd_cap: uusd,
+    }
+}
+
+async fn collect_floor_protocols<M, T>(
+    remaining: std::time::Duration,
+    mapper: M,
+    treasury: T,
+) -> (Option<u8>, Option<u8>)
+where
+    M: std::future::Future<Output = Option<u8>>,
+    T: std::future::Future<Output = Option<u8>>,
+{
+    if remaining.is_zero() {
+        return (None, None);
+    }
+    let deadline = tokio::time::Instant::now() + remaining;
+    tokio::join!(
+        bounded_observation(deadline, mapper),
+        bounded_observation(deadline, treasury)
+    )
+}
+
+async fn observe_tax_cap(state: &AppState, denom: &str, mapped: bool) -> Option<u128> {
+    if !mapped {
+        return None;
+    }
+    let value: Value = state
+        .lcd
+        .get_bounded(&format!("/terra/treasury/v1beta1/tax_caps/{denom}"), 8_192)
+        .await
+        .ok()?;
+    raw(&value["tax_cap"])
+}
+
 /// Bounded scheduled observation. Two known native denoms only; no caller-supplied
 /// endpoint/address. Missing output tax data leaves native output unsupported,
 /// without discarding an independently valid input-wrap observation.
@@ -268,53 +351,43 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
     let remaining = std::time::Duration::from_millis(7_900)
         .saturating_sub(started.elapsed())
         .min(std::time::Duration::from_secs(2));
-    let output = tokio::time::timeout(remaining, async {
-        let tax: Option<Value> = state
-            .lcd
-            .get_bounded("/terra/tax/v1beta1/params", 8_192)
-            .await
-            .ok();
-        let tax_atomics = tax
-            .as_ref()
-            .and_then(|v| {
-                v["params"]["burn_tax_rate"]
-                    .as_str()
-                    .or_else(|| v["burn_tax_rate"].as_str())
-            })
-            .and_then(tax_rate);
-        let router_unwrap_supported = if let Some(router) = state.router_address.as_deref() {
-            let cfg: Option<Value> = state
+    let output = collect_output_observations(
+        remaining,
+        async {
+            let tax: Option<Value> = state
                 .lcd
-                .query_contract_bounded(router, &json!({"config":{}}), 8_192)
+                .get_bounded("/terra/tax/v1beta1/params", 8_192)
                 .await
                 .ok();
-            cfg.map(|v| v["wrap_mapper"].as_str() == Some(mapper))
-        } else {
-            Some(false)
-        };
-        let mut caps = HashMap::new();
-        for denom in mappings.keys() {
-            let cap: Option<Value> = state
-                .lcd
-                .get_bounded(&format!("/terra/treasury/v1beta1/tax_caps/{denom}"), 8_192)
-                .await
-                .ok();
-            caps.insert(denom.clone(), cap.as_ref().and_then(|v| raw(&v["tax_cap"])));
-        }
-        (tax_atomics, router_unwrap_supported, caps)
-    })
-    .await
-    .ok();
-    let (tax_atomics, router_unwrap_supported) = if let Some((rate, supported, caps)) = output {
-        for (denom, cap) in caps {
-            if let Some(m) = mappings.get_mut(&denom) {
-                m.tax_cap = cap;
+            tax.as_ref()
+                .and_then(|v| {
+                    v["params"]["burn_tax_rate"]
+                        .as_str()
+                        .or_else(|| v["burn_tax_rate"].as_str())
+                })
+                .and_then(tax_rate)
+        },
+        async {
+            if let Some(router) = state.router_address.as_deref() {
+                let cfg: Option<Value> = state
+                    .lcd
+                    .query_contract_bounded(router, &json!({"config":{}}), 8_192)
+                    .await
+                    .ok();
+                cfg.map(|v| v["wrap_mapper"].as_str() == Some(mapper))
+            } else {
+                Some(false)
             }
+        },
+        observe_tax_cap(state, "uluna", mappings.contains_key("uluna")),
+        observe_tax_cap(state, "uusd", mappings.contains_key("uusd")),
+    )
+    .await;
+    for (denom, cap) in [("uluna", output.uluna_cap), ("uusd", output.uusd_cap)] {
+        if let Some(m) = mappings.get_mut(denom) {
+            m.tax_cap = cap;
         }
-        (rate, supported)
-    } else {
-        (None, None)
-    };
+    }
     // Optional capability failures preserve useful arithmetic but never signing.
     // This work has a separate deadline and shares the scheduled provider budget.
     // Leave a small publication margin inside the outer eight-second deadline;
@@ -322,14 +395,12 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
     let remaining = std::time::Duration::from_millis(7_900)
         .saturating_sub(started.elapsed())
         .min(std::time::Duration::from_secs(2));
-    let floors = tokio::time::timeout(remaining, async {
-        (
-            observe_floor_protocol(state, mapper).await,
-            observe_floor_protocol(state, &treasury).await,
-        )
-    })
-    .await
-    .unwrap_or((None, None));
+    let floors = collect_floor_protocols(
+        remaining,
+        observe_floor_protocol(state, mapper),
+        observe_floor_protocol(state, &treasury),
+    )
+    .await;
     Some(WrapperSnapshot {
         mapper: mapper.into(),
         treasury,
@@ -337,8 +408,8 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
         mappings,
         fee_wrap_bps: wrap,
         fee_unwrap_bps: unwrap,
-        tax_atomics,
-        router_unwrap_supported,
+        tax_atomics: output.tax_atomics,
+        router_unwrap_supported: output.router_supported,
         mapper_floor_version: floors.0,
         treasury_floor_version: floors.1,
     })
@@ -347,6 +418,210 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        time::Duration,
+    };
+
+    async fn delayed<T>(millis: u64, value: Option<T>) -> Option<T> {
+        tokio::time::sleep(Duration::from_millis(millis)).await;
+        value
+    }
+
+    async fn immediate<T>(calls: Arc<AtomicUsize>, value: T) -> Option<T> {
+        calls.fetch_add(1, Ordering::SeqCst);
+        Some(value)
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_zero_remaining_phase_starts_no_observation_or_capability_reads() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let output = collect_output_observations(
+            Duration::ZERO,
+            immediate(calls.clone(), 0u128),
+            immediate(calls.clone(), true),
+            immediate(calls.clone(), 1000u128),
+            immediate(calls.clone(), 1000u128),
+        )
+        .await;
+        let floors = collect_floor_protocols(
+            Duration::ZERO,
+            immediate(calls.clone(), 1u8),
+            immediate(calls.clone(), 1u8),
+        )
+        .await;
+        assert_eq!(output, OutputObservations::default());
+        assert_eq!(floors, (None, None));
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    async fn paced<T>(
+        permits: Arc<tokio::sync::Semaphore>,
+        next: Arc<tokio::sync::Mutex<tokio::time::Instant>>,
+        calls: Arc<AtomicUsize>,
+        value: T,
+    ) -> Option<T> {
+        let _permit = permits.acquire_owned().await.unwrap();
+        let mut tick = next.lock().await;
+        tokio::time::sleep_until(*tick).await;
+        *tick = tokio::time::Instant::now() + Duration::from_millis(250);
+        drop(tick);
+        calls.fetch_add(1, Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        Some(value)
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_output_reads_complete_with_original_two_permits_four_rps_budget() {
+        let permits = Arc::new(tokio::sync::Semaphore::new(2));
+        let next = Arc::new(tokio::sync::Mutex::new(tokio::time::Instant::now()));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let start = tokio::time::Instant::now();
+        // Independent timing: admissions at 0/250/600/850ms; each response
+        // takes600ms, so all four complete at1450ms. Sequential needs2400ms.
+        let result = collect_output_observations(
+            Duration::from_secs(2),
+            paced(
+                permits.clone(),
+                next.clone(),
+                calls.clone(),
+                15_000_000_000_000_000u128,
+            ),
+            paced(permits.clone(), next.clone(), calls.clone(), true),
+            paced(permits.clone(), next.clone(), calls.clone(), 1000u128),
+            paced(permits.clone(), next.clone(), calls.clone(), 2000u128),
+        )
+        .await;
+        assert_eq!(
+            result,
+            OutputObservations {
+                tax_atomics: Some(15_000_000_000_000_000),
+                router_supported: Some(true),
+                uluna_cap: Some(1000),
+                uusd_cap: Some(2000)
+            }
+        );
+        assert_eq!(start.elapsed(), Duration::from_millis(1450));
+        assert_eq!(calls.load(Ordering::SeqCst), 4);
+        assert_eq!(permits.available_permits(), 2);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_slow_unrelated_uluna_cap_preserves_usable_uusd_with_original_expiry() {
+        let start = tokio::time::Instant::now();
+        let result = collect_output_observations(
+            Duration::from_secs(2),
+            delayed(20, Some(15_000_000_000_000_000u128)),
+            delayed(15, Some(true)),
+            delayed(3000, Some(1000u128)),
+            delayed(25, Some(1000u128)),
+        )
+        .await;
+        assert_eq!(start.elapsed(), Duration::from_secs(2));
+        assert_eq!(result.uluna_cap, None);
+        let mut s = fixture();
+        s.mappings.insert(
+            "uusd".into(),
+            NativeMapping {
+                cw20: "cust".into(),
+                maximum: None,
+                used: 0,
+                tax_cap: result.uusd_cap,
+            },
+        );
+        s.mappings.get_mut("uluna").unwrap().tax_cap = result.uluna_cap;
+        s.tax_atomics = result.tax_atomics;
+        s.router_unwrap_supported = result.router_supported;
+        // Independent ledger:10000 -200 wrapperfee =9800; taxfloor147 =>9653.
+        assert_eq!(
+            s.unwrap_output("uusd", 10_000, 3000),
+            Some(("cust".into(), 9653, 9800))
+        );
+        assert!(s.unwrap_output("uluna", 10_000, 3000).is_none());
+        assert!(s.wrap_input("uluna", 10_000, 3000).is_some());
+        assert_eq!(s.observed_at_ms, 1000);
+        assert!(s.unwrap_output("uusd", 10_000, 21_001).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_failed_required_tax_stays_unknown_while_other_fields_complete() {
+        let result = collect_output_observations(
+            Duration::from_secs(2),
+            delayed(10, None::<u128>),
+            delayed(20, Some(true)),
+            delayed(25, Some(1000u128)),
+            delayed(30, Some(2000u128)),
+        )
+        .await;
+        assert_eq!(result.tax_atomics, None);
+        assert_eq!(result.router_supported, Some(true));
+        assert_eq!(result.uusd_cap, Some(2000));
+        let mut s = fixture();
+        s.tax_atomics = result.tax_atomics;
+        assert!(s.unwrap_output("uluna", 10_000, 1000).is_none());
+        assert!(s.wrap_input("uluna", 10_000, 1000).is_some());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_router_negative_is_not_changed_to_unknown_or_success() {
+        let result = collect_output_observations(
+            Duration::from_secs(2),
+            delayed(5, Some(0u128)),
+            delayed(10, Some(false)),
+            delayed(15, Some(1000u128)),
+            delayed(20, Some(1000u128)),
+        )
+        .await;
+        assert_eq!(result.router_supported, Some(false));
+        let mut s = fixture();
+        s.router_unwrap_supported = result.router_supported;
+        assert!(s.unwrap_output("uluna", 10_000, 1000).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_slow_treasury_capability_preserves_mapper_but_never_authorizes_wrap() {
+        let start = tokio::time::Instant::now();
+        let (mapper, treasury) = collect_floor_protocols(
+            Duration::from_secs(2),
+            delayed(20, Some(1u8)),
+            delayed(3000, Some(1u8)),
+        )
+        .await;
+        assert_eq!(start.elapsed(), Duration::from_secs(2));
+        let mut s = fixture();
+        s.mapper_floor_version = mapper;
+        s.treasury_floor_version = treasury;
+        assert_eq!(s.direct_floor_protocol(false), Some(1));
+        assert_eq!(s.direct_floor_protocol(true), None);
+        assert_eq!(s.observed_at_ms, 1000);
+        assert!(s.unwrap_output_direct("uluna", 10_000, 21_001).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1499_cancellation_releases_existing_budget_and_never_spawns_detached_work() {
+        let permits = Arc::new(tokio::sync::Semaphore::new(2));
+        let next = Arc::new(tokio::sync::Mutex::new(tokio::time::Instant::now()));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let result = tokio::time::timeout(
+            Duration::from_millis(50),
+            collect_output_observations(
+                Duration::from_secs(2),
+                paced(permits.clone(), next.clone(), calls.clone(), 1u128),
+                paced(permits.clone(), next.clone(), calls.clone(), true),
+                paced(permits.clone(), next.clone(), calls.clone(), 1u128),
+                paced(permits.clone(), next.clone(), calls.clone(), 1u128),
+            ),
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(permits.available_permits(), 2);
+        let accepted = calls.load(Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        assert_eq!(calls.load(Ordering::SeqCst), accepted);
+    }
     fn fixture() -> WrapperSnapshot {
         WrapperSnapshot {
             mapper: "mapper".into(),
