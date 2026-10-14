@@ -787,6 +787,16 @@ fn evaluate_with_plan(
             .clone();
         hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["book_commission_amount"] =
             json!(leg.book_commission_amount.to_string());
+        hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["reserve_in"] =
+            json!(rin.to_string());
+        hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["reserve_out"] =
+            json!(rout.to_string());
+        hops.last_mut().ok_or(diagnostics::Rejection::Accounting)?["book_side"] =
+            json!(if offer_token == &mirror.asset_0_addr {
+                "bid"
+            } else {
+                "ask"
+            });
         output = net;
         oldest = oldest.min(mirror.snapshot_at.timestamp_millis());
         if let Some(height) = mirror.block_height {
@@ -1024,7 +1034,9 @@ fn response(
         body["execution_metadata"]["execution_market_spread"] =
             json!(decimal_text(c.execution_market_spread));
     }
+    order_economics::attach_original_book_terms(c, &mut body);
     body["economic_attribution"] = attribution::route(c, input, input, c.output, &body);
+    body["order_economics"] = order_economics::route(c, input, &body);
     body
 }
 
@@ -1068,7 +1080,7 @@ fn wrapper_generation(market: &str, w: &super::local_wrapper_quote::WrapperSnaps
     mappings.sort_by_key(|(k, _)| *k);
     let mut hash = Sha256::new();
     hash.update(format!(
-        "{market}|{}|{}|{}|{}|{}|{:?}|{}|{:?}|{:?}|{mappings:?}",
+        "{market}|{}|{}|{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{mappings:?}",
         w.mapper,
         w.treasury,
         w.observed_at_ms,
@@ -1175,8 +1187,10 @@ fn native_candidate_rejection(
         return Some(diagnostics::Rejection::Unsupported);
     }
     if n.unwrap {
-        if !n.wrapper.router_unwrap_supported {
-            return Some(diagnostics::Rejection::Unsupported);
+        match n.wrapper.router_unwrap_supported {
+            Some(true) => {}
+            Some(false) => return Some(diagnostics::Rejection::Unsupported),
+            None => return Some(diagnostics::Rejection::Missing),
         }
         if n.wrapper.tax_atomics.is_none()
             || n.wrapper
@@ -1308,6 +1322,7 @@ fn final_response(
         .min(n.wrapper.observed_at_ms + 20_000));
     body["execution_metadata"]["wrapper"] = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":input.to_string(),"route_output_amount":c.output.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper});
     body["economic_attribution"] = attribution::route(c, gross, input, output, &body);
+    body["order_economics"] = order_economics::route(c, gross, &body);
     Some(body)
 }
 struct JobGuard(String);
@@ -1514,8 +1529,12 @@ async fn solve_local_with_plan(
         }
         if unwrap {
             let mapping = w.mappings.get(&q.token_out).ok_or_else(unavailable)?;
-            if q.token_in != mapping.cw20 && !w.router_unwrap_supported {
-                return Err(diagnostics::Rejection::Unsupported.error());
+            if q.token_in != mapping.cw20 {
+                match w.router_unwrap_supported {
+                    Some(true) => {}
+                    Some(false) => return Err(diagnostics::Rejection::Unsupported.error()),
+                    None => return Err(diagnostics::Rejection::Missing.error()),
+                }
             }
             if w.tax_atomics.is_none() || mapping.tax_cap.is_none() {
                 return Err(diagnostics::Rejection::Missing.error());
@@ -1886,6 +1905,9 @@ async fn solve_local_with_plan(
     discovery.annotate(&mut body, complete);
     if plan.is_some() {
         body["execution_metadata"]["policy"] = json!("declared_hybrid_manual");
+        if body["order_economics"]["status"] == "available" {
+            body["order_economics"]["policy"] = json!("declared_hybrid_manual");
+        }
         body["optimality_scope"] = json!(
             "Best net output among bounded eligible paths matching the exact declared splits"
         );
@@ -2073,6 +2095,7 @@ mod generation;
 mod ingestion;
 mod jobs;
 mod modes;
+mod order_economics;
 mod pair_admission;
 mod publication;
 #[cfg(test)]
@@ -2583,7 +2606,7 @@ mod tests {
                 fee_wrap_bps: 0,
                 fee_unwrap_bps: 0,
                 tax_atomics: Some(0),
-                router_unwrap_supported: false,
+                router_unwrap_supported: Some(false),
                 mapper_floor_version: Some(1),
                 treasury_floor_version: Some(1),
             },
@@ -2592,7 +2615,13 @@ mod tests {
             native_candidate_rejection(&n, &c, input),
             Some(diagnostics::Rejection::Unsupported)
         );
-        n.wrapper.router_unwrap_supported = true;
+        n.wrapper.router_unwrap_supported = None;
+        assert_eq!(
+            native_candidate_rejection(&n, &c, input),
+            Some(diagnostics::Rejection::Missing),
+            "an unavailable scheduled router read is not proof of unsupported semantics"
+        );
+        n.wrapper.router_unwrap_supported = Some(true);
         n.wrapper.tax_atomics = None;
         assert_eq!(
             native_candidate_rejection(&n, &c, input),
@@ -3094,7 +3123,7 @@ mod tests {
                 fee_wrap_bps: 9_999,
                 fee_unwrap_bps: 0,
                 tax_atomics: None,
-                router_unwrap_supported: false,
+                router_unwrap_supported: Some(false),
                 mapper_floor_version: None,
                 treasury_floor_version: None,
             },
@@ -3168,6 +3197,11 @@ mod tests {
         assert_eq!(
             body["execution_metadata"]["policy"],
             "declared_hybrid_manual"
+        );
+        assert_eq!(body["order_economics"]["status"], "available");
+        assert_eq!(
+            body["order_economics"]["policy"],
+            body["execution_metadata"]["policy"]
         );
         assert_eq!(body["hops"][0]["pair"], path[0].0);
         assert_eq!(
@@ -3255,6 +3289,68 @@ mod tests {
     }
     #[tokio::test]
     #[serial_test::serial]
+    async fn issue1499_native_router_observation_loss_is_missing_and_positive_recovery_is_local() {
+        use super::super::local_wrapper_quote::{NativeMapping, WrapperSnapshot};
+        let namespace = "1499-router-observation";
+        let s = fixture();
+        initialize_for_test(namespace.into(), s.pairs, s.addresses, s.mirrors, 20_000);
+        let mut wrapper = WrapperSnapshot {
+            mapper: "mapper".into(),
+            treasury: "treasury".into(),
+            observed_at_ms: now_ms(),
+            mappings: HashMap::from([(
+                "uluna".into(),
+                NativeMapping {
+                    cw20: "out18".into(),
+                    maximum: None,
+                    used: 0,
+                    tax_cap: Some(0),
+                },
+            )]),
+            fee_wrap_bps: 0,
+            fee_unwrap_bps: 0,
+            tax_atomics: Some(0),
+            router_unwrap_supported: Some(true),
+            mapper_floor_version: Some(1),
+            treasury_floor_version: Some(1),
+        };
+        let original_clock = wrapper.observed_at_ms;
+        let mut q = request(10u128.pow(18));
+        q.token_out = "uluna".into();
+        q.pool_only = Some(true);
+        publish_wrapper(namespace.into(), wrapper.clone());
+        let original = solve_local(namespace, &q).await.unwrap().0;
+        wrapper.router_unwrap_supported = None;
+        publish_wrapper(namespace.into(), wrapper.clone());
+        let missing = solve_local(namespace, &q).await.unwrap_err();
+        assert_eq!(missing.0, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            serde_json::from_str::<Value>(&missing.1).unwrap()["error"],
+            "missing_observations"
+        );
+        wrapper.router_unwrap_supported = Some(false);
+        publish_wrapper(namespace.into(), wrapper.clone());
+        let unsupported = solve_local(namespace, &q).await.unwrap_err();
+        assert_eq!(unsupported.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            serde_json::from_str::<Value>(&unsupported.1).unwrap()["error"],
+            "unsupported_semantics"
+        );
+        wrapper.router_unwrap_supported = Some(true);
+        publish_wrapper(namespace.into(), wrapper);
+        let recovered = solve_local(namespace, &q).await.unwrap().0;
+        assert_eq!(
+            recovered["estimated_amount_out_net"],
+            original["estimated_amount_out_net"]
+        );
+        assert_eq!(
+            store().lock().unwrap().wrappers[namespace].observed_at_ms,
+            original_clock
+        );
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
     async fn zero_hop_wrapper_sizing_is_local_positive_and_explicitly_cannot_sign() {
         use super::super::local_wrapper_quote::{NativeMapping, WrapperSnapshot};
         let namespace = "zero-wrapper1452";
@@ -3278,7 +3374,7 @@ mod tests {
                 fee_wrap_bps: 200,
                 fee_unwrap_bps: 50,
                 tax_atomics: Some(SCALE / 100),
-                router_unwrap_supported: true,
+                router_unwrap_supported: Some(true),
                 mapper_floor_version: None,
                 treasury_floor_version: None,
             },
@@ -3316,7 +3412,7 @@ mod tests {
         let mut w = store().lock().unwrap().wrappers[namespace].clone();
         // Direct unwrap uses the mapper, so unrelated router readiness cannot
         // remove useful arithmetic or waive protocol capability admission.
-        w.router_unwrap_supported = false;
+        w.router_unwrap_supported = Some(false);
         w.mapper_floor_version = Some(1);
         publish_wrapper(namespace.into(), w.clone());
         let mut q = request(10_000);

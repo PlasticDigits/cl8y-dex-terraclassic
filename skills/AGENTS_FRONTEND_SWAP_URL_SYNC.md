@@ -22,7 +22,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 | **Q713-4** | You Receive stays an input. CW20 route targets use explicit server `amount_out` with current wallet forward validation (#1376), including indexer-only/native-mapped routes. Mapper-only wrap/unwrap uses shared fee/tax inverses. Execute stays offer-in + minimum receive. |
 | **Q713-5** | Swap header **Share** next to Settings (`data-testid="swap-share-link"`). Visible **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). No new `shell-panel*` / `card-glass` (**C653**). Coarse+narrow: Web Share; else `copyToClipboard` (**Link copied**). `AbortError` silent. Never `window.location.href`. |
 | **Q713-6** | `/create?a=&b=` prefills catalog or checksum custom. Hostile / native ignored per side. No auto-submit. No runtime HTTP catalog. |
-| **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Zero or multiple matches → ignore. Path stays canonical. Ticket not auto-placed. |
+| **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Zero or multiple matches → retain Trade-local selection state, except validated explicit native funding may use Swap compatibility when no genuine factory match exists. Bare Trade uses the separate [TE1497](AGENTS_TRADE_ENTRY.md) factory default. Path stays canonical. Ticket not auto-placed. |
 | **Q713-8** | Production cannot share or rewrite a gem. Never honor `?showGems=1`. |
 | **Q713-9** | Canonical string compare breaks apply↔write loops. Build URLs with `URL` + `URLSearchParams` only. |
 | **Q713-10** | No lecture banners. No `localStorage`. No `0x`→Terra mapping. U1: UST1 Swap/Trade links remain AMM. |
@@ -45,7 +45,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 - **Do** use explicit server receive sizing (#1376); **don’t** fake exact-out by repeatedly calling the offer-in `quoteCw20ViaRouteSolve` endpoint.
 - **Don’t** share leftover `recipient` / WC / Uniswap keys.
 - **Don’t** feed Swap’s factory graph into Create Pair prefill (**C542-8**).
-- **Don’t** `navigate` Trade to anything except `/trade/{bech32}`.
+- **Do** keep bare Trade in `/trade` or `/trade/{bech32}`; only validated explicit native funding queries may navigate to same-origin Swap ([TE1497](AGENTS_TRADE_ENTRY.md)).
 - **Don’t** persist query in `localStorage`.
 
 ## Regression

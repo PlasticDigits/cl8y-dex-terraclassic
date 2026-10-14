@@ -15,6 +15,7 @@ export type TerraClassicTxFeeHintProps = {
    */
   showInternals?: boolean
   className?: string
+  aligned?: boolean
   'data-testid'?: string
 }
 
@@ -28,6 +29,7 @@ export function TerraClassicTxFeeHint({
   compact,
   showInternals = false,
   className = '',
+  aligned = false,
   'data-testid': testId = 'terra-classic-tx-fee-hint',
 }: TerraClassicTxFeeHintProps) {
   useNumberDisplayMode()
@@ -43,14 +45,15 @@ export function TerraClassicTxFeeHint({
 
   return (
     <p
-      className={`${textSize} tabular-nums ${className}`.trim()}
+      className={`${textSize} tabular-nums ${aligned ? 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-3' : ''} ${className}`.trim()}
       style={{ color: 'var(--ink-dim)' }}
       data-testid={testId}
     >
       <span className="font-medium" style={{ color: 'var(--ink-subtle)' }}>
-        {label}:{' '}
+        {label}
+        {aligned ? '' : ': '}
       </span>
-      <span className="font-mono" style={{ color: 'var(--ink)' }}>
+      <span className={`font-mono ${aligned ? 'text-right' : ''}`} style={{ color: 'var(--ink)' }}>
         ~{lunc} LUNC
       </span>
       {showInternals ? (

@@ -889,3 +889,75 @@ New records use distinct versions after recycling; repeated existing unchanged
 positive observations do not churn identity. Complete inventory replacement stays
 within 2,048 records per namespace and 32 namespaces. These invariants preserve
 original expiry, floor/consent checks and offline request behavior.
+
+
+## Expected order slippage (#1500)
+
+The optional `order_economics` diagnostic is advisory and binds the exact original
+input, selected `router_operations`, policy, selected tolerance, generation,
+observation and expiry. Version 1 uses `selected_route_fee_free_v1`. Unsupported,
+missing or overflowing arithmetic emits the fixed `status: unavailable` form;
+clients display **Unavailable**, never 0%. It neither admits nor ranks a route.
+
+The denominator is independently reconstructed selected-route fee-free spot
+output: start with original gross principal and floor each original reserve
+ratio, in route order. The numerator is this denominator minus a separate
+fee-free selected-path execution estimate for the exact original principal.
+Expected order slippage is `100 * (baseline - fee_free_output) / baseline`. A
+negative value means estimated favorable book pricing; it is not realized
+execution slippage. Independent fair-price/reference divergence never enters
+this denominator or numerator.
+
+The bounded counterfactual walks only the selected one-to-four original mirrors,
+removes pool and book commissions, sell/buy taxes, hooks and wrapper losses, and
+carries each fee-free output into the next selected hop. Each selected original
+book-budget fraction is applied to that hop's fee-free input with an integer
+floor; maker caps and original book walk order remain pinned. Unconsumed book
+residue enters the original constant-product pool. Original execution hop metadata also carries canonical `reserve_in`, `reserve_out`
+and `book_side`, plus bounded `book_terms` (`remaining` and `price_atomics`) in
+original walk order, including rows not consumed by the original budget.
+Diagnostics must match all those same original fields and terms exactly. Removing
+upstream charges can reach unused makers, so original consumed/output totals alone
+do not bind the counterfactual book. Terms are captured once after route selection,
+not allocated for every search candidate; actor/order identifiers remain omitted.
+Consumers independently recompute actual pool gross/spread and replay the actual
+book budget to reconcile original consumed input and precommission book output,
+then separately verify the fee-free counterfactual. Each stage reports canonical
+Uint128 reserves, input/output, normalized book budget, maker cap, side, and
+actor-free original maker `remaining`/`price_atomics` terms. At most 500 rows per
+stage are admitted, matching the existing contract scan budget. Clients
+independently replay the 18-place Decimal inverse and integer maker/CP math,
+including residue; no summed hop percentage or fair/net relabeling is used.
+Book-only markets without positive original pool spot reserves have unavailable
+order metrics because that denominator cannot be established; executable
+admission remains governed by its original separate reference.
+
+The admitted native mapper exchanges equal raw principal units. Removing its
+fees restores gross principal; direct wrap/unwrap has zero order movement and
+zero trading commissions when its original attribution is available. Arbitrary
+exchange-rate wrappers are outside the admitted local protocol and cannot use
+this convention. Wrapper fees and bank burn tax remain wrapper losses.
+
+Trading **Fee** is the sum of actual original pool and per-maker commissions
+projected into final-output units by differences of suffix reserve-spot floors,
+divided by the same independently checked fee-free spot denominator. The raw
+trading fees plus raw tax/hook costs reconcile exactly to `trading_cost`; wrapper
+cost and signed independent-reference divergence match `economic_attribution`.
+All raw costs and human equivalents use the final delivered token denomination.
+Network gas appears separately once in LUNC. Diagnostic arrays are bounded by
+four hops and 500 rows per hop; original local search, cache and RPC budgets
+remain unchanged. Missing or malformed diagnostics do not grant permission.
+
+The compact **Slippage / Fee / actual route** row uses these advisory values.
+Selected protection tolerance remains an independent execution setting. The
+accurately named **Fair-reference deviation** still uses the original symmetric
+fair/net economic metric for genuine >5% consent, >30% Expert review and the
+nonwaivable >=99% refusal, including favorable reference differences. Costs and
+reference comparisons belong in the single **DETAILS** disclosure. This revised
+presentation supersedes RC1483-2 and RC1483-7's earlier retail labels, while all
+signed reconciliation, original-reference quality, delivered-net ranking,
+positive floors, route funding, offline fees and signing controls remain intact.
+
+Agent contract: [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md). Verification:
+[checklist](qa/issue-1500/README.md), `make verify-issue-1500` plus the existing
+1483/1489/1473/1480/1452 reference/floor/tax/launch verification families.

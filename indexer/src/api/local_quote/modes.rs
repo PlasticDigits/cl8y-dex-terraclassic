@@ -132,5 +132,6 @@ pub(super) fn wrapper_only(
         "execution_metadata":metadata,"execution_blocker":if supported {serde_json::Value::Null}else{json!("Direct wrapping cannot enforce the reviewed receive floor")}
     });
     body["economic_attribution"] = super::attribution::wrapper_only(gross, fair, output, &body);
+    body["order_economics"] = super::order_economics::wrapper_only(gross, &body);
     Some(body)
 }

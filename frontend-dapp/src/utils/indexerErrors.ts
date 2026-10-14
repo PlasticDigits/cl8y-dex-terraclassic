@@ -37,6 +37,13 @@ export function isIndexerLocalQuoteRejection(err: unknown): boolean {
   )
 }
 
+/** A missing/stale publication cannot revoke an otherwise unexpired exact-intent
+ * display. It still blocks signing and interval retries through the query error.
+ * Every other typed rejection remains a visible, immediate revocation. */
+export function isIndexerQuoteDisplayRevoked(err: unknown): boolean {
+  return isIndexerLocalQuoteRejection(err) && !isIndexerPricingDataPending(err)
+}
+
 /** Transport outage, distinct from authoritative local observation/accounting outcomes (#1473). */
 export function isIndexerUnavailableError(err: unknown): boolean {
   if (!err || !(err instanceof Error)) return false

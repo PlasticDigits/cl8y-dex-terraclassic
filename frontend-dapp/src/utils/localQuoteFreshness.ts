@@ -27,10 +27,14 @@ export function localQuoteStaleTime(query: { state: { data?: unknown; dataUpdate
   return Math.max(0, Math.min(SIM_QUOTE_REFETCH_INTERVAL_MS, expiry - query.state.dataUpdatedAt))
 }
 
-/** Refresh local arithmetic at expiry without polling producers or extending the quote.
- * A one-second minimum keeps near-expiry responses from creating a tight solve loop. */
+/** Reserve a bounded response window before the original display/signing deadline.
+ * This does not change staleTime, expiry or failed-refresh cadence. */
+export const LOCAL_QUOTE_REFRESH_HEADROOM_MS = 1_000
+
+/** Refresh local arithmetic before expiry without polling producers or extending
+ * the quote. A one-second minimum bounds repeated near-expiry cache responses. */
 export function localQuoteRefetchInterval(query: {
-  state: { data?: unknown; fetchStatus: 'fetching' | 'paused' | 'idle'; error?: unknown }
+  state: { data?: unknown; dataUpdatedAt?: number; fetchStatus: 'fetching' | 'paused' | 'idle'; error?: unknown }
 }): number | false {
   const interval = simQuoteRefetchInterval(query)
   // Failed refreshes retain old data; expiry must not accelerate their retry cadence.
@@ -38,5 +42,10 @@ export function localQuoteRefetchInterval(query: {
   const expiry = localQuoteExpiryMs(query.state.data)
   if (expiry === undefined) return interval
   if (!Number.isFinite(expiry)) return false
-  return Math.min(interval, Math.max(1_000, expiry - Date.now()))
+  // React Query re-evaluates interval callbacks on observer renders. A moving
+  // Date.now() duration resets its timer repeatedly and can postpone a10s
+  // refresh until expiry. The response publication anchor is stable through
+  // unrelated renders; it does not change the original observation deadline.
+  const anchor = query.state.dataUpdatedAt ?? Date.now()
+  return Math.min(interval, Math.max(1_000, expiry - anchor - LOCAL_QUOTE_REFRESH_HEADROOM_MS))
 }

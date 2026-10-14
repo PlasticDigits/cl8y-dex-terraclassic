@@ -741,7 +741,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       else {
         await screen.findByTestId('swap-wrapper-quote-error')
         expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
-        expect(screen.queryByTestId('swap-confirm-min-return')).not.toBeInTheDocument()
+        expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('—')
         expect(screen.queryByText(/Estimate only/)).not.toBeInTheDocument()
         expect(executeNativeSwap).not.toHaveBeenCalled()
         expect(executeMultiHopSwap).not.toHaveBeenCalled()
@@ -829,7 +829,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
         const failedCallCount = scenario === 'initial' ? 1 : 2
         expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(failedCallCount)
         expect(screen.getByTestId('swap-submit')).toBeDisabled()
-        expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+        expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue(scenario === 'retained_expired' ? '2' : '')
         expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
         expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
 
@@ -874,7 +874,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     'Indexer API error: 429 Too Many Requests',
     'Indexer API error: 504 Gateway Timeout',
   ])(
-    'failed receive refetch (%s) clears executable pay without an automatic retry (#1389/#1422/#1428)',
+    'failed receive refetch (%s) retains unexpired pay display with execution disabled and no automatic retry (#1499)',
     async (failure) => {
       seedCw20Route()
       useWalletStore.setState({ address: 'terra1wallet000000000000000000000000000001', walletType: 'dev' })
@@ -895,11 +895,11 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
         void queryClient.invalidateQueries({ queryKey: ['reverseSimulation'] })
       })
       await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(2))
-      expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+      expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2')
       expect(screen.getByRole('button', { name: /calculating/i })).toBeDisabled()
       await act(async () => rejectRefetch(new Error(failure)))
       await waitFor(() => expect(screen.getByRole('button', { name: /^quote unavailable$/i })).toBeDisabled())
-      expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+      expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2')
       expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
       expect(screen.getByTestId('retry-error-button')).toBeEnabled()
       // The query disables React Query retries and interval refresh after an error.

@@ -34,7 +34,7 @@ import {
   TRADE_INDEXER_OUTAGE_BANNER_TITLE,
 } from '@/utils/indexerTradeOutageCopy'
 import {
-  defaultRetailSwapTokenPair,
+  firstCatalogPairAddress,
   isRetailHiddenTestPair,
   pairInfoLegIds,
   pairInfoLegSymbols,
@@ -245,16 +245,30 @@ export default function TradePage() {
       })
       return
     }
-    // Factory tickets preserve their genuine pair identity. Native funding
-    // belongs to Swap, so a fresh bare entry uses that executable flow (#1473).
+    // Trade's bare entry selects a real retail factory market (#1497). Swap's
+    // native funding default is a separate policy; unresolved explicit links
+    // must never fall back to an unrelated market.
+    if (!location.search) {
+      const first = firstCatalogPairAddress(pairs.filter((pair) => isTradePairRouteParam(pair.contract_addr)))
+      if (first) navigate(`/trade/${first}`, { replace: true })
+      return
+    }
+    // Preserve validated explicit native funding intent when no unique factory
+    // ticket represents it. This compatibility path never runs for bare Trade.
     const tokens = getAllTokens(pairs)
     const explicit = applySwapQueryParams(location.search, tokens, ['', ''])
+    // An ambiguous genuine market remains a Trade-local selection problem;
+    // native compatibility cannot disguise it as a different product intent.
+    const hasFactoryFundingMatch = pairs.some((pair) => {
+      const legs = pairInfoLegIds(pair)
+      return legs.includes(explicit.payId) && legs.includes(explicit.receiveId)
+    })
     const nativeLink =
+      !hasFactoryFundingMatch &&
       explicit.payId &&
       explicit.receiveId &&
       (['uusd', 'uluna'].includes(explicit.payId) || ['uusd', 'uluna'].includes(explicit.receiveId))
-    const defaults = !location.search ? defaultRetailSwapTokenPair(tokens) : undefined
-    const direction = nativeLink ? [explicit.payId, explicit.receiveId] : defaults
+    const direction = nativeLink ? [explicit.payId, explicit.receiveId] : undefined
     if (direction) {
       const search = new URLSearchParams({ from: direction[0], to: direction[1] })
       if (nativeLink && explicit.payAmountHuman) search.set('exactAmount', explicit.payAmountHuman)
@@ -569,7 +583,7 @@ export default function TradePage() {
               aria-label="Trading pair"
               value={pairAddr}
               factoryPairs={pairs}
-              emptyLabel="No pairs on factory"
+              emptyLabel="No eligible trading pairs"
               onChange={onPairChange}
               onOptionIntent={onPairPrefetchIntent}
               selectedLabelOverride={displayPairMenuLabel}

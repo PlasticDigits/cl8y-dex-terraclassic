@@ -10,7 +10,7 @@ function fixture() {
 }
 describe('bounded advisory economic explanation #1483', () => {
   it('explains independently reconciled reference divergence without an extra percent', () => {
-    expect(routeEconomicExplanation(fixture())).toBe('Different pricing')
+    expect(routeEconomicExplanation(fixture())).toBe('Independent reference and selected route spot prices differ')
   })
   it.each([
     ['wrapper_loss', ['150000', '50000', '0', '0'], 'Wrapping costs'],

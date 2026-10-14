@@ -1,0 +1,31 @@
+{
+  "issues": [
+    1479,
+    1480
+  ],
+  "utc": "2026-10-14T03:29:49.250383+00:00",
+  "read_only": true,
+  "scope": "15-minute text-pattern aggregates; no log lines, actor identifiers, raw bodies or endpoints; counts alone do not prove quote or deployment readiness",
+  "loki": {
+    "status": "PASS",
+    "window_seconds": 900,
+    "counts": {
+      "cl8y-dex-terraclassic-indexer": {
+        "lines": 908.0,
+        "error_pattern_lines": 0.0,
+        "provider_capacity_pattern_lines": 164.0
+      },
+      "cl8y-dex-frontend": {
+        "lines": 32.0,
+        "error_pattern_lines": 0.0,
+        "provider_capacity_pattern_lines": 0.0
+      }
+    }
+  },
+  "prometheus": {
+    "status": "SKIP",
+    "reason": "no_prometheus_datasource_provisioned"
+  },
+  "read_count": 9,
+  "overall": "PASS WITH SKIPS"
+}

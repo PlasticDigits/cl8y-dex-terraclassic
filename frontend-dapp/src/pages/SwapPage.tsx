@@ -15,7 +15,7 @@ import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { SwapSharePairLabel } from '@/components/swap/SwapSharePairLabel'
-import { FeeDisplay, RetryError, Spinner, TokenSearchSelect, TxResultAlert } from '@/components/ui'
+import { RetryError, Spinner, TokenSearchSelect, TxResultAlert } from '@/components/ui'
 import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { useAssetDecimals } from '@/hooks/useAssetDecimals'
@@ -37,7 +37,6 @@ import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
 import { getAllPairsPaged, getPair, getRouteSolve } from '@/services/indexer/client'
-import { getPool } from '@/services/terraclassic/pair'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import {
   executeLocalNativeRoute,
@@ -48,7 +47,6 @@ import {
   isDirectWrapUnwrap,
   type SwapOperation,
 } from '@/services/terraclassic/router'
-import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { tryEstimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -58,7 +56,6 @@ import {
   queryWrapMapperConfig,
   wrapMapperFeeBps,
   wrapTreasuryMatchesEnv,
-  wrapUnwrapFeeNote,
 } from '@/services/terraclassic/wrapMapper'
 import { useDexStore } from '@/stores/dex'
 import {
@@ -75,16 +72,20 @@ import { WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
-import { formatNum, formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import {
   isIndexerPairNotFoundError,
+  isIndexerPricingDataPending,
   isIndexerRouteValidationError,
-  isIndexerLocalQuoteRejection,
+  isIndexerQuoteDisplayRevoked,
 } from '@/utils/indexerErrors'
 import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
 import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
-import { QuoteDataLoadingProgress } from '@/components/QuoteDataLoadingProgress'
+import { useLocalQuoteExpired } from '@/hooks/useLocalQuoteExpired'
+import { SwapQuoteSummary } from '@/components/swap/SwapQuoteSummary'
+import { RouteOrderCostDetails } from '@/components/swap/RouteOrderCostDetails'
+import type { RouteOrderCosts } from '@/utils/routeOrderMetrics'
 import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
 import {
@@ -131,10 +132,8 @@ import {
   isSlippageCustomOutOfRange,
   persistSlippageCustomInput,
   sanitizeSlippageCustomInput,
-  SLIPPAGE_PROTECTION_LABEL,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
-import { registrySwapDecimals } from '@/utils/swapAssetDecimals'
 import {
   getDirectHybridBookSplit,
   getDirectHybridSettingsExecutionSummary,
@@ -142,11 +141,7 @@ import {
 } from '@/utils/swapDisclosure'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
-import {
-  acquireGuidanceShowsQuoteOnly,
-  acquireReduceHiddenForBroadcastPhase,
-  SWAP_FUNDED_HIGH_IMPACT_PCT,
-} from '@/utils/swapPayAcquireGuidance'
+import { acquireReduceHiddenForBroadcastPhase, SWAP_FUNDED_HIGH_IMPACT_PCT } from '@/utils/swapPayAcquireGuidance'
 import {
   applySwapQueryParams,
   canonicalSwapSearch,
@@ -198,6 +193,9 @@ interface SwapSimData {
   routerMinReceiveBase?: string
   /** Indexer best-route cross-rate slippage (GitLab #293). */
   economicExplanation?: string
+  orderSlippagePercent?: number | null
+  tradingFeePercent?: number | null
+  orderCosts?: RouteOrderCosts | null
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
@@ -373,32 +371,8 @@ export default function SwapPage() {
   const decimalsResolved = offerDecimals != null && receiveDecimals != null
   const decimalsPending = payDecimalsState.pending || receiveDecimalsState.pending
 
-  const poolQuery = useQuery({
-    queryKey: ['pool', directPair?.contract_addr],
-    queryFn: () => {
-      if (!directPair) throw new Error('No pair')
-      return getPool(directPair.contract_addr)
-    },
-    enabled: false,
-    refetchInterval: 15_000,
-  })
-
-  const feeQuery = useQuery({
-    queryKey: ['feeConfig', directPair?.contract_addr],
-    queryFn: () => {
-      if (!directPair) throw new Error('No pair')
-      return getPairFeeConfig(directPair.contract_addr)
-    },
-    enabled: false,
-  })
-
-  const {
-    discountBps,
-    pairDiscountApplies,
-    feeDiscountRegistryStatus,
-    showFeeDiscountRegistryWarning,
-    feeDiscountConfigured,
-  } = useFeeDiscountRegistryStatus(directPair?.contract_addr, { enabled: false })
+  const { pairDiscountApplies, feeDiscountRegistryStatus, showFeeDiscountRegistryWarning, feeDiscountConfigured } =
+    useFeeDiscountRegistryStatus(directPair?.contract_addr, { enabled: false })
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -563,6 +537,7 @@ export default function SwapPage() {
     refetchInterval: (query) => (query.state.status === 'error' ? false : localQuoteRefetchInterval(query)),
   })
 
+  const reverseQuoteExpired = useLocalQuoteExpired(reverseQuery.data)
   const reverseRetry = useQueryManualRetry(reverseQueryKey, reverseQuery)
   useQuoteErrorRecovery({
     error: reverseQuery.error,
@@ -600,26 +575,23 @@ export default function SwapPage() {
     intentKey: JSON.stringify([...reverseQueryKey, inputAmount, bookInputHuman, hybridMaxMakers]),
     currentIntent: reverseIntentCurrent,
     error: reverseQuery.error,
-    hasValidatedQuote:
-      !!reverseQuery.data &&
-      !reverseQuery.isError &&
-      !reverseQuery.isFetching &&
-      !isExpiredLocalQuote(reverseQuery.data),
-    expired: isExpiredLocalQuote(reverseQuery.data),
+    hasValidatedQuote: !!reverseQuery.data && !isIndexerQuoteDisplayRevoked(reverseQuery.error) && !reverseQuoteExpired,
+    expired: reverseQuoteExpired,
   })
-  const reverseOfferRaw = reverseQuery.isError ? null : (reverseQuery.data?.offerAmount ?? null)
-  const reverseQuoteReady =
-    reverseQuoteActive &&
-    inputAmount === debouncedInputAmount &&
+  const reverseOfferRaw = isIndexerQuoteDisplayRevoked(reverseQuery.error)
+    ? null
+    : (reverseQuery.data?.offerAmount ?? null)
+  const reverseQuoteDisplayReady =
+    reverseIntentCurrent &&
     isPositiveDecimalAmount(inputAmount) &&
     !!reverseOfferRaw &&
     isPositiveRawAmount(reverseOfferRaw) &&
     !taxReceive.isLoading &&
-    !reverseQuery.isFetching &&
-    !isExpiredLocalQuote(reverseQuery.data)
-  const rawInputAmount = reverseQuoteActive ? (reverseQuoteReady ? reverseOfferRaw : '0') : typedPayRaw
+    !reverseQuoteExpired
+  const reverseQuoteReady = reverseQuoteDisplayReady && !reverseQuery.isFetching && !reverseQuery.isError
+  const rawInputAmount = reverseQuoteActive ? (reverseQuoteDisplayReady ? reverseOfferRaw : '0') : typedPayRaw
   const debouncedRawInputAmount = reverseQuoteActive
-    ? reverseQuoteReady
+    ? reverseQuoteDisplayReady
       ? reverseOfferRaw
       : '0'
     : debouncedTypedPayRaw
@@ -647,7 +619,6 @@ export default function SwapPage() {
     staleTime: 15_000,
   })
 
-  const wrapNoteFeeBps = wrapUnwrapType === 'unwrap' ? unwrapFeeBps : wrapFeeBps
   const wrapNeedsSafetyGate =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
     (wrapMapperActive || isWrapOrUnwrap || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
@@ -839,13 +810,14 @@ export default function SwapPage() {
     !simQuery.isPlaceholderData &&
     simInputIntentCurrent &&
     !isExpiredLocalQuote(simQuery.data) &&
-    !isIndexerLocalQuoteRejection(simQuery.error)
+    !isIndexerQuoteDisplayRevoked(simQuery.error) &&
+    (!reverseQuoteActive || reverseQuoteDisplayReady)
   const forwardPricingDataPending = useQuotePricingDataPending({
     intentKey: JSON.stringify([...simQueryKey, rawInputAmount, bookInputHuman, hybridMaxMakers]),
     currentIntent:
       !reverseQuoteActive && debouncedRawInputAmount !== '0' && simInputIntentCurrent && !simQuery.isPlaceholderData,
     error: simQuery.error,
-    hasValidatedQuote: hasSettledSimQuote && !simQuery.isFetching && !simQuery.isError,
+    hasValidatedQuote: hasSettledSimQuote,
     expired: isExpiredLocalQuote(simQuery.data),
   })
   const pricingDataPending = reverseQuoteActive ? reversePricingDataPending : forwardPricingDataPending
@@ -897,9 +869,15 @@ export default function SwapPage() {
     rawInputAmount,
     debouncedRawInputAmount,
     simQuery:
-      (reverseQuoteActive && !reverseQuoteReady) || isIndexerLocalQuoteRejection(simQuery.error)
+      (reverseQuoteActive && !reverseQuoteDisplayReady) || isIndexerQuoteDisplayRevoked(simQuery.error)
         ? { ...simQuery, data: undefined }
-        : simQuery,
+        : reverseQuoteActive
+          ? {
+              ...simQuery,
+              isFetching: simQuery.isFetching || reverseQuery.isFetching,
+              isError: simQuery.isError || reverseQuery.isError,
+            }
+          : simQuery,
     slippageTolerance,
     hybrid: {
       enabled: true,
@@ -1035,7 +1013,7 @@ export default function SwapPage() {
       if (!simData) throw new Error('Quote unavailable')
       if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
         throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
-      if (routeSlippageBlocked) throw new Error('Price difference is too high')
+      if (routeSlippageBlocked) throw new Error('Fair-reference deviation is too high')
       if (
         (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
         impactAcceptedQuoteRef.current !== impactReviewKey
@@ -1121,7 +1099,7 @@ export default function SwapPage() {
   // Empty/debouncing/loading intent is not evidence of wrapper unavailability.
   // These presentation predicates never replace execution or budget validation.
   const hasCurrentWrapperContext =
-    hasSettledSimQuote && !!simData?.executionMetadata?.wrapper && (!reverseQuoteActive || reverseQuoteReady)
+    hasSettledSimQuote && !!simData?.executionMetadata?.wrapper && (!reverseQuoteActive || reverseQuoteDisplayReady)
   const hasRawWrapperQuoteIntent = reverseQuoteActive ? reverseAskRaw !== '0' : rawInputAmount !== '0'
   const wrapperQuotePending =
     inputAmount !== debouncedInputAmount ||
@@ -1153,6 +1131,7 @@ export default function SwapPage() {
     (simQuery.isError || (!simQuery.isLoading && !simData))
   const showSimRetryError =
     simQuery.isError &&
+    !isIndexerPricingDataPending(simQuery.error) &&
     !pricingDataPending &&
     !isWrapOrUnwrap &&
     hasPositiveInputAmount &&
@@ -1176,7 +1155,6 @@ export default function SwapPage() {
   })
   const executableOutput = !simData?.executionBlocker && simData?.executionMetadata?.execution_supported !== false
   const outputAmount = executableOutput ? (simData?.return_amount ?? '') : ''
-  const commissionAmount = simData?.commission_amount ?? ''
 
   const hopSpreadPercent = simData
     ? simData.routePreflight != null
@@ -1263,7 +1241,7 @@ export default function SwapPage() {
   )
 
   /** One execution-aligned path for the trade summary (GitLab #158 — never duplicate indexer vs client labels). */
-  const swapRouteLine = useMemo(
+  const swapRouteTokens = useMemo(
     () =>
       computeSwapRouteDisplay({
         fromToken,
@@ -1275,8 +1253,8 @@ export default function SwapPage() {
         clientRoute: route,
         isMultiHop,
         isDirect,
-        displaySymbol: getTokenDisplaySymbol,
-      }),
+        displaySymbol: (id) => id,
+      })?.split(' → ') ?? [],
     [
       fromToken,
       toToken,
@@ -1408,7 +1386,6 @@ export default function SwapPage() {
     payBalanceRaw: isWalletConnected && balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     expectedSlippagePct,
   })
-  const showQuoteOnly = acquireGuidanceShowsQuoteOnly(payAcquireGuidance, hasSettledSimQuote)
 
   const defaultActionLabel = wrapUnwrapType === 'wrap' ? 'Wrap' : wrapUnwrapType === 'unwrap' ? 'Unwrap' : 'Swap'
   const defaultPendingLabel =
@@ -1484,7 +1461,7 @@ export default function SwapPage() {
     buttonText = 'Trade unavailable'
     buttonDisabled = true
   } else if (routeSlippageBlocked) {
-    buttonText = 'Price difference is too high'
+    buttonText = 'Fair-reference deviation is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Quote exceeds price protection'
@@ -1525,10 +1502,7 @@ export default function SwapPage() {
       'price',
       // Background refresh blocks signing but retains the current fresh quote
       // and its factual price notice. Intent changes and expiry still clear both.
-      hasSettledSimQuote &&
-        !simQuoteUnavailable &&
-        expectedSlippagePct != null &&
-        expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
+      hasSettledSimQuote && expectedSlippagePct != null && expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
     ],
     ['tx', swapMutation.isError],
   ] as const)
@@ -1590,7 +1564,9 @@ export default function SwapPage() {
   }, [fromToken, toToken, debouncedInputAmount, exactField])
 
   const reversePayHuman =
-    reverseQuoteReady && reverseOfferRaw && offerDecimals != null ? fromRawAmount(reverseOfferRaw, offerDecimals) : ''
+    reverseQuoteDisplayReady && reverseOfferRaw && offerDecimals != null
+      ? fromRawAmount(reverseOfferRaw, offerDecimals)
+      : ''
   const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
   const quotedReceiveHuman = theaterRouteQuote
     ? '—'
@@ -1600,7 +1576,7 @@ export default function SwapPage() {
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
   const showReversePayCalculating =
     reverseQuoteActive &&
-    !reverseQuoteReady &&
+    !reverseQuoteDisplayReady &&
     (!reverseQuery.isError || reversePricingDataPending) &&
     !receiveTargetBelowPrecision &&
     !receiveDecimalsUnavailable &&
@@ -1699,82 +1675,6 @@ export default function SwapPage() {
                 </button>
               </div>
             </div>
-
-            {primaryNotice === 'outage' && !pricingDataPending && (
-              <MarketDataServiceOutageBanner
-                testId="swap-market-data-outage-banner"
-                title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
-                lead={SWAP_MARKET_DATA_OUTAGE_LEAD}
-                onRetry={simRetry.retry}
-              />
-            )}
-
-            {primaryNotice === 'precision' && (
-              <p role="alert" className="alert-error text-xs mb-4" data-testid="swap-receive-amount-error">
-                Receive target is below token precision. Increase the receive amount.
-              </p>
-            )}
-
-            {pricingDataPending && <QuoteDataLoadingProgress testId="swap-price-data-loading" />}
-
-            {primaryNotice === 'receive' &&
-              reverseQuoteActive &&
-              reverseQuery.isError &&
-              isIndexerRouteValidationError(reverseQuery.error) &&
-              hasPositiveInputAmount &&
-              inputAmount === debouncedInputAmount &&
-              !reverseQuery.isFetching && (
-                <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-receive-quote-error">
-                  {humanizeUserFacingErrorFromUnknown(reverseQuery.error)}
-                </p>
-              )}
-            {primaryNotice === 'receive' &&
-              reverseQuoteActive &&
-              (reverseQuery.isError || receiveDecimalsUnavailable) &&
-              hasPositiveInputAmount &&
-              inputAmount === debouncedInputAmount &&
-              !reverseQuery.isFetching &&
-              !reversePricingDataPending &&
-              !isIndexerRouteValidationError(reverseQuery.error) && (
-                <RetryError
-                  data-testid="swap-receive-quote-retry-error"
-                  message={
-                    receiveDecimalsUnavailable
-                      ? 'Token decimals are unavailable. Retry token metadata to size this receive target.'
-                      : humanizeUserFacingErrorFromUnknown(reverseQuery.error)
-                  }
-                  isRetrying={reverseRetry.isRetrying}
-                  onRetry={() => {
-                    if (receiveDecimalsUnavailable) {
-                      void queryClient.invalidateQueries({ queryKey: ['cw20-token-info-decimals'] })
-                      void queryClient.invalidateQueries({ queryKey: ['indexer-tokens-list'] })
-                    } else if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null)
-                      void wrapMapperConfigQuery.refetch()
-                    else reverseRetry.retry()
-                  }}
-                />
-              )}
-
-            {primaryNotice === 'retry' &&
-              showSimRetryError &&
-              (isIndexerRouteValidationError(simQuery.error) ? (
-                <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-quote-error">
-                  {humanizeUserFacingErrorFromUnknown(simQuery.error)}
-                </p>
-              ) : (
-                <RetryError
-                  data-testid="swap-quote-retry-error"
-                  message={humanizeUserFacingErrorFromUnknown(simQuery.error)}
-                  isRetrying={simRetry.isRetrying}
-                  onRetry={simRetry.retry}
-                />
-              ))}
-
-            {primaryNotice === 'wrapper' && simData && !executableOutput && (
-              <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-wrapper-quote-error">
-                This conversion cannot protect your minimum receive.
-              </p>
-            )}
 
             {/* Slippage Settings */}
             {showSettings && (
@@ -1907,7 +1807,7 @@ export default function SwapPage() {
                   <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                     <label
                       className="flex items-center gap-2 text-xs cursor-pointer"
-                      title={`Trades with a price difference above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% require Expert Mode.`}
+                      title={`Trades with a fair-reference deviation above ${SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}% require Expert Mode.`}
                     >
                       <input
                         type="checkbox"
@@ -2004,11 +1904,6 @@ export default function SwapPage() {
                     testIdFractionPrefix="swap-pay-frac"
                   />
                 )}
-                {communityTaxHint && (
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="swap-sell-tax-extra">
-                    {communityTaxHint}
-                  </p>
-                )}
               </div>
 
               <div className="swap-direction-seam relative z-20 flex justify-center pointer-events-none -my-5 sm:-my-[22px]">
@@ -2067,11 +1962,6 @@ export default function SwapPage() {
                   data-testid="swap-you-receive"
                   aria-busy={pricingDataPending || (showSimReceiveCalculating && !reverseQuoteActive) || undefined}
                 />
-                {showQuoteOnly && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--ink-subtle)' }} data-testid="swap-quote-only">
-                    Quote only
-                  </p>
-                )}
                 {showSimReceiveCalculating && !pricingDataPending && (
                   <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                     {simLoadingLabel}
@@ -2080,335 +1970,205 @@ export default function SwapPage() {
               </div>
             </div>
 
-            <div className="mb-4 space-y-2">
-              {simData && (indexerHybridExec.show || directHybridSettingsExec.show) && (
-                <div
-                  data-testid="swap-execution-summary"
-                  className="card-glass text-[11px] sm:text-xs leading-relaxed space-y-2"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  {indexerHybridExec.show && (
-                    <div>
-                      <p
-                        className="uppercase tracking-wide font-semibold mb-0.5"
-                        style={{ color: 'var(--ink-subtle)' }}
-                      >{`Execution: ${indexerHybridExec.title}`}</p>
-                      <p>{indexerHybridExec.line}</p>
-                    </div>
+            <SwapQuoteSummary
+              loading={
+                hasPositiveInputAmount && !hasSettledSimQuote && (pricingDataPending || showSimReceiveCalculating)
+              }
+              tokens={simData && executableOutput && hasSettledSimQuote ? swapRouteTokens : []}
+              orderSlippagePercent={hasSettledSimQuote ? simData?.orderSlippagePercent : null}
+              tradingFeePercent={hasSettledSimQuote ? simData?.tradingFeePercent : null}
+            />
+            <div
+              data-testid="swap-quote-status"
+              className="h-[6em] overflow-y-auto overscroll-contain mb-3 text-xs leading-relaxed"
+              role="region"
+              aria-label="Quote status"
+              aria-live="polite"
+            >
+              {!primaryNotice && (
+                <p data-testid="swap-status-none">
+                  {hasPositiveInputAmount && (!hasSettledSimQuote || simQuoteStale) ? (
+                    'Refreshing price…'
+                  ) : (
+                    <>
+                      <span aria-hidden="true">✓ </span>None
+                    </>
                   )}
-                  {directHybridSettingsExec.show && (
-                    <div>
-                      <p
-                        className="uppercase tracking-wide font-semibold mb-0.5"
-                        style={{ color: 'var(--ink-subtle)' }}
-                      >
-                        {indexerHybridExec.show ? 'Settings — direct pay split' : 'Execution'}
-                      </p>
-                      {directHybridSettingsExec.variant === 'book_exceeds_pay' && (
-                        <p className="font-medium" style={{ color: 'var(--color-negative)' }}>
-                          {directHybridSettingsExec.line}
-                        </p>
-                      )}
-                      {directHybridSettingsExec.variant === 'hybrid_manual_split' && (
-                        <>
-                          <p style={{ color: 'var(--ink)' }}>
-                            <span className="font-semibold">Hybrid</span> — pool {directHybridSettingsExec.poolHuman} ·
-                            book {directHybridSettingsExec.bookHuman} {getTokenDisplaySymbol(fromToken)}
-                          </p>
-                          <p className="text-[10px] font-mono" style={{ color: 'var(--ink-subtle)' }}>
-                            {directHybridSettingsExec.poolRaw} (pool raw) · {directHybridSettingsExec.bookRaw} (book
-                            raw)
-                          </p>
-                        </>
-                      )}
-                      {directHybridSettingsExec.variant === 'max_makers_blocked' && (
-                        <p style={{ color: 'var(--color-warning, #f59e0b)' }}>{directHybridSettingsExec.line}</p>
-                      )}
-                    </div>
-                  )}
-                  {showDirectHybridAmountReconciledLabel && (
-                    <p
-                      data-testid="swap-direct-hybrid-amount-reconciled"
-                      className="text-[10px] font-sans leading-snug"
-                      style={{ color: 'var(--color-warning, #f59e0b)' }}
-                      role="status"
-                    >
-                      {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
-                    </p>
-                  )}
+                </p>
+              )}
+              {primaryNotice && primaryNotice !== 'pricing' && <span aria-hidden="true">✕ </span>}
+              {primaryNotice === 'outage' && !pricingDataPending && (
+                <MarketDataServiceOutageBanner
+                  testId="swap-market-data-outage-banner"
+                  title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
+                  lead={SWAP_MARKET_DATA_OUTAGE_LEAD}
+                  onRetry={simRetry.retry}
+                />
+              )}
+
+              {primaryNotice === 'precision' && (
+                <p role="alert" className="alert-error text-xs mb-4" data-testid="swap-receive-amount-error">
+                  Receive target is below token precision. Increase the receive amount.
+                </p>
+              )}
+
+              {primaryNotice === 'receive' &&
+                reverseQuoteActive &&
+                reverseQuery.isError &&
+                isIndexerRouteValidationError(reverseQuery.error) &&
+                hasPositiveInputAmount &&
+                inputAmount === debouncedInputAmount &&
+                !reverseQuery.isFetching && (
+                  <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-receive-quote-error">
+                    {humanizeUserFacingErrorFromUnknown(reverseQuery.error)}
+                  </p>
+                )}
+              {primaryNotice === 'receive' &&
+                reverseQuoteActive &&
+                (reverseQuery.isError || receiveDecimalsUnavailable) &&
+                hasPositiveInputAmount &&
+                inputAmount === debouncedInputAmount &&
+                !reverseQuery.isFetching &&
+                !reversePricingDataPending &&
+                !isIndexerRouteValidationError(reverseQuery.error) && (
+                  <RetryError
+                    data-testid="swap-receive-quote-retry-error"
+                    message={
+                      receiveDecimalsUnavailable
+                        ? 'Token decimals are unavailable. Retry token metadata to size this receive target.'
+                        : humanizeUserFacingErrorFromUnknown(reverseQuery.error)
+                    }
+                    isRetrying={reverseRetry.isRetrying}
+                    onRetry={() => {
+                      if (receiveDecimalsUnavailable) {
+                        void queryClient.invalidateQueries({ queryKey: ['cw20-token-info-decimals'] })
+                        void queryClient.invalidateQueries({ queryKey: ['indexer-tokens-list'] })
+                      } else if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null)
+                        void wrapMapperConfigQuery.refetch()
+                      else reverseRetry.retry()
+                    }}
+                  />
+                )}
+
+              {primaryNotice === 'retry' &&
+                showSimRetryError &&
+                (isIndexerRouteValidationError(simQuery.error) ? (
+                  <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-quote-error">
+                    {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+                  </p>
+                ) : (
+                  <RetryError
+                    data-testid="swap-quote-retry-error"
+                    message={humanizeUserFacingErrorFromUnknown(simQuery.error)}
+                    isRetrying={simRetry.isRetrying}
+                    onRetry={simRetry.retry}
+                  />
+                ))}
+
+              {primaryNotice === 'wrapper' && simData && !executableOutput && (
+                <p className="alert-error text-xs mb-4" role="alert" data-testid="swap-wrapper-quote-error">
+                  This conversion cannot protect your minimum receive.
+                </p>
+              )}
+
+              {primaryNotice === 'price' && (
+                <SwapImpactAside
+                  economicExplanation={simData?.economicExplanation}
+                  routeSlippagePct={expectedSlippagePct}
+                  blocked={routeSlippageBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
+                  confirming={showImpactConfirm && isWalletConnected}
+                  onCancel={() => setShowImpactConfirm(false)}
+                  onEnableExpert={() => setShowExpertModeModal(true)}
+                />
+              )}
+              {primaryNotice === 'config' && (
+                <p className="alert-error mb-3 text-xs" role="alert">
+                  Wrapping is temporarily unavailable.
+                </p>
+              )}
+              {primaryNotice === 'hop' && (
+                <p className="alert-error mb-3 text-xs" role="alert">
+                  Quote exceeds your price protection.
+                </p>
+              )}
+              {primaryNotice === 'paused' && (
+                <div className="alert-error mb-3 text-xs space-y-2" role="alert" data-testid="swap-pair-paused-banner">
+                  <p>
+                    {isPairPaused ? 'Pair paused.' : 'Wrapping is paused.'}{' '}
+                    <a className="underline" href={USER_INCIDENT_FAQ_HREF} target="_blank" rel="noopener noreferrer">
+                      Docs
+                    </a>
+                  </p>
                 </div>
               )}
-              {fromToken && toToken && !hasRoute && (
+              {primaryNotice === 'frozen' && (
+                <p className="alert-error mb-3 text-xs" role="alert" data-testid="swap-pair-code-id-frozen-banner">
+                  Trading is temporarily unavailable.
+                </p>
+              )}
+              {primaryNotice === 'restricted' && tradingBlacklist.message && (
+                <div className="alert-error mb-3 text-xs" role="alert">
+                  <p>{tradingBlacklist.message}</p>
+                </div>
+              )}
+              {primaryNotice === 'rate' && (
+                <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-wrap-rate-limit-banner">
+                  <p>{WRAP_RATE_LIMIT_EXCEEDED_MESSAGE}</p>
+                </div>
+              )}
+              {primaryNotice === 'acquire' && (
+                <SwapPayAcquireGuidanceBanner
+                  guidance={payAcquireGuidance}
+                  testIdPrefix="swap"
+                  hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
+                  onReduce={(human) => {
+                    setExactField('input')
+                    setInputAmount(human)
+                    setShowImpactConfirm(false)
+                  }}
+                />
+              )}
+              {primaryNotice === 'route' && fromToken && toToken && !hasRoute && (
                 <div className="alert-error !text-xs">No route found between these tokens</div>
               )}
-            </div>
 
-            {/* Trade Details — default: Route + Min Received; rest collapsed */}
-            {simData && executableOutput && (
-              <div className="card-glass mb-4 text-xs sm:text-sm space-y-2">
-                {swapRouteLine && (
-                  <div
-                    data-testid="swap-route-summary"
-                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                    style={{ color: 'var(--ink-dim)' }}
-                  >
-                    <span className="uppercase text-xs tracking-wide font-medium shrink-0">Route</span>
-                    <span className="font-mono text-xs sm:text-right break-words min-w-0">{swapRouteLine}</span>
-                  </div>
-                )}
-                {minReceived !== null && !showQuoteOnly && (
-                  <div
-                    className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                    style={{ color: 'var(--ink-dim)' }}
-                  >
-                    <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
-                    <span className="font-mono text-xs sm:text-right break-all">
-                      {receiveAssetInfo && receiveDecimals != null
-                        ? formatTokenAmount(minReceived!, receiveDecimals)
-                        : minReceived}
-                    </span>
-                  </div>
-                )}
-                <div
-                  className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <TerraClassicTxFeeHint
-                    estimate={swapNetworkFeeEstimate}
-                    compact
-                    data-testid="swap-network-fee"
-                    className="m-0"
-                  />
-                </div>
-                <details data-testid="swap-trade-details">
-                  <summary
-                    className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none"
-                    style={{ color: 'var(--ink-subtle)' }}
-                  >
-                    Trade details
-                  </summary>
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:block sm:space-y-2">
-                    {poolQuery.data && (
-                      <div
-                        className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                        style={{ color: 'var(--ink-dim)' }}
-                      >
-                        <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
-                        <span className="font-mono text-xs sm:text-right break-all">
-                          {(() => {
-                            const a0 = poolQuery.data.assets[0]
-                            const a1 = poolQuery.data.assets[1]
-                            const id0 = assetInfoLabel(a0.info)
-                            const id1 = assetInfoLabel(a1.info)
-                            const d0 =
-                              id0 === fromToken
-                                ? offerDecimals
-                                : id0 === toToken
-                                  ? receiveDecimals
-                                  : registrySwapDecimals(id0)
-                            const d1 =
-                              id1 === fromToken
-                                ? offerDecimals
-                                : id1 === toToken
-                                  ? receiveDecimals
-                                  : registrySwapDecimals(id1)
-                            if (d0 == null || d1 == null) return '—'
-                            return `${formatTokenAmount(a0.amount, d0)} / ${formatTokenAmount(a1.amount, d1)}`
-                          })()}
-                        </span>
-                      </div>
-                    )}
-                    {feeQuery.data && (
-                      <div
-                        className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                        style={{ color: 'var(--ink-dim)' }}
-                        data-testid="swap-fee-row"
-                      >
-                        <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
-                        <FeeDisplay
-                          feeBps={feeQuery.data.fee_bps}
-                          discountBps={discountBps}
-                          commissionAmount={
-                            commissionAmount && receiveAssetInfo && receiveDecimals != null
-                              ? formatTokenAmount(commissionAmount, receiveDecimals)
-                              : undefined
-                          }
-                        />
-                      </div>
-                    )}
-                    <TerraClassicTxFeeHint
-                      estimate={swapNetworkFeeEstimate}
-                      compact
-                      showInternals
-                      data-testid="swap-network-fee-details"
-                      className="m-0 col-span-2"
-                    />
-                    <p
-                      className="col-span-2 text-[10px] leading-snug"
-                      style={{ color: 'var(--ink-subtle)' }}
-                      data-testid="swap-wallet-fee-note"
-                    >
-                      If your wallet shows a much larger fee, use this Network fee amount instead.
-                    </p>
-                    {address &&
-                      feeDiscountConfigured &&
-                      pairDiscountApplies &&
-                      feeDiscountRegistryStatus === 'unregistered' && (
-                        <FeeDiscountUnregisteredCta
-                          testId="swap-fee-discount-unregistered-cta"
-                          className="col-span-2"
-                        />
-                      )}
-                    {swapRouteLine &&
-                      (isWrapOrUnwrap ||
-                        nativeRouteInfo ||
-                        showClientBfsFallbackLabel ||
-                        showRouteIntermediateReconciledLabel) && (
-                        <div
-                          className="col-span-2 space-y-0.5 font-mono text-xs sm:text-right break-words min-w-0"
-                          style={{ color: 'var(--ink-dim)' }}
-                        >
-                          {isWrapOrUnwrap && wrapUnwrapType && (
-                            <span
-                              className="block text-[10px] font-sans"
-                              style={{ color: 'var(--ink-subtle)' }}
-                              data-testid="swap-wrap-fee-note"
-                            >
-                              {wrapUnwrapFeeNote(
-                                wrapUnwrapType,
-                                wrapNoteFeeBps,
-                                wrapUnwrapType === 'unwrap' ? unwrapBurnTaxQuery.data?.rate : null
-                              )}
-                            </span>
-                          )}
-                          {wrapUnwrapType === 'unwrap' && (
-                            <span
-                              className="block text-[10px] font-sans leading-snug"
-                              style={{ color: 'var(--color-warning, #f59e0b)' }}
-                              data-testid="swap-unwrap-exchange-warning"
-                              role="note"
-                            >
-                              {WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING}
-                            </span>
-                          )}
-                          {nativeRouteInfo && (nativeRouteInfo.needsWrapInput || nativeRouteInfo.needsUnwrapOutput) && (
-                            <span
-                              className="block text-[10px] font-sans leading-snug"
-                              style={{ color: 'var(--ink-subtle)' }}
-                            >
-                              This swap will{' '}
-                              {nativeRouteInfo.needsWrapInput && nativeRouteInfo.needsUnwrapOutput
-                                ? 'wrap and unwrap'
-                                : nativeRouteInfo.needsWrapInput
-                                  ? 'wrap'
-                                  : 'unwrap'}{' '}
-                              your tokens
-                            </span>
-                          )}
-                          {showClientBfsFallbackLabel && (
-                            <span
-                              data-testid="swap-route-source-client-fallback"
-                              className="block text-[10px] font-sans leading-snug"
-                              style={{ color: 'var(--color-warning, #f59e0b)' }}
-                            >
-                              {SWAP_CLIENT_BFS_FALLBACK_COPY}
-                            </span>
-                          )}
-                          {showRouteIntermediateReconciledLabel && (
-                            <span
-                              data-testid="swap-route-intermediate-reconciled"
-                              className="block text-[10px] font-sans leading-snug"
-                              style={{ color: 'var(--ink-subtle)' }}
-                              role="status"
-                            >
-                              {SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    <button
-                      type="button"
-                      onClick={handleOpenSettings}
-                      aria-expanded={showSettings}
-                      aria-controls="swap-slippage-settings"
-                      className="min-w-0 flex flex-col gap-1 text-left sm:flex-row sm:items-start sm:justify-between"
-                      style={{ color: 'var(--ink-dim)' }}
-                    >
-                      <span className="uppercase text-xs tracking-wide font-medium">{SLIPPAGE_PROTECTION_LABEL}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <span>{slippageTolerance}%</span>
-                        <span aria-hidden="true" className="text-[10px]" style={{ color: 'var(--cyan)' }}>
-                          {showSettings ? '▲' : '▼'}
-                        </span>
-                      </span>
-                    </button>
-                    <div
-                      className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
-                      style={{ color: 'var(--ink-dim)' }}
-                      data-testid="swap-deadline-summary"
-                    >
-                      <span className="uppercase text-xs tracking-wide font-medium">{TRANSACTION_DEADLINE_LABEL}</span>
-                      <span>{formatTransactionDeadline(deadlineSeconds)}</span>
-                    </div>
-                  </div>
-                </details>
-              </div>
-            )}
-
-            {primaryNotice === 'price' && (
-              <SwapImpactAside
-                economicExplanation={simData?.economicExplanation}
-                routeSlippagePct={expectedSlippagePct}
-                blocked={routeSlippageBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
-                confirming={showImpactConfirm && isWalletConnected}
-                onCancel={() => setShowImpactConfirm(false)}
-                onEnableExpert={() => setShowExpertModeModal(true)}
-              />
-            )}
-            {primaryNotice === 'config' && (
-              <p className="alert-error mb-3 text-xs" role="alert">
-                Wrapping is temporarily unavailable.
-              </p>
-            )}
-            {primaryNotice === 'hop' && (
-              <p className="alert-error mb-3 text-xs" role="alert">
-                Quote exceeds your price protection.
-              </p>
-            )}
-            {primaryNotice === 'paused' && (
-              <div className="alert-error mb-3 text-xs space-y-2" role="alert" data-testid="swap-pair-paused-banner">
-                <p>
-                  {isPairPaused ? 'Pair paused.' : 'Wrapping is paused.'}{' '}
-                  <a className="underline" href={USER_INCIDENT_FAQ_HREF} target="_blank" rel="noopener noreferrer">
-                    Docs
-                  </a>
+              {primaryNotice === 'pricing' && <p>Waiting for current pricing.</p>}
+              {primaryNotice === 'funding' && (
+                <p role="alert">
+                  {swapNetworkFeeEstimate.coverageError
+                    ? 'Network fee unavailable.'
+                    : extraDebitGate.blockSubmit
+                      ? TAX_FUNDING_UNRESOLVED_MESSAGE
+                      : (swapGasGate.userMessage ?? 'Need LUNC for network fee.')}
                 </p>
-              </div>
-            )}
-            {primaryNotice === 'frozen' && (
-              <p className="alert-error mb-3 text-xs" role="alert" data-testid="swap-pair-code-id-frozen-banner">
-                Trading is temporarily unavailable.
-              </p>
-            )}
-            {primaryNotice === 'restricted' && tradingBlacklist.message && (
-              <div className="alert-error mb-3 text-xs" role="alert">
-                <p>{tradingBlacklist.message}</p>
-              </div>
-            )}
-            {primaryNotice === 'rate' && (
-              <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-wrap-rate-limit-banner">
-                <p>{WRAP_RATE_LIMIT_EXCEEDED_MESSAGE}</p>
-              </div>
-            )}
-            {simData && executableOutput && hasPositiveInputAmount && fromToken && toToken && (
-              <details className="mb-3" data-testid="swap-pre-submit-details">
-                <summary
-                  className="cursor-pointer uppercase text-xs tracking-wide font-medium select-none mb-2"
-                  style={{ color: 'var(--ink-subtle)' }}
-                >
-                  Signing details
-                </summary>
-                {expectedSlippagePct != null && expectedSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT && (
+              )}
+            </div>
+            <details className="mb-4 text-xs" data-testid="swap-details">
+              <summary
+                className="cursor-pointer uppercase tracking-wide font-medium select-none py-2"
+                style={{ color: 'var(--ink-subtle)' }}
+              >
+                DETAILS
+              </summary>
+              <div className="mt-2 space-y-3" data-testid="swap-details-content">
+                {communityTaxHint && (
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="swap-sell-tax-extra">
+                    {communityTaxHint}
+                  </p>
+                )}
+                <RouteOrderCostDetails
+                  costs={hasSettledSimQuote ? simData?.orderCosts : null}
+                  symbol={getTokenDisplaySymbol(toToken)}
+                  decimals={receiveDecimals}
+                />
+                <TerraClassicTxFeeHint
+                  estimate={swapNetworkFeeEstimate}
+                  compact
+                  aligned
+                  data-testid="swap-network-fee"
+                  className="m-0"
+                />
+                {expectedSlippagePct != null && simData && (
                   <SwapImpactAside
                     details
                     routeSlippagePct={expectedSlippagePct}
@@ -2419,41 +2179,125 @@ export default function SwapPage() {
                 {showFeeDiscountRegistryWarning && (
                   <FeeDiscountRegistryWarning testId="swap-fee-discount-registry-warning" />
                 )}
+                {address &&
+                  feeDiscountConfigured &&
+                  pairDiscountApplies &&
+                  feeDiscountRegistryStatus === 'unregistered' && (
+                    <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" />
+                  )}
                 <SwapPreSubmitSummary
+                  flat
+                  actionLabel={defaultActionLabel}
                   offerSymbol={getTokenDisplaySymbol(fromToken)}
                   receiveSymbol={getTokenDisplaySymbol(toToken)}
-                  offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
+                  offerAmountHuman={
+                    hasSettledSimQuote && offerDecimals != null ? fromRawAmount(submitPayRaw, offerDecimals) : '—'
+                  }
                   receiveAmountHuman={
-                    theaterRouteQuote
-                      ? '—'
-                      : outputAmount && receiveAssetInfo && receiveDecimals != null
-                        ? fromRawAmount(outputAmount, receiveDecimals)
-                        : '—'
+                    hasSettledSimQuote && !theaterRouteQuote && outputAmount && receiveDecimals != null
+                      ? fromRawAmount(outputAmount, receiveDecimals)
+                      : '—'
                   }
                   maxSpreadPercent={slippageTolerance}
+                  protectionControl={
+                    <button
+                      type="button"
+                      onClick={handleOpenSettings}
+                      aria-expanded={showSettings}
+                      aria-controls="swap-slippage-settings"
+                      className="underline"
+                    >
+                      {slippageTolerance}%
+                    </button>
+                  }
+                  deadlineLabel={formatTransactionDeadline(deadlineSeconds)}
                   minReceiveHuman={
-                    !showQuoteOnly && minReceived != null && receiveAssetInfo && receiveDecimals != null
+                    hasSettledSimQuote && executableOutput && minReceived != null && receiveDecimals != null
                       ? fromRawAmount(minReceived, receiveDecimals)
                       : null
                   }
-                  pairContractAddresses={swapBlacklistProbe.pairAddresses}
+                  pairContractAddresses={hasSettledSimQuote ? swapBlacklistProbe.pairAddresses : []}
                   chainFullLabel={getNetworkBadgeCopy().fullLabel}
                 />
-              </details>
-            )}
+                <div className="mb-4 space-y-2">
+                  {simData && (indexerHybridExec.show || directHybridSettingsExec.show) && (
+                    <div
+                      data-testid="swap-execution-summary"
+                      className="card-glass text-[11px] sm:text-xs leading-relaxed space-y-2"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      {indexerHybridExec.show && (
+                        <div>
+                          <p
+                            className="uppercase tracking-wide font-semibold mb-0.5"
+                            style={{ color: 'var(--ink-subtle)' }}
+                          >{`Execution: ${indexerHybridExec.title}`}</p>
+                          <p>{indexerHybridExec.line}</p>
+                        </div>
+                      )}
+                      {directHybridSettingsExec.show && (
+                        <div>
+                          <p
+                            className="uppercase tracking-wide font-semibold mb-0.5"
+                            style={{ color: 'var(--ink-subtle)' }}
+                          >
+                            {indexerHybridExec.show ? 'Settings — direct pay split' : 'Execution'}
+                          </p>
+                          {directHybridSettingsExec.variant === 'book_exceeds_pay' && (
+                            <p className="font-medium" style={{ color: 'var(--color-negative)' }}>
+                              {directHybridSettingsExec.line}
+                            </p>
+                          )}
+                          {directHybridSettingsExec.variant === 'hybrid_manual_split' && (
+                            <>
+                              <p style={{ color: 'var(--ink)' }}>
+                                <span className="font-semibold">Hybrid</span> — pool{' '}
+                                {directHybridSettingsExec.poolHuman} · book {directHybridSettingsExec.bookHuman}{' '}
+                                {getTokenDisplaySymbol(fromToken)}
+                              </p>
+                              <p className="text-[10px] font-mono" style={{ color: 'var(--ink-subtle)' }}>
+                                {directHybridSettingsExec.poolRaw} (pool raw) · {directHybridSettingsExec.bookRaw} (book
+                                raw)
+                              </p>
+                            </>
+                          )}
+                          {directHybridSettingsExec.variant === 'max_makers_blocked' && (
+                            <p style={{ color: 'var(--color-warning, #f59e0b)' }}>{directHybridSettingsExec.line}</p>
+                          )}
+                        </div>
+                      )}
+                      {showDirectHybridAmountReconciledLabel && (
+                        <p
+                          data-testid="swap-direct-hybrid-amount-reconciled"
+                          className="text-[10px] font-sans leading-snug"
+                          style={{ color: 'var(--color-warning, #f59e0b)' }}
+                          role="status"
+                        >
+                          {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {wrapUnwrapType === 'unwrap' && (
+                  <p
+                    role="note"
+                    data-testid="swap-unwrap-exchange-warning"
+                    style={{ color: 'var(--color-warning, #f59e0b)' }}
+                  >
+                    {WRAP_UNWRAP_EXCHANGE_DEPOSIT_WARNING}
+                  </p>
+                )}
+                {showClientBfsFallbackLabel && (
+                  <p data-testid="swap-route-source-client-fallback">{SWAP_CLIENT_BFS_FALLBACK_COPY}</p>
+                )}
+                {showRouteIntermediateReconciledLabel && (
+                  <p data-testid="swap-route-intermediate-reconciled">{SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY}</p>
+                )}
+              </div>
+            </details>
             {/* Swap Button */}
-            {primaryNotice === 'acquire' && (
-              <SwapPayAcquireGuidanceBanner
-                guidance={payAcquireGuidance}
-                testIdPrefix="swap"
-                hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
-                onReduce={(human) => {
-                  setExactField('input')
-                  setInputAmount(human)
-                  setShowImpactConfirm(false)
-                }}
-              />
-            )}
             <button
               onClick={() => {
                 sounds.playButtonPress()

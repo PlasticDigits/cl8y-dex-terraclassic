@@ -860,6 +860,13 @@ export interface IndexerRouteExecutionMetadata {
     book_offer_consumed: string
     spread_amount: string
     commission_amount: string
+    book_commission_amount?: string
+    /** Original selected reserve/book direction evidence for independently checked advisory economics. */
+    reserve_in?: string
+    reserve_out?: string
+    book_side?: 'bid' | 'ask'
+    /** Exact original bounded maker terms, including unconsumed rows, in walk order. */
+    book_terms?: { remaining: string; price_atomics: string }[]
     min_return: string
   }[]
 }
@@ -867,6 +874,8 @@ export interface IndexerRouteExecutionMetadata {
 export interface IndexerRouteSolveResponse {
   /** Bounded advisory diagnostics; runtime reconciliation precedes retail copy. Never signing authority. */
   economic_attribution?: unknown
+  /** Selected-route fee-free advisory pricing. Validate before rendering; never signing authority. */
+  order_economics?: unknown
   /** When supplied, must be Boolean and agree with the reviewed metadata capability. */
   execution_supported?: boolean
   execution_blocker?: string | null

@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "first_settlements": 12,
+  "retest_settlements": 12,
+  "total_rejected_hop_final_floors": 48,
+  "rejection_codes": [
+    5
+  ],
+  "source_artifacts_stable": true,
+  "all_original_economic_trial_fields_identical": true,
+  "wrapper_source_revision": "519c2766e5be0a3788a4c920ad879b641a50aa74",
+  "dex_input_count": 170,
+  "wrapper_input_count": 47,
+  "native_gas": [
+    2527318,
+    2531099
+  ],
+  "wrapped_gas": [
+    2120741,
+    2122211
+  ],
+  "synthetic_gas_limit": 12000000,
+  "production_gas_calibration": false,
+  "remaining_scope": [
+    "native output composition",
+    "tax/hook/populated-book",
+    "physical wallets",
+    "production settlement",
+    "separate same-cohort standalone matching-credit settlement"
+  ],
+  "receipts": {
+    "native-funded-first.json": "ddd034f428f2255f128f192d081624bfdbf91c7d823c2a6994977393fba6670e",
+    "native-funded-retest.json": "b1e39623de10c39d76bee0e78bcce0012aff6f7d056115e3d13384c7f54d24a4",
+    "native-metric-arithmetic-first.json": "f75c678bf8c6d4eb07182ccbc3d14fb5e627c81ad40377a224a836f114418d8a",
+    "native-metric-arithmetic-retest.json": "545dd87b9c03170707fbc8e0e4397ee246998daf943587bca2492734d0ce76c7",
+    "native-wrapper-provenance.json": "22ab9e069c56641724f72e6ec56bd3cef01c81ac99aca91b4a90dd5188cae680"
+  }
+}

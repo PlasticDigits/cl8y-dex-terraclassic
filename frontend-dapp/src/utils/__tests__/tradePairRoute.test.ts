@@ -34,6 +34,21 @@ describe('tradePairRoute', () => {
     expect(getInvalidTradePairRouteParam(VALID)).toBeNull()
   })
 
+  it.each([7, {}, [], '-1', '0', '1e99', '<script>', '1'.repeat(25)])(
+    'ignores forged or unbounded ticket amount state %j (#1497)',
+    (ticketAmount) => {
+      expect(getTradePageTicketPrefill({ ticketAmount, ticketSide: 'external' })).toEqual({
+        amountHuman: null,
+        side: null,
+      })
+    }
+  )
+
+  it('ignores non-string forged notice state (#1497)', () => {
+    expect(getTradePageInvalidLinkNotice({ invalidPair: {} })).toBeNull()
+    expect(getTradePageUnknownPairNotice({ unknownPair: 7 })).toBeNull()
+  })
+
   it('rejects non-terra1 garbage deep links', () => {
     expect(isTradePairRouteParam('lilwayne babyyy')).toBe(false)
     expect(getInvalidTradePairRouteParam('lilwayne babyyy')).toBe('lilwayne babyyy')

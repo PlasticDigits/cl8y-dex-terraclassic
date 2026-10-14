@@ -1,5 +1,18 @@
 # AGENTS.md
 
+## Trade entry, stable Swap layout and order metrics
+
+For Trade entry/history follow [TE1497](skills/AGENTS_TRADE_ENTRY.md) and run
+`make verify-issue-1497`. For single DETAILS, summary/status geometry and anonymous
+minimums follow [SL1498](skills/AGENTS_SWAP_LAYOUT.md), `make verify-issue-1498`.
+For fresh same-intent retention and provider/read rejection classification follow
+[QL1499](skills/AGENTS_QUOTE_LIFECYCLE.md), `make verify-issue-1499`.
+For order slippage separately from fees and fair-reference deviation follow
+[OS1500](skills/AGENTS_ORDER_SLIPPAGE.md), `make verify-issue-1500`.
+Use the [joint release evidence](docs/qa/trading-1497-1500/RESULTS.md) and individual
+checklists. These revise earlier bare Trade redirects and presentation rules;
+original economics, offline requests, expiry and signing safeguards remain enforced.
+
 ## Bounded automatic route discovery
 
 For deeper candidate discovery/promotion, producer invalidation, job contention,

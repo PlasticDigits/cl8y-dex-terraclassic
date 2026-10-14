@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { AppShellNavLink } from '../AppShellNavLink'
 
@@ -60,5 +60,44 @@ describe('AppShellNavLink', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Trade' })).toHaveClass('app-nav-link-active')
+  })
+
+  it('repeated active Trade clicks preserve the selected market and history (#1497)', async () => {
+    const market = '/trade/terra1pair0000000000000000000000000000000002'
+    const onAfterPress = vi.fn()
+    const router = createMemoryRouter(
+      [
+        {
+          path: '*',
+          element: (
+            <>
+              <AppShellNavLink
+                item={{ path: '/trade', label: 'Trade', end: false }}
+                className={() => 'app-nav-link'}
+                onAfterPress={onAfterPress}
+              />
+              <LocationEcho />
+            </>
+          ),
+        },
+      ],
+      { initialEntries: ['/pool', market] }
+    )
+    render(<RouterProvider router={router} />)
+    const link = screen.getByRole('link', { name: 'Trade' })
+    expect(link).toHaveAttribute('href', '/trade')
+    for (let i = 0; i < 3; i++) await userEvent.setup().click(link)
+    expect(router.state.location.pathname).toBe(market)
+    expect(onAfterPress).toHaveBeenCalledTimes(3)
+    fireEvent.click(link, { metaKey: true })
+    expect(router.state.location.pathname).toBe(market)
+    await act(async () => {
+      await router.navigate(-1)
+    })
+    expect(router.state.location.pathname).toBe('/pool')
+    await act(async () => {
+      await router.navigate(1)
+    })
+    expect(router.state.location.pathname).toBe(market)
   })
 })

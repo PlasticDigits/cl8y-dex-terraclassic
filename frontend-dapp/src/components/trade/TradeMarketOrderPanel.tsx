@@ -38,7 +38,7 @@ import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
 import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
 import { QuoteDataLoadingProgress } from '@/components/QuoteDataLoadingProgress'
 import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
-import { isIndexerLocalQuoteRejection } from '@/utils/indexerErrors'
+import { isIndexerPricingDataPending, isIndexerQuoteDisplayRevoked } from '@/utils/indexerErrors'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { assertLocalRouteSubmit, LOCAL_ROUTE_UNAVAILABLE } from '@/utils/localRouteQuote'
@@ -63,6 +63,8 @@ import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { firstTradingNotice, isPreSignTradingError } from '@/utils/tradingNotice'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
+import { RouteOrderCostDetails } from '@/components/swap/RouteOrderCostDetails'
+import { formatOrderMetric, type RouteOrderCosts } from '@/utils/routeOrderMetrics'
 import { formatTradingPriceDifference, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import {
   communityTaxExecuteUsesRouter,
@@ -93,6 +95,9 @@ interface MarketSimData {
   routePreflight?: SwapRoutePreflightSpread
   indexerAmountReconciled?: boolean
   economicExplanation?: string
+  orderSlippagePercent?: number | null
+  tradingFeePercent?: number | null
+  orderCosts?: RouteOrderCosts | null
   routeSlippagePercent?: string
 }
 
@@ -316,7 +321,7 @@ export function TradeMarketOrderPanel({
     !simQuery.isPlaceholderData &&
     simInputIntentCurrent &&
     !isExpiredLocalQuote(simQuery.data) &&
-    !isIndexerLocalQuoteRejection(simQuery.error)
+    !isIndexerQuoteDisplayRevoked(simQuery.error)
   const pricingDataPending = useQuotePricingDataPending({
     intentKey: JSON.stringify([
       pairAddr,
@@ -331,7 +336,7 @@ export function TradeMarketOrderPanel({
     ]),
     currentIntent: rawInputAmount !== '0' && simInputIntentCurrent && !simQuery.isPlaceholderData,
     error: simQuery.error,
-    hasValidatedQuote: hasSettledSimQuote && !simQuery.isFetching && !simQuery.isError,
+    hasValidatedQuote: hasSettledSimQuote,
     expired: isExpiredLocalQuote(simQuery.data),
   })
 
@@ -436,7 +441,7 @@ export function TradeMarketOrderPanel({
   const { submitPayRaw, simData, minReceived, isSubmitReady, snapshottedHybrid } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
-    simQuery: isIndexerLocalQuoteRejection(simQuery.error) ? { ...simQuery, data: undefined } : simQuery,
+    simQuery: isIndexerQuoteDisplayRevoked(simQuery.error) ? { ...simQuery, data: undefined } : simQuery,
     slippageTolerance,
     extraSubmitBlocked: pricingDataPending || priceImpactTooHigh || !!liveSplit?.bookExceedsPay || routeRiskBlocked,
     hybrid: {
@@ -531,7 +536,7 @@ export function TradeMarketOrderPanel({
         !simQuery.isFetching &&
         !simQuery.isPlaceholderData
       )
-        throw new Error('Price difference is too high')
+        throw new Error('Fair-reference deviation is too high')
       if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       if (needsImpactConsent && acceptedImpactKeyRef.current !== impactReviewKey)
@@ -757,7 +762,7 @@ export function TradeMarketOrderPanel({
                     priceImpactTooHigh
                       ? 'Quote exceeds price protection'
                       : routeRiskBlocked
-                        ? 'Price difference is too high'
+                        ? 'Fair-reference deviation is too high'
                         : liveSplit?.bookExceedsPay
                           ? 'Book leg exceeds pay'
                           : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
@@ -770,7 +775,11 @@ export function TradeMarketOrderPanel({
     ['pricing', pricingDataPending],
     [
       'quote',
-      simQuery.isError && !showReceiveCalculating && rawInputAmount === debouncedRawInputAmount && !simQuery.isFetching,
+      simQuery.isError &&
+        !isIndexerPricingDataPending(simQuery.error) &&
+        !showReceiveCalculating &&
+        rawInputAmount === debouncedRawInputAmount &&
+        !simQuery.isFetching,
     ],
     ['book', liveSplit?.bookExceedsPay === true],
     ['acquire', isWalletConnected && payAcquireGuidance.kind.startsWith('insufficient')],
@@ -951,6 +960,20 @@ export function TradeMarketOrderPanel({
           />
         )}
 
+        {simData && rawInputAmount !== '0' && !showReceiveCalculating && marketRouteLine && (
+          <div
+            data-testid="trade-market-route-summary"
+            className="flex items-center gap-2 overflow-hidden text-[10px]"
+            style={{ color: 'var(--ink-dim)' }}
+          >
+            <span className="shrink-0">
+              Slippage {formatOrderMetric(simData.orderSlippagePercent)} · Fee{' '}
+              {formatOrderMetric(simData.tradingFeePercent)}
+            </span>
+            <span className="font-mono min-w-0 truncate">{marketRouteLine}</span>
+          </div>
+        )}
+
         <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
           <button
             type="button"
@@ -1075,17 +1098,6 @@ export function TradeMarketOrderPanel({
                       </p>
                     </div>
                   )}
-                  <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
-                  {marketRouteLine && (
-                    <div
-                      data-testid="trade-market-route-summary"
-                      className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
-                      style={{ color: 'var(--ink-dim)' }}
-                    >
-                      <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
-                      <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1095,8 +1107,14 @@ export function TradeMarketOrderPanel({
         {simData && rawInputAmount !== '0' && !showReceiveCalculating && (
           <details data-testid="trade-market-signing-details">
             <summary className="cursor-pointer text-[11px]" style={{ color: 'var(--ink-subtle)' }}>
-              Signing details
+              DETAILS
             </summary>
+            <RouteOrderCostDetails
+              costs={simData.orderCosts}
+              symbol={getTokenDisplaySymbol(toToken)}
+              decimals={receiveDecimals}
+            />
+            <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
             {expectedSlippagePct != null && expectedSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT && (
               <SwapImpactAside
                 details
