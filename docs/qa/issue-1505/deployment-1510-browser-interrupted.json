@@ -1,0 +1,86 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "completed": false,
+  "expected_revision": "1c21064a91dcd51943a96f03108bf47ae8b31c22",
+  "measurement_version": "foreground_correlated_native_availability_v8",
+  "utc_start": "2026-10-15T08:56:14.022Z",
+  "utc_end": "2026-10-15T08:59:51.671Z",
+  "scope": "Interrupted final-release2 native browser FIRST; root stopped after independent socketFAIL",
+  "raw_receipt_sha256": "acb791ef3fbe306f7998fc438ababb6c25fc7bde12bd1c1bbd96c5a17dfcd2a8",
+  "completed_window_count": 1,
+  "expected_window_count": 4,
+  "quote_progress_reads": 153,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190060,
+      "samples": 936,
+      "first_useful_ms": 366.19999999925494,
+      "failures": [
+        "native_window_not_useful"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 38,
+        "useful": 36,
+        "not_useful": 2,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": [
+        {
+          "status": 503,
+          "reason": "stale_observations",
+          "request_id": "397bbeffd1188512",
+          "at_ms": 121458,
+          "failure": null,
+          "diagnostic_delivery_lag_ms": 8,
+          "utc": "2026-10-15T08:58:32.915000+00:00"
+        },
+        {
+          "status": 503,
+          "reason": "stale_observations",
+          "request_id": "397bbeffd1188556",
+          "at_ms": 181457,
+          "failure": null,
+          "diagnostic_delivery_lag_ms": 4,
+          "utc": "2026-10-15T08:59:32.914000+00:00"
+        }
+      ]
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": false,
+      "elapsed_ms": null,
+      "samples": 18,
+      "first_useful_ms": 416.90000000037253,
+      "failures": [
+        "probe_unavailable"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 1,
+        "useful": 1,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": []
+    }
+  ],
+  "limits": "One complete native-input desktop window and partial native-input phone only; reverse browser windows, unchanged RETEST and functional expiry control were not run. Intentional shutdown probe_unavailable errors remain distinct from actual native_window_not_useful availability failures."
+}

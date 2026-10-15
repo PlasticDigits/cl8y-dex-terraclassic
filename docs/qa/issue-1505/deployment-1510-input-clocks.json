@@ -1,0 +1,85 @@
+{
+  "case": "USTC->CL8Y",
+  "viewport": "desktop",
+  "token_in": "uusd",
+  "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+  "amount_in_raw": "132000000",
+  "original_input_epoch_ms": 1792054591457,
+  "generation_change": "UNAVAILABLE: generation/digest is intentionally not retained; clock changes do not prove a generation change",
+  "failures": [
+    {
+      "failure": {
+        "status": 503,
+        "reason": "stale_observations",
+        "request_id": "397bbeffd1188512",
+        "at_ms": 121458,
+        "observed": null,
+        "expires": null,
+        "diagnostic_delivery_lag_ms": 8,
+        "useful": null,
+        "native_response_epoch_ms": 1792054712915,
+        "native_response_utc": "2026-10-15T08:58:32.915000+00:00",
+        "remaining_ms_at_native_response": null
+      },
+      "useful_before": {
+        "status": 200,
+        "reason": null,
+        "request_id": "397bbeffd118850d",
+        "at_ms": 120165,
+        "observed": 1792054692326,
+        "expires": 1792054712326,
+        "diagnostic_delivery_lag_ms": 4,
+        "useful": true,
+        "native_response_epoch_ms": 1792054711622,
+        "native_response_utc": "2026-10-15T08:58:31.622000+00:00",
+        "remaining_ms_at_native_response": 704
+      },
+      "useful_after": {
+        "status": 200,
+        "reason": null,
+        "request_id": "397bbeffd118851e",
+        "at_ms": 132351,
+        "observed": 1792054707837,
+        "expires": 1792054727837,
+        "diagnostic_delivery_lag_ms": 1,
+        "useful": true,
+        "native_response_epoch_ms": 1792054723808,
+        "native_response_utc": "2026-10-15T08:58:43.808000+00:00",
+        "remaining_ms_at_native_response": 4029
+      },
+      "observation_clock_changed_between_useful": true,
+      "expiry_clock_changed_between_useful": true
+    },
+    {
+      "failure": {
+        "status": 503,
+        "reason": "stale_observations",
+        "request_id": "397bbeffd1188556",
+        "at_ms": 181457,
+        "observed": null,
+        "expires": null,
+        "diagnostic_delivery_lag_ms": 4,
+        "useful": null,
+        "native_response_epoch_ms": 1792054772914,
+        "native_response_utc": "2026-10-15T08:59:32.914000+00:00",
+        "remaining_ms_at_native_response": null
+      },
+      "useful_before": {
+        "status": 200,
+        "reason": null,
+        "request_id": "397bbeffd1188553",
+        "at_ms": 180163,
+        "observed": 1792054752326,
+        "expires": 1792054772326,
+        "diagnostic_delivery_lag_ms": 7,
+        "useful": true,
+        "native_response_epoch_ms": 1792054771620,
+        "native_response_utc": "2026-10-15T08:59:31.620000+00:00",
+        "remaining_ms_at_native_response": 706
+      },
+      "useful_after": null,
+      "observation_clock_changed_between_useful": null,
+      "expiry_clock_changed_between_useful": null
+    }
+  ]
+}

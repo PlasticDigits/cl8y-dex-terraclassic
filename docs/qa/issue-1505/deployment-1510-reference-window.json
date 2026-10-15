@@ -1,0 +1,193 @@
+{
+  "issue": 1505,
+  "read_only": true,
+  "start_utc": "2026-10-15T08:57:40Z",
+  "end_utc": "2026-10-15T09:00:00Z",
+  "bounded_sample_lines": 30,
+  "fixed_pattern_counts": {
+    "hub_refresh_failed": 0,
+    "liquidity_refresh_failed": 0,
+    "economic_fee_rollup_failed": 0,
+    "execution_reference_diagnosis": 0,
+    "oracle_any": 3,
+    "oracle_no_quorum": 3,
+    "oracle_source_failed": 0,
+    "oracle_store_failed": 0,
+    "oracle_failure": 3,
+    "admission_budget": 1,
+    "admission_unavailable": 0,
+    "reserve_deadline": 0,
+    "reserve_unavailable": 0,
+    "database_pool_timeout": 0,
+    "database_cancel": 0
+  },
+  "fixed_events": [
+    {
+      "utc": "2026-10-15T08:57:41.690885+00:00",
+      "categories": [],
+      "elapsed_ms": 1529
+    },
+    {
+      "utc": "2026-10-15T08:57:47.279693+00:00",
+      "categories": [],
+      "elapsed_ms": 1261
+    },
+    {
+      "utc": "2026-10-15T08:57:57.036375+00:00",
+      "categories": [
+        "admission_budget"
+      ]
+    },
+    {
+      "utc": "2026-10-15T08:58:07.040605+00:00",
+      "categories": [],
+      "elapsed_ms": 10001
+    },
+    {
+      "utc": "2026-10-15T08:58:07.800504+00:00",
+      "categories": [],
+      "elapsed_ms": 740
+    },
+    {
+      "utc": "2026-10-15T08:58:08.639628+00:00",
+      "categories": [],
+      "elapsed_ms": 839
+    },
+    {
+      "utc": "2026-10-15T08:58:15.475651+00:00",
+      "categories": [],
+      "elapsed_ms": 892
+    },
+    {
+      "utc": "2026-10-15T08:58:16.347807+00:00",
+      "categories": [],
+      "elapsed_ms": 872
+    },
+    {
+      "utc": "2026-10-15T08:58:20.019682+00:00",
+      "categories": [],
+      "elapsed_ms": 1400
+    },
+    {
+      "utc": "2026-10-15T08:58:21.769530+00:00",
+      "categories": [],
+      "elapsed_ms": 1749
+    },
+    {
+      "utc": "2026-10-15T08:58:32.677876+00:00",
+      "categories": [
+        "oracle_any",
+        "oracle_no_quorum",
+        "oracle_failure"
+      ],
+      "ticker": "vfdusd",
+      "quality": "degraded"
+    },
+    {
+      "utc": "2026-10-15T08:58:40.270463+00:00",
+      "categories": [],
+      "elapsed_ms": 11657
+    },
+    {
+      "utc": "2026-10-15T08:58:41.691408+00:00",
+      "categories": [],
+      "elapsed_ms": 1401
+    },
+    {
+      "utc": "2026-10-15T08:58:47.706929+00:00",
+      "categories": [],
+      "elapsed_ms": 759
+    },
+    {
+      "utc": "2026-10-15T08:58:57.471574+00:00",
+      "categories": [],
+      "elapsed_ms": 6632
+    },
+    {
+      "utc": "2026-10-15T08:58:58.299187+00:00",
+      "categories": [],
+      "elapsed_ms": 811
+    },
+    {
+      "utc": "2026-10-15T08:58:59.807458+00:00",
+      "categories": [],
+      "elapsed_ms": 1508
+    },
+    {
+      "utc": "2026-10-15T08:59:02.680977+00:00",
+      "categories": [
+        "oracle_any",
+        "oracle_no_quorum",
+        "oracle_failure"
+      ],
+      "ticker": "vfdusd",
+      "quality": "degraded"
+    },
+    {
+      "utc": "2026-10-15T08:59:05.706763+00:00",
+      "categories": [],
+      "elapsed_ms": 903
+    },
+    {
+      "utc": "2026-10-15T08:59:06.589677+00:00",
+      "categories": [],
+      "elapsed_ms": 882
+    },
+    {
+      "utc": "2026-10-15T08:59:18.730916+00:00",
+      "categories": [],
+      "elapsed_ms": 7534
+    },
+    {
+      "utc": "2026-10-15T08:59:20.192618+00:00",
+      "categories": [],
+      "elapsed_ms": 1441
+    },
+    {
+      "utc": "2026-10-15T08:59:21.732619+00:00",
+      "categories": [],
+      "elapsed_ms": 1539
+    },
+    {
+      "utc": "2026-10-15T08:59:26.984518+00:00",
+      "categories": [],
+      "elapsed_ms": 1045
+    },
+    {
+      "utc": "2026-10-15T08:59:32.727555+00:00",
+      "categories": [
+        "oracle_any",
+        "oracle_no_quorum",
+        "oracle_failure"
+      ],
+      "ticker": "vfdusd",
+      "quality": "degraded"
+    },
+    {
+      "utc": "2026-10-15T08:59:47.420455+00:00",
+      "categories": [],
+      "elapsed_ms": 11003
+    },
+    {
+      "utc": "2026-10-15T08:59:48.023137+00:00",
+      "categories": [],
+      "elapsed_ms": 584
+    },
+    {
+      "utc": "2026-10-15T08:59:53.851098+00:00",
+      "categories": [],
+      "elapsed_ms": 988
+    },
+    {
+      "utc": "2026-10-15T08:59:54.512712+00:00",
+      "categories": [],
+      "elapsed_ms": 661
+    },
+    {
+      "utc": "2026-10-15T08:59:57.879703+00:00",
+      "categories": [],
+      "elapsed_ms": 1237
+    }
+  ],
+  "limits": "No log lines, SQL, endpoints, token/actor identifiers or unknown messages retained; absence of log errors does not prove publication freshness."
+}

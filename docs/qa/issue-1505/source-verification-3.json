@@ -1,0 +1,51 @@
+{
+  "issue": 1505,
+  "iteration": 3,
+  "base_revision": "1c21064a91dcd51943a96f03108bf47ae8b31c22",
+  "change": "router shares existing provider bounds and original poll margin beside settlement; fixed candidate prerequisite diagnostics; no retention or expiry changes",
+  "source_checks": [
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "summary": [
+        "Overall: PASS WITH SKIPS; passed=12 failed=0 skipped=1"
+      ],
+      "source_fingerprint": "874ff3da9801afb5846d4092afedc47991ebbd8bc620ab132f2077da2d843efa",
+      "log_sha256": "c5983c25eced1f0c69200c74c0ebc1fbab480ce1a6121d44d38d6411d32b020d"
+    },
+    {
+      "command": "make verify-issue-1499",
+      "overall": "PASS WITH SKIPS",
+      "summary": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "source_fingerprint": "874ff3da9801afb5846d4092afedc47991ebbd8bc620ab132f2077da2d843efa",
+      "log_sha256": "069507667e074e5de133fe087dba3c75ca898b501cec8f0d06eed97f524d10ad"
+    },
+    {
+      "command": "make verify-issue-1464",
+      "overall": "PASS WITH SKIPS",
+      "summary": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "source_fingerprint": "19af24d33ff0525bc87c7d9d527b4da3cbabed09131116aae339fa387aba6fbc",
+      "log_sha256": "fc81bafb5d4a668e8d811bddc5582b7166e52617aef572b19a0ec1a0f624b403"
+    }
+  ],
+  "wrapper_regressions_per_pass": 18,
+  "request_correlation_regressions_per_pass": 1,
+  "http_stale_diagnostic_regressions_per_pass": 1,
+  "frontend_tests_per_native_pass": 36,
+  "browser_qa_controls_per_pass": 38,
+  "probe_controls_per_pass": 9,
+  "helper_sha256": {
+    "indexer/src/api/prerequisite_trace.rs": "6a98b019aafb47288202f784539f7eed8d967d0187ac7d69bcb1942eb5e44f72",
+    "scripts/verify-issue-1505.sh": "52fc3f4b560f63576453cc3e2507858cb4bcc4655ef1661f2340223df574b369",
+    "scripts/qa/probe-native-monitoring-1505.py": "da0560896d2bc91ff6412e5d1179f15925ecddfe0e15a8ef449ff1b6de25efe8",
+    "scripts/qa/test-native-recovery-1505.py": "e3259a738038dd531852b243d12ab4b5be308e14eaea0a194f739b9e9bc88ec8"
+  },
+  "limits": "Deployed acceptance is pending; both previous deployed FIRST failures remain FAIL; physical wallet/device and broad matrix are excluded by issue.",
+  "verified_application_revision": "7f0033d0ef01723ccf3fd30a985c6f71cd405335",
+  "boundary_followup": "source-verification-3-boundary.json"
+}

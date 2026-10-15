@@ -969,24 +969,33 @@ The [#1505 follow-up](qa/issue-1505/README.md) overlaps independent treasury
 configuration/bindings and the two denoms' mapping/rate prerequisites through
 the same scheduled provider lane. This removes unnecessary serial waiting
 before the existing output/floor phases; original deadlines and freshness remain
-unchanged. The subsequent live run isolated a router-only deadline loss: router
-configuration now starts beside treasury/bindings with its own unchanged
-two-second bound. The later tax/cap phase no longer spends the router's pacing
-window. Router timeouts emit fixed `router_config/deadline` diagnostics; unknown
+unchanged. Subsequent live runs isolated router-only deadline loss and a wrapper
+timeout shorter than the deployed provider-attempt timeout. Router configuration
+now runs alongside all remaining observation work, within existing provider
+attempt/total bounds and the original publication margin. The tax/cap phase does
+not spend the router's admission window. Router publication-margin timeouts emit
+fixed `router_config/deadline` diagnostics; unknown
 router state still blocks output. Server-generated `x-quote-request-id` response headers correlate fixed
 typed quote-rejection reasons with safe local-quote spans; query strings are
 excluded. Scheduled native polls report fixed phase/result classes independently
 of requests. See [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md).
 
+Final503 responses can also emit request-owned stale prerequisite witnesses for
+eight fixed components, with bounded original age/expiry scalars. Each component
+emits at most once per request; successful alternatives emit no stale witnesses.
+These are candidate witnesses and do not alone establish the sole rejection
+cause. No asset, actor, query or provider body is recorded.
+
 Native input and native output prerequisites remain independent. The scheduled
 wrapper worker polls every ten seconds with one outstanding pass. Once mapper
-configuration is known, router binding starts alongside treasury/bindings. After
+configuration is known, router binding starts alongside all remaining work. After
 mapping admission, the bank-tax rate and each mapped native denom's tax cap are
 independent reads. Tax/caps run with `tokio::join!`
 and an individual timeout against the same original two-second phase deadline.
-Router configuration has its own strict two-second observation beside the earlier
-treasury/bindings batch; its validated three-state result is passed into the
-output collection without another query or renewed clock.
+Router configuration retains the provider's own attempt/total limits and the
+original 7.9-second publication margin. A shorter wrapper-only deadline must not
+cancel an otherwise permitted provider attempt. Its three-state result belongs
+to the same original poll, without another query or renewed clock.
 Completed fields survive when another field times out; an unavailable uluna cap
 cannot erase a completed uusd cap, tax rate or compatible router observation.
 Only the requested denom's complete required observations can admit its output.

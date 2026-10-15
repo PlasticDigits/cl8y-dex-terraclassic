@@ -1,0 +1,141 @@
+{
+  "utc": "2026-10-15T08:59:06.249919+00:00",
+  "scope": "bounded fixed-message phases/reasons/timings and allowlisted numeric provider policy only; no raw log lines, endpoint metadata or identifiers",
+  "windows": [
+    {
+      "poll_start_ms": 1792054467836,
+      "rows": [
+        {
+          "utc": "2026-10-15T08:54:33.834169+00:00",
+          "message": "Native wrapper observations completed",
+          "poll_id": 15,
+          "elapsed_ms": 5997,
+          "observed_at_ms": 1792054467836,
+          "mappings": 2,
+          "output_tax": true,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": true,
+          "router": "None"
+        },
+        {
+          "utc": "2026-10-15T08:54:30.314682+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 15,
+          "phase": "router_config",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T08:54:33.637835+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 15,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        },
+        {
+          "utc": "2026-10-15T08:54:33.834153+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 15,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        }
+      ]
+    },
+    {
+      "poll_start_ms": 1792054497836,
+      "rows": [
+        {
+          "utc": "2026-10-15T08:55:04.812028+00:00",
+          "message": "Native wrapper observations completed",
+          "poll_id": 18,
+          "elapsed_ms": 6974,
+          "observed_at_ms": 1792054497836,
+          "mappings": 2,
+          "output_tax": true,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": true,
+          "router": "None"
+        },
+        {
+          "utc": "2026-10-15T08:54:56.976620+00:00",
+          "message": "Local quote rejected",
+          "reason": "missing_observations"
+        },
+        {
+          "utc": "2026-10-15T08:55:00.617288+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 18,
+          "phase": "router_config",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T08:55:04.331015+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 18,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        },
+        {
+          "utc": "2026-10-15T08:55:04.811991+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 18,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        }
+      ]
+    },
+    {
+      "poll_start_ms": 1792054577837,
+      "rows": [
+        {
+          "utc": "2026-10-15T08:56:23.601839+00:00",
+          "message": "Native wrapper observations completed",
+          "poll_id": 26,
+          "elapsed_ms": 5764,
+          "observed_at_ms": 1792054577837,
+          "mappings": 2,
+          "output_tax": true,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": true,
+          "router": "None"
+        },
+        {
+          "utc": "2026-10-15T08:56:20.331021+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 26,
+          "phase": "router_config",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T08:56:23.098841+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 26,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        },
+        {
+          "utc": "2026-10-15T08:56:23.601817+00:00",
+          "message": "Native wrapper read unavailable",
+          "poll_id": 26,
+          "phase": "floor_capability",
+          "reason": "contract_rejected"
+        },
+        {
+          "utc": "2026-10-15T08:56:24.263056+00:00",
+          "message": "Local quote rejected",
+          "reason": "missing_observations"
+        }
+      ]
+    }
+  ],
+  "runtime_policy": {
+    "LCD_ATTEMPT_TIMEOUT_MS": 2500,
+    "LCD_COOLDOWN_MS": 1000
+  },
+  "read_count": 8
+}

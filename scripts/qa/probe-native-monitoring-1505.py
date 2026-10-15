@@ -17,6 +17,7 @@ PATTERNS = {
     "wrapper_completed": "Native wrapper observations completed",
     "wrapper_unavailable": "Native wrapper observations unavailable",
     "wrapper_read_unavailable": "Native wrapper read unavailable",
+    "stale_prerequisite": "Local quote prerequisite stale",
     "provider_pressure": r'(?i)(LCD provider admission deferred|all provider circuits open|reason="?(capacity|circuit_open))',
     "historical_height": "(?i)(historical|height.*(unavailable|not available|not found|pruned)|requested height|lowest height)",
     "http_429": "429",
@@ -27,6 +28,28 @@ PATTERNS = {
 PHASES = frozenset(("chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability"))
 REASONS = frozenset(("capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "missing_or_invalid", "missing_observations", "stale_observations", "accounting_unavailable", "protection", "unsupported_semantics", "no_route"))
 REQUEST_ID = re.compile(r"[0-9a-f]{16}")
+COMPONENTS = frozenset(("pair_config", "pool_mirror", "hybrid_mirror", "reference", "tax_policy", "tax_actor", "wrapper", "simulation_mirror"))
+
+
+def stale_witness(line, requested_ids):
+    """A bounded candidate witness is evidence, not a sole-cause assertion."""
+    if "Local quote prerequisite stale" not in line:
+        return None
+    match = re.search(r'\bcomponent="?([a-z_]{1,24})"?(?=\s|$|[,}])', line)
+    if not match or match[1] not in COMPONENTS:
+        return None
+    row = {"component": match[1]}
+    for flag, field in (("age_known", "age_ms"), ("expiry_known", "expires_in_ms")):
+        known = re.search(r'\b' + flag + r'=(true|false)(?=\s|$|[,}])', line)
+        value = re.search(r'\b' + field + r'=(-?\d{1,9})(?=\s|$|[,}])', line)
+        if not known or not value or abs(int(value[1])) > 86_400_000:
+            return None
+        row[field] = int(value[1]) if known[1] == "true" else None
+    for rid in requested_ids:
+        if re.search(r'\brequest_id[=:]"?' + rid + r'\b', line):
+            row["request_id"] = rid
+            break
+    return row
 
 
 def sample_summary(payload, requested_ids=()):
@@ -57,7 +80,8 @@ def sample_summary(payload, requested_ids=()):
                 selected = value[0] or value[1]
                 if selected in allowlist:
                     counts[field][selected] = counts[field].get(selected, 0) + 1
-    return {"bounded_sample_lines": len(lines), "typed_fields": counts,
+    witnesses = [w for line in lines if (w := stale_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
+    return {"bounded_sample_lines": len(lines), "typed_fields": counts, "candidate_stale_witnesses": witnesses,
         "request_correlation": {rid: sum(bool(re.search(r'\brequest_id[=:]"?' + rid + r'\b', re.sub(r"\x1b\[[0-9;]*m", "", line))) for line in lines) for rid in requested_ids}}
 
 
@@ -76,12 +100,14 @@ def collect(instance, request_ids=()):
     for label, pattern in PATTERNS.items():
         query = "sum(count_over_time(" + selector + " |~ " + json.dumps(pattern) + "[15m]))"
         counts[label] = MONITORING.aggregate(instance.read(prefix + "query?" + urlencode({"query": query})))
-    params = {"query": selector + ' |~ "(Native wrapper|Local quote rejected)"',
+    params = {"query": selector + ' |~ "(Native wrapper|Local quote rejected|Local quote prerequisite stale)"',
         "start": str(int((time.time() - 900) * 1e9)), "end": str(int(time.time() * 1e9)), "limit": "300", "direction": "backward"}
     sample = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)))
     if request_ids:
         params["query"] = selector + " |~ " + json.dumps("|".join(request_ids))
-        sample["request_correlation"] = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)), request_ids)["request_correlation"]
+        requested = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)), request_ids)
+        sample["request_correlation"] = requested["request_correlation"]
+        sample["candidate_stale_witnesses"] = requested["candidate_stale_witnesses"]
     prometheus = [row for row in sources if isinstance(row, dict) and row.get("type") == "prometheus"]
     prom = {"status": "SKIP", "reason": "no_prometheus_datasource_provisioned"}
     if len(prometheus) == 1 and MONITORING.ATTESTER.APP_ID.fullmatch(str(prometheus[0].get("uid", ""))):

@@ -77,6 +77,7 @@ pub use local_reference_quote::ReferencePrices;
 mod local_wrapper_quote;
 mod route_paths;
 // Historical network solver retained only for arithmetic/regression comparison.
+mod prerequisite_trace;
 mod quote_cache_control;
 mod quote_trace;
 #[cfg(test)]
