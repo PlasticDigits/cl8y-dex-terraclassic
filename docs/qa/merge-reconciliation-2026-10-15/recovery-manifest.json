@@ -1,0 +1,55 @@
+{
+  "reconciled_on": "2026-10-15",
+  "starting_main": "4bd3e8d31485613d6c3ddca62abbac1a1f6e6469",
+  "recovered_files": [
+    {
+      "original_worktree": "dex-1464-contract-parity",
+      "original_path": "smartcontracts/artifacts/checksums.txt",
+      "source_revision": "612f741af5c8ae1be39b9fa9401801dae91bf867",
+      "archived_path": "recovered/dex-1464-contract-parity/checksums.txt",
+      "scope": "Historical local QA evidence; does not replace current evidence or certify the merged release.",
+      "original_sha256": "671c1985ed593bc10762d187b798f70efdda06730ede0e42a3e85681307919c7",
+      "archived_sha256": "671c1985ed593bc10762d187b798f70efdda06730ede0e42a3e85681307919c7"
+    },
+    {
+      "original_worktree": "dex-1464-fair",
+      "original_path": "docs/qa/issue-1464/current-artifact-settlement-controls.json",
+      "source_revision": "612f741af5c8ae1be39b9fa9401801dae91bf867",
+      "archived_path": "recovered/dex-1464-fair/current-artifact-settlement-controls.json",
+      "scope": "Historical local QA evidence; does not replace current evidence or certify the merged release.",
+      "original_sha256": "f4071b62fcb2e5f7a2c903371fb7b9372927a5e27bfa2a2436da31f4e5fba195",
+      "presentation": "Artifact and source paths use separate fields from SHA-256 values, matching current public evidence conventions; values retained.",
+      "archived_sha256": "2757e27c84514f2cc542bf0bbf7badbb7c721aec591ae09f20b5d895ed2c3ac3"
+    },
+    {
+      "original_worktree": "dex-1464-fair",
+      "original_path": "docs/qa/issue-1464/current-contract-build-provenance.json",
+      "source_revision": "612f741af5c8ae1be39b9fa9401801dae91bf867",
+      "archived_path": "recovered/dex-1464-fair/current-contract-build-provenance.json",
+      "scope": "Historical local QA evidence; does not replace current evidence or certify the merged release.",
+      "original_sha256": "f29465d57312893b37a8bbbca8bab41a964c086ddf412621954479192c88c1d8",
+      "presentation": "Artifact and source paths use separate fields from SHA-256 values, matching current public evidence conventions; values retained.",
+      "archived_sha256": "e91d51bd4d5190af3992b7d68ad58d3fbba6fd644fc6802ae761108878f315a1"
+    },
+    {
+      "original_worktree": "dex-1464-live",
+      "original_path": "docs/qa/issue-1452/browser-controlled.json",
+      "source_revision": "2c222aa83cf463ccb04b0d4d649a60ae60bbdb00",
+      "archived_path": "recovered/dex-1464-live/browser-controlled.json",
+      "scope": "Historical local QA evidence; does not replace current evidence or certify the merged release.",
+      "original_sha256": "d3a25598dfa8fd82f03850be125c3e8afa2d5248dd08ae4858f9687a1bac1b89",
+      "archived_sha256": "d3a25598dfa8fd82f03850be125c3e8afa2d5248dd08ae4858f9687a1bac1b89"
+    }
+  ],
+  "stash": {
+    "oid": "5c8b38c4",
+    "original_base": "74e7ad03",
+    "paths_checked": 24,
+    "integration_commit": "1536631292e703bc0affcb8fd6309598ea71dc39",
+    "result": "All work is incorporated or superseded. Eighteen files match the original integration exactly; six have subsequent safety/tests/documentation improvements. No stale snapshot is reapplied."
+  },
+  "local_history": {
+    "35fc573235b7bf3dfcfdd045c894691a43863598": "Browser lifecycle cleanup already present in main; merge preserves newer policy and issue crosslinks.",
+    "8eb518d0": "Old execution-readiness merge has no additional tree changes; history reconciled."
+  }
+}
