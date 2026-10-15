@@ -183,6 +183,11 @@ async fn maximum_http() {
     });
     let mut count = 0;
     let mut maximum_ms = 0;
+    let publication_started = std::time::Instant::now();
+    // The read-count cap bounds fixture traffic, not background preparation.
+    // Give cold CI CPUs time to hash the million-order snapshot while keeping
+    // the original 500ms useful-response deadline and 100-request cap intact.
+    let read_interval = Duration::from_millis(100);
     while !publisher.is_finished() || count < 2 {
         let started = std::time::Instant::now();
         let response: Value = client
@@ -221,10 +226,10 @@ async fn maximum_http() {
         );
         count += 1;
         assert!(count <= 100, "bounded hot-reader profile");
-        tokio::time::sleep(Duration::from_millis(40)).await;
+        tokio::time::sleep(read_interval).await;
     }
     publisher.await.unwrap();
-    println!("maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes={count} max_ms={maximum_ms}");
+    println!("maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes={count} max_ms={maximum_ms} publication_ms={}", publication_started.elapsed().as_millis());
     server.abort();
 }
 
