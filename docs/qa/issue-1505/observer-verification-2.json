@@ -1,0 +1,30 @@
+{
+  "issue": 1505,
+  "observer_version": "foreground_correlated_native_availability_v8",
+  "scope": "QA-only follow-up after unchanged app-source verification; no observation clock or500/750ms budget change",
+  "first_retest": [
+    {
+      "log": "browser-observer-v8-final-fixed-first.log",
+      "sha256": "7e6ce3cd46c07c9dc3ef1d6fb3c2e3fb0683369c9677df0b346cccd6ab987fba",
+      "tests": 38,
+      "failures": 0
+    },
+    {
+      "log": "browser-observer-v8-final-fixed-retest.log",
+      "sha256": "fff64fed66d1ce5bcf7d5b43098ad261e322d2e6473afee1b87139e4b594623e",
+      "tests": 38,
+      "failures": 0
+    }
+  ],
+  "helper_sha256": {
+    "scripts/qa/live-input-clock-1499.cjs": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b",
+    "scripts/qa/live-trading-lifecycle-1499.cjs": "486900b0e0fc5a203c41a1c2934e22d125d84c61bb33c1eb4c51c3cc26fe75c2",
+    "scripts/qa/test-live-trading-lifecycle-1499.cjs": "5015d92efc54f76d84b55c6df551a68eb46546631af591498f85afe1a9a9a00a"
+  },
+  "changes": [
+    "Count every selected sustained native response and retain non-useful failure after recovery",
+    "Separate explicitly owned pending200 teardown cancellation; parsed invalid body and503 never qualify",
+    "Bound response draining without renewing original clocks"
+  ],
+  "retained_failure": "Earlier2ms browser-consumption/native-responseEnd ordering assertion failed; replaced by invariant that native timing stays unchanged across deliberately delayed Node/CDP body retrieval. Failed log retained privately."
+}

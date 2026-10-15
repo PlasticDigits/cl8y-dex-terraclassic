@@ -234,6 +234,76 @@ function updateDisplayedQuoteOwners(previous, signature, candidates) {
     ? { signature, owners: [], unavailable: true }
     : { signature, owners: [...unique.values()], unavailable: false };
 }
+/** Retention and sustained availability are separate checks. Generic lifecycle
+ * windows may exercise typed blockers; every selected native1505 response must
+ * provide a validated useful quote. Recovery never erases an earlier failure. */
+function recordWindowQuoteOutcome(
+  row,
+  outcome,
+  requireUseful,
+  ownedTeardown = false,
+) {
+  const teardownCancelled =
+    ownedTeardown &&
+    outcome.status === 200 &&
+    outcome.failure === "request_cancelled";
+  row.responses.push(
+    teardownCancelled ? { ...outcome, phase: "teardown" } : outcome,
+  );
+  const counts = (row.quote_availability ??= {
+    responses: 0,
+    useful: 0,
+    not_useful: 0,
+    teardown_cancelled: 0,
+  });
+  const useful = outcome.status === 200 && outcome.useful === true;
+  counts.responses++;
+  counts[
+    teardownCancelled ? "teardown_cancelled" : useful ? "useful" : "not_useful"
+  ]++;
+  if (
+    requireUseful &&
+    !useful &&
+    !teardownCancelled &&
+    !row.failures.includes("native_window_not_useful")
+  )
+    row.failures.push("native_window_not_useful");
+}
+/** Bound passive response collection before closing an owned browser context.
+ * Callers separately qualify cancellation caused by that deliberate teardown. */
+async function drainResponseProbes(pending, limitMs) {
+  if (!Number.isInteger(limitMs) || limitMs <= 0 || limitMs > 5000)
+    throw Error("response_drain_budget");
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.allSettled([...pending]).then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), limitMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function isOwnedTeardownCancellation(
+  status,
+  readingBody,
+  contextClosing,
+  requestFailure,
+  error,
+) {
+  return (
+    status === 200 &&
+    readingBody &&
+    contextClosing &&
+    (requestFailure === "net::ERR_ABORTED" ||
+      (typeof error?.message === "string" &&
+        /Target page, context or browser has been closed|Target closed/.test(
+          error.message,
+        )))
+  );
+}
 module.exports = {
   installInputClock,
   eligibleQuotesAtSnapshot,
@@ -241,4 +311,7 @@ module.exports = {
   displayedQuoteRetention,
   matchingDisplayedQuotes,
   updateDisplayedQuoteOwners,
+  recordWindowQuoteOutcome,
+  drainResponseProbes,
+  isOwnedTeardownCancellation,
 };

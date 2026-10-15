@@ -40,3 +40,9 @@ Receipts use private 0600 files. The monitoring helper accepts up to eight
 `--request-id` values from a response; it exports fixed enum counts and matching
 counts, never raw lines. Monitor collection success is separate from useful-quote
 acceptance. Keep failed original runs and exact helper hashes.
+
+Native browser mode requires useful results during the sustained windows as well
+as the initialized probes. Recognized503s remain failures after recovery; ordinary
+same-intent display retention does not certify backend availability. Teardown
+cancellation is reported separately so closing a completed window cannot create
+a false failure or hide an already observed503.
