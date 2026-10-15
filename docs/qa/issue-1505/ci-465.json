@@ -1,0 +1,489 @@
+{
+  "issue": 1505,
+  "pull_request": 1509,
+  "pipeline": 465,
+  "revision": "c3e216842fe3bac00e2c71bb967950e004b3a6cf",
+  "event": "push",
+  "branch": "main",
+  "utc": "2026-10-15T07:53:39.606812+00:00",
+  "read_only": true,
+  "status": "success",
+  "steps": [
+    {
+      "id": 12341,
+      "name": "git",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 4
+    },
+    {
+      "id": 12342,
+      "name": "postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 1471
+    },
+    {
+      "id": 12343,
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 31
+    },
+    {
+      "id": 12344,
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 122,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.06
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.05
+        },
+        {
+          "verdict": "ok",
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.16
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 102,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.24
+        },
+        {
+          "verdict": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.05
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 567,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 7.26
+        },
+        {
+          "verdict": "ok",
+          "passed": 81,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 999,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "id": 12345,
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 656,
+      "vitest_results": [
+        {
+          "kind": "files",
+          "passed": 373,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "kind": "tests",
+          "passed": 3470,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "failed_test_markers": 0
+    },
+    {
+      "id": 12346,
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 281,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 841,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 27.27
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 841,
+        "failed": 0,
+        "ignored": 1
+      },
+      "maximum_publication_profile": {
+        "test_pass_observed": true,
+        "unchanged_source_limits": {
+          "maximum_pairs": 512,
+          "orders_per_pair": 2048,
+          "total_orders": 1048576,
+          "hot_reader_cap": 100,
+          "initialized_useful_http_budget_ms": 500,
+          "original_observation_ttl_ms": 20000,
+          "single_tokio_worker": true
+        },
+        "runtime_profile_counters": null,
+        "counter_limitation": "Successful test stdout captured by standard Rust harness; named PASS and complete suite totals are observable; no hidden per-profile timing is inferred."
+      }
+    },
+    {
+      "id": 12347,
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 377,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 3.77
+        },
+        {
+          "verdict": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 14.75
+        },
+        {
+          "verdict": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 4.59
+        },
+        {
+          "verdict": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 50.57
+        },
+        {
+          "verdict": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 30.07
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 84,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "id": 12348,
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 2
+    }
+  ],
+  "scope": "Genuine hosted CI metadata and numeric result summaries only; no credentials, private endpoints, actors or raw logs retained."
+}

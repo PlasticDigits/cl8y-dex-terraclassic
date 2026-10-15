@@ -969,16 +969,24 @@ The [#1505 follow-up](qa/issue-1505/README.md) overlaps independent treasury
 configuration/bindings and the two denoms' mapping/rate prerequisites through
 the same scheduled provider lane. This removes unnecessary serial waiting
 before the existing output/floor phases; original deadlines and freshness remain
-unchanged. Server-generated `x-quote-request-id` response headers correlate fixed
+unchanged. The subsequent live run isolated a router-only deadline loss: router
+configuration now starts beside treasury/bindings with its own unchanged
+two-second bound. The later tax/cap phase no longer spends the router's pacing
+window. Router timeouts emit fixed `router_config/deadline` diagnostics; unknown
+router state still blocks output. Server-generated `x-quote-request-id` response headers correlate fixed
 typed quote-rejection reasons with safe local-quote spans; query strings are
 excluded. Scheduled native polls report fixed phase/result classes independently
 of requests. See [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md).
 
 Native input and native output prerequisites remain independent. The scheduled
-wrapper worker polls every ten seconds with one outstanding pass. After original
-mapper/treasury/mapping admission, the bank-tax rate, router binding and each
-mapped native denom's tax cap are independent reads. They run with `tokio::join!`
+wrapper worker polls every ten seconds with one outstanding pass. Once mapper
+configuration is known, router binding starts alongside treasury/bindings. After
+mapping admission, the bank-tax rate and each mapped native denom's tax cap are
+independent reads. Tax/caps run with `tokio::join!`
 and an individual timeout against the same original two-second phase deadline.
+Router configuration has its own strict two-second observation beside the earlier
+treasury/bindings batch; its validated three-state result is passed into the
+output collection without another query or renewed clock.
 Completed fields survive when another field times out; an unavailable uluna cap
 cannot erase a completed uusd cap, tax rate or compatible router observation.
 Only the requested denom's complete required observations can admit its output.

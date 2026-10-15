@@ -88,5 +88,42 @@ an absent build identifier. The CI-pinned, checksum-verified gitleaks8.30.0
 tracked-file scan passed; the workstation's older8.18.4 scanner falsely matched
 a public token address in a historical QA receipt. No scanner policy was relaxed.
 
-Exact application deployment and focused live verdicts will be recorded after
-merge; source passes do not establish those criteria.
+## First deployment: verified source, retained live FAIL
+
+[PR #1509](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1509) merged as
+`c3e216842fe3bac00e2c71bb967950e004b3a6cf`. Its runtime inputs match the tested
+source head exactly. [CI464](ci-464.json) passed contracts (999), frontend (3,470),
+library (841, one ignored) and isolated PostgreSQL (84, one ignored), with all
+required stages green. Both Coolify deployments finished on that merge; build
+logs contained no failure patterns and [independent attestation](deployment-1509-attestation.json)
+matched public backend health and served complete frontend root assets.
+
+The [first deployed 190-second socket run](deployment-1509-socket-fail.json)
+remained FAIL: 143 executable responses and three reverse `missing_observations`
+503s, with 7,800ms sampled recovery. Useful initialized responses stayed within
+316ms. No unchanged retest was run to seek a pass. The
+[browser run was interrupted](deployment-1509-browser-interrupted.json) after the
+socket failure: its one complete desktop window and partial phone window had no
+expiry/validation/ownership flags, but incomplete windows remain unverified.
+
+The [correlated failure window](deployment-1509-failure-window.json) identified
+the missing prerequisite. Poll44 published at 07:39:45.087 UTC with tax and both
+caps complete but router unknown; all three request IDs matched native-output
+availability rejections before poll45 restored the router at 07:39:53.570.
+Contemporaneous pool observations were healthy. Direct-wrapper capability
+rejections were consistent before, during and after the gap; those separate
+protections were not relaxed.
+
+The prior complete observation expired at its original deadline during this gap.
+Retaining it alone cannot bridge the failure safely, so no expiry extension or
+snapshot splicing was added. The follow-up starts the independent router read
+beside treasury/bindings, preserving its two-second timeout and the existing
+tax/cap and floor phases, shared two-permit/four-RPS lane, eight-second outer
+deadline, thirteen data reads and original poll-start age. An explicit typed
+router timeout log replaces the formerly silent cancellation.
+
+The new real-HTTP regression reproduces the router-only timeout with the former
+four-way output phase, then confirms early placement completes all routed
+prerequisites under the same bounds. A separate timeout control confirms native
+input remains usable, native output stays blocked and cancellation releases
+provider resources. Follow-up verification/deployment is recorded separately.
