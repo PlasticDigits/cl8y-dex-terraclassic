@@ -303,3 +303,39 @@ remain distinct from corrected passes. Unaffected liquidity/outcome checks used
 the identical production fingerprint before the last test-only corrections;
 affected full targets and native/local/provider/reference verifiers completed
 afterward. Deployment and live acceptance for this implementation remain pending.
+
+## Fourth-source CI failure and fixture coordination
+
+[CI472](ci-472.json) on `f331811f0634a94aae9cd021d86622b610440cf8`
+passed 999 contract and 3,470 frontend tests plus the production build. Its library
+suite failed the existing maximum-publication profile: the delayed publisher
+remained unfinished at reader sample 101, exceeding the unchanged 100-sample cap.
+The 500ms useful-quote assertion did not fail. The outer suite recorded 848 passes,
+one failure and one ignored test; its nested child reports the same failure.
+The required PostgreSQL stage did not execute. This CI result remains FAIL.
+
+[Command and timing evidence](ci-472-concurrency.json) confirms that hosted CI
+uses the default parallel Rust harness, while the earlier local full verifier
+used one test thread. Other outer tests completed during the child profile's
+approximate execution interval. CPU utilization was not sampled, so contention
+as the specific cause remains an inference. The maximum profile's parent had
+not joined the existing serial group used by heavy publication, discovery and
+fee-registry fixtures.
+
+The narrow correction joins that existing fixture group before spawning the
+child. Unmarked tests remain parallel: this coordinates shared heavy fixtures
+without claiming complete host CPU isolation. The child still owns its private
+registry and one Tokio worker. The 512-pair × 2,048-order workload, 100-sample cap,
+40ms pacing, original twenty-second expiry and 500ms useful-quote budget are
+unchanged. No runtime code, CI runner, policy, gate or service is changed.
+Full default-parallel library first/retest and genuine hosted CI are required
+after this correction; earlier local passes do not erase the hosted failure.
+
+[Corrected fixture verification](source-verification-4-ci-fixture.json) passed the
+full default-parallel library twice (849 passed, zero failed, one existing ignored
+per run). Discovery and native verifiers then passed first/retest on fresh owned
+QA infrastructure: 20 and 14 groups respectively, no executed failures. Their
+separate live/funded scope remains explicitly unverified. The only Rust change
+after the previous source commit is in the `cfg(test)` publication test module;
+new fingerprints describe this corrected fixture snapshot. Hosted CI and live
+acceptance for this final head remain pending.

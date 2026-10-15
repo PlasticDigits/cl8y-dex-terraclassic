@@ -1,0 +1,110 @@
+{
+  "issue": 1505,
+  "verified_parent": "f331811f0634a94aae9cd021d86622b610440cf8",
+  "scope": "Test-only annotation/comment in publication_tests.rs, included only through #[cfg(test)] mod publication_tests; runtime logic and CI policy unchanged.",
+  "full_default_parallel_library": [
+    {
+      "attempt": "first",
+      "status": "PASS",
+      "exit_code": 0,
+      "counts": {
+        "passed": 849,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered_out": 0
+      },
+      "sha256": "9ef15c70d05967c398042ef83cdca3dd3891b4c05ec8e48fc279ea1ebe65b85c",
+      "log": "dex-1505-ci472-lib-first.log",
+      "command": "cargo test --locked --lib",
+      "parallelism": "default harness; no RUST_TEST_THREADS or test-threads override"
+    },
+    {
+      "attempt": "retest",
+      "status": "PASS",
+      "exit_code": 0,
+      "counts": {
+        "passed": 849,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered_out": 0
+      },
+      "sha256": "bea7153821df7fae90eaf8ff281ab970482eaa56fa514aad42301998aa46f7ac",
+      "log": "dex-1505-ci472-lib-retest.log",
+      "command": "cargo test --locked --lib",
+      "parallelism": "default harness; no RUST_TEST_THREADS or test-threads override"
+    }
+  ],
+  "focused_verifiers": [
+    {
+      "command": "make verify-issue-1489",
+      "overall": "PASS WITH SKIPS",
+      "source_fingerprint": "f79bf8ac2c5258b0f99aea365fa7c3f1868c3fefa76ed34e01cf5be841c9f9f0",
+      "log_file": "verify-1489-release4-guard.log",
+      "log_sha256": "8a6da61938af8eb53b35efebcbf2560190acb2ee219c2ffca8d136bd2693c3e2",
+      "summary": [
+        "PASS first live probe original cohort and privacy boundary",
+        "PASS first fixed monitoring aggregate classification boundary",
+        "PASS first private preparation no-sign, custody and scope boundary",
+        "PASS first actual browser progress intent and useful output guards",
+        "PASS first discovery resource/cohort/producer regressions",
+        "PASS first native deeper promotion and exact API intents",
+        "PASS first actual Swap/Trade progress, adoption and review",
+        "PASS retest live probe original cohort and privacy boundary",
+        "PASS retest fixed monitoring aggregate classification boundary",
+        "PASS retest private preparation no-sign, custody and scope boundary",
+        "PASS retest actual browser progress intent and useful output guards",
+        "PASS retest discovery resource/cohort/producer regressions",
+        "PASS retest native deeper promotion and exact API intents",
+        "PASS retest actual Swap/Trade progress, adoption and review",
+        "PASS frontend types",
+        "PASS Rust formatting",
+        "PASS verifier syntax",
+        "PASS discovery API, invariants and agent crosslinks",
+        "SKIP Deployed artifacts, sustained browser/API clocks and monitoring require separate actual receipts",
+        "SKIP Owned funded native-three-hop, independent SQL and physical signing require separate actual receipts",
+        "PASS diff whitespace",
+        "PASS stable source across first/retest",
+        "Overall: PASS WITH SKIPS; passed=20 failed=0 skipped=2"
+      ]
+    },
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "source_fingerprint": "40846a59bdd842e8b717c322a50539657b5122c7f247c3c93fa79050c70d7135",
+      "log_file": "verify-1505-release4-guard.log",
+      "log_sha256": "40264e46b36b02b5b0833c9149b58623f3a830419f1d540146b05d00e2221fcd",
+      "summary": [
+        "PASS first original wrapper deadlines, partials, cancellation and correlation",
+        "PASS first independent atomic reference publication and certified accounting",
+        "PASS first synchronous original expiry and exact intent",
+        "PASS first browser clocks, native transport and probe evidence",
+        "PASS retest original wrapper deadlines, partials, cancellation and correlation",
+        "PASS retest independent atomic reference publication and certified accounting",
+        "PASS retest synchronous original expiry and exact intent",
+        "PASS retest browser clocks, native transport and probe evidence",
+        "PASS frontend types",
+        "PASS Rust formatting",
+        "PASS verifier syntax",
+        "PASS invariant/checklist links",
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts",
+        "PASS diff whitespace",
+        "PASS stable source across first/retest",
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ]
+    }
+  ],
+  "unchanged_limits": {
+    "pairs": 512,
+    "orders_per_pair": 2048,
+    "hot_reader_cap": 100,
+    "reader_pacing_ms": 40,
+    "original_observation_ttl_ms": 20000,
+    "initialized_useful_http_budget_ms": 500,
+    "tokio_workers": 1
+  },
+  "coordination_scope": "Existing unkeyed serial group excludes marked heavy publication/discovery/fee-registry fixtures. Unmarked tests remain parallel; this is not complete CPU isolation.",
+  "prior_hosted_ci": "CI472 remains FAIL; required PostgreSQL suite did not run.",
+  "next_acceptance": "Genuine hosted CI on new head, exact deployment and focused live checks remain required."
+}

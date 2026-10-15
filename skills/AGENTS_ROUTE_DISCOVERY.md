@@ -47,3 +47,12 @@ Canonical publication implementation: [PR #1493](https://git.cl8y.com/code/cl8y-
 Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](../docs/qa/issue-1489/BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.
 
 Stable actor/fee authority and bounded browser lifecycle: [PR #1494](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1494).
+
+The maximum-publication timing profile keeps its independent child process for
+registry isolation and joins the existing unkeyed serial fixture group in its
+parent. This coordinates heavy publication/discovery/fee-registry fixtures;
+unmarked tests remain parallel, so it does not promise full host CPU isolation.
+Keep the 512 × 2,048 workload, 100 reader samples, 40ms pacing, original 20s
+expiry and 500ms useful-result budget. Verify the full default-parallel library
+harness as well as focused serial filters; see
+[the retained CI failure and correction](../docs/qa/issue-1505/RESULTS.md#fourth-source-ci-failure-and-fixture-coordination).
