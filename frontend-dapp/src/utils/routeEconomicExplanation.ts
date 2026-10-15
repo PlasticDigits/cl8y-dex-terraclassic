@@ -23,6 +23,9 @@ export function routeEconomicExplanation(quote: IndexerRouteSolveResponse): stri
   const now = Date.now()
   if (
     !metadata ||
+    typeof metadata.generation !== 'string' ||
+    metadata.generation.length === 0 ||
+    metadata.generation.length > 128 ||
     !Number.isSafeInteger(metadata.observed_at_ms) ||
     !Number.isSafeInteger(metadata.expires_at_ms) ||
     metadata.observed_at_ms < 0 ||
@@ -88,7 +91,7 @@ export function routeEconomicExplanation(quote: IndexerRouteSolveResponse): stri
           : 'Selected pool and order pricing'
         : 'Better selected pool or order pricing'
     case 'reference_divergence':
-      return 'Different pricing'
+      return 'Independent reference and selected route spot prices differ'
     default:
       return 'Combined costs and pricing'
   }

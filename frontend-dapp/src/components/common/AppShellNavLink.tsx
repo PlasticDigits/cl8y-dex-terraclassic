@@ -43,6 +43,10 @@ export function AppShellNavLink({
         onAfterPress?.()
         if (isModifiedClick(event)) return
         event.preventDefault()
+        // The Trade entry represents the current advanced workspace as well
+        // as its bare route. Repeated clicks must retain a deliberate market
+        // and avoid pushing a bare entry that immediately replaces itself.
+        if (item.path === '/trade' && isActive) return
         if (location.pathname !== item.path) {
           navigate(item.path)
         }

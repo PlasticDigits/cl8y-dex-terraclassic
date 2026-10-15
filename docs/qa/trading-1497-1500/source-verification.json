@@ -1,0 +1,150 @@
+{
+  "source_base_revision": "efb5fba29d3dc401d0d026d8b683db8054458920",
+  "working_tree_source_files_sha256": "c3c486cc50744e5cad2b04a649cccadbb196a999a472c348714ee39a215fda0d",
+  "source_dirty": true,
+  "overall": "PASS WITH SKIPS",
+  "records": [
+    {
+      "issue": 1497,
+      "available_checks": "PASS",
+      "reported_overall": null,
+      "documentation_only_retest": false,
+      "log_sha256": "c12121abfc550888c2288e1620546880c2b49ef54b2923f36ca75c4542b327bf",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1499,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1",
+      "documentation_only_retest": false,
+      "log_sha256": "7c0eef6f22b602f498f626db031b5d0b2c356832f349cd3475d55d5925bf0a0d",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1500,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=2",
+      "documentation_only_retest": false,
+      "log_sha256": "9df7316c60d23a9daaccc390bbdcea7f239a249bece3fa8317bb9587267fc44d",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1483,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=21 failed=0 skipped=2",
+      "documentation_only_retest": false,
+      "log_sha256": "9e911a7ae298d3b40297f174bc3514b242a83592ec5659aec0960d5a69b0f792",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1489,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=20 failed=0 skipped=2",
+      "documentation_only_retest": false,
+      "log_sha256": "9d22b92f154d2a84a82849340cca90029dc2a54be905c3f7bce1dd31fbf45404",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1480,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=3",
+      "documentation_only_retest": false,
+      "log_sha256": "c6f1fb7910afc5eb841a724091b5f073e8f47401851103d8be0fb06d9ff9e56f",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1473,
+      "available_checks": "PASS",
+      "reported_overall": "Overall FAIL: executed checks failed.",
+      "documentation_only_retest": true,
+      "log_sha256": "1ac4ce5218928336fba301f2ad9a9d7e2a06fa7d78fcf73c2279081b5da45148",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1452,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS (local implementation only; deployed/browser acceptance separate)",
+      "documentation_only_retest": false,
+      "log_sha256": "f2a844e2b7f50fd57b0ad0c8002e41b74e2d81886f5b5b570a37eac40d4fd550",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1479,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=12 failed=0 skipped=1",
+      "documentation_only_retest": false,
+      "log_sha256": "c1e3633368c85f5ca0fa4ed9d7c2625493bf9d821f42e299210b45d05a09a614",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1398,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS (source scope only)",
+      "documentation_only_retest": false,
+      "log_sha256": "d07598b4d0d957db9b040c4a2672510b1489ef3f5253a04cebf83ee9bc0ac7b3",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1381,
+      "available_checks": "PASS",
+      "reported_overall": "Overall PASS with explicit skips; skipped criteria remain unverified.",
+      "documentation_only_retest": false,
+      "log_sha256": "d693231871f7a295c8fa5474b42dc7a13d487a98b3c97090793619983830b858",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1390,
+      "available_checks": "PASS",
+      "reported_overall": "Overall PASS with explicit skips; skipped criteria remain unverified.",
+      "documentation_only_retest": false,
+      "log_sha256": "d4078e9b4d019e78a22562ea4e5193272f233e1a3fd28b4988b03748be9d7c2f",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1396,
+      "available_checks": "PASS",
+      "reported_overall": "PASS WITH SKIPS (available checks; explicit scope above)",
+      "documentation_only_retest": false,
+      "log_sha256": "6c2e8a82ee4911e4fd2a633d7787aa9ce60cb63bc20069f4f5f21380e0222462",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1464,
+      "available_checks": "PASS",
+      "reported_overall": "Overall PASS WITH SKIPS; skipped criteria remain unverified.",
+      "documentation_only_retest": false,
+      "log_sha256": "6ec60f12ab44a6b36f88b241cb06ff3f36ccd81e4bcd8490387ed331d5243862",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1453,
+      "available_checks": "PASS",
+      "reported_overall": "Overall PASS WITH SKIPS; skipped criteria remain unverified.",
+      "documentation_only_retest": false,
+      "log_sha256": "e5922754dd743c5f024217bfeb63e7c2e18f3a30ccd3f60890ee6e0853154931",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    },
+    {
+      "issue": 1498,
+      "available_checks": "PASS",
+      "reported_overall": "Overall: PASS WITH SKIPS; passed=9 failed=0 skipped=1",
+      "documentation_only_retest": false,
+      "log_sha256": "1a3e2186925fd13fa8ae858d3bae55671596b1e8abeca5303fbec20382f30929",
+      "scope": "Executed source/local fixture checks; separately collected live/funded/physical scope remains distinct"
+    }
+  ],
+  "retained_failures": true,
+  "documentation_1473_retest": {
+    "scope": "Exact1473 documentation-check rerun only; all unchanged-source library/socket/frontend/full4250browser/type/format checks already passed in round6",
+    "overall": "PASS",
+    "check_source_sha256": "7532c202341f408b926655fca537ca8b153099eb58bb509ddaaa288706f9ac77",
+    "verifier_sha256": "401d6ee55726f8e4f70768d1627662904eb4088289ffe42eddd5af5dc43c03a7",
+    "change": "Restore explicit native USTC terminology alongside separate advanced Trade entry contract",
+    "prior_failure_retained": true
+  },
+  "limits": [
+    "Physical wallets and production settlement unverified",
+    "Exact final deployment and sustained live acceptance are subsequent steps",
+    "Tax copy placement finalized after broad source checks; affected tax/page tests and complete first/retest layout verifier passed on final bytes; economics/contracts/budgets unchanged"
+  ]
+}

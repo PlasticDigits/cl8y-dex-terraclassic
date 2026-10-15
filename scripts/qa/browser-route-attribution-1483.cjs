@@ -359,16 +359,12 @@ function installRuntime(config) {
       low &&
       (outside ||
         !node.closest(
-          `[data-testid="${expected.entry === "trade" ? "trade-market-signing-details" : "swap-pre-submit-details"}"]`,
+          `[data-testid="${expected.entry === "trade" ? "trade-market-signing-details" : "swap-details"}"]`,
         ))
     )
       return false;
-    const cause =
-      diag.explanation === "Matches reference prices"
-        ? ""
-        : ` — ${diag.explanation.toLowerCase()}`;
     const text = node.textContent.replace(/\s+/g, " ").trim();
-    const expectedText = `Price difference ${diag.percent}%${cause}.`;
+    const expectedText = `Fair-reference deviation ${diag.percent}%.`;
     const alerts = [...scope.querySelectorAll('[role="alert"]')].filter(
       visible,
     );
@@ -978,7 +974,7 @@ async function run() {
           if (!row.failed && row.detail_case) {
             const details = page
               .locator(
-                `[data-testid="${trade ? "trade-market-signing-details" : "swap-pre-submit-details"}"]:visible`,
+                `[data-testid="${trade ? "trade-market-signing-details" : "swap-details"}"]:visible`,
               )
               .first();
             await details.locator("summary").click();
@@ -988,7 +984,7 @@ async function run() {
             row.progressive_disclosure_verified =
               (await detail.isVisible()) &&
               (await detail.textContent()).includes(
-                `Price difference ${row.displayed_percent}%`,
+                `Fair-reference deviation ${row.displayed_percent}%`,
               );
             if (!row.progressive_disclosure_verified) row.failed = true;
             await details.locator("summary").click();

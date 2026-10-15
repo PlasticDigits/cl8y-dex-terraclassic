@@ -2,26 +2,28 @@
 
 ## Route cost explanation (#1483)
 
-Actual Swap and Trade label the aggregate **Price difference**. Quotes within
-the ordinary 5% review threshold keep that metric and their cost explanation in
-the existing Signing details. A larger difference has one concise notice tied
-to the current action; confirmation updates that notice instead of adding a
-second warning. Only the highest-priority active operational blocker is shown.
-Pause, freeze, blacklist, funding, fee, protection and signing gates still apply
-independently, and required risk acknowledgements remain visible.
-[RC1483](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) documents its invariants;
-[the API contract](route-solver.md#economic-attribution-1483) defines signed
-raw components and rounding. Malformed, injected, mismatched or unavailable
-attribution supplies no cause explanation or signing permission. A missing
-advisory breakdown is silent in the primary flow; it is not an execution error.
-No extra component percentages or network fees enter the swap metric. Technical
-fair-reference terminology stays in API and agent documentation. Follow the
-[cognitive-load rules](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md).
-Compare exact raw fair/net ratios for 5/30/99 guards before display rounding;
-Trade and Swap retain >5% consent bound to the current reviewed intent. Original
-expiry, 30% Expert behavior, >=99% refusal and fee/Max/floors remain enforced.
-Verify actual entries using [the checklist](qa/issue-1483/README.md); synthetic
-source tests do not attest physical-wallet or deployed settlement behavior.
+Swap and shared Trade show expected **Slippage** and **Fee** separately from the
+original **Fair-reference deviation**. The selected-route fee-free counterfactual
+excludes commissions, tax/hook/wrapper losses and independent reference divergence;
+negative values describe expected order pricing improvement. Its common-output
+spot denominator is independently validated. Canonical raw/human cost amounts
+and one separate LUNC network fee belong in the single **DETAILS** disclosure.
+Missing or invalid advisory evidence stays visibly unavailable and never means zero.
+
+Fair-reference risk remains `100 × abs(fair − net) / max(fair, net)`, checked in
+raw units before display rounding. Genuine >5% consent, >30% Expert and ≥99%
+nonwaivable refusal stay bound to the original exact quote. One current actionable
+blocker/consent notice explains what is being reviewed; a smaller displayed order
+metric does not change reference quality, delivered-net ranking or signing.
+
+[RC1483](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) retains signed raw attribution
+and original economics; [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md) and
+[the metric API](route-solver.md#expected-order-slippage-1500) govern the revised
+presentation and fee-free arithmetic. [SL1498](../skills/AGENTS_SWAP_LAYOUT.md)
+governs stable geometry and the single disclosure. These requirements supersede
+the old Price difference/Signing details presentation rules. See
+[the joint release evidence](qa/trading-1497-1500/RESULTS.md). Original expiry,
+actor/operations, fee/Max/floor and required risk acknowledgement guards remain.
 
 ## Local swap quotes (#1452)
 
@@ -888,8 +890,8 @@ Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src
 | Wrap + ≥2hop combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587) / [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264), closed) | Combined `wrap_deposit` + CW20 `send`→`execute_swap_operations` (N≥2) adds **`WRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k)** in `totalGasLimitForExecuteMsgs`. Wrap+2hop = **2,710,000** (~76.76 LUNC at 28.325) for **LUNC→USTR and USTC→USTR**. USTC→USTR columbus-5 AC1 used **2,630,228** under the 2,710,000 envelope; keep the envelope unchanged. Wrap+1hop stays **1.8M** (#353). Malformed `send.msg` **throws** (`SendHookGasDecodeError`) instead of silent 600k. Native path stays **pool-only** (no hybrid / `book_input`). **G1264-4:** Swap Max / LUNC gas-gate treat only `uluna` as fee-paying native — `uusd` wraps but the Network-fee reserve is bank LUNC (`nativeWrapSwapHints.ts`). Fixture `wrap_plus_send_2hop_ustc`. Verify: `make verify-issue-587` · `make verify-issue-1264`. Measurement: [#1264 AC1](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264). |
 | Unwrap + ≥2hop combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)) | Same-msg router `unwrap_output` after N≥2 hops adds **`UNWRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k)** in `gasLimitForSwapOperationsMsg` — analog of the wrap combo so InstantWithdraw after two hub hops (taxed `uusd` on USTR→USTC) is not charged to every unwrap. USTR→USTC / USTR→LUNC = **3,110,000** (~88.09 LUNC at 28.325), above the 2.71M columbus-5 OOG sum. Direct mapper unwrap (cUSTC→USTC / cLUNC→LUNC) stays **800k**. Router 1-hop + unwrap stays **2.2M**. Wrap+2hop+unwrap = **3,910,000**. Native path stays **pool-only** (**H596-7**). Inventory: `send_2hop_unwrap_ustc` / `send_2hop_unwrap`. Verify: `make verify-issue-599`. Post-merge LocalTerra E9 + columbus-5: `make verify-issue-600` ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)). |
 | Mixed hybrid + pool router hops ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)) | **G-AUTO-1–G-AUTO-7:** hops without `hybrid` (or `book_input = 0`) use the pool-only router floor (**950k**/hop), **not** `HYBRID_SWAP_GAS_LIMIT` (15M). `gasLimitForHybridParams(undefined)` is a **tx-level** last resort when **no** hop has parseable params. Envelope is `max(router N-hop floor, sum of per-hop pieces)` plus **`MIXED_HYBRID_ROUTER_HEADROOM_GAS` (2,150,000)** when the path is mixed. Live columbus-5 cLUNC→USTR 4-hop (hop1 book/8 makers, hops 2–4 pool-only): `gas_used` **5,026,176**, envelope **6,785,500** (~192.20 LUNC at 28.325) — hash `AB8BE4F75E051837BB01C364DEDE6611727E47F0F857AADF04B17C39F360446D`. Must stay **> 5,026,176** and **< 15M** (not 46.8M). Hybrid-on-every-hop 2-hop stays **3,058,600**. Inventory: `send_4hop_hybrid_first_pool_rest`. Swap **Network fee** uses the same indexer ops as submit (`cw20RouterOperations`). Native wrap+N-hop stays pool-only (**H596-7**). Swarm `gas.ts` lockstep. Verify: `make verify-issue-679`. |
-| Swap Network fee row ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587) / [#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679) / [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)) | When a quote is ready, Swap shows **Network fee (est.) ~X LUNC** (`swap-network-fee`) from the same envelope as broadcast. Fee denom is **LUNC / `uluna` only** — 0 USTC does not block a LUNC-funded swap. AMM **Fee** row stays pool `fee_bps`. Optional `gas × price` internals only inside **Trade details**. CW20 multi-hop must pass indexer `operations` (per-hop `hybrid`) so the hint cannot sit on the pool-only 4-hop **3.81M / ~108 LUNC** while broadcast would OOG or over-charge. Native LUNC **Max** uses the same wrap+N-hop hints (`hopCount` defaults to **2** until the route is known). Native **USTC** Max stays full `uusd` (**G1264-4**); hopCount still defaults to **2** for wrap+swap (**G1264-5**). Submit preflight: bank LUNC ≥ pay+fee (uluna pay) or fee (CW20 / USTC). |
-| Station mobile / WC auto-gas ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679) **G-AUTO-8**) | Station **extension** on columbus-5: `preferNoSetFee` + amino `fee.gas` / `fee.amount` — when honored, wallet Tx Fee matches the dApp envelope. Station **WalletConnect / mobile `post`** stays atomic (`isAtomicWalletConnectPost`); that app may still LCD-simulate CosmWasm and show ~**4,158 LUNC** (~147M gas) on a 4-hop book walk. **Residual:** do not treat LCD simulate as the envelope; dApp **Network fee (est.)** is the source of truth (~200 LUNC class). Trade details one-liner (`swap-wallet-fee-note`). Do **not** enable mainnet SEC-E08 (#429). Station LocalTerra QA is not the gate (#235). |
+| Swap Network fee row ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587) / [#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679) / [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)) | When a quote is ready, Swap shows **Network fee (est.) ~X LUNC** (`swap-network-fee`) from the same envelope as broadcast. Fee denom is **LUNC / `uluna` only** — 0 USTC does not block a LUNC-funded swap. The compact **Fee** metric uses the validated common-output basis (#1500), never summed per-hop `fee_bps`. The network fee appears once in the persistent **DETAILS** disclosure (#1498). CW20 multi-hop must pass indexer `operations` (per-hop `hybrid`) so the hint cannot sit on the pool-only 4-hop **3.81M / ~108 LUNC** while broadcast would OOG or over-charge. Native LUNC **Max** uses the same wrap+N-hop hints (`hopCount` defaults to **2** until the route is known). Native **USTC** Max stays full `uusd` (**G1264-4**); hopCount still defaults to **2** for wrap+swap (**G1264-5**). Submit preflight: bank LUNC ≥ pay+fee (uluna pay) or fee (CW20 / USTC). |
+| Station mobile / WC auto-gas ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679) **G-AUTO-8**) | Station **extension** on columbus-5: `preferNoSetFee` + amino `fee.gas` / `fee.amount` — when honored, wallet Tx Fee matches the dApp envelope. Station **WalletConnect / mobile `post`** stays atomic (`isAtomicWalletConnectPost`); that app may still LCD-simulate CosmWasm and show ~**4,158 LUNC** (~147M gas) on a 4-hop book walk. **Residual:** do not treat LCD simulate as the envelope; dApp **Network fee (est.)** is the source of truth (~200 LUNC class). Wallet fee override advice was removed by #1498; unknown budget coverage remains a signing refusal. Do **not** enable mainnet SEC-E08 (#429). Station LocalTerra QA is not the gate (#235). |
 | Invoice pay combo ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)) | CW20 `send` → launcher hook (`enable_feature` / `create_token` / `update_settings` / `apply_settings` / `subscribe`) uses **`PAY_INVOICE_SEND_GAS_LIMIT` (600k)**. Combined wrap+2hop+invoice Send (`wrap_plus_2hop_plus_invoice_send`) is **larger** than wrap+2hop swap-only. Playbook: [`AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md). |
 | **Min uluna gas price (fee amount)** | `effectiveGasPriceUluna()` in [`constants.ts`](../frontend-dapp/src/utils/constants.ts) floors a low `VITE_GAS_PRICE_ULUNA` at **`MIN_GAS_PRICE_ULUNA` (28.325)**, matching Station `gasPriceStep` / Columbus-5 norms. Without this, **insufficient fee** errors occur at broadcast: high `gas_wanted` but **Fee.amount** computed with a tiny gas price (repro stack: **`increase_allowance`** on `/trade` or `/limits` before the CW20 **`send`** + `place_limit_order` tx — [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). |
 | **Universal broadcast path** | Every on-chain submit uses **`broadcastTerraExecuteContracts`**; do not add parallel `wallet.broadcastTx` call sites. Gas limits live in **`terraGas.ts`**; sequence helpers (`executeCw20AllowanceThen`, `placeLimitOrderWithAllowance`) live in **`transactions.ts`** / **`pair.ts`**. [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127). |
@@ -1444,7 +1446,7 @@ Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not
 | **P534-2** | **Hub grouping.** Among economic pairs, group by the highest-priority hub present: UST1, then cLUNC, cUSTC, USTR, CL8Y, vFDUSD. All UST1 markets (UST1/cUSTC, UST1/USTR, cLUNC/UST1) stay adjacent. |
 | **P534-3** | **Volume within a group** prefers list JSON **`volume_usd_24h`** when present ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)). Else human quote volume `raw / 10^quoteDecimals` (mixed 6/18-dec safe). Do not sort 18-dec USTR raw against 6-dec cUSTC raw. |
 | **P534-4** | **Vol badge / `/pool` Vol** render compact **USD** from `volume_usd_24h` (`formatPairListVolumeUsd` / `formatIndexedVolumeUsd`). Missing / invalid → **—**. Never `formatNum(raw)` on USTR (`19,297,048T`). Indexer `volume_quote_24h` stays a **raw** integer for integrators. |
-| **P534-5** | Bare `/trade` navigates to the native-capable native USTC → configured CL8Y swap entry under [#1473](#trading-quote-outcomes-1473). Missing/ambiguous identities leave the pair selector available. Explicit genuine factory links retain precedence. |
+| **P534-5** | Bare `/trade` selects the first retail-filtered, catalog-ranked genuine factory market with a replace to `/trade/<pairAddr>` ([#1497](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1497)). Empty discovery retains the Trade selector. Explicit links and deliberate selections retain precedence; unresolved queries never choose an unrelated market. |
 | **P534-6** | **Typed search** keeps indexer `relevance` / local haystack order. Catalog rank applies to **empty browse** only. |
 | **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
 | **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
@@ -1462,7 +1464,7 @@ Soft-launch gemstone CW20s stay on columbus-5. The production dApp (`https://dex
 | **P562-1** | **Expose flag.** `retailExposeTestTokens()` is true iff `VITE_NETWORK !== 'mainnet'` **or** build-arg `VITE_SHOW_TEST_TOKENS=true`. Not a runtime query (`?showGems=1` forbidden). Default production image leaves the override unset. |
 | **P562-2** | **Identity.** Hide by hardcoded columbus-5 gem **addresses** (all eight, including QUARTZ/PEARL) **and** `GEM_SYMBOLS`. Unsetting Coolify `VITE_TOKEN_*` must not re-list gems. A gem contract spoofing `symbol=UST1` stays hidden; a listed hub/tokenlist token is never a gem even if someone names it RUBY (**X1**). UST1 / cLUNC / cUSTC / USTR / CL8Y / vFDUSD are never gems (**U6** / **P534-8**). |
 | **P562-3** | **Discovery.** Production empty browse and typed search omit gems from Swap `TokenSearchSelect`, Trade/Limits `PairSearchSelect`, Charts pair menu, and `/pool` (catalog **and** user column sorts). **Test pairs** divider is absent when nothing remains to group. LocalTerra still lists gems last under **Test pairs** (**P534-1**). |
-| **P562-4** | **Defaults.** Swap default uses exact native `uusd` → configured CL8Y identities (`defaultRetailSwapTokenPair`), independent of catalog rank. Bare `/trade` navigates to that native-capable flow. Missing/ambiguous defaults stay unselected; valid explicit links/selections take precedence ([#1473](#trading-quote-outcomes-1473)). |
+| **P562-4** | **Defaults.** Swap default uses exact native `uusd` → configured CL8Y identities (`defaultRetailSwapTokenPair`), independent of catalog rank. Trade separately uses `firstCatalogPairAddress` on eligible genuine factory markets ([#1497](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1497)). Missing/ambiguous Swap defaults stay unselected; valid explicit links/selections take precedence. Only validated explicit native Trade queries with no genuine factory match retain Swap compatibility. |
 | **P562-5** | **Create Pair.** Listed catalog does not append `SOFT_LAUNCH_MINTABLE_TOKENS` when `!retailExposeTestTokens()`. Custom paste of a gem CW20 still uses checksum + code-id check — no client-only “blocked token” toast. |
 | **P562-6** | **Quotes.** When both legs are economic, `findRoute` drops test pairs from the BFS graph and `quoteCw20ViaRouteSolve` returns `null` if any hop token is a gem (fail closed; displayed hops = executed hops). Gem↔gem remains allowed as an exit hatch. |
 | **P562-7** | **Balances / exit.** `/trader`, `/limits` history, and LP rows still render gem symbols and amounts. `/portfolio` Open Positions / header realized P&amp;L / Recent activity **hide** gems by default with **Show test pairs** ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674) **P674**). Deep link `/trade/<gem-pair-addr>` may resolve; optional static copy: **Legacy noneconomic market.** Do not put hidden gems back in global browse. Factory token universe remains the Swap gate (#481) — filter gems *inside* that set. |
@@ -1802,7 +1804,7 @@ Retail surfaces that depend on **indexer HTTP** share banner and loading primiti
 
 ### Swap page (`/` and `/swap`) — market data outage {#swap-page-market-data-outage}
 
-When the swap **`simulation`** query observes **indexer transport / 5xx** errors (`isIndexerUnavailableError` or `indexerTransportFailed` on pool fallback — [GitLab **#241**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241); **not** **400** route-solve failures — [GitLab **#326**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/326)), the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) above the form (`data-testid="swap-market-data-outage-banner"`).
+When the swap **`simulation`** query observes **indexer transport / 5xx** errors (`isIndexerUnavailableError` or `indexerTransportFailed` on pool fallback — [GitLab **#241**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/241); **not** **400** route-solve failures — [GitLab **#326**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/326)), the page shows a stacked [`MarketDataServiceOutageBanner`](../frontend-dapp/src/components/common/MarketDataServiceOutageBanner.tsx) inside the reserved quote-status area below the inputs (`data-testid="swap-market-data-outage-banner"`).
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -2718,10 +2720,15 @@ substitute unwrap's pre-bank-tax base floor. Preparation makes no chain queries.
 
 The shared checked local engine prices arbitrary supported pairs and exact raw
 amounts in either direction. Native USTC → configured CL8Y is the identity-based
-entry default, independent of symbols/catalog order. Native `uusd` remains distinct
-from cUSTC. Bare `/trade` navigates to the swap flow; explicit factory-pair links,
-chart identity and limit-order admission remain genuine. Missing/ambiguous defaults
-leave selection unavailable rather than selecting arbitrary catalog entries.
+Swap entry default, independent of symbols/catalog order. Native `uusd` remains distinct
+from cUSTC. Under [#1497](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1497),
+bare `/trade` stays in advanced trading and replaces to the first eligible catalog-ranked
+genuine factory market, or retains its selector when none exists. Explicit factory-pair
+links, chart identity and limit-order admission remain genuine. Missing/ambiguous Swap
+defaults leave selection unavailable. Validated explicit native Trade queries retain
+Swap compatibility when no genuine factory pair represents their funding. See the
+[Trade entry checklist](qa/issue-1497/README.md) and
+[agent protocol](../skills/AGENTS_TRADE_ENTRY.md).
 
 [Bounded public reasons](../frontend-dapp/src/utils/routeQuoteErrors.ts) render one
 applicable condition. Main receive output is executable under the exact selected UI protection
@@ -2832,3 +2839,27 @@ still block signing; invalid dust/precision/overflow input and expired original
 context remain unusable. Display predicates never replace guarded mutation or
 budget validation. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [the follow-up evidence](qa/issue-1489/RESULTS.md#supplemental-entry-and-effective-market-identity).
+
+Expected order Slippage and trading Fee (#1500) are separate from original fair-reference risk deviation. Follow [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md) and the [metric contract](route-solver.md#expected-order-slippage-1500); costs use one DETAILS disclosure.
+
+## Stable Swap presentation (#1498) and quote lifecycle (#1499)
+
+Swap keeps Pay/Receive above one fixed summary row (Slippage, Fee, actual token
+identities/icons), one reserved status area, one persistent DETAILS, and the CTA.
+Initial/new-intent loading replaces the summary at the same height. Details
+preserves keyboard/open state through refresh. It contains cost denomination,
+one separate LUNC network fee, selected protection/deadline, actual action/amounts,
+checked minimum, execution contracts and chain. Supported anonymous quotes show
+the positive quoted minimum; connection still requires actor-bound revalidation.
+No Quote only, separate route card or routine wrapper/wallet fee override prose.
+
+Current same-intent unexpired quotes retain the original receive, route and
+metrics through recoverable refreshes; pending/expired/new-intent values remain
+truthfully unavailable and cannot sign. Authoritative policy negatives still revoke
+unsafe work. Scheduled observation failures cannot establish permanent unsupported
+execution semantics. See [SL1498](../skills/AGENTS_SWAP_LAYOUT.md),
+[QL1499](../skills/AGENTS_QUOTE_LIFECYCLE.md),
+[layout checklist](qa/issue-1498/README.md), [lifecycle checklist](qa/issue-1499/README.md)
+and [joint release evidence](qa/trading-1497-1500/RESULTS.md).
+
+Swap entry remains native USTC (`uusd`) → the configured exact CL8Y identity; bare Trade selects a genuine eligible factory market (#1497).

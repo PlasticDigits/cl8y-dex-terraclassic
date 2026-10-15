@@ -20,19 +20,23 @@ export type SwapPreSubmitSummaryProps = {
   pairContractAddresses?: string[]
   /** Active Terra Classic network label (defaults to env badge copy). */
   chainFullLabel?: string
+  /** Embed in the single DETAILS disclosure without a second card. */
+  flat?: boolean
+  protectionControl?: ReactNode
+  deadlineLabel?: string
   'data-testid'?: string
 }
 
 function SummaryRow({ label, value, testId }: { label: string; value: ReactNode; testId: string }) {
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between" data-testid={testId}>
+    <div
+      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-baseline gap-x-3 gap-y-0.5"
+      data-testid={testId}
+    >
       <span className="uppercase text-[10px] tracking-wide font-medium shrink-0" style={{ color: 'var(--ink-subtle)' }}>
         {label}
       </span>
-      <span
-        className="font-mono text-[10px] sm:text-right break-words min-w-0 sm:max-w-[65%]"
-        style={{ color: 'var(--ink)' }}
-      >
+      <span className="font-mono text-[10px] text-right break-words min-w-0" style={{ color: 'var(--ink)' }}>
         {value}
       </span>
     </div>
@@ -87,6 +91,9 @@ export function SwapPreSubmitSummary({
   minReceiveHuman,
   pairContractAddresses = [],
   chainFullLabel = getNetworkBadgeCopy().fullLabel,
+  flat = false,
+  protectionControl,
+  deadlineLabel,
   'data-testid': testId = 'swap-pre-submit-summary',
 }: SwapPreSubmitSummaryProps) {
   const pairLabel = `${offerSymbol} → ${receiveSymbol}`
@@ -94,7 +101,7 @@ export function SwapPreSubmitSummary({
 
   return (
     <div
-      className="card-glass !p-2.5 space-y-2 text-[11px] sm:text-xs mb-3"
+      className={flat ? 'space-y-2 text-[11px] sm:text-xs' : 'card-glass !p-2.5 space-y-2 text-[11px] sm:text-xs mb-3'}
       data-testid={testId}
       role="region"
       aria-label="Swap summary before signing"
@@ -119,7 +126,14 @@ export function SwapPreSubmitSummary({
           value={`${formatHumanAmountGrouped(receiveAmountHuman)} ${receiveSymbol}`}
           testId="swap-confirm-receive"
         />
-        <SummaryRow label={SLIPPAGE_PROTECTION_LABEL} value={`${maxSpreadPercent}%`} testId="swap-confirm-max-spread" />
+        <SummaryRow
+          label={SLIPPAGE_PROTECTION_LABEL}
+          value={protectionControl ?? `${maxSpreadPercent}%`}
+          testId="swap-confirm-max-spread"
+        />
+        {deadlineLabel && (
+          <SummaryRow label="Transaction deadline" value={deadlineLabel} testId="swap-deadline-summary" />
+        )}
         <SummaryRow
           label="Min return"
           value={minReceiveHuman != null ? `${formatHumanAmountGrouped(minReceiveHuman)} ${receiveSymbol}` : '—'}

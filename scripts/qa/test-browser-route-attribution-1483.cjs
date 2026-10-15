@@ -198,7 +198,7 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
   w.__quotes1473.push(row);
   if (entry === "trade") receive.textContent = "0.9 UST1";
   else receive.value = "0.9";
-  aside.textContent = "Price difference 10.00% — different pricing.";
+  aside.textContent = "Fair-reference deviation 10.00%.";
   return {
     w,
     row,
@@ -465,7 +465,7 @@ for (const entry of ["swap", "trade"]) {
     for (const text of [
       "Cost breakdown unavailable.",
       "<script>private</script>",
-      "Price difference 10.00% — different pricing. 2%",
+      "Fair-reference deviation 10.00%. 2%",
     ]) {
       const f = fixture({ entry });
       f.aside.textContent = text;
@@ -532,14 +532,14 @@ test("ancestral overflow clipping is excluded from useful explanation visibility
   f.close();
 });
 
-test("ordinary price detail stays behind Signing details without an outside warning", () => {
+test("ordinary price detail stays behind DETAILS without an outside warning", () => {
   const f = fixture();
   f.aside.remove();
   const detail = f.w.document.createElement("details");
-  detail.dataset.testid = "swap-pre-submit-details";
+  detail.dataset.testid = "swap-details";
   const metric = f.w.document.createElement("p");
   metric.dataset.testid = "swap-price-details";
-  metric.textContent = "Price difference 1.00% — different pricing.";
+  metric.textContent = "Fair-reference deviation 1.00%.";
   detail.appendChild(metric);
   f.w.document.body.appendChild(detail);
   f.row.diagnostic.percent = "1.00";

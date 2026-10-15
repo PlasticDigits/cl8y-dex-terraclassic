@@ -28,6 +28,17 @@ describe('pricing-data wait ownership', () => {
     rerender({ ...initial, currentIntent: false })
     expect(result.current).toBe(false)
   })
+  it.each(['missing_observations', 'stale_observations'] as const)(
+    'does not replace a matching unexpired validated display during %s refresh',
+    (reason) => {
+      const { result, rerender } = renderHook(useQuotePricingDataPending, {
+        initialProps: { ...initial, hasValidatedQuote: true, error: new IndexerApiError(503, reason) },
+      })
+      expect(result.current).toBe(false)
+      rerender({ ...initial, hasValidatedQuote: false, error: new IndexerApiError(503, reason) })
+      expect(result.current).toBe(true)
+    }
+  )
   it.each(['amount_too_small', 'protection', 'unsupported_semantics'] as const)(
     'a real %s blocker supersedes the wait, including expired cached data',
     (reason) => {

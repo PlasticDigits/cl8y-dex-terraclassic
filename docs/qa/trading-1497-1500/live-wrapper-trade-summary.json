@@ -1,0 +1,62 @@
+{
+  "issue": 1497,
+  "deployed_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "independent_attestation_verdict": "PASS",
+  "independent_attestation_utc": "2026-10-14T08:11:09.201148+00:00",
+  "html_sha256": "06aec14ecea3333f684ea696c94f519f1a1941ad65106fbd88165166e4313dea",
+  "runs": {
+    "first": {
+      "verdict": "PASS",
+      "started_at_utc": "2026-10-14T08:12:37.393Z",
+      "completed_at_utc": "2026-10-14T08:13:17.441Z",
+      "qa_source_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+      "qa_source_dirty": false,
+      "qa_helper_sha256": "505b7cb3c511de7b49b63822f9752d32ec6118015a9aefcd2f982f9668365c17",
+      "pass_counts_by_width": {
+        "1440": 5,
+        "900": 5,
+        "390": 5
+      },
+      "served_root_attestation_matches": true,
+      "entry_and_trade_assets": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "sha256": "d392a062fb3d2e314a38f3f8df51eb26e9a742bb913f6603fe8a38f2956318d4",
+          "bytes": 181947
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "sha256": "bf5dea8749b096e10f0a2610e1f158c896f94504b17b2b2e006954e023c9fcbc",
+          "bytes": 60411
+        }
+      ]
+    },
+    "retest": {
+      "verdict": "PASS",
+      "started_at_utc": "2026-10-14T08:14:27.294Z",
+      "completed_at_utc": "2026-10-14T08:15:06.872Z",
+      "qa_source_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+      "qa_source_dirty": false,
+      "qa_helper_sha256": "505b7cb3c511de7b49b63822f9752d32ec6118015a9aefcd2f982f9668365c17",
+      "pass_counts_by_width": {
+        "1440": 5,
+        "900": 5,
+        "390": 5
+      },
+      "served_root_attestation_matches": true,
+      "entry_and_trade_assets": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "sha256": "d392a062fb3d2e314a38f3f8df51eb26e9a742bb913f6603fe8a38f2956318d4",
+          "bytes": 181947
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "sha256": "bf5dea8749b096e10f0a2610e1f158c896f94504b17b2b2e006954e023c9fcbc",
+          "bytes": 60411
+        }
+      ]
+    }
+  },
+  "limits": "Disconnected entry/navigation scope only. Prior synthetic recovery remains qualified: first 8/10 FAIL and retest 10/10 PASS, with unclassified desktop readiness waits and connected-wallet scope incomplete."
+}

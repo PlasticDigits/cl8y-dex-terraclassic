@@ -521,7 +521,7 @@ describe('SwapPage local executable quotes (#1452)', () => {
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${LOCAL_TO}` })
     fireEvent.change(await screen.findByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
-    expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price')
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price'))
     expect(screen.getByTestId('swap-submit')).toBeDisabled()
     expect(screen.queryByText('Wrapping is temporarily unavailable.')).not.toBeInTheDocument()
     await expect(mutationEntry.run!()).rejects.toThrow()
@@ -723,7 +723,7 @@ describe('SwapPage local executable quotes (#1452)', () => {
       expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
       expect(screen.getByTestId('swap-you-receive')).toHaveAttribute('aria-busy', 'true')
       expect(screen.getByTestId('swap-submit')).toBeDisabled()
-      expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price')
+      await waitFor(() => expect(screen.getByTestId('swap-submit')).toHaveTextContent('Wait for price'))
       expect(screen.queryByTestId('swap-quote-retry-error')).not.toBeInTheDocument()
       expect(screen.queryByTestId('swap-quote-unavailable')).not.toBeInTheDocument()
       expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
@@ -794,7 +794,8 @@ describe('SwapPage local executable quotes (#1452)', () => {
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
-    expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+    // The new direction can have its own initial wait; no obsolete rejection survives.
+    expect(screen.queryByTestId('swap-quote-error')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
   })
   it('immediately rechecks an expired cached amount within the global10s freshness window', async () => {
@@ -847,8 +848,8 @@ describe('SwapPage local executable quotes (#1452)', () => {
     await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
     expect(screen.getByTestId('swap-submit')).toHaveTextContent('Connect Wallet')
     expect(screen.queryAllByRole('alert')).toHaveLength(0)
-    expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Price difference')
-    expect(document.body).not.toHaveTextContent(/Balance unavailable|Need LUNC|Cost breakdown unavailable/i)
+    expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Fair-reference deviation')
+    expect(document.body).not.toHaveTextContent(/Balance unavailable|Need LUNC/i)
   })
   it('preserves unknown transaction status and makes a changed high quote explicit before signing', async () => {
     const router = await import('@/services/terraclassic/router')
@@ -913,9 +914,9 @@ describe('SwapPage local executable quotes (#1452)', () => {
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
-    await expect(mutationEntry.run!()).rejects.toThrow('Price difference is too high')
+    await expect(mutationEntry.run!()).rejects.toThrow('Fair-reference deviation is too high')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
-    expect(document.body).not.toHaveTextContent(/fair-reference|Quote may change|Worst hop spread/i)
+    expect(document.body).not.toHaveTextContent(/Quote may change|Worst hop spread/i)
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('swap-submit')).toBeDisabled()
     else await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
@@ -931,14 +932,12 @@ describe('SwapPage local executable quotes (#1452)', () => {
         return q
       })
       await ready()
-      expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Price difference 0.99%')
-      expect(screen.getByTestId('swap-price-details')).toHaveTextContent(
-        tampered ? 'Price difference 0.99%.' : 'different pricing'
-      )
-      expect(screen.getByTestId('swap-price-details')).not.toHaveTextContent(/unavailable|breakdown|reference/i)
+      expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Fair-reference deviation 0.99%')
+      expect(screen.getByTestId('swap-price-details')).toHaveTextContent('Fair-reference deviation 0.99%.')
+      expect(screen.getByTestId('swap-price-details')).not.toHaveTextContent(/unavailable|breakdown|different pricing/i)
       expect(screen.getByTestId('swap-price-details').textContent?.match(/%/g)).toHaveLength(1)
       expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
-      expect(screen.getByTestId('swap-pre-submit-details')).not.toHaveAttribute('open')
+      expect(screen.getByTestId('swap-details')).not.toHaveAttribute('open')
       expect(screen.queryAllByRole('alert')).toHaveLength(0)
       expect(document.body).not.toHaveTextContent('<script>secret</script>')
     }
@@ -953,7 +952,7 @@ describe('SwapPage local executable quotes (#1452)', () => {
       return pinned
     })
     const { queryClient } = await ready()
-    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 5.51%')
     let finish: ((value: ReturnType<typeof localQuote>) => void) | undefined
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(
       () =>
@@ -966,7 +965,7 @@ describe('SwapPage local executable quotes (#1452)', () => {
     })
     await waitFor(() => expect(finish).toBeDefined())
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.9449')
-    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 5.51%')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByTestId('swap-submit')).toBeDisabled()
     await expect(mutationEntry.run!()).rejects.toThrow()
@@ -976,8 +975,64 @@ describe('SwapPage local executable quotes (#1452)', () => {
       finish!(pinned!)
     })
     await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
-    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Price difference 5.51%')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 5.51%')
   })
+  it.each(['missing_observations', 'stale_observations'] as const)(
+    'retains unexpired amount, route and notice through a %s refresh and subsequent recovery (#1499)',
+    async (reason) => {
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        const q = localQuote(from, to, amount, options, '944900')
+        q.spot_amount_out = '1000000'
+        return attachReferenceAttribution(q)
+      })
+      const { queryClient } = await ready()
+      const usefulCalls = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
+      vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(503, reason))
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      })
+      await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(usefulCalls + 1))
+      await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeDisabled())
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.9449')
+      expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('5.51%')
+      expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-details')).toBeInTheDocument()
+      expect(screen.getByTestId('swap-submit')).toBeDisabled()
+      await expect(mutationEntry.run!()).rejects.toThrow()
+      const { executeMultiHopSwap } = await import('@/services/terraclassic/router')
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) =>
+        localQuote(from, to, amount, options, '990000')
+      )
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      })
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.99'))
+      await waitFor(() => expect(screen.getByTestId('swap-submit')).toBeEnabled())
+    }
+  )
+
+  it.each(['unsupported_semantics', 'protection', 'trading_blocked'] as const)(
+    'revokes a settled positive quote immediately after a genuine %s refresh (#1499)',
+    async (reason) => {
+      const { queryClient } = await ready()
+      expect(screen.getByTestId('swap-you-receive')).not.toHaveValue('')
+      vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(422, reason))
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      })
+      await waitFor(() => expect(screen.getByTestId('swap-quote-error')).toBeInTheDocument())
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+      expect(screen.queryByTestId('swap-price-data-loading')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('swap-impact-aside')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-details')).toBeInTheDocument()
+      expect(screen.getByTestId('swap-submit')).toBeDisabled()
+      await expect(mutationEntry.run!()).rejects.toThrow()
+      const { executeMultiHopSwap } = await import('@/services/terraclassic/router')
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    }
+  )
+
   it('updates the notice at exact 5% only after a newly validated quote changes (#1489)', async () => {
     let output = '944900'
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {

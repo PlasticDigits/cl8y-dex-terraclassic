@@ -2044,3 +2044,13 @@ verify-issue-1483:
 .PHONY: verify-issue-1489
 verify-issue-1489:
 	bash scripts/qa/verify-issue-1489.sh
+
+.PHONY: verify-issue-1497 verify-issue-1498 verify-issue-1499 verify-issue-1500
+verify-issue-1497:
+	bash scripts/verify-issue-1497.sh
+verify-issue-1498:
+	bash scripts/verify-issue-1498.sh
+verify-issue-1499:
+	bash scripts/verify-issue-1499.sh
+verify-issue-1500:
+	bash scripts/qa/verify-issue-1500.sh

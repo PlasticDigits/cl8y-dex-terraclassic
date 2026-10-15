@@ -163,6 +163,10 @@ impl Work {
                         body["economic_attribution"]["observed_at_ms"] = json!(observed);
                         body["economic_attribution"]["expires_at_ms"] = json!(expiry);
                     }
+                    if body["order_economics"]["status"] == "available" {
+                        body["order_economics"]["observed_at_ms"] = json!(observed);
+                        body["order_economics"]["expires_at_ms"] = json!(expiry);
+                    }
                     discovery.annotate(&mut body, true);
                     g.results.insert(self.key.clone(), body);
                     promoted = true;

@@ -1,0 +1,58 @@
+{
+  "issue": 1473,
+  "expected_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "utc": "2026-10-14T08:11:09.201148+00:00",
+  "read_only": true,
+  "frontend": {
+    "source_sha": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-14T08:05:11+00:00",
+    "artifact": {
+      "html_sha256": "06aec14ecea3333f684ea696c94f519f1a1941ad65106fbd88165166e4313dea",
+      "root_scripts": [
+        {
+          "asset": "theme.js",
+          "path": "/bootstrap/theme.js",
+          "sha256": "6b0a6f50dd342a54d8ee98bbf1219160dd5a589e4a8a79582ae224abdabd8238",
+          "bytes": 266
+        },
+        {
+          "asset": "trade-shell.js",
+          "path": "/bootstrap/trade-shell.js",
+          "sha256": "2b8f53acdfafa4e5419dcd052ebafb13790124e91cf21b5dec75377921b9ec34",
+          "bytes": 869
+        },
+        {
+          "asset": "index-BFOaf4Gt.js",
+          "path": "/assets/index-BFOaf4Gt.js",
+          "sha256": "d392a062fb3d2e314a38f3f8df51eb26e9a742bb913f6603fe8a38f2956318d4",
+          "bytes": 181947
+        }
+      ]
+    },
+    "revision_matches": true
+  },
+  "backend_deployment": {
+    "source_sha": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-14T08:08:48+00:00"
+  },
+  "backend": {
+    "git_sha": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+    "revision_matches": true
+  },
+  "overall": "PASS",
+  "read_count": 9,
+  "limits": {
+    "no_raw_private_bodies": true,
+    "no_private_endpoints": true,
+    "frontend_source_attestation": "completed deployment metadata and independently hashed served root artifacts",
+    "backend_source_attestation": "public health revision and completed deployment metadata",
+    "unverified": [
+      "lazy-loaded frontend artifacts",
+      "settlement",
+      "historical economics",
+      "physical devices"
+    ]
+  }
+}

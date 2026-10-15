@@ -5,6 +5,7 @@ const path = require("node:path");
 const http = require("node:http");
 const os = require("node:os");
 const { spawnSync } = require("node:child_process");
+const { createHash } = require("node:crypto");
 const { createRequire } = require("node:module");
 const root = path.resolve(__dirname, "../..");
 const frontendRequire = createRequire(
@@ -53,9 +54,15 @@ const tokens = assets.map((a) => ({
   cmc_id: null,
 }));
 let quoteRequests = 0;
+let completedQuoteRequests = 0;
+const geometryObservations = [];
+// Owned geometry scenarios change transport outcomes, never production budgets.
+let geometryFixture = { mode: "success", delayMs: 0, pauseProducer: false };
 // Independent fixture ingestion owns freshness; quote requests never renew it.
 let observedAtMs = Date.now();
-const producerTimer = setInterval(() => { observedAtMs = Date.now(); }, 4000);
+const producerTimer = setInterval(() => {
+  if (!geometryFixture.pauseProducer) observedAtMs = Date.now();
+}, 4000);
 producerTimer.unref();
 function quote(q) {
   quoteRequests++;
@@ -70,9 +77,14 @@ function quote(q) {
   ).toString();
   // This fixture has zero market spread and fees. Independently derive the
   // router ceiling while binding the exact UI tolerance to net floors (#1473).
-  const ceiling = (tolerance * scale + (scale - tolerance) - 1n) / (scale - tolerance);
-  const marketCeiling = ceiling >= scale ? "1" :
-    `0.${ceiling.toString().padStart(18, "0")}`.replace(/0+$/, "").replace(/\.$/, "");
+  const ceiling =
+    (tolerance * scale + (scale - tolerance) - 1n) / (scale - tolerance);
+  const marketCeiling =
+    ceiling >= scale
+      ? "1"
+      : `0.${ceiling.toString().padStart(18, "0")}`
+          .replace(/0+$/, "")
+          .replace(/\.$/, "");
   const hop = {
     pair: pairAddr,
     offer_token: q.get("token_in"),
@@ -116,10 +128,12 @@ function quote(q) {
       observed_at_ms: observedAtMs,
       expires_at_ms: observedAtMs + 20000,
       policy: "pool_only",
-      ...(quoteRelative ? {
-        protection_policy: "quote_relative_v1",
-        execution_market_spread: marketCeiling,
-      } : {}),
+      ...(quoteRelative
+        ? {
+            protection_policy: "quote_relative_v1",
+            execution_market_spread: marketCeiling,
+          }
+        : {}),
       minimum_receive: floor,
       hops: [hop],
     },
@@ -174,8 +188,30 @@ const server = http.createServer((req, res) => {
     return;
   }
   let body;
-  if (u.pathname === "/api/v1/route/solve") body = quote(u.searchParams);
-  else if (u.pathname === "/api/v1/pairs")
+  if (u.pathname === "/api/v1/route/solve") {
+    if (geometryFixture.mode === "success") body = quote(u.searchParams);
+    else {
+      quoteRequests++;
+      res.statusCode = geometryFixture.mode === "rejection" ? 422 : 503;
+      body = {
+        error:
+          geometryFixture.mode === "rejection"
+            ? "unsupported_semantics"
+            : geometryFixture.mode === "missing"
+              ? "missing_observations"
+              : "stale_observations",
+        generation: `browser-fixture${observedAtMs}`,
+      };
+    }
+    geometryObservations.push({
+      amount_in: u.searchParams.get("amount_in"),
+      status: res.statusCode,
+      observed_at_ms: body.execution_metadata?.observed_at_ms ?? null,
+      expires_at_ms: body.execution_metadata?.expires_at_ms ?? null,
+      received_at_ms: receivedAt,
+    });
+    if (geometryObservations.length > 32) geometryObservations.shift();
+  } else if (u.pathname === "/api/v1/pairs")
     body = { items: [pair], total: 1, limit: 100, offset: 0 };
   else if (u.pathname === "/api/v1/tokens") body = tokens;
   else if (u.pathname === `/api/v1/pairs/${pairAddr}`) body = pair;
@@ -205,16 +241,31 @@ const server = http.createServer((req, res) => {
       label: "",
       cache_hit: true,
       updated_at_ms: Date.now(),
+      quote_generation: `browser-fixture${observedAtMs}`,
+      quote_eligibility:
+        geometryFixture.mode === "success" ? "executable_quote" : "waiting",
     };
   else body = {};
   res.setHeader("X-Fixture-Received-At", String(receivedAt));
   res.setHeader("X-Fixture-Sent-At", String(Date.now()));
-  res.end(JSON.stringify(body));
+  const responseBody = JSON.stringify(body);
+  const delay =
+    u.pathname === "/api/v1/route/solve" ? geometryFixture.delayMs : 0;
+  const send = () => {
+    if (!res.destroyed) res.end(responseBody);
+    if (u.pathname === "/api/v1/route/solve") completedQuoteRequests++;
+  };
+  if (delay)
+    setTimeout(() => {
+      send();
+    }, delay);
+  else send();
 });
 const buildDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "cl8y-local-quotes-1452-"),
 );
 let browser;
+let buildProvenance;
 async function main() {
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -236,6 +287,17 @@ async function main() {
     VITE_WC_PROJECT_ID: "controlled-fixture",
     VITE_DEV_MODE: "false",
   };
+  buildProvenance = {
+    source_revision: spawnSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+    }).stdout.trim(),
+    source_dirty: !!spawnSync("git", ["status", "--porcelain"], {
+      cwd: root,
+      encoding: "utf8",
+    }).stdout.trim(),
+    built_at_utc: new Date().toISOString(),
+  };
   const built = spawnSync(
     "bash",
     [
@@ -256,6 +318,16 @@ async function main() {
     throw new Error(
       `Production fixture build failed: ${built.stdout.slice(-1500)} ${built.stderr.slice(-1500)}`,
     );
+  buildProvenance.served_assets = fs
+    .readdirSync(path.join(buildDir, "assets"))
+    .filter((name) => name.endsWith(".js"))
+    .sort()
+    .map((name) => ({
+      path: `/assets/${name}`,
+      sha256: createHash("sha256")
+        .update(fs.readFileSync(path.join(buildDir, "assets", name)))
+        .digest("hex"),
+    }));
   const launchFlags = [
     "--no-sandbox",
     "--disable-gpu",
@@ -280,10 +352,12 @@ async function main() {
   }
   let browserVersion;
   const receipts = [];
-  for (const viewport of [
-    { width: 1440, height: 1000 },
-    { width: 390, height: 844 },
-  ]) {
+  for (const viewport of process.env.LOCAL_QUOTE_BROWSER_GEOMETRY_ONLY
+    ? []
+    : [
+        { width: 1440, height: 1000 },
+        { width: 390, height: 844 },
+      ]) {
     for (const surface of ["Swap", "Trade"]) {
       const initializingAt = Date.now();
       browser = await chromium.launch({
@@ -542,6 +616,41 @@ async function main() {
       browser = undefined;
     }
   }
+  let geometry = [];
+  if (
+    process.env.LOCAL_QUOTE_BROWSER_GEOMETRY ||
+    process.env.LOCAL_QUOTE_BROWSER_GEOMETRY_ONLY
+  ) {
+    browser = await chromium.launch({
+      channel: "chrome",
+      headless: true,
+      args: launchFlags,
+    });
+    browserVersion = browser.version();
+    const { verifySwapGeometry } = require("./swap-layout-geometry-1498.cjs");
+    geometry = await verifySwapGeometry({
+      browser,
+      origin,
+      from,
+      to,
+      fixture: {
+        set(options = {}) {
+          geometryFixture = {
+            mode: "success",
+            delayMs: 0,
+            pauseProducer: false,
+            ...options,
+          };
+          observedAtMs = Date.now() - (options.observedAgeMs || 0);
+        },
+        requests: () => quoteRequests,
+        completed: () => completedQuoteRequests,
+        observations: () => [...geometryObservations],
+      },
+    });
+    await browser.close();
+    browser = undefined;
+  }
   const result = {
     recorded_at: new Date().toISOString(),
     environment:
@@ -555,6 +664,11 @@ async function main() {
     quote_requests: quoteRequests,
     provider_requests: providerRequests,
     receipts,
+    geometry,
+    build_provenance: buildProvenance,
+    geometry_measurement: geometry.length
+      ? "Owned production-build bounding rectangles after initialized quote; independent browser contexts, foreground, reduced motion and 200% root text. Timing trials are separate and retain original input clocks."
+      : undefined,
   };
   const output =
     process.env.LOCAL_QUOTE_BROWSER_RECEIPT ||
@@ -572,6 +686,7 @@ async function main() {
   );
   if (
     providerRequests !== 0 ||
+    geometry.some((r) => r.verdict !== "PASS") ||
     receipts.some(
       (r) =>
         r.max_ms >= 250 ||

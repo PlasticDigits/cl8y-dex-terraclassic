@@ -1,0 +1,1112 @@
+{
+  "recorded_at": "2026-10-14T05:39:31.616Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected; no broadcast; not production reference evidence",
+  "measurement": "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "quote_requests": 30,
+  "provider_requests": 0,
+  "receipts": [],
+  "geometry": [
+    {
+      "width": 1440,
+      "verdict": "PASS",
+      "findings": [
+        {
+          "name": "keyboard-single-details-disconnected-minimum-and-network-fee",
+          "verdict": "PASS",
+          "minimum": "MIN RETURN\n0.95 terra1qg…9namy2"
+        },
+        {
+          "name": "delayed-same-intent-refresh-retains-estimate-summary-and-open-details",
+          "verdict": "PASS"
+        },
+        {
+          "name": "authoritative-rejection-keeps-input-status-summary-geometry",
+          "verdict": "PASS"
+        },
+        {
+          "name": "missing-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "stale-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "recovery-new-intent-restores-supported-disconnected-floor",
+          "verdict": "PASS"
+        },
+        {
+          "name": "original-expiry-replaces-summary-with-equal-height-wait",
+          "verdict": "PASS"
+        },
+        {
+          "name": "rapid-new-intent-loading-keeps-fixed-inputs-and-disclosure",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+          "verdict": "PASS",
+          "text_size": "200% root font size",
+          "rows": [
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            }
+          ]
+        }
+      ],
+      "page_errors": [],
+      "fixture_observations": [
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956262412,
+          "expires_at_ms": 1791956282412,
+          "received_at_ms": 1791956264405
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956273850,
+          "expires_at_ms": 1791956293850,
+          "received_at_ms": 1791956274413
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956286217
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956286298,
+          "expires_at_ms": 1791956306298,
+          "received_at_ms": 1791956286342
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956268429,
+          "expires_at_ms": 1791956288429,
+          "received_at_ms": 1791956286470
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956287482
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956289422,
+          "expires_at_ms": 1791956309422,
+          "received_at_ms": 1791956289477
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "verdict": "PASS",
+      "findings": [
+        {
+          "name": "keyboard-single-details-disconnected-minimum-and-network-fee",
+          "verdict": "PASS",
+          "minimum": "MIN RETURN\n0.95 terra1qg…9namy2"
+        },
+        {
+          "name": "delayed-same-intent-refresh-retains-estimate-summary-and-open-details",
+          "verdict": "PASS"
+        },
+        {
+          "name": "authoritative-rejection-keeps-input-status-summary-geometry",
+          "verdict": "PASS"
+        },
+        {
+          "name": "missing-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "stale-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "recovery-new-intent-restores-supported-disconnected-floor",
+          "verdict": "PASS"
+        },
+        {
+          "name": "original-expiry-replaces-summary-with-equal-height-wait",
+          "verdict": "PASS"
+        },
+        {
+          "name": "rapid-new-intent-loading-keeps-fixed-inputs-and-disclosure",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+          "verdict": "PASS",
+          "text_size": "200% root font size",
+          "rows": [
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            }
+          ]
+        }
+      ],
+      "page_errors": [],
+      "fixture_observations": [
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956262412,
+          "expires_at_ms": 1791956282412,
+          "received_at_ms": 1791956264405
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956273850,
+          "expires_at_ms": 1791956293850,
+          "received_at_ms": 1791956274413
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956286217
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956286298,
+          "expires_at_ms": 1791956306298,
+          "received_at_ms": 1791956286342
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956268429,
+          "expires_at_ms": 1791956288429,
+          "received_at_ms": 1791956286470
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956287482
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956289422,
+          "expires_at_ms": 1791956309422,
+          "received_at_ms": 1791956289477
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956290488,
+          "expires_at_ms": 1791956310488,
+          "received_at_ms": 1791956291452
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956297851,
+          "expires_at_ms": 1791956317851,
+          "received_at_ms": 1791956301473
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313278
+        },
+        {
+          "amount_in": "2000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313360
+        },
+        {
+          "amount_in": "3000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313391
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313424
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956295521,
+          "expires_at_ms": 1791956315521,
+          "received_at_ms": 1791956313559
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956314568
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956316510,
+          "expires_at_ms": 1791956336510,
+          "received_at_ms": 1791956316568
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "verdict": "PASS",
+      "findings": [
+        {
+          "name": "keyboard-single-details-disconnected-minimum-and-network-fee",
+          "verdict": "PASS",
+          "minimum": "MIN RETURN\n0.95 terra1qg…9namy2"
+        },
+        {
+          "name": "delayed-same-intent-refresh-retains-estimate-summary-and-open-details",
+          "verdict": "PASS"
+        },
+        {
+          "name": "authoritative-rejection-keeps-input-status-summary-geometry",
+          "verdict": "PASS"
+        },
+        {
+          "name": "missing-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "stale-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "recovery-new-intent-restores-supported-disconnected-floor",
+          "verdict": "PASS"
+        },
+        {
+          "name": "original-expiry-replaces-summary-with-equal-height-wait",
+          "verdict": "PASS"
+        },
+        {
+          "name": "rapid-new-intent-loading-keeps-fixed-inputs-and-disclosure",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+          "verdict": "PASS",
+          "text_size": "200% root font size",
+          "rows": [
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            }
+          ]
+        }
+      ],
+      "page_errors": [],
+      "fixture_observations": [
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956262412,
+          "expires_at_ms": 1791956282412,
+          "received_at_ms": 1791956264405
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956273850,
+          "expires_at_ms": 1791956293850,
+          "received_at_ms": 1791956274413
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956286217
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956286298,
+          "expires_at_ms": 1791956306298,
+          "received_at_ms": 1791956286342
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956268429,
+          "expires_at_ms": 1791956288429,
+          "received_at_ms": 1791956286470
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956287482
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956289422,
+          "expires_at_ms": 1791956309422,
+          "received_at_ms": 1791956289477
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956290488,
+          "expires_at_ms": 1791956310488,
+          "received_at_ms": 1791956291452
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956297851,
+          "expires_at_ms": 1791956317851,
+          "received_at_ms": 1791956301473
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313278
+        },
+        {
+          "amount_in": "2000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313360
+        },
+        {
+          "amount_in": "3000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313391
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313424
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956295521,
+          "expires_at_ms": 1791956315521,
+          "received_at_ms": 1791956313559
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956314568
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956316510,
+          "expires_at_ms": 1791956336510,
+          "received_at_ms": 1791956316568
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956317851,
+          "expires_at_ms": 1791956337851,
+          "received_at_ms": 1791956318446
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956325850,
+          "expires_at_ms": 1791956345850,
+          "received_at_ms": 1791956328454
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956340258
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956340342,
+          "expires_at_ms": 1791956360342,
+          "received_at_ms": 1791956340384
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956322475,
+          "expires_at_ms": 1791956342475,
+          "received_at_ms": 1791956340515
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956341527
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956343465,
+          "expires_at_ms": 1791956363465,
+          "received_at_ms": 1791956343518
+        }
+      ]
+    },
+    {
+      "width": 430,
+      "verdict": "PASS",
+      "findings": [
+        {
+          "name": "keyboard-single-details-disconnected-minimum-and-network-fee",
+          "verdict": "PASS",
+          "minimum": "MIN RETURN\n0.95 terra1qg…9namy2"
+        },
+        {
+          "name": "delayed-same-intent-refresh-retains-estimate-summary-and-open-details",
+          "verdict": "PASS"
+        },
+        {
+          "name": "authoritative-rejection-keeps-input-status-summary-geometry",
+          "verdict": "PASS"
+        },
+        {
+          "name": "missing-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "stale-publication-equal-height-indeterminate-summary",
+          "verdict": "PASS"
+        },
+        {
+          "name": "recovery-new-intent-restores-supported-disconnected-floor",
+          "verdict": "PASS"
+        },
+        {
+          "name": "original-expiry-replaces-summary-with-equal-height-wait",
+          "verdict": "PASS"
+        },
+        {
+          "name": "rapid-new-intent-loading-keeps-fixed-inputs-and-disclosure",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+          "verdict": "PASS",
+          "text_size": "200% root font size",
+          "rows": [
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 31,
+              "firstLineDelta": 0,
+              "overlap": false
+            },
+            {
+              "bottomDelta": 1,
+              "firstLineDelta": 0,
+              "overlap": false
+            }
+          ]
+        }
+      ],
+      "page_errors": [],
+      "fixture_observations": [
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956262412,
+          "expires_at_ms": 1791956282412,
+          "received_at_ms": 1791956264405
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956273850,
+          "expires_at_ms": 1791956293850,
+          "received_at_ms": 1791956274413
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956286217
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956286298,
+          "expires_at_ms": 1791956306298,
+          "received_at_ms": 1791956286342
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956268429,
+          "expires_at_ms": 1791956288429,
+          "received_at_ms": 1791956286470
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956287482
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956289422,
+          "expires_at_ms": 1791956309422,
+          "received_at_ms": 1791956289477
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956290488,
+          "expires_at_ms": 1791956310488,
+          "received_at_ms": 1791956291452
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956297851,
+          "expires_at_ms": 1791956317851,
+          "received_at_ms": 1791956301473
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313278
+        },
+        {
+          "amount_in": "2000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956313360
+        },
+        {
+          "amount_in": "3000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313391
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956313385,
+          "expires_at_ms": 1791956333385,
+          "received_at_ms": 1791956313424
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956295521,
+          "expires_at_ms": 1791956315521,
+          "received_at_ms": 1791956313559
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956314568
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956316510,
+          "expires_at_ms": 1791956336510,
+          "received_at_ms": 1791956316568
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956317851,
+          "expires_at_ms": 1791956337851,
+          "received_at_ms": 1791956318446
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956325850,
+          "expires_at_ms": 1791956345850,
+          "received_at_ms": 1791956328454
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956340258
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956340342,
+          "expires_at_ms": 1791956360342,
+          "received_at_ms": 1791956340384
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956322475,
+          "expires_at_ms": 1791956342475,
+          "received_at_ms": 1791956340515
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956341527
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956343465,
+          "expires_at_ms": 1791956363465,
+          "received_at_ms": 1791956343518
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956344645,
+          "expires_at_ms": 1791956364645,
+          "received_at_ms": 1791956345568
+        },
+        {
+          "amount_in": "1000000",
+          "status": 200,
+          "observed_at_ms": 1791956353851,
+          "expires_at_ms": 1791956373851,
+          "received_at_ms": 1791956355580
+        },
+        {
+          "amount_in": "1000000",
+          "status": 422,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956367384
+        },
+        {
+          "amount_in": "4000000",
+          "status": 200,
+          "observed_at_ms": 1791956367468,
+          "expires_at_ms": 1791956387468,
+          "received_at_ms": 1791956367510
+        },
+        {
+          "amount_in": "5000000",
+          "status": 200,
+          "observed_at_ms": 1791956349599,
+          "expires_at_ms": 1791956369599,
+          "received_at_ms": 1791956367635
+        },
+        {
+          "amount_in": "5000000",
+          "status": 503,
+          "observed_at_ms": null,
+          "expires_at_ms": null,
+          "received_at_ms": 1791956368642
+        },
+        {
+          "amount_in": "7000000",
+          "status": 200,
+          "observed_at_ms": 1791956370585,
+          "expires_at_ms": 1791956390585,
+          "received_at_ms": 1791956370641
+        }
+      ]
+    }
+  ],
+  "build_provenance": {
+    "source_revision": "efb5fba29d3dc401d0d026d8b683db8054458920",
+    "source_dirty": true,
+    "built_at_utc": "2026-10-14T05:37:17.805Z",
+    "served_assets": [
+      {
+        "path": "/assets/ChartsPage-Ap6GEhZS.js",
+        "sha256": "5a080f3da79cd0a820822d20419dac2c4e6e01adbd7660fddcf8ffecf6e6de6c"
+      },
+      {
+        "path": "/assets/CreatePairPage-DHoa_Pk3.js",
+        "sha256": "398a35cc2bc9fd93eee10ea9d2ac2b99c72490205c835970a83f341d4096c95e"
+      },
+      {
+        "path": "/assets/CreateTokenPage-c1C7JIHw.js",
+        "sha256": "249f7424f00035f80493461a62030178b9bda0eaff9b1a2120624d8855d398ec"
+      },
+      {
+        "path": "/assets/LcdQueryGate-CHGx0Bkk.js",
+        "sha256": "5e6adef22fba8c48b88546cbb4ec19218ef8a067e331ec26f12e7b6f784e9706"
+      },
+      {
+        "path": "/assets/LimitOrdersPage-gyYokAMn.js",
+        "sha256": "5ca7f9f0d4d89d63c5151360a55fd94522ccdb5574be40d8a48e7afd0282d4ce"
+      },
+      {
+        "path": "/assets/ManageTokenPage-De8pcFuO.js",
+        "sha256": "316f33de2cff4620100ba1a94d13481e1127a6b60e04e05adef8522d737f076a"
+      },
+      {
+        "path": "/assets/MigrateTokenPage-CCuZ8gF7.js",
+        "sha256": "0125195a76c783317b7a9deec5f394706634a36d7a598dd380363aa0cf351659"
+      },
+      {
+        "path": "/assets/MintPage-De9_7BSG.js",
+        "sha256": "059e9a916a037d50141db0b8087a35f8a06e72bfbd929a167880e36ef5b499ee"
+      },
+      {
+        "path": "/assets/MyCommunityTokensPage-D6_YYatO.js",
+        "sha256": "fa874b22975bafcea25629db67662925785b95a6b98d308eee3841f22bbe7324"
+      },
+      {
+        "path": "/assets/PairCodeIdFrozenBanner-1letRJ9N.js",
+        "sha256": "957ea4dda654299297c38f1f9dc3222607e7e1d781e33569ba224e7f6c7daa9e"
+      },
+      {
+        "path": "/assets/PairTokenLinks-CMcnsxw4.js",
+        "sha256": "7d2ed9aa2b7148c97acae01c77031aa136c522e65539d201a001c7ac5af2d6e7"
+      },
+      {
+        "path": "/assets/PnlValue-CEzYCn4O.js",
+        "sha256": "58cd1fa0811bece80ddded79a0bb53bce9a2f9c67eb6a2f5719e8b8f5851803a"
+      },
+      {
+        "path": "/assets/PoolPage-DbpvW3t4.js",
+        "sha256": "f66cb71798c0c7b7028ed5143d282e52b3fdd5c61b2e2b4f3ee6d64126480099"
+      },
+      {
+        "path": "/assets/PortfolioPage-fKBZnXAX.js",
+        "sha256": "8878818eaba0416b14e41e1443bc78bee089ab56df68f065ddc01b3f8e7a562c"
+      },
+      {
+        "path": "/assets/ProtocolPage-B_kXCIRN.js",
+        "sha256": "67c00f2e9df79438fe1788f186d02aea384fa94d8a696757fb9ae024c1c484d7"
+      },
+      {
+        "path": "/assets/ShareLinkButton-DqLRUFfu.js",
+        "sha256": "9b992afb9e3df86d1d49b437864559f21b3ed9d19532af1f1688aa92b151926d"
+      },
+      {
+        "path": "/assets/StatBox-CKTINCst.js",
+        "sha256": "1df79c7923511e76b5bb701a039fc38e93323e470a9487d14d529fda8a7812fe"
+      },
+      {
+        "path": "/assets/SwapPage-aw40GpXB.js",
+        "sha256": "1f20de5e97cd00285922b1a528ecdd260677a4b22b42edb8d8ee31593cb991a1"
+      },
+      {
+        "path": "/assets/TiersPage-CEof9CEj.js",
+        "sha256": "e97b29af6e1b9742d69d679dd5dcc22c405ada2690b69e1a5d58214e749880de"
+      },
+      {
+        "path": "/assets/TokenLogo-BDwKa2VN.js",
+        "sha256": "3b48302afe74f4493d4509c3ba50742012a75006061010e014aa7212ca7784b9"
+      },
+      {
+        "path": "/assets/TokenSearchSelect-lBfaMAHd.js",
+        "sha256": "c5668a0793590176838c45bcf165c02755d71936b93f883277890b94b574f5a4"
+      },
+      {
+        "path": "/assets/TradeMarketDataUnavailableNotice-CHKIG6JX.js",
+        "sha256": "e4821b788952a7f705857f3e281545e67f3e7af810aada0b541b740ec5c4ffb9"
+      },
+      {
+        "path": "/assets/TradePage-Bhxu5uyQ.js",
+        "sha256": "29ac87a41569ca215a1885811e783a479f6889bcdeabe621f3402dfab641076a"
+      },
+      {
+        "path": "/assets/TraderLeaderboard-BfhAzB97.js",
+        "sha256": "2ed8379806e34a9fe5821f1348ecdba293ddd34d3621ea557f5f453495dd71a1"
+      },
+      {
+        "path": "/assets/TraderPage-CDFz0F4y.js",
+        "sha256": "dcac3065cdc7abdaf0e79c6cc731b5f089878e33661bf07ebbb0eeca4fb4933a"
+      },
+      {
+        "path": "/assets/TraderPositionsTable-DkfbrQlD.js",
+        "sha256": "c58560f6bc5d2941722e7de0052779dc8cbdcf3493cf383a1be60f4f8c91043d"
+      },
+      {
+        "path": "/assets/TradesTable-CnM4cEZa.js",
+        "sha256": "4fe40a17cc7d18d2517ecefd2e6767b2f61214dead809360ad991c30ef339a8b"
+      },
+      {
+        "path": "/assets/TxResultAlert-C9d-QZeM.js",
+        "sha256": "1655474c4f840fef782d0df0d375de390d1b867c9a957cce43b689a744ac7d51"
+      },
+      {
+        "path": "/assets/Ust1Page-DT6dERel.js",
+        "sha256": "b33cd83a92fcedf1b0dcc14b73276f11c749b0035c5b576376fb7bbdc08de10d"
+      },
+      {
+        "path": "/assets/WrapPage-DPUCI_jM.js",
+        "sha256": "14e9735a3b59bb1ccf40a0ca1f14a03847c9bc624a0f099fc8bcc8db495b1f5c"
+      },
+      {
+        "path": "/assets/assetCodeIdFreeze-TvvaP0_-.js",
+        "sha256": "241a78f563468b8f65436a04715e27fe26ed12e3e9b5d17c3f36c2eb1411c527"
+      },
+      {
+        "path": "/assets/chartsPairRoute-BwDq4P6T.js",
+        "sha256": "e54d6af703e33b9bfd7553ed86b2fd2e5a7be42004c1eb54ef9470927a7c0172"
+      },
+      {
+        "path": "/assets/communityTaxInvoice-CmO06rZf.js",
+        "sha256": "7d57dae26b909ad7f2cc8368e0a5b21a91fecf1b382b8eac849b8cb295b39f89"
+      },
+      {
+        "path": "/assets/communityTaxManager-f_eVvv2z.js",
+        "sha256": "7b8c1ab25763690309a45940033fc0f7b9a657a693aa1415f64b7ab8c95c3cc1"
+      },
+      {
+        "path": "/assets/communityTaxRegisterPair-Bea64_XG.js",
+        "sha256": "1e4db83b758275057faee603c6cc6c2b07a7756cdd51ea068bc157d8fff5c47b"
+      },
+      {
+        "path": "/assets/communityTaxToken-ND222Roj.js",
+        "sha256": "dd04f6840eb25d54b474a260473e0e41c35c4dd3974e32f69a2ae45f7be2a79d"
+      },
+      {
+        "path": "/assets/crypto-DTQ8O1tF.js",
+        "sha256": "b22b41c782eeb64de40f5599903d38d619efe1ca140511fdc3967185f18522f1"
+      },
+      {
+        "path": "/assets/dex-50IMmXQL.js",
+        "sha256": "0cdcee4fa7f7b1a727d7a0c9d99392626f6c5095a159c4a44322a03de7f40ff7"
+      },
+      {
+        "path": "/assets/factory-_P7PUybZ.js",
+        "sha256": "f410f1807f5b905ee32aa4f50fe6260c11efd665531c1a100c7f7979f35974dd"
+      },
+      {
+        "path": "/assets/feeDiscount-mOsyuOi3.js",
+        "sha256": "4f8bffdcc3ca03d39ad67ed8a278e6fbab65765966643d7cf04d2b51e748276f"
+      },
+      {
+        "path": "/assets/formatDate-B0creIbK.js",
+        "sha256": "213c118f390c64a03628e01f4ef315023d6153a89e887ca5d5fdf72a526a6794"
+      },
+      {
+        "path": "/assets/index-Cq3rVyCq.js",
+        "sha256": "de569f1a0914b9db0c9f51feae5f25a5f5629fff5f6c4e37e73f51f53e4d3b16"
+      },
+      {
+        "path": "/assets/indexerErrors-B8hiCRQ1.js",
+        "sha256": "9dae741307cf9ab91c7ec8aeee85a6bb84915e1229df0ce3f7fd0e758a43c589"
+      },
+      {
+        "path": "/assets/lightweight-charts.production-B8Uekivy.js",
+        "sha256": "22ec05473f3b09b65c5c8a9bc5fb7241a5ec34743c944c0f41346570243bf60f"
+      },
+      {
+        "path": "/assets/limitOrderPriceEdit-BEJjvNee.js",
+        "sha256": "4fa3fa0d933b285b77572f2d5e0b00f2c1f6b32c0ba9109c0247cc524851e07a"
+      },
+      {
+        "path": "/assets/limitPlacementLifecycle-BqCg5RrW.js",
+        "sha256": "cae9643bd982516df548b9803f3ab5b24f334b9fc8ab7187fea43fa1ee1d7c2d"
+      },
+      {
+        "path": "/assets/marketDataOutage-DRjzQ7vU.js",
+        "sha256": "f53d7106b0463f198e866cdd44430fbdb25123c439b36530968eeba9d63cf98a"
+      },
+      {
+        "path": "/assets/maxSpendableAmount-BU5juMnx.js",
+        "sha256": "7716e6e8269ee0e6efdef6d5de35f6645a3d82e9f11e914457f836e25dfbf1a0"
+      },
+      {
+        "path": "/assets/pairPriceUsd-DyH3j2LR.js",
+        "sha256": "1a0f89d79d990056333b26082f7a36f7047279c0b7d8f1424b7e76e15e212b11"
+      },
+      {
+        "path": "/assets/portalListboxKeyboard-D6KtDsgu.js",
+        "sha256": "de1d97907c175c434d780a6680d4a318675042d78a77a465b08178383653daf6"
+      },
+      {
+        "path": "/assets/quoteDebounce-BBi5Hvvt.js",
+        "sha256": "f89ce681ac662fe74b4d657b009d0ce4f705525d6485a2b5ad209aaa1b7626bb"
+      },
+      {
+        "path": "/assets/rawAmountMath-DJvj6k-_.js",
+        "sha256": "813c3c4a1e32b74a949b22a5c2bd90a14be48687b363528c285dec9bbc68af34"
+      },
+      {
+        "path": "/assets/router-B_hSsJ-W.js",
+        "sha256": "f266a0e7a82d9132d2705ec2b8c8ffc2ea549a677d3d46aa7fc45d59df48aa55"
+      },
+      {
+        "path": "/assets/settings-hdbLlD-O.js",
+        "sha256": "6237252762fd7ef54ff4af558e6dd2da2979f8b2bc0a43a03efdd2d8cfb8dc5e"
+      },
+      {
+        "path": "/assets/swapQueryParams-zxB2GstX.js",
+        "sha256": "d9ea4c0b14af7c290d62af2d9b241069af98e95804075b0c55d825e40f2a0bfb"
+      },
+      {
+        "path": "/assets/swapQuoteAmountScale-DZITTyM4.js",
+        "sha256": "bac5f148fefd4486078c3258e317e32ff554171989bb56f710b58e50ee095329"
+      },
+      {
+        "path": "/assets/trailingWindowCopy-CwZfRH-q.js",
+        "sha256": "47ecf676da93f76a9180bae7d796ba164405079f0050e85b88dbaa80f2c77367"
+      },
+      {
+        "path": "/assets/transactions-KSMlQ4te.js",
+        "sha256": "1c4b2ad936c9ce5b946c63edcfc684f72f9859670f38ccb454c521d08df92e2b"
+      },
+      {
+        "path": "/assets/useDebouncedValue-COobZORi.js",
+        "sha256": "2d981cf9b3891b894490c943ba4838e222fc5a119c2ca473ce8caf3a73cf854d"
+      },
+      {
+        "path": "/assets/usePairCodeIdFreeze-Dpd_BDYF.js",
+        "sha256": "88dc9e0f22975f634e5cd10624a4280a0d6512f265df353e677cc966c1bdd4a2"
+      },
+      {
+        "path": "/assets/usePairDisplayOrientation-CO9vacoX.js",
+        "sha256": "aeac9d4a8f53c75ce3681663dabb146e3881436a5ed89e55f2a4c7686091cc73"
+      },
+      {
+        "path": "/assets/usePairPaused-Cnb7yX5r.js",
+        "sha256": "4b8889a4714ab199114570c89ce771dbc70c5e330742794976740ea691f47b33"
+      },
+      {
+        "path": "/assets/useProtocolHubPricesQuery-C5Y9WtX1.js",
+        "sha256": "be7b00e7e2e5081af8aab6f910d2be579068382e37fe928c294c962586703312"
+      },
+      {
+        "path": "/assets/useTerraBroadcastMutation-dPOkfavK.js",
+        "sha256": "5fd78f50d9dca9210cac96d5b16f118318f8d6b3a201a83c55eb13a0037aa2db"
+      },
+      {
+        "path": "/assets/useTradingBlacklist-GZgqX-Et.js",
+        "sha256": "ca56031e50716b1c5701d5a3fccf6ba2f153d4a968f783df21a03e80f872816d"
+      },
+      {
+        "path": "/assets/ust1Window-BhXiNQpo.js",
+        "sha256": "8c44f49c58fc222a8407b281805cf87c593fc9c776cf0f654995fd6f85613c45"
+      },
+      {
+        "path": "/assets/vendor-react-_peu2KPp.js",
+        "sha256": "cdc3f95b11e668f7a4c84a3dab54dee9af84ab8aafc9831f080e4b3eefa563de"
+      },
+      {
+        "path": "/assets/vendor-state-DbRNHhEP.js",
+        "sha256": "4d5c92a590790327532deb70c93b49c8acecf3b5f088070c35c85ece4fbb1675"
+      },
+      {
+        "path": "/assets/wallet-terra-CL0ybbQF.js",
+        "sha256": "8d5a9ed88f3f607bbf5be9f65491085358123c3db84b08ad1dc10c132db536ca"
+      }
+    ]
+  },
+  "geometry_measurement": "Owned production-build bounding rectangles after initialized quote; independent browser contexts, foreground, reduced motion and 200% root text. Timing trials are separate and retain original input clocks."
+}

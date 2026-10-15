@@ -27,13 +27,17 @@ async fn required(
         .lcd
         .query_contract_bounded(address, &query, 32_768)
         .await
-        .map_err(|error| {
-            if crate::indexer::block_indexer::is_retryable_availability(&error) {
-                AdmissionFailure::Missing
-            } else {
-                AdmissionFailure::Unsupported
-            }
-        })
+        .map_err(|error| required_failure(&error))
+}
+fn required_failure(error: &crate::lcd::LcdError) -> AdmissionFailure {
+    // A positively rejected smart-query establishes unsupported semantics.
+    // Capacity, gas envelope, unavailable/malformed provider transport and
+    // chain-integrity failures supply no validated prerequisite and fail closed
+    // as unavailable, without claiming the contract itself is unsupported.
+    match error {
+        crate::lcd::LcdError::ContractQueryRejected(_) => AdmissionFailure::Unsupported,
+        _ => AdmissionFailure::Missing,
+    }
 }
 fn allowed_bool(value: &Value, field: &str, expected: bool) -> Result<(), AdmissionFailure> {
     match value[field].as_bool() {
@@ -146,6 +150,24 @@ pub(super) async fn observe_pair(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn issue1499_provider_failures_never_establish_unsupported_pair_semantics() {
+        use crate::lcd::LcdError;
+        for error in [
+            LcdError::AdmissionDeferred,
+            LcdError::AllEndpointsFailed("synthetic".into()),
+            LcdError::QueryGasLimitExceeded("synthetic".into()),
+            LcdError::Deserialize("synthetic".into()),
+            LcdError::ChainIdentity("synthetic".into()),
+            LcdError::HttpRejected(503),
+        ] {
+            assert_eq!(required_failure(&error), AdmissionFailure::Missing);
+        }
+        assert_eq!(
+            required_failure(&LcdError::ContractQueryRejected("unsupported query".into())),
+            AdmissionFailure::Unsupported
+        );
+    }
     #[test]
     fn pair_schema_distinguishes_malformed_unsupported_from_authoritative_protection() {
         assert_eq!(

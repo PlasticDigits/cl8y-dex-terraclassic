@@ -216,6 +216,7 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
       expect(screen.getByTestId('swap-submit')).toBeDisabled()
       expect(screen.getByTestId('swap-submit')).toHaveTextContent(/insufficient balance/i)
     })
+    expect(screen.getByTestId('swap-sell-tax-extra').closest('details')).toBe(screen.getByTestId('swap-details'))
     expect(swap).not.toHaveBeenCalled()
   })
 

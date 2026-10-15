@@ -12,6 +12,7 @@ export function useQuotePricingDataPending(input: {
   const [previous, setPrevious] = useState({ intentKey: input.intentKey, waiting: false })
   const waiting =
     input.currentIntent &&
+    !input.hasValidatedQuote &&
     (isIndexerPricingDataPending(input.error) ||
       (!input.error &&
         (input.expired === true ||

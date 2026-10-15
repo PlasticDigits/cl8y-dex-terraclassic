@@ -146,7 +146,7 @@ vi.mock('@/services/indexer/client', () => {
 })
 
 import * as indexerClient from '@/services/indexer/client'
-import { parseRouteQuoteError } from '@/utils/routeQuoteErrors'
+import { IndexerApiError, parseRouteQuoteError } from '@/utils/routeQuoteErrors'
 import * as pair from '@/services/terraclassic/pair'
 import { simulateMultiHopSwap } from '@/services/terraclassic/router'
 
@@ -207,6 +207,14 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
     return rendered
   }
+  it('shows the advisory Slippage/Fee/route row before Advanced and discloses network fees once', async () => {
+    await ready()
+    expect(screen.getByTestId('trade-market-route-summary')).toBeVisible()
+    expect(screen.getByTestId('trade-market-route-summary')).toHaveTextContent('Slippage Unavailable · Fee Unavailable')
+    expect(screen.getByTestId('trade-market-advanced')).toHaveAttribute('data-open', 'false')
+    expect(screen.getAllByTestId('trade-market-network-fee')).toHaveLength(1)
+    expect(screen.getByTestId('trade-market-signing-details')).toHaveTextContent('DETAILS')
+  })
   it.each([false, true])(
     'shows the same public reference explanation outside Advanced (tampered=%s)',
     async (tampered) => {
@@ -219,8 +227,8 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       })
       await ready()
       const aside = screen.getByTestId('trade-market-price-details')
-      expect(aside).toHaveTextContent('Price difference 0.99%')
-      expect(aside).toHaveTextContent(tampered ? 'Price difference 0.99%.' : 'different pricing')
+      expect(aside).toHaveTextContent('Fair-reference deviation 0.99%')
+      expect(aside).toHaveTextContent('Fair-reference deviation 0.99%.')
       expect(aside.textContent?.match(/%/g)).toHaveLength(1)
       expect(screen.queryByTestId('trade-market-impact-aside')).not.toBeInTheDocument()
       expect(screen.getByTestId('trade-market-signing-details')).not.toHaveAttribute('open')
@@ -315,6 +323,29 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
     expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
   })
+  it.each(['missing_observations', 'stale_observations'] as const)(
+    'retains exact-intent unexpired amount and notice after a %s refresh while refusing mutation (#1499)',
+    async (reason) => {
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+        const q = localQuote(from, to, amount, options, '944900')
+        q.spot_amount_out = '1000000'
+        return attachReferenceAttribution(q)
+      })
+      const { queryClient } = await ready()
+      vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new IndexerApiError(503, reason))
+      await act(async () => {
+        await queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
+      })
+      await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
+      expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.9449')
+      expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+      expect(screen.queryByTestId('trade-market-price-data-loading')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('trade-market-quote-error')).not.toBeInTheDocument()
+      expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+      await expect(mutationEntry.run!()).rejects.toThrow()
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    }
+  )
   it('requires renewed consent above 5%, cancel and changed quote', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
       const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())
@@ -361,7 +392,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     await waitFor(() => expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('1'))
     expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Connect Wallet')
     expect(screen.queryAllByRole('alert')).toHaveLength(0)
-    expect(screen.getByTestId('trade-market-price-details')).toHaveTextContent('Price difference')
+    expect(screen.getByTestId('trade-market-price-details')).toHaveTextContent('Fair-reference deviation')
     vi.mocked(wallets.getConnectedWallet).mockReturnValue({} as never)
   })
   it('keeps an included failure visible while showing the changed price in its next confirmation', async () => {
@@ -469,7 +500,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-impact-aside')).toBeInTheDocument())
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
-    await expect(mutationEntry.run!()).rejects.toThrow('Price difference is too high')
+    await expect(mutationEntry.run!()).rejects.toThrow('Fair-reference deviation is too high')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('trade-market-submit')).toBeDisabled()

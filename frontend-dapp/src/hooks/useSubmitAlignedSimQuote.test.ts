@@ -22,6 +22,7 @@ describe('useSubmitAlignedSimQuote', () => {
     )
     expect(result.current.isQuoteStale).toBe(true)
     expect(result.current.isSubmitReady).toBe(false)
+    expect(result.current.simData).toBe(baseSimData)
   })
 
   it('is submit-ready when amounts match and quote settled', () => {
@@ -61,6 +62,8 @@ describe('useSubmitAlignedSimQuote', () => {
       })
     )
     expect(result.current.isSubmitReady).toBe(false)
+    expect(result.current.simData).toBeUndefined()
+    expect(result.current.submitPayload).toBeUndefined()
   })
 
   it('blocks submit when live book leg differs from snapshotted hybrid (#360)', () => {
@@ -85,6 +88,7 @@ describe('useSubmitAlignedSimQuote', () => {
     )
     expect(result.current.isQuoteStale).toBe(true)
     expect(result.current.isSubmitReady).toBe(false)
+    expect(result.current.simData).toBeUndefined()
     expect(result.current.snapshottedHybrid).toEqual({ bookInputHuman: '2', hybridMaxMakers: 8 })
   })
 

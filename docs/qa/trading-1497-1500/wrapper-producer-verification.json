@@ -1,0 +1,73 @@
+{
+  "base_deployed_revision": "9dfa373f989ca9684c00ce40bc0525265243dfe9",
+  "scope": "Verified dirty producer follow-up; prior source/deployment and failed runs retained separately",
+  "runtime_diff": [
+    "indexer/src/api/local_wrapper_quote.rs"
+  ],
+  "commands": [
+    {
+      "issue": 1499,
+      "exit_code": 0,
+      "log": "verify-1499.log"
+    },
+    {
+      "issue": 1452,
+      "exit_code": 2,
+      "log": "verify-1452.log"
+    },
+    {
+      "issue": 1483,
+      "exit_code": 0,
+      "log": "verify-1483.log"
+    },
+    {
+      "issue": 1464,
+      "exit_code": 0,
+      "log": "verify-1464.log"
+    }
+  ],
+  "producer_tests": {
+    "first": 13,
+    "retest": 13,
+    "new_adversarial_cases": 7,
+    "actual_lcd_shared_budget_first_retest": "PASS"
+  },
+  "qa_guard_tests_first_retest": 13,
+  "retained_failure": {
+    "issue": 1452,
+    "original_available_groups": "13 PASS / 1 FAIL / 0 SKIP",
+    "failed_group": "retest production-build controlled browser",
+    "sample_ms": 401.2,
+    "threshold_ms": 250,
+    "response_start_to_end_ms": 364.6,
+    "frontend_long_tasks": 0,
+    "cause": "Unclassified transport/scheduling delay; no speculative product/transport patch"
+  },
+  "targeted_fresh_browser_step": [
+    {
+      "trial": "first",
+      "status": "PASS",
+      "samples": 40,
+      "max_ms": 49.9,
+      "threshold_ms": 250,
+      "provider_requests": 0,
+      "raw_receipt_sha256": "32aa08893c4b8d5858e8313a6e8911c889d2131befaa10bb2445a2c050e05433"
+    },
+    {
+      "trial": "retest",
+      "status": "PASS",
+      "samples": 40,
+      "max_ms": 48,
+      "threshold_ms": 250,
+      "provider_requests": 0,
+      "raw_receipt_sha256": "3dff3316890db75a83f5a647506672b2e174153208cc0e05495a4329c5b68531"
+    }
+  ],
+  "runtime_input_sha256": "529066ed9842b8c2be09a877f762f9d66f6d2ee63df5ac4c444cace30a08ab2c",
+  "hashes": {
+    "verify-1499.log": "7ca3ed6ce3b675d9d6cdbce337b4dd76915dc22b56e2a1156257c5e6ba6bca10",
+    "verify-1452.log": "84f76f74794a2b6d941d616609e540e0f89dc589012c74787d81b8089968b87a",
+    "verify-1483.log": "3f2d4928c7bbe1773776ba7c6a60ac700e360219ef59b7a22cb65e53246275ce",
+    "verify-1464.log": "96b26905525dc7471489812903b9da0d693915d88da3435db357268aa13140aa"
+  }
+}

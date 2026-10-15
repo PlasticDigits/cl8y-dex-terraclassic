@@ -1,0 +1,194 @@
+{
+  "deployed_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "overall": "FAIL",
+  "phase": "wrapper_final_first_retained",
+  "window_count": 12,
+  "sample_count": 11252,
+  "quote_progress_reads": 1328,
+  "solve_reads": 355,
+  "progress_reads": 973,
+  "read_budget": 1800,
+  "blocked_writes": 0,
+  "blocked_provider": 0,
+  "artifacts_unchanged": true,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 937,
+      "elapsed_ms": 190119,
+      "first_dom_ms": 37503.099999997765,
+      "first_useful_ms": 37530.5,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "response_count": 27,
+      "missing_count": 10,
+      "metrics_validated_count": 16,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190040,
+      "first_dom_ms": 370.1000000014901,
+      "first_useful_ms": 384.4000000022352,
+      "failures": [],
+      "response_count": 28,
+      "missing_count": 0,
+      "metrics_validated_count": 23,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 932,
+      "elapsed_ms": 190203,
+      "first_dom_ms": 1042.8999999985099,
+      "first_useful_ms": 1139,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "response_count": 35,
+      "missing_count": 8,
+      "metrics_validated_count": 23,
+      "cancelled_probe_count": 1
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190018,
+      "first_dom_ms": 351.8999999985099,
+      "first_useful_ms": 414.8999999985099,
+      "failures": [],
+      "response_count": 36,
+      "missing_count": 13,
+      "metrics_validated_count": 23,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 937,
+      "elapsed_ms": 190167,
+      "first_dom_ms": 36788.39999999851,
+      "first_useful_ms": 36811.599999997765,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "response_count": 26,
+      "missing_count": 9,
+      "metrics_validated_count": 16,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->cLUNC",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190188,
+      "first_dom_ms": 349.1000000014901,
+      "first_useful_ms": 413.9000000022352,
+      "failures": [],
+      "response_count": 36,
+      "missing_count": 0,
+      "metrics_validated_count": 31,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 936,
+      "elapsed_ms": 190214,
+      "first_dom_ms": 2752.5,
+      "first_useful_ms": 2783.300000000745,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "response_count": 31,
+      "missing_count": 13,
+      "metrics_validated_count": 18,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "cLUNC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 937,
+      "elapsed_ms": 190068,
+      "first_dom_ms": 534.5999999977648,
+      "first_useful_ms": 538.8999999985099,
+      "failures": [],
+      "response_count": 20,
+      "missing_count": 0,
+      "metrics_validated_count": 20,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190088,
+      "first_dom_ms": 34214.10000000149,
+      "first_useful_ms": 34233.5,
+      "failures": [
+        "browser_useful_over750"
+      ],
+      "response_count": 25,
+      "missing_count": 5,
+      "metrics_validated_count": 19,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "UST1->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190067,
+      "first_dom_ms": 353.30000000074506,
+      "first_useful_ms": 416.9000000022352,
+      "failures": [],
+      "response_count": 25,
+      "missing_count": 1,
+      "metrics_validated_count": 20,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "desktop",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190111,
+      "first_dom_ms": 347.70000000298023,
+      "first_useful_ms": 371.6000000014901,
+      "failures": [],
+      "response_count": 33,
+      "missing_count": 12,
+      "metrics_validated_count": 20,
+      "cancelled_probe_count": 0
+    },
+    {
+      "case": "CL8Y->UST1",
+      "viewport": "phone",
+      "completed": true,
+      "samples": 939,
+      "elapsed_ms": 190062,
+      "first_dom_ms": 348.69999999925494,
+      "first_useful_ms": 371.19999999925494,
+      "failures": [],
+      "response_count": 20,
+      "missing_count": 0,
+      "metrics_validated_count": 20,
+      "cancelled_probe_count": 0
+    }
+  ]
+}

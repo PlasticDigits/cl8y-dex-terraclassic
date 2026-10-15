@@ -179,7 +179,7 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     localMarketMocks(getAllPairsPaginated)
   })
 
-  it('A1: disconnected settled quote is quote-only with Connect Wallet', async () => {
+  it('A1: disconnected settled quote displays its minimum with Connect Wallet', async () => {
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
@@ -193,7 +193,9 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
         expect(receive).not.toHaveTextContent('0.00')
       }
     })
-    expect(await screen.findByTestId('swap-quote-only')).toHaveTextContent(/quote only/i)
+    expect(screen.queryByTestId('swap-quote-only')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-confirm-min-return')).not.toHaveTextContent('—')
+    expect(screen.getByTestId('swap-details')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /connect wallet/i })).toBeEnabled()
     expect(screen.queryByText(/Min Received/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('swap-acquire-guidance')).not.toBeInTheDocument()

@@ -1,0 +1,496 @@
+{
+  "issue": 1497,
+  "deployed_frontend_revision": "9dfa373f989ca9684c00ce40bc0525265243dfe9",
+  "first_utc": [
+    "2026-10-14T07:06:00.785Z",
+    "2026-10-14T07:09:54.846Z"
+  ],
+  "first_verdict": "FAIL",
+  "retest_utc": [
+    "2026-10-14T07:18:49.521Z",
+    "2026-10-14T07:21:39.509Z"
+  ],
+  "retest_verdict": "PASS",
+  "per_trial": [
+    {
+      "width": 1440,
+      "name": "synthetic-catalog-outage-manual-retry",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 1,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2339
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2351
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 3919
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 3926
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 1440,
+      "name": "synthetic-panels-outage-online-reconnect",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 1,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2713
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 3110
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 5583
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 5595
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 1440,
+      "name": "offline-lazy-import-manual-retry-preserves-trade",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 2,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2836
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2847
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 12731
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 12746
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 15849
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 15858
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 1440,
+      "name": "single-stale-chunk-404-one-shot-reload",
+      "first": "FAIL",
+      "retest": "PASS",
+      "retest_documents": 2,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2295
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2326
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 4749
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 8269
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 8281
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 9948
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 9957
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 1440,
+      "name": "repeated-stale-chunk-404-bounded-error-and-explicit-reload",
+      "first": "FAIL",
+      "retest": "PASS",
+      "retest_documents": 3,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2707
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2747
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 6789
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 10313
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 10331
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 12609
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 16089
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 16102
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 18411
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 18417
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 390,
+      "name": "synthetic-catalog-outage-manual-retry",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 1,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2310
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2329
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 4119
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 4127
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 390,
+      "name": "synthetic-panels-outage-online-reconnect",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 1,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2184
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2203
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 3936
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 3940
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 390,
+      "name": "offline-lazy-import-manual-retry-preserves-trade",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 2,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2275
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2295
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 7806
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 7829
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 8640
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 8644
+        }
+      ],
+      "retest_interrupted_optional_reads": 0,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 390,
+      "name": "single-stale-chunk-404-one-shot-reload",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 2,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 2215
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 2233
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 3693
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 5403
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 5424
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 6290
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 6298
+        }
+      ],
+      "retest_interrupted_optional_reads": 38,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    },
+    {
+      "width": 390,
+      "name": "repeated-stale-chunk-404-bounded-error-and-explicit-reload",
+      "first": "PASS",
+      "retest": "PASS",
+      "retest_documents": 3,
+      "retest_root_trade_events": [
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 3012
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 3033
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 3930
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 5436
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 5457
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 404,
+          "elapsed_ms": 6162
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 9336
+        },
+        {
+          "path": "/assets/index-BFOaf4Gt.js",
+          "stage": "body_complete",
+          "elapsed_ms": 9354
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "response_headers",
+          "status": 200,
+          "elapsed_ms": 10333
+        },
+        {
+          "path": "/assets/TradePage-zG7mnnNd.js",
+          "stage": "body_complete",
+          "elapsed_ms": 10339
+        }
+      ],
+      "retest_interrupted_optional_reads": 38,
+      "provider_attempts": 0,
+      "mutation_attempts": 0,
+      "artifact_mismatches": 0
+    }
+  ],
+  "limits": [
+    "Synthetic consumer failures only; actual backend outage/checkpoint/provider recovery is not established.",
+    "Disconnected isolated browser contexts; connected wallets and signing are unverified.",
+    "Earlier two desktop 30 s reload-readiness waits remain unclassified FAIL/incomplete; successful retest does not erase them."
+  ],
+  "executed_retest_helper_sha256": "90ff12fa58b39698a01487cd6972abd1311889c3633a8654e15ddcd79fff5a68"
+}
