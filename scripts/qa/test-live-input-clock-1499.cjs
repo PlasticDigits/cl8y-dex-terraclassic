@@ -140,7 +140,60 @@ test("a visibility-aborted identical-value paint can qualify after foreground re
   assert.equal(h.w.__liveClock1499.started, 0);
   h.close();
 });
+test("two-frame paint binds output and metrics together and rearms for corrected metrics on the original clock", () => {
+  const h = harness();
+  const slippage = h.w.document.createElement("span");
+  slippage.dataset.testid = "swap-order-slippage";
+  slippage.textContent = "Slippage 1.00%";
+  h.w.document.body.append(slippage);
+  h.receive.value = "1";
+  h.tick(400);
+  h.tick(416);
+  slippage.textContent = "Slippage 2.00%";
+  h.tick(432);
+  h.tick(448);
+  h.tick(464);
+  h.tick(480);
+  assert.equal(h.w.__liveClock1499.candidates.length, 1);
+  assert.equal(h.w.__liveClock1499.candidates[0].slippage, "Slippage 2.00%");
+  assert.equal(h.w.__liveClock1499.candidates[0].input_to_paint_ms, 464);
+  assert.equal(h.w.__liveClock1499.started, 0);
+  h.close();
+});
 const { eligibleQuotesAtSnapshot } = require("./live-input-clock-1499.cjs");
+const { nativeResponseEpoch } = require("./live-input-clock-1499.cjs");
+test("native response clock survives CDP body delivery after original expiry", () => {
+  const responseAt = nativeResponseEpoch({
+    startTime: 1800000000000,
+    responseEnd: 200.2,
+  });
+  assert.equal(responseAt, 1800000000201);
+  const originalExpiry = 1800000000300;
+  const diagnosticDelivery = 1800000001500;
+  assert.ok(responseAt < originalExpiry);
+  assert.ok(diagnosticDelivery > originalExpiry);
+  const quote = {
+    useful: true,
+    observed: 1799999980300,
+    expires: originalExpiry,
+    absolute_at: responseAt,
+  };
+  assert.equal(eligibleQuotesAtSnapshot([quote], originalExpiry - 1).length, 1);
+  assert.equal(eligibleQuotesAtSnapshot([quote], originalExpiry).length, 0);
+});
+test("missing native response timing refuses rather than substituting a later Node clock", () => {
+  for (const timing of [
+    null,
+    {},
+    { startTime: 0, responseEnd: 1 },
+    { startTime: 1800000000000, responseEnd: -1 },
+    { startTime: NaN, responseEnd: 1 },
+  ])
+    assert.throws(
+      () => nativeResponseEpoch(timing),
+      /native_response_clock_unavailable/,
+    );
+});
 const { displayedQuoteRetention } = require("./live-input-clock-1499.cjs");
 const {
   updateDisplayedQuoteOwners,

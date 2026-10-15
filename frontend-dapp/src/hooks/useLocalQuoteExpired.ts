@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { isExpiredLocalQuote, localQuoteExpiryMs } from '@/utils/localQuoteFreshness'
 
 /** One bounded timer per original snapshot, shared by pay and receive sizing.
@@ -16,7 +17,10 @@ export function useLocalQuoteExpired(data: unknown): boolean {
     const expire = () => {
       const remaining = expiry - Date.now()
       if (remaining > 0) timer = window.setTimeout(expire, delay(remaining))
-      else refreshExpiry((value) => value + 1)
+      // A concurrent React update can leave the old executable amount in the DOM
+      // after this original deadline until another scheduler task commits it.
+      // Revoke display and payload in this timer task, before another paint/read.
+      else flushSync(() => refreshExpiry((value) => value + 1))
     }
     timer = window.setTimeout(expire, delay(expiry - Date.now()))
     return () => window.clearTimeout(timer)

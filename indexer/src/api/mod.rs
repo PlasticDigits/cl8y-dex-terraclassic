@@ -78,6 +78,7 @@ mod local_wrapper_quote;
 mod route_paths;
 // Historical network solver retained only for arithmetic/regression comparison.
 mod quote_cache_control;
+mod quote_trace;
 #[cfg(test)]
 mod route_slippage;
 mod route_solve_progress;
@@ -625,7 +626,8 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST])
-        .allow_headers([header::CONTENT_TYPE, header::ACCEPT]);
+        .allow_headers([header::CONTENT_TYPE, header::ACCEPT])
+        .expose_headers([quote_trace::REQUEST_ID_HEADER]);
 
     // LCD-heavy routes: stricter per-IP rate limit (H7) in addition to the global governor.
     let lcd_heavy_router = Router::new()
@@ -826,7 +828,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let api_router = apply_rate_limit_layer(api_router, config.rate_limit_rps);
 
     api_router
-        .layer(TraceLayer::new_for_http())
+        .layer(TraceLayer::new_for_http().make_span_with(quote_trace::http_span))
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(TimeoutLayer::with_status_code(
@@ -834,6 +836,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             Duration::from_secs(30),
         ))
         .layer(axum::middleware::from_fn(quote_cache_control::no_store))
+        .layer(axum::middleware::from_fn(quote_trace::correlate))
         .with_state(state)
 }
 

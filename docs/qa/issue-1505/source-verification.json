@@ -1,0 +1,46 @@
+{
+  "issue": 1505,
+  "source_checks": [
+    {
+      "label": "native-recovery",
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "summary": "passed=12 failed=0 skipped=1",
+      "source_fingerprint": "414525de01d0733f31385c382d9c0411f442433f9a78a7935d2f4d6f58e35e87",
+      "log_sha256": "b40ae65ed490b96aaf4e9c8563c0cbd79917b75aceaef2cafe7005068b81112f"
+    },
+    {
+      "label": "quote-lifecycle",
+      "command": "make verify-issue-1499",
+      "overall": "PASS WITH SKIPS",
+      "summary": "passed=10 failed=0 skipped=1",
+      "source_fingerprint": "414525de01d0733f31385c382d9c0411f442433f9a78a7935d2f4d6f58e35e87",
+      "log_sha256": "fced46495e3352e154d6eb7efd5955090e4a75ef5736a9e91a4d463ce1f29d42"
+    },
+    {
+      "label": "provider-recovery",
+      "command": "make verify-issue-1464",
+      "overall": "PASS WITH SKIPS",
+      "summary": "PASS=11 FAIL=0 SKIP=2",
+      "source_fingerprint": "2ba5394a41f50049b9ca07522c73997b00cc196eccbe068abb87a8665b9b21ab",
+      "log_sha256": "9768e6931eb85542fa1a5dc5ae3c49e948c90667fffb8d5b04c3ca969bacce23"
+    }
+  ],
+  "helpers": {
+    "scripts/qa/live-input-clock-1499.cjs": "a6bacf3879da46c7b4ce698d71c3487321eda3a7fd99b171a03fb4455bdc5805",
+    "scripts/qa/live-read-guard-1499.cjs": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4",
+    "scripts/qa/live-trading-lifecycle-1499.cjs": "852b477c7734a130bc159f6add520478eeddd36563ee009baee24ff04447f82c",
+    "scripts/qa/test-live-input-clock-1499.cjs": "9a6ddecdf493f2fe33e635933af003034733e0947f6bf2bb94528f5814d73c3f",
+    "scripts/qa/test-live-read-guard-1499.cjs": "6c3a8a9e962cb7e0370150d75a7cc18c47d0d75437427851ed6f6a1be057945d",
+    "scripts/qa/test-live-trading-lifecycle-1499.cjs": "e96713b71d306bd4215a064d51ac76bf86e3d882b220b8a0e32e7367db30fe22",
+    "scripts/qa/live-quote-economics-1500.cjs": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662",
+    "scripts/qa/test-live-quote-economics-1500.cjs": "3323d4c4ec772e9cee51323bc76fe0ae08bf8d71369d7310b2b68f0abbd6ecb9",
+    "scripts/qa/probe-native-recovery-1505.py": "fc21856b5cff407aef0f5d6ed9d2eebd0620d9f668f5bdb6a06b4305ef1b7e46",
+    "scripts/qa/probe-native-monitoring-1505.py": "35ae506c37967e467d026c0068653ca4c3391f19201c21c2c85fe8299d5e3cf8",
+    "scripts/qa/test-native-recovery-1505.py": "16bb4399da9b25c861ebf12f9f797f6ea1e1c97f7291517ad56cbed1efd9a9ea",
+    "scripts/verify-issue-1505.sh": "ba9eca01d2d02b44d3d05cea1478f40ff35c8ffb022870355edae60d90875393"
+  },
+  "production_build": "PASS with CI synthetic WalletConnect identifier and dev mode false",
+  "gitleaks": "PASS CI-pinned8.30.0 tracked tree",
+  "limits": "Source and disposable fixture verification only; live deployed acceptance is separate. Explicit skips retain source/deployed/funded boundaries."
+}

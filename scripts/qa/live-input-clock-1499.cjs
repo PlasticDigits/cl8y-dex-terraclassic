@@ -56,6 +56,15 @@ function installInputClock() {
       Number(s.opacity) > 0
     );
   };
+  const displayed = () => ({
+    value: receive.value,
+    slippage:
+      document.querySelector('[data-testid="swap-order-slippage"]')
+        ?.textContent || "",
+    fee:
+      document.querySelector('[data-testid="swap-trading-fee"]')?.textContent ||
+      "",
+  });
   const check = () => {
     if (clock.stopped || clock.started == null || ++frames > 15000) return;
     const frameAt = performance.now();
@@ -69,10 +78,12 @@ function installInputClock() {
         duration_ms: frameAt - lastFrame,
       });
     lastFrame = frameAt;
-    const value = receive.value;
+    const display = displayed(),
+      value = display.value,
+      signature = JSON.stringify(display);
     if (!value) lastValue = null;
-    if (value && value !== lastValue && visible(pay) && visible(receive)) {
-      lastValue = value;
+    if (value && signature !== lastValue && visible(pay) && visible(receive)) {
+      lastValue = signature;
       const ready = performance.now() - clock.started;
       if (clock.dom_observations.length < 32)
         clock.dom_observations.push({
@@ -81,12 +92,12 @@ function installInputClock() {
           epoch_ms: Date.now(),
         });
       const abandon = () => {
-        if (lastValue === value) lastValue = null;
+        if (lastValue === signature) lastValue = null;
       };
       requestAnimationFrame(() => {
         if (
           clock.stopped ||
-          receive.value !== value ||
+          JSON.stringify(displayed()) !== signature ||
           !visible(pay) ||
           !visible(receive)
         ) {
@@ -97,7 +108,7 @@ function installInputClock() {
         requestAnimationFrame(() => {
           if (
             clock.stopped ||
-            receive.value !== value ||
+            JSON.stringify(displayed()) !== signature ||
             !visible(pay) ||
             !visible(receive)
           ) {
@@ -106,7 +117,7 @@ function installInputClock() {
           }
           if (clock.candidates.length < 32)
             clock.candidates.push({
-              value,
+              ...display,
               first_dom_ms: ready,
               first_frame_ms: firstFrame,
               input_to_paint_ms: performance.now() - clock.started,
@@ -148,6 +159,23 @@ function eligibleQuotesAtSnapshot(events, sampleEpochMs) {
         (e) =>
           e.useful && e.observed <= sampleEpochMs && e.expires > sampleEpochMs,
       );
+}
+/** Playwright's native request timing is captured by the browser network stack.
+ * Reading response.body() over CDP may finish after a quote originally expired;
+ * that diagnostic delivery must not become its response-observation clock.
+ * Missing native timing remains unavailable instead of falling back to Node. */
+function nativeResponseEpoch(timing) {
+  if (
+    !Number.isFinite(timing?.startTime) ||
+    timing.startTime <= 0 ||
+    !Number.isFinite(timing.responseEnd) ||
+    timing.responseEnd < 0
+  )
+    throw Error("native_response_clock_unavailable");
+  const epoch = Math.ceil(timing.startTime + timing.responseEnd);
+  if (!Number.isSafeInteger(epoch) || epoch <= 0)
+    throw Error("native_response_clock_unavailable");
+  return epoch;
 }
 /** Only quotes actually compatible with the last observed display can own its
  * retention. An older different-output response never revives an expired owner.
@@ -209,6 +237,7 @@ function updateDisplayedQuoteOwners(previous, signature, candidates) {
 module.exports = {
   installInputClock,
   eligibleQuotesAtSnapshot,
+  nativeResponseEpoch,
   displayedQuoteRetention,
   matchingDisplayedQuotes,
   updateDisplayedQuoteOwners,

@@ -1,6 +1,41 @@
 const { test } = require("node:test"),
   assert = require("node:assert/strict");
-const { validate } = require("./live-quote-economics-1500.cjs");
+const {
+  validate,
+  originalWindowDiagnostics,
+} = require("./live-quote-economics-1500.cjs");
+test("original-window failures report fixed reasons and safe clocks without generation/actor/upstream values", () => {
+  const valid = {
+    observed_at_ms: 1000,
+    expires_at_ms: 21000,
+    generation: "valid",
+    trader: "private",
+    upstream: "private",
+  };
+  assert.equal(originalWindowDiagnostics(valid, 2000).reason, null);
+  for (const [patch, now, expected] of [
+    [{ observed_at_ms: "private" }, 2000, "invalid_clock"],
+    [{ expires_at_ms: Infinity }, 2000, "invalid_clock"],
+    [{ expires_at_ms: 1000 }, 2000, "nonpositive_window"],
+    [{ observed_at_ms: 2001 }, 2000, "future_observation"],
+    [{}, 21000, "expired_at_response"],
+    [{ expires_at_ms: 21001 }, 2000, "overlong_window"],
+    [{ generation: "private value" }, 2000, "invalid_generation"],
+  ]) {
+    const diagnostic = originalWindowDiagnostics({ ...valid, ...patch }, now);
+    assert.equal(diagnostic.reason, expected);
+    assert.deepEqual(Object.keys(diagnostic).sort(), [
+      "expires_at_ms",
+      "observed_at_ms",
+      "reason",
+      "response_epoch_ms",
+    ]);
+    assert.ok(!JSON.stringify(diagnostic).includes("private"));
+    for (const [name, value] of Object.entries(diagnostic))
+      if (name.endsWith("_ms"))
+        assert.ok(value === null || Number.isSafeInteger(value));
+  }
+});
 function fixture() {
   const S = 10n ** 18n,
     u = S / 20n,

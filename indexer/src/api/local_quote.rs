@@ -188,6 +188,11 @@ pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
             }
         }
     }
+    tracing::warn!(
+        status = status.as_u16(),
+        reason = public["error"].as_str().unwrap_or(fallback),
+        "Local quote rejected"
+    );
     (status, Json(public))
 }
 

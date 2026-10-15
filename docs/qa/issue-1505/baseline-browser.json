@@ -1,0 +1,181 @@
+{
+  "issue": 1505,
+  "scope": "Pre-fix native bidirectional desktop/phone baseline; historical failures remain failures",
+  "overall": "FAIL",
+  "deployed_revision": "14055610ebe86fd3640ff85e8adc15e16785c6dd",
+  "measurement_version": "foreground_native_response_clock_v6",
+  "qa_helper_hashes": [
+    {
+      "file": "live-trading-lifecycle-1499.cjs",
+      "sha256": "7246ea9eec06edb4c5a5b8f7aa0e5c6b30d6ed42fdfbb7dbd943d432382365d9"
+    },
+    {
+      "file": "live-input-clock-1499.cjs",
+      "sha256": "a6bacf3879da46c7b4ce698d71c3487321eda3a7fd99b171a03fb4455bdc5805"
+    },
+    {
+      "file": "live-quote-economics-1500.cjs",
+      "sha256": "a51db6aa93d7fa5c36884ba8496b7c067b385b33601d70c817b75e6b8921d8e2"
+    },
+    {
+      "file": "live-read-guard-1499.cjs",
+      "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+    }
+  ],
+  "utc_start": "2026-10-15T06:39:56.325Z",
+  "utc_end": "2026-10-15T06:53:21.109Z",
+  "raw_receipt_sha256": "9f31f5f3cad3daabaf019aa10e4df07cc3cb6f9b023441d80c97fee0b0d56a00",
+  "completed": true,
+  "expected_windows": 4,
+  "quote_progress_reads": 490,
+  "quote_progress_budget": 600,
+  "blocked_writes": 0,
+  "blocked_provider": 0,
+  "original_input_clock_preserved": true,
+  "browser_budget_ms": 750,
+  "initialized_socket_budget_ms": 500,
+  "initialized_socket_acceptance": "FAIL: native-output first/retest returned typed missing_observations rather than useful quotes",
+  "api": [
+    {
+      "case": "USTC->CL8Y",
+      "phase": "initialized_first",
+      "status": 200,
+      "reason": null,
+      "elapsed_ms": 295.7308380000004,
+      "useful": true
+    },
+    {
+      "case": "USTC->CL8Y",
+      "phase": "initialized_retest",
+      "status": 200,
+      "reason": null,
+      "elapsed_ms": 294.87790999999925,
+      "useful": true
+    },
+    {
+      "case": "CL8Y->USTC",
+      "phase": "initialized_first",
+      "status": 503,
+      "reason": "missing_observations",
+      "elapsed_ms": 292.3450470000007,
+      "useful": false
+    },
+    {
+      "case": "CL8Y->USTC",
+      "phase": "initialized_retest",
+      "status": 503,
+      "reason": "missing_observations",
+      "elapsed_ms": 292.5169020000003,
+      "useful": false
+    }
+  ],
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190093,
+      "samples": 926,
+      "original_input_epoch_ms": 1792046416356,
+      "first_observed_dom_ms": 352.29999999981374,
+      "first_qualified_dom_ms": 352.29999999981374,
+      "first_useful_ms": 361,
+      "failures": [],
+      "response_count": 23,
+      "response_status_counts": {
+        "200": 23
+      },
+      "maximum_diagnostic_delivery_lag_ms": 725,
+      "expiry_flags": []
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190085,
+      "samples": 850,
+      "original_input_epoch_ms": 1792046614541,
+      "first_observed_dom_ms": 354.8999999994412,
+      "first_qualified_dom_ms": 354.8999999994412,
+      "first_useful_ms": 405.59999999962747,
+      "failures": [
+        "unvalidated_or_expired_display",
+        "browser_client_validation:original_window"
+      ],
+      "response_count": 28,
+      "response_status_counts": {
+        "200": 28
+      },
+      "maximum_diagnostic_delivery_lag_ms": 18,
+      "expiry_flags": [
+        {
+          "code": "unvalidated_or_expired_display",
+          "sample_epoch_ms": 1792046628089,
+          "evaluated_epoch_ms": 1792046628091,
+          "input_age_ms": 13548.899999999441,
+          "matching_cohort_count": 1,
+          "latest_original_expiry_ms": 1792046626089,
+          "delta_after_latest_original_expiry_ms": 2000
+        }
+      ]
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190015,
+      "samples": 931,
+      "original_input_epoch_ms": 1792046810479,
+      "first_observed_dom_ms": 384.30000000074506,
+      "first_qualified_dom_ms": 384.30000000074506,
+      "first_useful_ms": 405.40000000037253,
+      "failures": [],
+      "response_count": 30,
+      "response_status_counts": {
+        "200": 19,
+        "503": 11
+      },
+      "maximum_diagnostic_delivery_lag_ms": 9,
+      "expiry_flags": []
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "completed": true,
+      "elapsed_ms": 190077,
+      "samples": 926,
+      "original_input_epoch_ms": 1792047007059,
+      "first_observed_dom_ms": 344,
+      "first_qualified_dom_ms": 344,
+      "first_useful_ms": 410.20000000018626,
+      "failures": [
+        "unvalidated_or_expired_display"
+      ],
+      "response_count": 27,
+      "response_status_counts": {
+        "200": 22,
+        "503": 5
+      },
+      "maximum_diagnostic_delivery_lag_ms": 19,
+      "expiry_flags": [
+        {
+          "code": "unvalidated_or_expired_display",
+          "sample_epoch_ms": 1792047188960,
+          "evaluated_epoch_ms": 1792047188962,
+          "input_age_ms": 181901.2000000002,
+          "matching_cohort_count": 20,
+          "latest_original_expiry_ms": 1792047187735,
+          "delta_after_latest_original_expiry_ms": 1225
+        }
+      ]
+    }
+  ],
+  "global_failures": [],
+  "limits": [
+    "Old deployed application 1405561; this receipt cannot establish post-fix acceptance.",
+    "Native v6 response completion clocks are independent of later Node/CDP body delivery.",
+    "One original_window failure has no retained metadata subreason; final v7 now records sanitized clocks/reason.",
+    "The uninstrumented baseline cannot distinguish a late deadline timer from delayed React commit; source regression independently proves the queued-commit defect.",
+    "A separate35s phone timer diagnostic observed no expiry callback because fresh responses cancelled timers; it does not resolve that causal distinction."
+  ]
+}

@@ -1,5 +1,15 @@
 # Indexer — Invariants, Business Logic, and Security
 
+## Native quote recovery (#1505)
+
+Independent scheduled wrapper reads share existing provider capacity and original
+deadlines. Native requests remain local and fail closed on unknown prerequisites.
+Fixed reason/phase diagnostics correlate a server-generated request identifier
+without logging query strings, actors or provider endpoints. Apply
+[NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md) and run
+`make verify-issue-1505`; [focused source/deployed evidence](qa/issue-1505/RESULTS.md)
+does not renew original freshness or replace actual live acceptance.
+
 ## Exact route cost attribution (#1483)
 
 Apply [RC1483-1–RC1483-10](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and run

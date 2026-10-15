@@ -7,7 +7,10 @@ const { createRequire } = require("node:module");
 const ROOT = path.resolve(__dirname, "../.."),
   rf = createRequire(path.join(ROOT, "frontend-dapp/package.json"));
 const { chromium } = rf("@playwright/test"),
-  { validate } = require("./live-quote-economics-1500.cjs");
+  {
+    validate,
+    originalWindowDiagnostics,
+  } = require("./live-quote-economics-1500.cjs");
 const FE = "https://dex.cl8y.com",
   BE = "https://indexer.dex.cl8y.com",
   DURATION = 190000,
@@ -17,12 +20,14 @@ const SHA = process.env.EXPECTED_SOURCE_SHA,
   ATTEST = process.env.DEX_LIVE_ATTESTATION,
   OUT = process.env.DEX_LIVE_OUTPUT;
 const SHARD = Number(process.env.DEX_LIVE_SHARD);
+const NATIVE_1505 = process.env.DEX_LIVE_ISSUE === "1505";
 const {
   installInputClock,
   eligibleQuotesAtSnapshot,
   displayedQuoteRetention,
   matchingDisplayedQuotes,
   updateDisplayedQuoteOwners,
+  nativeResponseEpoch,
 } = require("./live-input-clock-1499.cjs");
 const {
   installReadGuard,
@@ -44,15 +49,15 @@ const REASONS = {
   invalid_request: 400,
 };
 const receipt = {
-  issues: [1498, 1499, 1500],
+  issues: NATIVE_1505 ? [1505] : [1498, 1499, 1500],
   expected_revision: SHA,
-  qa_measurement_version: "foreground_native_transport_qualified_ownership_v5",
+  qa_measurement_version: "foreground_correlated_native_response_clock_v7",
   shard: SHARD,
-  shard_count: 3,
+  shard_count: NATIVE_1505 ? 1 : 3,
   expected_window_count: 4,
-  cohort_maximum_windows: 12,
+  cohort_maximum_windows: NATIVE_1505 ? 4 : 12,
   shard_quote_progress_budget: 600,
-  cohort_quote_progress_budget: 1800,
+  cohort_quote_progress_budget: NATIVE_1505 ? 600 : 1800,
   concurrency_per_browser: 1,
   utc_start: new Date().toISOString(),
   read_only: true,
@@ -67,7 +72,10 @@ const receipt = {
   failures: [],
   completed: false,
   limits:
-    "Anonymous six-direction selected cohort only; no funded/physical signing, independent oracle/contract attestation or server-side RPC census; monitored requests do not drive ingestion.",
+    (NATIVE_1505
+      ? "Anonymous native bidirectional desktop/phone cohort only; "
+      : "Anonymous six-direction selected cohort only; ") +
+    "no funded/physical signing, independent oracle/contract attestation or server-side RPC census; monitored requests do not drive ingestion.",
 };
 let browser,
   quotes = 0,
@@ -122,7 +130,14 @@ async function read(url, limit = 2 * 1024 * 1024) {
     if (size > limit) throw Error("body_bound");
     chunks.push(data);
   }
-  return { status: response.status, bytes: Buffer.concat(chunks) };
+  return {
+    status: response.status,
+    bytes: Buffer.concat(chunks),
+    request_id: safeRequestId(response.headers.get("x-quote-request-id")),
+  };
+}
+function safeRequestId(value) {
+  return /^[0-9a-f]{16}$/.test(value || "") ? value : null;
 }
 const hash = (b) => crypto.createHash("sha256").update(b).digest("hex");
 async function artifacts(attested) {
@@ -236,6 +251,7 @@ const SAFE_FAILURES = new Set([
   "root_html_mismatch",
   "root_manifest",
   "root_scripts_mismatch",
+  "native_response_clock_unavailable",
 ]);
 function safeError(error) {
   if (SAFE_FAILURES.has(error?.message)) return error.message;
@@ -249,16 +265,31 @@ async function probe(c, phase) {
   routeReads.solve++;
   const p = params(c),
     t = performance.now();
+  let invalidWindow = null;
   try {
     const r = await read(BE + "/api/v1/route/solve?" + new URLSearchParams(p));
     const duration = performance.now() - t,
       b = JSON.parse(r.bytes),
-      q = r.status === 200 ? validate(b, p, Date.now()) : null,
       reason = REASONS[b.error] === r.status ? b.error : null;
+    let q = null;
+    if (r.status === 200) {
+      const receivedAt = Date.now();
+      try {
+        q = validate(b, p, receivedAt);
+      } catch (error) {
+        if (error?.message === "original_window")
+          invalidWindow = {
+            ...originalWindowDiagnostics(b.execution_metadata, receivedAt),
+            request_id: r.request_id,
+          };
+        throw error;
+      }
+    }
     const row = {
       case: c.label,
       phase,
       status: r.status,
+      request_id: r.request_id,
       reason,
       elapsed_ms: duration,
       useful: !!q?.useful,
@@ -267,6 +298,8 @@ async function probe(c, phase) {
     if (r.status === 200 && !q?.useful) fail("api_invalid_quote");
     if (!q && !reason) fail("api_unclassified_outcome");
     if (q?.useful && duration > 500) fail("socket_useful_over500");
+    if (NATIVE_1505 && !q?.useful) fail("native_socket_not_useful");
+    if (NATIVE_1505 && !r.request_id) fail("quote_request_id_unavailable");
     receipt.api.push(row);
   } catch (e) {
     receipt.api.push({
@@ -274,6 +307,7 @@ async function probe(c, phase) {
       phase,
       useful: false,
       failure: safeError(e),
+      ...(invalidWindow ? { original_window: invalidWindow } : {}),
     });
     fail("api_probe_failed");
   }
@@ -404,19 +438,38 @@ async function windowCase(c, view, viewport) {
       if (content.length > 2 * 1024 * 1024) throw Error("body_bound");
       const body = JSON.parse(content),
         status = response.status(),
-        at = Date.now();
+        at = nativeResponseEpoch(response.request().timing()),
+        deliveredAt = Date.now();
       let q = null,
         reason = REASONS[body.error] === status ? body.error : null;
       try {
         if (status === 200) q = validate(body, p, at);
       } catch (error) {
         problem("browser_client_validation:" + safeError(error));
+        if (
+          error?.message === "original_window" &&
+          row.failure_details.length < 32
+        )
+          row.failure_details.push({
+            code: "browser_client_validation:original_window",
+            ...originalWindowDiagnostics(body.execution_metadata, at),
+            request_id: safeRequestId(response.headers()["x-quote-request-id"]),
+          });
       }
-      const e = { status, reason, at_ms: at - inputAt, ...q };
+      const e = {
+        status,
+        request_id: safeRequestId(response.headers()["x-quote-request-id"]),
+        reason,
+        at_ms: at - inputAt,
+        diagnostic_delivery_lag_ms: Math.max(0, deliveredAt - at),
+        ...q,
+      };
       events.push({ ...e, absolute_at: at });
+      events.sort((a, b) => a.absolute_at - b.absolute_at);
       if (events.length > 120) throw Error("response_history_bound");
       latest = events.at(-1);
       row.responses.push(e);
+      if (NATIVE_1505 && !e.request_id) problem("quote_request_id_unavailable");
       if (status !== 200 && !reason) problem("browser_unclassified_outcome");
     })().catch((error) => {
       const requestFailure = response.request().failure()?.errorText;
@@ -514,6 +567,7 @@ async function windowCase(c, view, viewport) {
         };
       });
       row.samples++;
+      row.clock_diagnostics = state.clockDiagnostics;
       if (
         row.first_observed_dom_ms == null &&
         state.clockDomObservations.length
@@ -529,14 +583,16 @@ async function windowCase(c, view, viewport) {
         problem("blocked_unsafe_request_attempt");
       if (state.visibility !== "visible" || state.hidden)
         problem("nonforeground_observation");
-      const candidate = state.clockCandidates.find((clock) =>
-        events.some(
-          (e) =>
-            e.useful &&
-            human(e.output, c.outDecimals) === clock.value &&
-            e.observed <= clock.paint_epoch_ms &&
-            e.expires > clock.paint_epoch_ms,
-        ),
+      const candidate = state.clockCandidates.find(
+        (clock) =>
+          matchingDisplayedQuotes(
+            eligibleQuotesAtSnapshot(events, clock.paint_epoch_ms).filter(
+              (e) => e.absolute_at <= clock.paint_epoch_ms,
+            ),
+            clock,
+            (raw) => human(raw, c.outDecimals),
+            metric,
+          ).length > 0,
       );
       if (candidate && row.first_useful_ms == null) {
         row.first_dom_ms = candidate.first_dom_ms;
@@ -720,6 +776,7 @@ async function windowCase(c, view, viewport) {
 async function main() {
   if (
     ![0, 1, 2].includes(SHARD) ||
+    (NATIVE_1505 && SHARD !== 0) ||
     !/^[0-9a-f]{40}$/.test(SHA || "") ||
     !ATTEST ||
     !OUT ||
