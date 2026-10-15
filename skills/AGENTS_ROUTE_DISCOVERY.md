@@ -52,7 +52,19 @@ The maximum-publication timing profile keeps its independent child process for
 registry isolation and joins the existing unkeyed serial fixture group in its
 parent. This coordinates heavy publication/discovery/fee-registry fixtures;
 unmarked tests remain parallel, so it does not promise full host CPU isolation.
-Keep the 512 × 2,048 workload, 100 reader samples, 40ms pacing, original 20s
-expiry and 500ms useful-result budget. Verify the full default-parallel library
+Keep the 512 × 2,048 workload, 100 reader samples, original 20s expiry and
+500ms useful-result budget. Record the reviewed reader pacing with each receipt;
+the stricter historical 40ms checks and incoming main's 100ms checks remain
+separate measurements. Verify the full default-parallel library
 harness as well as focused serial filters; see
 [the retained CI failure and correction](../docs/qa/issue-1505/RESULTS.md#fourth-source-ci-failure-and-fixture-coordination).
+
+Canonical preparation may reuse a stored per-view digest only from the current
+namespace's initialized snapshot and only for the exact live immutable Arc with
+matching address and pool/hybrid kind. A failed Weak upgrade, detached/changed
+Arc or mismatched binding requires full hashing. Capture only the bounded digest
+map under Store; perform all hashing off-lock through the existing two CPU slots.
+Always recompute base/final identity and preserve commit-time actor, fee, epoch
+and newer-view guards. Hash reuse never renews freshness or authorizes execution.
+Prove equality with a fresh full hash and count actual hashing work; stale or
+unqualified observations remain unavailable.

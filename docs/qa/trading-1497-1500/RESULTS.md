@@ -359,3 +359,18 @@ LocalTerra/Postgres containers were removed after receipt archival; shared and
 production infrastructure was untouched. Raw receipts and failed trials remain
 in private task/thread storage; public summaries omit actors, credentials and
 private endpoints.
+
+## Native recovery follow-up (#1505)
+
+The status statements above describe the earlier release and its retained
+acceptance ledger. Following the issue split, original issues #1449–#1500 remain
+closed; the recurring native availability and display-expiry work is tracked in
+[#1505](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1505). Its
+[focused checklist](../issue-1505/README.md),
+[implementation and retained failures](../issue-1505/RESULTS.md) and
+[agent invariants](../../../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md) distinguish
+source, actual deployment and targeted original-clock evidence.
+
+The historical native FAIL receipts above remain FAIL. The follow-up is still
+open while its final hosted and deployed checks are completed. Wallet/device
+checks and repetition of the exhaustive matrix are excluded by #1505.

@@ -114,3 +114,10 @@ adoption also follow [RD1489](AGENTS_ROUTE_DISCOVERY.md) and
 [the checklist](../docs/qa/issue-1489/README.md). Run `make verify-issue-1489`.
 Same-generation higher-net publication must reach active clients through normal
 validation while reviewed transactions remain pinned.
+
+Canonical per-view identity reuse follows
+[RD1489](AGENTS_ROUTE_DISCOVERY.md): only exact live immutable Arc/address/kind
+bindings may reuse initialized digests. Recompute policy/reference/final identity
+and retain all original clocks and commit-time authority. Hash reuse is scheduled
+CPU preparation, never a request-side freshness or signing permission. Include
+`make verify-issue-1505` and `make verify-issue-1489` for this publication path.

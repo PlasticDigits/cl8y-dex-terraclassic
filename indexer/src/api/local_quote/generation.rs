@@ -55,17 +55,40 @@ pub(super) struct ViewHash {
 }
 pub(super) type ViewHashes = HashMap<(String, bool), ViewHash>;
 
-fn prepare_views(s: &Snapshot) -> ViewHashes {
+impl ViewHash {
+    fn binds(&self, address: &str, pool: bool, mirror: &Arc<sim::HopMirror>) -> bool {
+        self.address == address
+            && self.pool == pool
+            && self
+                .mirror
+                .upgrade()
+                .is_some_and(|bound| Arc::ptr_eq(&bound, mirror))
+    }
+}
+
+fn prepare_views_with(
+    s: &Snapshot,
+    previous: Option<&ViewHashes>,
+    mut hash: impl FnMut(&str, &str, &Arc<sim::HopMirror>) -> [u8; 32],
+) -> ViewHashes {
     let mut hashes = HashMap::new();
     for (pool, views) in [(false, &s.mirrors), (true, &s.pool_mirrors)] {
         for (address, mirror) in views {
+            let key = (address.clone(), pool);
+            if let Some(bound) = previous
+                .and_then(|hashes| hashes.get(&key))
+                .filter(|bound| bound.binds(address, pool, mirror))
+            {
+                hashes.insert(key, bound.clone());
+                continue;
+            }
             hashes.insert(
-                (address.clone(), pool),
+                key,
                 ViewHash {
                     mirror: Arc::downgrade(mirror),
                     address: address.clone(),
                     pool,
-                    digest: hash_view(if pool { "pool" } else { "hybrid" }, address, mirror),
+                    digest: hash(if pool { "pool" } else { "hybrid" }, address, mirror),
                 },
             );
         }
@@ -73,9 +96,16 @@ fn prepare_views(s: &Snapshot) -> ViewHashes {
     hashes
 }
 
-/// Full immutable book/context hashing happens before taking Store, as before.
+/// Fresh full hashing is the reference implementation for identity tests.
+#[cfg(test)]
 pub(super) fn prepare(s: &mut Snapshot) -> Sha256 {
-    s.view_hashes = Arc::new(prepare_views(s));
+    prepare_reusing(s, None)
+}
+
+/// Reuse only a digest bound to the exact immutable view. Detached, changed or
+/// unknown views are fully hashed off Store. Base policy/context is always fresh.
+pub(super) fn prepare_reusing(s: &mut Snapshot, previous: Option<&ViewHashes>) -> Sha256 {
+    s.view_hashes = Arc::new(prepare_views_with(s, previous, hash_view));
     base(s)
 }
 
@@ -100,11 +130,7 @@ pub(super) fn finish(s: &Snapshot, mut digest: Sha256) -> Option<String> {
         ordered.sort_by_key(|(address, _)| *address);
         for (address, mirror) in ordered {
             let hash = s.view_hashes.get(&(address.clone(), pool))?;
-            if hash.address != *address || hash.pool != pool {
-                return None;
-            }
-            let bound = hash.mirror.upgrade()?;
-            if !Arc::ptr_eq(&bound, mirror) {
+            if !hash.binds(address, pool, mirror) {
                 return None;
             }
             digest.update(format!("{pool}|{address}|"));
@@ -158,6 +184,177 @@ fn hash_view(kind: &str, address: &str, m: &Arc<sim::HopMirror>) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn issue1505_unchanged_view_hashes_are_reused_without_rehashing_orders() {
+        let mut current = super::super::tests::fixture();
+        current
+            .pool_mirrors
+            .insert("pair0a".into(), current.mirrors["pair0a"].clone());
+        prepare(&mut current);
+        let mut incoming = current.clone();
+        Arc::make_mut(incoming.mirrors.get_mut("pair0a").unwrap()).reserve_0 += 1;
+        let mut calls = Vec::new();
+        let hashes = prepare_views_with(
+            &incoming,
+            Some(&current.view_hashes),
+            |kind, address, mirror| {
+                calls.push((kind.to_owned(), address.to_owned()));
+                hash_view(kind, address, mirror)
+            },
+        );
+        assert_eq!(
+            calls,
+            [("hybrid".into(), "pair0a".into())],
+            "only the replaced immutable view needs full order hashing"
+        );
+        let expected = effective_market(&incoming);
+        incoming.view_hashes = Arc::new(hashes);
+        assert_eq!(finish(&incoming, base(&incoming)).unwrap(), expected);
+    }
+    #[test]
+    fn issue1505_view_hash_reuse_rehashes_every_untrusted_binding() {
+        let mut current = super::super::tests::fixture();
+        current
+            .pool_mirrors
+            .insert("pair0a".into(), current.mirrors["pair0a"].clone());
+        prepare(&mut current);
+        for case in [
+            "detached",
+            "mutated",
+            "dead weak",
+            "address",
+            "kind",
+            "missing",
+            "wrong key",
+        ] {
+            let mut incoming = current.clone();
+            let mut cached = (*current.view_hashes).clone();
+            let key = ("pair0a".into(), false);
+            match case {
+                "detached" => {
+                    incoming.mirrors.insert(
+                        "pair0a".into(),
+                        Arc::new((*current.mirrors["pair0a"]).clone()),
+                    );
+                }
+                "mutated" => {
+                    Arc::make_mut(incoming.mirrors.get_mut("pair0a").unwrap()).reserve_0 += 1;
+                }
+                "dead weak" => {
+                    let detached = Arc::new((*current.mirrors["pair0a"]).clone());
+                    cached.get_mut(&key).unwrap().mirror = Arc::downgrade(&detached);
+                    drop(detached);
+                }
+                "address" => cached.get_mut(&key).unwrap().address = "other".into(),
+                "kind" => cached.get_mut(&key).unwrap().pool = true,
+                "missing" => {
+                    cached.remove(&key);
+                }
+                "wrong key" => {
+                    let hash = cached.remove(&key).unwrap();
+                    cached.insert(("other".into(), false), hash);
+                }
+                _ => unreachable!(),
+            }
+            // A rejected binding must not contribute even one byte of its digest.
+            if let Some(hash) = cached.get_mut(&key) {
+                hash.digest = [0xff; 32];
+            }
+            let expected = effective_market(&incoming);
+            let mut calls = Vec::new();
+            incoming.view_hashes = Arc::new(prepare_views_with(
+                &incoming,
+                Some(&cached),
+                |kind, address, mirror| {
+                    calls.push((kind.to_owned(), address.to_owned()));
+                    hash_view(kind, address, mirror)
+                },
+            ));
+            assert_eq!(calls, [("hybrid".into(), "pair0a".into())], "{case}");
+            assert_eq!(
+                finish(&incoming, base(&incoming)).unwrap(),
+                expected,
+                "{case}"
+            );
+        }
+        let mut calls = 0;
+        let hashes = prepare_views_with(
+            &current,
+            Some(&ViewHashes::new()),
+            |kind, address, mirror| {
+                calls += 1;
+                hash_view(kind, address, mirror)
+            },
+        );
+        assert_eq!(calls, current.mirrors.len() + current.pool_mirrors.len());
+        assert_eq!(
+            hashes.len(),
+            calls,
+            "unknown views always get fresh bindings"
+        );
+    }
+    #[test]
+    fn issue1505_reused_views_keep_full_identity_and_original_policy_clocks() {
+        let mut current = super::super::tests::fixture();
+        current.namespace = "hash-reuse1505-policy".into();
+        current
+            .pair_contexts
+            .insert("pair0a".into(), "qualified".into());
+        let prepared = prepare(&mut current);
+        let identity = finish(&current, prepared).unwrap();
+        let changes: [(&str, fn(&mut Snapshot)); 8] = [
+            ("namespace", |s| s.namespace.push_str("-changed")),
+            ("policy", |s| s.policy_identity.push_str("-changed")),
+            ("reference", |s| {
+                s.references.prices.get_mut(&1).unwrap().decimals += 1
+            }),
+            ("reference clock", |s| {
+                s.references.prices.get_mut(&1).unwrap().as_of -= chrono::Duration::milliseconds(1)
+            }),
+            ("reference quality", |s| {
+                s.references.policy_exclusions.insert(999, Utc::now());
+            }),
+            ("context", |s| {
+                s.pair_contexts.insert("pair0a".into(), "changed".into());
+            }),
+            ("actor", |s| {
+                s.actors.insert("actor".into(), (0, true));
+            }),
+            ("actor revision", |s| s.actor_revision += 1),
+        ];
+        for (name, change) in changes {
+            let mut incoming = current.clone();
+            change(&mut incoming);
+            let expected = effective_market(&incoming);
+            let hashes = prepare_views_with(&incoming, Some(&current.view_hashes), |_, _, _| {
+                panic!("{name}: unchanged immutable views must not rehash")
+            });
+            incoming.view_hashes = Arc::new(hashes);
+            let actual = finish(&incoming, base(&incoming)).unwrap();
+            assert_eq!(actual, expected, "{name}: byte-for-byte full hash identity");
+            assert_ne!(
+                actual, identity,
+                "{name}: view reuse cannot reuse market authority"
+            );
+        }
+        let mut older = current.clone();
+        Arc::make_mut(older.mirrors.get_mut("pair0a").unwrap()).snapshot_at -=
+            chrono::Duration::milliseconds(1);
+        let original_expiry = current.config_expiry_ms;
+        older.config_expiry_ms += 1000;
+        let prepared = prepare_reusing(&mut older, Some(&current.view_hashes));
+        preserve_newer_mirrors(&mut older, &current);
+        assert!(Arc::ptr_eq(
+            &older.mirrors["pair0a"],
+            &current.mirrors["pair0a"]
+        ));
+        assert_eq!(older.config_expiries["pair0a"], original_expiry);
+        assert_eq!(
+            finish(&older, prepared).unwrap(),
+            identity,
+            "preservation composes the newer view's bound digest"
+        );
+    }
     #[test]
     fn issue1489_canonical_market_hash_binds_effective_fields_and_preserves_book_fifo() {
         let source = super::super::tests::fixture();

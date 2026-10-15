@@ -14,6 +14,12 @@ fn slots() -> Arc<tokio::sync::Semaphore> {
     static SLOTS: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
     Arc::clone(SLOTS.get_or_init(|| Arc::new(tokio::sync::Semaphore::new(2))))
 }
+fn previous_view_hashes(namespace: &str) -> Option<Arc<generation::ViewHashes>> {
+    let g = store().lock().unwrap();
+    g.snapshots
+        .get(namespace)
+        .map(|current| Arc::clone(&current.view_hashes))
+}
 impl Pending {
     pub(super) async fn scheduled(self) -> Result<(), sqlx::Error> {
         let permit = slots()
@@ -42,7 +48,10 @@ impl Pending {
             barrier.wait();
         }
 
-        let identity = generation::prepare(&mut self.snapshot);
+        // Capture only this namespace's bounded digest map. Order traversal and
+        // all hashing stay off Store, within the existing two CPU-job permits.
+        let previous = previous_view_hashes(&self.snapshot.namespace);
+        let identity = generation::prepare_reusing(&mut self.snapshot, previous.as_deref());
         Prepared {
             pending: self,
             identity,
@@ -159,6 +168,31 @@ impl Prepared {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[serial_test::serial]
+    fn issue1505_preparation_captures_only_the_current_namespace_hashes() {
+        let mut current = super::super::tests::fixture();
+        current.namespace = "hash-reuse1505-current".into();
+        generation::prepare(&mut current);
+        let namespace = current.namespace.clone();
+        let expected = Arc::clone(&current.view_hashes);
+        store()
+            .lock()
+            .unwrap()
+            .snapshots
+            .insert(namespace.clone(), Arc::new(current));
+        let captured = previous_view_hashes(&namespace).unwrap();
+        let unrelated = previous_view_hashes("hash-reuse1505-unpublished");
+        store().lock().unwrap().snapshots.remove(&namespace);
+        assert!(
+            Arc::ptr_eq(&captured, &expected),
+            "capture clones only the existing digest-map Arc"
+        );
+        assert!(
+            unrelated.is_none(),
+            "a different namespace cannot borrow another market's cache"
+        );
+    }
     #[tokio::test]
     #[serial_test::serial]
     async fn issue1489_cancelled_preparation_keeps_two_cpu_slots_and_never_commits() {

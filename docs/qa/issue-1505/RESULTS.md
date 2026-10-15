@@ -339,3 +339,90 @@ separate live/funded scope remains explicitly unverified. The only Rust change
 after the previous source commit is in the `cfg(test)` publication test module;
 new fingerprints describe this corrected fixture snapshot. Hosted CI and live
 acceptance for this final head remain pending.
+
+[CI474](ci-474.json) on `aa730a361ee35b81638c339d57f8e66c3f4980fb`
+again passed 999 contract tests, 3,470 frontend tests and the production build,
+then failed the same maximum-publication 100-sample cap. Its child took 16.56s
+and the outer library suite recorded 848 passes, one failure and one ignored
+test. The 500ms assertion did not fail; PostgreSQL tests did not execute.
+The serial fixture guard was insufficient. This result remains FAIL, and no
+deployment occurred. Subsequent work must resolve the bounded preparation
+problem without relaxing the profile or treating local passes as hosted success.
+
+## Canonical immutable-view preparation
+
+Preparation previously formatted and hashed every resting order again even when
+the incoming snapshot reused the same immutable view objects. It now captures
+only the current namespace's existing digest-map Arc under the short Store lock.
+Off-lock, a digest may be reused only for matching address, pool/hybrid kind and
+a live Weak binding to the exact incoming Arc. Changed, detached, dead or unknown
+bindings receive a fresh full hash. There is no new global cache or retained
+strong mirror ownership, and the existing two CPU slots remain unchanged.
+
+Base namespace/reference/policy identity and final actor/admission identity are
+recomputed normally. Commit-time fee, configuration epoch, negative actor and
+newer-view guards still apply. Reuse changes preparation work, not canonical
+bytes, source clocks, quality, quote expiry or signing permission.
+
+[Deterministic work and identity evidence](immutable-view-hash-proof.json) keeps
+the former full-hash control FAIL: 17 hashes rather than the one changed view.
+Fixed tests compare cached preparation against fresh full hashing, reject all
+invalid binding classes and retain fresh authority fields and original clocks.
+Six generation and two publication controls pass. Independent final source
+review found no correctness findings.
+
+The unchanged 512-pair × 2,048-order maximum profile passes twice locally, each
+with two useful HTTP quotes and a maximum of 3ms, within the same 100-sample cap
+and 500ms budget. Full default-parallel library runs pass twice: 853 passed, zero
+failed and one existing ignored case per run. These are controlled source
+measurements; new hosted CI and focused deployed checks remain required.
+
+A later [provider-verifier book failure](source-verification-4-hash-book-failure.json)
+remains FAIL: 21 book cases passed and the healthy-reserve predicate in
+`slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers` exceeded its
+400ms deadline. The first ingestion and health binaries had passed. The retained
+run does not identify CPU, database or provider delay as its cause. Source review
+shows that this outer timer starts before cycle setup SQL and the separate
+500ms per-pair guards. The test calls the Combined snapshot helper directly;
+it does not use local quote publication or the new hash-reuse path.
+
+Other frozen-source verifiers completed before edits: local quotes passed all
+14 groups without skips, including 1,708 library, 196 integration and 1,072
+frontend test executions. Attribution and reference checks passed 21 and 12
+groups respectively with zero executed failures. Controlled local browser
+first/retest passed 40 samples each, at most 80.5ms/49.2ms, with zero provider
+requests. These results do not erase the separate book failure. Owned QA was
+reset before a test-only phase correction and controlled prelude checks.
+
+[Controlled book-phase proof](book-phase-proof.json) demonstrates the clock
+distinction with a confirmed 450ms blocked inventory SELECT: the old cycle-start
+400ms predicate fails, while the initialized-phase version passes. The fixture
+now waits within a finite two-second setup budget for the delayed-book request,
+then applies its unchanged 400ms healthy-reserve condition. The original 500ms
+per-pair deadline continues running; at the healthy observation, provider
+cancellations and failures must be zero and a request must remain in flight.
+The original 50ms height, 5,000ms LCD and 3,000ms slow-book settings and all
+pool/hybrid/recovery assertions remain unchanged.
+
+No controlled lock remains in the final fixture. Its complete book binary
+passes 22 tests twice. All 1,162 application source files match before/after
+this test-only correction, so the completed quote, attribution, reference and
+discovery coverage still describes the same application bytes. Their global
+test fingerprints remain recorded separately. Full provider/native verifiers
+are being repeated after another fresh reset of owned QA; the earlier
+provider-verifier FAIL remains retained.
+
+[Final hash-source verification](source-verification-4-hash.json) passes all
+selected first/retest groups: native recovery 14, provider recovery 11, discovery
+20, local quotes 14, attribution 21 and references 12, with zero final executed
+failures. Local quotes has no skips; the other verifiers declare separate
+live/funded scope. The final provider run includes 23 ingestion, 22 book and
+19 route tests per pass. Indexer Clippy exits successfully with existing warnings
+outside the changed modules. All earlier failed runs remain distinct.
+
+Main advanced during verification with an incident archive and a reviewed probe
+cadence change from 40ms to 100ms, retaining the 500ms useful-response budget,
+100-request cap and full workload. The stricter 40ms hash-reuse proof above is
+retained separately. The integrated tree must preserve the new main commits and
+repeat its affected maximum-profile/default-parallel checks before hosted CI
+and deployment; this source receipt does not claim those future results.

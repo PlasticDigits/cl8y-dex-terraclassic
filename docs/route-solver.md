@@ -1059,3 +1059,12 @@ No chain reads, detached tasks, retained-field splices or new reference quality
 class are introduced. Apply [NR1505-9](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md),
 [LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and
 [SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
+
+Canonical preparation also avoids hashing unchanged immutable resting books
+again. It captures the current namespace's bounded digest map under the short
+Store lock, then reuses a digest only when address, view kind and a live Weak/Arc
+identity all match. Changed or detached views are fully hashed off-lock. Base
+policy/reference identity and the final canonical identity are still recomputed,
+and commit-time actor, fee, epoch and newer-view checks remain authoritative.
+This changes CPU work, not economic identity, source timestamps or execution
+eligibility; it adds no request work, global cache or extra publication slot.

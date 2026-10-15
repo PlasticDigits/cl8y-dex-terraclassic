@@ -150,3 +150,9 @@ contention follows [RD1489](AGENTS_ROUTE_DISCOVERY.md) and
 [the checklist](../docs/qa/issue-1489/README.md). Run `make verify-issue-1489`.
 Positive unchanged validation is not a new economics revision; authoritative
 changed fees, negatives, context changes and expiry remain real invalidations.
+
+For component-timing fixtures, preserve the setup/active-phase distinction in
+[LF1453](AGENTS_LIQUIDITY_FEED.md). A cold inventory SQL turn must not consume a
+separate active-component assertion clock; finite setup barriers still fail if
+the phase is never reached. Original provider/pair deadlines and failure
+observations remain mandatory. See [the #1505 phase evidence](../docs/qa/issue-1505/RESULTS.md).

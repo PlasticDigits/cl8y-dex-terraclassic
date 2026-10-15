@@ -17,6 +17,13 @@ delay critical marks; requests never wake either producer. Preserve
 [LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and
 [SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
 
+Canonical publication may reuse only an initialized immutable view digest whose
+live Arc, address and kind still match. Capture the bounded current-namespace
+map under the short Store lock and hash changed views off-lock; recompute base
+and final identity and retain every commit/freshness guard. See
+[RD1489](../skills/AGENTS_ROUTE_DISCOVERY.md) and
+[the #1505 preparation evidence](qa/issue-1505/RESULTS.md).
+
 ## Exact route cost attribution (#1483)
 
 Apply [RC1483-1–RC1483-10](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and run

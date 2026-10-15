@@ -9,6 +9,8 @@ rust() {
   cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_http_stale_origins -- --test-threads=1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --test-threads=1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib db::queries::hub_prices::scheduler -- --test-threads=1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::generation -- --test-threads=1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::publication -- --test-threads=1
 }
 sockets() {
   if [[ -f indexer/.env.qa ]]; then

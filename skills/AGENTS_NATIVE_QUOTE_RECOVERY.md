@@ -22,3 +22,9 @@ Run `make verify-issue-1505` and the applicable lifecycle/provider checks. Follo
 the [focused checklist](../docs/qa/issue-1505/README.md) and record actual results
 in [RESULTS.md](../docs/qa/issue-1505/RESULTS.md). This issue excludes physical
 wallet/device acceptance and repetition of the earlier exhaustive matrix.
+
+Canonical publication preparation follows
+[RD1489](AGENTS_ROUTE_DISCOVERY.md): reuse only previously bound immutable view
+digests, recalculate policy/reference/final identity and retain all original
+expiry and commit guards. Source verification includes fresh-hash equivalence
+and the unchanged maximum-publication useful-HTTP profile.

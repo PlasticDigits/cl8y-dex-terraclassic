@@ -137,3 +137,11 @@ cycle, the existing fallback timer, one critical mark pass and one independent
 accounting pass. Keep atomic qualified cohorts and original source clocks; the
 notification does not certify a price or renew raw observations. Run
 `make verify-issue-1505` with these liquidity checks.
+
+Timing fixtures distinguish bounded cycle setup from active component clocks.
+For healthy-pool/slow-book checks, wait within a finite setup bound for the
+actual delayed-book request before checking the healthy reserve. Keep the
+original per-pair deadline running, and require an active provider request with
+no cancellation or failure at the healthy observation. Never reset or extend
+provider deadlines to make setup latency pass. See
+[the controlled phase proof](../docs/qa/issue-1505/RESULTS.md).

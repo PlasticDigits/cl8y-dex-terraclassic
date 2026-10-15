@@ -58,3 +58,9 @@ as the initialized probes. Recognized503s remain failures after recovery; ordina
 same-intent display retention does not certify backend availability. Teardown
 cancellation is reported separately so closing a completed window cannot create
 a false failure or hide an already observed503.
+
+Canonical hash reuse must match a fresh full hash while reducing actual hash
+calls only for exact live immutable bindings. Detached/changed views and wrong
+address/kind bindings must rehash. Preserve base/reference/policy/final identity,
+negative actor/fee authority, original expiry and the two owned CPU slots. The
+maximum-publication profile keeps its complete workload, pacing and sample cap.
