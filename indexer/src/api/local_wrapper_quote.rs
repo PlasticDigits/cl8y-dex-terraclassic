@@ -205,6 +205,20 @@ async fn observe_router_bounded(
     mapper: &str,
     deadline: tokio::time::Instant,
 ) -> Option<bool> {
+    // Preserve configured absence as a synchronous authoritative negative.
+    if router.is_none() {
+        return Some(false);
+    }
+    // Timeout polls its inner future first, even for an elapsed deadline. Refuse
+    // network work before constructing/polling LCD admission or identity reads.
+    if deadline <= tokio::time::Instant::now() {
+        tracing::warn!(
+            phase = "router_config",
+            reason = "deadline",
+            "Native wrapper read unavailable"
+        );
+        return None;
+    }
     match tokio::time::timeout_at(deadline, observe_router(lcd, router, mapper)).await {
         Ok(result) => result,
         Err(_) => {
@@ -669,6 +683,40 @@ mod tests {
         let lcd = LcdClient::new_with_policy(vec![server.uri()], 2_500, 1, "columbus-5", policy)
             .with_ingestion_budget();
         (server, lcd)
+    }
+
+    #[tokio::test]
+    async fn issue1505_expired_router_margin_starts_no_provider_attempt() {
+        let (server, lcd) =
+            wrapper_fixture(Duration::from_millis(800), Duration::from_millis(50)).await;
+        // Warm the actual shared production lane, then let its existing pacing
+        // turn elapse. A fresh timer's first yield can mask an eager inner poll.
+        assert_eq!(observe_tax_cap(&lcd, "uluna", true).await, Some(1000));
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let before = lcd.provider_counters().await;
+        let wire_before = server.received_requests().await.unwrap().len();
+        let deadline = tokio::time::Instant::now() - Duration::from_millis(1);
+        assert_eq!(
+            observe_router_bounded(&lcd, None, "terra1mapper", deadline).await,
+            Some(false),
+            "configured absence remains an authoritative negative without I/O"
+        );
+        assert_eq!(
+            observe_router_bounded(&lcd, Some("terra1router"), "terra1mapper", deadline).await,
+            None
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            counters[0].attempts, before[0].attempts,
+            "an expired margin must never start admission or identity work"
+        );
+        assert_eq!(
+            counters[0].caller_cancellations,
+            before[0].caller_cancellations
+        );
+        assert_eq!(counters[0].failures, before[0].failures);
+        assert_eq!(counters[0].in_flight, 0);
+        assert_eq!(server.received_requests().await.unwrap().len(), wire_before);
     }
 
     #[tokio::test]

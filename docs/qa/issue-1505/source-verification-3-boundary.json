@@ -1,0 +1,40 @@
+{
+  "issue": 1505,
+  "iteration": "3-boundary",
+  "base_revision": "7f0033d0ef01723ccf3fd30a985c6f71cd405335",
+  "change": "explicit expired router margin guard before polling LCD work; configured absence remains authoritative false",
+  "old_warmed_lane_control": {
+    "overall": "FAIL",
+    "provider_attempts_before": 1,
+    "provider_attempts_after": 2,
+    "explanation": "Tokio timeout_at polls inner future before elapsed delay"
+  },
+  "fixed_control": {
+    "overall": "PASS",
+    "unchanged_attempts_cancellations_failures_and_wire_count": true,
+    "in_flight_after": 0,
+    "configured_router_absence": false
+  },
+  "focused_issue1505_tests_per_pass": 8,
+  "wrapper_tests_per_native_pass": 19,
+  "source_checks": [
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "source_fingerprint": "95f6f82ca7b68c46972a264adf10e2d733b17bd1b39feccc1c8488f96bb7b9ff",
+      "log_sha256": "1d2b0b5562d47d2a3d8b60ef98104da31c984a8080585dfdeaff3505cd28a6a5"
+    },
+    {
+      "command": "make verify-issue-1499",
+      "overall": "PASS WITH SKIPS",
+      "source_fingerprint": "95f6f82ca7b68c46972a264adf10e2d733b17bd1b39feccc1c8488f96bb7b9ff",
+      "log_sha256": "b7e138b66d1058fda54d96b48f50adebbea5b99746b07b9921aab4f2511dcc18"
+    }
+  ],
+  "control_log_sha256": {
+    "dex-1505-expired-router-control-warmed.log": "53a378d5d2703a32680e5557d0d4663d48ce3ca888fa00ad753458c1346fb3a3",
+    "dex-1505-expired-router-final.log": "476fda31ad7b0804535a5dd728281aaf3a704d42b3416adbe5b35906b60782bc",
+    "dex-1505-expired-router-retest.log": "2e05481d1de16d491a464a201353afdbaa29b66cbddbbf51dd160e67aa35b337"
+  },
+  "limits": "The full provider recovery first/retest was run on the immediate predecessor recorded in source-verification-3.json. This follow-up only rejects already-expired router work. Final full hosted CI and exact deployment/live acceptance remain separate."
+}

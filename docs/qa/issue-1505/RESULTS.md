@@ -194,3 +194,14 @@ nine probe controls per pass. Lifecycle checks passed188 frontend tests per
 pass. Provider recovery completed its disposable integration suites twice.
 Separate live/funded scope remains explicitly skipped by those source verifiers;
 it does not establish deployed acceptance.
+
+Review also reproduced a zero-time boundary defect: Tokio's timeout polls the
+inner future before its expired delay. On the warmed production lane, an already
+expired router margin increased provider attempts from1 to2. An explicit guard
+now refuses the network future before polling; configured router absence remains
+authoritative `Some(false)` without I/O. The [boundary proof and verification](source-verification-3-boundary.json)
+retain the old FAIL and fixed PASS separately. All eight focused tests passed
+twice, then native and lifecycle verifiers passed first/retest on the final source
+(19 wrapper tests per native pass). The full provider-recovery first/retest above
+belongs to its immediately preceding application revision; full hosted CI and
+live acceptance are independently recorded for the final deployment.

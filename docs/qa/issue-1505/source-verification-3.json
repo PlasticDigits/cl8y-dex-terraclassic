@@ -45,5 +45,7 @@
     "scripts/qa/probe-native-monitoring-1505.py": "da0560896d2bc91ff6412e5d1179f15925ecddfe0e15a8ef449ff1b6de25efe8",
     "scripts/qa/test-native-recovery-1505.py": "e3259a738038dd531852b243d12ab4b5be308e14eaea0a194f739b9e9bc88ec8"
   },
-  "limits": "Deployed acceptance is pending; both previous deployed FIRST failures remain FAIL; physical wallet/device and broad matrix are excluded by issue."
+  "limits": "Deployed acceptance is pending; both previous deployed FIRST failures remain FAIL; physical wallet/device and broad matrix are excluded by issue.",
+  "verified_application_revision": "7f0033d0ef01723ccf3fd30a985c6f71cd405335",
+  "boundary_followup": "source-verification-3-boundary.json"
 }
