@@ -161,3 +161,20 @@ call already returned. Preserve the original error if cleanup also fails;
 cancellation still uses the existing owned RAII fallback. Dedicated Pool/Book
 lanes retain their lifetime leadership and unchanged provider/time/work bounds.
 See the [native follow-up evidence](../docs/qa/issue-1505/RESULTS.md).
+
+For scheduled data fallback, preserve [NR1505-10](AGENTS_NATIVE_QUOTE_RECOVERY.md).
+A caller-owned continuation may revisit only capacity-denied, unattempted provider
+alternatives inside the same scan, original absolute deadline and global actual
+attempt limit. No failed endpoint is retried, no budget/cursor is restarted, and
+all permits release before waiting. Retain typed integrity on exhaustion/expiry
+and exact chain/height validation on success. Direct/request behavior and
+contract-local negatives remain unchanged. Run the scheduled continuation controls
+in `make verify-issue-1505` and applicable LCD/provider/feed checks. Source controls
+do not prove an unavailable historical admission sequence or live acceptance.
+
+For enclosing producer budgets apply [NR1505-11](AGENTS_NATIVE_QUOTE_RECOVERY.md):
+scope the LCD view before constructing futures and take the inherited minimum.
+Clones keep the same provider/ingestion state and cancellation policy. Poll,
+floor, head, spawned pair and nested query scopes cannot renew or leak into later
+owners. Data and identity paths respect the earlier absolute bound; late positive
+identity completion never overrides it or clears known typed integrity.

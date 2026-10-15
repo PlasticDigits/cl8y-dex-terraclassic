@@ -147,3 +147,47 @@ Capture bounded 15-minute monitoring snapshots after each complete browser pass
 so the two snapshots cover the full FIRST/RETEST interval; preserve overlap rather
 than adding duplicate counts. Prometheus is queried only if provisioned. Pattern
 counts are monitoring evidence, not cohort availability or sole-cause proof.
+
+Scheduled fallback regressions must use the pool lane's actual scheduled view,
+including the path without ingestion pacing. Reproduce a real invalid historical
+primary response and a qualified alternative briefly denied shared capacity.
+Keep one original deadline/cursor, assert actual per-endpoint/global attempts and
+known-negative safety callbacks, and show that cancellation releases permits.
+Retain the OLD FAIL; fixed FIRST/RETEST must also cover spent attempts, original
+expiry with retained integrity, no repeated attempted endpoint, and prompt direct
+callers. The narrow [NR1505-10](../../../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md)
+continuation is not a restart of a query or its budget. Run its Rust suite through
+`make verify-issue-1505` plus applicable chain-attestation, discovery, feed and
+provider checks; the verifier's failure propagation includes every new command.
+Source controls do not establish historical provider contention or deployed recovery.
+
+Scheduled alternative evidence exports only fixed `data`/`capacity`, actual prior
+attempt count (1–8), unattempted capacity-denied count (1–31), their sum within the
+existing 32-endpoint census, original remaining milliseconds (0–30,000), and an
+optional numeric sample timestamp. The producer emits at most one record per
+logical query; repeated ordinary admission ticks emit none. Attempt counts are
+admission-charged endpoint-attempt counters, including identity work; they do not
+independently count wire/data requests. This witness records local budget and
+pending admission, not a selected reference source or an unobserved historical
+sequence. The existing bounded sample
+query includes these records without another read. Tests refuse unknown, missing,
+duplicate, out-of-range and inconsistent evidence and omit raw labels/lines.
+
+Producer deadline controls also exercise an enclosing owner that expires before
+the LCD operation's own clock. Use real producer paths and observe first transport
+polling after a held metadata completion; wire counts alone can miss immediate
+cancellation. Check wrapper/floor and head/pair/nested helper boundaries, including
+late identity-only success, closed versus half-open/generic health, known negative
+precedence, clone isolation and nonrenewing nested minima. The final verifier
+selects producer cases through issue1505_parent_deadline as well as the full LCD
+control module; failure propagation covers all eleven Rust commands, including the full parent-deadline LCD module.
+
+Distinguish timely actual height from the requested pool floor. A valid actual
+observation may update normal global lag tracking even when ineligible for that
+query; never invent the database minimum. Test expired buffered positives before
+height/health publication, retain typed negatives first, and keep the existing
+minimum-head work/rate/health regression unchanged. A new control that contradicts
+this observed-versus-requested contract must be corrected and retained as a
+mis-specified failure, not used to justify changing policy.
+
+Final seventh-candidate source evidence: [frozen verification receipt](source-verification-7-final.json), [scheduled continuation controls](scheduled-provider-continuation-proof.json), and [enclosing deadline controls](parent-deadline-proof.json). Deployment acceptance remains separate in [RESULTS](RESULTS.md).

@@ -1,0 +1,534 @@
+{
+  "issue": 1505,
+  "pull_request": 1517,
+  "pipeline": 484,
+  "revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "event": "push",
+  "ref": "refs/heads/main",
+  "utc": "2026-10-15T20:35:58.688766+00:00",
+  "read_only": true,
+  "status": "success",
+  "steps": [
+    {
+      "id": 12493,
+      "name": "git",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 4
+    },
+    {
+      "id": 12494,
+      "name": "postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 1063
+    },
+    {
+      "id": 12495,
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 25
+    },
+    {
+      "id": 12496,
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 86,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.07
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.05
+        },
+        {
+          "verdict": "ok",
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.13
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 102,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.2
+        },
+        {
+          "verdict": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.04
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 567,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 5.64
+        },
+        {
+          "verdict": "ok",
+          "passed": 81,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.01
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        },
+        {
+          "verdict": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 0.0
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 999,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "id": 12497,
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 448,
+      "vitest_results": [
+        {
+          "kind": "files",
+          "passed": 373,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "kind": "tests",
+          "passed": 3470,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "failed_test_markers": 0
+    },
+    {
+      "id": 12498,
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 215,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 882,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 44.59
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 882,
+        "failed": 0,
+        "ignored": 1
+      },
+      "native_recovery_test_passes": [
+        "api::local_quote::generation::tests::issue1505_unchanged_view_hashes_are_reused_without_rehashing_orders",
+        "api::local_quote::generation::tests::issue1505_reused_views_keep_full_identity_and_original_policy_clocks",
+        "api::local_quote::generation::tests::issue1505_view_hash_reuse_rehashes_every_untrusted_binding",
+        "api::local_quote::publication::tests::issue1505_preparation_captures_only_the_current_namespace_hashes",
+        "api::local_quote::tests::issue1505_http_stale_origins_are_bounded_private_and_correlated",
+        "api::local_quote::tests::issue1505_observed_pause_revokes_cached_native_quotes_without_renewing_old_clocks",
+        "api::local_wrapper_quote::tests::issue1505_denom_dispatch_is_symmetric_and_releases_cancelled_reads",
+        "api::local_wrapper_quote::tests::issue1505_dispatch_expired_phase_never_polls_transport",
+        "api::local_wrapper_quote::tests::issue1505_expired_router_margin_starts_no_provider_attempt",
+        "api::local_wrapper_quote::tests::issue1505_failed_read_witness_distinguishes_dispatch_from_polled_lcd",
+        "api::local_wrapper_quote::tests::issue1505_malformed_pause_fields_are_unavailable_not_revocations",
+        "api::local_wrapper_quote::tests::issue1505_observed_read_boxes_transport_before_capturing_async_state",
+        "api::local_wrapper_quote::tests::issue1505_mapper_pause_is_typed_without_fabricated_treasury_fields",
+        "api::local_wrapper_quote::tests::issue1505_output_publication_deadline_has_fixed_phase_evidence",
+        "api::local_wrapper_quote::tests::issue1505_binding_cap_never_attaches_to_an_invalid_mapping",
+        "api::local_wrapper_quote::tests::issue1505_router_publication_margin_cancels_owned_read_neutrally",
+        "api::local_wrapper_quote::tests::issue1505_early_router_avoids_reproduced_output_lane_deadline",
+        "api::local_wrapper_quote::tests::issue1505_router_attempt_fits_existing_policy_without_two_second_clipping",
+        "api::local_wrapper_quote::tests::issue1505_scheduled_native_poll_keeps_output_and_floor_budget",
+        "api::local_wrapper_quote::tests::issue1505_successful_malformed_tax_fields_have_fixed_reasons",
+        "api::local_wrapper_quote::tests::issue1505_treasury_pause_cancels_slow_bindings_and_router_immediately",
+        "api::local_wrapper_quote::tests::issue1505_slow_native_denom_cannot_starve_other_native_output",
+        "api::quote_trace::tests::issue1505_correlation_rejects_client_ids_and_preserves_typed_error",
+        "api::local_wrapper_quote::tests::issue1505_slow_uluna_cap_preserves_uusd_and_same_poll_input",
+        "db::queries::hub_prices::scheduler::tests::issue1505_completed_pool_wakes_atomic_reference_before_original_expiry",
+        "db::queries::hub_prices::scheduler::tests::issue1505_pool_wakes_coalesce_while_owned_mark_pass_is_blocked",
+        "api::local_wrapper_quote::tests::issue1505_unavailable_router_still_publishes_completed_native_input",
+        "api::local_wrapper_quote::tests::issue1505_output_attempts_are_not_clipped_by_old_two_second_phase",
+        "lcd::deferred_recovery_tests::issue1505_empty_endpoint_inventory_is_not_a_circuit_deferral",
+        "lcd::deferred_recovery_tests::issue1505_identity_metadata_wait_consumes_the_original_total_budget",
+        "lcd::deferred_recovery_tests::issue1505_cancelled_circuit_wait_owns_no_provider_or_lane_permit",
+        "lcd::deferred_recovery_tests::issue1505_elapsed_total_deadline_cannot_rescan_or_start_reads",
+        "lcd::deferred_recovery_tests::issue1505_identity_timeout_cleanup_cancellation_counts_failure_once",
+        "lcd::deferred_recovery_tests::issue1505_integrity_evidence_precedes_later_circuit_deferral",
+        "lcd::deferred_recovery_tests::issue1505_mixed_capacity_keeps_precedence_over_circuit_deferral",
+        "lcd::deferred_recovery_tests::issue1505_long_circuit_keeps_original_deadline_and_zero_reads",
+        "lcd::deferred_recovery_tests::issue1505_identity_timeout_cleanup_retains_original_total_deadline",
+        "lcd::deferred_recovery_tests::issue1505_near_deadline_identity_attempt_is_clipped_and_neutral",
+        "lcd::deferred_recovery_tests::issue1505_queued_data_admission_cannot_start_after_total_deadline",
+        "lcd::deferred_recovery_tests::issue1505_non_ingestion_circuit_still_fails_without_waiting",
+        "lcd::deferred_recovery_tests::issue1505_scheduled_short_circuit_data_recovers",
+        "lcd::deferred_recovery_tests::issue1505_scheduled_short_circuit_identity_recovers",
+        "lcd::deferred_recovery_tests::issue1505_real_attempts_never_restart_the_scan_or_attempt_budget"
+      ],
+      "maximum_publication_profile": {
+        "test_pass_observed": true,
+        "unchanged_source_limits": {
+          "maximum_pairs": 512,
+          "orders_per_pair": 2048,
+          "total_orders": 1048576,
+          "hot_reader_cap": 100,
+          "initialized_useful_http_budget_ms": 500,
+          "original_observation_ttl_ms": 20000,
+          "single_tokio_worker": true
+        },
+        "runtime_profile_counters": null,
+        "counter_limitation": "Successful test stdout captured by standard Rust harness; named PASS and complete suite totals are observable; no hidden per-profile timing is inferred."
+      }
+    },
+    {
+      "id": 12499,
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 285,
+      "rust_test_results": [
+        {
+          "verdict": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 3.96
+        },
+        {
+          "verdict": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 14.87
+        },
+        {
+          "verdict": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 4.61
+        },
+        {
+          "verdict": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 53.29
+        },
+        {
+          "verdict": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "duration_seconds": 31.04
+        }
+      ],
+      "rust_test_totals": {
+        "passed": 86,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "id": 12500,
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 2
+    }
+  ],
+  "scope": "Genuine hosted CI metadata and numeric result summaries only; no credentials, private endpoints, actors or raw logs included. Bounded raw logs are stored separately in private thread storage and must not be published."
+}

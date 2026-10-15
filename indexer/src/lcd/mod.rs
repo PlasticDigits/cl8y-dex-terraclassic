@@ -236,6 +236,7 @@ pub struct LcdClient {
     ingestion_budget: Option<Arc<IngestionBudget>>,
     scheduled_observation: bool,
     safety_observer: Option<Arc<dyn Fn() + Send + Sync>>,
+    observation_deadline: Option<tokio::time::Instant>,
 }
 struct IngestionBudget {
     permits: Arc<tokio::sync::Semaphore>,
@@ -252,6 +253,10 @@ struct LcdClientInner {
     discovery_namespace: usize,
     expected_chain_id: String,
     pair_discovery_state: Arc<PairDiscoveryState>,
+    #[cfg(test)]
+    endpoint_metadata_waits: AtomicUsize,
+    #[cfg(test)]
+    data_request_polls: AtomicUsize,
 }
 
 const LATEST_BLOCK_PATH: &str = "/cosmos/base/tendermint/v1beta1/blocks/latest";
@@ -270,6 +275,34 @@ struct RequestConstraints<'a> {
 enum EndpointOutcome<T> {
     Accepted(T),
     BelowMinimum,
+    Expired(DeadlineOrigin),
+}
+
+#[derive(Clone, Copy)]
+enum DeadlineOrigin {
+    Caller,
+    Attempt,
+}
+
+/// Both clocks remain absolute across identity metadata awaits. Expiry is an
+/// internal outcome so caller cancellation keeps its existing health policy;
+/// it must not become a completed error that disarms quarantine accounting.
+struct EndpointAttempt<'a> {
+    index: usize,
+    endpoint: &'a Endpoint,
+    caller_deadline: tokio::time::Instant,
+    own_deadline: tokio::time::Instant,
+}
+impl EndpointAttempt<'_> {
+    fn expired(&self) -> Option<DeadlineOrigin> {
+        if tokio::time::Instant::now() < self.caller_deadline.min(self.own_deadline) {
+            None
+        } else if self.own_deadline <= self.caller_deadline {
+            Some(DeadlineOrigin::Attempt)
+        } else {
+            Some(DeadlineOrigin::Caller)
+        }
+    }
 }
 
 impl LcdClient {
@@ -336,6 +369,7 @@ impl LcdClient {
             ingestion_budget: None,
             scheduled_observation: false,
             safety_observer: None,
+            observation_deadline: None,
             inner: Arc::new(LcdClientInner {
                 endpoints: RwLock::new(endpoints),
                 expected_chain_id,
@@ -348,6 +382,10 @@ impl LcdClient {
                 discovery_namespace: NEXT_NAMESPACE
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                 pair_discovery_state: Arc::new(PairDiscoveryState::default()),
+                #[cfg(test)]
+                endpoint_metadata_waits: AtomicUsize::new(0),
+                #[cfg(test)]
+                data_request_polls: AtomicUsize::new(0),
             }),
         }
     }
@@ -367,6 +405,26 @@ impl LcdClient {
         let mut next = self.clone();
         next.scheduled_observation = true;
         next
+    }
+
+    /// Owned producer scopes may only tighten an existing caller deadline.
+    /// All provider, pacing, namespace and cancellation policy stays shared.
+    pub(crate) fn with_observation_deadline(&self, deadline: tokio::time::Instant) -> Self {
+        let mut next = self.clone();
+        next.observation_deadline = Some(
+            self.observation_deadline
+                .map_or(deadline, |current| current.min(deadline)),
+        );
+        next
+    }
+
+    pub(crate) fn observation_deadline(&self) -> Option<tokio::time::Instant> {
+        self.observation_deadline
+    }
+
+    #[cfg(test)]
+    pub(crate) fn data_request_poll_count(&self) -> usize {
+        self.inner.data_request_polls.load(Ordering::SeqCst)
     }
     /// A bounded background-only view sharing chain identity and namespace. All
     /// quote workers share its two permits and aggregate four requests/second;
@@ -442,8 +500,11 @@ impl LcdClient {
         if self.ingestion_budget.is_some() {
             constraints.max_bytes = Some(constraints.max_bytes.unwrap_or(65_536).min(65_536));
         }
-        let deadline = tokio::time::Instant::now()
+        let policy_deadline = tokio::time::Instant::now()
             + Duration::from_millis(self.inner.provider_policy.deadline_ms);
+        let deadline = self
+            .observation_deadline
+            .map_or(policy_deadline, |parent| parent.min(policy_deadline));
         let attempted = AtomicUsize::new(0);
         let integrity_error = std::sync::Mutex::new(None);
         let deferred_error = std::sync::Mutex::new(None);
@@ -529,8 +590,57 @@ impl LcdClient {
         let mut errors = Vec::new();
         let mut capacity_deferred = false;
         let mut deadline_expired = false;
-        for offset in 0..count {
-            let idx = (start + offset) % count;
+        // This query owns one cursor and one attempted set. Scheduled callers
+        // may finish capacity-denied alternatives, never restart an attempted
+        // endpoint or grant a new attempt/deadline budget after real I/O.
+        let mut pending: std::collections::VecDeque<_> =
+            (0..count).map(|offset| (start + offset) % count).collect();
+        let mut attempted_endpoints = vec![false; count];
+        let mut capacity_pending = Vec::new();
+        let mut continuation_logged = false;
+        loop {
+            let idx = if let Some(index) = pending.pop_front() {
+                index
+            } else {
+                if !self.scheduled_observation
+                    || attempts == 0
+                    || attempted.load(Ordering::Relaxed) >= self.inner.provider_policy.max_attempts
+                    || capacity_pending.is_empty()
+                {
+                    break;
+                }
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining.is_zero() {
+                    deadline_expired = true;
+                    break;
+                }
+                if !continuation_logged {
+                    tracing::warn!(
+                        phase = "data",
+                        reason = "capacity",
+                        attempt_count = attempted.load(Ordering::Relaxed),
+                        unattempted_capacity_count = capacity_pending.len(),
+                        original_remaining_ms = remaining
+                            .as_millis()
+                            .min(u128::from(self.inner.provider_policy.deadline_ms))
+                            as u64,
+                        "LCD scheduled alternatives deferred"
+                    );
+                    continuation_logged = true;
+                }
+                // All iteration-owned provider and ingestion permits have
+                // dropped. Waiting spends only this caller's original time.
+                tokio::time::sleep(Duration::from_millis(50).min(remaining)).await;
+                if tokio::time::Instant::now() >= deadline {
+                    deadline_expired = true;
+                    break;
+                }
+                pending.extend(capacity_pending.drain(..));
+                continue;
+            };
+            if attempted_endpoints[idx] {
+                continue;
+            }
             let ep = self.inner.endpoints.read().await[idx].clone();
             if tokio::time::Instant::now() >= deadline {
                 deadline_expired = true;
@@ -574,19 +684,29 @@ impl LcdClient {
                 Ok(permit) => permit,
                 Err(reason) => {
                     capacity_deferred |= reason.is_capacity();
+                    if reason.is_capacity() {
+                        capacity_pending.push(idx);
+                    }
                     continue;
                 }
             };
             if self.scheduled_observation {
                 permit.scheduled_observation();
             }
+            attempted_endpoints[idx] = true;
             attempts += 1;
             attempted.fetch_add(1, Ordering::Relaxed);
-            let outcome = tokio::time::timeout(
-                Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms),
+            let own_deadline = tokio::time::Instant::now()
+                + Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms);
+            let outcome = tokio::time::timeout_at(
+                own_deadline,
                 self.query_endpoint::<T>(
-                    idx,
-                    &ep.url,
+                    EndpointAttempt {
+                        index: idx,
+                        endpoint: &ep,
+                        caller_deadline: deadline,
+                        own_deadline,
+                    },
                     path,
                     constraints,
                     &mut permit,
@@ -594,7 +714,7 @@ impl LcdClient {
                 ),
             )
             .await;
-            if outcome.is_ok() {
+            if outcome.is_ok() && !matches!(&outcome, Ok(Ok(EndpointOutcome::Expired(_)))) {
                 permit.completed();
             }
             match outcome {
@@ -611,6 +731,12 @@ impl LcdClient {
                     // an alternative inside the same attempts/deadline budget.
                     permit.succeeded();
                     errors.push(format!("endpoint[{idx}] latest height below query minimum"));
+                }
+                Ok(Ok(EndpointOutcome::Expired(DeadlineOrigin::Caller))) => {
+                    // Leave the permit armed: scheduled closed-provider work
+                    // cancels neutrally; generic/half-open work quarantines.
+                    deadline_expired = true;
+                    break;
                 }
                 Ok(Err(
                     error @ (LcdError::ContractQueryRejected(_)
@@ -647,7 +773,7 @@ impl LcdClient {
                     *integrity_error.lock().unwrap() = Some(error);
                 }
                 Ok(Err(_)) => errors.push(format!("endpoint[{idx}] provider unavailable")),
-                Err(_) => {
+                Err(_) | Ok(Ok(EndpointOutcome::Expired(DeadlineOrigin::Attempt))) => {
                     // The provider's own attempt deadline proves failure. Keep
                     // drop armed until async recording completes exactly once.
                     permit.quarantine_if_cancelled();
@@ -690,27 +816,41 @@ impl LcdClient {
 
     async fn query_endpoint<T: DeserializeOwned>(
         &self,
-        idx: usize,
-        url: &str,
+        attempt: EndpointAttempt<'_>,
         path: &str,
         constraints: RequestConstraints<'_>,
         permit: &mut provider_pool::ProviderPermit,
         integrity_error: &std::sync::Mutex<Option<LcdError>>,
     ) -> Result<EndpointOutcome<T>, LcdError> {
+        let idx = attempt.index;
+        let url = &attempt.endpoint.url;
         let RequestConstraints {
             max_bytes,
             historical_height: height,
             minimum_latest_height,
             safety_observer,
         } = constraints;
+        if let Some(origin) = attempt.expired() {
+            return Ok(EndpointOutcome::Expired(origin));
+        }
         self.attest_endpoint(idx, url, permit, integrity_error, safety_observer)
             .await?;
+        // timeout_at polls its inner future first. Successful attestation can
+        // resume from a blocked metadata write after either original deadline;
+        // no data transport may be first-polled at that point.
+        if let Some(origin) = attempt.expired() {
+            return Ok(EndpointOutcome::Expired(origin));
+        }
         let mut request = self.inner.client.get(format!("{url}{path}"));
         if let Some(height) = height {
             request = request
                 .query(&[("height", height)])
                 .header("x-cosmos-block-height", height.to_string());
         }
+        // Test-only first-poll witness: wire counts can remain zero when an
+        // outer timeout cancels a newly polled transport immediately.
+        #[cfg(test)]
+        self.inner.data_request_polls.fetch_add(1, Ordering::SeqCst);
         let response = match request.send().await {
             Ok(response) => response,
             Err(_) => {
@@ -855,7 +995,8 @@ impl LcdClient {
         })?;
         // Historical reads deliberately bypass live lag comparison. Their exact height
         // header above is required, while the original historical time is preserved.
-        if height.is_none() && !historical_body {
+        let mut below_minimum = false;
+        let live_height = if height.is_none() && !historical_body {
             let observed = if path.ends_with("/blocks/latest") {
                 serde_json::from_str::<serde_json::Value>(&text)
                     .ok()
@@ -876,9 +1017,6 @@ impl LcdClient {
                     self.mark_failed(idx).await;
                     return Err(LcdError::LaggingProvider);
                 }
-                self.inner
-                    .latest_height
-                    .fetch_max(observed, Ordering::Relaxed);
             }
             if path == LATEST_BLOCK_PATH {
                 if let Some(minimum) = minimum_latest_height {
@@ -889,11 +1027,28 @@ impl LcdClient {
                         record_integrity_evidence(integrity_error, &error, safety_observer);
                         error
                     })?;
-                    if observed < minimum {
-                        return Ok(EndpointOutcome::BelowMinimum);
-                    }
+                    below_minimum = observed < minimum;
                 }
             }
+            observed
+        } else {
+            None
+        };
+        // Preserve every typed body/height negative above, then refuse late
+        // positives before health success or shared live-height publication.
+        // A caller's minimum cannot invent the shared frontier. Actual timely
+        // observations still inform its existing lag policy, even when below
+        // this query's separate minimum.
+        if let Some(origin) = attempt.expired() {
+            return Ok(EndpointOutcome::Expired(origin));
+        }
+        if let Some(observed) = live_height {
+            self.inner
+                .latest_height
+                .fetch_max(observed, Ordering::Relaxed);
+        }
+        if below_minimum {
+            return Ok(EndpointOutcome::BelowMinimum);
         }
         Ok(EndpointOutcome::Accepted(value))
     }
@@ -3761,6 +3916,10 @@ mod provider_resilience_tests {
 
 #[cfg(test)]
 mod deferred_recovery_tests;
+#[cfg(test)]
+mod parent_deadline_tests;
+#[cfg(test)]
+mod scheduled_continuation_tests;
 
 #[cfg(test)]
 mod local_ingestion_budget_tests {

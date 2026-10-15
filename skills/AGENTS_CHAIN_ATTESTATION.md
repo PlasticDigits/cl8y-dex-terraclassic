@@ -83,9 +83,14 @@ validation remains mandatory. Run the #1464 historical-body recovery regression.
 For [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md), a complete zero-attempt scheduled
 scan may wait for ordinary circuit admission within its existing total deadline.
 Keep typed deferral separate from integrity errors, never force a probe or reset
-backoff, and stop rescanning after an actual attempt. Endpoint metadata locks and
-the freshly calculated identity attempt deadline share the original absolute
-bound. Recovered providers still require fresh expected-chain attestation before
+backoff, and stop the zero-attempt rescan after an actual attempt. NR1505-10 adds
+one narrow scheduled-data continuation: within the same scan, wait only for
+capacity-denied alternatives not yet attempted, preserving its original cursor,
+shared global attempt count and absolute deadline. Never restart a failed endpoint,
+clear retained integrity or change direct/request behavior. A separately qualified
+exact-height alternative may succeed; expiry/exhaustion retains typed integrity.
+Endpoint metadata locks and the freshly calculated identity attempt deadline share
+the original absolute bound. Recovered providers still require fresh expected-chain attestation before
 any data is accepted; direct/request callers retain prompt failure.
 
 When an admitted identity attempt times out, account for the provider failure
@@ -93,3 +98,18 @@ through the already-owned provider state before waiting for endpoint metadata.
 Bound metadata invalidation by the same original total deadline; cancellation
 must neither lose quarantine nor count the same failure twice. Diagnostic
 verified metadata is never a substitute for a fresh successful identity read.
+
+Data reads recheck original total and intrinsic attempt deadlines before identity
+work and after awaited metadata. Inner-first timeout polling cannot start a new
+data transport at an elapsed boundary. Preserve deadline origin and provider
+accounting: own-attempt failure, neutral scheduled shorter-caller cancellation
+for closed providers, and quarantine for incomplete half-open probes and generic
+cancellation. A normal early error must not disarm cancellation health
+or clear previously retained integrity. See the [native boundary controls](../docs/qa/issue-1505/RESULTS.md).
+
+For enclosing producer budgets apply [NR1505-11](AGENTS_NATIVE_QUOTE_RECOVERY.md):
+scope the LCD view before constructing futures and take the inherited minimum.
+Clones keep the same provider/ingestion state and cancellation policy. Poll,
+floor, head, spawned pair and nested query scopes cannot renew or leak into later
+owners. Data and identity paths respect the earlier absolute bound; late positive
+identity completion never overrides it or clears known typed integrity.

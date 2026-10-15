@@ -17,6 +17,8 @@ Preserve [QL1499](AGENTS_QUOTE_LIFECYCLE.md),
 | NR1505-7 | Initialized socket useful results must meet 500ms; original-input useful browser results must meet 750ms. Errors, topology and loading do not count. Every selected sustained native response participates in availability acceptance; a typed503 cannot become PASS through later recovery or fresh-display retention. Preserve failed attempts, sample counts, transport reuse and original expiry through a focused native cohort. Record intentional teardown separately from active failures. |
 | NR1505-8 | Preserve provider/work/hop/cache limits, original reference quality, exact economics and fail-closed signing. Document actual deployment and live evidence separately from source passes. Executed failures remain FAIL; unavailable evidence remains explicit and does not establish closure. |
 | NR1505-9 | Only the owned pool lane may send one coalesced reference wake per completed cycle. Keep the existing reference timer as fallback, one active mark pass and one independently owned accounting pass, with no queued work or request-triggered wake. Publish the same qualified hub/economic batch atomically with original source timestamps; never renew expiry. Accounting consumes one consistent certified context and cannot delay critical mark publication. All futures remain owned and cancellation-safe. |
+| NR1505-10 | Scheduled provider continuation may wait only for shared-capacity-denied alternatives not yet actually attempted, inside one original absolute deadline and global attempt allowance. Keep the original cursor and attempted-endpoint identity; never restart a failed endpoint or reset query work. Release all permits before owned waits, retain typed integrity on expiry, and require fresh exact-height/expected-chain validation from any successful alternative. Direct/request behavior remains prompt and unchanged. |
+| NR1505-11 | Each scheduled owner propagates its original absolute deadline through an owned LCD view before constructing read futures. Nested views take only the minimum; clones share admission/pacing/namespace and retain cancellation policy. Poll, shorter floor, head, pair and nested snapshot scopes remain distinct. A head scope cannot expire later pair jobs. Never store an expired scoped view as a long-lived client, renew a budget, or accept late identity success after its governing deadline. |
 
 Run `make verify-issue-1505` and the applicable lifecycle/provider checks. Follow
 the [focused checklist](../docs/qa/issue-1505/README.md) and record actual results
@@ -32,9 +34,14 @@ and the unchanged maximum-publication useful-HTTP profile.
 Scheduled ingestion may wait after a full zero-attempt capacity/circuit deferral
 only inside its existing total deadline. Preserve typed deferral provenance,
 provider backoff and ordinary half-open admission. A real attempt ends that
-rescan loop; requests never acquire this behavior. Check the deadline before
-rescanning and retain cancellation ownership. No admission or network work may
-start at or after the original deadline.
+zero-attempt rescan loop. The narrow NR1505-10 continuation stays inside the same
+provider scan and revisits only capacity-denied, unattempted alternatives; it
+never restarts the attempted query or its budgets. Requests acquire neither
+behavior. Check the deadline before each admission and after pacing; retain
+cancellation ownership. No admission or network work may start at or after the
+original deadline. Emit at most one fixed continuation witness per logical
+query, without paths, endpoints, actors or upstream bodies. Controlled continuation
+proof is separate from an unobserved historical provider-admission sequence.
 
 An identity attempt timeout records provider failure before metadata cleanup.
 The cleanup shares the original total deadline, including lock contention;
@@ -86,3 +93,32 @@ bounded samples, optional requested-ID correlation and optional Prometheus.
 Shared monitoring retains its default 16-read profile; exercise actual capped
 transport in tests, not only a fake counter. Keep 300 sampled lines and eight
 requested IDs as hard bounds, with no extra query or raw-data export.
+
+Endpoint data transport must check its original total and intrinsic attempt
+boundaries before identity work and after any awaited identity/metadata step.
+Tokio's inner-first timeout polling cannot authorize a first data-transport poll
+at or after the governing deadline. Preserve the earlier deadline's origin:
+own-attempt timeout charges provider failure; a shorter independently scheduled
+caller limit retains neutral cancellation for closed providers. Incomplete
+half-open probes and generic cancellation still quarantine. Do not turn expiry into a normal completed error that disarms those
+health rules. Tests observe transport-future first polling, not just server wire
+receipts, and retain prior typed integrity/known-negative callbacks.
+
+Enclosing budgets reach LCD data and identity paths through explicit scoped client
+views, not hidden global/task-local state. A new view only tightens the inherited
+deadline; it never creates provider capacity or a fresh attempt allowance. Start
+each pair's view inside its spawned owner at the original job origin, and keep
+head-only scope separate. Nested snapshot helpers scope once before their retry
+loop. Optional floors use a tighter view with the same dispatch and poll-start
+clock. Late positive identity completion cannot bypass an elapsed caller/attempt
+boundary; known typed negatives remain latched and retain precedence.
+
+Positive data and identity completion must remain inside the governing absolute
+deadline, including buffered bodies resumed late. Retain known typed validation
+failures first, then reject expired positives before health success or shared
+height publication. Keep the original distinction between actual observations and
+query eligibility: a timely attested head below a pool's requested minimum may
+update the normal global lag watermark, but cannot refresh that pool or invent the
+requested minimum as an observed height. Preserve the existing minimum-head
+regression unchanged and test a subsequent lagging provider against the actual
+watermark. Expired buffered heads publish nothing.

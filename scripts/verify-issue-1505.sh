@@ -10,6 +10,9 @@ rust() {
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_observed_pause -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib lcd::deferred_recovery_tests -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib lcd::scheduled_continuation_tests -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib lcd::parent_deadline_tests -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_parent_deadline -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib db::queries::hub_prices::scheduler -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::generation -- --test-threads=1 || return 1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::publication -- --test-threads=1 || return 1
@@ -44,7 +47,7 @@ docs() {
 from pathlib import Path
 checks = {
  'AGENTS.md': ['AGENTS_NATIVE_QUOTE_RECOVERY.md', 'verify-issue-1505'],
- 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,10)), 'issue-1505/README.md'],
+ 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,12)), 'issue-1505/README.md'],
  'docs/qa/issue-1505/README.md': [*(f'AC{n}' for n in range(1,7)), 'Executed failures', 'RESULTS.md'],
  'docs/indexer-invariants.md': ['#1505', 'AGENTS_NATIVE_QUOTE_RECOVERY.md'],
  'docs/route-solver.md': ['x-quote-request-id', 'NR1505'],

@@ -183,6 +183,7 @@ fn observation_reason(error: &LcdError) -> &'static str {
         LcdError::AllEndpointsFailed(message) if message.contains("circuits open") => {
             "circuit_open"
         }
+        LcdError::AllEndpointsFailed(message) if message == "total deadline exceeded" => "deadline",
         LcdError::AllEndpointsFailed(_) | LcdError::Request(_) => "provider_unavailable",
         LcdError::ChainIdentity(_) => "chain_identity",
         LcdError::HistoricalHeightUnavailable => "historical_height",
@@ -735,11 +736,16 @@ async fn observe_config(lcd: &LcdClient, mapper: &str, router: Option<&str>) -> 
         let started = std::time::Instant::now();
         let observed_at_ms = Utc::now().timestamp_millis();
         let dispatch = ObservationDispatch::new(2);
+        let poll_deadline = poll_started + std::time::Duration::from_millis(7_900);
+        let deadline = poll_deadline.min(lcd.observation_deadline().unwrap_or(poll_deadline));
+        // Scope before constructing any read future: dispatching an already
+        // captured LCD future cannot retroactively tighten its caller clock.
+        let lcd = lcd.with_observation_deadline(deadline);
         let reads = ObservationReads {
-            lcd,
+            lcd: &lcd,
             dispatch: &dispatch,
             poll_started,
-            deadline: poll_started + std::time::Duration::from_millis(7_900),
+            deadline,
         };
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(8),
@@ -973,7 +979,9 @@ async fn observe_settlement(
     phase.store(5, Ordering::Relaxed);
     let floor_deadline =
         deadline.min(tokio::time::Instant::now() + std::time::Duration::from_secs(2));
+    let floor_lcd = reads.lcd.with_observation_deadline(floor_deadline);
     let floor_reads = ObservationReads {
+        lcd: &floor_lcd,
         deadline: floor_deadline,
         ..*reads
     };
@@ -1020,8 +1028,10 @@ async fn observe_router_bounded(
     deadline: tokio::time::Instant,
 ) -> Option<bool> {
     let dispatch = ObservationDispatch::new(2);
+    let lcd = lcd.with_observation_deadline(deadline);
+    let deadline = lcd.observation_deadline().unwrap_or(deadline);
     let reads = ObservationReads {
-        lcd,
+        lcd: &lcd,
         dispatch: &dispatch,
         poll_started: tokio::time::Instant::now(),
         deadline,
@@ -1062,6 +1072,14 @@ mod tests {
     async fn wrapper_fixture(
         router_delay: Duration,
         bank_delay: Duration,
+    ) -> (wiremock::MockServer, LcdClient) {
+        wrapper_fixture_with_smart_delay(router_delay, bank_delay, Duration::from_millis(800)).await
+    }
+
+    async fn wrapper_fixture_with_smart_delay(
+        router_delay: Duration,
+        bank_delay: Duration,
+        smart_delay: Duration,
     ) -> (wiremock::MockServer, LcdClient) {
         use base64::Engine;
         use wiremock::{
@@ -1119,7 +1137,7 @@ mod tests {
                 } else if path.starts_with("/terra/") {
                     bank_delay
                 } else {
-                    Duration::from_millis(800)
+                    smart_delay
                 };
                 ResponseTemplate::new(200)
                     .set_body_json(body)
@@ -1137,6 +1155,197 @@ mod tests {
         let lcd = LcdClient::new_with_policy(vec![server.uri()], 2_500, 1, "columbus-5", policy)
             .with_ingestion_budget();
         (server, lcd)
+    }
+
+    #[test]
+    fn issue1505_parent_deadline_reason_matches_only_internal_total_expiry() {
+        assert_eq!(
+            observation_reason(&LcdError::AllEndpointsFailed(
+                "total deadline exceeded".into()
+            )),
+            "deadline"
+        );
+        for message in [
+            "prefix total deadline exceeded",
+            "total deadline exceeded suffix",
+            "total deadline exceeded\nupstream detail",
+        ] {
+            assert_eq!(
+                observation_reason(&LcdError::AllEndpointsFailed(message.into())),
+                "provider_unavailable"
+            );
+        }
+        assert_eq!(
+            observation_reason(&LcdError::AllEndpointsFailed(
+                "all provider circuits open".into()
+            )),
+            "circuit_open"
+        );
+        assert_eq!(
+            observation_reason(&LcdError::ChainIdentity("invalid identity".into())),
+            "chain_identity"
+        );
+        assert_eq!(
+            observation_reason(&LcdError::HistoricalHeightUnavailable),
+            "historical_height"
+        );
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn issue1505_parent_deadline_dispatch_read_cannot_resume_data_after_parent() {
+        use wiremock::{matchers::path, Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_millis(50)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            2500,
+            1,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                attempt_timeout_ms: 2500,
+                ..Default::default()
+            },
+        )
+        .with_scheduled_observation();
+        let started = tokio::time::Instant::now();
+        let deadline = started + Duration::from_millis(150);
+        let lcd = lcd.with_observation_deadline(deadline);
+        let dispatch = ObservationDispatch::new(2);
+        let reads = ObservationReads {
+            lcd: &lcd,
+            dispatch: &dispatch,
+            poll_started: started,
+            deadline,
+        };
+        let query = json!({"config":{}});
+        let mut work = Box::pin(reads.read(
+            ReadSlot::MapperConfig,
+            lcd.query_contract_bounded::<Value>("terra1mapper", &query, 8192),
+        ));
+        let received = async {
+            while server.received_requests().await.unwrap().is_empty() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        };
+        tokio::select! {
+            value = &mut work => panic!("identity must start before suspension: {value:?}"),
+            () = received => {},
+        }
+        // Keep the owned read unpolled while the identity body becomes ready.
+        // The LCD's own 2.5/4 s clocks still have time; only the parent expired.
+        tokio::time::sleep_until(deadline + Duration::from_millis(50)).await;
+        let result = work.await;
+        assert!(result.is_none());
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            0,
+            "the dispatch deadline must reach the LCD future captured before polling"
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].caller_cancellations, 1);
+        assert_eq!(counters[0].in_flight, 0);
+        logs_assert(|lines: &[&str]| {
+            let events: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("Native wrapper read unavailable"))
+                .collect();
+            assert_eq!(
+                events.len(),
+                1,
+                "one physical read failure, no aggregate or success stream"
+            );
+            let event = events[0];
+            for field in [
+                "slot=\"mapper_config\"",
+                "reason=\"deadline\"",
+                "stage=\"lcd_read\"",
+                "lcd_polled=true",
+            ] {
+                assert!(event.contains(field), "missing fixed witness field {field}");
+            }
+            let elapsed = event
+                .split("poll_elapsed_ms=")
+                .nth(1)
+                .unwrap()
+                .split_whitespace()
+                .next()
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
+            assert!(
+                (200..=60_000).contains(&elapsed),
+                "witness retains the original poll clock through suspended parent expiry"
+            );
+            assert!(!event.contains("http") && !event.contains("terra1mapper"));
+            Ok(())
+        });
+    }
+
+    #[tokio::test]
+    async fn issue1505_parent_deadline_full_floor_phase_cannot_resume_data_after_two_seconds() {
+        use wiremock::{matchers::path, Mock, ResponseTemplate};
+        let (server, lcd) =
+            wrapper_fixture_with_smart_delay(Duration::ZERO, Duration::ZERO, Duration::ZERO).await;
+        let identity_calls = Arc::new(AtomicUsize::new(0));
+        let observed = identity_calls.clone();
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(move |_: &wiremock::Request| {
+                let ordinal = observed.fetch_add(1, Ordering::SeqCst) + 1;
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(if ordinal >= 13 {
+                        Duration::from_millis(50)
+                    } else {
+                        Duration::ZERO
+                    })
+            })
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let mut work = Box::pin(observe_config(&lcd, "terra1mapper", Some("terra1router")));
+        let floor_identity = async {
+            while identity_calls.load(Ordering::SeqCst) < 13 {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        };
+        tokio::select! {
+            value = &mut work => panic!("all critical reads precede the optional phase: {value:?}"),
+            () = floor_identity => {},
+        }
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            11,
+            "unchanged critical read count"
+        );
+        let floor_identity_started = tokio::time::Instant::now();
+        // The first floor identity starts at the beginning of its phase. The
+        // unchanged 250 ms pacing may leave the other floor queued; neither may
+        // first-poll data after this two-second phase expires.
+        tokio::time::sleep_until(floor_identity_started + Duration::from_millis(2050)).await;
+        let snapshot = work
+            .await
+            .expect_available("optional expiry preserves critical fields");
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            11,
+            "optional floor futures must inherit the phase deadline before construction"
+        );
+        assert!(snapshot.tax_atomics.is_some());
+        assert_eq!(snapshot.router_unwrap_supported, Some(true));
+        assert_eq!(snapshot.mappings.len(), 2);
+        assert_eq!(snapshot.direct_floor_protocol(false), None);
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].in_flight, 0);
     }
 
     async fn override_smart_read(

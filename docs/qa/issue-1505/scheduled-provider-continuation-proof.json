@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "issue": 1505,
+  "created_utc": "2026-10-15T20:58:34.915580+00:00",
+  "baseline_commit": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "source_sha256": {
+    "indexer/src/lcd/mod.rs": "44548751353cb297664d57dd10a3cbae01fc5587c3223eaf88d09aa964d3fddd",
+    "indexer/src/lcd/chain_identity.rs": "8ffee205204f3b09c04cdd448eca29651fd652a29f24af1107935e261efa274e",
+    "indexer/src/lcd/scheduled_continuation_tests.rs": "d45894d2e761dba88111dbb2a9c447499793471538f63114fe21d6f8fd90012e"
+  },
+  "command_template": "env -u RUST_MIN_STACK -u RUST_TEST_THREADS CARGO_TARGET_DIR=<owned-worktree>/indexer/target CARGO_BUILD_JOBS=2 cargo test --locked --manifest-path indexer/Cargo.toml --lib <filter> -- --nocapture",
+  "final_filters": [
+    "lcd::scheduled_continuation_tests",
+    "lcd::"
+  ],
+  "settings": {
+    "build_jobs": 2,
+    "test_threads": "default; RUST_TEST_THREADS unset",
+    "stack": "default; RUST_MIN_STACK unset",
+    "processes": "sequential fresh Cargo processes; no concurrent owned heavy jobs"
+  },
+  "changes": [
+    "Scheduled observations may continue only capacity-denied unattempted endpoint ordinals using one cursor, one attempted-index set and the original global attempt/deadline budget.",
+    "No provider or quote-ingestion permit is retained during the owned50ms local wait. Direct callers and deterministic terminal query outcomes retain prompt behavior.",
+    "Typed original own-attempt and caller deadlines guard before attestation transport and after successful attestation metadata before first polling data transport. Own expiry retains provider-failure accounting; shorter scheduled closed-provider expiry retains neutral cancellation; generic and half-open cancellation retain quarantine.",
+    "Known integrity evidence and synchronous invalidation callbacks remain sticky and win if no valid alternative succeeds.",
+    "Once per continued query: fixed data/capacity diagnostic with attempt_count, unattempted_capacity_count and original_remaining_ms clamped to policy deadline.",
+    "Only test builds add two client-owned atomic phase witnesses; no production counters or global registry is added."
+  ],
+  "evidence": {
+    "continuation_old": {
+      "log_basename": "dex-1505-scheduled-continuation-old.log",
+      "sha256": "d4dd6c386a83a5c7b5b30941a37b7dbbca28301890a3f54e524e7486efa1d9e3",
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.34s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=2 primary_attempts=1 alternate_attempts=0 primary_data_reads=1 alternate_data_reads=0 callbacks=1"
+      ]
+    },
+    "continuation_initial_fixed": {
+      "log_basename": "dex-1505-scheduled-continuation-fixed-first.log",
+      "sha256": "a6f368c2fb2ad02f0532b26d7326922d53721c75ecee9e71ada5350cb677dd84",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.38s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=312 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "fixture_priority_failure": {
+      "log_basename": "dex-1505-scheduled-continuation-focused-first.log",
+      "sha256": "caca3f502edc9b4825f1ea46bf851f88a8b55b01a77f352ab6a5bd301567ea78",
+      "result": "test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.75s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=312 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "fixture_counter_failure": {
+      "log_basename": "dex-1505-scheduled-continuation-focused-corrected-first.log",
+      "sha256": "b61a95fc8cce5c59e2f8729002f3649937cc1fce24a826e0eda92f8fba958a21",
+      "result": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.82s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=311 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "initial_six_focused_first": {
+      "log_basename": "dex-1505-scheduled-continuation-final-focused-first.log",
+      "sha256": "39ca02cf4f84670440313defbd2e297a89c7d14eba90f1b1ff44247dd38a5c0e",
+      "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.82s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=311 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "initial_six_focused_retest": {
+      "log_basename": "dex-1505-scheduled-continuation-final-focused-retest.log",
+      "sha256": "50c471819fafcab14436700f7ff873f1e7808dec0b92e5234513a4b7f41afb27",
+      "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 883 filtered out; finished in 0.78s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=312 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "pre_deadline_guard_full_lcd_first": {
+      "log_basename": "dex-1505-scheduled-continuation-lcd-first.log",
+      "sha256": "821b23f5c92661307e6706b649c045c50443ddec742abc717a931912fce2c35c",
+      "result": "test result: ok. 114 passed; 0 failed; 1 ignored; 0 measured; 774 filtered out; finished in 12.34s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=310 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1"
+      ]
+    },
+    "test_instrumentation_compile_failure": {
+      "log_basename": "dex-1505-post-metadata-instrumentation-compile-fail.log",
+      "sha256": "a5bd61758da8f53561056bc0d48b78d6ec22a15113f06f1cf91b4846be706ba4",
+      "result": "compilation failed E0433: test-only Ordering was not imported",
+      "fixed_scalar_records": []
+    },
+    "post_metadata_old": {
+      "log_basename": "dex-1505-post-metadata-old.log",
+      "sha256": "c0c5b067445bf386892a1b2d381844963d427f29286ae9374137151be310e2d0",
+      "result": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 889 filtered out; finished in 4.17s",
+      "fixed_scalar_records": [
+        "metadata_deadline_control own_attempt=true scheduled=true elapsed_ms=2551 data_future_polls=1 allowed_prefix_polls=0 selected_failures=1 selected_cancellations=0 callbacks=0",
+        "metadata_deadline_control own_attempt=false scheduled=false elapsed_ms=4052 data_future_polls=2 allowed_prefix_polls=1 selected_failures=1 selected_cancellations=0 callbacks=1",
+        "metadata_deadline_control own_attempt=false scheduled=true elapsed_ms=4051 data_future_polls=2 allowed_prefix_polls=1 selected_failures=0 selected_cancellations=1 callbacks=1"
+      ]
+    },
+    "final_focused_first": {
+      "log_basename": "dex-1505-scheduled-continuation-guarded-focused-first.log",
+      "sha256": "b7776c25571e6d4985348129a9a37c1910e903fe16278f69c9b35bd239504306",
+      "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 883 filtered out; finished in 4.40s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=312 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1",
+        "metadata_deadline_control own_attempt=true scheduled=true elapsed_ms=2551 data_future_polls=0 allowed_prefix_polls=0 selected_failures=1 selected_cancellations=0 callbacks=0",
+        "metadata_deadline_control own_attempt=false scheduled=true elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=0 selected_cancellations=1 callbacks=1",
+        "metadata_deadline_control own_attempt=false scheduled=false elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=1 selected_cancellations=0 callbacks=1"
+      ]
+    },
+    "final_focused_retest": {
+      "log_basename": "dex-1505-scheduled-continuation-guarded-focused-retest.log",
+      "sha256": "e5259844398930812d94ca3f951cc3d1aa3469272495c588728df82a3974ceef",
+      "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 883 filtered out; finished in 4.40s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=311 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1",
+        "metadata_deadline_control own_attempt=true scheduled=true elapsed_ms=2550 data_future_polls=0 allowed_prefix_polls=0 selected_failures=1 selected_cancellations=0 callbacks=0",
+        "metadata_deadline_control own_attempt=false scheduled=true elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=0 selected_cancellations=1 callbacks=1",
+        "metadata_deadline_control own_attempt=false scheduled=false elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=1 selected_cancellations=0 callbacks=1"
+      ]
+    },
+    "final_full_lcd_first": {
+      "log_basename": "dex-1505-scheduled-continuation-guarded-lcd-first.log",
+      "sha256": "0c11ef4c92bf517ac2336d680247a3def15969472025d3ac8f1486d075d5645c",
+      "result": "test result: ok. 117 passed; 0 failed; 1 ignored; 0 measured; 774 filtered out; finished in 12.35s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=310 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1",
+        "metadata_deadline_control own_attempt=true scheduled=true elapsed_ms=2550 data_future_polls=0 allowed_prefix_polls=0 selected_failures=1 selected_cancellations=0 callbacks=0",
+        "metadata_deadline_control own_attempt=false scheduled=false elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=1 selected_cancellations=0 callbacks=1",
+        "metadata_deadline_control own_attempt=false scheduled=true elapsed_ms=4050 data_future_polls=1 allowed_prefix_polls=1 selected_failures=0 selected_cancellations=1 callbacks=1"
+      ]
+    },
+    "final_full_lcd_retest": {
+      "log_basename": "dex-1505-scheduled-continuation-guarded-lcd-retest.log",
+      "sha256": "07b5f976fce44b38b36251facbae3e6a177b21b4784d742f53cf376c0d294cc0",
+      "result": "test result: ok. 117 passed; 0 failed; 1 ignored; 0 measured; 774 filtered out; finished in 12.29s",
+      "fixed_scalar_records": [
+        "scheduled_continuation_control elapsed_ms=312 primary_attempts=1 alternate_attempts=1 primary_data_reads=1 alternate_data_reads=1 callbacks=1",
+        "metadata_deadline_control own_attempt=true scheduled=true elapsed_ms=2550 data_future_polls=0 allowed_prefix_polls=0 selected_failures=1 selected_cancellations=0 callbacks=0",
+        "metadata_deadline_control own_attempt=false scheduled=false elapsed_ms=4050 data_future_polls=1 allowed_prefix_polls=1 selected_failures=1 selected_cancellations=0 callbacks=1",
+        "metadata_deadline_control own_attempt=false scheduled=true elapsed_ms=4051 data_future_polls=1 allowed_prefix_polls=1 selected_failures=0 selected_cancellations=1 callbacks=1"
+      ]
+    }
+  },
+  "preserved_failures": {
+    "continuation_old": "Actual premature terminal HistoricalHeightUnavailable at2ms, primary attempted once, alternate unattempted despite release300ms inside original4s/max3.",
+    "post_metadata_old": "Three actual failures: forbidden data-future polling after original own2.5s and total4s limits. Wire attempt is not inferred from this first-poll witness.",
+    "fixture_priority_failure": "Equal-priority identity mock did not replace existing priority1 helper; corrected by resetting only owned server and observing zero data queries for wrong-chain.",
+    "fixture_counter_failure": "circuit_open diagnostic means retained open_until, not clock eligibility; corrected with test-owned ordinary admission after query-count assertions.",
+    "test_instrumentation_compile_failure": "Missing fully qualified Ordering in cfg(test) probe; corrected without runtime behavior change."
+  },
+  "unchanged_runtime_bounds": {
+    "provider_attempt_ms": 2500,
+    "provider_total_ms": 4000,
+    "configured_attempt_cap": "unchanged; controls exercise1,2,3",
+    "provider_capacity_and_rate": "unchanged",
+    "wrapper_global_permits": 2,
+    "wrapper_per_denom_permits": 1,
+    "quote_ingestion_rps": 4,
+    "wrapper_data_reads": 13,
+    "wrapper_margin_ms": 7900,
+    "wrapper_outer_ms": 8000,
+    "wrapper_cadence_ms": 10000,
+    "original_observation_ttl_ms": 20000
+  },
+  "limitations": [
+    "Live M6 busy-alternative/attempt-count attribution remains unproven. The deterministic control proves a source defect without establishing that exact historical mechanism.",
+    "No source clocks, reference qualities, floors, original tuple expiry or economics changed. No request-triggered RPC or retained-field splicing was introduced.",
+    "Full114-pass LCD receipt preceded the deadline guard and is not final-source evidence; only final117-pass FIRST/RETEST cover all final source.",
+    "The existing ignored LCD test remains ignored. Full application/database/hosted/live acceptance belongs to the parent release verification wave."
+  ],
+  "independent_review": "Telemetry reviewed all three final hashes and reported no runtime findings; parent independent runtime read also clean.",
+  "source_frozen": true,
+  "owned_jobs_stopped": true
+}

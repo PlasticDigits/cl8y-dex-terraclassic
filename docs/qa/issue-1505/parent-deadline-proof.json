@@ -1,0 +1,310 @@
+{
+  "schema": 1,
+  "issue": 1505,
+  "created_utc": "2026-10-15T22:16:29.893827+00:00",
+  "scope": "Source-only parent-deadline follow-up; no deployed acceptance claim",
+  "baseline_commit": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "previous_proof": {
+    "basename": "dex-1505-scheduled-continuation-proof.json",
+    "sha256": "47f1ce3a30bf85f91075025e9043104cf363dcfd749baa59ba7a60fbfec42ad9",
+    "scope": "Previous scheduled continuation and internal deadline controls; unchanged artifact, not final parent-scope source evidence"
+  },
+  "final_source_sha256": {
+    "indexer/src/lcd/mod.rs": "b8338acea42e6fd8169916fe5d6fbac834fd6c29a352ba9e03bddcc875ef14f5",
+    "indexer/src/lcd/chain_identity.rs": "c9d9633488710a5eeeca06cf2d2132ddd7356a55bc97684ba652c03b6300bbe4",
+    "indexer/src/lcd/parent_deadline_tests.rs": "60dd7dd4045c5faf7b85bc128cd830705fdd9ddb51c8a928eeaf3b5289987021",
+    "indexer/src/lcd/scheduled_continuation_tests.rs": "d45894d2e761dba88111dbb2a9c447499793471538f63114fe21d6f8fd90012e",
+    "indexer/src/lcd/deferred_recovery_tests.rs": "a43ff7dba5caaf181b27e93f54f6c3005f330fdbcb014343d98e084c9528057e",
+    "indexer/src/api/local_wrapper_quote.rs": "ad4651a7ab3afef0fd6942ce275988dd46db0381f2bb7d79b1ec63e10a0ef8e9",
+    "indexer/src/indexer/book_snapshot.rs": "e8453c8e616de58ceeea13e2036bf5b126099fad664a88a688a404edc5f3a111"
+  },
+  "command_template": "env -u RUST_MIN_STACK -u RUST_TEST_THREADS CARGO_TARGET_DIR=<owned-worktree>/indexer/target CARGO_BUILD_JOBS=2 cargo test --locked --manifest-path indexer/Cargo.toml --lib <filter> -- --nocapture",
+  "final_filters": [
+    "lcd::parent_deadline_tests",
+    "issue1505_parent_deadline",
+    "lcd::",
+    "api::local_wrapper_quote::tests"
+  ],
+  "settings": {
+    "build_jobs": 2,
+    "stack": "default; RUST_MIN_STACK unset",
+    "test_threads": "default; RUST_TEST_THREADS unset",
+    "execution": "One Cargo owner; sequential fresh processes, fail-fast on each failure"
+  },
+  "changes": [
+    "Explicit owned LcdClient observation_deadline Option min-merges absolute scopes while sharing provider, namespace and pacing state and preserving cancellation flags.",
+    "Data and identity operation deadlines take the earlier owned scope or existing policy total deadline. Intrinsic attempt remains separately bounded.",
+    "Producer scopes are established before constructing futures: wrapper poll, separate floor phase, head-local scope, each spawned pair job, and one snapshot-helper scope outside capacity retries.",
+    "Identity-only positive completing after its deadline cannot authorize success or reset health. Earlier independently qualified aggregate attestation remains valid; typed negatives retain precedence.",
+    "Typed data body/chain/historical/invalid/lag validation precedes the positive-expiry guard. The guard precedes shared actual-height publication and Accepted/BelowMinimum health success.",
+    "Within-budget actual observed heads retain the existing generic lag policy even if below a query-specific minimum. Requested minimum is never invented as observed height.",
+    "Read-only cfg(test) first-poll accessor supports producer controls; no production counter, RPC, queue, task-local state or detached task is added.",
+    "Only the exact internally generated total-deadline string maps to the fixed deadline diagnostic; similar arbitrary messages and known typed negatives preserve their existing classification."
+  ],
+  "evidence": {
+    "old_lcd_parent": {
+      "log_basename": "dex-1505-parent-deadline-lcd-old.log",
+      "sha256": "82a8ba41b43112335935e08cd3888ea4bef9c4b5286adf11261b9f6b42c43ffa",
+      "result": "test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 896 filtered out; finished in 2.81s",
+      "fixed_scalar_records": [
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=true failures=0 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=1 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=true failures=0 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=true failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2551 data_future_polls=0 accepted=true failures=0 cancellations=0 callbacks=0"
+      ]
+    },
+    "old_producers": {
+      "log_basename": "dex-1505-parent-deadline-producers-old.log",
+      "sha256": "67bef151dbeb0884dc48241c55a96ce6542a946d3780cedd682ca6dd707f6880",
+      "result": "test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 900 filtered out; finished in 4.96s",
+      "fixed_scalar_records": []
+    },
+    "initial_buffered_body_control_with_fixture_limitations": {
+      "log_basename": "dex-1505-parent-deadline-buffered-body-old.log",
+      "sha256": "d3ebccd170f0c8389d8abf0061f4743fc1779e867b0baa0614b488c16007ba83",
+      "result": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 904 filtered out; finished in 2.64s",
+      "fixed_scalar_records": [
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=1 failures=0 cancellations=0 shared_latest_height=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=true successes=1 failures=0 cancellations=0 shared_latest_height=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2550 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0"
+      ]
+    },
+    "corrected_old_buffered_body": {
+      "log_basename": "dex-1505-parent-deadline-buffered-body-old-corrected.log",
+      "sha256": "c88c2fee4f0d0caae22ce8e2c4e2a6eb5ee6012ade974ceb339665cc0cf6bef3",
+      "result": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 906 filtered out; finished in 2.68s",
+      "fixed_scalar_records": [
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=1 failures=0 cancellations=0 shared_latest_height=800",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=true successes=1 failures=0 cancellations=0 shared_latest_height=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2552 accepted=true successes=1 failures=0 cancellations=0 shared_latest_height=0"
+      ]
+    },
+    "mis_specified_new_zero_head_expectation": {
+      "log_basename": "dex-1505-parent-deadline-ineligible-head-old.log",
+      "sha256": "5239b039209046319f48a3a554251d0f7a1e4aad9351cd8e572e508d618bef65",
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 908 filtered out; finished in 0.04s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=900 attempts=1 successes=1 failures=0"
+      ]
+    },
+    "pre_correction_lcd_focus_first": {
+      "log_basename": "dex-1505-parent-deadline-lcd-fixed-first.log",
+      "sha256": "a6f75abbc766ceb0022bc3b45808f55830a975e71e3b93f76dbdcc7c6e45572c",
+      "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 2.86s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=0 attempts=1 successes=1 failures=0",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=350 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2552 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2550 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0"
+      ]
+    },
+    "pre_correction_lcd_focus_retest": {
+      "log_basename": "dex-1505-parent-deadline-lcd-fixed-retest.log",
+      "sha256": "87468e923249020b7876d2084cf73973e3d9d7a7a9a19daf8d9474670fd33c7f",
+      "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 2.86s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=0 attempts=1 successes=1 failures=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=352 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2551 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0"
+      ]
+    },
+    "pre_correction_producer_first": {
+      "log_basename": "dex-1505-parent-deadline-producers-fixed-first.log",
+      "sha256": "5b96c4d7a714ad117e78a621132eb609278526fffbb17731df68b053f0055656",
+      "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 904 filtered out; finished in 4.99s",
+      "fixed_scalar_records": []
+    },
+    "pre_correction_producer_retest": {
+      "log_basename": "dex-1505-parent-deadline-producers-fixed-retest.log",
+      "sha256": "6bf04d6084ff35fdbab9d8d93e40cbce686254557754fc540c8c17a9efc9884c",
+      "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 904 filtered out; finished in 4.97s",
+      "fixed_scalar_records": []
+    },
+    "introduced_observed_height_regression": {
+      "log_basename": "dex-1505-parent-deadline-full-lcd-first.log",
+      "sha256": "20c149e72955bfab408d43b4873fb0192880688ea0d4b1d3142ebeee13e59847",
+      "result": "test result: FAILED. 128 passed; 1 failed; 1 ignored; 0 measured; 779 filtered out; finished in 12.79s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=0 attempts=1 successes=1 failures=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=352 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2551 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0"
+      ]
+    },
+    "final_lcd_focus_first": {
+      "log_basename": "dex-1505-parent-deadline-final-lcd-focused-first.log",
+      "sha256": "c7792f2bf215afc88b904943f791b3b7a9b51415098b2cd84ead45a65c79f616",
+      "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 2.89s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=900 attempts=1 successes=1 failures=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2551 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0"
+      ]
+    },
+    "final_lcd_focus_retest": {
+      "log_basename": "dex-1505-parent-deadline-final-lcd-focused-retest.log",
+      "sha256": "d01123fabaeb074c59a58a4c0489a0f9f041c78bd6ee1b29b534185dc331a9eb",
+      "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 897 filtered out; finished in 2.89s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=900 attempts=1 successes=1 failures=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=352 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2551 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0"
+      ]
+    },
+    "final_producers_first": {
+      "log_basename": "dex-1505-parent-deadline-final-producers-first.log",
+      "sha256": "2536d0d9e126acc14d2ec32ff5e740fc9b8e97bf243dbb79072d31dca99e3adc",
+      "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 904 filtered out; finished in 4.97s",
+      "fixed_scalar_records": []
+    },
+    "final_producers_retest": {
+      "log_basename": "dex-1505-parent-deadline-final-producers-retest.log",
+      "sha256": "ee8a2449d95c87cd01bdccf8719eef505bb4801d0af61ec68cca96210915bf93",
+      "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 904 filtered out; finished in 4.95s",
+      "fixed_scalar_records": []
+    },
+    "final_full_lcd_first": {
+      "log_basename": "dex-1505-parent-deadline-final-full-lcd-first.log",
+      "sha256": "9525c754be61a5ba017b2aacb01ba8f1fc229f33e2649cb438aa7c2bc50404e2",
+      "result": "test result: ok. 129 passed; 0 failed; 1 ignored; 0 measured; 779 filtered out; finished in 12.80s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=900 attempts=1 successes=1 failures=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=350 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2550 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0"
+      ]
+    },
+    "final_full_lcd_retest": {
+      "log_basename": "dex-1505-parent-deadline-final-full-lcd-retest.log",
+      "sha256": "f3be508b2717bcac092c4c5c358a84256608574f4ca3ac6fb436b5cbea0ec9d0",
+      "result": "test result: ok. 129 passed; 0 failed; 1 ignored; 0 measured; 779 filtered out; finished in 12.82s",
+      "fixed_scalar_records": [
+        "ineligible_head_control accepted=false shared_latest_height=900 attempts=1 successes=1 failures=0",
+        "buffered_body_control operation=Data own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "buffered_body_control operation=BelowMinimum own_attempt=false elapsed_ms=351 accepted=false successes=0 failures=0 cancellations=1 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=false half_open=false own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=351 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=1",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=true own_attempt=false wrong_chain=false elapsed_ms=351 data_future_polls=0 accepted=false failures=2 cancellations=0 callbacks=0",
+        "parent_deadline_control operation=Data scheduled=true half_open=false own_attempt=false wrong_chain=false elapsed_ms=350 data_future_polls=0 accepted=false failures=0 cancellations=1 callbacks=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=false wrong_chain=true elapsed_ms=350 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0",
+        "buffered_body_control operation=Data own_attempt=true elapsed_ms=2551 accepted=false successes=0 failures=1 cancellations=0 shared_latest_height=0",
+        "parent_deadline_control operation=Identity scheduled=true half_open=false own_attempt=true wrong_chain=false elapsed_ms=2550 data_future_polls=0 accepted=false failures=1 cancellations=0 callbacks=0"
+      ]
+    },
+    "final_full_wrapper_first": {
+      "log_basename": "dex-1505-parent-deadline-final-full-wrapper-first.log",
+      "sha256": "d796072d836b57b2312b4e96652cd7ec8eea4dc1dc5ef650f613e0dda8f80695",
+      "result": "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 874 filtered out; finished in 18.40s",
+      "fixed_scalar_records": []
+    },
+    "final_full_wrapper_retest": {
+      "log_basename": "dex-1505-parent-deadline-final-full-wrapper-retest.log",
+      "sha256": "b5db8b5e30700ba39796f454d535dcf4d1b183982ce16e2084c49a19f1af25a7",
+      "result": "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 874 filtered out; finished in 18.83s",
+      "fixed_scalar_records": []
+    }
+  },
+  "failure_interpretation": {
+    "old_lcd_parent": "Actual3PASS/5FAIL: forbidden data polling after short parent; late identity positives accepted for scheduled/direct/half-open and intrinsic attempt. Known-negative/min-sharing controls already passed.",
+    "old_producers": "Actual0PASS/4FAIL: dispatch/head, full optional floor phase and original snapshot helper retry admitted forbidden data polling after their enclosing deadlines.",
+    "initial_buffered_body_control_with_fixture_limitations": "Actual1PASS/2FAIL retained. Valid short-parent data accepted late. The below-minimum payload lacked required header.time and could not prove the intended valid-head branch. Near-coincident per-wire timeout protected the initial own-attempt case.",
+    "corrected_old_buffered_body": "Actual0PASS/3FAIL: valid parent data accepted late; permitted200ms identity overhead distinguishes whole-attempt2.5s from later wire timeout and exposes late own-attempt positive; valid expired BelowMinimum published800/reset health.",
+    "mis_specified_new_zero_head_expectation": "MIS-SPECIFIED TEST, NOT APPLICATION DEFECT. Actual observed900 may update shared0->900; only requested1000 must never be invented. The zero expectation was corrected and explicitly preserved as a mistaken control receipt.",
+    "introduced_observed_height_regression": "Actual128PASS/1FAIL/1ignored exposed a regression introduced by the mistaken zero interpretation. Legacy test correctly expected observed100. Runtime was corrected to preserve original in-budget observation tracking; legacy assertions were not edited.",
+    "pre_correction_passes": "Recorded against tentative source before the discovered lag-tracking regression correction; not final-source acceptance."
+  },
+  "legacy_compatibility": {
+    "test": "recovery1464_minimum_head_all_old_respects_single_attempt_and_rate_budget",
+    "byte_identical_to_HEAD": true,
+    "block_sha256": "53356fcf36c78071c1cb3e363afec33a1c9ec6959b171261e5dfcce1c01e6237",
+    "legacy_expected_observed_height": 100,
+    "all_original_attempt_rate_health_assertions_retained": true
+  },
+  "final_positive_boundaries": {
+    "expired_parent_data": "accepted=false; success0; scheduled closed cancellation1",
+    "expired_own_data": "accepted=false; success0; provider failure1",
+    "expired_identity": "accepted=false with original closed/direct/half-open/own accounting",
+    "late_known_negative": "original typed ChainIdentity and callback retained",
+    "expired_below_minimum": "shared height0; success0; neutral scheduled cancellation1",
+    "timely_below_minimum": "observed900 retained, requested1000 never seeded, provider healthy, later860 refused under unchanged20-block lag"
+  },
+  "unchanged_limits": {
+    "provider_attempt_ms": 2500,
+    "provider_total_ms": 4000,
+    "wrapper_poll_margin_ms": 7900,
+    "wrapper_outer_ms": 8000,
+    "optional_floor_max_ms": 2000,
+    "pool_pair_and_head_budgets": "original configured bounds unchanged",
+    "provider_attempt_rate_concurrency_caps": "unchanged",
+    "wrapper_global_permits": 2,
+    "wrapper_per_denom_permits": 1,
+    "quote_ingestion_rps": 4,
+    "healthy_wrapper_data_reads": 13,
+    "wrapper_cadence_ms": 10000,
+    "original_observation_ttl_ms": 20000,
+    "reference_quality_and_economics": "unchanged"
+  },
+  "limitations": [
+    "First polling a transport future does not prove wire delivery; controls deliberately count logical starts separately.",
+    "Neither deterministic continuation nor parent-deadline controls prove retrospective provider admission for the M6 live reference failure.",
+    "Final source verification is local/synthetic. Full release verifiers, hosted CI and deployed useful-result acceptance remain with the parent.",
+    "One existing LCD benchmark remains ignored; no new ignored tests or skip was introduced."
+  ],
+  "independent_reviews": [
+    "Parent and telemetry agreed on scoped interface and preserved earlier attestation semantics.",
+    "Telemetry reviewed final LCD guard ordering and corrected observed-height policy; no findings.",
+    "Native backend cross-reviewed producer scope ownership; no findings.",
+    "Legacy test byte comparison independently confirmed by telemetry."
+  ],
+  "source_frozen": true,
+  "owned_jobs_stopped": true
+}

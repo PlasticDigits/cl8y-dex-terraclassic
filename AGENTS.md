@@ -8,6 +8,11 @@ display expiry, follow [NR1505](skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), run
 Preserve offline requests, original expiry, bounded providers and fail-closed signing.
 Only owned pool-cycle completion may coalesce a reference wake; accounting uses
 one consistent certified context and cannot delay critical mark publication.
+Scheduled provider continuation follows NR1505-10: only capacity-denied,
+unattempted alternatives may wait within the same original deadline/attempt cap.
+Post-attestation transport guards retain caller/attempt origin and provider health.
+Propagate earlier producer/floor/pair deadlines through explicit owned LCD views
+(NR1505-11); nested scopes only tighten and never renew provider work.
 
 ## Trade entry, stable Swap layout and order metrics
 

@@ -160,8 +160,11 @@ impl LcdClient {
 
     async fn probe_identities(&self, stop_on_success: bool) -> Result<(), LcdError> {
         use std::time::Duration;
-        let deadline = tokio::time::Instant::now()
+        let policy_deadline = tokio::time::Instant::now()
             + Duration::from_millis(self.inner.provider_policy.deadline_ms);
+        let deadline = self
+            .observation_deadline
+            .map_or(policy_deadline, |parent| parent.min(policy_deadline));
         let mut deferred_result = None;
         let mut attempted = 0;
         let mut circuit_logged = false;
@@ -248,25 +251,33 @@ impl LcdClient {
                 self.attest_endpoint(idx, &ep.url, &mut permit, &integrity_error, None),
             )
             .await;
-            if outcome.is_err() && deadline < own_deadline && permit.closed_cancel_is_neutral() {
+            // Timeout polls its inner first. A positive metadata write can
+            // finish after the effective caller/attempt boundary; it must not
+            // authorize this probe or reset health. Typed negatives stay intact.
+            let outcome = match outcome {
+                Ok(Ok(())) if tokio::time::Instant::now() >= attempt_deadline => None,
+                Ok(result) => Some(result),
+                Err(_) => None,
+            };
+            if outcome.is_none() && deadline < own_deadline && permit.closed_cancel_is_neutral() {
                 // The caller's remaining total budget is shorter than this
                 // closed provider's own attempt bound. Preserve its health;
                 // drop still charges admission and releases the shared slot.
                 errors.push(format!("endpoint[{idx}] identity total deadline exceeded"));
                 continue;
             }
-            if outcome.is_ok() {
+            if outcome.is_some() {
                 permit.completed();
             }
             match outcome {
-                Ok(Ok(())) => {
+                Some(Ok(())) => {
                     permit.succeeded();
                     verified = true;
                     if stop_on_success {
                         return super::ScanOutcome::completed(Ok(()), attempts);
                     }
                 }
-                Ok(Err(
+                Some(Err(
                     e @ (LcdError::ChainIdentity(_)
                     | LcdError::Deserialize(_)
                     | LcdError::HttpRejected(_)),
@@ -274,8 +285,8 @@ impl LcdClient {
                     errors.push(format!("endpoint[{idx}] identity integrity rejected"));
                     *integrity_error.lock().unwrap() = Some(e);
                 }
-                Ok(Err(e)) => errors.push(e.to_string()),
-                Err(_) => {
+                Some(Err(e)) => errors.push(e.to_string()),
+                None => {
                     permit.quarantine_if_cancelled();
                     // Provider failure is authoritative even if metadata cannot
                     // be locked. Record it before awaiting cleanup, then disarm
@@ -393,6 +404,10 @@ impl LcdClient {
             permit.quarantine_if_cancelled();
             super::record_integrity_evidence(integrity_error, error, safety_observer);
         }
+        #[cfg(test)]
+        self.inner
+            .endpoint_metadata_waits
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut eps = self.inner.endpoints.write().await;
         let ep = &mut eps[idx];
         ep.identity_checked_at = Some(chrono::Utc::now().to_rfc3339());
