@@ -49,3 +49,40 @@ before starting a read, and release on cancellation. The shared provider lane,
 rate/attempt budgets and original read count remain unchanged. No global queue
 or detached work is introduced; required reads queue before later capability
 work. Box transport futures before constructing their enclosing async state.
+
+Each known native denom also owns one poll-local slot shared by its individual
+mapping, rate and cap reads. Acquire that slot before the global two-read slot;
+never hold an outer mapping slot and reacquire it inside child reads. Gates are
+symmetric and release on every return/cancellation. Common prerequisite, tax and
+router reads use the global gate. A slow denom must not occupy both global slots
+and strand another denom's independently valid observations. This does not
+guarantee every slow source fits; missing required fields still fail closed.
+
+Failed-read evidence uses fourteen fixed slots, fixed phases/reasons and
+`denom_dispatch`, `global_dispatch` or `lcd_read` stages. Preserve one terminal
+record per polled physical read, including cancellation, under its original poll
+span. Queue/active/poll elapsed values are nonnegative diagnostics capped at
+60,000ms, never new freshness clocks. `lcd_polled` and `active_ms` refer to logical
+LCD-future work, including internal admission/identity waits; they do not prove
+an HTTP/provider attempt. Aggregate deadline events without a slot are separate.
+Never export query strings, addresses, actors, credentials or raw log lines.
+
+Native observer v9 counts every solve/progress call against one 800-call cohort
+allowance, including its four initialized API solves. Keep the shared context
+guard at 600 and grant only `min(600, global_remaining)`; stop on either context
+or global exhaustion and retain incomplete/FAIL. Do not reset between windows,
+change application polling, or exclude setup/progress calls. Generic cohorts
+remain 600 per shard and 1,800 total. Preserve four sequential 190-second native
+windows, the 16-minute bound, original input/expiry clocks, every availability
+outcome and the 500/750ms budgets. Versioned resource correction does not turn a
+prior unavailable response or incomplete cohort into a pass. See the
+[retained v8 failure](../docs/qa/issue-1505/deployment-1516-browser-fail.json).
+
+Window completion comes from natural active-duration completion, never setup or
+response-drain elapsed time. Budget exits and setup/active exceptions remain
+incomplete; a full-duration window can still be complete and FAIL availability.
+Native monitoring has an explicit fixed 18-read profile for bootstrap, counts,
+bounded samples, optional requested-ID correlation and optional Prometheus.
+Shared monitoring retains its default 16-read profile; exercise actual capped
+transport in tests, not only a fake counter. Keep 300 sampled lines and eight
+requested IDs as hard bounds, with no extra query or raw-data export.

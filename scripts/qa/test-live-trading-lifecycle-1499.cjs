@@ -292,7 +292,14 @@ for (const issue of ["1499", "1505"])
         assert.equal(receipt.cohort_maximum_windows, issue === "1505" ? 4 : 12);
         assert.equal(
           receipt.cohort_quote_progress_budget,
-          issue === "1505" ? 600 : 1800,
+          issue === "1505" ? 800 : 1800,
+        );
+        assert.equal(receipt.context_quote_progress_maximum, 600);
+        assert.equal(
+          receipt.qa_measurement_version,
+          issue === "1505"
+            ? "foreground_correlated_native_availability_v9"
+            : "foreground_correlated_native_availability_v8",
         );
         assert.equal(fs.statSync(output).mode & 0o777, 0o600);
       } finally {

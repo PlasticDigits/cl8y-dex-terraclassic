@@ -35,8 +35,9 @@ frontend() {
 qa() {
   node --test scripts/qa/test-live-input-clock-1499.cjs \
     scripts/qa/test-live-trading-lifecycle-1499.cjs scripts/qa/test-live-read-guard-1499.cjs \
-    scripts/qa/test-live-quote-economics-1500.cjs || return 1
-  python3 scripts/qa/test-native-recovery-1505.py
+    scripts/qa/test-live-quote-economics-1500.cjs scripts/qa/test-live-quote-budget-1505.cjs || return 1
+  python3 scripts/qa/test-native-recovery-1505.py || return 1
+  python3 scripts/qa/test-swap-monitoring-1479-1480.py
 }
 docs() {
   python3 - <<'PY'

@@ -16,6 +16,9 @@ ATTESTER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(ATTESTER)
 SERVICES = ("cl8y-dex-terraclassic-indexer", "cl8y-dex-frontend")
 GRAFANA_ORIGIN = "https://logs.cl8y.com"
+# Native correlation and conditional metrics need at most two additional reads.
+# Existing monitoring profiles retain their original default allowance.
+MAX_MONITOR_READS = 18
 
 
 def aggregate(payload):
@@ -43,7 +46,12 @@ def aggregate(payload):
 
 
 class Monitor:
-    def __init__(self):
+    read_budget = ATTESTER.MAX_READS
+
+    def __init__(self, *, read_budget=ATTESTER.MAX_READS):
+        if type(read_budget) is not int or read_budget not in (ATTESTER.MAX_READS, MAX_MONITOR_READS):
+            raise ValueError("read_budget")
+        self.read_budget = read_budget
         self.reader = ATTESTER.Reader()
         apps = ATTESTER.rows(self.reader.api("applications"))
         if len(apps) > 512:
@@ -62,7 +70,7 @@ class Monitor:
 
     def read(self, path):
         self.reader.reads += 1
-        if self.reader.reads > ATTESTER.MAX_READS:
+        if self.reader.reads > self.read_budget:
             raise ValueError("read_budget")
         request = Request(GRAFANA_ORIGIN + path, headers={"Authorization": self.authorization, "Accept": "application/json", "Cache-Control": "no-cache"})
         with self.reader.opener.open(request, timeout=15) as response:

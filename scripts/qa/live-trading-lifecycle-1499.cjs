@@ -11,16 +11,23 @@ const { chromium } = rf("@playwright/test"),
     validate,
     originalWindowDiagnostics,
   } = require("./live-quote-economics-1500.cjs");
+const {
+  CONTEXT_QUOTE_MAXIMUM,
+  quoteBudgetProfile,
+  contextQuoteAllowance,
+  quoteBudgetExhausted,
+} = require("./live-quote-budget-1505.cjs");
+const NATIVE_1505 = process.env.DEX_LIVE_ISSUE === "1505";
+const BUDGET_PROFILE = quoteBudgetProfile(NATIVE_1505);
 const FE = "https://dex.cl8y.com",
   BE = "https://indexer.dex.cl8y.com",
   DURATION = 190000,
-  QUOTE_BUDGET = 600,
+  QUOTE_BUDGET = BUDGET_PROFILE.quoteProgressBudget,
   GLOBAL_BUDGET = 16 * 60000;
 const SHA = process.env.EXPECTED_SOURCE_SHA,
   ATTEST = process.env.DEX_LIVE_ATTESTATION,
   OUT = process.env.DEX_LIVE_OUTPUT;
 const SHARD = Number(process.env.DEX_LIVE_SHARD);
-const NATIVE_1505 = process.env.DEX_LIVE_ISSUE === "1505";
 const {
   installInputClock,
   eligibleQuotesAtSnapshot,
@@ -54,13 +61,14 @@ const REASONS = {
 const receipt = {
   issues: NATIVE_1505 ? [1505] : [1498, 1499, 1500],
   expected_revision: SHA,
-  qa_measurement_version: "foreground_correlated_native_availability_v8",
+  qa_measurement_version: BUDGET_PROFILE.measurementVersion,
   shard: SHARD,
-  shard_count: NATIVE_1505 ? 1 : 3,
+  shard_count: BUDGET_PROFILE.shardCount,
   expected_window_count: 4,
   cohort_maximum_windows: NATIVE_1505 ? 4 : 12,
-  shard_quote_progress_budget: 600,
-  cohort_quote_progress_budget: NATIVE_1505 ? 600 : 1800,
+  shard_quote_progress_budget: QUOTE_BUDGET,
+  cohort_quote_progress_budget: BUDGET_PROFILE.cohortQuoteProgressBudget,
+  context_quote_progress_maximum: CONTEXT_QUOTE_MAXIMUM,
   concurrency_per_browser: 1,
   utc_start: new Date().toISOString(),
   read_only: true,
@@ -391,6 +399,9 @@ async function windowCase(c, view, viewport) {
     first_qualified_dom_ms: null,
     response_probe_failures: [],
     completed: false,
+    active_window_completed: false,
+    active_window_elapsed_ms: null,
+    active_window_stop_reason: null,
   };
   let inputAt = 0,
     baseline = null,
@@ -398,14 +409,18 @@ async function windowCase(c, view, viewport) {
     latest = null,
     windowEnded = false,
     contextClosing = false,
+    activeStarted = false,
+    stoppedForBudget = false,
     displayedOwnership = { signature: null, owners: [], unavailable: false };
   const problem = (code) => {
     if (!row.failures.includes(code)) row.failures.push(code);
   };
+  const contextQuoteStart = quotes;
+  const contextAllowance = contextQuoteAllowance(QUOTE_BUDGET, quotes);
   await context.addInitScript(installReadGuard, {
     frontend: FE,
     backend: BE,
-    remaining: QUOTE_BUDGET - quotes,
+    remaining: contextAllowance,
   });
   const network = await context.newCDPSession(page);
   await network.send("Network.enable");
@@ -536,11 +551,13 @@ async function windowCase(c, view, viewport) {
     inputAt = await page.evaluate(
       () => window.__liveClock1499.started_epoch_ms,
     );
+    activeStarted = true;
     const deadline = Date.now() + DURATION;
     while (Date.now() < deadline) {
       ensure();
-      if (quotes >= QUOTE_BUDGET) {
+      if (quoteBudgetExhausted(QUOTE_BUDGET, quotes, contextQuoteStart, contextAllowance)) {
         problem("quote_budget");
+        stoppedForBudget = true;
         break;
       }
       const state = await page.evaluate(() => {
@@ -780,6 +797,11 @@ async function windowCase(c, view, viewport) {
       }
       await page.waitForTimeout(200);
     }
+    // Only natural exhaustion of the active duration completes a window. Setup
+    // and subsequent response-drain time cannot complete an early budget exit.
+    row.active_window_elapsed_ms = Date.now() - inputAt;
+    row.active_window_completed = !stoppedForBudget;
+    row.active_window_stop_reason = stoppedForBudget ? "quote_budget" : "duration";
     const guard = await page.evaluate(() => window.__liveReadGuard1499);
     row.read_guard = guard;
     blockedWrites += guard?.writes ?? 0;
@@ -794,15 +816,19 @@ async function windowCase(c, view, viewport) {
     };
     row.original_input_epoch_ms = inputAt;
     row.elapsed_ms = Date.now() - inputAt;
-    row.completed = row.elapsed_ms >= 185000;
+    row.completed = row.active_window_completed;
     row.original_observation_windows = events
       .filter((e) => e.useful)
       .map((e) => ({ observed_at_ms: e.observed, expires_at_ms: e.expires }));
     if (row.first_useful_ms == null) problem("no_useful_browser_quote");
-    if (row.elapsed_ms < 185000) problem("incomplete_expiry_windows");
   } catch (e) {
+    row.completed = false;
+    row.active_window_stop_reason ??= activeStarted ? "active_exception" : "setup_exception";
+    if (activeStarted && row.active_window_elapsed_ms == null)
+      row.active_window_elapsed_ms = Date.now() - inputAt;
     problem(safeError(e));
   } finally {
+    if (!row.completed) problem("incomplete_expiry_windows");
     windowEnded = true;
     contextClosing = true;
     await context
@@ -849,6 +875,7 @@ async function main() {
     "live-input-clock-1499.cjs",
     "live-quote-economics-1500.cjs",
     "live-read-guard-1499.cjs",
+    "live-quote-budget-1505.cjs",
   ].map((file) => ({
     file,
     sha256: hash(fs.readFileSync(path.join(__dirname, file))),

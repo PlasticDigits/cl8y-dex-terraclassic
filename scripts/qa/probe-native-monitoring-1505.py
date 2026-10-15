@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 SPEC = importlib.util.spec_from_file_location("monitoring", Path(__file__).with_name("probe-swap-monitoring-1479-1480.py"))
 MONITORING = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MONITORING)
+NATIVE_READ_BUDGET = 18
 PATTERNS = {
     "wrapper_completed": "Native wrapper observations completed",
     "wrapper_unavailable": "Native wrapper observations unavailable",
@@ -28,9 +29,54 @@ PATTERNS = {
     "errors": "(?i)(error|panic|fatal)",
 }
 PHASES = frozenset(("uluna_tax_cap", "uusd_tax_cap", "uluna_mapping", "uusd_mapping", "mapper_floor", "treasury_floor", "identity", "data", "chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability", "reference_marks", "reference_schedule", "reference_accounting"))
-REASONS = frozenset(("mapper_paused", "treasury_wrapping_paused", "capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "missing_or_invalid", "missing_observations", "stale_observations", "accounting_unavailable", "protection", "unsupported_semantics", "no_route"))
+REASONS = frozenset(("mapper_paused", "treasury_wrapping_paused", "capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "cancelled", "missing_or_invalid", "missing_observations", "stale_observations", "accounting_unavailable", "protection", "unsupported_semantics", "no_route"))
 REQUEST_ID = re.compile(r"[0-9a-f]{16}")
 COMPONENTS = frozenset(("pair_config", "pool_mirror", "hybrid_mirror", "reference", "tax_policy", "tax_actor", "wrapper", "simulation_mirror"))
+READ_SLOTS = {
+    "chain": "chain", "mapper_config": "mapper_config", "router_config": "router_config",
+    "treasury_config": "treasury_config", "denom_bindings": "denom_bindings",
+    "uluna_mapping": "denom_mapping", "uusd_mapping": "denom_mapping",
+    "uluna_rate": "rate_limit", "uusd_rate": "rate_limit",
+    "uluna_cap": "tax_cap", "uusd_cap": "tax_cap", "tax_rate": "tax_rate",
+    "mapper_floor": "floor_capability", "treasury_floor": "floor_capability",
+}
+READ_STAGES = frozenset(("denom_dispatch", "global_dispatch", "lcd_read"))
+READ_REASONS = frozenset(("capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "cancelled"))
+
+
+def read_witness(line, timestamp=None):
+    """Fixed failure evidence. LCD-future polling does not prove a wire attempt."""
+    if "Native wrapper read unavailable" not in line:
+        return None
+
+    def field(name, pattern):
+        values = re.findall(r'\b' + name + r'="?(' + pattern + r')"?(?=\s|$|[,}])', line)
+        return values[0] if len(values) == 1 else None
+
+    slot = field("slot", r"[a-z_]{1,24}")
+    phase = field("phase", r"[a-z_]{1,24}")
+    stage = field("stage", r"[a-z_]{1,24}")
+    reason = field("reason", r"[a-z_]{1,24}")
+    polled = field("lcd_polled", "true|false")
+    if slot not in READ_SLOTS or phase != READ_SLOTS[slot] or stage not in READ_STAGES or reason not in READ_REASONS:
+        return None
+    if polled not in ("true", "false") or (polled == "true") != (stage == "lcd_read"):
+        return None
+    row = {"slot": slot, "phase": phase, "reason": reason, "stage": stage, "lcd_polled": polled == "true"}
+    for name in ("poll_elapsed_ms", "denom_wait_ms", "global_wait_ms", "active_ms"):
+        value = field(name, r"\d{1,5}")
+        if value is None or int(value) > 60_000:
+            return None
+        row[name] = int(value)
+    native = slot.startswith(("uluna_", "uusd_"))
+    if (not native and (stage == "denom_dispatch" or row["denom_wait_ms"] != 0)
+            or stage != "lcd_read" and row["active_ms"] != 0
+            or stage == "denom_dispatch" and row["global_wait_ms"] != 0):
+        return None
+    poll_id = field("poll_id", r"\d{1,20}")
+    row["poll_id"] = int(poll_id) if poll_id is not None and int(poll_id) <= 2**64 - 1 else None
+    row["sample_timestamp_ms"] = int(timestamp) // 1_000_000 if isinstance(timestamp, str) and re.fullmatch(r"\d{1,20}", timestamp) else None
+    return row
 
 
 def stale_witness(line, requested_ids):
@@ -61,7 +107,7 @@ def sample_summary(payload, requested_ids=()):
     streams = data.get("result", [])
     if data.get("resultType") != "streams" or not isinstance(streams, list) or len(streams) > 300:
         raise ValueError("sample_shape")
-    lines = []
+    lines, records = [], []
     for stream in streams:
         values = stream.get("values", []) if isinstance(stream, dict) else None
         if not isinstance(values, list) or len(values) > 300:
@@ -70,6 +116,7 @@ def sample_summary(payload, requested_ids=()):
             if not isinstance(value, list) or len(value) != 2 or not isinstance(value[1], str) or len(value[1]) > 32768:
                 raise ValueError("sample_shape")
             lines.append(value[1])
+            records.append(value)
             if len(lines) > 300:
                 raise ValueError("sample_bound")
     fields = {"phase": PHASES, "reason": REASONS, "direction": frozenset(("native_input", "native_output", "native_both", "cw20"))}
@@ -83,7 +130,9 @@ def sample_summary(payload, requested_ids=()):
                 if selected in allowlist:
                     counts[field][selected] = counts[field].get(selected, 0) + 1
     witnesses = [w for line in lines if (w := stale_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
+    reads = [w for timestamp, line in records if (w := read_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     return {"bounded_sample_lines": len(lines), "typed_fields": counts, "candidate_stale_witnesses": witnesses,
+        "producer_read_witnesses": reads,
         "request_correlation": {rid: sum(bool(re.search(r'\brequest_id[=:]"?' + rid + r'\b', re.sub(r"\x1b\[[0-9;]*m", "", line))) for line in lines) for rid in requested_ids}}
 
 
@@ -125,9 +174,10 @@ def main():
     if len(args.request_id) > 8 or any(not REQUEST_ID.fullmatch(rid) for rid in args.request_id):
         parser.error("at most eight fixed 16-character lower-hex request IDs")
     receipt = {"issue": 1505, "utc": datetime.now(timezone.utc).isoformat(), "read_only": True,
-        "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed typed enums; no log bodies, actors or endpoints exported; pattern counts do not prove causality"}
+        "read_budget": NATIVE_READ_BUDGET,
+        "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed enums and bounded producer-read timings; no log bodies, actors or endpoints exported; LCD-future polling does not prove a wire attempt and pattern counts do not prove causality"}
     try:
-        receipt.update(collect(MONITORING.Monitor(), args.request_id))
+        receipt.update(collect(MONITORING.Monitor(read_budget=NATIVE_READ_BUDGET), args.request_id))
         receipt["overall"] = "PASS WITH SKIPS" if receipt["prometheus"]["status"] == "SKIP" else "PASS"
     except Exception as error:
         receipt.update(overall="FAIL", failure_class=type(error).__name__)

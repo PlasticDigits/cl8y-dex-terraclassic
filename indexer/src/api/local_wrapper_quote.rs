@@ -196,49 +196,214 @@ fn observation_reason(error: &LcdError) -> &'static str {
     }
 }
 
-/// Poll-local FIFO dispatch prevents this poll's queued physical reads from
-/// consuming the LCD client's unchanged total timeout before they can run.
-/// Every read remains owned, within the original publication/phase deadline.
+/// Fixed physical-read identities; no caller-supplied asset or address enters
+/// dispatch or diagnostic labels.
+#[derive(Clone, Copy)]
+enum ReadSlot {
+    Chain,
+    MapperConfig,
+    RouterConfig,
+    TreasuryConfig,
+    DenomBindings,
+    UlunaMapping,
+    UlunaRate,
+    UlunaCap,
+    UusdMapping,
+    UusdRate,
+    UusdCap,
+    TaxRate,
+    MapperFloor,
+    TreasuryFloor,
+}
+impl ReadSlot {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Chain => "chain",
+            Self::MapperConfig => "mapper_config",
+            Self::RouterConfig => "router_config",
+            Self::TreasuryConfig => "treasury_config",
+            Self::DenomBindings => "denom_bindings",
+            Self::UlunaMapping => "uluna_mapping",
+            Self::UlunaRate => "uluna_rate",
+            Self::UlunaCap => "uluna_cap",
+            Self::UusdMapping => "uusd_mapping",
+            Self::UusdRate => "uusd_rate",
+            Self::UusdCap => "uusd_cap",
+            Self::TaxRate => "tax_rate",
+            Self::MapperFloor => "mapper_floor",
+            Self::TreasuryFloor => "treasury_floor",
+        }
+    }
+    fn phase(self) -> &'static str {
+        match self {
+            Self::UlunaMapping | Self::UusdMapping => "denom_mapping",
+            Self::UlunaRate | Self::UusdRate => "rate_limit",
+            Self::UlunaCap | Self::UusdCap => "tax_cap",
+            Self::MapperFloor | Self::TreasuryFloor => "floor_capability",
+            _ => self.name(),
+        }
+    }
+    fn denom(self) -> Option<usize> {
+        match self {
+            Self::UlunaMapping | Self::UlunaRate | Self::UlunaCap => Some(0),
+            Self::UusdMapping | Self::UusdRate | Self::UusdCap => Some(1),
+            _ => None,
+        }
+    }
+}
+struct ObservationDispatch {
+    global: tokio::sync::Semaphore,
+    denoms: [tokio::sync::Semaphore; 2],
+}
+impl ObservationDispatch {
+    fn new(global: usize) -> Self {
+        Self {
+            global: tokio::sync::Semaphore::new(global),
+            denoms: std::array::from_fn(|_| tokio::sync::Semaphore::new(1)),
+        }
+    }
+}
+#[derive(Clone, Copy)]
+enum ReadStage {
+    DenomDispatch,
+    GlobalDispatch,
+    LcdRead,
+}
+impl ReadStage {
+    fn name(self) -> &'static str {
+        match self {
+            Self::DenomDispatch => "denom_dispatch",
+            Self::GlobalDispatch => "global_dispatch",
+            Self::LcdRead => "lcd_read",
+        }
+    }
+}
+/// One failure event per polled physical read, including outer cancellation.
+/// Successful reads are silent. LCD time includes its admission/identity work;
+/// lcd_polled never asserts that a network request reached an upstream.
+struct ReadWitness {
+    slot: ReadSlot,
+    poll_started: tokio::time::Instant,
+    deadline: tokio::time::Instant,
+    stage_started: tokio::time::Instant,
+    stage: ReadStage,
+    denom_wait: std::time::Duration,
+    global_wait: std::time::Duration,
+    span: tracing::Span,
+    done: bool,
+}
+impl ReadWitness {
+    fn new(reads: &ObservationReads<'_>, slot: ReadSlot) -> Self {
+        Self {
+            slot,
+            poll_started: reads.poll_started,
+            deadline: reads.deadline,
+            stage_started: tokio::time::Instant::now(),
+            stage: if slot.denom().is_some() {
+                ReadStage::DenomDispatch
+            } else {
+                ReadStage::GlobalDispatch
+            },
+            denom_wait: std::time::Duration::ZERO,
+            global_wait: std::time::Duration::ZERO,
+            span: tracing::Span::current(),
+            done: false,
+        }
+    }
+    fn advance(&mut self, stage: ReadStage) {
+        let now = tokio::time::Instant::now();
+        let elapsed = now.saturating_duration_since(self.stage_started);
+        match self.stage {
+            ReadStage::DenomDispatch => self.denom_wait = elapsed,
+            ReadStage::GlobalDispatch => self.global_wait = elapsed,
+            ReadStage::LcdRead => {}
+        }
+        self.stage = stage;
+        self.stage_started = now;
+    }
+    fn fail(&mut self, reason: &'static str) {
+        if self.done {
+            return;
+        }
+        self.done = true;
+        let now = tokio::time::Instant::now();
+        let elapsed = now.saturating_duration_since(self.stage_started);
+        let mut denom_wait = self.denom_wait;
+        let mut global_wait = self.global_wait;
+        let mut active = std::time::Duration::ZERO;
+        let lcd_polled = matches!(self.stage, ReadStage::LcdRead);
+        match self.stage {
+            ReadStage::DenomDispatch => denom_wait = elapsed,
+            ReadStage::GlobalDispatch => global_wait = elapsed,
+            ReadStage::LcdRead => active = elapsed,
+        }
+        let ms = |duration: std::time::Duration| duration.as_millis().min(60_000) as u64;
+        let _entered = self.span.enter();
+        tracing::warn!(parent: &self.span, phase=self.slot.phase(),slot=self.slot.name(),reason,
+            stage=self.stage.name(),poll_elapsed_ms=ms(now.saturating_duration_since(self.poll_started)),
+            denom_wait_ms=ms(denom_wait),global_wait_ms=ms(global_wait),active_ms=ms(active),lcd_polled,
+            "Native wrapper read unavailable");
+    }
+}
+impl Drop for ReadWitness {
+    fn drop(&mut self) {
+        let reason = if tokio::time::Instant::now() >= self.deadline {
+            "deadline"
+        } else {
+            "cancelled"
+        };
+        self.fail(reason);
+    }
+}
+/// Poll-local dispatch starts each unchanged LCD budget only when admitted.
+/// A denom acquires its one-read slot BEFORE global admission, so it cannot
+/// monopolize both global slots or hold one while waiting for itself.
 #[derive(Clone, Copy)]
 struct ObservationReads<'a> {
     lcd: &'a LcdClient,
-    dispatch: &'a tokio::sync::Semaphore,
+    dispatch: &'a ObservationDispatch,
+    poll_started: tokio::time::Instant,
     deadline: tokio::time::Instant,
 }
 impl ObservationReads<'_> {
     fn read<'a, T: 'a>(
         &'a self,
-        phase: &'static str,
+        slot: ReadSlot,
         read: impl std::future::Future<Output = Result<T, LcdError>> + 'a,
     ) -> impl std::future::Future<Output = Option<T>> + 'a {
-        // Boxing must happen before the returned async state captures transport.
+        // Box before the returned async state can capture the transport future.
         let read = Box::pin(read);
         async move {
-            bounded_observation(Some(phase), self.deadline, async move {
-                let _permit = self.dispatch.acquire().await.ok()?;
-                // timeout_at polls inner first: an expired queued read must not
-                // start LCD admission, chain identity, or a provider attempt.
+            let mut witness = ReadWitness::new(self, slot);
+            let result = bounded_observation(None, self.deadline, async {
+                let _denom = if let Some(index) = slot.denom() {
+                    let permit = self.dispatch.denoms[index].acquire().await.ok()?;
+                    witness.advance(ReadStage::GlobalDispatch);
+                    Some(permit)
+                } else {
+                    None
+                };
                 if self.deadline <= tokio::time::Instant::now() {
-                    tracing::warn!(
-                        phase,
-                        reason = "deadline",
-                        "Native wrapper read unavailable"
-                    );
                     return None;
                 }
+                let _global = self.dispatch.global.acquire().await.ok()?;
+                if self.deadline <= tokio::time::Instant::now() {
+                    return None;
+                }
+                witness.advance(ReadStage::LcdRead);
                 match read.await {
                     Ok(value) => Some(value),
                     Err(error) => {
-                        tracing::warn!(
-                            phase,
-                            reason = observation_reason(&error),
-                            "Native wrapper read unavailable"
-                        );
+                        witness.fail(observation_reason(&error));
                         None
                     }
                 }
             })
-            .await
+            .await;
+            if result.is_some() {
+                witness.done = true;
+            }
+            result
         }
     }
 }
@@ -253,7 +418,7 @@ async fn observe_router_with_reads(
     };
     let config: Value = reads
         .read(
-            "router_config",
+            ReadSlot::RouterConfig,
             reads
                 .lcd
                 .query_contract_bounded(router, &json!({"config":{}}), 8_192),
@@ -301,10 +466,14 @@ async fn observe_router_bounded_with_reads(
     }
 }
 
-async fn observe_floor_protocol(reads: &ObservationReads<'_>, address: &str) -> Option<u8> {
+async fn observe_floor_protocol(
+    reads: &ObservationReads<'_>,
+    address: &str,
+    slot: ReadSlot,
+) -> Option<u8> {
     let response = reads
         .read(
-            "floor_capability",
+            slot,
             reads
                 .lcd
                 .query_contract_bounded(address, &json!({"execution_capabilities":{}}), 1_024),
@@ -445,9 +614,14 @@ async fn observe_tax_cap_with_reads(
     if !bound {
         return None;
     }
+    let slot = match denom {
+        "uluna" => ReadSlot::UlunaCap,
+        "uusd" => ReadSlot::UusdCap,
+        _ => return None,
+    };
     let value: Value = reads
         .read(
-            "tax_cap",
+            slot,
             reads
                 .lcd
                 .get_bounded(&format!("/terra/treasury/v1beta1/tax_caps/{denom}"), 8_192),
@@ -494,17 +668,22 @@ async fn observe_mapping(
     if !has_denom_binding(bindings, mapper, denom) {
         return None;
     }
+    let (mapping_slot, rate_slot) = match denom {
+        "uluna" => (ReadSlot::UlunaMapping, ReadSlot::UlunaRate),
+        "uusd" => (ReadSlot::UusdMapping, ReadSlot::UusdRate),
+        _ => return None,
+    };
     let mapping_query = json!({"denom_mapping":{"denom":denom}});
     let rate_query = json!({"rate_limit":{"denom":denom}});
     let (response, rate) = tokio::join!(
         reads.read(
-            "denom_mapping",
+            mapping_slot,
             reads
                 .lcd
                 .query_contract_bounded::<Value>(mapper, &mapping_query, 8_192)
         ),
         reads.read(
-            "rate_limit",
+            rate_slot,
             reads
                 .lcd
                 .query_contract_bounded::<Value>(mapper, &rate_query, 8_192)
@@ -552,13 +731,15 @@ async fn observe_config(lcd: &LcdClient, mapper: &str, router: Option<&str>) -> 
     let poll_id = NEXT_POLL.fetch_add(1, Ordering::Relaxed);
     let phase = AtomicU8::new(0);
     async {
+        let poll_started = tokio::time::Instant::now();
         let started = std::time::Instant::now();
         let observed_at_ms = Utc::now().timestamp_millis();
-        let dispatch = tokio::sync::Semaphore::new(2);
+        let dispatch = ObservationDispatch::new(2);
         let reads = ObservationReads {
             lcd,
             dispatch: &dispatch,
-            deadline: tokio::time::Instant::now() + std::time::Duration::from_millis(7_900),
+            poll_started,
+            deadline: poll_started + std::time::Duration::from_millis(7_900),
         };
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(8),
@@ -624,7 +805,7 @@ async fn observe_inner(
     observed_at_ms: i64,
 ) -> WrapperObservation {
     if reads
-        .read("chain", reads.lcd.require_verified_chain())
+        .read(ReadSlot::Chain, reads.lcd.require_verified_chain())
         .await
         .is_none()
     {
@@ -633,7 +814,7 @@ async fn observe_inner(
     phase.store(1, Ordering::Relaxed);
     let Some(config) = reads
         .read(
-            "mapper_config",
+            ReadSlot::MapperConfig,
             reads
                 .lcd
                 .query_contract_bounded::<Value>(mapper, &json!({"config":{}}), 8_192),
@@ -705,7 +886,7 @@ async fn observe_settlement(
     let treasury_ready = async {
         let config = reads
             .read(
-                "treasury_config",
+                ReadSlot::TreasuryConfig,
                 reads
                     .lcd
                     .query_contract_bounded::<Value>(&treasury, &config_query, 8_192),
@@ -723,7 +904,7 @@ async fn observe_settlement(
     let bindings_ready = async {
         let bindings = reads
             .read(
-                "denom_bindings",
+                ReadSlot::DenomBindings,
                 reads
                     .lcd
                     .query_contract_bounded::<Value>(&treasury, &bindings_query, 8_192),
@@ -773,7 +954,7 @@ async fn observe_settlement(
             async {
                 let tax: Option<Value> = reads
                     .read(
-                        "tax_rate",
+                        ReadSlot::TaxRate,
                         reads.lcd.get_bounded("/terra/tax/v1beta1/params", 8_192),
                     )
                     .await;
@@ -798,8 +979,8 @@ async fn observe_settlement(
     };
     let floors = collect_floor_protocols_until(
         floor_deadline,
-        observe_floor_protocol(&floor_reads, mapper),
-        observe_floor_protocol(&floor_reads, &treasury),
+        observe_floor_protocol(&floor_reads, mapper, ReadSlot::MapperFloor),
+        observe_floor_protocol(&floor_reads, &treasury, ReadSlot::TreasuryFloor),
     )
     .await;
     for (denom, cap) in [("uluna", output.uluna_cap), ("uusd", output.uusd_cap)] {
@@ -838,20 +1019,22 @@ async fn observe_router_bounded(
     mapper: &str,
     deadline: tokio::time::Instant,
 ) -> Option<bool> {
-    let dispatch = tokio::sync::Semaphore::new(2);
+    let dispatch = ObservationDispatch::new(2);
     let reads = ObservationReads {
         lcd,
         dispatch: &dispatch,
+        poll_started: tokio::time::Instant::now(),
         deadline,
     };
     observe_router_bounded_with_reads(&reads, router, mapper, deadline).await
 }
 #[cfg(test)]
 async fn observe_tax_cap(lcd: &LcdClient, denom: &str, bound: bool) -> Option<u128> {
-    let dispatch = tokio::sync::Semaphore::new(2);
+    let dispatch = ObservationDispatch::new(2);
     let reads = ObservationReads {
         lcd,
         dispatch: &dispatch,
+        poll_started: tokio::time::Instant::now(),
         deadline: tokio::time::Instant::now() + std::time::Duration::from_millis(7_900),
     };
     observe_tax_cap_with_reads(&reads, denom, bound).await
@@ -983,10 +1166,11 @@ mod tests {
     #[tokio::test]
     async fn issue1505_observed_read_boxes_transport_before_capturing_async_state() {
         let (_server, lcd) = wrapper_fixture(Duration::ZERO, Duration::ZERO).await;
-        let dispatch = tokio::sync::Semaphore::new(2);
+        let dispatch = ObservationDispatch::new(2);
         let reads = ObservationReads {
             lcd: &lcd,
             dispatch: &dispatch,
+            poll_started: tokio::time::Instant::now(),
             deadline: tokio::time::Instant::now() + Duration::from_secs(1),
         };
         let read = async {
@@ -996,7 +1180,7 @@ mod tests {
             Ok::<_, LcdError>(std::hint::black_box(&payload).len())
         };
         assert!(std::mem::size_of_val(&read) >= 128 * 1024);
-        let observation = reads.read("tax_rate", read);
+        let observation = reads.read(ReadSlot::TaxRate, read);
         assert!(
             std::mem::size_of_val(&observation) < 1024,
             "concurrent phases must capture a pointer, not each inline transport future"
@@ -1008,25 +1192,26 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn issue1505_dispatch_expired_phase_never_polls_transport() {
         let (_server, lcd) = wrapper_fixture(Duration::ZERO, Duration::ZERO).await;
-        let dispatch = tokio::sync::Semaphore::new(0);
+        let dispatch = ObservationDispatch::new(0);
         let polls = AtomicUsize::new(0);
         let reads = ObservationReads {
             lcd: &lcd,
             dispatch: &dispatch,
+            poll_started: tokio::time::Instant::now(),
             deadline: tokio::time::Instant::now() + Duration::from_secs(2),
         };
-        let read = reads.read("mapper_floor", async {
+        let read = reads.read(ReadSlot::MapperFloor, async {
             polls.fetch_add(1, Ordering::SeqCst);
             Ok::<_, LcdError>(1)
         });
         let release = async {
             tokio::time::sleep(Duration::from_secs(2)).await;
-            dispatch.add_permits(1);
+            dispatch.global.add_permits(1);
         };
         let (result, ()) = tokio::join!(read, release);
         assert_eq!(result, None);
         assert_eq!(polls.load(Ordering::SeqCst), 0);
-        assert_eq!(dispatch.available_permits(), 1);
+        assert_eq!(dispatch.global.available_permits(), 1);
     }
 
     #[tokio::test]
@@ -1048,6 +1233,274 @@ mod tests {
         assert!(logs_contain("tax_rate"));
         assert!(logs_contain("malformed"));
         assert_eq!(lcd.provider_counters().await[0].failures, 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn issue1505_denom_dispatch_is_symmetric_and_releases_cancelled_reads() {
+        let (server, lcd) = wrapper_fixture(Duration::ZERO, Duration::ZERO).await;
+        for (slow, fast) in [
+            (
+                [ReadSlot::UlunaMapping, ReadSlot::UlunaRate],
+                [ReadSlot::UusdMapping, ReadSlot::UusdRate, ReadSlot::UusdCap],
+            ),
+            (
+                [ReadSlot::UusdMapping, ReadSlot::UusdRate],
+                [
+                    ReadSlot::UlunaMapping,
+                    ReadSlot::UlunaRate,
+                    ReadSlot::UlunaCap,
+                ],
+            ),
+        ] {
+            let dispatch = ObservationDispatch::new(2);
+            let started = tokio::time::Instant::now();
+            let reads = ObservationReads {
+                lcd: &lcd,
+                dispatch: &dispatch,
+                poll_started: started,
+                deadline: started + Duration::from_secs(1),
+            };
+            let slow_polls = AtomicUsize::new(0);
+            let slow_read = || async {
+                slow_polls.fetch_add(1, Ordering::SeqCst);
+                std::future::pending::<Result<u8, LcdError>>().await
+            };
+            let fast_read = || async {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                Ok::<_, LcdError>(1u8)
+            };
+            let fast_reads = async {
+                let result = tokio::join!(
+                    reads.read(fast[0], fast_read()),
+                    reads.read(fast[1], fast_read()),
+                    reads.read(fast[2], fast_read()),
+                );
+                assert_eq!(started.elapsed(), Duration::from_millis(60));
+                result
+            };
+            let (first, second, fast_result) = tokio::join!(
+                reads.read(slow[0], slow_read()),
+                reads.read(slow[1], slow_read()),
+                fast_reads,
+            );
+            assert_eq!((first, second), (None, None));
+            assert_eq!(fast_result, (Some(1), Some(1), Some(1)));
+            assert_eq!(slow_polls.load(Ordering::SeqCst), 1);
+            assert_eq!(started.elapsed(), Duration::from_secs(1));
+            assert_eq!(dispatch.global.available_permits(), 2);
+            for denom in &dispatch.denoms {
+                assert_eq!(denom.available_permits(), 1);
+            }
+        }
+        assert!(server.received_requests().await.unwrap().is_empty());
+        assert_eq!(lcd.provider_counters().await[0].attempts, 0);
+    }
+
+    #[tokio::test(start_paused = true)]
+    #[tracing_test::traced_test]
+    async fn issue1505_failed_read_witness_distinguishes_dispatch_from_polled_lcd() {
+        use std::{future::Future, task::Poll};
+        use tracing::Instrument;
+        let (server, lcd) = wrapper_fixture(Duration::ZERO, Duration::ZERO).await;
+        for stage in 0..3 {
+            let dispatch = ObservationDispatch::new(if stage == 1 { 0 } else { 2 });
+            let held_denom = if stage == 0 {
+                Some(dispatch.denoms[0].acquire().await.unwrap())
+            } else {
+                None
+            };
+            let started = tokio::time::Instant::now();
+            let reads = ObservationReads {
+                lcd: &lcd,
+                dispatch: &dispatch,
+                poll_started: started,
+                deadline: started + Duration::from_secs(1),
+            };
+            let polls = AtomicUsize::new(0);
+            let mut read = Box::pin(
+                reads
+                    .read(ReadSlot::UlunaMapping, async {
+                        polls.fetch_add(1, Ordering::SeqCst);
+                        std::future::pending::<Result<u8, LcdError>>().await
+                    })
+                    .instrument(tracing::info_span!("native_wrapper_poll", poll_id = 6060)),
+            );
+            std::future::poll_fn(|cx| {
+                assert!(read.as_mut().poll(cx).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            // Drop outside the instrumented span: the witness must preserve its
+            // poll identity, including cancellation before the absolute margin.
+            tokio::time::advance(Duration::from_millis(if stage == 2 { 1000 } else { 10 })).await;
+            drop(read);
+            assert_eq!(polls.load(Ordering::SeqCst), usize::from(stage == 2));
+            drop(held_denom);
+            assert_eq!(dispatch.denoms[0].available_permits(), 1);
+            assert_eq!(
+                dispatch.global.available_permits(),
+                if stage == 1 { 0 } else { 2 }
+            );
+        }
+        let dispatch = ObservationDispatch::new(2);
+        let reads = ObservationReads {
+            lcd: &lcd,
+            dispatch: &dispatch,
+            poll_started: tokio::time::Instant::now(),
+            deadline: tokio::time::Instant::now() + Duration::from_secs(1),
+        };
+        assert_eq!(
+            reads
+                .read(ReadSlot::TaxRate, async {
+                    Err::<u8, _>(LcdError::AllEndpointsFailed(
+                        "private_endpoint?actor=private_actor upstream_body".into(),
+                    ))
+                })
+                .await,
+            None
+        );
+        assert_eq!(
+            reads
+                .read(ReadSlot::TaxRate, async { Ok::<_, LcdError>(7) })
+                .await,
+            Some(7)
+        );
+        logs_assert(|lines: &[&str]| {
+            let events: Vec<_> = lines
+                .iter()
+                .filter(|line| line.contains("Native wrapper read unavailable"))
+                .collect();
+            assert_eq!(
+                events.len(),
+                4,
+                "one event per failed read; successes stay silent"
+            );
+            for (index, expected_stage) in ["denom_dispatch", "global_dispatch", "lcd_read"]
+                .iter()
+                .enumerate()
+            {
+                let event = events[index];
+                assert!(event.contains(expected_stage));
+                assert!(event.contains("poll_id=6060"));
+                assert!(event.contains("uluna_mapping"));
+                assert!(event.contains(if index == 2 {
+                    "lcd_polled=true"
+                } else {
+                    "lcd_polled=false"
+                }));
+                assert!(event.contains(if index == 2 { "deadline" } else { "cancelled" }));
+                assert!(event.contains(if index == 2 {
+                    "active_ms=1000"
+                } else if index == 1 {
+                    "global_wait_ms=10"
+                } else {
+                    "denom_wait_ms=10"
+                }));
+            }
+            assert!(events[3].contains("provider_unavailable"));
+            assert!(!events.iter().any(|line| line.contains("private_endpoint")
+                || line.contains("private_actor")
+                || line.contains("upstream_body")));
+            Ok(())
+        });
+        assert!(server.received_requests().await.unwrap().is_empty());
+        assert_eq!(lcd.provider_counters().await[0].attempts, 0);
+    }
+
+    #[tokio::test]
+    async fn issue1505_slow_native_denom_cannot_starve_other_native_output() {
+        use wiremock::{matchers::path, Mock, ResponseTemplate};
+        let (server, lcd) =
+            wrapper_fixture(Duration::from_millis(800), Duration::from_millis(50)).await;
+        // Every provider response remains inside its permitted 2.5s attempt.
+        // A slow, valid prerequisite leaves a finite original publication budget.
+        override_smart_read(
+            &server,
+            "terra1mapper",
+            json!({"config":{}}),
+            json!({"paused":false,"treasury":"terra1treasury","fee_bps":100}),
+            Duration::from_millis(2200),
+        )
+        .await;
+        override_smart_read(
+            &server,
+            "terra1treasury",
+            json!({"config":{}}),
+            json!({"wrapping_paused":false}),
+            Duration::from_millis(2400),
+        )
+        .await;
+        // Both uluna reads enter the shared FIFO before the independent uusd
+        // observation. Neither may occupy the other denom's admission slot.
+        override_smart_read(
+            &server,
+            "terra1mapper",
+            json!({"denom_mapping":{"denom":"uluna"}}),
+            json!({"denom":"uluna","cw20_addr":"terra1wrapped"}),
+            Duration::from_millis(2200),
+        )
+        .await;
+        override_smart_read(
+            &server,
+            "terra1mapper",
+            json!({"rate_limit":{"denom":"uluna"}}),
+            json!({"config":null,"amount_used":"0"}),
+            Duration::from_millis(2200),
+        )
+        .await;
+        override_smart_read(
+            &server,
+            "terra1mapper",
+            json!({"denom_mapping":{"denom":"uusd"}}),
+            json!({"denom":"uusd","cw20_addr":"terra1wrapped"}),
+            Duration::from_millis(250),
+        )
+        .await;
+        Mock::given(path("/terra/treasury/v1beta1/tax_caps/uluna"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"tax_cap":"1000"}))
+                    .set_delay(Duration::from_millis(800)),
+            )
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let before = Utc::now().timestamp_millis();
+        let started = std::time::Instant::now();
+        let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
+            .await
+            .expect_available("valid common prerequisites retain a same-poll native view");
+        let reads = server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.url.path() != "/cosmos/base/tendermint/v1beta1/node_info")
+            .count();
+        let counters = lcd.provider_counters().await;
+        println!("denom_isolation_control elapsed_ms={} mappings={} uluna_mapping={} uusd_mapping={} tax={} router={:?} uluna_cap={} uusd_cap={} data_reads={} provider_failures={} caller_cancellations={}",
+            started.elapsed().as_millis(),snapshot.mappings.len(),snapshot.mappings.contains_key("uluna"),
+            snapshot.mappings.contains_key("uusd"),snapshot.tax_atomics.is_some(),snapshot.router_unwrap_supported,
+            snapshot.mappings.get("uluna").is_some_and(|mapping|mapping.tax_cap.is_some()),
+            snapshot.mappings.get("uusd").is_some_and(|mapping|mapping.tax_cap.is_some()),
+            reads,counters[0].failures,counters[0].caller_cancellations);
+        assert!(snapshot.observed_at_ms >= before && snapshot.observed_at_ms <= before + 100);
+        assert!(started.elapsed() < Duration::from_secs(8));
+        assert!(
+            reads <= 13,
+            "scheduling cannot add logical observation reads"
+        );
+        assert_eq!(counters[0].in_flight, 0);
+        assert_eq!(
+            counters[0].failures, 0,
+            "permitted slow replies are not provider failures"
+        );
+        assert!(
+            snapshot
+                .unwrap_output("uusd", 10000, snapshot.observed_at_ms + 8000)
+                .is_some(),
+            "one denom's mapping/rate work cannot strand the independent USTC output prerequisites"
+        );
     }
 
     #[tokio::test]
