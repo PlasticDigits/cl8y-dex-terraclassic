@@ -1,5 +1,19 @@
 # Bounded anonymous live lifecycle and metric receipts
 
+The [native #1505 follow-up](../issue-1505/README.md) uses observer v7. Response
+observation comes from the browser network stack's original request start plus
+response completion; delayed Node/CDP body delivery is recorded separately and
+cannot replace that clock. Two-frame candidates require stable output, fee and
+slippage together. Original input and expiry clocks, 750ms useful-paint budget,
+native transport guard and cohort bounds remain unchanged. Older executed helper
+versions retain their own hashes and verdicts.
+
+For that focused follow-up set `DEX_LIVE_ISSUE=1505` and `DEX_LIVE_SHARD=0` in
+the command below. This mode permits only the four native direction/viewport
+windows, requires useful initialized API results (typed503 is a failure), and
+retains sanitized `x-quote-request-id` values for bounded log correlation. It
+does not run the other two shards.
+
 Run only after the exact final frontend/backend deployment is independently
 attested by [the existing attester](../../../scripts/qa/attest-trading-quotes-1473.py).
 The lifecycle driver checks the attested complete served root/script hashes before

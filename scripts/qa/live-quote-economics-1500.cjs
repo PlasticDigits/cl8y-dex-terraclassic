@@ -66,6 +66,37 @@ function book(rows, side, budget, cap) {
   }
   return { consumed: budget - left, output: out };
 }
+/** Bounded public-clock diagnostics. Never copy raw metadata, generation, actor
+ * or upstream text into a failed receipt. Keep this aligned with validation. */
+function originalWindowDiagnostics(metadata, now) {
+  const observed = Number.isSafeInteger(metadata?.observed_at_ms)
+      ? metadata.observed_at_ms
+      : null,
+    expires = Number.isSafeInteger(metadata?.expires_at_ms)
+      ? metadata.expires_at_ms
+      : null;
+  const reason =
+    observed == null || expires == null
+      ? "invalid_clock"
+      : expires <= observed
+        ? "nonpositive_window"
+        : observed > now
+          ? "future_observation"
+          : expires <= now
+            ? "expired_at_response"
+            : expires - observed > 20000
+              ? "overlong_window"
+              : typeof metadata.generation !== "string" ||
+                  !/^[a-zA-Z0-9:_-]{1,256}$/.test(metadata.generation)
+                ? "invalid_generation"
+                : null;
+  return {
+    reason,
+    observed_at_ms: observed,
+    expires_at_ms: expires,
+    response_epoch_ms: Number.isSafeInteger(now) ? now : null,
+  };
+}
 function validate(body, params, now) {
   const m = body?.execution_metadata,
     ops = body?.router_operations;
@@ -93,17 +124,7 @@ function validate(body, params, now) {
     ops.length !== m.hops.length
   )
     throw Error("execution_binding");
-  if (
-    !Number.isSafeInteger(m.observed_at_ms) ||
-    !Number.isSafeInteger(m.expires_at_ms) ||
-    m.observed_at_ms > now ||
-    m.expires_at_ms <= now ||
-    m.expires_at_ms <= m.observed_at_ms ||
-    m.expires_at_ms - m.observed_at_ms > 20000 ||
-    typeof m.generation !== "string" ||
-    !/^[a-zA-Z0-9:_-]{1,256}$/.test(m.generation)
-  )
-    throw Error("original_window");
+  if (originalWindowDiagnostics(m, now).reason) throw Error("original_window");
   const net = integer(body.estimated_amount_out_net),
     fair = integer(body.spot_amount_out),
     input = integer(m.input_amount),
@@ -317,4 +338,4 @@ function validate(body, params, now) {
     fee: (Number(fees) / Number(baseline)) * 100,
   };
 }
-module.exports = { integer, book, validate };
+module.exports = { integer, book, validate, originalWindowDiagnostics };

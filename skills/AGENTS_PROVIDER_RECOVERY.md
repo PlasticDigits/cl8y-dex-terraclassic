@@ -1,5 +1,9 @@
 # Provider recovery and useful quote readiness (#1464)
 
+For the focused native-path follow-up apply
+[NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) and `make verify-issue-1505`;
+[source and live evidence](../docs/qa/issue-1505/RESULTS.md) remain separate.
+
 Apply for provider scheduling, checkpoint retries, indexer/API supervision,
 local admission publication, quote blocker classification or useful-result latency.
 Issue: [#1464](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1464).

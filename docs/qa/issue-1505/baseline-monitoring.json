@@ -1,0 +1,57 @@
+{
+  "utc": "2026-10-15T06:37:47Z",
+  "read_only": true,
+  "window_seconds": 900,
+  "prometheus_datasource_count": 0,
+  "counts": {
+    "wrapper": 0.0,
+    "provider": 184.0,
+    "errors": 47.0,
+    "ingestion": 169.0,
+    "deadline": 72.0,
+    "circuit_open": 0.0,
+    "historical_height": 13.0,
+    "http_429": 1.0,
+    "capacity": 168.0,
+    "provider_deadline": 1.0
+  },
+  "bounded_sample_lines": 300,
+  "sample_categories": {
+    "wrapper": 0,
+    "provider": 135,
+    "errors": 3,
+    "ingestion": 122,
+    "deadline": 50,
+    "circuit_open": 0,
+    "historical_height": 0,
+    "http_429": 1,
+    "capacity": 120,
+    "provider_deadline": 1
+  },
+  "sample_fixed_messages": {
+    "Local reserve ingestion unavailable": 0,
+    "Local reserve ingestion exceeded deadline": 0,
+    "Local quote admission unavailable": 0,
+    "Local quote admission exhausted pass budget": 5,
+    "LCD upstream unavailable": 0,
+    "429 Too Many Requests": 0,
+    "no eligible LCD providers": 0,
+    "all LCD endpoints": 1,
+    "request timed out": 0,
+    "chain identity": 0,
+    "operation timed out": 0
+  },
+  "sample_causes": {
+    "circuit_open": 0,
+    "history": 0,
+    "height": 129,
+    "admission": 126,
+    "fee": 4,
+    "book": 164,
+    "reserve": 119
+  },
+  "sample_json_field_names": [],
+  "read_count": 14,
+  "scope": "Historical pre-fix 15-minute text-pattern aggregates and bounded sample fixed-label counts; no wrapper instrumentation was deployed; counts do not establish the native provider root cause.",
+  "pattern_limitations": "Broad capacity/provider patterns include benign head_capacity_waits cycle fields. These are text matches, not measured admission failures or evidence of provider pressure."
+}

@@ -1,0 +1,169 @@
+{
+  "issue": 1505,
+  "read_only": true,
+  "window_start_utc": "2026-10-15T06:43:00Z",
+  "window_end_utc": "2026-10-15T06:43:36Z",
+  "bounded_sample_lines": 70,
+  "pattern_counts": {
+    "admission_budget": 0,
+    "provider_capacity": 0,
+    "admission_deferred": 0,
+    "all_endpoints_failed": 0,
+    "historical_height": 0,
+    "timeout": 3,
+    "book_pair_failed": 1,
+    "book_pair_timeout": 3,
+    "book_head_unavailable": 0,
+    "book_cycle": 6,
+    "ingestion": 0,
+    "error": 4
+  },
+  "fixed_events": [
+    {
+      "utc": "2026-10-15T06:43:02.771287+00:00",
+      "categories": [
+        "timeout",
+        "book_pair_timeout"
+      ],
+      "latency_ms": 4000
+    },
+    {
+      "utc": "2026-10-15T06:43:06.980919+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 13834,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 10891,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T06:43:10.586607+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 4497,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4497,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T06:43:13.759883+00:00",
+      "categories": [
+        "timeout",
+        "book_pair_timeout"
+      ],
+      "latency_ms": 4001
+    },
+    {
+      "utc": "2026-10-15T06:43:15.596465+00:00",
+      "categories": [
+        "error"
+      ]
+    },
+    {
+      "utc": "2026-10-15T06:43:18.143178+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T06:43:18.190618+00:00",
+      "categories": [
+        "error"
+      ]
+    },
+    {
+      "utc": "2026-10-15T06:43:20.247723+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 20,
+      "failed_pair_count": 2,
+      "cycle_elapsed_ms": 13266,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 14158,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T06:43:20.785319+00:00",
+      "categories": [
+        "error"
+      ]
+    },
+    {
+      "utc": "2026-10-15T06:43:22.787622+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 6698,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6698,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T06:43:23.380339+00:00",
+      "categories": [
+        "error"
+      ]
+    },
+    {
+      "utc": "2026-10-15T06:43:31.224346+00:00",
+      "categories": [
+        "timeout",
+        "book_pair_timeout"
+      ],
+      "latency_ms": 4000
+    },
+    {
+      "utc": "2026-10-15T06:43:32.101967+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 6012,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6012,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T06:43:34.369868+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 14121,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 8279,
+      "lane": "book",
+      "head_outcome": "skipped"
+    }
+  ],
+  "scope": "Same-window fixed log-message categories and bounded public numerical scalars only. Healthy pool cycles plus native-output-only API failures narrow the affected prerequisite class; without old wrapper instrumentation they do not establish a specific provider root cause."
+}

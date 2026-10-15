@@ -358,10 +358,28 @@ async fn recovery1464_slow_optional_wrapper_output_preserves_completed_native_in
         .as_i64()
         .unwrap();
     assert!(observed >= before);
-    assert!(chrono::Utc::now().timestamp_millis() - observed >= 6_000);
+    assert!(
+        observed <= before + 100,
+        "slow work retains original poll-start age"
+    );
+    assert!(chrono::Utc::now().timestamp_millis() - observed >= 2_000);
     assert_eq!(body["estimated_amount_out_net"], "9900");
+    // This fixture intentionally uses the generic LCD view. Cancellation of its
+    // slow tax request quarantines the provider, so unknown floors still block
+    // signing. The #1505 unit fixture separately exercises the scheduled lane.
     assert_eq!(body["execution_metadata"]["execution_supported"], false);
     assert!(!body["execution_blocker"].is_null());
+    let reverse = serde_json::from_value(json!({
+        "token_in":CLUNC, "token_out":"uluna", "amount_in":"10000", "max_spread":"0.05"
+    }))
+    .unwrap();
+    assert_eq!(
+        cl8y_dex_indexer::api::local_quote::solve(&state, &reverse)
+            .await
+            .expect_err("unknown output tax must still fail closed")
+            .0,
+        axum::http::StatusCode::SERVICE_UNAVAILABLE
+    );
 }
 
 #[tokio::test]

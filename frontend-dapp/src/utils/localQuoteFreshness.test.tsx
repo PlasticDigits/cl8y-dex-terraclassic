@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSubmitAlignedSimQuote } from '@/hooks/useSubmitAlignedSimQuote'
 import { useLocalQuoteExpired } from '@/hooks/useLocalQuoteExpired'
@@ -177,6 +179,42 @@ describe('original local quote expiry', () => {
     expect(result.current.isSubmitReady).toBe(false)
     expect(data.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
     unmount()
+  })
+
+  it('commits expiry before the timer returns rather than leaving executable DOM queued for React (#1505)', () => {
+    const data = quote(initialTime + 2_000)
+    let expiryTimer: (() => void) | undefined
+    const timer = vi.spyOn(window, 'setTimeout').mockImplementation((callback) => {
+      expiryTimer = callback as () => void
+      return 1
+    })
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    const actEnvironment = globalThis.IS_REACT_ACT_ENVIRONMENT
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false
+    function Snapshot() {
+      const snapshot = useSubmitAlignedSimQuote({
+        rawInputAmount: '100',
+        debouncedRawInputAmount: '100',
+        slippageTolerance: 5,
+        simQuery: { data, isLoading: false, isError: false, isFetching: false, isPlaceholderData: false },
+      })
+      return <output>{snapshot.submitPayload ? snapshot.simData?.return_amount : 'expired'}</output>
+    }
+    try {
+      flushSync(() => root.render(<Snapshot />))
+      expect(container.textContent).toBe('100')
+      expect(expiryTimer).toBeDefined()
+      vi.setSystemTime(initialTime + 2_000)
+      expiryTimer!()
+      // No act()/frame/task flush here: the original deadline itself must revoke DOM/payload.
+      expect(container.textContent).toBe('expired')
+      expect(data.executionMetadata.expires_at_ms).toBe(initialTime + 2_000)
+    } finally {
+      flushSync(() => root.unmount())
+      globalThis.IS_REACT_ACT_ENVIRONMENT = actEnvironment
+      timer.mockRestore()
+    }
   })
 
   it('keeps the original display during early refresh, expires during a slow response, then adopts only new provenance', async () => {

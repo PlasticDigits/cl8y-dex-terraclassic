@@ -1,5 +1,16 @@
 # Frontend Guide
 
+## Original native quote expiry (#1505)
+
+The shared expiry timer rechecks the original deadline and synchronously commits
+display and signing-payload revocation before the expiry callback returns.
+Unchanged-intent refresh may retain only originally unexpired data; it never
+renews observation metadata or authorizes signing during a fetch/error. Follow
+[NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), run
+`make verify-issue-1505`, and keep [source/deployed evidence](qa/issue-1505/RESULTS.md)
+separate. Browser QA uses original input and native response-completion clocks,
+with stable output and metrics through two render frames.
+
 ## Route cost explanation (#1483)
 
 Swap and shared Trade show expected **Slippage** and **Fee** separately from the

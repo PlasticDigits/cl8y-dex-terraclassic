@@ -1,5 +1,10 @@
 # Exact-intent quote lifecycle (#1499)
 
+Native recovery follow-up: [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) covers
+bounded prerequisite overlap, typed request correlation, synchronous original
+display expiry and browser-native response observation clocks. Run
+`make verify-issue-1505` for those focused regressions.
+
 Apply when changing Swap/Trade display retention, refresh/expiry scheduling,
 receive sizing or recoverable quote rejection classification. Issue:
 [#1499](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1499).

@@ -1277,11 +1277,11 @@ pub async fn solve_route_best(
                 super::local_quote::solve(&state, &q),
             )
             .await
-            .map_err(super::local_quote::public_error);
+            .map_err(|error| super::quote_trace::rejection(&q, error));
     }
     super::local_quote::solve(&state, &q)
         .await
-        .map_err(super::local_quote::public_error)
+        .map_err(|error| super::quote_trace::rejection(&q, error))
 }
 
 /// Multihop route discovery (GET default **4 hops**, hybrid when `amount_in` set; `pool_only=true` → **4 hops** pool-only). Returns `router_operations`.
@@ -1323,11 +1323,11 @@ pub async fn solve_route(
                 super::local_quote::solve(&state, &q),
             )
             .await
-            .map_err(super::local_quote::public_error);
+            .map_err(|error| super::quote_trace::rejection(&q, error));
     }
     super::local_quote::solve(&state, &q)
         .await
-        .map_err(super::local_quote::public_error)
+        .map_err(|error| super::quote_trace::rejection(&q, error))
 }
 
 /// Same local discovery as GET (max 4 hops); declared splits must exactly match every priced hop budget.
@@ -1364,7 +1364,7 @@ pub async fn solve_route_post(
     };
     super::local_quote::solve_post(&state, &q, body.hybrid_by_hop.as_deref())
         .await
-        .map_err(super::local_quote::public_error)
+        .map_err(|error| super::quote_trace::rejection(&q, error))
 }
 
 #[cfg(test)]

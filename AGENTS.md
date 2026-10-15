@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Native quote recovery
+
+For native observation scheduling, quote rejection/request correlation or original
+display expiry, follow [NR1505](skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), run
+`make verify-issue-1505`, and use the [focused checklist](docs/qa/issue-1505/README.md).
+Preserve offline requests, original expiry, bounded providers and fail-closed signing.
+
 ## Trade entry, stable Swap layout and order metrics
 
 For Trade entry/history follow [TE1497](skills/AGENTS_TRADE_ENTRY.md) and run

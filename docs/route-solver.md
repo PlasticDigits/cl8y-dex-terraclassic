@@ -965,6 +965,15 @@ Agent contract: [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md). Verification:
 
 ### Scheduled native output observations (#1499)
 
+The [#1505 follow-up](qa/issue-1505/README.md) overlaps independent treasury
+configuration/bindings and the two denoms' mapping/rate prerequisites through
+the same scheduled provider lane. This removes unnecessary serial waiting
+before the existing output/floor phases; original deadlines and freshness remain
+unchanged. Server-generated `x-quote-request-id` response headers correlate fixed
+typed quote-rejection reasons with safe local-quote spans; query strings are
+excluded. Scheduled native polls report fixed phase/result classes independently
+of requests. See [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md).
+
 Native input and native output prerequisites remain independent. The scheduled
 wrapper worker polls every ten seconds with one outstanding pass. After original
 mapper/treasury/mapping admission, the bank-tax rate, router binding and each

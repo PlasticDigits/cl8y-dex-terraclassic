@@ -1,6 +1,11 @@
 //! Native wrapper observations and exact arithmetic for local route quotes (#1452).
 //! Only `observe` performs I/O, from the independent scheduled ingestion worker.
-use std::collections::HashMap;
+use crate::lcd::{LcdClient, LcdError};
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicU64, AtomicU8, Ordering},
+};
+use tracing::Instrument;
 
 use bigdecimal::num_bigint::BigInt;
 use chrono::Utc;
@@ -140,12 +145,49 @@ fn floor_protocol(value: &Value) -> Option<u8> {
     (value["direct_wrapper_floor_version"].as_u64() == Some(1)).then_some(1)
 }
 
-async fn observe_floor_protocol(state: &AppState, address: &str) -> Option<u8> {
-    let response = state
-        .lcd
-        .query_contract_bounded(address, &json!({"execution_capabilities":{}}), 1_024)
-        .await
-        .ok()?;
+/// Never include upstream bodies, addresses, or endpoints in producer evidence.
+fn observation_reason(error: &LcdError) -> &'static str {
+    match error {
+        LcdError::AdmissionDeferred => "capacity",
+        LcdError::AllEndpointsFailed(message) if message.contains("circuits open") => {
+            "circuit_open"
+        }
+        LcdError::AllEndpointsFailed(_) | LcdError::Request(_) => "provider_unavailable",
+        LcdError::ChainIdentity(_) => "chain_identity",
+        LcdError::HistoricalHeightUnavailable => "historical_height",
+        LcdError::LaggingProvider => "lagging",
+        LcdError::ContractQueryRejected(_) => "contract_rejected",
+        LcdError::QueryGasLimitExceeded(_) => "query_gas_limit",
+        LcdError::HttpRejected(_) => "http_rejected",
+        LcdError::Deserialize(_) | LcdError::Base64(_) | LcdError::PairResponseMalformed(_) => {
+            "malformed"
+        }
+    }
+}
+
+async fn observed_read<T>(
+    phase: &'static str,
+    read: impl std::future::Future<Output = Result<T, LcdError>>,
+) -> Option<T> {
+    match read.await {
+        Ok(value) => Some(value),
+        Err(error) => {
+            tracing::warn!(
+                phase,
+                reason = observation_reason(&error),
+                "Native wrapper read unavailable"
+            );
+            None
+        }
+    }
+}
+
+async fn observe_floor_protocol(lcd: &LcdClient, address: &str) -> Option<u8> {
+    let response = observed_read(
+        "floor_capability",
+        lcd.query_contract_bounded(address, &json!({"execution_capabilities":{}}), 1_024),
+    )
+    .await?;
     floor_protocol(&response)
 }
 
@@ -220,37 +262,154 @@ where
     )
 }
 
-async fn observe_tax_cap(state: &AppState, denom: &str, mapped: bool) -> Option<u128> {
+async fn observe_tax_cap(lcd: &LcdClient, denom: &str, mapped: bool) -> Option<u128> {
     if !mapped {
         return None;
     }
-    let value: Value = state
-        .lcd
-        .get_bounded(&format!("/terra/treasury/v1beta1/tax_caps/{denom}"), 8_192)
-        .await
-        .ok()?;
+    let value: Value = observed_read(
+        "tax_cap",
+        lcd.get_bounded(&format!("/terra/treasury/v1beta1/tax_caps/{denom}"), 8_192),
+    )
+    .await?;
     raw(&value["tax_cap"])
+}
+
+async fn observe_mapping(
+    lcd: &LcdClient,
+    mapper: &str,
+    bindings: &[Value],
+    denom: &str,
+) -> Option<NativeMapping> {
+    if !bindings
+        .iter()
+        .any(|v| v["denom"].as_str() == Some(denom) && v["wrapper"].as_str() == Some(mapper))
+    {
+        return None;
+    }
+    let mapping_query = json!({"denom_mapping":{"denom":denom}});
+    let rate_query = json!({"rate_limit":{"denom":denom}});
+    let (response, rate) = tokio::join!(
+        observed_read(
+            "denom_mapping",
+            lcd.query_contract_bounded::<Value>(mapper, &mapping_query, 8_192)
+        ),
+        observed_read(
+            "rate_limit",
+            lcd.query_contract_bounded::<Value>(mapper, &rate_query, 8_192)
+        ),
+    );
+    let response = response?;
+    let rate = rate?;
+    if response["denom"].as_str() != Some(denom) || rate.get("config").is_none() {
+        return None;
+    }
+    let cw20 = response["cw20_addr"]
+        .as_str()
+        .filter(|s| s.starts_with("terra1") && s.len() <= 128)?;
+    let maximum = if rate["config"].is_null() {
+        None
+    } else {
+        if rate["config"]["window_seconds"]
+            .as_u64()
+            .is_none_or(|n| n == 0)
+        {
+            return None;
+        }
+        Some(raw(&rate["config"]["max_amount_per_window"])?)
+    };
+    Some(NativeMapping {
+        cw20: cw20.into(),
+        maximum,
+        used: raw(&rate["amount_used"])?,
+        tax_cap: None,
+    })
 }
 
 /// Bounded scheduled observation. Two known native denoms only; no caller-supplied
 /// endpoint/address. Missing output tax data leaves native output unsupported,
 /// without discarding an independently valid input-wrap observation.
 pub async fn observe(state: &AppState) -> Option<WrapperSnapshot> {
-    tokio::time::timeout(std::time::Duration::from_secs(8), observe_inner(state))
-        .await
-        .ok()
-        .flatten()
+    observe_config(
+        &state.lcd,
+        state.wrap_mapper_address.as_deref()?,
+        state.router_address.as_deref(),
+    )
+    .await
 }
-async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
+
+async fn observe_config(
+    lcd: &LcdClient,
+    mapper: &str,
+    router: Option<&str>,
+) -> Option<WrapperSnapshot> {
+    static NEXT_POLL: AtomicU64 = AtomicU64::new(1);
+    let poll_id = NEXT_POLL.fetch_add(1, Ordering::Relaxed);
+    let phase = AtomicU8::new(0);
+    async {
+        let started = std::time::Instant::now();
+        let observed_at_ms = Utc::now().timestamp_millis();
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(8),
+            observe_inner(lcd, mapper, router, &phase, observed_at_ms),
+        )
+        .await;
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        match result {
+            Ok(Some(snapshot)) => {
+                tracing::info!(elapsed_ms, observed_at_ms,
+                    mappings = snapshot.mappings.len(),
+                    output_tax = snapshot.tax_atomics.is_some(),
+                    router = ?snapshot.router_unwrap_supported,
+                    mapper_floor = snapshot.mapper_floor_version.is_some(),
+                    treasury_floor = snapshot.treasury_floor_version.is_some(),
+                    uluna_cap = snapshot.mappings.get("uluna").is_some_and(|m| m.tax_cap.is_some()),
+                    uusd_cap = snapshot.mappings.get("uusd").is_some_and(|m| m.tax_cap.is_some()),
+                    "Native wrapper observations completed");
+                Some(snapshot)
+            }
+            outcome => {
+                let phase = match phase.load(Ordering::Relaxed) {
+                    0 => "chain",
+                    1 => "mapper",
+                    2 => "treasury",
+                    3 => "mappings",
+                    4 => "output",
+                    _ => "floor_capabilities",
+                };
+                let reason = if outcome.is_err() {
+                    "deadline"
+                } else {
+                    "missing_or_invalid"
+                };
+                tracing::warn!(
+                    phase,
+                    reason,
+                    elapsed_ms,
+                    observed_at_ms,
+                    "Native wrapper observations unavailable"
+                );
+                None
+            }
+        }
+    }
+    .instrument(tracing::info_span!("native_wrapper_poll", poll_id))
+    .await
+}
+async fn observe_inner(
+    lcd: &LcdClient,
+    mapper: &str,
+    router: Option<&str>,
+    phase: &AtomicU8,
+    observed_at_ms: i64,
+) -> Option<WrapperSnapshot> {
     let started = std::time::Instant::now();
-    let mapper = state.wrap_mapper_address.as_deref()?;
-    let observed_at_ms = Utc::now().timestamp_millis();
-    state.lcd.require_verified_chain().await.ok()?;
-    let config: Value = state
-        .lcd
-        .query_contract_bounded(mapper, &json!({"config":{}}), 8_192)
-        .await
-        .ok()?;
+    observed_read("chain", lcd.require_verified_chain()).await?;
+    phase.store(1, Ordering::Relaxed);
+    let config: Value = observed_read(
+        "mapper_config",
+        lcd.query_contract_bounded(mapper, &json!({"config":{}}), 8_192),
+    )
+    .await?;
     if config["paused"].as_bool() != Some(false) {
         return None;
     }
@@ -266,99 +425,52 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
         }
         _ => return None,
     };
-    let treasury_config: Value = state
-        .lcd
-        .query_contract_bounded(&treasury, &json!({"config":{}}), 8_192)
-        .await
-        .ok()?;
-    if treasury_config["wrapping_paused"].as_bool() != Some(false) {
+    // These are independent prerequisites. Keeping them serial made ordinary
+    // provider latency consume the output/capability publication budget (#1505).
+    phase.store(2, Ordering::Relaxed);
+    let config_query = json!({"config":{}});
+    let bindings_query = json!({"denom_wrappers":{}});
+    let (treasury_config, bindings) = tokio::join!(
+        observed_read(
+            "treasury_config",
+            lcd.query_contract_bounded::<Value>(&treasury, &config_query, 8_192)
+        ),
+        observed_read(
+            "denom_bindings",
+            lcd.query_contract_bounded::<Value>(&treasury, &bindings_query, 8_192)
+        ),
+    );
+    if treasury_config?["wrapping_paused"].as_bool() != Some(false) {
         return None;
     }
-    let bindings: Value = state
-        .lcd
-        .query_contract_bounded(&treasury, &json!({"denom_wrappers":{}}), 8_192)
-        .await
-        .ok()?;
+    let bindings = bindings?;
     let bindings = bindings["wrappers"].as_array()?;
     if bindings.len() > 64 {
         return None;
     }
-    let mut mappings: HashMap<String, NativeMapping> = HashMap::new();
-    for denom in ["uluna", "uusd"] {
-        if !bindings
-            .iter()
-            .any(|v| v["denom"].as_str() == Some(denom) && v["wrapper"].as_str() == Some(mapper))
-        {
-            continue;
-        }
-        let response: Value = match state
-            .lcd
-            .query_contract_bounded(mapper, &json!({"denom_mapping":{"denom":denom}}), 8_192)
-            .await
-        {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        if response["denom"].as_str() != Some(denom) {
-            continue;
-        }
-        let Some(cw20) = response["cw20_addr"]
-            .as_str()
-            .filter(|s| s.starts_with("terra1") && s.len() <= 128)
-        else {
-            continue;
-        };
-        let rate: Value = match state
-            .lcd
-            .query_contract_bounded(mapper, &json!({"rate_limit":{"denom":denom}}), 8_192)
-            .await
-        {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        if rate.get("config").is_none() {
-            continue;
-        }
-        let maximum = if rate["config"].is_null() {
-            None
-        } else {
-            let Some(n) = raw(&rate["config"]["max_amount_per_window"]) else {
-                continue;
-            };
-            if rate["config"]["window_seconds"]
-                .as_u64()
-                .is_none_or(|n| n == 0)
-            {
-                continue;
-            }
-            Some(n)
-        };
-        let Some(used) = raw(&rate["amount_used"]) else {
-            continue;
-        };
-        mappings.insert(
-            denom.into(),
-            NativeMapping {
-                cw20: cw20.into(),
-                maximum,
-                used,
-                tax_cap: None,
-            },
-        );
-    }
+    phase.store(3, Ordering::Relaxed);
+    let (uluna, uusd) = tokio::join!(
+        observe_mapping(lcd, mapper, bindings, "uluna"),
+        observe_mapping(lcd, mapper, bindings, "uusd"),
+    );
+    let mut mappings: HashMap<String, NativeMapping> = [("uluna", uluna), ("uusd", uusd)]
+        .into_iter()
+        .filter_map(|(denom, mapping)| mapping.map(|mapping| (denom.into(), mapping)))
+        .collect();
     // Native input does not depend on bank-tax endpoints or router unwrap support.
     // Optional output work has its own subdeadline and cannot discard valid input.
     let remaining = std::time::Duration::from_millis(7_900)
         .saturating_sub(started.elapsed())
         .min(std::time::Duration::from_secs(2));
+    phase.store(4, Ordering::Relaxed);
     let output = collect_output_observations(
         remaining,
         async {
-            let tax: Option<Value> = state
-                .lcd
-                .get_bounded("/terra/tax/v1beta1/params", 8_192)
-                .await
-                .ok();
+            let tax: Option<Value> = observed_read(
+                "tax_rate",
+                lcd.get_bounded("/terra/tax/v1beta1/params", 8_192),
+            )
+            .await;
             tax.as_ref()
                 .and_then(|v| {
                     v["params"]["burn_tax_rate"]
@@ -368,19 +480,29 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
                 .and_then(tax_rate)
         },
         async {
-            if let Some(router) = state.router_address.as_deref() {
-                let cfg: Option<Value> = state
-                    .lcd
-                    .query_contract_bounded(router, &json!({"config":{}}), 8_192)
-                    .await
-                    .ok();
+            if let Some(router) = router {
+                let cfg: Option<Value> = observed_read(
+                    "router_config",
+                    lcd.query_contract_bounded(router, &json!({"config":{}}), 8_192),
+                )
+                .await;
                 cfg.map(|v| v["wrap_mapper"].as_str() == Some(mapper))
             } else {
                 Some(false)
             }
         },
-        observe_tax_cap(state, "uluna", mappings.contains_key("uluna")),
-        observe_tax_cap(state, "uusd", mappings.contains_key("uusd")),
+        observe_tax_cap(lcd, "uluna", mappings.contains_key("uluna")),
+        observe_tax_cap(lcd, "uusd", mappings.contains_key("uusd")),
+    )
+    .await;
+    let remaining = std::time::Duration::from_millis(7_900)
+        .saturating_sub(started.elapsed())
+        .min(std::time::Duration::from_secs(2));
+    phase.store(5, Ordering::Relaxed);
+    let floors = collect_floor_protocols(
+        remaining,
+        observe_floor_protocol(lcd, mapper),
+        observe_floor_protocol(lcd, &treasury),
     )
     .await;
     for (denom, cap) in [("uluna", output.uluna_cap), ("uusd", output.uusd_cap)] {
@@ -388,19 +510,6 @@ async fn observe_inner(state: &AppState) -> Option<WrapperSnapshot> {
             m.tax_cap = cap;
         }
     }
-    // Optional capability failures preserve useful arithmetic but never signing.
-    // This work has a separate deadline and shares the scheduled provider budget.
-    // Leave a small publication margin inside the outer eight-second deadline;
-    // slow optional reads must not discard completed arithmetic observations.
-    let remaining = std::time::Duration::from_millis(7_900)
-        .saturating_sub(started.elapsed())
-        .min(std::time::Duration::from_secs(2));
-    let floors = collect_floor_protocols(
-        remaining,
-        observe_floor_protocol(state, mapper),
-        observe_floor_protocol(state, &treasury),
-    )
-    .await;
     Some(WrapperSnapshot {
         mapper: mapper.into(),
         treasury,
@@ -425,6 +534,106 @@ mod tests {
         },
         time::Duration,
     };
+
+    /// Real HTTP plus the production ingestion lane: seven serial prerequisite
+    /// reads at800ms left<2s for output and no floor window. The same calls now
+    /// complete both native directions without raising any deadline or limit.
+    #[tokio::test]
+    async fn issue1505_scheduled_native_poll_keeps_output_and_floor_budget() {
+        use base64::Engine;
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "default_node_info":{"network":"columbus-5"}
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .respond_with(|request: &wiremock::Request| {
+                let path = request.url.path();
+                let body = if let Some(encoded) = path.split("/smart/").nth(1) {
+                    let query: Value = serde_json::from_slice(
+                        &base64::engine::general_purpose::STANDARD
+                            .decode(encoded)
+                            .unwrap(),
+                    )
+                    .unwrap();
+                    let data = if query.get("config").is_some() {
+                        if path.contains("terra1mapper") {
+                            json!({"paused":false,"treasury":"terra1treasury","fee_bps":100})
+                        } else if path.contains("terra1treasury") {
+                            json!({"wrapping_paused":false})
+                        } else {
+                            json!({"wrap_mapper":"terra1mapper"})
+                        }
+                    } else if query.get("denom_wrappers").is_some() {
+                        json!({"wrappers":[{"denom":"uluna","wrapper":"terra1mapper"},
+                            {"denom":"uusd","wrapper":"terra1mapper"}]})
+                    } else if let Some(mapping) = query.get("denom_mapping") {
+                        json!({"denom":mapping["denom"],"cw20_addr":"terra1wrapped"})
+                    } else if query.get("rate_limit").is_some() {
+                        json!({"config":null,"amount_used":"0"})
+                    } else if query.get("execution_capabilities").is_some() {
+                        json!({"direct_wrapper_floor_version":1})
+                    } else {
+                        panic!("unexpected scheduled smart query")
+                    };
+                    json!({"data":data})
+                } else if path.contains("tax_caps") {
+                    json!({"tax_cap":"1000"})
+                } else if path.contains("/terra/tax/") {
+                    json!({"params":{"burn_tax_rate":"0.005"}})
+                } else {
+                    panic!("unexpected scheduled HTTP path")
+                };
+                ResponseTemplate::new(200)
+                    .set_body_json(body)
+                    .set_delay(Duration::from_millis(800))
+            })
+            .with_priority(10)
+            .mount(&server)
+            .await;
+        let lcd =
+            LcdClient::new(vec![server.uri()], 1_000, 1, "columbus-5").with_ingestion_budget();
+        let before = Utc::now().timestamp_millis();
+        let start = std::time::Instant::now();
+        let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
+            .await
+            .expect("ordinary provider latency must not erase native publication");
+        assert!(start.elapsed() < Duration::from_millis(7_900));
+        assert!(snapshot.observed_at_ms >= before);
+        assert!(snapshot.observed_at_ms <= before + 100);
+        assert_eq!(snapshot.direct_floor_protocol(true), Some(1));
+        assert_eq!(snapshot.direct_floor_protocol(false), Some(1));
+        for denom in ["uluna", "uusd"] {
+            assert_eq!(
+                snapshot.wrap_input(denom, 10_000, before + 8_000),
+                Some(("terra1wrapped".into(), 9_900))
+            );
+            assert_eq!(
+                snapshot.unwrap_output(denom, 10_000, before + 8_000),
+                Some(("terra1wrapped".into(), 9_851, 9_900))
+            );
+            assert!(snapshot
+                .wrap_input(denom, 10_000, snapshot.observed_at_ms + 20_001)
+                .is_none());
+            assert!(snapshot
+                .unwrap_output(denom, 10_000, snapshot.observed_at_ms + 20_001)
+                .is_none());
+        }
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(requests.iter().filter(|request| request.url.path()
+            != "/cosmos/base/tendermint/v1beta1/node_info").count(), 13,
+            "same thirteen bounded observation reads, with independently required identity attestations");
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].in_flight, 0);
+    }
 
     async fn delayed<T>(millis: u64, value: Option<T>) -> Option<T> {
         tokio::time::sleep(Duration::from_millis(millis)).await;
