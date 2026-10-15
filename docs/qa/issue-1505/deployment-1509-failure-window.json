@@ -1,0 +1,377 @@
+{
+  "issue": 1505,
+  "read_only": true,
+  "start_utc": "2026-10-15T07:39:30Z",
+  "end_utc": "2026-10-15T07:40:06Z",
+  "bounded_sample_lines": 41,
+  "fixed_events": [
+    {
+      "utc": "2026-10-15T07:39:33.597075+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 43,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:34.464210+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 43,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:34.464248+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 6886,
+      "observed_at_ms": 1792049967577,
+      "poll_id": 43,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T07:39:37.005628+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 3440,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 3440,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T07:39:40.536649+00:00",
+      "categories": [
+        "book_pair_timeout"
+      ],
+      "latency_ms": 4001
+    },
+    {
+      "utc": "2026-10-15T07:39:40.537678+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 18,
+      "failed_pair_count": 4,
+      "cycle_elapsed_ms": 14706,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6972,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T07:39:44.675227+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 44,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:45.087662+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 44,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:45.087686+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7510,
+      "observed_at_ms": 1792049977577,
+      "poll_id": 44,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "None"
+    },
+    {
+      "utc": "2026-10-15T07:39:45.736182+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:46.462671+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:46.463199+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:46.740322+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output",
+      "request_id": "14fe34a67547e4d0"
+    },
+    {
+      "utc": "2026-10-15T07:39:47.390198+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:47.390813+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:48.281570+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:49.031520+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:49.293201+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 15,
+      "failed_pair_count": 7,
+      "cycle_elapsed_ms": 8755,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5726,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T07:39:49.333595+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output",
+      "request_id": "14fe34a67547e4d3"
+    },
+    {
+      "utc": "2026-10-15T07:39:49.469047+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5902,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5903,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T07:39:51.929231+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output",
+      "request_id": "14fe34a67547e4d5"
+    },
+    {
+      "utc": "2026-10-15T07:39:53.353499+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 45,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:53.570245+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 45,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:39:53.570259+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5992,
+      "observed_at_ms": 1792049987577,
+      "poll_id": 45,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T07:39:57.776902+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:58.431930+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:58.432486+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:58.433109+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:59.081314+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:59.081979+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    },
+    {
+      "utc": "2026-10-15T07:39:59.366502+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5800,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5800,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T07:39:59.416994+00:00",
+      "categories": [
+        "book_pair_timeout"
+      ],
+      "latency_ms": 4002
+    },
+    {
+      "utc": "2026-10-15T07:39:59.418474+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 15,
+      "failed_pair_count": 7,
+      "cycle_elapsed_ms": 10124,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5852,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T07:40:02.847785+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 46,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:40:03.364634+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 46,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T07:40:03.364664+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5786,
+      "observed_at_ms": 1792049997577,
+      "poll_id": 46,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T07:40:05.631585+00:00",
+      "categories": [
+        "book_pair_failed"
+      ],
+      "latency_ms": 0
+    }
+  ]
+}

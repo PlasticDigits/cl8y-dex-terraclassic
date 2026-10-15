@@ -1,0 +1,59 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "completed": false,
+  "scope": "Interrupted final-deployment native browser FIRST; root stopped after independent socket FAIL",
+  "reason": "Independent reverse socket missing_observations503/recovery budget failure; unchanged RETEST/control not run",
+  "interrupted_utc": "2026-10-15T07:41:55.156864+00:00",
+  "raw_receipt_sha256": "6a2dc23518e35516ff12905c6f5f51234a66b5f5fb56af7e9159e09301dca11b",
+  "saved_receipt_is_partial": true,
+  "completed_window_count": 1,
+  "expected_window_count": 4,
+  "quote_progress_reads": 175,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190064,
+      "samples": 937,
+      "first_useful_ms": 379.29999999981374,
+      "failures": [],
+      "failure_details": [],
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": false,
+      "elapsed_ms": null,
+      "samples": 344,
+      "first_useful_ms": 372.8999999985099,
+      "failures": [
+        "probe_unavailable"
+      ],
+      "failure_details": [],
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0
+    }
+  ],
+  "active_clock_at_last_save": {
+    "case": "USTC->CL8Y",
+    "viewport": "phone",
+    "first_dom_ms": 350.3999999985099,
+    "first_useful_ms": 372.8999999985099,
+    "visibility": "visible"
+  },
+  "limits": "One full native-input desktop window and partial native-input phone observations only; reverse browser windows not run. The phone probe_unavailable failure reflects deliberate browser shutdown, not classified application behavior. No complete browser acceptance claimed.",
+  "client_network_path": "unverified",
+  "deployed_revision": "c3e216842fe3bac00e2c71bb967950e004b3a6cf"
+}

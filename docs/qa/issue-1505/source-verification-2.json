@@ -1,0 +1,35 @@
+{
+  "issue": 1505,
+  "iteration": 2,
+  "change": "router observation starts alongside treasury/bindings with unchanged two-second bound; no snapshot retention or expiry changes",
+  "source_checks": [
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "summary": "passed=12 failed=0 skipped=1",
+      "source_fingerprint": "bcf01c4859a3bb65d3463b8e4ecbf6afa1dfb9c663259c04a9354e86c6b23fea",
+      "log_sha256": "ee4f851d24e33f2d2028e1a843e61467b9e14d007f9b599ee694db89d81165c5"
+    },
+    {
+      "command": "make verify-issue-1499",
+      "overall": "PASS WITH SKIPS",
+      "summary": "passed=10 failed=0 skipped=1",
+      "source_fingerprint": "bcf01c4859a3bb65d3463b8e4ecbf6afa1dfb9c663259c04a9354e86c6b23fea",
+      "log_sha256": "644bf7be6cafbd3bfc105d78f22367b30c182dfc2ed25b6ddb214e70fa57dea1"
+    },
+    {
+      "command": "make verify-issue-1464",
+      "overall": "PASS WITH SKIPS",
+      "summary": "PASS=11 FAIL=0 SKIP=2",
+      "source_fingerprint": "6002dffeecf8940a1faba1c54f5c8f4f0aea08b7de32792d6a987a37f9c4d450",
+      "log_sha256": "0758f8c29c6718a307481cdcd9427f827cefdc02ab2e0c95453936d474257a62"
+    }
+  ],
+  "wrapper_regressions_per_pass": 16,
+  "request_correlation_regressions_per_pass": 1,
+  "frontend_tests_per_native_pass": 36,
+  "browser_qa_controls_per_pass": 33,
+  "probe_controls_per_pass": 8,
+  "gitleaks": "PASS CI-pinned8.30.0",
+  "limits": "Separate deployed acceptance is pending; failed c3e21684 receipts remain FAIL."
+}

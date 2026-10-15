@@ -28,6 +28,9 @@ const {
   matchingDisplayedQuotes,
   updateDisplayedQuoteOwners,
   nativeResponseEpoch,
+  recordWindowQuoteOutcome,
+  drainResponseProbes,
+  isOwnedTeardownCancellation,
 } = require("./live-input-clock-1499.cjs");
 const {
   installReadGuard,
@@ -51,7 +54,7 @@ const REASONS = {
 const receipt = {
   issues: NATIVE_1505 ? [1505] : [1498, 1499, 1500],
   expected_revision: SHA,
-  qa_measurement_version: "foreground_correlated_native_response_clock_v7",
+  qa_measurement_version: "foreground_correlated_native_availability_v8",
   shard: SHARD,
   shard_count: NATIVE_1505 ? 1 : 3,
   expected_window_count: 4,
@@ -373,6 +376,12 @@ async function windowCase(c, view, viewport) {
     samples: 0,
     transitions: [],
     responses: [],
+    quote_availability: {
+      responses: 0,
+      useful: 0,
+      not_useful: 0,
+      teardown_cancelled: 0,
+    },
     failures: [],
     failure_details: [],
     display_ownership_qualifications: [],
@@ -388,6 +397,7 @@ async function windowCase(c, view, viewport) {
     lastSignature = null,
     latest = null,
     windowEnded = false,
+    contextClosing = false,
     displayedOwnership = { signature: null, owners: [], unavailable: false };
   const problem = (code) => {
     if (!row.failures.includes(code)) row.failures.push(code);
@@ -426,6 +436,9 @@ async function windowCase(c, view, viewport) {
   page.on("response", (response) => {
     const url = new URL(response.url());
     if (url.origin !== BE || url.pathname !== "/api/v1/route/solve") return;
+    let selected = false,
+      recorded = false,
+      readingBody = false;
     const work = (async () => {
       const p = Object.fromEntries(url.searchParams);
       if (
@@ -434,7 +447,10 @@ async function windowCase(c, view, viewport) {
         p.amount_in !== params(c).amount_in
       )
         return;
+      selected = true;
+      readingBody = true;
       const content = await response.body();
+      readingBody = false;
       if (content.length > 2 * 1024 * 1024) throw Error("body_bound");
       const body = JSON.parse(content),
         status = response.status(),
@@ -468,17 +484,42 @@ async function windowCase(c, view, viewport) {
       events.sort((a, b) => a.absolute_at - b.absolute_at);
       if (events.length > 120) throw Error("response_history_bound");
       latest = events.at(-1);
-      row.responses.push(e);
+      recordWindowQuoteOutcome(row, e, NATIVE_1505);
+      recorded = true;
       if (NATIVE_1505 && !e.request_id) problem("quote_request_id_unavailable");
       if (status !== 200 && !reason) problem("browser_unclassified_outcome");
     })().catch((error) => {
       const requestFailure = response.request().failure()?.errorText;
       const cancelled = requestFailure === "net::ERR_ABORTED";
+      const intentionalCancellation = isOwnedTeardownCancellation(
+        response.status(),
+        readingBody,
+        contextClosing,
+        requestFailure,
+        error,
+      );
+      if (selected && !recorded)
+        recordWindowQuoteOutcome(
+          row,
+          {
+            status: response.status(),
+            request_id: safeRequestId(response.headers()["x-quote-request-id"]),
+            useful: false,
+            failure: intentionalCancellation
+              ? "request_cancelled"
+              : safeError(error),
+          },
+          NATIVE_1505,
+          intentionalCancellation,
+        );
       const closing = windowEnded;
       row.response_probe_failures.push({
         phase: closing ? "closing" : "observing",
         at_ms: Date.now() - inputAt,
-        class: cancelled ? "request_cancelled" : safeError(error),
+        class:
+          cancelled || intentionalCancellation
+            ? "request_cancelled"
+            : safeError(error),
       });
       if (!closing && !cancelled)
         problem("observing_response_probe_unavailable");
@@ -747,7 +788,10 @@ async function windowCase(c, view, viewport) {
     rejectedQuoteAttempts += guard?.rejected ?? 0;
     windowEnded = true;
     await page.evaluate(() => window.__liveClock1499?.stop());
-    await Promise.all([...pending]);
+    row.response_drain = {
+      limit_ms: 5000,
+      settled: await drainResponseProbes(pending, 5000),
+    };
     row.original_input_epoch_ms = inputAt;
     row.elapsed_ms = Date.now() - inputAt;
     row.completed = row.elapsed_ms >= 185000;
@@ -760,9 +804,15 @@ async function windowCase(c, view, viewport) {
     problem(safeError(e));
   } finally {
     windowEnded = true;
+    contextClosing = true;
+    await context
+      .close()
+      .catch(() => problem("owned_context_close_unavailable"));
+    // Flush deliberate-close cancellations into their own counted scope before saving.
+    if (!(await drainResponseProbes(pending, 1000)))
+      problem("teardown_response_probe_unavailable");
     receipt.windows.push(row);
     save();
-    await context.close();
     process.stderr.write(
       JSON.stringify({
         case: c.label,

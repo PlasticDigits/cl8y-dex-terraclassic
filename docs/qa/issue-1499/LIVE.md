@@ -1,6 +1,6 @@
 # Bounded anonymous live lifecycle and metric receipts
 
-The [native #1505 follow-up](../issue-1505/README.md) uses observer v7. Response
+The [native #1505 follow-up](../issue-1505/README.md) uses observer v8. Response
 observation comes from the browser network stack's original request start plus
 response completion; delayed Node/CDP body delivery is recorded separately and
 cannot replace that clock. Two-frame candidates require stable output, fee and
@@ -12,7 +12,10 @@ For that focused follow-up set `DEX_LIVE_ISSUE=1505` and `DEX_LIVE_SHARD=0` in
 the command below. This mode permits only the four native direction/viewport
 windows, requires useful initialized API results (typed503 is a failure), and
 retains sanitized `x-quote-request-id` values for bounded log correlation. It
-does not run the other two shards.
+also counts every selected sustained native solve response: a known503 or
+invalid/non-useful result remains a failure after later recovery. Intentional
+window teardown is recorded separately from active response failures. It does
+not run the other two shards.
 
 Run only after the exact final frontend/backend deployment is independently
 attested by [the existing attester](../../../scripts/qa/attest-trading-quotes-1473.py).

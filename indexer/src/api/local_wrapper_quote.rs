@@ -182,6 +182,44 @@ async fn observed_read<T>(
     }
 }
 
+async fn observe_router(lcd: &LcdClient, router: Option<&str>, mapper: &str) -> Option<bool> {
+    let Some(router) = router else {
+        return Some(false);
+    };
+    let config: Value = observed_read(
+        "router_config",
+        lcd.query_contract_bounded(router, &json!({"config":{}}), 8_192),
+    )
+    .await?;
+    Some(config["wrap_mapper"].as_str() == Some(mapper))
+}
+
+/// Router configuration is independent of treasury/mapping reads. Start its
+/// unchanged two-second clock early so bank-tax reads cannot consume its lane
+/// admission window. Cancellation remains owned by the same outer poll.
+async fn observe_router_bounded(
+    lcd: &LcdClient,
+    router: Option<&str>,
+    mapper: &str,
+) -> Option<bool> {
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        observe_router(lcd, router, mapper),
+    )
+    .await
+    {
+        Ok(result) => result,
+        Err(_) => {
+            tracing::warn!(
+                phase = "router_config",
+                reason = "deadline",
+                "Native wrapper read unavailable"
+            );
+            None
+        }
+    }
+}
+
 async fn observe_floor_protocol(lcd: &LcdClient, address: &str) -> Option<u8> {
     let response = observed_read(
         "floor_capability",
@@ -430,7 +468,8 @@ async fn observe_inner(
     phase.store(2, Ordering::Relaxed);
     let config_query = json!({"config":{}});
     let bindings_query = json!({"denom_wrappers":{}});
-    let (treasury_config, bindings) = tokio::join!(
+    let (router_supported, treasury_config, bindings) = tokio::join!(
+        observe_router_bounded(lcd, router, mapper),
         observed_read(
             "treasury_config",
             lcd.query_contract_bounded::<Value>(&treasury, &config_query, 8_192)
@@ -479,18 +518,7 @@ async fn observe_inner(
                 })
                 .and_then(tax_rate)
         },
-        async {
-            if let Some(router) = router {
-                let cfg: Option<Value> = observed_read(
-                    "router_config",
-                    lcd.query_contract_bounded(router, &json!({"config":{}}), 8_192),
-                )
-                .await;
-                cfg.map(|v| v["wrap_mapper"].as_str() == Some(mapper))
-            } else {
-                Some(false)
-            }
-        },
+        async { router_supported },
         observe_tax_cap(lcd, "uluna", mappings.contains_key("uluna")),
         observe_tax_cap(lcd, "uusd", mappings.contains_key("uusd")),
     )
@@ -535,11 +563,10 @@ mod tests {
         time::Duration,
     };
 
-    /// Real HTTP plus the production ingestion lane: seven serial prerequisite
-    /// reads at800ms left<2s for output and no floor window. The same calls now
-    /// complete both native directions without raising any deadline or limit.
-    #[tokio::test]
-    async fn issue1505_scheduled_native_poll_keeps_output_and_floor_budget() {
+    async fn wrapper_fixture(
+        router_delay: Duration,
+        bank_delay: Duration,
+    ) -> (wiremock::MockServer, LcdClient) {
         use base64::Engine;
         use wiremock::{
             matchers::{method, path},
@@ -554,7 +581,7 @@ mod tests {
             .mount(&server)
             .await;
         Mock::given(method("GET"))
-            .respond_with(|request: &wiremock::Request| {
+            .respond_with(move |request: &wiremock::Request| {
                 let path = request.url.path();
                 let body = if let Some(encoded) = path.split("/smart/").nth(1) {
                     let query: Value = serde_json::from_slice(
@@ -591,15 +618,118 @@ mod tests {
                 } else {
                     panic!("unexpected scheduled HTTP path")
                 };
+                let delay = if path.contains("terra1router") {
+                    router_delay
+                } else if path.starts_with("/terra/") {
+                    bank_delay
+                } else {
+                    Duration::from_millis(800)
+                };
                 ResponseTemplate::new(200)
                     .set_body_json(body)
-                    .set_delay(Duration::from_millis(800))
+                    .set_delay(delay)
             })
             .with_priority(10)
             .mount(&server)
             .await;
-        let lcd =
-            LcdClient::new(vec![server.uri()], 1_000, 1, "columbus-5").with_ingestion_budget();
+        // Scoped fixture permits a slow-but-successful router response; the
+        // producer's two-second subdeadline and runtime policy stay unchanged.
+        let policy = crate::lcd::ProviderPolicy {
+            attempt_timeout_ms: 2_500,
+            ..Default::default()
+        };
+        let lcd = LcdClient::new_with_policy(vec![server.uri()], 2_500, 1, "columbus-5", policy)
+            .with_ingestion_budget();
+        (server, lcd)
+    }
+
+    #[tokio::test]
+    async fn issue1505_early_router_avoids_reproduced_output_lane_deadline() {
+        let (server, lcd) =
+            wrapper_fixture(Duration::from_millis(1_800), Duration::from_millis(50)).await;
+        // The old phase polls tax first, placing the slow router read behind its
+        // 250ms pacing turn. It loses its two-second deadline while both bank
+        // caps complete, exactly the deployed failure's field pattern.
+        let previous = collect_output_observations(
+            Duration::from_secs(2),
+            async {
+                let value: Value = lcd
+                    .get_bounded("/terra/tax/v1beta1/params", 8_192)
+                    .await
+                    .ok()?;
+                tax_rate(value["params"]["burn_tax_rate"].as_str()?)
+            },
+            observe_router(&lcd, Some("terra1router"), "terra1mapper"),
+            observe_tax_cap(&lcd, "uluna", true),
+            observe_tax_cap(&lcd, "uusd", true),
+        )
+        .await;
+        assert_eq!(previous.router_supported, None);
+        assert!(previous.tax_atomics.is_some());
+        assert!(previous.uluna_cap.is_some());
+        assert!(previous.uusd_cap.is_some());
+        let before_count = server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.url.path() != "/cosmos/base/tendermint/v1beta1/node_info")
+            .count();
+        let before = Utc::now().timestamp_millis();
+        let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
+            .await
+            .expect("early router must complete within unchanged publication deadline");
+        assert_eq!(snapshot.router_unwrap_supported, Some(true));
+        assert!(snapshot.tax_atomics.is_some());
+        for denom in ["uluna", "uusd"] {
+            assert!(snapshot
+                .unwrap_output(denom, 10_000, Utc::now().timestamp_millis())
+                .is_some());
+        }
+        assert!(snapshot.observed_at_ms >= before && snapshot.observed_at_ms <= before + 100);
+        let after_count = server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.url.path() != "/cosmos/base/tendermint/v1beta1/node_info")
+            .count();
+        assert_eq!(after_count - before_count, 13, "unchanged data-read count");
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            counters[0].failures, 0,
+            "scheduled deadline cancellation is neutral"
+        );
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn issue1505_early_router_deadline_is_typed_and_keeps_native_input_only() {
+        let (_server, lcd) =
+            wrapper_fixture(Duration::from_millis(3_000), Duration::from_millis(50)).await;
+        let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
+            .await
+            .expect("optional router timeout must not erase completed native input");
+        assert_eq!(snapshot.router_unwrap_supported, None);
+        let now = Utc::now().timestamp_millis();
+        assert!(snapshot.wrap_input("uusd", 10_000, now).is_some());
+        assert!(snapshot.unwrap_output("uusd", 10_000, now).is_none());
+        assert!(logs_contain("router_config"));
+        assert!(logs_contain("deadline"));
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].caller_cancellations, 1);
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
+    /// Real HTTP plus the production ingestion lane: seven serial prerequisite
+    /// reads at800ms left<2s for output and no floor window. The same calls now
+    /// complete both native directions without raising any deadline or limit.
+    #[tokio::test]
+    async fn issue1505_scheduled_native_poll_keeps_output_and_floor_budget() {
+        let (server, lcd) =
+            wrapper_fixture(Duration::from_millis(800), Duration::from_millis(800)).await;
         let before = Utc::now().timestamp_millis();
         let start = std::time::Instant::now();
         let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
