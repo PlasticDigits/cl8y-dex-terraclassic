@@ -42,6 +42,13 @@ regexes = [
   '''(?i)0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba''',
   # Incident20261016_001: exact, independently reviewed public-chain fixture values.
   # Anchored values only; no directory exclusions or private-key patterns.
+  '''^A\+7iz2WaOj/1BQb1H71NddOiPjYygfHVImHz4nOEFWmk$''',
+  '''^A5pqXNFV1AysrJ6rdJHjRg7EYop0k8/GR4bmBQCyPwNT$''',
+  '''^A5t0Gb/AFGhoj0hIBTZVHbd54h2naFkSYfkAclT3QiqV$''',
+  '''^A8N0YUu0ewtdWHE0oQAlvM1LbZ42/ESWFTwxjrUTp49c$''',
+  '''^AhAphMcfWbFYOUle4LkKwcnjAeWT9/aozv\+Co6j64ngz$''',
+  '''^AiTnHQ19SF\+H1Lp8fqzNerQuJF1NteqjXQ0cVYW13P3g$''',
+  '''^AnoHI0WAvhg4mx3B4hVIdeiRjRVZvTLbRXk8SiEIPLx/$''',
   '''^07\-tendermint\-1549$''',
   '''^0x20c687f48354e7d8e8f7e2ff299fbcd44344036d$''',
   '''^0x3557bfd147b35c2647eafc05c8be757ce84d5b1c$''',
