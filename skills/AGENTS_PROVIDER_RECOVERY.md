@@ -167,3 +167,11 @@ error behavior. An expired deadline starts no admission or HTTP work.
 Identity attempt timeout must charge provider failure before deadline-bounded
 metadata invalidation. Cancellation cannot lose quarantine or double-count it;
 historical verified metadata never substitutes for a fresh identity read.
+
+Native poll-local per-denom isolation precedes global two-read admission, with
+one mapping/rate/cap read per denom and symmetric cancellation ownership. It
+does not change provider permits, pacing, attempts, cadence or original clocks.
+For failures use the fixed [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) slot/stage
+witness: LCD-future activity includes internal admission/identity waiting and
+does not prove a wire attempt. Do not turn a controlled contention reproduction
+into an asserted historical provider cause without the selected witnesses.

@@ -9,18 +9,21 @@ Results are recorded separately for source, deployment and focused live checks.
 
 ## Current status
 
-Issue #1505 remains **OPEN**. The fourth deployed revision
-`358475f4cf71a3089f88259ee27339850512bacd` retained live availability failures.
-The fifth candidate has not been deployed.
+Issue #1505 remains **OPEN**. The fifth deployed revision
+`bcfaa77f7940fa4385436abb1b68c54cdf623402` retained a native-output live availability
+failure. The next implementation is under investigation.
+Its sixth candidate has focused controls, independent review and
+[frozen-source verification](source-verification-6-final.json) complete. Hosted
+CI, deployment and live acceptance for that candidate remain pending.
 
-The [final source wave](source-verification-5-final.json) passes the native,
+The [fifth candidate's source wave](source-verification-5-final.json) passes the native,
 identity, offline quote, lifecycle, liquidity-feed and provider-recovery
 verifiers, including first/retest, with zero executed failures and explicit
 separate-scope skips. Clippy succeeds with 155 existing warnings. All 1,205
 application files and 2,005 verification inputs retain identical before/after
 fingerprints. The final LCD module passes 108 tests twice, including reproduced
-deadline/cancellation controls. Hosted CI, deployment and focused live
-FIRST/RETEST remain pending.
+deadline/cancellation controls. Hosted CI and exact deployment passed. Socket
+FIRST passed, but browser FIRST retained one actual 503; RETEST did not run.
 
 The records below preserve each earlier revision/run, including failures and
 interim pending work. Later receipts establish later outcomes; they do not erase
@@ -737,3 +740,150 @@ host-disabled IPv6 prerequisites remain unavailable, with failed/interrupted
 diagnostics retained. Separate deployed/history/funded/treasury scopes are not
 claimed by source passes. Exact-revision hosted CI and live acceptance remain
 pending.
+
+## Fifth deployment: source and CI pass; browser FIRST fails
+
+[PR #1516](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1516) merged as
+`bcfaa77f7940fa4385436abb1b68c54cdf623402`; its entire tree matches the tested
+`0525b001` head. Genuine [PR CI 481](ci-481.json) and [main CI 482](ci-482.json)
+both pass: contracts 999, frontend 3,470 tests across 373 files, library 879 plus
+one ignored, and PostgreSQL 86 plus one ignored, with zero failures.
+
+Both Coolify services are [exactly attested](deployment-1516-attestation.json).
+Frontend finished 18:16:03 UTC and backend 18:19:51 UTC on 2026-10-15. Final logs
+contain 58/305 lines and zero build-error markers. Independent backend warmup
+completed at 18:22:51 UTC before any selected useful measurement.
+
+The [190-second socket FIRST](deployment-1516-socket-first.json) passes all 146
+selected useful native results. Its 145 initialized results have p95 307.346ms,
+p99 314.933ms and maximum 316.041ms; both revision-health reads match the deployed
+revision. This pass does not override the later browser failure.
+
+[Browser FIRST](deployment-1516-browser-fail.json) retains an active CL8Y→USTC
+phone HTTP 503 `missing_observations`, request `c659a12239334730`, received at
+18:35:10.499 UTC with 7ms CDP delivery lag. Selected totals are 133 useful and
+one unavailable response, with zero teardown cancellations. The three complete
+190-second windows each pass 35/35 useful responses; useful paints are
+382.2/374.4/381.2ms. The partial fourth window starts with a 376.1ms useful paint
+and records 28 useful plus the failed response. No expiry, original-window,
+geometry, response-probe, long-task or frame-gap flag is observed. Ownership
+qualifications do not establish unique adoption or positive callback evidence.
+
+The prior useful response's original expiry was 18:35:11.205 UTC, 706ms after
+the unavailable response. Display was first sampled blank 41ms after that
+expiry, then recovered with a fresh response at 18:35:21.394 UTC; sampled
+recovery is 10.895 seconds. These are retained observations, not a timer-callback
+acceptance pass. RETEST and separate expiry controls did not run; all owned
+browser/Node processes exited.
+
+The [diagnosis](deployment-1516-diagnosis.json) correlates poll 96's original
+18:35:01.204 UTC start and 18:35:09.106 completion at the 7.9-second publication
+margin. It publishes one mapping, positive tax and router, but both caps absent,
+with mapping/cap deadline events. No stale-component witness accompanies the
+selected rejection. Poll 95's complete original observation remains fresh until
+18:35:11.205; poll 97 completes at 18:35:17.443. Retaining the preceding complete
+view alone cannot bridge that original-expiry gap. The inspected ten-second
+slice has no correlated admission/circuit/429/parse event. Mapping denom,
+successful per-read phase times, and queued-versus-active delay remain unknown.
+
+Separately, the unchanged v8 global 600-read cap stops the last phone window at
+139.626 seconds, 19.790 seconds after the actual 503. Counts are 139 solves and
+461 progress calls. The cap does not cause or excuse the earlier application
+failure, and the last window remains incomplete. Its bounded observation
+protocol needs separate correction before another complete four-window cohort.
+No latency, original-input/expiry clock, provider budget or signing rule is
+relaxed. The 15-minute Loki receipt is collected within the diagnosis; broader
+uncorrelated patterns do not establish cause. Prometheus remains explicitly
+unavailable because no datasource is provisioned.
+
+## Sixth candidate: native isolation and bounded observer corrections
+
+The [controlled per-denom proof](native-denom-isolation-proof.json) retains an
+old-code FAIL under the original provider and poll limits: both mappings were
+present but both caps absent at 7.901 seconds, after eleven data reads and zero
+provider failures. Two unrelated same-denom reads could occupy both local slots.
+The unchanged fixture passes after adding one poll-local mapping/rate/cap slot
+per known native denom, acquired before the global two-read dispatcher. USTC's
+mapping, cap, tax and router complete; the slow sibling stays incomplete without
+retained fields or renewed clocks. Fixed first/retest use ten reads and preserve
+the original publication margin. This control's two-mapping failure differs from
+historical poll 96's one mapping and does not establish its exact queue state.
+
+Symmetric paused-clock controls keep one blocked-denom read active while the
+other denom's three reads complete in 60ms; all permits release on cancellation.
+Full wrapper FIRST/RETEST pass 32 tests each using default stack and parallel
+harness settings, in 18.62s/18.18s. Intermediate controls briefly overlapped an
+unrelated local Chrome QA group; final full runs began after it exited. Thirteen
+healthy data reads, two global/provider slots, four RPS, original attempt/total
+limits, ten-second cadence, 7.9/8-second bounds, original twenty-second expiry
+and fail-closed negative semantics remain unchanged.
+
+Failed physical reads now record fixed slot/phase/reason and per-denom dispatch,
+global dispatch or logical LCD stage under their original poll span. Capped
+queue/active/poll durations and `lcd_polled` distinguish local waiting from LCD
+future polling, which can still include internal admission/identity waits and
+does not prove a wire attempt. Successful reads remain silent. Existing aggregate
+phase deadlines have no slot and are separate evidence; no body, address, actor,
+private endpoint or arbitrary label is exported. Parser privacy and consistency
+controls exercise all stage/boundary cases without adding monitoring queries.
+
+The [v9 budget controls](observer-v9-budget-proof.json) preserve the actual v8
+503 and incomplete fourth window. The complete browser windows used
+152/162/151 reads; four at the largest observed count plus initialized probes
+would need 652, while projection of the partial phone gives 648. Native v9's
+finite 800-call global allowance includes initialization and all setup, solve
+and progress traffic. Each context retains the shared 600 maximum and receives
+only remaining allowance; local or global exhaustion remains incomplete/FAIL.
+Generic cohorts retain 600 per shard and 1,800 total. All four 190-second windows,
+the sixteen-minute bound, original clocks, ownership, availability and 500/750ms
+acceptance remain unchanged. The synthetic fixture failure is retained.
+
+[Completion controls](observer-v9-completion-proof.json) also reproduce two
+actual-driver classification failures: late budget exhaustion or earlier cutoff
+plus response drain could report a complete window. Overall was already FAIL,
+so this was not a false acceptance pass. Explicit natural active completion now
+keeps budget exits/setup/active exceptions incomplete, independently of drain
+time, while a full-duration window with an application failure remains complete
+and FAIL. Focused FIRST/RETEST each pass fourteen controls. Prior budget proof
+hashes describe the earlier control snapshot; this completion proof records the
+final driver hash and supersedes its pending follow-up note.
+
+The [monitoring cap proof](monitoring-read-budget-proof.json) retains another
+old-profile failure using the real Reader/Monitor/CLI with an in-memory opener:
+the former sixteen-read allowance cannot perform requested correlation plus
+optional Prometheus. Native monitoring now explicitly opts into a fixed eighteen
+reads, including credential bootstrap. Shared monitoring and deployment
+attestation retain their sixteen-read defaults. All optional combinations use
+the actual cap, and call nineteen is blocked before transport. Queries,
+300-line/eight-ID bounds and raw-data exclusions remain unchanged. The fixed
+CLI passes first/retest without network requests; synthetic failure receipts
+and source hashes remain in the proof.
+
+Independent read-only review reports no remaining findings in the runtime gates,
+captured failure witness, explicit observer completion or real monitoring cap.
+The [final sixth-source wave](source-verification-6-final.json) runs serially on
+2026-10-15 19:27:47–19:52:47 UTC and passes every selected runnable group:
+
+| Verifier | PASS | FAIL | Separate scope SKIP |
+| --- | ---: | ---: | ---: |
+| Native #1505 | 14 | 0 | 1 |
+| Offline quotes #1452 | 14 | 0 | 0 |
+| Quote lifecycle #1499 | 10 | 0 | 1 |
+| Provider recovery #1464 | 11 | 0 | 2 |
+
+Clippy exits zero with the same 155 existing warnings. Full library FIRST/RETEST
+pass 882 tests with one existing ignored benchmark in 110.42s/110.28s; applicable
+checks run the benchmark separately. Controlled production-build browser runs
+each record 44 quote requests and zero provider requests. These controlled
+receipts do not establish production latency or availability.
+
+The final 1,205-file application fingerprint is
+`05c319fdd857b6045e694a6b17dece7f21f219c612445a7f7dee1f9d8a2bfef6`;
+the 2,007-file verification-input fingerprint is
+`99880e0cb17e926be43cd18280138dca68d2814375db6576ece5c095890db4a0`.
+Both are identical before/after the entire wave, using the actual smartcontracts
+workspace roots and excluding docs, receipts, private env and generated files.
+Only wrapper producer source changes at runtime relative to the fifth deployed
+revision. Unchanged infrastructure checks retain their prior scopes rather than
+being relabeled as final-head evidence. Hosted CI and deployed acceptance remain
+pending. No new live RETEST, expiry control or acceptance pass is claimed.

@@ -1,0 +1,100 @@
+{
+  "status": "PASS",
+  "scope": "Native observer v9 budget controls only; no live acceptance or application source changes",
+  "node_version": "24.22.0",
+  "command": "bash scripts/with-node.sh -- node --test scripts/qa/test-live-quote-budget-1505.cjs",
+  "helper_files_sha256": {
+    "scripts/qa/live-trading-lifecycle-1499.cjs": "08d81c813361cc320236f6cb758f3c5dee70c8c0f7ffe624a396e015ff9b294d",
+    "scripts/qa/live-quote-budget-1505.cjs": "768c4fc852872caa4fd62f5d73beb703ecae74d86b182589f7d7f42c4cd0652b",
+    "scripts/qa/test-live-quote-budget-1505.cjs": "0ff8b523f3a70f44806f8a573cf47a3757859e02aec529607672ab89048f4b78",
+    "scripts/qa/live-read-guard-1499.cjs": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4",
+    "scripts/qa/live-input-clock-1499.cjs": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b",
+    "scripts/qa/live-quote-economics-1500.cjs": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662"
+  },
+  "source_frozen": true,
+  "source_diff": {
+    "driver_patch": "browser-observer-v9-driver.patch",
+    "sha256": "a2d96bc1990245bbb879ae37c17ac20c6d78d2954d9c3602f7454030f609dacb",
+    "new_files": [
+      "scripts/qa/live-quote-budget-1505.cjs",
+      "scripts/qa/test-live-quote-budget-1505.cjs"
+    ]
+  },
+  "profiles": {
+    "native_v9_global": 800,
+    "initialized_solves_counted": 4,
+    "context_guard_maximum": 600,
+    "generic_v8_per_shard": 600,
+    "generic_cohort": 1800,
+    "configured_window_count": 4,
+    "configured_window_seconds": 190,
+    "global_wall_minutes": 16,
+    "browser_budget_ms": 750,
+    "socket_budget_ms": 500
+  },
+  "transport_admission": "Each context receives min(600, total remaining); global usage never resets; either local or global exhaustion stops with the existing quote_budget/incomplete verdict",
+  "controls": [
+    "Real unchanged read guard reproduces the observed 600 total leaving 131 calls for the fourth window",
+    "Native800 admits a bounded synthetic full continuation at648 total; no claim that the real incomplete receipt completed",
+    "Actual guard denies an801st global call before transport; initialization included",
+    "Actual driver window stops on its600 context limit at604 global calls before extra sampling",
+    "Native fast typed503 remains sticky FAIL after later useful recovery",
+    "Actual driver native/generic metadata retains window, timing, ownership and concurrency scope; independent attestation still refuses before network/browser",
+    "Smaller120 functional-control budget remains supported without changing shared guard"
+  ],
+  "logs": {
+    "browser-observer-v9-budget-first.log": {
+      "sha256": "c32cc8e55f9812686800d9ce7afc8215ca8a964d1e294b597215821776eb0d24",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browser-observer-v9-budget-retest.log": {
+      "sha256": "e2956f906398e537f5b1c8e49a0a643ff3667db521528c41c263a21f2f80039f",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browser-observer-v9-budget-final-first.log": {
+      "sha256": "308062bb84202fb96056f911eb6e4e1ae386e899042028aa1afa099f5634ad3c",
+      "tests": 10,
+      "passed": 9,
+      "failed": 1,
+      "skipped": 0
+    },
+    "browser-observer-v9-budget-verified-first.log": {
+      "sha256": "49c297490dc39fe33aabc55b6ae728198c9912fca414c1f7ae2f89b81d794dc8",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browser-observer-v9-budget-verified-retest.log": {
+      "sha256": "009204812712597577640179bc88859c94bd955a6251604edad421636170255a",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "retained_fixture_failure": {
+    "log": "browser-observer-v9-budget-final-first.log",
+    "result": "9 passed,1 failed",
+    "cause": "Synthetic actual-driver fixture omitted inDecimals, causing BigInt(undefined) before window execution",
+    "correction": "Supply required synthetic case fields; no assertion or budget relaxation"
+  },
+  "network_requests": 0,
+  "chrome_started": false,
+  "rust_or_frontend_jobs_started": false,
+  "private_expiry_control_updated": false,
+  "v8_failure_retained": {
+    "receipt": "release5-browser-first.json",
+    "sha256": "09e49bdb542b4e9351bd70e36756844064115a257a416b25be5d3a1f36890848",
+    "actual503_id": "c659a12239334730",
+    "classification": "Actual application503 remains independent of later read-budget incompleteness; v9 does not reclassify either outcome"
+  },
+  "raw_accounting_gap": "v8 does not partition browser setup calls or retain a selected response outcome for one additional solve; no missing status or outcome is fabricated",
+  "outside_owned_files_followup": "Existing lifecycle guard test native cohort expectation600 must become800; generic1800 unchanged; root notified"
+}

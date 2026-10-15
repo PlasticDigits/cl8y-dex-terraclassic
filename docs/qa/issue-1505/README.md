@@ -34,7 +34,19 @@ windows/attempts and diagnose before another implementation/deployment cycle.
 
 Use new receipt paths for each pass and retain helper hashes, useful/error sample
 counts, original input/observation clocks, ownership qualifications and bounded
-teardown counts. If natural windows never exercise expiry, record a separate
+teardown counts. Native observer v9 allows at most 800 solve/progress calls
+globally, including four initialized API solves and all browser setup calls.
+The shared read guard retains its 600-call context maximum; each context receives
+`min(600, global_remaining)`, and either limit stops the cohort as incomplete/FAIL.
+Never reset the global counter between windows or exclude progress/setup traffic.
+Generic cohorts retain 600 calls per shard and 1,800 across three shards. The
+16-minute wall bound, four 190-second windows and all latency, original-clock,
+ownership and availability rules remain unchanged. This separate resource-budget
+correction follows the retained [v8 cutoff](deployment-1516-browser-fail.json);
+it cannot excuse that run's earlier application 503. Run the no-network budget
+controls in `scripts/qa/test-live-quote-budget-1505.cjs` before live use.
+
+If natural windows never exercise expiry, record a separate
 bounded anonymous client-delivery-hold control: retain original response metadata,
 honor AbortSignal, observe synchronous amount/minimum revocation at original
 expiry and fresh same-intent recovery. This functional control cannot replace
@@ -57,6 +69,19 @@ Receipts use private 0600 files. The monitoring helper accepts up to eight
 `--request-id` values from a response; it exports fixed enum counts and matching
 counts, never raw lines. Monitor collection success is separate from useful-quote
 acceptance. Keep failed original runs and exact helper hashes.
+The native monitor explicitly allows at most 18 reads including two credential
+bootstrap reads: datasource discovery, twelve fixed aggregates, one bounded
+sample, optional requested-ID sample and optional Prometheus. Existing shared
+monitoring keeps its 16-read default. Test all optional branches through the real
+reader cap with mocked transport; the nineteenth read must stop before transport.
+
+Slot-bearing producer failure records distinguish per-denom dispatch, global
+dispatch and logical LCD-future polling. Export only the fourteen fixed slots,
+allowlisted phase/reason/stage, capped 0–60,000ms timings and bounded optional poll
+identity/sample timestamp. LCD activity includes internal admission and identity
+waits; it is not wire-attempt evidence. Aggregate deadlines without a slot are
+not physical-read records. Reject missing/inconsistent stage/clock fields rather
+than inventing values, and retain the existing 300-line/eight-ID bounds.
 
 Final503 diagnostics retain at most one stale witness for each of eight fixed
 components. The monitor exports only allowlisted component names, bounded
@@ -90,6 +115,11 @@ HTTP work, request fast failure, attempt caps, integrity precedence and owned
 cancellation. A validated pause must revoke a previously published wrapper without waiting
 behind unrelated bindings/router reads;
 transient unavailability cannot fabricate fields or renew their original clock.
+Per-denom contention regressions must retain the exact old failing slow-read
+fixture, then prove independently valid sibling output within the same original
+margin. Check symmetric gate ordering and release on timeout/cancellation. The
+controlled fixture proves that scheduling defect; do not label it the historical
+cause when retained production logs lack per-read timing/denom evidence.
 
 Database ownership isolates data and migrations, not CPU/I/O latency. Run the
 deadline-sensitive integration/verifier stages one at a time in the QA instance,

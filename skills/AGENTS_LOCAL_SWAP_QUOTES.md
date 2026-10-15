@@ -127,3 +127,8 @@ overlap same-poll tax/cap work with mappings under the original margin, attach
 only validated matching mappings and revoke positively observed pauses. Bounded
 zero-attempt circuit waiting belongs only to scheduled ingestion; request paths
 remain offline and cannot renew wrapper observations.
+Acquire each known denom's one-read mapping/rate/cap gate before the poll's
+shared two-read gate. Keep acquisition physical-read scoped, symmetric and
+cancellation-safe; do not strand another denom behind both slots held by its
+sibling. Fixed failure slot/stage timings describe logical LCD work, not wire
+attempts, and never authorize missing fields or renew original expiry.

@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "scope": "Offline source proof of truthful natural active-window completion; no live acceptance",
+  "previous_budget_proof_preserved": "browser-observer-v9-budget-proof.json",
+  "prior_driver_sha256": "08d81c813361cc320236f6cb758f3c5dee70c8c0f7ffe624a396e015ff9b294d",
+  "source_files_sha256": {
+    "scripts/qa/live-trading-lifecycle-1499.cjs": "efb6277391932678f87e133cd4e7d2d0227168b195f25d86b68a8b941a469440",
+    "scripts/qa/live-quote-budget-1505.cjs": "768c4fc852872caa4fd62f5d73beb703ecae74d86b182589f7d7f42c4cd0652b",
+    "scripts/qa/test-live-quote-budget-1505.cjs": "53315daaf5f32cf4f94d94854867b247ed2410f8dd13fb11f49b73501a55f871",
+    "scripts/qa/live-read-guard-1499.cjs": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4",
+    "scripts/qa/live-input-clock-1499.cjs": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b",
+    "scripts/qa/live-quote-economics-1500.cjs": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662"
+  },
+  "logs": {
+    "browser-observer-v9-completion-old-control.log": {
+      "sha256": "f1152673faa547fe1ac4c02947a8a6d76e523e2d4cc63ddd7be083d2047ebcda",
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    },
+    "browser-observer-v9-completion-first.log": {
+      "sha256": "01ce9431ead425963328e611383d68c4096baf978c68a01596f0725b18dde780",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browser-observer-v9-completion-retest.log": {
+      "sha256": "73876921dead3f708a58d42e76ccf5f05893fa564163ea575289aae349823d96",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "old_behavior": "Both actual-driver controls incorrectly completed:186-second budget exit;180-second budget exit plus5-second drain. Overall availability/budget failure was already FAIL; no historical acceptance PASS is reclassified.",
+  "fixed_behavior": [
+    "Only natural exhaustion of the configured active duration sets active_window_completed",
+    "Budget exits and setup/active exceptions remain incomplete independent of setup/drain time",
+    "active_window_elapsed_ms is captured before response drain; original elapsed_ms and input/response clocks remain unchanged",
+    "A naturally completed190-second window may still have completed=true with native availability FAIL",
+    "Native800/global, shared600/context, generic600/shard and1800/cohort,190-second target,16-minute bound,500/750ms budgets and all response/ownership rules remain unchanged"
+  ],
+  "command": "bash scripts/with-node.sh -- node --test scripts/qa/test-live-quote-budget-1505.cjs",
+  "node_version": "24.22.0",
+  "source_frozen": true,
+  "network_requests": 0,
+  "chrome_started": false,
+  "rust_or_application_edits": false,
+  "v8_live_failure_receipt_unchanged": "09e49bdb542b4e9351bd70e36756844064115a257a416b25be5d3a1f36890848",
+  "interim_private_control_preserved": {
+    "file": "native-expiry-control-1505-v9.cjs",
+    "sha256": "bbb390cf3bd41c8293eb71ab13b89b9c174f1cfb96f6279388589cc2ee384c83"
+  }
+}

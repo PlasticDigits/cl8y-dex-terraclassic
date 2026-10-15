@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Focused acceptance controls for native recovery timing/correlation and private log boundaries."""
 import copy
+import io
 import importlib.util
 import json
 import re
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from contextlib import contextmanager, redirect_stdout
 
 
 def module(name, file):
@@ -23,6 +26,53 @@ def module(name, file):
 PROBE = module("native_probe", "probe-native-recovery-1505.py")
 MONITOR = module("native_monitor", "probe-native-monitoring-1505.py")
 FIXTURES = module("quote_fixtures", "test-probe-issue-1473.py")
+
+
+@contextmanager
+def monitoring_transport(prometheus=False):
+    """Exercise the real Reader/Monitor caps with only in-memory HTTP responses."""
+    class Response:
+        def __init__(self, payload):
+            self.data = json.dumps(payload).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, limit):
+            return self.data[:limit]
+
+    class Opener:
+        def __init__(self):
+            self.requests = []
+
+        def open(self, request, timeout):
+            self.requests.append(request.full_url)
+            path = MONITOR.MONITORING.ATTESTER.urllib.parse.urlsplit(request.full_url).path
+            if path == "/api/v1/applications":
+                payload = [{"name": "cl8y-logs", "uuid": "logs-test"}]
+            elif path == "/api/v1/applications/logs-test/envs":
+                payload = [{"key": "GRAFANA_ADMIN_USER", "value": "synthetic-private-user"},
+                           {"key": "GRAFANA_ADMIN_PASSWORD", "value": "synthetic-private-password"}]
+            elif path == "/api/datasources":
+                payload = [{"type": "loki", "uid": "Loki", "url": "synthetic-private-endpoint"}]
+                if prometheus:
+                    payload.append({"type": "prometheus", "uid": "Prometheus"})
+            elif path.endswith("/query_range"):
+                payload = {"status": "success", "data": {"resultType": "streams", "result": []}}
+            elif path.endswith("/query"):
+                payload = {"status": "success", "data": {"resultType": "vector", "result": [
+                    {"value": [0, "2"], "metric": {"actor": "synthetic-private-actor"}}]}}
+            else:
+                raise AssertionError("unexpected_monitoring_test_path")
+            return Response(payload)
+
+    opener = Opener()
+    with patch.dict(os.environ, {"COOLIFY_URL": "https://coolify.invalid", "COOLIFY_WIRE_TOKEN": "synthetic-private-token"}), \
+            patch.object(MONITOR.MONITORING.ATTESTER.urllib.request, "build_opener", return_value=opener):
+        yield opener
 
 
 class Tests(unittest.TestCase):
@@ -51,7 +101,7 @@ else
   [[ "$FAIL" -eq 1 && "$PASS" -eq 0 && "$seen" -eq "$FAIL_AT" ]]
 fi
 """
-            for group, total in (("rust", 8), ("sockets", 2), ("qa", 2)):
+            for group, total in (("rust", 8), ("sockets", 2), ("qa", 3)):
                 for failure in range(total + 1):
                     with self.subTest(group=group, failure=failure):
                         env = {"PATH": os.environ["PATH"], "GROUP": group,
@@ -134,6 +184,70 @@ fi
         for line in ('LCD provider admission deferred', 'all provider circuits open', 'reason="capacity"', 'reason="circuit_open"'):
             self.assertIsNotNone(re.search(pattern, line))
 
+    def test_read_witnesses_distinguish_dispatch_from_logical_lcd_polling(self):
+        queued = ('Native wrapper read unavailable poll_id=96 slot="uusd_cap" phase="tax_cap" '
+                  'reason="deadline" stage="global_dispatch" poll_elapsed_ms=7901 '
+                  'denom_wait_ms=1 global_wait_ms=1200 active_ms=0 lcd_polled=false '
+                  'actor=do-not-export endpoint=https://private.invalid/body')
+        row = MONITOR.read_witness(queued, "1792089309106000000")
+        self.assertEqual(row["poll_id"], 96)
+        self.assertEqual(row["sample_timestamp_ms"], 1792089309106)
+        self.assertFalse(row["lcd_polled"])
+        self.assertEqual((row["denom_wait_ms"], row["global_wait_ms"], row["active_ms"]), (1, 1200, 0))
+        active = queued.replace('stage="global_dispatch"', 'stage="lcd_read"').replace(
+            'active_ms=0 lcd_polled=false', 'active_ms=60000 lcd_polled=true')
+        polled = MONITOR.read_witness(active)
+        self.assertTrue(polled["lcd_polled"])
+        self.assertEqual(polled["active_ms"], 60000)
+        self.assertNotIn("wire", json.dumps(polled))
+        waiting = queued.replace('stage="global_dispatch"', 'stage="denom_dispatch"').replace(
+            'global_wait_ms=1200', 'global_wait_ms=0').replace('reason="deadline"', 'reason="cancelled"')
+        self.assertEqual(MONITOR.read_witness(waiting)["stage"], "denom_dispatch")
+        self.assertNotIn("do-not-export", json.dumps([row, polled, MONITOR.read_witness(waiting)]))
+        self.assertNotIn("private.invalid", json.dumps(row))
+        self.assertIsNone(MONITOR.read_witness('Native wrapper read unavailable phase="uusd_tax_cap" reason="deadline"'))
+
+    def test_read_witnesses_refuse_unknown_or_inconsistent_evidence(self):
+        line = ('Native wrapper read unavailable poll_id=96 slot="uusd_cap" phase="tax_cap" '
+                'reason="deadline" stage="global_dispatch" poll_elapsed_ms=7901 '
+                'denom_wait_ms=1 global_wait_ms=1200 active_ms=0 lcd_polled=false')
+        invalid = (
+            line.replace('slot="uusd_cap"', 'slot="private_slot"'),
+            line.replace('phase="tax_cap"', 'phase="rate_limit"'),
+            line.replace('stage="global_dispatch"', 'stage="wire_attempt"'),
+            line.replace('reason="deadline"', 'reason="private_reason"'),
+            line.replace('lcd_polled=false', 'lcd_polled=true'),
+            line.replace('active_ms=0', 'active_ms=1'),
+            line.replace('stage="global_dispatch"', 'stage="denom_dispatch"'),
+            line.replace('slot="uusd_cap" phase="tax_cap"', 'slot="router_config" phase="router_config"'),
+            line.replace('active_ms=0 ', ''),
+            line.replace('global_wait_ms=1200', 'global_wait_ms=60001'),
+            line.replace('global_wait_ms=1200', 'global_wait_ms=-1'),
+            line + ' stage="global_dispatch"',
+        )
+        for bad in invalid:
+            with self.subTest(bad=bad):
+                self.assertIsNone(MONITOR.read_witness(bad))
+        unknown = MONITOR.read_witness(line.replace('poll_id=96', 'poll_id=private_actor'), "private_timestamp")
+        self.assertIsNone(unknown["poll_id"])
+        self.assertIsNone(unknown["sample_timestamp_ms"])
+        self.assertNotIn("private", json.dumps(unknown))
+
+    def test_read_witness_samples_keep_the_existing_resource_and_privacy_bounds(self):
+        line = ('Native wrapper read unavailable poll_id=96 slot="uluna_mapping" phase="denom_mapping" '
+                'reason="deadline" stage="denom_dispatch" poll_elapsed_ms=7901 '
+                'denom_wait_ms=7900 global_wait_ms=0 active_ms=0 lcd_polled=false actor=do-not-export')
+        payload = {"status": "success", "data": {"resultType": "streams", "result": [
+            {"stream": {"actor": "do-not-export"}, "values": [["1792089309106000000", line]] * 300}]}}
+        result = MONITOR.sample_summary(payload)
+        self.assertEqual(result["bounded_sample_lines"], 300)
+        self.assertEqual(len(result["producer_read_witnesses"]), 300)
+        self.assertEqual(result["producer_read_witnesses"][0]["slot"], "uluna_mapping")
+        self.assertNotIn("do-not-export", json.dumps(result))
+        payload["data"]["result"][0]["values"].append(["1", line])
+        with self.assertRaises(ValueError):
+            MONITOR.sample_summary(payload)
+
     def test_stale_witnesses_keep_only_fixed_components_bounded_clocks_and_requested_ids(self):
         line = 'Local quote prerequisite stale component="reference" age_known=true age_ms=20589 expiry_known=true expires_in_ms=-589 request_id=0000000000000001 actor=do-not-export'
         self.assertEqual(MONITOR.stale_witness(line, ["0000000000000001"]), {
@@ -169,6 +283,54 @@ fi
         self.assertTrue(all("limit=300" in p for p in paths if "query_range" in p))
         with self.assertRaises(ValueError):
             MONITOR.collect(instance, ["actor/private"])
+
+    def test_native_monitoring_optional_branches_use_the_real_reader_budget(self):
+        for prometheus in (False, True):
+            for correlation in (False, True):
+                with self.subTest(prometheus=prometheus, correlation=correlation), monitoring_transport(prometheus) as opener:
+                    instance = MONITOR.MONITORING.Monitor(read_budget=MONITOR.NATIVE_READ_BUDGET)
+                    ids = ["0000000000000001"] if correlation else []
+                    result = MONITOR.collect(instance, ids)
+                    expected = 16 + int(prometheus) + int(correlation)
+                    self.assertEqual(result["read_count"], expected)
+                    self.assertEqual(len(opener.requests), expected)
+                    self.assertEqual(instance.read_budget, 18)
+                    self.assertEqual(result["prometheus"]["status"], "PASS" if prometheus else "SKIP")
+                    self.assertNotIn("synthetic-private", json.dumps(result))
+                    while instance.reader.reads < instance.read_budget:
+                        instance.read("/api/datasources")
+                    self.assertEqual(len(opener.requests), 18)
+                    with self.assertRaisesRegex(ValueError, "read_budget"):
+                        instance.read("/api/datasources")
+                    self.assertEqual(len(opener.requests), 18)
+
+    def test_native_monitoring_cli_retains_old_cap_failure_and_uses_explicit_profile(self):
+        for budget, expected_status in ((16, 1), (18, 0)):
+            with self.subTest(budget=budget), monitoring_transport(True) as opener, tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / "receipt.json"
+                with patch.object(MONITOR, "NATIVE_READ_BUDGET", budget), \
+                        patch.object(sys, "argv", ["native-monitor", "--output", str(output), "--request-id", "0000000000000001"]), \
+                        redirect_stdout(io.StringIO()):
+                    status = MONITOR.main()
+                receipt = json.loads(output.read_text())
+                self.assertEqual(status, expected_status)
+                self.assertEqual(receipt["overall"], "FAIL" if budget == 16 else "PASS")
+                self.assertEqual(len(opener.requests), budget)
+                if budget == 16:
+                    self.assertEqual(receipt["failure_class"], "ValueError")
+                else:
+                    self.assertEqual(receipt["read_count"], 18)
+                    self.assertEqual(receipt["read_budget"], 18)
+                self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+                self.assertNotIn("synthetic-private", json.dumps(receipt))
+
+    def test_monitoring_budget_profile_is_closed_before_credentials_or_transport(self):
+        self.assertEqual(MONITOR.MONITORING.Monitor.read_budget, 16)
+        for bad in (0, 1, 17, 19, True, "18", 18.0):
+            with self.subTest(bad=bad), patch.object(MONITOR.MONITORING.ATTESTER, "Reader") as reader:
+                with self.assertRaisesRegex(ValueError, "read_budget"):
+                    MONITOR.MONITORING.Monitor(read_budget=bad)
+                reader.assert_not_called()
 
 
 if __name__ == "__main__":

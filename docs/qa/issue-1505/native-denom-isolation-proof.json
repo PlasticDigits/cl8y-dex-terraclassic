@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "source": {
+    "path": "indexer/src/api/local_wrapper_quote.rs",
+    "sha256": "63ece2fbef398aa704a35dd11abb8358796b632936dfc1a77b1062ec6537e697"
+  },
+  "scope": "Only local_wrapper_quote.rs changed by this agent. Parent owns other worktree changes.",
+  "command": "env -u RUST_MIN_STACK -u RUST_TEST_THREADS CARGO_TARGET_DIR=\"$PWD/indexer/target\" CARGO_BUILD_JOBS=2 cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote::tests -- --nocapture",
+  "settings": {
+    "stack": "default",
+    "test_threads": "default",
+    "build_jobs": 2,
+    "target": "owned worktree target"
+  },
+  "evidence": {
+    "old_control": {
+      "sha256": "ed580a6d1c2406f2557b17f1c53149c36da53b5f9e7b2c254f83f15366086b66",
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 880 filtered out; finished in 7.97s",
+      "control_scalars": [
+        "denom_isolation_control elapsed_ms=7901 mappings=2 uluna_mapping=true uusd_mapping=true tax=true router=Some(true) uluna_cap=false uusd_cap=false data_reads=11 provider_failures=0 caller_cancellations=2"
+      ],
+      "log_basename": "dex-1505-denom-old-control.log"
+    },
+    "fixed_control_first": {
+      "sha256": "c75d4a0bfa59d9175c1d1b38390688be618764c062f41ffe2584c98a6aa0870d",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 880 filtered out; finished in 7.98s",
+      "control_scalars": [
+        "denom_isolation_control elapsed_ms=7901 mappings=1 uluna_mapping=false uusd_mapping=true tax=true router=Some(true) uluna_cap=false uusd_cap=true data_reads=10 provider_failures=0 caller_cancellations=1"
+      ],
+      "log_basename": "dex-1505-denom-fixed-first.log"
+    },
+    "fixed_control_retest": {
+      "sha256": "51dc5c5e7a46e0d7d7c11b9f96c2138855261a2aabd4d18f8fad9ac3d79d1adc",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 880 filtered out; finished in 7.94s",
+      "control_scalars": [
+        "denom_isolation_control elapsed_ms=7901 mappings=1 uluna_mapping=false uusd_mapping=true tax=true router=Some(true) uluna_cap=false uusd_cap=true data_reads=10 provider_failures=0 caller_cancellations=1"
+      ],
+      "log_basename": "dex-1505-denom-fixed-retest.log"
+    },
+    "symmetry": {
+      "sha256": "5c3d35b713a803f9681b9c3a23638aadb7cfe8a47f284d614a2ec48d7b4d4730",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 882 filtered out; finished in 0.04s",
+      "control_scalars": [],
+      "log_basename": "dex-1505-denom-symmetry-first.log"
+    },
+    "witness": {
+      "sha256": "843f459ed9c351f5b5812bf11533d1a9ec428427bfcf75d8fa00afa4c48520d6",
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 882 filtered out; finished in 0.04s",
+      "control_scalars": [],
+      "log_basename": "dex-1505-denom-witness-first.log"
+    },
+    "wrapper_first": {
+      "sha256": "839f65722a31a174c3eeb50d797840a5738dac9a7f6c2a2dc8cf66a8cab5c90b",
+      "result": "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 851 filtered out; finished in 18.62s",
+      "control_scalars": [
+        "denom_isolation_control elapsed_ms=7901 mappings=1 uluna_mapping=false uusd_mapping=true tax=true router=Some(true) uluna_cap=false uusd_cap=true data_reads=10 provider_failures=0 caller_cancellations=1"
+      ],
+      "log_basename": "dex-1505-denom-wrapper-first.log"
+    },
+    "wrapper_retest": {
+      "sha256": "e88a3ace1ad710cb6087439dfd2bfd27c0f0e35372f8c2e90c33e34e5fc9502e",
+      "result": "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 851 filtered out; finished in 18.18s",
+      "control_scalars": [
+        "denom_isolation_control elapsed_ms=7902 mappings=1 uluna_mapping=false uusd_mapping=true tax=true router=Some(true) uluna_cap=false uusd_cap=true data_reads=10 provider_failures=0 caller_cancellations=1"
+      ],
+      "log_basename": "dex-1505-denom-wrapper-retest.log"
+    }
+  },
+  "symmetric_timing_control": {
+    "clock": "Tokio paused monotonic",
+    "directions": [
+      "uluna blocked / uusd useful",
+      "uusd blocked / uluna useful"
+    ],
+    "slow_reads": 2,
+    "slow_first_polled": 1,
+    "fast_reads": 3,
+    "each_fast_delay_ms": 20,
+    "fast_all_complete_ms": 60,
+    "original_control_deadline_ms": 1000,
+    "slow_read_results": "both None at original deadline",
+    "permits_after_drop": {
+      "global": 2,
+      "each_denom": 1
+    },
+    "wire_requests": 0,
+    "provider_attempts": 0
+  },
+  "witness_control": {
+    "events": 4,
+    "queued_denom_ms": 10,
+    "queued_global_ms": 10,
+    "active_deadline_ms": 1000,
+    "captured_poll_id": 6060,
+    "successful_read_events": 0,
+    "private_upstream_sentinels_exported": false,
+    "wire_requests": 0,
+    "provider_attempts": 0
+  },
+  "unchanged_limits": {
+    "poll_margin_ms": 7900,
+    "outer_poll_ms": 8000,
+    "original_snapshot_ttl_ms": 20000,
+    "healthy_data_reads": 13,
+    "global_dispatch": 2,
+    "denom_dispatch": 1,
+    "provider_permits": 2,
+    "provider_rps": 4,
+    "provider_attempt_ms": 2500,
+    "provider_total_ms": 4000,
+    "floor_phase_max_ms": 2000
+  },
+  "limits_of_inference": [
+    "The old deterministic control had two mappings and absent caps; historical M5 poll96 had one mapping. The control proves a possible scheduling defect, not the exact historical queue state.",
+    "A slow denom may remain incomplete at the original margin. No retained fields, splicing, timestamp renewal or deadline extension is introduced.",
+    "lcd_polled proves future polling, not a wire attempt. Existing aggregate deadline events remain separate from slot-bearing physical-read witnesses.",
+    "Intermediate focused control timing overlapped a short unrelated localhost Chrome QA group. Final full wrapper FIRST/RETEST ran after parent reported all those jobs exited."
+  ],
+  "source_frozen": true,
+  "owned_jobs_remaining": 0,
+  "upstream_manifest_sha256": "e67c37af1450d4c8633f4ad1d2f0be4e5f2294f593608c8e588242d1dcafe899",
+  "path_scope": "Private owned target and log paths normalized; source and log content hashes retained."
+}

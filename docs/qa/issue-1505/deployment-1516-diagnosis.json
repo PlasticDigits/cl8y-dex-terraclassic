@@ -1,0 +1,599 @@
+{
+  "issue": 1505,
+  "iteration": 5,
+  "revision": "bcfaa77f7940fa4385436abb1b68c54cdf623402",
+  "overall": "FAIL",
+  "read_only": true,
+  "request_correlation": [
+    {
+      "utc": "2026-10-15T18:35:10.356019+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_output",
+      "reason": "missing_observations",
+      "request_id": "c659a12239334730",
+      "status": 503
+    }
+  ],
+  "candidate_stale_witnesses_for_selected_id": [],
+  "selected_browser_failure": {
+    "case": "CL8Y->USTC",
+    "viewport": "phone",
+    "response": {
+      "response_epoch_ms": 1792089310499,
+      "response_utc": "2026-10-15T18:35:10.499000+00:00",
+      "status": 503,
+      "request_id": "c659a12239334730",
+      "reason": "missing_observations",
+      "useful": false,
+      "original_observed_at_ms": null,
+      "original_expires_at_ms": null,
+      "diagnostic_delivery_lag_ms": 7
+    },
+    "preceding_useful": {
+      "response_epoch_ms": 1792089306658,
+      "response_utc": "2026-10-15T18:35:06.658000+00:00",
+      "status": 200,
+      "request_id": "c659a1223933472b",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792089291205,
+      "original_expires_at_ms": 1792089311205,
+      "diagnostic_delivery_lag_ms": 5
+    },
+    "following_useful": {
+      "response_epoch_ms": 1792089321394,
+      "response_utc": "2026-10-15T18:35:21.394000+00:00",
+      "status": 200,
+      "request_id": "c659a12239334734",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792089307362,
+      "original_expires_at_ms": 1792089327362,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "failure_before_preceding_original_expiry_ms": 706,
+    "sampled_unavailable_to_next_useful_ms": 10895,
+    "original_window_validation_failure": false,
+    "classification": "Real active503 before budget cutoff; not teardown or read-guard refusal"
+  },
+  "browser_completion": {
+    "completed": false,
+    "completed_window_count": 3,
+    "attempted_window_count": 4,
+    "selected_window_outcomes": {
+      "responses": 134,
+      "useful": 133,
+      "not_useful": 1,
+      "teardown_cancelled": 0
+    },
+    "separate_resource_cutoff": {
+      "kind": "quote_budget",
+      "total_quote_progress_reads": 600,
+      "route_reads": {
+        "solve": 139,
+        "progress": 461,
+        "best": 0
+      },
+      "active_window": "CL8Y->USTC phone",
+      "window_elapsed_ms": 139626,
+      "cutoff_epoch_ms": 1792089330289,
+      "cutoff_utc": "2026-10-15T18:35:30.289000+00:00",
+      "after_failed_response_ms": 19790,
+      "guard_rejections": 0,
+      "completion_threshold_ms": 185000,
+      "threshold_met": false
+    },
+    "retest_started": false,
+    "expiry_control_started": false
+  },
+  "independent_socket_first": {
+    "overall": "PASS",
+    "utc_start": "2026-10-15T18:23:02.164361+00:00",
+    "utc_end": "2026-10-15T18:26:13.218061+00:00",
+    "requests": 148,
+    "counts": {
+      "executable": 146
+    },
+    "initialized_useful_timing": {
+      "samples": 145,
+      "p50_ms": 296.721,
+      "p95_ms": 307.346,
+      "p99_ms": 314.933,
+      "max_ms": 316.041
+    }
+  },
+  "wrapper_polls": [
+    {
+      "utc": "2026-10-15T18:34:56.778155+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 95
+    },
+    {
+      "utc": "2026-10-15T18:34:57.017518+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 95
+    },
+    {
+      "utc": "2026-10-15T18:34:57.017537+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5812,
+      "observed_at_ms": 1792089291205,
+      "poll_id": 95,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106514+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "tax_cap",
+      "reason": "deadline",
+      "poll_id": 96
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106545+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "tax_cap",
+      "reason": "deadline",
+      "poll_id": 96
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106570+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "denom_mapping",
+      "reason": "deadline",
+      "poll_id": 96
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106577+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "mapper_floor",
+      "reason": "deadline",
+      "poll_id": 96
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106583+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "treasury_floor",
+      "reason": "deadline",
+      "poll_id": 96
+    },
+    {
+      "utc": "2026-10-15T18:35:09.106588+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7901,
+      "observed_at_ms": 1792089301204,
+      "poll_id": 96,
+      "mappings": 1,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": false,
+      "uusd_cap": false,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T18:35:17.221703+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 97
+    },
+    {
+      "utc": "2026-10-15T18:35:17.443314+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 97
+    },
+    {
+      "utc": "2026-10-15T18:35:17.443344+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 6238,
+      "observed_at_ms": 1792089311205,
+      "poll_id": 97,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    }
+  ],
+  "critical_poll_timeline": {
+    "poll_id": 96,
+    "original_observed_at_ms": 1792089301204,
+    "start_utc": "2026-10-15T18:35:01.204Z",
+    "completed_utc": "2026-10-15T18:35:09.106588Z",
+    "elapsed_ms": 7901,
+    "start_and_completion_scope": "Original poll-start timestamp and completion fields, not reconstructed per-read timings.",
+    "critical_slice": {
+      "issue": 1505,
+      "read_only": true,
+      "start_utc": "2026-10-15T18:35:00Z",
+      "end_utc": "2026-10-15T18:35:10Z",
+      "lines": 25,
+      "possibly_truncated": false,
+      "fixed_events": [
+        {
+          "utc": "2026-10-15T18:35:00.116689+00:00",
+          "categories": [
+            "other_service_event"
+          ],
+          "elapsed_ms": 807
+        },
+        {
+          "utc": "2026-10-15T18:35:00.358350+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:00.681588+00:00",
+          "categories": [
+            "other_service_event"
+          ],
+          "elapsed_ms": 564
+        },
+        {
+          "utc": "2026-10-15T18:35:00.842805+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:02.492895+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:04.543050+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:04.546629+00:00",
+          "categories": [
+            "reference_commit"
+          ],
+          "elapsed_ms": 7,
+          "phase": "reference_marks"
+        },
+        {
+          "utc": "2026-10-15T18:35:06.514589+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:06.683052+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:07.485962+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:07.655427+00:00",
+          "categories": [
+            "other_service_event"
+          ],
+          "latency_ms": 4001
+        },
+        {
+          "utc": "2026-10-15T18:35:08.278349+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:08.308594+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:08.686361+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:08.906692+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106514+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "poll_id": 96,
+          "phase": "tax_cap",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106545+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "poll_id": 96,
+          "phase": "tax_cap",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106570+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "poll_id": 96,
+          "phase": "denom_mapping",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106577+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "poll_id": 96,
+          "phase": "mapper_floor",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106583+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "poll_id": 96,
+          "phase": "treasury_floor",
+          "reason": "deadline"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.106588+00:00",
+          "categories": [
+            "wrapper_completed"
+          ],
+          "poll_id": 96,
+          "elapsed_ms": 7901,
+          "mappings": 1
+        },
+        {
+          "utc": "2026-10-15T18:35:09.395779+00:00",
+          "categories": [
+            "other_service_event"
+          ],
+          "elapsed_ms": 2695
+        },
+        {
+          "utc": "2026-10-15T18:35:09.542941+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        },
+        {
+          "utc": "2026-10-15T18:35:09.548957+00:00",
+          "categories": [
+            "reference_commit"
+          ],
+          "elapsed_ms": 10,
+          "phase": "reference_marks"
+        },
+        {
+          "utc": "2026-10-15T18:35:09.682992+00:00",
+          "categories": [
+            "other_service_event"
+          ]
+        }
+      ],
+      "unknown_success_timestamps": [
+        "mapper_config",
+        "treasury_config",
+        "denom_bindings",
+        "denom_mapping",
+        "rate_limit",
+        "tax_rate",
+        "tax_cap",
+        "router_config"
+      ],
+      "scope": "All service logs in this10s slice inspected; only fixed enums/scalars retained. Unknown event category does not export raw content. Lack of a warning is not proof of successful/timely provider execution."
+    },
+    "unknowns": [
+      "Successful mapper/treasury/bindings/mapping/rate/tax/router completion timestamps are not emitted.",
+      "The mapping deadline uses generic denom_mapping, without a fixed denom field.",
+      "Critical deadline logs do not distinguish a dispatcher queue wait from an in-flight LCD read.",
+      "No observed event establishes an exact provider timeout, circuit or capacity cause for this selected failure."
+    ]
+  },
+  "reference_census": {
+    "windows": [
+      {
+        "start_utc": "2026-10-15T18:33:30Z",
+        "end_utc": "2026-10-15T18:34:45Z",
+        "lines": 40,
+        "possibly_truncated": false
+      },
+      {
+        "start_utc": "2026-10-15T18:34:45Z",
+        "end_utc": "2026-10-15T18:36:00Z",
+        "lines": 37,
+        "possibly_truncated": false
+      }
+    ],
+    "counts": {
+      "reference_scheduled": 15,
+      "reference_committed": 35,
+      "accounting_committed": 0,
+      "reference_failed": 0,
+      "accounting_unavailable": 0,
+      "identity_quarantined": 0,
+      "upstream_unavailable": 0,
+      "all_circuits_open": 0,
+      "no_verified_endpoint": 0,
+      "pool_book_cycle": 27
+    },
+    "max_commit_elapsed_ms": 71,
+    "scope": "Producer progress does not alone prove all possible reference quality. Selected request has no stale-prerequisite witness."
+  },
+  "monitoring_snapshot": {
+    "overall": "PASS WITH SKIPS",
+    "utc": "2026-10-15T18:37:25.079347+00:00",
+    "window_seconds": 900,
+    "loki": {
+      "status": "PASS",
+      "window_seconds": 900,
+      "pattern_counts": {
+        "wrapper_completed": 89.0,
+        "wrapper_unavailable": 1.0,
+        "wrapper_read_unavailable": 191.0,
+        "stale_prerequisite": 0.0,
+        "reference_committed": 222.0,
+        "reference_woken": 90.0,
+        "provider_pressure": 200.0,
+        "historical_height": 26.0,
+        "http_429": 13.0,
+        "deadline": 102.0,
+        "admission_budget": 7.0,
+        "errors": 4.0
+      },
+      "bounded_sample_lines": 300,
+      "typed_fields": {
+        "phase": {
+          "reference_marks": 101,
+          "reference_schedule": 42,
+          "data": 14,
+          "floor_capability": 73,
+          "treasury_floor": 4,
+          "mapper_floor": 4,
+          "tax_cap": 7,
+          "identity": 5,
+          "treasury": 1,
+          "denom_bindings": 1,
+          "router_config": 1,
+          "tax_rate": 1,
+          "rate_limit": 1,
+          "denom_mapping": 2
+        },
+        "reason": {
+          "circuit_open": 19,
+          "contract_rejected": 66,
+          "deadline": 24,
+          "provider_unavailable": 4,
+          "missing_or_invalid": 1,
+          "missing_observations": 2
+        },
+        "direction": {
+          "native_output": 2
+        }
+      },
+      "candidate_stale_witnesses": [],
+      "request_correlation": {}
+    },
+    "prometheus": {
+      "status": "SKIP",
+      "reason": "no_prometheus_datasource_provisioned"
+    },
+    "read_count": 16,
+    "scope": "Monitoring collection success is separate from failed application acceptance. Queries use15m lookbacks during collection; do not sum with any overlapping snapshot. Uncorrelated counts are not selected-cohort failures.",
+    "receipt_written_utc": "2026-10-15T18:37:42.276410+00:00",
+    "helper_sha256": "a439a0d6190a70794d276b6eb3658329705577f08ad4074d96ffcba1a0e44c3e"
+  },
+  "findings": [
+    {
+      "status": "EXACT_REQUEST",
+      "finding": "Selected native-output request returned503 missing_observations before the independent resource cutoff."
+    },
+    {
+      "status": "OBSERVED",
+      "finding": "Poll96 exhausted the original7.9s publication margin, with one mapping and neither cap complete. Tax and router were known."
+    },
+    {
+      "status": "CORRELATED",
+      "finding": "The previous completed wrapper remained unexpired at the browser failure, but retaining it alone cannot bridge its18:35:11.205 expiry until poll97 completes18:35:17.443."
+    },
+    {
+      "status": "UNKNOWN",
+      "finding": "Specific late mapping denom, queued/in-flight state and underlying critical-path/provider cause are unavailable from these logs."
+    },
+    {
+      "status": "SCOPE",
+      "finding": "Optional direct-floor capability failure is separate from required composed native-output mapping/tax/cap/router prerequisites."
+    }
+  ],
+  "evidence_files": [
+    {
+      "name": "r5-selected-c659a12239334730.json",
+      "sha256": "5dcc4a0f0473516d00c07442d6dbf69cd804265e0435e1fb2fc7f889c8bac800"
+    },
+    {
+      "name": "r5-producer-census-first-fail.json",
+      "sha256": "15cb26c5fb91bc78e8106d1af2710113af4da624fe0b6d00696fdd900dc7b655"
+    },
+    {
+      "name": "r5-poll96-critical-timeline.json",
+      "sha256": "609b90764fdc8ce670dbcecff3d95f0efb31829e571a05c8f9398a8a3cb7e6a3"
+    },
+    {
+      "name": "r5-reference-provider-census.json",
+      "sha256": "424f9b12266e40df3d3c648609403fd5b301a021fc0b32345d48ebb8dced217c"
+    },
+    {
+      "name": "release5-first-fail-monitoring.json",
+      "sha256": "3305ed2e5d0e25b294e811ea8ec54e810bd900b65870c31146697b56d4373a86"
+    },
+    {
+      "name": "release5-browser-first-summary.json",
+      "sha256": "4c83361e1d6fcdb6b8b07cfb182d6ec7a16549e8542bd2d179521041ea61186a"
+    },
+    {
+      "name": "release5-socket-first.json",
+      "sha256": "b50eed67c3d75fcc06379d894e445f1b16660b79b94371adec7ce427fc48d7b7"
+    }
+  ],
+  "private_raw_evidence_retained": true,
+  "private_raw_evidence_not_embedded": true,
+  "source_edits": false,
+  "extra_quote_or_provider_probes": false,
+  "deployment_mutations": false
+}

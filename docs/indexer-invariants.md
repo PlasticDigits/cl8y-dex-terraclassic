@@ -15,6 +15,12 @@ lock waits share the original total deadline, including cancellation, without
 double-counting failure. Historical verified metadata cannot admit a read;
 fresh expected-chain attestation remains mandatory.
 
+Known native denoms each hold at most one poll-local mapping/rate/cap read before
+acquiring the shared two-read dispatcher. Keep gates symmetric and cancellation
+owned; unrelated denom work cannot monopolize both global slots. Failed-read
+slot/stage timings are bounded diagnostics under the original poll span. Logical
+LCD-future polling does not establish a wire attempt or renew freshness.
+
 Owned pool-cycle completion may coalesce one reference-publication wake. Keep the
 existing fallback timer, atomic qualified batch and original timestamps. One
 independent accounting worker consumes a consistent certified context and cannot

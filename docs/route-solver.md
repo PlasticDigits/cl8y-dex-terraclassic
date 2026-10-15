@@ -1014,6 +1014,21 @@ shared provider lane, pacing, attempt caps and data-read count are unchanged.
 Cancellation drops the read futures and local waiters; no global queue or task
 is created. Required mapping/output work queues before later floor work.
 
+Each known native denom has one additional poll-local slot shared by its
+individual mapping, rate and cap reads. Acquire that slot before the global two
+slots; common prerequisites, tax and router use only the global dispatcher.
+This symmetric ordering prevents one denom from occupying both global slots.
+All permits remain owned and release on cancellation, and original provider,
+work, deadline and freshness limits remain unchanged. Missing fields still fail
+closed; no earlier fields are spliced into a newer observation.
+
+Failed reads emit one fixed-slot terminal witness under the original poll span,
+including cancellation. Its stage separates per-denom dispatch, global dispatch
+and logical LCD-future work; capped wait/active timings are diagnostics only.
+`lcd_polled` does not prove a wire attempt because LCD work can still await its
+own admission or identity. Aggregate deadlines without a slot are distinct;
+monitoring exports only allowlisted fields and bounded scalars.
+
 Native input and native output prerequisites remain independent. The scheduled
 wrapper worker polls every ten seconds with one outstanding pass. Once mapper
 configuration is known, router binding starts alongside all remaining work. After

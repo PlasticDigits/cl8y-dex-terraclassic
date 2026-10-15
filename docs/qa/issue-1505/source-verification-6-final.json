@@ -1,0 +1,163 @@
+{
+  "issue": 1505,
+  "candidate": 6,
+  "status": "PASS WITH EXPLICIT SOURCE SCOPE; deployed acceptance separate",
+  "recorded_at": "2026-10-15T19:53:58.582300+00:00",
+  "base_revision": "bcfaa77f7940fa4385436abb1b68c54cdf623402",
+  "runtime_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs"
+  ],
+  "application": {
+    "files": 1205,
+    "sha256": "05c319fdd857b6045e694a6b17dece7f21f219c612445a7f7dee1f9d8a2bfef6"
+  },
+  "verification_inputs": {
+    "files": 2007,
+    "sha256": "99880e0cb17e926be43cd18280138dca68d2814375db6576ece5c095890db4a0"
+  },
+  "application_roots": [
+    "indexer/src/",
+    "frontend-dapp/src/",
+    "smartcontracts/contracts/",
+    "smartcontracts/packages/",
+    "packages/"
+  ],
+  "fingerprint_scope": "Tracked plus unignored sorted path/content hashes using the actual smartcontracts workspace roots. Application includes cfg(test) source; verification inputs add indexer tests, scripts and explicit toolchain/package inputs. Excludes docs, receipts, ignored private env and generated build/cache trees.",
+  "stable_before_after": true,
+  "stages": [
+    {
+      "stage": "1505",
+      "command": [
+        "make",
+        "verify-issue-1505"
+      ],
+      "started": "2026-10-15T19:27:47.843061+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1505-release6-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T19:32:19.241403+00:00",
+      "log_sha256": "a0f08730de78822d0cc77ff4876e1cecc953004308fc83581b759c5b4242ba83",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts"
+      ]
+    },
+    {
+      "stage": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "indexer/Cargo.toml",
+        "--lib"
+      ],
+      "started": "2026-10-15T19:32:19.242417+00:00",
+      "status": "PASS",
+      "log_basename": "verify-clippy-release6-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T19:32:29.750363+00:00",
+      "log_sha256": "32c523aba00e2653fc7e1ca18121dab6ed7937ef42fae41c3d49d0a611fa8153",
+      "summaries": [],
+      "scope_skips": [],
+      "existing_warning_count": 155
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-15T19:32:29.750920+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1452-release6-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T19:44:13.824453+00:00",
+      "log_sha256": "fc4e1bf5ec0ee4a59da09aad751a5dca7e3fa1b12552035af14a02f4edbcbb27",
+      "summaries": [
+        "Results: 14 PASS, 0 FAIL, 0 SKIP",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ],
+      "scope_skips": []
+    },
+    {
+      "stage": "1499",
+      "command": [
+        "make",
+        "verify-issue-1499"
+      ],
+      "started": "2026-10-15T19:44:13.825322+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1499-release6-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T19:45:12.902979+00:00",
+      "log_sha256": "f6e21c4c1d0d6cceaef114ae80325fd7068b259eb287c28c9bd7c12803b192b0",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Sustained attested live API/browser/funded scope requires separate real receipts"
+      ]
+    },
+    {
+      "stage": "1464",
+      "command": [
+        "make",
+        "verify-issue-1464"
+      ],
+      "started": "2026-10-15T19:45:12.903520+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1464-release6-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T19:52:47.218502+00:00",
+      "log_sha256": "be7d785af20371cfe101f5883925ad1206f5903551c02554ac748aee76c3043a",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+        "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately"
+      ]
+    }
+  ],
+  "controlled_browser_archives": [
+    {
+      "phase": "first",
+      "sha256": "3b8887ce5b2eb6e896b8312c89779f07f910a1cede0f0ea6cd690e6100dde069",
+      "recorded_at": "2026-10-15T19:38:54.651Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    },
+    {
+      "phase": "retest",
+      "sha256": "b18fd5af85cbc5d81fa2aa24ff86b747d41b3fbe96389ddcb94d9044b193f993",
+      "recorded_at": "2026-10-15T19:43:58.259Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    }
+  ],
+  "focused_controls": [
+    "native-denom-isolation-proof.json",
+    "observer-v9-budget-proof.json",
+    "observer-v9-completion-proof.json",
+    "monitoring-read-budget-proof.json"
+  ],
+  "prior_live_failure": "deployment-1516-browser-fail.json",
+  "prior_diagnosis": "deployment-1516-diagnosis.json",
+  "limits_of_inference": [
+    "The deterministic old cap-starvation case had two mappings; historical poll96 had one, so its exact queue state remains unproven.",
+    "Earlier broad infrastructure/source/CI passes retain their earlier revisions and do not count as final-head CI.",
+    "Observer resource/completion correction preserves the earlier real503 FAIL and incomplete cohort."
+  ],
+  "remaining": [
+    "Genuine hosted CI on the final head",
+    "Exact merged-revision Coolify deployment/log attestation and independent 180-second backend warmup",
+    "Native v9 natural FIRST four 190-second windows and RETEST only after complete FIRST PASS, separate 190-second socket pair, bounded monitoring",
+    "Positive original-expiry callback control if natural evidence does not prove that path"
+  ]
+}

@@ -1,0 +1,316 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "scope": "M5 natural browser FIRST; three completed windows plus one failed/incomplete phone window",
+  "expected_revision": "bcfaa77f7940fa4385436abb1b68c54cdf623402",
+  "utc_start": "2026-10-15T18:23:10.628Z",
+  "utc_end": "2026-10-15T18:35:34.267Z",
+  "helper_hashes": [
+    {
+      "file": "live-trading-lifecycle-1499.cjs",
+      "sha256": "486900b0e0fc5a203c41a1c2934e22d125d84c61bb33c1eb4c51c3cc26fe75c2"
+    },
+    {
+      "file": "live-input-clock-1499.cjs",
+      "sha256": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b"
+    },
+    {
+      "file": "live-quote-economics-1500.cjs",
+      "sha256": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662"
+    },
+    {
+      "file": "live-read-guard-1499.cjs",
+      "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+    }
+  ],
+  "completed": false,
+  "completed_window_count": 3,
+  "attempted_window_count": 4,
+  "limits": {
+    "window_ms": 190000,
+    "browser_useful_ms": 750,
+    "initialized_socket_ms": 500,
+    "quote_progress_reads": 600
+  },
+  "initialized_api": {
+    "samples": 4,
+    "useful": 4,
+    "max_ms": 296.0192310000002
+  },
+  "selected_window_outcomes": {
+    "responses": 134,
+    "useful": 133,
+    "not_useful": 1,
+    "teardown_cancelled": 0
+  },
+  "actual_application_failure": {
+    "case": "CL8Y->USTC",
+    "viewport": "phone",
+    "response": {
+      "response_epoch_ms": 1792089310499,
+      "response_utc": "2026-10-15T18:35:10.499000+00:00",
+      "status": 503,
+      "request_id": "c659a12239334730",
+      "reason": "missing_observations",
+      "useful": false,
+      "original_observed_at_ms": null,
+      "original_expires_at_ms": null,
+      "diagnostic_delivery_lag_ms": 7
+    },
+    "preceding_useful": {
+      "response_epoch_ms": 1792089306658,
+      "response_utc": "2026-10-15T18:35:06.658000+00:00",
+      "status": 200,
+      "request_id": "c659a1223933472b",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792089291205,
+      "original_expires_at_ms": 1792089311205,
+      "diagnostic_delivery_lag_ms": 5
+    },
+    "following_useful": {
+      "response_epoch_ms": 1792089321394,
+      "response_utc": "2026-10-15T18:35:21.394000+00:00",
+      "status": 200,
+      "request_id": "c659a12239334734",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792089307362,
+      "original_expires_at_ms": 1792089327362,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "failure_before_preceding_original_expiry_ms": 706,
+    "sampled_unavailable_to_next_useful_ms": 10895,
+    "original_window_validation_failure": false,
+    "classification": "Real active503 before budget cutoff; not teardown or read-guard refusal"
+  },
+  "separate_resource_cutoff": {
+    "kind": "quote_budget",
+    "total_quote_progress_reads": 600,
+    "route_reads": {
+      "solve": 139,
+      "progress": 461,
+      "best": 0
+    },
+    "active_window": "CL8Y->USTC phone",
+    "window_elapsed_ms": 139626,
+    "cutoff_epoch_ms": 1792089330289,
+    "cutoff_utc": "2026-10-15T18:35:30.289000+00:00",
+    "after_failed_response_ms": 19790,
+    "guard_rejections": 0,
+    "completion_threshold_ms": 185000,
+    "threshold_met": false
+  },
+  "display_and_expiry": {
+    "first_sampled_blank_epoch_ms": 1792089311246,
+    "first_sampled_blank_utc": "2026-10-15T18:35:11.246000+00:00",
+    "sampled_blank_after_latest_possible_original_expiry_ms": 41,
+    "display_recovery_epoch_ms": 1792089321573,
+    "display_recovery_utc": "2026-10-15T18:35:21.573000+00:00",
+    "expiry_validation_or_probe_flags": [],
+    "ownership": {
+      "failure_epoch_ms": 1792089310499,
+      "possible_matching_response_count": 22,
+      "possible_original_expiries": [
+        1792089197361,
+        1792089201205,
+        1792089207361,
+        1792089211205,
+        1792089217362,
+        1792089221204,
+        1792089227362,
+        1792089231205,
+        1792089237361,
+        1792089247362,
+        1792089251204,
+        1792089257362,
+        1792089261205,
+        1792089267362,
+        1792089271204,
+        1792089277361,
+        1792089287361,
+        1792089291205,
+        1792089297362,
+        1792089301204,
+        1792089307362,
+        1792089311205
+      ],
+      "matching_unexpired_responses_at_failure": 1,
+      "latest_possible_original_expiry_ms": 1792089311205,
+      "failure_before_latest_possible_expiry_ms": 706,
+      "adoption_qualification": "Indistinguishable unchanged DOM cannot prove which matching original cohort was adopted; these are possible owners, not proven adoption.",
+      "first_blank": 1792089311246
+    },
+    "timer_callback_directly_instrumented": false,
+    "timer_or_funded_signing_claim": false
+  },
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "original_input_epoch_ms": 1792088601680,
+      "elapsed_ms": 190066,
+      "first_useful_ms": 382.20000000298023,
+      "first_dom_ms": 354.20000000298023,
+      "availability": {
+        "responses": 35,
+        "useful": 35,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 444,
+        "admitted": 152,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      }
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "original_input_epoch_ms": 1792088798300,
+      "elapsed_ms": 190165,
+      "first_useful_ms": 374.3999999985099,
+      "first_dom_ms": 350.1000000014901,
+      "availability": {
+        "responses": 35,
+        "useful": 35,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 282,
+        "admitted": 162,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      }
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "completed": true,
+      "original_input_epoch_ms": 1792088993916,
+      "elapsed_ms": 190123,
+      "first_useful_ms": 381.19999999552965,
+      "first_dom_ms": 353,
+      "availability": {
+        "responses": 35,
+        "useful": 35,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 131,
+        "admitted": 151,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      }
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "completed": false,
+      "original_input_epoch_ms": 1792089190663,
+      "elapsed_ms": 139626,
+      "first_useful_ms": 376.09999999403954,
+      "first_dom_ms": 352.79999999701977,
+      "availability": {
+        "responses": 29,
+        "useful": 28,
+        "not_useful": 1,
+        "teardown_cancelled": 0
+      },
+      "failures": [
+        "native_window_not_useful",
+        "quote_budget",
+        "incomplete_expiry_windows"
+      ],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 0,
+        "admitted": 131,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      }
+    }
+  ],
+  "receipt_sha256": "09e49bdb542b4e9351bd70e36756844064115a257a416b25be5d3a1f36890848",
+  "log_sha256": "0d7ba2a64e1d7d73d753e7fc89629a8bb6d1281603d0069ca8be0229af38a11b",
+  "all_owned_node_chrome_exited": true,
+  "retest_started": false,
+  "expiry_control_started": false,
+  "source_or_observer_edits": false,
+  "historical_and_partial_verdict_policy": "Application503FAIL retained separately from read-budget incomplete window; no fullFIRSTPASS or unchangedRETEST claim"
+}
