@@ -8,6 +8,19 @@ rust() {
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::quote_trace -- --test-threads=1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_http_stale_origins -- --test-threads=1
   cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --test-threads=1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib db::queries::hub_prices::scheduler -- --test-threads=1
+}
+sockets() {
+  if [[ -f indexer/.env.qa ]]; then
+    set -a
+    source indexer/.env.qa
+    set +a
+  fi
+  [[ -n "${TEST_DATABASE_ADMIN_URL:-${TEST_DATABASE_URL:-}}" ]] || {
+    echo 'Disposable QA capability unavailable; provision the owned database or record an explicit DB skip reason.' >&2
+    return 1
+  }
+  cargo test --locked --manifest-path indexer/Cargo.toml --test native_reference_publication_1505 -- --test-threads=1
 }
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/vitest run \
@@ -25,7 +38,7 @@ docs() {
 from pathlib import Path
 checks = {
  'AGENTS.md': ['AGENTS_NATIVE_QUOTE_RECOVERY.md', 'verify-issue-1505'],
- 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,9)), 'issue-1505/README.md'],
+ 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,10)), 'issue-1505/README.md'],
  'docs/qa/issue-1505/README.md': [*(f'AC{n}' for n in range(1,7)), 'Executed failures', 'RESULTS.md'],
  'docs/indexer-invariants.md': ['#1505', 'AGENTS_NATIVE_QUOTE_RECOVERY.md'],
  'docs/route-solver.md': ['x-quote-request-id', 'NR1505'],
@@ -39,6 +52,7 @@ PY
 start
 for attempt in first retest; do
   selected "$attempt original wrapper deadlines, partials, cancellation and correlation" RUST rust
+  selected "$attempt independent atomic reference publication and certified accounting" DB sockets
   selected "$attempt synchronous original expiry and exact intent" FRONTEND frontend
   selected "$attempt browser clocks, native transport and probe evidence" QA qa
 done

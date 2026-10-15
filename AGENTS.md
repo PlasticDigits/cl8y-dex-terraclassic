@@ -2,10 +2,12 @@
 
 ## Native quote recovery
 
-For native observation scheduling, quote rejection/request correlation or original
+For native observations, reference publication, quote rejection/request correlation or original
 display expiry, follow [NR1505](skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), run
 `make verify-issue-1505`, and use the [focused checklist](docs/qa/issue-1505/README.md).
 Preserve offline requests, original expiry, bounded providers and fail-closed signing.
+Only owned pool-cycle completion may coalesce a reference wake; accounting uses
+one consistent certified context and cannot delay critical mark publication.
 
 ## Trade entry, stable Swap layout and order metrics
 

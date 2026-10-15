@@ -1,5 +1,7 @@
 //! Materialized DEX hub USD snapshot (GitLab #556).
 
+mod scheduler;
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
@@ -315,7 +317,14 @@ pub async fn get_hub_price(
 /// factory economic CW20 marks keyed by contract (GitLab #683). Extra
 /// `hub_prices` tickers never leak into GET /hub-prices.
 pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
-    let rows = get_all_hub_prices(pool).await?;
+    let mut connection = pool.acquire().await?;
+    load_quote_usd_connection(&mut connection).await
+}
+
+async fn load_quote_usd_connection(
+    connection: &mut sqlx::PgConnection,
+) -> Result<HubQuoteUsd, sqlx::Error> {
+    let rows = get_all_hub_prices(&mut *connection).await?;
     let mut hub = HubQuoteUsd::default();
     for row in rows {
         if !row_usable(&row, Utc::now()) {
@@ -337,7 +346,7 @@ pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
          AND (anchor_ticker IN ('custc','lunc') OR EXISTS (SELECT 1 FROM hub_price_references
              WHERE ticker=economic_token_marks.anchor_ticker AND quality='bounded_spot'))",
     )
-    .fetch_all(pool)
+    .fetch_all(&mut *connection)
     .await?;
     for (contract, price) in econ_rows {
         let key = contract.trim().to_ascii_lowercase();
@@ -424,6 +433,62 @@ async fn replace_economic_marks(
     Ok(())
 }
 
+async fn certified_oracles<'e, E>(
+    executor: E,
+    ustc: Option<&BigDecimal>,
+    lunc: Option<&BigDecimal>,
+) -> Result<(Option<BigDecimal>, Option<BigDecimal>), sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = Postgres>,
+{
+    let certified: Vec<(String, BigDecimal)> = sqlx::query_as(
+        "SELECT ticker,price_usd FROM oracle_state
+         WHERE quality='fresh' AND cardinality(accepted_sources)>=2
+           AND price_usd BETWEEN 0.000000000001 AND 1000000
+           AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()",
+    )
+    .fetch_all(executor)
+    .await?;
+    let eligible = |ticker: &str, value: Option<&BigDecimal>| {
+        value
+            .filter(|value| {
+                certified
+                    .iter()
+                    .any(|(name, price)| name == ticker && price == *value)
+            })
+            .cloned()
+    };
+    Ok((eligible("ustc", ustc), eligible("lunc", lunc)))
+}
+
+struct AccountingContext {
+    ustc: Option<BigDecimal>,
+    lunc: Option<BigDecimal>,
+    hub: HubQuoteUsd,
+}
+
+async fn accounting_context(
+    pool: &PgPool,
+    ustc: Option<&BigDecimal>,
+    lunc: Option<&BigDecimal>,
+) -> Result<AccountingContext, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+        .execute(&mut *tx)
+        .await?;
+    let (ustc, lunc) = certified_oracles(&mut *tx, ustc, lunc).await?;
+    let hub = load_quote_usd_connection(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(AccountingContext { ustc, lunc, hub })
+}
+
+struct CommittedMarks {
+    snapshot: HubUsdSnapshot,
+    as_of: DateTime<Utc>,
+    ustc: Option<BigDecimal>,
+    lunc: Option<BigDecimal>,
+}
+
 /// Recompute hub USD from indexed `pairs` + `pair_reserves` + USTC/LUNC oracles (no LCD, no swap scan).
 ///
 /// Does **not** rewrite historical `swap_events.price_usd` or candle USD (GitLab #568).
@@ -434,6 +499,24 @@ pub async fn refresh_hub_prices(
     ustc_oracle: Option<&BigDecimal>,
     lunc_oracle: Option<&BigDecimal>,
 ) -> Result<HubUsdSnapshot, sqlx::Error> {
+    let committed = refresh_reference_marks(pool, cfg, ustc_oracle, lunc_oracle).await?;
+    match accounting_context(pool, committed.ustc.as_ref(), committed.lunc.as_ref()).await {
+        Ok(context) => refresh_reference_accounting(pool, cfg, committed.as_of, context).await,
+        Err(_) => tracing::warn!(
+            phase = "reference_accounting",
+            "Certified accounting prices unavailable"
+        ),
+    }
+    Ok(committed.snapshot)
+}
+
+async fn refresh_reference_marks(
+    pool: &PgPool,
+    cfg: &HubUsdConfig,
+    ustc_oracle: Option<&BigDecimal>,
+    lunc_oracle: Option<&BigDecimal>,
+) -> Result<CommittedMarks, sqlx::Error> {
+    let started = std::time::Instant::now();
     let pairs = list_reserve_pairs(pool).await?;
     let custc_id = lookup_custc_asset_id(pool, cfg).await?;
     let clunc_id = lookup_clunc_asset_id(pool, cfg).await?;
@@ -450,24 +533,10 @@ pub async fn refresh_hub_prices(
         states.into_iter().map(|s| (s.ticker.clone(), s)).collect();
     // Only the exact currently certified external values may establish references.
     // A stale SharedPrice or an uncatalogued caller cannot poison the bootstrap.
-    let certified: Vec<(String, BigDecimal)> = sqlx::query_as(
-        "SELECT ticker,price_usd FROM oracle_state
-        WHERE quality='fresh' AND cardinality(accepted_sources)>=2
-          AND price_usd BETWEEN 0.000000000001 AND 1000000
-          AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()",
-    )
-    .fetch_all(&mut *tx)
-    .await?;
-    let ustc_oracle = ustc_oracle.filter(|price| {
-        certified
-            .iter()
-            .any(|(ticker, value)| ticker == "ustc" && value == *price)
-    });
-    let lunc_oracle = lunc_oracle.filter(|price| {
-        certified
-            .iter()
-            .any(|(ticker, value)| ticker == "lunc" && value == *price)
-    });
+    let (certified_ustc, certified_lunc) =
+        certified_oracles(&mut *tx, ustc_oracle, lunc_oracle).await?;
+    let ustc_oracle = certified_ustc.as_ref();
+    let lunc_oracle = certified_lunc.as_ref();
     let mut snap = resolve_hub_usd(now, cfg, ustc_oracle, &pairs, custc_id);
     // Keep an eligible established USTR source instead of switching on tiny depth changes.
     if let Some(reference) = references.get("ustr").filter(|r| r.confirmed) {
@@ -600,7 +669,37 @@ pub async fn refresh_hub_prices(
     replace_economic_marks(&mut tx, &economic).await?;
     tx.commit().await?;
 
-    let hub = load_quote_usd(pool).await.unwrap_or_default();
+    tracing::info!(
+        phase = "reference_marks",
+        economic_marks = economic.len(),
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        oldest_economic_as_of_ms = economic
+            .iter()
+            .map(|mark| mark.as_of.timestamp_millis())
+            .min(),
+        newest_economic_as_of_ms = economic
+            .iter()
+            .map(|mark| mark.as_of.timestamp_millis())
+            .max(),
+        "Reference cohort committed"
+    );
+    Ok(CommittedMarks {
+        snapshot: snap,
+        as_of: now,
+        ustc: ustc_oracle.cloned(),
+        lunc: lunc_oracle.cloned(),
+    })
+}
+
+async fn refresh_reference_accounting(
+    pool: &PgPool,
+    cfg: &HubUsdConfig,
+    now: DateTime<Utc>,
+    context: AccountingContext,
+) {
+    let AccountingContext { ustc, lunc, hub } = context;
+    let ustc_oracle = ustc.as_ref();
+    let lunc_oracle = lunc.as_ref();
     if let Err(e) = crate::db::queries::protocol_fees::backfill_null_fee_usd(
         pool,
         ustc_oracle,
@@ -634,7 +733,6 @@ pub async fn refresh_hub_prices(
     {
         tracing::warn!("Idle USD candle marks failed: {}", e);
     }
-    Ok(snap)
 }
 
 pub async fn run_hub_usd_refresh_loop(
@@ -644,22 +742,56 @@ pub async fn run_hub_usd_refresh_loop(
     lunc_price: crate::indexer::oracle::SharedPrice,
     interval: std::time::Duration,
 ) {
-    let mut timer = tokio::time::interval(interval.clamp(
-        std::time::Duration::from_secs(1),
-        std::time::Duration::from_secs(5),
-    ));
-    timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    loop {
-        timer.tick().await;
-        let ustc = ustc_price.read().await.clone();
-        let lunc = lunc_price.read().await.clone();
-        if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
-            tracing::warn!("Hub USD refresh failed: {}", e);
-        } else if let Err(e) = crate::indexer::protocol_tvl::refresh_protocol_liquidity(&pool).await
-        {
-            tracing::warn!("Protocol liquidity refresh after hub USD failed: {}", e);
+    run_hub_usd_refresh_loop_with_signal(pool, cfg, ustc_price, lunc_price, interval, None).await;
+}
+
+/// The pool producer can coalesce one wake per completed cycle. A single marks
+/// lane preserves atomic qualification and original time; unrelated accounting
+/// has its own single nonoverlapping lane at the unchanged timer cadence.
+pub async fn run_hub_usd_refresh_loop_with_signal(
+    pool: PgPool,
+    cfg: HubUsdConfig,
+    ustc_price: crate::indexer::oracle::SharedPrice,
+    lunc_price: crate::indexer::oracle::SharedPrice,
+    interval: std::time::Duration,
+    pool_completed: Option<std::sync::Arc<tokio::sync::Notify>>,
+) {
+    let mark_loop = scheduler::run(interval, pool_completed, || {
+        let pool = pool.clone();
+        let cfg = cfg.clone();
+        let ustc_price = ustc_price.clone();
+        let lunc_price = lunc_price.clone();
+        async move {
+            let ustc = ustc_price.read().await.clone();
+            let lunc = lunc_price.read().await.clone();
+            if let Err(e) = refresh_reference_marks(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await
+            {
+                tracing::warn!("Hub USD refresh failed: {}", e);
+            }
         }
-    }
+    });
+    let accounting_loop = scheduler::run(interval, None, || {
+        let pool = pool.clone();
+        let cfg = cfg.clone();
+        let ustc_price = ustc_price.clone();
+        let lunc_price = lunc_price.clone();
+        async move {
+            let ustc = ustc_price.read().await.clone();
+            let lunc = lunc_price.read().await.clone();
+            let Ok(context) = accounting_context(&pool, ustc.as_ref(), lunc.as_ref()).await else {
+                tracing::warn!(
+                    phase = "reference_accounting",
+                    "Certified accounting prices unavailable"
+                );
+                return;
+            };
+            refresh_reference_accounting(&pool, &cfg, Utc::now(), context).await;
+            if let Err(e) = crate::indexer::protocol_tvl::refresh_protocol_liquidity(&pool).await {
+                tracing::warn!("Protocol liquidity refresh after hub USD failed: {}", e);
+            }
+        }
+    });
+    tokio::join!(mark_loop, accounting_loop);
 }
 
 #[cfg(test)]

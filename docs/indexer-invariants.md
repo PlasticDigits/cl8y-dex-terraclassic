@@ -10,6 +10,13 @@ without logging query strings, actors or provider endpoints. Apply
 `make verify-issue-1505`; [focused source/deployed evidence](qa/issue-1505/RESULTS.md)
 does not renew original freshness or replace actual live acceptance.
 
+Owned pool-cycle completion may coalesce one reference-publication wake. Keep the
+existing fallback timer, atomic qualified batch and original timestamps. One
+independent accounting worker consumes a consistent certified context and cannot
+delay critical marks; requests never wake either producer. Preserve
+[LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and
+[SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
+
 ## Exact route cost attribution (#1483)
 
 Apply [RC1483-1–RC1483-10](../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md) and run

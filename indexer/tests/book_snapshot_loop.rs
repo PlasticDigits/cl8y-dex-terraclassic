@@ -545,15 +545,48 @@ async fn issue_1453_pool_success_survives_component_failures() {
         // Cancellation below exercises the initialized pool/book component,
         // while retaining the same shared provider budget and exact deadline.
         lcd.attest_endpoints().await.unwrap();
-        let result = tokio::time::timeout(
-            if index == 3 {
-                Duration::from_millis(200)
-            } else {
-                Duration::from_secs(2)
-            },
-            book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(100 + index as i64)),
-        )
-        .await;
+        let result = if index == 3 {
+            let height = Some(100 + index as i64);
+            let expected = bd(&(1000 + index).to_string());
+            let mut observation = Box::pin(book_snapshot::snapshot_single_pair(
+                &pool, &lcd, &pair, height,
+            ));
+            // The cancellation case owns an initialized committed pool and an
+            // outstanding delayed book read. A cold identity/SQL scheduling turn
+            // must not consume its separate, unchanged 200 ms cancellation window.
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let ready = async {
+                        let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+                            .await.unwrap();
+                        let committed = current.as_ref().is_some_and(|row| {
+                            row.reserve_0 == expected && row.block_height == height
+                        });
+                        if !committed { return false; }
+                        server.received_requests().await.unwrap().iter().any(|request| {
+                            common::lcd_mock::smart_query_from_request(request)
+                                .get("order_book_head").is_some()
+                        })
+                    };
+                    tokio::select! {
+                        result = &mut observation => panic!(
+                            "snapshot completed before the committed-pool/delayed-book barrier: {result:?}"),
+                        ready = ready => if ready { break; },
+                    }
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }).await.expect("committed pool and delayed book request must initialize within 2 seconds");
+            let result = tokio::time::timeout(Duration::from_millis(200), &mut observation).await;
+            // Drop caller-owned work before inspecting persistence/old hybrids.
+            drop(observation);
+            result
+        } else {
+            tokio::time::timeout(
+                Duration::from_secs(2),
+                book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(100 + index as i64)),
+            )
+            .await
+        };
         assert!(!matches!(result, Ok(Ok(()))), "component work must fail");
         let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
             .await

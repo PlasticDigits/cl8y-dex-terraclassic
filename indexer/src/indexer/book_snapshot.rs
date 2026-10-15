@@ -90,7 +90,17 @@ pub const BOOK_SNAPSHOT_HEIGHT_RESPONSE_MAX_BYTES: usize = 1_048_576;
 /// reserves; the book lane consumes those observations and publishes hybrids.
 /// Slow books cannot postpone the next successful pool read.
 pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_interval_ms: u64) {
+    run_book_snapshot_loop_with_reference_signal(pool, lcd, snapshot_interval_ms, None).await;
+}
+
+pub(crate) async fn run_book_snapshot_loop_with_reference_signal(
+    pool: PgPool,
+    lcd: LcdClient,
+    snapshot_interval_ms: u64,
+    references: Option<std::sync::Arc<tokio::sync::Notify>>,
+) {
     let lcd = lcd.with_scheduled_observation();
+    let references = references.as_ref();
     let run_lane = |lane_pool: PgPool, lane_lcd: LcdClient, mode| async move {
         let mut ticker = tokio::time::interval(Duration::from_millis(snapshot_interval_ms.max(1)));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -154,7 +164,13 @@ pub async fn run_book_snapshot_loop(pool: PgPool, lcd: LcdClient, snapshot_inter
             loop {
                 tokio::select! {
                     result = &mut cycle => {
-                        if let Err(e) = result { tracing::error!("Liquidity observation lane failed: {}", e); }
+                        match result {
+                            Ok(()) if matches!(mode, SnapshotMode::Pool) => {
+                                if let Some(signal) = references.as_ref() { signal.notify_one(); }
+                            },
+                            Ok(()) => {},
+                            Err(e) => tracing::error!("Liquidity observation lane failed: {}", e),
+                        }
                         break;
                     }
                     _ = heartbeat.tick() => {

@@ -31,3 +31,10 @@ Generic route cost attribution, exact-amount cache ranking and consistent fair-r
 explanations follow [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md) and
 [the checklist](../docs/qa/issue-1483/README.md). Run `make verify-issue-1483`;
 explanation never changes reference quality, funding, floors or signing admission.
+
+Reference scheduling follows [NR1505-9](AGENTS_NATIVE_QUOTE_RECOVERY.md).
+Coalesced owned pool-cycle completion may wake the existing mark worker;
+accounting consumes one repeatable-read certified context independently. Preserve
+the same admission rules and original timestamps: scheduling cannot promote a
+new price class, replace unavailable qualification or extend expiry. Include
+`make verify-issue-1505` when changing that producer wiring.

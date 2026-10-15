@@ -47,6 +47,12 @@ age/expiry scalars and explicitly requested server IDs. A failed alternative can
 contribute a candidate witness; these events do not alone prove the sole cause.
 Successful responses do not emit stale candidate witnesses.
 
+Reference regressions must reproduce the late-pool/timer phase with original
+twenty-second expiry, verify coalesced nonoverlapping work and cancellation, and
+block unrelated accounting while a whole qualified replacement still publishes.
+Use a disposable database to test absent/mismatched supplied oracle qualification;
+the scheduling fix cannot promote a new price class or renew a source clock.
+
 Native browser mode requires useful results during the sustained windows as well
 as the initialized probes. Recognized503s remain failures after recovery; ordinary
 same-intent display retention does not certify backend availability. Teardown

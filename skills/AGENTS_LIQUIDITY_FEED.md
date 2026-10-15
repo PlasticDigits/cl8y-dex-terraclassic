@@ -130,3 +130,10 @@ both views. The four-second phase and twenty-second original TTL are unchanged.
 Retest [state bounds](../indexer/src/indexer/fee_phase_tests.rs) and
 [both scheduled publishers](../indexer/tests/scenarios/fee_generation_recovery_1464.rs)
 under pending/changed fees, cancellation, known rejection and independent expiry.
+
+For completed-pool reference publication, preserve
+[NR1505-9](AGENTS_NATIVE_QUOTE_RECOVERY.md): one coalesced wake per owned pool
+cycle, the existing fallback timer, one critical mark pass and one independent
+accounting pass. Keep atomic qualified cohorts and original source clocks; the
+notification does not certify a price or renew raw observations. Run
+`make verify-issue-1505` with these liquidity checks.

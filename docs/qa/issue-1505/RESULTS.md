@@ -14,7 +14,7 @@ at investigation start. The [50-second initialized socket baseline](baseline-soc
 passed 38 useful quotes; its cold first request remained separately recorded.
 The [190-second sustained baseline](baseline-sustained-socket.json),
 2026-10-15 06:41:01–06:44:12 UTC, reproduced the issue: 142 executable results
-and four `missing_observations` HTTP503 responses, all in CL8Y→USTC. The opposite
+and four `missing_observations` HTTP 503 responses, all in CL8Y→USTC. The opposite
 native-input direction stayed useful. The next sampled reverse useful result
 arrived 10,383ms after the first unavailable sample. This polling interval is
 recovery evidence, not a replacement for original browser-input latency.
@@ -31,9 +31,9 @@ No Prometheus datasource was provisioned.
 The [corrected v6 browser baseline](baseline-browser.json) completed all four
 190-second native direction/viewport windows with 490 read-only quote/progress
 requests. Initial useful paints were 361–411ms, while both initialized reverse
-API probes returned503. Both phone windows reproduced expired display: native
+API probes returned 503. Both phone windows reproduced expired display: native
 input remained visible 2,000ms past the latest matching original expiry and native
-output 1,225ms past it. The input-phone window also retained an original-window
+output 1,225ms past it. The input phone window also retained an original-window
 validation failure. Desktop windows had no display flags. This complete baseline
 remains FAIL. A separate 35-second timer diagnostic received replacements before
 each deadline and could not distinguish timer delay from deferred React commit;
@@ -84,8 +84,8 @@ fixture still refuses signing when optional output/floors are unavailable.
 
 Frontend production build passed with the repository's CI test WalletConnect
 identifier and development mode disabled. The first attempt correctly refused
-an absent build identifier. The CI-pinned, checksum-verified gitleaks8.30.0
-tracked-file scan passed; the workstation's older8.18.4 scanner falsely matched
+an absent build identifier. The CI-pinned, checksum-verified gitleaks 8.30.0
+tracked-file scan passed; the workstation's older 8.18.4 scanner falsely matched
 a public token address in a historical QA receipt. No scanner policy was relaxed.
 
 ## First deployment: verified source, retained live FAIL
@@ -138,17 +138,17 @@ deployments finished at that revision, with zero deployment-log failure markers
 and [exact attestation](deployment-1510-attestation.json).
 
 After independent producer startup, the [190-second socket FIRST](deployment-1510-socket-fail.json)
-failed: 142 useful quotes and four reverse `missing_observations`503s, with
-10,386ms sampled recovery. Useful initialized responses stayed within307ms.
+failed: 142 useful quotes and four reverse `missing_observations` 503s, with
+10,386ms sampled recovery. Useful initialized responses stayed within 307ms.
 The [strict v8 browser FIRST](deployment-1510-browser-interrupted.json) separately
-caught two native-input `stale_observations`503s during its complete desktop
-window. Useful paint was366ms, and no expiry or ownership flag appeared, but
+caught two native-input `stale_observations` 503s during its complete desktop
+window. Useful paint was 366ms, and no expiry or ownership flag appeared, but
 availability remained FAIL. The run was stopped after the socket failure;
 reverse browser windows, unchanged retests and controlled expiry were not run.
 
 [Bounded router diagnostics](deployment-1510-router-deadline.json) identified
 explicit two-second router cancellations, including the poll preceding all four
-reverse failures. The deployed provider-attempt timeout is2.5seconds: the extra
+reverse failures. The deployed provider-attempt timeout is 2.5 seconds: the extra
 wrapper deadline could cancel an otherwise permitted attempt, including admission
 and identity work, before its provider timeout. Starting earlier did not resolve
 this mismatch. Native-input stale failures are a separate trace and must also be
@@ -156,9 +156,9 @@ resolved before acceptance. These receipts remain FAIL throughout subsequent
 implementation and deployment loops.
 
 The [input failure window](deployment-1510-input-failure-window.json) showed
-fresh wrapper observations and all22 raw pools refreshed before both failures.
+fresh wrapper observations and all 22 raw pools refreshed before both failures.
 [Adjacent useful response clocks](deployment-1510-input-clocks.json) had only
-704/706ms left before their original expiry; each503 arrived about589ms after
+704/706ms left before their original expiry; each503 arrived about 589ms after
 that expiry. [Reference-window logs](deployment-1510-reference-window.json)
 showed no hub/liquidity refresh failure. These exclusions do not establish
 whether the selected complete mirror or fair-reference component was stale;
@@ -173,7 +173,7 @@ wrapper timeout. Tax/cap and floor phases keep their original two-second bounds;
 the same thirteen data reads, shared two-permit/four-RPS lane and original
 poll-start freshness remain. Settlement observation is a focused helper.
 
-A real-HTTP regression permits a2.2-second router response under the existing
+A real-HTTP regression permits a 2.2-second router response under the existing
 2.5-second attempt policy: the former wrapper cap cancels it, while the corrected
 schedule publishes both native directions. Separate controls prove original
 margin cancellation releases resources and router rejection preserves native
@@ -188,16 +188,16 @@ not a sole-cause assertion; deployed measurements still determine acceptance.
 
 [Third-source verification](source-verification-3.json) passed
 `make verify-issue-1505`, `1499` and `1464` first/retest with stable source.
-The native verifier runs18 wrapper regressions, the HTTP stale-witness and
-request-correlation regressions,36 frontend tests,38 browser QA controls and
-nine probe controls per pass. Lifecycle checks passed188 frontend tests per
+The native verifier runs 18 wrapper regressions, the HTTP stale-witness and
+request-correlation regressions, 36 frontend tests, 38 browser QA controls and
+nine probe controls per pass. Lifecycle checks passed 188 frontend tests per
 pass. Provider recovery completed its disposable integration suites twice.
 Separate live/funded scope remains explicitly skipped by those source verifiers;
 it does not establish deployed acceptance.
 
 Review also reproduced a zero-time boundary defect: Tokio's timeout polls the
 inner future before its expired delay. On the warmed production lane, an already
-expired router margin increased provider attempts from1 to2. An explicit guard
+expired router margin increased provider attempts from 1 to 2. An explicit guard
 now refuses the network future before polling; configured router absence remains
 authoritative `Some(false)` without I/O. The [boundary proof and verification](source-verification-3-boundary.json)
 retain the old FAIL and fixed PASS separately. All eight focused tests passed
@@ -205,3 +205,101 @@ twice, then native and lifecycle verifiers passed first/retest on the final sour
 (19 wrapper tests per native pass). The full provider-recovery first/retest above
 belongs to its immediately preceding application revision; full hosted CI and
 live acceptance are independently recorded for the final deployment.
+
+## Third deployment: router complete, reference freshness FAIL
+
+[PR #1513](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1513) merged as
+`cfc1ba4b01f68f4aa804aa33d86c9048c8ce378a`; its entire tree matches the tested
+final head. [CI470](ci-470.json) and [main CI471](ci-471.json) passed all required
+jobs: 999 contract, 3,470 frontend, 847 library and 84 PostgreSQL tests, with
+zero failures and the same two ignored cases. Both Coolify deployments finished
+at that revision with no deployment-log failure markers and
+[exact attestation](deployment-1513-attestation.json).
+
+After independent startup, [all 18 sampled wrapper polls](deployment-1513-wrapper-census.json)
+had complete routed prerequisites, within 7,259ms. Direct-wrapper floor support
+remained separately unavailable and protected. The
+[190-second socket FIRST](deployment-1513-socket-fail.json) still failed: 145
+useful results and one reverse `stale_observations` 503, with 2,602ms sampled
+recovery. Useful initialized responses stayed within 309.04ms.
+
+The [v8 browser FIRST](deployment-1513-browser-interrupted.json) independently
+caught two native-input stale 503s during its complete 190-second desktop window:
+38 useful responses and two failures, with a 387ms useful paint. Its partial
+phone window had 13 useful responses and no unavailable result before shutdown.
+No expiry, original-window or ownership flags were observed. These observations
+do not make the incomplete run pass; unchanged retests and functional expiry
+control were not run.
+
+[Exact output](deployment-1513-output-reference-window.json) and
+[input](deployment-1513-input-reference-window.json) request IDs correlate all
+three selected failures with reference-only stale witnesses. Their original
+reference timestamp was 10:10:55.323 UTC; the failures arrived 119, 446 and
+1,039ms after its original expiry. The next raw-pool cycle had already completed
+all 22 pools at 10:11:10.934, while the consumer still held the older reference.
+The browser adopted a newer original reference clock at 10:11:17.097.
+
+The retained logs distinguish reference expiry from the earlier router loss.
+They do not reveal the exact database mark-commit instant. A controlled
+scheduled-clock regression reproduces the phase mechanism: a late pool result
+misses the five-second mark timer, and the next publication plus local ingestion
+falls after the prior reference's original deadline. Subsequent implementation
+must close that publication gap without timestamp renewal, quality substitution
+or retention of expired references. This deployment remains FAIL.
+
+## Fourth implementation: completed-pool reference publication
+
+One coalesced completion wake now connects the owned pool lane to the critical
+reference worker, retaining the original timer as fallback. The worker publishes
+the same qualified hub/economic batch atomically with original source clocks.
+An independently owned accounting lane captures certified supplied-oracle and
+hub/economic prices in one repeatable-read snapshot. Missing supplied values,
+mismatches, lost quorum and original age bounds remain unavailable. Reference
+production cannot wait behind fee backfill, rollups, idle candles or TVL work.
+
+Both controlled predecessor schedules fail: the original timer phase leaves an
+expired cohort at the consumer, and the serial accounting composition cannot
+publish a completed replacement while accounting is blocked. The corrected
+schedule passes both without renewing timestamps. The new SQL regressions are
+shared by the focused native target and the required ingestion CI target.
+
+Initial compatibility verification also exposed a fixture-phase error: its
+200ms cutoff canceled before the pool commit it intended to preserve. The
+fixture now has a finite two-second setup barrier for the actual committed
+reserve/height and delayed book request, followed by its unchanged 200ms book
+cancellation window and all original assertions. Production deadlines and code
+were untouched by that fixture correction. The original failed/interrupted logs
+are retained separately; owned QA infrastructure was reset before repeating
+verification on frozen source.
+
+Two further compatibility failures were confined to test setup. An unused global
+tracing initializer in the new shared SQL case conflicted with the integration
+suite's existing initializer; it was removed. A deliberately backdated recovery
+fixture started its original clocks before cold configuration setup, which could
+consume the remaining freshness window. Configuration is now primed with an
+incomplete, non-executable observation before installing the controlled original
+clocks. Original expiry, negative-policy and zero-RPC assertions are unchanged.
+Both failures remain archived as FAIL; all affected targets were rerun after a
+fresh reset of owned disposable infrastructure. The production fingerprint stayed
+identical across these test-only corrections.
+
+[Fourth-source verification](source-verification-4.json) completed all selected
+groups with no executed failures: native recovery (14), local quotes (14),
+provider recovery (11), liquidity feed (12), small-market references (12) and
+quote outcomes (17). Each verifier ran first and repeat groups against its
+unchanged fingerprint. The local quote verifier had no skips; the others declare
+separate live or funded scope, which does not establish deployed acceptance.
+
+The full ingestion binary passed 23 tests twice, the standalone SQL target
+passed three tests, and both dual-view recovery cases passed twice. The local
+quote verifier executed 1,700 library, 196 integration and 1,072 frontend tests
+across both passes, plus 80 controlled browser samples without provider requests.
+The quote-outcome controlled corpus completed 96 windows and 4,250 rows with
+zero failures. These are source fixtures, not production availability evidence.
+
+[Initial fixture failure](source-verification-4-initial.json) and
+[integration fixture failures](source-verification-4-fixture-integration.json)
+remain distinct from corrected passes. Unaffected liquidity/outcome checks used
+the identical production fingerprint before the last test-only corrections;
+affected full targets and native/local/provider/reference verifiers completed
+afterward. Deployment and live acceptance for this implementation remain pending.

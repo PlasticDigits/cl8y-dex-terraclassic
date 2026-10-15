@@ -3,6 +3,9 @@
 
 mod common;
 
+#[path = "scenarios/native_reference_publication_1505.rs"]
+mod native_reference_publication_1505;
+
 use bigdecimal::BigDecimal;
 use chrono::Utc;
 use cl8y_dex_indexer::config::Config;

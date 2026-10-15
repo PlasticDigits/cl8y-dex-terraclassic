@@ -1,0 +1,114 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "completed": false,
+  "expected_revision": "cfc1ba4b01f68f4aa804aa33d86c9048c8ce378a",
+  "measurement_version": "foreground_correlated_native_availability_v8",
+  "utc_start": "2026-10-15T10:09:30.927Z",
+  "utc_end": "2026-10-15T10:14:02.125Z",
+  "scope": "Interrupted release3 FIRST following independent root socket failure; unchanged RETEST/control not run",
+  "raw_receipt_sha256": "ad05fc28a8814235d1379767b2e69529700f8c7fab9242ed1b662f09612b590a",
+  "completed_window_count": 1,
+  "expected_window_count": 4,
+  "quote_progress_reads": 241,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190150,
+      "samples": 938,
+      "first_useful_ms": 387,
+      "failures": [
+        "native_window_not_useful"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 40,
+        "useful": 38,
+        "not_useful": 2,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": [
+        {
+          "status": 503,
+          "reason": "stale_observations",
+          "request_id": "5417ff483aaaae1c",
+          "at_ms": 88583,
+          "failure": null,
+          "diagnostic_delivery_lag_ms": 6,
+          "utc": "2026-10-15T10:11:15.913000+00:00",
+          "useful_before": {
+            "request_id": "5417ff483aaaae17",
+            "at_ms": 87287,
+            "observed": 1792059055323,
+            "expires": 1792059075323,
+            "diagnostic_delivery_lag_ms": 5
+          },
+          "useful_after": {
+            "request_id": "5417ff483aaaae22",
+            "at_ms": 89767,
+            "observed": 1792059065323,
+            "expires": 1792059085323,
+            "diagnostic_delivery_lag_ms": 2
+          }
+        },
+        {
+          "status": 503,
+          "reason": "stale_observations",
+          "request_id": "5417ff483aaaae1f",
+          "at_ms": 89176,
+          "failure": null,
+          "diagnostic_delivery_lag_ms": 4,
+          "utc": "2026-10-15T10:11:16.506000+00:00",
+          "useful_before": {
+            "request_id": "5417ff483aaaae17",
+            "at_ms": 87287,
+            "observed": 1792059055323,
+            "expires": 1792059075323,
+            "diagnostic_delivery_lag_ms": 5
+          },
+          "useful_after": {
+            "request_id": "5417ff483aaaae22",
+            "at_ms": 89767,
+            "observed": 1792059065323,
+            "expires": 1792059085323,
+            "diagnostic_delivery_lag_ms": 2
+          }
+        }
+      ]
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": false,
+      "elapsed_ms": null,
+      "samples": 287,
+      "first_useful_ms": 408.9000000022352,
+      "failures": [
+        "probe_unavailable"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 13,
+        "useful": 13,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": []
+    }
+  ],
+  "limits": "Native-input desktop and partial phone only. Shutdown probe_unavailable errors remain distinct from actual sticky availability failures. Original generations/progress bodies are not retained."
+}
