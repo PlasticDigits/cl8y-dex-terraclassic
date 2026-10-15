@@ -21,6 +21,19 @@ owned; unrelated denom work cannot monopolize both global slots. Failed-read
 slot/stage timings are bounded diagnostics under the original poll span. Logical
 LCD-future polling does not establish a wire attempt or renew freshness.
 
+Scheduled data continuation follows NR1505-10: within one original query scan,
+wait only for capacity-denied alternatives not already actually attempted. Keep
+one cursor, global actual-attempt limit and absolute deadline; release all
+permits before owned waits. Preserve typed integrity at expiry/exhaustion and
+fresh exact-height/expected-chain attestation on success. Direct/request callers
+remain prompt; no failed endpoint, budget or known-negative safety is reset.
+
+Enclosing producer budgets propagate through explicit LCD views (NR1505-11).
+Nested deadlines only tighten, while provider/pacing state and cancellation policy
+remain shared. Scope before constructing futures, keep head scope separate from
+spawned pair owners, and scope nested snapshot retries once. A late positive
+identity result cannot override an elapsed governing deadline.
+
 Owned pool-cycle completion may coalesce one reference-publication wake. Keep the
 existing fallback timer, atomic qualified batch and original timestamps. One
 independent accounting worker consumes a consistent certified context and cannot

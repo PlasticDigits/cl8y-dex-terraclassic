@@ -1,0 +1,991 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "scope": "M6 natural browser FIRST; two passing full windows, one full reverse-desktop availability failure, and one deliberately interrupted phone window",
+  "expected_revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "qa_measurement_version": "foreground_correlated_native_availability_v9",
+  "utc_start": "2026-10-15T20:27:27.838Z",
+  "utc_end": "2026-10-15T20:38:12.161Z",
+  "attestation": {
+    "file": "attestation-release6.json",
+    "sha256": "a9c7f42fb74fcd657634efe2550370b86da473295588ad6b2b8393dee3cdc445",
+    "overall": "PASS",
+    "frontend_source_sha": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+    "backend_git_sha": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+    "backend_deployment_source_sha": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+    "independent_backend_warm_ready_utc": "2026-10-15T20:25:29+00:00"
+  },
+  "helper_hashes": [
+    {
+      "file": "live-trading-lifecycle-1499.cjs",
+      "sha256": "efb6277391932678f87e133cd4e7d2d0227168b195f25d86b68a8b941a469440"
+    },
+    {
+      "file": "live-input-clock-1499.cjs",
+      "sha256": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b"
+    },
+    {
+      "file": "live-quote-economics-1500.cjs",
+      "sha256": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662"
+    },
+    {
+      "file": "live-read-guard-1499.cjs",
+      "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+    },
+    {
+      "file": "live-quote-budget-1505.cjs",
+      "sha256": "768c4fc852872caa4fd62f5d73beb703ecae74d86b182589f7d7f42c4cd0652b"
+    }
+  ],
+  "helper_hashes_unchanged_after_run": true,
+  "completed": false,
+  "completed_window_count": 3,
+  "passing_completed_window_count": 2,
+  "attempted_window_count": 4,
+  "limits": {
+    "window_ms": 190000,
+    "browser_useful_ms": 750,
+    "initialized_socket_ms": 500,
+    "quote_progress_reads": 800,
+    "context_quote_progress_maximum": 600,
+    "global_wall_ms": 960000,
+    "completion_basis": "Explicit natural active-duration completion; drain time cannot complete an early stop"
+  },
+  "initialized_api": {
+    "samples": 4,
+    "useful": 4,
+    "max_ms": 293.79939000000013
+  },
+  "selected_window_outcomes": {
+    "responses": 120,
+    "useful": 119,
+    "not_useful": 1,
+    "teardown_cancelled": 0
+  },
+  "actual_application_failure": {
+    "case": "CL8Y->USTC",
+    "viewport": "desktop",
+    "response": {
+      "response_epoch_ms": 1792096605621,
+      "response_utc": "2026-10-15T20:36:45.621000+00:00",
+      "status": 503,
+      "request_id": "016dc250827b0354",
+      "reason": "missing_observations",
+      "useful": false,
+      "original_observed_at_ms": null,
+      "original_expires_at_ms": null,
+      "diagnostic_delivery_lag_ms": 6
+    },
+    "preceding_useful": {
+      "response_epoch_ms": 1792096604326,
+      "response_utc": "2026-10-15T20:36:44.326000+00:00",
+      "status": 200,
+      "request_id": "016dc250827b0350",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792096585032,
+      "original_expires_at_ms": 1792096605032,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "following_useful": {
+      "response_epoch_ms": 1792096616503,
+      "response_utc": "2026-10-15T20:36:56.503000+00:00",
+      "status": 200,
+      "request_id": "016dc250827b0358",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792096605031,
+      "original_expires_at_ms": 1792096625031,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "failure_before_preceding_original_expiry_ms": -589,
+    "failure_after_preceding_original_expiry_ms": 589,
+    "sampled_unavailable_to_next_useful_ms": 10882,
+    "original_window_validation_failure": false,
+    "classification": "Real active selected503 during a naturally completed190-second window; not teardown, cap exhaustion or guard refusal. Component cause is retained in the separate server diagnosis."
+  },
+  "separate_resource_cutoff": null,
+  "budget_exhausted": false,
+  "request_accounting": {
+    "total_quote_progress_reads": 458,
+    "route_reads": {
+      "solve": 125,
+      "progress": 333,
+      "best": 0
+    },
+    "initialized_solves_included": 4,
+    "per_window": [
+      {
+        "solve": 37,
+        "progress": 108,
+        "best": 0
+      },
+      {
+        "solve": 37,
+        "progress": 102,
+        "best": 0
+      },
+      {
+        "solve": 38,
+        "progress": 106,
+        "best": 0
+      },
+      {
+        "solve": 9,
+        "progress": 17,
+        "best": 0
+      }
+    ],
+    "metadata_reader_calls": 15,
+    "metadata_reader_calls_include_initialized_probes": true,
+    "node_non_quote_reader_calls": 11,
+    "guard_rejections_recorded": 0,
+    "partial_window_guard_snapshot_unavailable": true,
+    "unattributed_solve_request_count": 1,
+    "qualification": "One additional solve request in the interrupted phone window has no retained selected-response outcome; no success, failure, setup or teardown classification is fabricated."
+  },
+  "separate_interruption": {
+    "cause": "Owned Chrome was deliberately stopped when the full third-window selected failure was exposed at its checkpoint",
+    "failed_window_checkpoint_utc": "2026-10-15T20:37:28.639Z",
+    "case": "CL8Y->USTC",
+    "viewport": "phone",
+    "active_window_elapsed_ms": 40209,
+    "active_window_stop_reason": "active_exception",
+    "completed": false,
+    "classification": "Incomplete observer shutdown after the actual failure; not an additional application failure"
+  },
+  "display_and_expiry": {
+    "first_sampled_blank_epoch_ms": 1792096605098,
+    "first_sampled_blank_utc": "2026-10-15T20:36:45.098000+00:00",
+    "sampled_blank_after_latest_possible_original_expiry_ms": 66,
+    "display_recovery_epoch_ms": 1792096616676,
+    "display_recovery_utc": "2026-10-15T20:36:56.676000+00:00",
+    "expiry_validation_or_probe_flags": [],
+    "ownership": {
+      "last_positive_sample_epoch_ms": 1792096604488,
+      "historical_matching_response_count": 2,
+      "unexpired_matching_responses_at_last_positive_sample": 1,
+      "matching_original_expiries_at_last_positive_sample": [
+        1792096605032
+      ],
+      "matching_unexpired_responses_at_failure": 0,
+      "latest_possible_original_expiry_ms": 1792096605032,
+      "first_sampled_blank_epoch_ms": 1792096605098,
+      "blank_after_latest_possible_expiry_ms": 66,
+      "blank_before_failed_response_ms": 523,
+      "qualification": "Positive sampled original-expiry revocation; exact response adoption and timer callback execution were not directly instrumented."
+    },
+    "timer_callback_directly_instrumented": false,
+    "timer_or_funded_signing_claim": false
+  },
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190080,
+      "active_window_stop_reason": "duration",
+      "original_input_epoch_ms": 1792096059083,
+      "elapsed_ms": 190083,
+      "first_useful_ms": 614.2999999970198,
+      "first_dom_ms": 601.3999999985099,
+      "availability": {
+        "responses": 37,
+        "useful": 37,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 37,
+        "progress": 108,
+        "best": 0
+      },
+      "request_accounting_scope": "All observer-accounted setup/solve/progress calls; separate browser pre-input setup phases are not retained",
+      "selected_response_outcome_gap": 0,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792096045031,
+          "expires_at_ms": 1792096065031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096049363,
+          "expires_at_ms": 1792096069363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096055031,
+          "expires_at_ms": 1792096075031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096059362,
+          "expires_at_ms": 1792096079362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096065031,
+          "expires_at_ms": 1792096085031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096069362,
+          "expires_at_ms": 1792096089362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096075032,
+          "expires_at_ms": 1792096095032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096079362,
+          "expires_at_ms": 1792096099362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096085031,
+          "expires_at_ms": 1792096105031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096089362,
+          "expires_at_ms": 1792096109362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096095031,
+          "expires_at_ms": 1792096115031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096099363,
+          "expires_at_ms": 1792096119363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096105031,
+          "expires_at_ms": 1792096125031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096109363,
+          "expires_at_ms": 1792096129363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096115031,
+          "expires_at_ms": 1792096135031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096119363,
+          "expires_at_ms": 1792096139363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096125031,
+          "expires_at_ms": 1792096145031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096129363,
+          "expires_at_ms": 1792096149363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096135031,
+          "expires_at_ms": 1792096155031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096139362,
+          "expires_at_ms": 1792096159362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096145031,
+          "expires_at_ms": 1792096165031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096149363,
+          "expires_at_ms": 1792096169363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096155031,
+          "expires_at_ms": 1792096175031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096159362,
+          "expires_at_ms": 1792096179362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096165031,
+          "expires_at_ms": 1792096185031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096175031,
+          "expires_at_ms": 1792096195031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096179363,
+          "expires_at_ms": 1792096199363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096185032,
+          "expires_at_ms": 1792096205032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096189363,
+          "expires_at_ms": 1792096209363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096195032,
+          "expires_at_ms": 1792096215032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096199362,
+          "expires_at_ms": 1792096219362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096205032,
+          "expires_at_ms": 1792096225032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096209363,
+          "expires_at_ms": 1792096229363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096219363,
+          "expires_at_ms": 1792096239363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096225031,
+          "expires_at_ms": 1792096245031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096229363,
+          "expires_at_ms": 1792096249363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096235031,
+          "expires_at_ms": 1792096255031,
+          "response_count": 1
+        }
+      ],
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 455,
+        "admitted": 145,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      },
+      "interrupted_clock_qualification": null
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190074,
+      "active_window_stop_reason": "duration",
+      "original_input_epoch_ms": 1792096255703,
+      "elapsed_ms": 190077,
+      "first_useful_ms": 410.20000000298023,
+      "first_dom_ms": 346.29999999701977,
+      "availability": {
+        "responses": 37,
+        "useful": 37,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 37,
+        "progress": 102,
+        "best": 0
+      },
+      "request_accounting_scope": "All observer-accounted setup/solve/progress calls; separate browser pre-input setup phases are not retained",
+      "selected_response_outcome_gap": 0,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792096245032,
+          "expires_at_ms": 1792096265032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096249362,
+          "expires_at_ms": 1792096269362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096255031,
+          "expires_at_ms": 1792096275031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096259363,
+          "expires_at_ms": 1792096279363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096265031,
+          "expires_at_ms": 1792096285031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096269363,
+          "expires_at_ms": 1792096289363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096275031,
+          "expires_at_ms": 1792096295031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096279362,
+          "expires_at_ms": 1792096299362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096285031,
+          "expires_at_ms": 1792096305031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096289362,
+          "expires_at_ms": 1792096309362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096295031,
+          "expires_at_ms": 1792096315031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096299363,
+          "expires_at_ms": 1792096319363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096305031,
+          "expires_at_ms": 1792096325031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096309363,
+          "expires_at_ms": 1792096329363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096315031,
+          "expires_at_ms": 1792096335031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096319362,
+          "expires_at_ms": 1792096339362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096325031,
+          "expires_at_ms": 1792096345031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096329363,
+          "expires_at_ms": 1792096349363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096335031,
+          "expires_at_ms": 1792096355031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096339363,
+          "expires_at_ms": 1792096359363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096345032,
+          "expires_at_ms": 1792096365032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096349363,
+          "expires_at_ms": 1792096368528,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096355031,
+          "expires_at_ms": 1792096368528,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096355031,
+          "expires_at_ms": 1792096375031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096359363,
+          "expires_at_ms": 1792096379363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096365032,
+          "expires_at_ms": 1792096385032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096369363,
+          "expires_at_ms": 1792096389363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096375031,
+          "expires_at_ms": 1792096395031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096379363,
+          "expires_at_ms": 1792096399363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096385031,
+          "expires_at_ms": 1792096405031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096389363,
+          "expires_at_ms": 1792096409363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096399363,
+          "expires_at_ms": 1792096419363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096405031,
+          "expires_at_ms": 1792096425031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096415031,
+          "expires_at_ms": 1792096435031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096419362,
+          "expires_at_ms": 1792096439362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096425031,
+          "expires_at_ms": 1792096445031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096429363,
+          "expires_at_ms": 1792096449363,
+          "response_count": 1
+        }
+      ],
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 461,
+        "admitted": 139,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      },
+      "interrupted_clock_qualification": null
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190123,
+      "active_window_stop_reason": "duration",
+      "original_input_epoch_ms": 1792096451587,
+      "elapsed_ms": 190126,
+      "first_useful_ms": 378.19999999552965,
+      "first_dom_ms": 350.79999999701977,
+      "availability": {
+        "responses": 38,
+        "useful": 37,
+        "not_useful": 1,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 38,
+        "progress": 106,
+        "best": 0
+      },
+      "request_accounting_scope": "All observer-accounted setup/solve/progress calls; separate browser pre-input setup phases are not retained",
+      "selected_response_outcome_gap": 0,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792096439363,
+          "expires_at_ms": 1792096459363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096445031,
+          "expires_at_ms": 1792096465031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096449362,
+          "expires_at_ms": 1792096469362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096455031,
+          "expires_at_ms": 1792096475031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096459363,
+          "expires_at_ms": 1792096479363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096465031,
+          "expires_at_ms": 1792096485031,
+          "response_count": 2
+        },
+        {
+          "observed_at_ms": 1792096469362,
+          "expires_at_ms": 1792096489362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096475031,
+          "expires_at_ms": 1792096495031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096479363,
+          "expires_at_ms": 1792096499363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096485032,
+          "expires_at_ms": 1792096505032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096489363,
+          "expires_at_ms": 1792096509363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096495031,
+          "expires_at_ms": 1792096515031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096499363,
+          "expires_at_ms": 1792096519363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096505031,
+          "expires_at_ms": 1792096525031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096509363,
+          "expires_at_ms": 1792096529363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096515031,
+          "expires_at_ms": 1792096535031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096519362,
+          "expires_at_ms": 1792096539362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096525031,
+          "expires_at_ms": 1792096545031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096529363,
+          "expires_at_ms": 1792096549363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096535031,
+          "expires_at_ms": 1792096555031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096539363,
+          "expires_at_ms": 1792096559363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096545031,
+          "expires_at_ms": 1792096565031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096549362,
+          "expires_at_ms": 1792096569362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096555031,
+          "expires_at_ms": 1792096575031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096559363,
+          "expires_at_ms": 1792096579363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096565031,
+          "expires_at_ms": 1792096585031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096569363,
+          "expires_at_ms": 1792096589363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096575032,
+          "expires_at_ms": 1792096595032,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096579362,
+          "expires_at_ms": 1792096599362,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096585032,
+          "expires_at_ms": 1792096605032,
+          "response_count": 2
+        },
+        {
+          "observed_at_ms": 1792096605031,
+          "expires_at_ms": 1792096625031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096609363,
+          "expires_at_ms": 1792096629363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096615031,
+          "expires_at_ms": 1792096635031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096619363,
+          "expires_at_ms": 1792096639363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096625031,
+          "expires_at_ms": 1792096645031,
+          "response_count": 1
+        }
+      ],
+      "failures": [
+        "native_window_not_useful"
+      ],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 368,
+        "admitted": 144,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      },
+      "interrupted_clock_qualification": null
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "completed": false,
+      "active_window_completed": false,
+      "active_window_elapsed_ms": 40209,
+      "active_window_stop_reason": "active_exception",
+      "original_input_epoch_ms": null,
+      "elapsed_ms": null,
+      "first_useful_ms": 411.70000000298023,
+      "first_dom_ms": 348.5,
+      "availability": {
+        "responses": 8,
+        "useful": 8,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 9,
+        "progress": 17,
+        "best": 0
+      },
+      "request_accounting_scope": "All observer-accounted setup/solve/progress calls; separate browser pre-input setup phases are not retained",
+      "selected_response_outcome_gap": 1,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792096635031,
+          "expires_at_ms": 1792096655031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096639363,
+          "expires_at_ms": 1792096659363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096645031,
+          "expires_at_ms": 1792096665031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096649363,
+          "expires_at_ms": 1792096669363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096655031,
+          "expires_at_ms": 1792096675031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096659363,
+          "expires_at_ms": 1792096679363,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096665031,
+          "expires_at_ms": 1792096685031,
+          "response_count": 1
+        },
+        {
+          "observed_at_ms": 1792096669363,
+          "expires_at_ms": 1792096689363,
+          "response_count": 1
+        }
+      ],
+      "failures": [
+        "probe_unavailable",
+        "incomplete_expiry_windows"
+      ],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": {},
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": null,
+      "response_drain": null,
+      "interrupted_clock_qualification": "Deliberate stop retained original relative timings, active elapsed and validated observation clocks; absolute input epoch, post-drain elapsed and final guard snapshot were not serialized. No values are reconstructed."
+    }
+  ],
+  "checkpoint_hashes": [
+    {
+      "file": "release6-browser-first-checkpoint-1.json",
+      "sha256": "51ccc30066983fc3d962d6280b412a877690c38c2de13eb18faf665f41141260"
+    },
+    {
+      "file": "release6-browser-first-checkpoint-2.json",
+      "sha256": "f1696a93c6d9ed0e8f36cbceefcc476f6d8dc3592a3069963e1e0c4f95200e95"
+    },
+    {
+      "file": "release6-browser-first-failure-checkpoint.json",
+      "sha256": "eba5d3fb3868d36117d139c710b23b87d06d9d6fbdeb15bf0361454750456086"
+    }
+  ],
+  "receipt_file": "release6-browser-first.json",
+  "receipt_sha256": "90ebbd8fd29d9c1552a2707d195bfa066e65fe1b97bfd2533edf0863688ad608",
+  "log_sha256": "806f1221132aa12c424f35f081f5e0fccc9bad165afc05730120cb09ad080128",
+  "all_owned_node_chrome_exited": true,
+  "retest_started": false,
+  "expiry_control_started": false,
+  "source_or_observer_edits": false,
+  "historical_and_partial_verdict_policy": "Actual selected503 FAIL is preserved; the deliberate partial fourth window is incomplete. No unchanged RETEST or expiry-control acceptance is claimed."
+}

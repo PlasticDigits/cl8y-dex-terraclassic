@@ -1110,3 +1110,15 @@ policy/reference identity and the final canonical identity are still recomputed,
 and commit-time actor, fee, epoch and newer-view checks remain authoritative.
 This changes CPU work, not economic identity, source timestamps or execution
 eligibility; it adds no request work, global cache or extra publication slot.
+
+### Scheduled provider alternatives and native references (#1505)
+
+[NR1505-10](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md) permits a bounded scheduled
+query to wait for an unattempted alternative denied only shared provider capacity.
+Keep the same provider cursor, original absolute deadline and global actual-attempt
+limit. Never restart an attempted endpoint or retain permits during the wait.
+Known integrity survives expiry/exhaustion; a successful alternative still requires
+fresh expected-chain and exact requested-height attestation. Direct/request reads
+keep their existing prompt behavior, and quote/progress/refresh requests stay offline.
+Reference publication retains original source clocks and quality; neither a commit
+nor fallback renews expiry. See [retained live failures and source scope](qa/issue-1505/RESULTS.md).

@@ -1,0 +1,248 @@
+{
+  "issue": 1505,
+  "candidate": 7,
+  "status": "PASS source checkpoint; newly identified enclosing-deadline gap prevents final release readiness",
+  "recorded_at": "2026-10-15T21:53:37.180716+00:00",
+  "base_revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "application_source_change_paths": [
+    "indexer/src/lcd/chain_identity.rs",
+    "indexer/src/lcd/mod.rs",
+    "indexer/src/lcd/scheduled_continuation_tests.rs"
+  ],
+  "runtime_change_paths": [
+    "indexer/src/lcd/mod.rs"
+  ],
+  "application": {
+    "files": 1206,
+    "sha256": "2cc39c11237e0ef36321d4765103973a1815fb46d59659af94fce27385574633"
+  },
+  "verification_inputs": {
+    "files": 2008,
+    "sha256": "9f42df256b0d9041bbf8ef4526ee452d2681ef8a87cde650577befbc26701682"
+  },
+  "application_roots": [
+    "indexer/src/",
+    "frontend-dapp/src/",
+    "smartcontracts/contracts/",
+    "smartcontracts/packages/",
+    "packages/"
+  ],
+  "fingerprint_scope": "Tracked plus unignored sorted path/content hashes using the actual smartcontracts workspace roots. Application includes cfg(test) source; verification inputs add indexer tests, scripts and explicit toolchain/package inputs. Excludes docs, receipts, ignored private env and generated build/cache trees.",
+  "stable_before_after": true,
+  "stages": [
+    {
+      "stage": "1505",
+      "command": [
+        "make",
+        "verify-issue-1505"
+      ],
+      "started": "2026-10-15T21:02:24.689719+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1505-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:07:29.991339+00:00",
+      "log_sha256": "b04c586e6bf7bfb387a0dbaed9dec8bd269494ae2c1dae98a8d7365704b18740",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts"
+      ]
+    },
+    {
+      "stage": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "indexer/Cargo.toml",
+        "--lib"
+      ],
+      "started": "2026-10-15T21:07:29.992370+00:00",
+      "status": "PASS",
+      "log_basename": "verify-clippy-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:07:41.003796+00:00",
+      "log_sha256": "f137faccb916bc84dd17857a5ea2e417e095525bec58a07a303fb45a60e36e00",
+      "summaries": [],
+      "scope_skips": [],
+      "existing_warning_count": 155
+    },
+    {
+      "stage": "1392",
+      "command": [
+        "make",
+        "verify-issue-1392"
+      ],
+      "started": "2026-10-15T21:07:41.004366+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1392-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:20:45.727947+00:00",
+      "log_sha256": "30cecda7615145d4ac1f692beb545b287e6256a372b26f181e9809292afdad1b",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=1",
+        "Overall PASS with explicit skips; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP live read-only attestation: Separate treasury LCD/RPC protocol-pin acceptance is unchanged and outside native follow-up1505; exact deployed indexer identity and native recovery have separate deployment receipts."
+      ]
+    },
+    {
+      "stage": "1394",
+      "command": [
+        "make",
+        "verify-issue-1394"
+      ],
+      "started": "2026-10-15T21:20:45.728503+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1394-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:21:45.867508+00:00",
+      "log_sha256": "aa8c512f58986f59edf9efcce45e05c7983ca6e692d4563e1cab8eb034f6ba4b",
+      "summaries": [
+        "PASS=23 FAIL=0 SKIP=0",
+        "Overall PASS: all implementation checks passed."
+      ],
+      "scope_skips": []
+    },
+    {
+      "stage": "1396",
+      "command": [
+        "make",
+        "verify-issue-1396"
+      ],
+      "started": "2026-10-15T21:21:45.868604+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1396-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:28:18.956268+00:00",
+      "log_sha256": "02119dc84bb0712f52d40fb5afd64ef8744a278f0b59e1c81007e9c1b0328da1",
+      "summaries": [
+        "Results: 28 PASS, 0 FAIL, 2 SKIP"
+      ],
+      "scope_skips": [
+        "SKIP: host IPv6 socket query: disabled by host kernel; IPv4 and confinement probes still run",
+        "SKIP default published-loopback query: Fresh release7 disposable Compose bridge prerequisite: internal TCP passed, both bounded published-host-loopback queries failed (exit2). Host forwarding unavailable; cause not established. Internal, host-mode and external-isolation checks remain enabled.",
+        "SKIP host IPv6 query: loopback IPv6 is disabled by the host kernel",
+        "SKIP: default published-loopback query: Fresh release7 disposable Compose bridge prerequisite: internal TCP passed, both bounded published-host-loopback queries failed (exit2). Host forwarding unavailable; cause not established. Internal, host-mode and external-isolation checks remain enabled."
+      ]
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-15T21:28:18.956960+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1452-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:39:58.964870+00:00",
+      "log_sha256": "0921c1e846539b118b76e3ae2f34379a74cba7f5a5a956a0e47e19f01aac37cf",
+      "summaries": [
+        "Results: 14 PASS, 0 FAIL, 0 SKIP",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ],
+      "scope_skips": []
+    },
+    {
+      "stage": "1499",
+      "command": [
+        "make",
+        "verify-issue-1499"
+      ],
+      "started": "2026-10-15T21:39:58.965830+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1499-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:40:58.542594+00:00",
+      "log_sha256": "13705f390d849ec76ee098327ee98ed17bea59b95a96ed23bae4eb77809c01f0",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Sustained attested live API/browser/funded scope requires separate real receipts"
+      ]
+    },
+    {
+      "stage": "1453",
+      "command": [
+        "make",
+        "verify-issue-1453"
+      ],
+      "started": "2026-10-15T21:40:58.543170+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1453-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:45:22.383188+00:00",
+      "log_sha256": "8f37a24f852683c9ae40737dced696fbbee6f01f0da898e5dda4d3ae3cf73c46",
+      "summaries": [
+        "PASS=12 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+        "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope"
+      ]
+    },
+    {
+      "stage": "1464",
+      "command": [
+        "make",
+        "verify-issue-1464"
+      ],
+      "started": "2026-10-15T21:45:22.384742+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1464-release7-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T21:53:18.996486+00:00",
+      "log_sha256": "f75d6c3fe3f229b36669c4fdb9fd076e179984129437daa969ef2fca4faa7019",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+        "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately"
+      ]
+    }
+  ],
+  "controlled_browser_archives": [
+    {
+      "phase": "first",
+      "sha256": "25d8df35c0dfe6d353ba28f7aec7a5c65079e98314c7de77f13f15e1697cab94",
+      "recorded_at": "2026-10-15T21:34:26.110Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    },
+    {
+      "phase": "retest",
+      "sha256": "db8a058a9e227f44ab348b31b4bcf6538194578a56c58da0cc790923d1f06b4c",
+      "recorded_at": "2026-10-15T21:39:43.292Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    }
+  ],
+  "focused_controls": [
+    "scheduled-provider-continuation-proof.json"
+  ],
+  "prior_live_failure": "deployment-1517-browser-fail.json",
+  "prior_diagnosis": "deployment-1517-diagnosis.json",
+  "limits_of_inference": [
+    "The selected M6 witness is reference-only and its failed pair is a documented reference candidate; current winning source and historical provider-admission/attempt sequence remain unproven.",
+    "Controlled partial-attempt continuation and post-metadata transport proofs establish source defects, not their exact historical production occurrence.",
+    "Earlier failures, fixture corrections and pre-final source receipts remain separately retained.",
+    "One later cached-health census is not retrospective admission evidence, current active redundancy or proof of provider independence."
+  ],
+  "remaining": [
+    "Reproduce and fix propagation of earlier producer/floor/pair deadlines into LCD and late identity-only success; then rerun affected frozen-source checks",
+    "Genuine hosted CI on the final head",
+    "Exact merged-revision Coolify deployment/log attestation and independent 180-second backend warmup",
+    "Native v9 natural FIRST four 190-second windows and RETEST only after complete FIRST PASS, separate 190-second socket pair, bounded monitoring",
+    "Positive original-expiry callback control if natural evidence does not prove that path"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "scope": "One cached health snapshot after M6 failure; not historical admission evidence or provider probe",
+  "utc": "2026-10-15T21:04:23.007081+00:00",
+  "revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "reads": 1,
+  "quote_requests": 0,
+  "provider_probes": 0,
+  "configured_endpoints": 3,
+  "observed_verified": 2,
+  "observed_expected_chain": 3,
+  "counters": [
+    {
+      "attempts": 2226,
+      "successes": 1248,
+      "failures": 974,
+      "in_flight": 0,
+      "concurrency_deferrals": 2,
+      "rate_deferrals": 0,
+      "circuit_skips": null,
+      "circuit_open": true,
+      "caller_cancellations": 4
+    },
+    {
+      "attempts": 10151,
+      "successes": 9400,
+      "failures": 618,
+      "in_flight": 3,
+      "concurrency_deferrals": 51,
+      "rate_deferrals": 0,
+      "circuit_skips": null,
+      "circuit_open": false,
+      "caller_cancellations": 130
+    },
+    {
+      "attempts": 24251,
+      "successes": 24128,
+      "failures": 3,
+      "in_flight": 3,
+      "concurrency_deferrals": 820,
+      "rate_deferrals": 0,
+      "circuit_skips": null,
+      "circuit_open": false,
+      "caller_cancellations": 117
+    }
+  ]
+}

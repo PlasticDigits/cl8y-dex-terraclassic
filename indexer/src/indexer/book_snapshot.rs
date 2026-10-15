@@ -345,9 +345,14 @@ async fn snapshot_cycle_work(
     let block_height = if matches!(mode, SnapshotMode::Book) {
         None
     } else {
-        match tokio::time::timeout(
-            limits.height_timeout,
-            observe_head(lcd, minimum_height, &mut head_capacity_waits),
+        // This scope belongs only to head selection; pair jobs receive their
+        // own original deadlines after the head phase completes.
+        let head_deadline = Instant::now() + limits.height_timeout;
+        let head_lcd = lcd.with_observation_deadline(head_deadline);
+        let head_deadline = head_lcd.observation_deadline().unwrap_or(head_deadline);
+        match tokio::time::timeout_at(
+            head_deadline,
+            observe_head(&head_lcd, minimum_height, &mut head_capacity_waits),
         )
         .await
         {
@@ -401,8 +406,11 @@ async fn snapshot_cycle_work(
             let lcd = lcd.clone();
             jobs.spawn(async move {
                 let started = Instant::now();
-                let result = tokio::time::timeout(
-                    limits.pair_timeout,
+                let pair_deadline = started + limits.pair_timeout;
+                let lcd = lcd.with_observation_deadline(pair_deadline);
+                let pair_deadline = lcd.observation_deadline().unwrap_or(pair_deadline);
+                let result = tokio::time::timeout_at(
+                    pair_deadline,
                     async {
                         match mode {
                             SnapshotMode::Pool => observe_pool(&pool, &lcd, &pair, block_height, cycle_observed_at).await.map(|_| ()),
@@ -779,8 +787,11 @@ async fn query_snapshot_observed<T: DeserializeOwned>(
     callback: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 ) -> Result<T, LcdError> {
     // Also bound direct test/operator callers lacking a surrounding scheduled job.
-    // The production job's four-second deadline still bounds all phases together.
+    // The production job's original deadline bounds all phases together. Tighten
+    // once before constructing requests, never renew it on a capacity retry.
     let deadline = Instant::now() + Duration::from_secs(4);
+    let lcd = lcd.with_observation_deadline(deadline);
+    let deadline = lcd.observation_deadline().unwrap_or(deadline);
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
@@ -818,7 +829,7 @@ async fn query_snapshot_observed<T: DeserializeOwned>(
                 }
             }
         };
-        let result = tokio::time::timeout(remaining, request)
+        let result = tokio::time::timeout_at(deadline, request)
             .await
             .map_err(|_| LcdError::PairResponseMalformed("incomplete snapshot query".into()))?;
         match result {
@@ -976,6 +987,149 @@ async fn walk_resting_book_side(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn issue1505_parent_deadline_head_cannot_resume_data_after_height_scope() {
+        use wiremock::{matchers::path, Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_millis(50)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            2500,
+            1,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                attempt_timeout_ms: 2500,
+                ..Default::default()
+            },
+        )
+        .with_scheduled_observation();
+        let deadline = Instant::now() + Duration::from_millis(150);
+        let lcd = lcd.with_observation_deadline(deadline);
+        let mut waits = 0;
+        let mut work = Box::pin(tokio::time::timeout_at(
+            deadline,
+            observe_head(&lcd, 0, &mut waits),
+        ));
+        let received = async {
+            while server.received_requests().await.unwrap().is_empty() {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        };
+        tokio::select! {
+            result = &mut work => panic!("identity must start before suspension: {result:?}"),
+            () = received => {},
+        }
+        tokio::time::sleep_until(deadline + Duration::from_millis(50)).await;
+        let _ = work.await;
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            0,
+            "height observation cannot first-poll data beyond its inherited parent deadline"
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].caller_cancellations, 1);
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    async fn issue1505_parent_deadline_snapshot_helper_keeps_original_clock_across_capacity_wait() {
+        use wiremock::{matchers::path, Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
+                    .set_delay(Duration::from_millis(50)),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(path("/held"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok":true}))
+                    .set_delay(Duration::from_secs(5)),
+            )
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new_with_policy(
+            vec![server.uri()],
+            2500,
+            1,
+            "columbus-5",
+            crate::lcd::ProviderPolicy {
+                concurrency: 1,
+                attempt_timeout_ms: 2500,
+                ..Default::default()
+            },
+        )
+        .with_scheduled_observation();
+        let holding = lcd.clone();
+        let held = tokio::spawn(async move { holding.get::<serde_json::Value>("/held").await });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while lcd.data_request_poll_count() == 0 {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let started = Instant::now();
+        let query = json!({"pool":{}});
+        let mut work = Box::pin(query_snapshot::<serde_json::Value>(
+            &lcd,
+            "terra1pair",
+            &query,
+            Some(900),
+        ));
+        let ready = async {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            held.abort();
+            assert!(held.await.unwrap_err().is_cancelled());
+            loop {
+                let identities = server
+                    .received_requests()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .filter(|request| {
+                        request.url.path() == "/cosmos/base/tendermint/v1beta1/node_info"
+                    })
+                    .count();
+                if identities >= 2 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        };
+        tokio::select! {
+            result = &mut work => panic!("capacity wait must preserve the helper's pending query: {result:?}"),
+            result = tokio::time::timeout_at(started + Duration::from_secs(4), ready) => result.unwrap(),
+        }
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            1,
+            "only the owned holder transport began"
+        );
+        tokio::time::sleep_until(started + Duration::from_millis(4050)).await;
+        assert!(work.await.is_err());
+        assert_eq!(
+            lcd.data_request_poll_count(),
+            1,
+            "capacity retry cannot renew the helper's original four-second data boundary"
+        );
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].caller_cancellations, 2);
+        assert_eq!(counters[0].in_flight, 0);
+    }
 
     #[tokio::test]
     async fn recovery1464_head_capacity_deadline_and_cancel_leave_zero_attempt_penalties() {

@@ -1,0 +1,2079 @@
+{
+  "issue": 1505,
+  "iteration": 6,
+  "revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+  "overall": "FAIL",
+  "read_only": true,
+  "utc": "2026-10-15T20:41:17.200143+00:00",
+  "selected_failure": {
+    "request_id": "016dc250827b0354",
+    "direction": "native_output",
+    "http_status": 503,
+    "reason": "missing_observations",
+    "browser_native_utc": "2026-10-15T20:36:45.621Z",
+    "server_utc": "2026-10-15T20:36:45.480880Z",
+    "input_elapsed_ms": 154034,
+    "delivery_lag_ms": 6,
+    "resource_exhaustion": false
+  },
+  "request_correlation": [
+    {
+      "utc": "2026-10-15T20:36:45.480870+00:00",
+      "categories": [
+        "stale_component"
+      ],
+      "component": "reference",
+      "direction": "native_output",
+      "request_id": "016dc250827b0354",
+      "age_known": true,
+      "age_ms": 20448,
+      "expiry_known": true,
+      "expires_in_ms": -448
+    },
+    {
+      "utc": "2026-10-15T20:36:45.480880+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_output",
+      "reason": "missing_observations",
+      "request_id": "016dc250827b0354",
+      "status": 503
+    }
+  ],
+  "original_reference_clock": {
+    "observed_at_ms": 1792096585032,
+    "observed_at_utc": "2026-10-15T20:36:25.032Z",
+    "expires_at_ms": 1792096605032,
+    "expires_at_utc": "2026-10-15T20:36:45.032Z",
+    "age_ms_at_server_witness": 20448,
+    "expires_in_ms_at_server_witness": -448,
+    "scope": "Original clock agrees with reference cohort oldest economic mark; no timestamp rebasing inferred."
+  },
+  "nearby_wrapper_polls": [
+    {
+      "utc": "2026-10-15T20:36:34.281346+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 89
+    },
+    {
+      "utc": "2026-10-15T20:36:34.519616+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 89
+    },
+    {
+      "utc": "2026-10-15T20:36:34.519642+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5156,
+      "observed_at_ms": 1792096589363,
+      "poll_id": 89,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T20:36:44.244101+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 90
+    },
+    {
+      "utc": "2026-10-15T20:36:44.463111+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 90
+    },
+    {
+      "utc": "2026-10-15T20:36:44.463136+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5099,
+      "observed_at_ms": 1792096599363,
+      "poll_id": 90,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T20:36:54.991720+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 91
+    },
+    {
+      "utc": "2026-10-15T20:36:55.243148+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 91
+    },
+    {
+      "utc": "2026-10-15T20:36:55.243167+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5879,
+      "observed_at_ms": 1792096609363,
+      "poll_id": 91,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    }
+  ],
+  "nearby_physical_read_failures": [
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 4917,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 504,
+      "poll_id": 89,
+      "sample_timestamp_ms": 1792096594281
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5156,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 743,
+      "poll_id": 89,
+      "sample_timestamp_ms": 1792096594519
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 4880,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 540,
+      "poll_id": 90,
+      "sample_timestamp_ms": 1792096604244
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5099,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 759,
+      "poll_id": 90,
+      "sample_timestamp_ms": 1792096604463
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5628,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 490,
+      "poll_id": 91,
+      "sample_timestamp_ms": 1792096614991
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5879,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 741,
+      "poll_id": 91,
+      "sample_timestamp_ms": 1792096615243
+    }
+  ],
+  "critical_reference_pool_context": {
+    "issue": 1505,
+    "iteration": 6,
+    "start_utc": "2026-10-15T20:36:33Z",
+    "end_utc": "2026-10-15T20:36:51Z",
+    "bounded_sample_lines": 46,
+    "possibly_truncated": false,
+    "fixed_events": [
+      {
+        "utc": "2026-10-15T20:36:34.281346+00:00",
+        "categories": [
+          "wrapper_read_unavailable"
+        ],
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "poll_id": 89
+      },
+      {
+        "utc": "2026-10-15T20:36:34.519616+00:00",
+        "categories": [
+          "wrapper_read_unavailable"
+        ],
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "poll_id": 89
+      },
+      {
+        "utc": "2026-10-15T20:36:34.519642+00:00",
+        "categories": [
+          "wrapper_completed"
+        ],
+        "elapsed_ms": 5156,
+        "observed_at_ms": 1792096589363,
+        "poll_id": 89,
+        "mappings": 2
+      },
+      {
+        "utc": "2026-10-15T20:36:35.216076+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 12,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096585032
+      },
+      {
+        "utc": "2026-10-15T20:36:37.974330+00:00",
+        "categories": [
+          "pool_book_pair_error"
+        ],
+        "latency_ms": 0,
+        "fixed_error_classes": []
+      },
+      {
+        "utc": "2026-10-15T20:36:37.974946+00:00",
+        "categories": [
+          "pool_book_pair_error"
+        ],
+        "latency_ms": 0,
+        "fixed_error_classes": []
+      },
+      {
+        "utc": "2026-10-15T20:36:38.662522+00:00",
+        "categories": [
+          "pool_book_pair_error"
+        ],
+        "latency_ms": 0,
+        "fixed_error_classes": []
+      },
+      {
+        "utc": "2026-10-15T20:36:39.013616+00:00",
+        "categories": [
+          "pool_book_pair_error"
+        ],
+        "latency_ms": 794,
+        "fixed_error_classes": [
+          "historical_height"
+        ],
+        "fixed_typed_error": "historical_height_unavailable"
+      },
+      {
+        "utc": "2026-10-15T20:36:39.735295+00:00",
+        "categories": [
+          "book_cycle"
+        ],
+        "lane": "pool",
+        "head_outcome": "observed",
+        "cycle_elapsed_ms": 4703,
+        "pair_count": 22,
+        "refreshed_pair_count": 21,
+        "failed_pair_count": 1,
+        "missing_reserve_count": 0,
+        "max_reserve_age_ms": 14703
+      },
+      {
+        "utc": "2026-10-15T20:36:39.735326+00:00",
+        "categories": [
+          "reference_scheduled"
+        ],
+        "phase": "reference_schedule"
+      },
+      {
+        "utc": "2026-10-15T20:36:39.741112+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 5,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096595031
+      },
+      {
+        "utc": "2026-10-15T20:36:40.936218+00:00",
+        "categories": [
+          "pool_book_pair_timeout"
+        ],
+        "failure_reason": "pair_timeout",
+        "latency_ms": 4001
+      },
+      {
+        "utc": "2026-10-15T20:36:42.246717+00:00",
+        "categories": [
+          "book_cycle"
+        ],
+        "lane": "book",
+        "head_outcome": "skipped",
+        "cycle_elapsed_ms": 9871,
+        "pair_count": 22,
+        "refreshed_pair_count": 18,
+        "failed_pair_count": 4,
+        "missing_reserve_count": 0,
+        "max_reserve_age_ms": 17214
+      },
+      {
+        "utc": "2026-10-15T20:36:44.244101+00:00",
+        "categories": [
+          "wrapper_read_unavailable"
+        ],
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "poll_id": 90
+      },
+      {
+        "utc": "2026-10-15T20:36:44.463111+00:00",
+        "categories": [
+          "wrapper_read_unavailable"
+        ],
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "poll_id": 90
+      },
+      {
+        "utc": "2026-10-15T20:36:44.463136+00:00",
+        "categories": [
+          "wrapper_completed"
+        ],
+        "elapsed_ms": 5099,
+        "observed_at_ms": 1792096599363,
+        "poll_id": 90,
+        "mappings": 2
+      },
+      {
+        "utc": "2026-10-15T20:36:44.745017+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 8,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096595031
+      },
+      {
+        "utc": "2026-10-15T20:36:45.480870+00:00",
+        "categories": [
+          "stale_component"
+        ]
+      },
+      {
+        "utc": "2026-10-15T20:36:45.480880+00:00",
+        "categories": [
+          "quote_rejected"
+        ],
+        "reason": "missing_observations"
+      },
+      {
+        "utc": "2026-10-15T20:36:49.743986+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 7,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096605031,
+        "newest_economic_as_of_ms": 1792096605031
+      },
+      {
+        "utc": "2026-10-15T20:36:49.771872+00:00",
+        "categories": [
+          "book_cycle"
+        ],
+        "lane": "pool",
+        "head_outcome": "observed",
+        "cycle_elapsed_ms": 4739,
+        "pair_count": 22,
+        "refreshed_pair_count": 22,
+        "failed_pair_count": 0,
+        "missing_reserve_count": 0,
+        "max_reserve_age_ms": 4739
+      },
+      {
+        "utc": "2026-10-15T20:36:49.771891+00:00",
+        "categories": [
+          "reference_scheduled"
+        ],
+        "phase": "reference_schedule"
+      },
+      {
+        "utc": "2026-10-15T20:36:49.777928+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 6,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096605031,
+        "newest_economic_as_of_ms": 1792096605031
+      }
+    ],
+    "scope": "No pair ids/addresses, endpoints, bodies or arbitrary error messages exported; timeout does not distinguish provider RPC from waiting/SQL."
+  },
+  "reference_publication": {
+    "commits_in_strict_window": [
+      {
+        "utc": "2026-10-15T20:36:35.216076+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 12,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096585032
+      },
+      {
+        "utc": "2026-10-15T20:36:39.741112+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 5,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096595031
+      },
+      {
+        "utc": "2026-10-15T20:36:44.745017+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 8,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096585032,
+        "newest_economic_as_of_ms": 1792096595031
+      },
+      {
+        "utc": "2026-10-15T20:36:49.743986+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 7,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096605031,
+        "newest_economic_as_of_ms": 1792096605031
+      },
+      {
+        "utc": "2026-10-15T20:36:49.777928+00:00",
+        "categories": [
+          "reference_committed"
+        ],
+        "phase": "reference_marks",
+        "elapsed_ms": 6,
+        "economic_marks": 5,
+        "oldest_economic_as_of_ms": 1792096605031,
+        "newest_economic_as_of_ms": 1792096605031
+      }
+    ],
+    "max_commit_elapsed_ms": 12,
+    "scope": "A committed cohort can retain older marks; producer completion alone does not prove fresh per-token references."
+  },
+  "browser_first": {
+    "overall": "FAIL",
+    "completed": false,
+    "utc_start": "2026-10-15T20:27:27.838Z",
+    "utc_end": "2026-10-15T20:38:12.161Z",
+    "quote_reads": 458,
+    "read_limit": 800,
+    "per_context_limit": 600,
+    "windows": [
+      {
+        "case": "USTC->CL8Y",
+        "viewport": "desktop",
+        "completed": true,
+        "active_window_elapsed_ms": 190080,
+        "quote_availability": {
+          "responses": 37,
+          "useful": 37,
+          "not_useful": 0,
+          "teardown_cancelled": 0
+        },
+        "failure_names": [],
+        "first_qualified_dom_ms": 601.3999999985099
+      },
+      {
+        "case": "USTC->CL8Y",
+        "viewport": "phone",
+        "completed": true,
+        "active_window_elapsed_ms": 190074,
+        "quote_availability": {
+          "responses": 37,
+          "useful": 37,
+          "not_useful": 0,
+          "teardown_cancelled": 0
+        },
+        "failure_names": [],
+        "first_qualified_dom_ms": 346.29999999701977
+      },
+      {
+        "case": "CL8Y->USTC",
+        "viewport": "desktop",
+        "completed": true,
+        "active_window_elapsed_ms": 190123,
+        "quote_availability": {
+          "responses": 38,
+          "useful": 37,
+          "not_useful": 1,
+          "teardown_cancelled": 0
+        },
+        "failure_names": [
+          "native_window_not_useful"
+        ],
+        "first_qualified_dom_ms": 350.79999999701977
+      },
+      {
+        "case": "CL8Y->USTC",
+        "viewport": "phone",
+        "completed": false,
+        "active_window_elapsed_ms": 40209,
+        "quote_availability": {
+          "responses": 8,
+          "useful": 8,
+          "not_useful": 0,
+          "teardown_cancelled": 0
+        },
+        "failure_names": [
+          "probe_unavailable",
+          "incomplete_expiry_windows"
+        ],
+        "first_qualified_dom_ms": 348.5
+      }
+    ],
+    "scope": "Third full window naturally completed but failed availability; fourth was interrupted after the actual failure. RETEST and expiry control were not run."
+  },
+  "independent_socket_first": {
+    "overall": "PASS",
+    "utc_start": "2026-10-15T20:25:46.781266+00:00",
+    "utc_end": "2026-10-15T20:28:57.832244+00:00",
+    "requests": 148,
+    "counts": {
+      "executable": 146
+    },
+    "initialized_useful_timing": {
+      "samples": 145,
+      "p50_ms": 294.652,
+      "p95_ms": 305.052,
+      "p99_ms": 305.672,
+      "max_ms": 306.747
+    }
+  },
+  "monitoring_snapshot": {
+    "collection_overall": "PASS WITH SKIPS",
+    "utc": "2026-10-15T20:38:36.748217+00:00",
+    "window_seconds": 900,
+    "loki": {
+      "status": "PASS",
+      "window_seconds": 900,
+      "pattern_counts": {
+        "wrapper_completed": 90.0,
+        "wrapper_unavailable": 0.0,
+        "wrapper_read_unavailable": 180.0,
+        "stale_prerequisite": 1.0,
+        "reference_committed": 223.0,
+        "reference_woken": 90.0,
+        "provider_pressure": 1.0,
+        "historical_height": 6.0,
+        "http_429": 234.0,
+        "deadline": 85.0,
+        "admission_budget": 8.0,
+        "errors": 11.0
+      },
+      "bounded_sample_lines": 300,
+      "typed_fields": {
+        "phase": {
+          "reference_marks": 114,
+          "reference_schedule": 46,
+          "floor_capability": 92
+        },
+        "reason": {
+          "deadline": 4,
+          "contract_rejected": 88,
+          "missing_observations": 1
+        },
+        "direction": {
+          "native_output": 2
+        }
+      },
+      "candidate_stale_witnesses": [
+        {
+          "component": "reference",
+          "age_ms": 20448,
+          "expires_in_ms": -448,
+          "request_id": "016dc250827b0354"
+        }
+      ],
+      "producer_read_witnesses": [
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "deadline",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6757,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 2001,
+          "poll_id": 102,
+          "sample_timestamp_ms": 1792096726121
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6663,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1907,
+          "poll_id": 102,
+          "sample_timestamp_ms": 1792096726027
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5445,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 860,
+          "poll_id": 101,
+          "sample_timestamp_ms": 1792096714808
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5151,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 567,
+          "poll_id": 101,
+          "sample_timestamp_ms": 1792096714514
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6600,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1234,
+          "poll_id": 100,
+          "sample_timestamp_ms": 1792096705963
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6000,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 634,
+          "poll_id": 100,
+          "sample_timestamp_ms": 1792096705363
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5700,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 610,
+          "poll_id": 99,
+          "sample_timestamp_ms": 1792096695062
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5443,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 354,
+          "poll_id": 99,
+          "sample_timestamp_ms": 1792096694806
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5146,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 720,
+          "poll_id": 98,
+          "sample_timestamp_ms": 1792096684509
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4689,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 263,
+          "poll_id": 98,
+          "sample_timestamp_ms": 1792096684052
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "deadline",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6638,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 2000,
+          "poll_id": 97,
+          "sample_timestamp_ms": 1792096676002
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4998,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 360,
+          "poll_id": 97,
+          "sample_timestamp_ms": 1792096674362
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6431,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 712,
+          "poll_id": 96,
+          "sample_timestamp_ms": 1792096665794
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6240,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 521,
+          "poll_id": 96,
+          "sample_timestamp_ms": 1792096665603
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5539,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1003,
+          "poll_id": 95,
+          "sample_timestamp_ms": 1792096654902
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5290,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 754,
+          "poll_id": 95,
+          "sample_timestamp_ms": 1792096654653
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5095,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 952,
+          "poll_id": 94,
+          "sample_timestamp_ms": 1792096644459
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4571,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 429,
+          "poll_id": 94,
+          "sample_timestamp_ms": 1792096643937
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7542,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 762,
+          "poll_id": 93,
+          "sample_timestamp_ms": 1792096636905
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7291,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 512,
+          "poll_id": 93,
+          "sample_timestamp_ms": 1792096636655
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5562,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 934,
+          "poll_id": 92,
+          "sample_timestamp_ms": 1792096624925
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5258,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 630,
+          "poll_id": 92,
+          "sample_timestamp_ms": 1792096624622
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5879,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 741,
+          "poll_id": 91,
+          "sample_timestamp_ms": 1792096615243
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5628,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 490,
+          "poll_id": 91,
+          "sample_timestamp_ms": 1792096614991
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5099,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 759,
+          "poll_id": 90,
+          "sample_timestamp_ms": 1792096604463
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4880,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 540,
+          "poll_id": 90,
+          "sample_timestamp_ms": 1792096604244
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5156,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 743,
+          "poll_id": 89,
+          "sample_timestamp_ms": 1792096594519
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4917,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 504,
+          "poll_id": 89,
+          "sample_timestamp_ms": 1792096594281
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5426,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 813,
+          "poll_id": 88,
+          "sample_timestamp_ms": 1792096584789
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5239,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 627,
+          "poll_id": 88,
+          "sample_timestamp_ms": 1792096584602
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4936,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 830,
+          "poll_id": 87,
+          "sample_timestamp_ms": 1792096574299
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4594,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 489,
+          "poll_id": 87,
+          "sample_timestamp_ms": 1792096573958
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6694,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 948,
+          "poll_id": 86,
+          "sample_timestamp_ms": 1792096566057
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6122,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 376,
+          "poll_id": 86,
+          "sample_timestamp_ms": 1792096565485
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5342,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 996,
+          "poll_id": 85,
+          "sample_timestamp_ms": 1792096554705
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5171,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 825,
+          "poll_id": 85,
+          "sample_timestamp_ms": 1792096554533
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5430,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 821,
+          "poll_id": 84,
+          "sample_timestamp_ms": 1792096544793
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5184,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 576,
+          "poll_id": 84,
+          "sample_timestamp_ms": 1792096544548
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "deadline",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6583,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 2000,
+          "poll_id": 83,
+          "sample_timestamp_ms": 1792096535947
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5215,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 632,
+          "poll_id": 83,
+          "sample_timestamp_ms": 1792096534579
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5015,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 752,
+          "poll_id": 82,
+          "sample_timestamp_ms": 1792096524378
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4767,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 504,
+          "poll_id": 82,
+          "sample_timestamp_ms": 1792096524130
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6990,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1433,
+          "poll_id": 81,
+          "sample_timestamp_ms": 1792096516354
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6744,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1187,
+          "poll_id": 81,
+          "sample_timestamp_ms": 1792096516107
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6496,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 920,
+          "poll_id": 80,
+          "sample_timestamp_ms": 1792096505859
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6089,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 513,
+          "poll_id": 80,
+          "sample_timestamp_ms": 1792096505452
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5229,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 839,
+          "poll_id": 79,
+          "sample_timestamp_ms": 1792096494592
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4904,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 515,
+          "poll_id": 79,
+          "sample_timestamp_ms": 1792096494268
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6331,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 761,
+          "poll_id": 78,
+          "sample_timestamp_ms": 1792096485694
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6115,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 545,
+          "poll_id": 78,
+          "sample_timestamp_ms": 1792096485478
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "deadline",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7475,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 2001,
+          "poll_id": 77,
+          "sample_timestamp_ms": 1792096476838
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6297,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 822,
+          "poll_id": 77,
+          "sample_timestamp_ms": 1792096475659
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7263,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1960,
+          "poll_id": 76,
+          "sample_timestamp_ms": 1792096466626
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5680,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 377,
+          "poll_id": 76,
+          "sample_timestamp_ms": 1792096465044
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7223,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1933,
+          "poll_id": 75,
+          "sample_timestamp_ms": 1792096456586
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6605,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1314,
+          "poll_id": 75,
+          "sample_timestamp_ms": 1792096455968
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5389,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 727,
+          "poll_id": 74,
+          "sample_timestamp_ms": 1792096444753
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5155,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 492,
+          "poll_id": 74,
+          "sample_timestamp_ms": 1792096444518
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6098,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 854,
+          "poll_id": 73,
+          "sample_timestamp_ms": 1792096435461
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5623,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 379,
+          "poll_id": 73,
+          "sample_timestamp_ms": 1792096434987
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4343,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 761,
+          "poll_id": 72,
+          "sample_timestamp_ms": 1792096423706
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4089,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 506,
+          "poll_id": 72,
+          "sample_timestamp_ms": 1792096423452
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5446,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1008,
+          "poll_id": 71,
+          "sample_timestamp_ms": 1792096414810
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5232,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 794,
+          "poll_id": 71,
+          "sample_timestamp_ms": 1792096414595
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5442,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 761,
+          "poll_id": 70,
+          "sample_timestamp_ms": 1792096404805
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5187,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 506,
+          "poll_id": 70,
+          "sample_timestamp_ms": 1792096404550
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4993,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 751,
+          "poll_id": 69,
+          "sample_timestamp_ms": 1792096394357
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4768,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 526,
+          "poll_id": 69,
+          "sample_timestamp_ms": 1792096394132
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5964,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 780,
+          "poll_id": 68,
+          "sample_timestamp_ms": 1792096385327
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5464,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 280,
+          "poll_id": 68,
+          "sample_timestamp_ms": 1792096384827
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5666,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 926,
+          "poll_id": 67,
+          "sample_timestamp_ms": 1792096375030
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5213,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 473,
+          "poll_id": 67,
+          "sample_timestamp_ms": 1792096374576
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7619,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 711,
+          "poll_id": 66,
+          "sample_timestamp_ms": 1792096366983
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7436,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 528,
+          "poll_id": 66,
+          "sample_timestamp_ms": 1792096366799
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5931,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1342,
+          "poll_id": 65,
+          "sample_timestamp_ms": 1792096355294
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5139,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 551,
+          "poll_id": 65,
+          "sample_timestamp_ms": 1792096354503
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5297,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1385,
+          "poll_id": 64,
+          "sample_timestamp_ms": 1792096344660
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4546,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 634,
+          "poll_id": 64,
+          "sample_timestamp_ms": 1792096343910
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 6477,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1645,
+          "poll_id": 63,
+          "sample_timestamp_ms": 1792096335840
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5424,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 592,
+          "poll_id": 63,
+          "sample_timestamp_ms": 1792096334788
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5513,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 823,
+          "poll_id": 62,
+          "sample_timestamp_ms": 1792096324876
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5003,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 314,
+          "poll_id": 62,
+          "sample_timestamp_ms": 1792096324367
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5442,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1008,
+          "poll_id": 61,
+          "sample_timestamp_ms": 1792096314805
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4935,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 501,
+          "poll_id": 61,
+          "sample_timestamp_ms": 1792096314298
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5367,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 749,
+          "poll_id": 60,
+          "sample_timestamp_ms": 1792096304731
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 4886,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 267,
+          "poll_id": 60,
+          "sample_timestamp_ms": 1792096304249
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5527,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 752,
+          "poll_id": 59,
+          "sample_timestamp_ms": 1792096294890
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5242,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 467,
+          "poll_id": 59,
+          "sample_timestamp_ms": 1792096294605
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7421,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1625,
+          "poll_id": 58,
+          "sample_timestamp_ms": 1792096286784
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 7127,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 1331,
+          "poll_id": 58,
+          "sample_timestamp_ms": 1792096286490
+        },
+        {
+          "slot": "treasury_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5819,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 878,
+          "poll_id": 57,
+          "sample_timestamp_ms": 1792096275182
+        },
+        {
+          "slot": "mapper_floor",
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "stage": "lcd_read",
+          "lcd_polled": true,
+          "poll_elapsed_ms": 5661,
+          "denom_wait_ms": 0,
+          "global_wait_ms": 0,
+          "active_ms": 720,
+          "poll_id": 57,
+          "sample_timestamp_ms": 1792096275025
+        }
+      ],
+      "request_correlation": {
+        "016dc250827b0354": 4
+      }
+    },
+    "prometheus": {
+      "status": "SKIP",
+      "reason": "no_prometheus_datasource_provisioned"
+    },
+    "read_count": 17,
+    "read_budget": 18,
+    "scope": "Collection success is separate from failed application acceptance. Each aggregate is a 15-minute lookback during collection; do not sum overlapping windows. Uncorrelated counts do not establish cohort causes."
+  },
+  "main_ci": {
+    "pipeline": 484,
+    "revision": "0b002042fbf6dd37f1e8577acbd995b367fe2b30",
+    "status": "success"
+  },
+  "findings": [
+    {
+      "status": "EXACT_REQUEST",
+      "finding": "Selected native-output request failed on a reference-only stale prerequisite,448ms past original expiry."
+    },
+    {
+      "status": "OBSERVED",
+      "finding": "Nearby wrapper polls completed with both mappings and caps, known tax and router. Only direct-floor contract rejection witnesses occurred; no required native-output field gap was observed."
+    },
+    {
+      "status": "OBSERVED",
+      "finding": "Pool cycle39.735 refreshed21/22 and the selected reference retained25.032 through commit44.745. A pair error39.013616 is exactly historical_height_unavailable with794ms latency."
+    },
+    {
+      "status": "UNKNOWN",
+      "finding": "The failed historical-read pair is the documented official CL8Y/cUSTC candidate. Whether it was the selected economic winner and the exact provider/request-height origin are not proved. The separate 4001 ms book timeout cannot establish the pool failure cause."
+    },
+    {
+      "status": "OBSERVED",
+      "finding": "Later reference cohort advanced all economic clocks to45.031 at49.743986 and the next pool cycle completed22/22."
+    }
+  ],
+  "privacy": {
+    "fixed_fields_only": true,
+    "raw_logs_embedded": false,
+    "raw_logs_retained_separately_private": true,
+    "lcd_polled_means_wire_attempt": false
+  },
+  "evidence_files": [
+    {
+      "name": "release6-monitoring-first.json",
+      "sha256": "674dd6160d5dc80e1e0c2e6ff1ab051e06d6f81b9595b9bd3c56f072fb30b699"
+    },
+    {
+      "name": "release6-fixed-producer-context.json",
+      "sha256": "02c57114a36592e60697fd3239cc643618207a98a00b08e541e4b8f332818dff"
+    },
+    {
+      "name": "release6-reference-critical-context.json",
+      "sha256": "7a3a85ca92b1fce5bc60f67c02e82d9685973f594f7a53e793f3cbed5deea825"
+    },
+    {
+      "name": "release6-browser-first.json",
+      "sha256": "90ebbd8fd29d9c1552a2707d195bfa066e65fe1b97bfd2533edf0863688ad608"
+    },
+    {
+      "name": "release6-socket-first.json",
+      "sha256": "6031fad87bf123c8926ca2ba5d383e4c3710cd187eea8a4b0d98be6319f12652"
+    },
+    {
+      "name": "ci-484.json",
+      "sha256": "ac2040ece76a5ee8d6e951f924c61c6bd784ef3c02eda1cfaf3e7656074585cc"
+    },
+    {
+      "name": "release6-browser-first-summary.json",
+      "sha256": "0c6be96efd35c76b1a2efe0aa84e3a4f6c5e80907c00b9eef64d8288f9fbd6f9"
+    }
+  ],
+  "source_edits": false,
+  "extra_quote_or_provider_probes": false,
+  "deployment_mutations": false,
+  "selected_browser_neighbors_and_recovery": {
+    "case": "CL8Y->USTC",
+    "viewport": "desktop",
+    "response": {
+      "response_epoch_ms": 1792096605621,
+      "response_utc": "2026-10-15T20:36:45.621000+00:00",
+      "status": 503,
+      "request_id": "016dc250827b0354",
+      "reason": "missing_observations",
+      "useful": false,
+      "original_observed_at_ms": null,
+      "original_expires_at_ms": null,
+      "diagnostic_delivery_lag_ms": 6
+    },
+    "preceding_useful": {
+      "response_epoch_ms": 1792096604326,
+      "response_utc": "2026-10-15T20:36:44.326000+00:00",
+      "status": 200,
+      "request_id": "016dc250827b0350",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792096585032,
+      "original_expires_at_ms": 1792096605032,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "following_useful": {
+      "response_epoch_ms": 1792096616503,
+      "response_utc": "2026-10-15T20:36:56.503000+00:00",
+      "status": 200,
+      "request_id": "016dc250827b0358",
+      "reason": null,
+      "useful": true,
+      "original_observed_at_ms": 1792096605031,
+      "original_expires_at_ms": 1792096625031,
+      "diagnostic_delivery_lag_ms": 9
+    },
+    "failure_before_preceding_original_expiry_ms": -589,
+    "failure_after_preceding_original_expiry_ms": 589,
+    "sampled_unavailable_to_next_useful_ms": 10882,
+    "original_window_validation_failure": false,
+    "classification": "Real active selected503 during a naturally completed190-second window; not teardown, cap exhaustion or guard refusal. Component cause is retained in the separate server diagnosis."
+  },
+  "sampled_display_expiry": {
+    "first_sampled_blank_epoch_ms": 1792096605098,
+    "first_sampled_blank_utc": "2026-10-15T20:36:45.098000+00:00",
+    "sampled_blank_after_latest_possible_original_expiry_ms": 66,
+    "display_recovery_epoch_ms": 1792096616676,
+    "display_recovery_utc": "2026-10-15T20:36:56.676000+00:00",
+    "expiry_validation_or_probe_flags": [],
+    "ownership": {
+      "last_positive_sample_epoch_ms": 1792096604488,
+      "historical_matching_response_count": 2,
+      "unexpired_matching_responses_at_last_positive_sample": 1,
+      "matching_original_expiries_at_last_positive_sample": [
+        1792096605032
+      ],
+      "matching_unexpired_responses_at_failure": 0,
+      "latest_possible_original_expiry_ms": 1792096605032,
+      "first_sampled_blank_epoch_ms": 1792096605098,
+      "blank_after_latest_possible_expiry_ms": 66,
+      "blank_before_failed_response_ms": 523,
+      "qualification": "Positive sampled original-expiry revocation; exact response adoption and timer callback execution were not directly instrumented."
+    },
+    "timer_callback_directly_instrumented": false,
+    "timer_or_funded_signing_claim": false
+  },
+  "browser_final_summary": {
+    "file": "release6-browser-first-summary.json",
+    "sha256": "0c6be96efd35c76b1a2efe0aa84e3a4f6c5e80907c00b9eef64d8288f9fbd6f9",
+    "completed_window_count": 3,
+    "passing_completed_window_count": 2,
+    "selected_window_outcomes": {
+      "responses": 120,
+      "useful": 119,
+      "not_useful": 1,
+      "teardown_cancelled": 0
+    },
+    "separate_interruption": {
+      "cause": "Owned Chrome was deliberately stopped when the full third-window selected failure was exposed at its checkpoint",
+      "failed_window_checkpoint_utc": "2026-10-15T20:37:28.639Z",
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "active_window_elapsed_ms": 40209,
+      "active_window_stop_reason": "active_exception",
+      "completed": false,
+      "classification": "Incomplete observer shutdown after the actual failure; not an additional application failure"
+    },
+    "request_accounting": {
+      "total_quote_progress_reads": 458,
+      "route_reads": {
+        "solve": 125,
+        "progress": 333,
+        "best": 0
+      },
+      "initialized_solves_included": 4,
+      "per_window": [
+        {
+          "solve": 37,
+          "progress": 108,
+          "best": 0
+        },
+        {
+          "solve": 37,
+          "progress": 102,
+          "best": 0
+        },
+        {
+          "solve": 38,
+          "progress": 106,
+          "best": 0
+        },
+        {
+          "solve": 9,
+          "progress": 17,
+          "best": 0
+        }
+      ],
+      "metadata_reader_calls": 15,
+      "metadata_reader_calls_include_initialized_probes": true,
+      "node_non_quote_reader_calls": 11,
+      "guard_rejections_recorded": 0,
+      "partial_window_guard_snapshot_unavailable": true,
+      "unattributed_solve_request_count": 1,
+      "qualification": "One additional solve request in the interrupted phone window has no retained selected-response outcome; no success, failure, setup or teardown classification is fabricated."
+    },
+    "retest_started": false,
+    "expiry_control_started": false
+  },
+  "historical_failed_pair_attribution": {
+    "fixed_candidate": "documented_official_cl8y_custc_pair",
+    "candidate_identity_match": true,
+    "method": "Independent read-only comparison in memory: failed-pair address matches the issue1376 committed production-pairs and migration-inventory primary pair; its two configured tokens match the default CL8Y and cUSTC hub assets.",
+    "selected_economic_winner_proved": false,
+    "historical_capacity_or_attempt_counts_proved": false,
+    "raw_identifiers_exported": false,
+    "scope": "Candidate identity is proved; selection and capacity-continuation hypothesis are not established by these logs."
+  }
+}

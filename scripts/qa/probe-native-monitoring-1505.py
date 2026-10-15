@@ -79,6 +79,32 @@ def read_witness(line, timestamp=None):
     return row
 
 
+
+def scheduled_alternative_witness(line, timestamp=None):
+    """Actual prior attempts and pending local capacity; no provider identity."""
+    if "LCD scheduled alternatives deferred" not in line:
+        return None
+
+    def field(name, pattern):
+        values = re.findall(r'\b' + name + r'="?(' + pattern + r')"?(?=\s|$|[,}])', line)
+        return values[0] if len(values) == 1 else None
+
+    if field("phase", r"[a-z_]{1,24}") != "data" or field("reason", r"[a-z_]{1,24}") != "capacity":
+        return None
+    row = {"phase": "data", "reason": "capacity"}
+    for name, maximum, minimum in (("attempt_count", 8, 1),
+                                   ("unattempted_capacity_count", 31, 1),
+                                   ("original_remaining_ms", 30_000, 0)):
+        value = field(name, r"\d{1,5}")
+        if value is None or not minimum <= int(value) <= maximum:
+            return None
+        row[name] = int(value)
+    if row["attempt_count"] + row["unattempted_capacity_count"] > 32:
+        return None
+    row["sample_timestamp_ms"] = int(timestamp) // 1_000_000 if isinstance(timestamp, str) and re.fullmatch(r"\d{1,20}", timestamp) else None
+    return row
+
+
 def stale_witness(line, requested_ids):
     """A bounded candidate witness is evidence, not a sole-cause assertion."""
     if "Local quote prerequisite stale" not in line:
@@ -131,8 +157,9 @@ def sample_summary(payload, requested_ids=()):
                     counts[field][selected] = counts[field].get(selected, 0) + 1
     witnesses = [w for line in lines if (w := stale_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
     reads = [w for timestamp, line in records if (w := read_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
+    alternatives = [w for timestamp, line in records if (w := scheduled_alternative_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     return {"bounded_sample_lines": len(lines), "typed_fields": counts, "candidate_stale_witnesses": witnesses,
-        "producer_read_witnesses": reads,
+        "producer_read_witnesses": reads, "scheduled_alternative_witnesses": alternatives,
         "request_correlation": {rid: sum(bool(re.search(r'\brequest_id[=:]"?' + rid + r'\b', re.sub(r"\x1b\[[0-9;]*m", "", line))) for line in lines) for rid in requested_ids}}
 
 
@@ -151,7 +178,7 @@ def collect(instance, request_ids=()):
     for label, pattern in PATTERNS.items():
         query = "sum(count_over_time(" + selector + " |~ " + json.dumps(pattern) + "[15m]))"
         counts[label] = MONITORING.aggregate(instance.read(prefix + "query?" + urlencode({"query": query})))
-    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|Local quote rejected|Local quote prerequisite stale|Reference cohort committed|Reference refresh scheduled)"',
+    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|LCD scheduled alternatives deferred|Local quote rejected|Local quote prerequisite stale|Reference cohort committed|Reference refresh scheduled)"',
         "start": str(int((time.time() - 900) * 1e9)), "end": str(int(time.time() * 1e9)), "limit": "300", "direction": "backward"}
     sample = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)))
     if request_ids:
@@ -175,7 +202,7 @@ def main():
         parser.error("at most eight fixed 16-character lower-hex request IDs")
     receipt = {"issue": 1505, "utc": datetime.now(timezone.utc).isoformat(), "read_only": True,
         "read_budget": NATIVE_READ_BUDGET,
-        "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed enums and bounded producer-read timings; no log bodies, actors or endpoints exported; LCD-future polling does not prove a wire attempt and pattern counts do not prove causality"}
+        "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed enums and bounded producer-read/alternative-admission diagnostics; no log bodies, actors or endpoints exported; LCD-future polling does not prove a wire attempt and pattern counts do not prove causality"}
     try:
         receipt.update(collect(MONITORING.Monitor(read_budget=NATIVE_READ_BUDGET), args.request_id))
         receipt["overall"] = "PASS WITH SKIPS" if receipt["prometheus"]["status"] == "SKIP" else "PASS"

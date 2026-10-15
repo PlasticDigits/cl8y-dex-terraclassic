@@ -101,7 +101,7 @@ else
   [[ "$FAIL" -eq 1 && "$PASS" -eq 0 && "$seen" -eq "$FAIL_AT" ]]
 fi
 """
-            for group, total in (("rust", 8), ("sockets", 2), ("qa", 3)):
+            for group, total in (("rust", 11), ("sockets", 2), ("qa", 3)):
                 for failure in range(total + 1):
                     with self.subTest(group=group, failure=failure):
                         env = {"PATH": os.environ["PATH"], "GROUP": group,
@@ -245,6 +245,48 @@ fi
         self.assertEqual(result["producer_read_witnesses"][0]["slot"], "uluna_mapping")
         self.assertNotIn("do-not-export", json.dumps(result))
         payload["data"]["result"][0]["values"].append(["1", line])
+        with self.assertRaises(ValueError):
+            MONITOR.sample_summary(payload)
+
+    def test_scheduled_alternative_witnesses_keep_only_bounded_fixed_fields(self):
+        line = ('LCD scheduled alternatives deferred phase="data" reason="capacity" '
+                'attempt_count=1 unattempted_capacity_count=2 original_remaining_ms=30000 '
+                'actor=do-not-export endpoint=https://private.invalid/body')
+        row = MONITOR.scheduled_alternative_witness(line, "1792096605480000000")
+        self.assertEqual(row, {"phase": "data", "reason": "capacity", "attempt_count": 1,
+                              "unattempted_capacity_count": 2, "original_remaining_ms": 30000,
+                              "sample_timestamp_ms": 1792096605480})
+        self.assertEqual(MONITOR.scheduled_alternative_witness(line.replace(
+            'original_remaining_ms=30000', 'original_remaining_ms=0'))['original_remaining_ms'], 0)
+        self.assertNotIn("do-not-export", json.dumps(row))
+        self.assertNotIn("private.invalid", json.dumps(row))
+        for bad in (line.replace('phase="data"', 'phase="private"'),
+                    line.replace('reason="capacity"', 'reason="provider_unavailable"'),
+                    line.replace('attempt_count=1', 'attempt_count=0'),
+                    line.replace('attempt_count=1', 'attempt_count=9'),
+                    line.replace('unattempted_capacity_count=2', 'unattempted_capacity_count=0'),
+                    line.replace('unattempted_capacity_count=2', 'unattempted_capacity_count=32'),
+                    line.replace('attempt_count=1 unattempted_capacity_count=2',
+                                 'attempt_count=8 unattempted_capacity_count=25'),
+                    line.replace('original_remaining_ms=30000', 'original_remaining_ms=30001'),
+                    line.replace('original_remaining_ms=30000', 'original_remaining_ms=-1'),
+                    line.replace('original_remaining_ms=30000 ', ''),
+                    line + ' attempt_count=1'):
+            with self.subTest(bad=bad):
+                self.assertIsNone(MONITOR.scheduled_alternative_witness(bad))
+
+    def test_scheduled_alternative_samples_keep_existing_three_hundred_line_bound(self):
+        line = ('LCD scheduled alternatives deferred phase="data" reason="capacity" '
+                'attempt_count=8 unattempted_capacity_count=24 original_remaining_ms=42 '
+                'actor=do-not-export')
+        payload = {"status": "success", "data": {"resultType": "streams", "result": [
+            {"stream": {"actor": "do-not-export"}, "values": [["1792096605480000000", line]] * 300}]}}
+        result = MONITOR.sample_summary(payload)
+        self.assertEqual(result['bounded_sample_lines'], 300)
+        self.assertEqual(len(result['scheduled_alternative_witnesses']), 300)
+        self.assertEqual(result['producer_read_witnesses'], [])
+        self.assertNotIn('do-not-export', json.dumps(result))
+        payload['data']['result'][0]['values'].append(['1', line])
         with self.assertRaises(ValueError):
             MONITOR.sample_summary(payload)
 
