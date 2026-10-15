@@ -1,0 +1,98 @@
+{
+  "date_utc": "2026-10-15",
+  "consolidated_revision_before_final_receipt": "1645fcbc7f3aa3585865a96deb4bb90582d09888",
+  "ci": "Skipped by explicit request",
+  "checks": [
+    {
+      "command": "cargo test --locked --manifest-path smartcontracts/Cargo.toml --workspace",
+      "log_file": "dex-merge-contract-tests.log",
+      "log_sha256": "2d467f8fa2b4e2db00e0fd0013bbda6028757fabe3d35cc7b09811c625a1bf8c",
+      "tests_passed": 999,
+      "tests_failed": 0,
+      "tests_ignored": 0
+    },
+    {
+      "command": "cargo test --locked --manifest-path indexer/Cargo.toml --lib -- --test-threads=4",
+      "log_file": "dex-merge-indexer-tests.log",
+      "log_sha256": "dd0864fc20ef8b3ae279c702f820e785fadb4dc4443cadead16be615cdf58fc8",
+      "tests_passed": 839,
+      "tests_failed": 0,
+      "tests_ignored": 1
+    },
+    {
+      "command": "Pinned Go 1.27 container: go version, go test ./..., go build",
+      "log_file": "dex-merge-go-tests.log",
+      "log_sha256": "6ce13f74615914917f202ca3669bc2225172b8d126f3f5a7d30e96ed13955a35",
+      "summary": "Pinned image manifest, policy tests and build passed"
+    },
+    {
+      "command": "node --test browser lifecycle/attribution/discovery helper suites",
+      "log_file": "dex-browser-sanity.log",
+      "log_sha256": "7cbc59571c7ad8eb591d180dbde9c7b901c39247df1c78384e2125aa32f2d038",
+      "summary": "29 passed; 0 failed"
+    },
+    {
+      "command": "make verify-issue-1489 (original stale QA endpoint)",
+      "log_file": "dex-merge-verify-1489.log",
+      "log_sha256": "cff20c05f1e69ba3d907afb7f1a043a5a4d769c042cecdcc80c90cbbddd3bbcc",
+      "summary": "Overall: FAIL; passed=18 failed=2 skipped=2",
+      "source_fingerprint": "1f1aa69530cb764fe215c1279ce4eda6e749303431ec70a0af1054eaacf17ae3"
+    },
+    {
+      "command": "make verify-issue-1483 (first attempt with stale QA endpoint)",
+      "log_file": "dex-merge-verify-1483.log",
+      "log_sha256": "065999f8fc1d6216c02283245c947fb03a44bc39c13e3fbdaf1aae711de130c7",
+      "summary": "Overall: FAIL; passed=20 failed=1 skipped=2",
+      "source_fingerprint": "461089308d1eb16413079bbfa667d366a84c52d13c4f89a095c28c2cc625e8b3"
+    },
+    {
+      "command": "make verify-issue-1489 (fresh owned QA database)",
+      "log_file": "dex-merge-verify-1489-owned.log",
+      "log_sha256": "e46c6dbf229ec39ab2f51ba7003c21e50215f8a57efe575739081c28642c4ecf",
+      "summary": "Overall: PASS WITH SKIPS; passed=20 failed=0 skipped=2",
+      "source_fingerprint": "1f1aa69530cb764fe215c1279ce4eda6e749303431ec70a0af1054eaacf17ae3"
+    },
+    {
+      "command": "make verify-issue-1483 (fresh owned QA database)",
+      "log_file": "dex-merge-verify-1483-owned.log",
+      "log_sha256": "fafcfd282745cc073288cc420779d245445c16efcb938cb6118bb95160448460",
+      "summary": "Overall: PASS WITH SKIPS; passed=21 failed=0 skipped=2",
+      "source_fingerprint": "461089308d1eb16413079bbfa667d366a84c52d13c4f89a095c28c2cc625e8b3"
+    }
+  ],
+  "retained_failures": [
+    {
+      "check": "Original schemars 0.9 update",
+      "result": "FAIL: locked build requires lockfile update; unlocked build fails E0277 for incompatible JsonSchema traits.",
+      "resolution": "Keep compatible 0.8.22, restrict Renovate, track coordinated implementation in #1508."
+    },
+    {
+      "check": "Original disposable-database verifier attempts",
+      "result": "FAIL: old QA endpoint produced PoolTimedOut. Executed failures are retained as FAIL.",
+      "resolution": "Provisioned a fresh, loopback-only owned PostgreSQL instance; each integration process owns a separate database."
+    },
+    {
+      "check": "Initial staged archive scan",
+      "result": "FAIL: five generic-api-key findings for historical artifact/source paths associated with SHA-256 values.",
+      "resolution": "Separated paths and hashes using public-evidence conventions; values retained and the corrected scan passed."
+    }
+  ],
+  "cleanup": {
+    "auxiliary_worktrees_removed": 17,
+    "merged_local_branches_removed": 26,
+    "merged_origin_branches_removed": 30,
+    "incorporated_stashes_removed": 1,
+    "open_pr_count": 0,
+    "original_branch_protections_restored": true
+  },
+  "remaining_implementation": "#1508: coordinated schema stack migration; #1314 dashboard remains open for unrelated pending updates.",
+  "scope": "Local source and owned fixture behavior only; explicit deployed/funded/physical skips do not imply acceptance.",
+  "owned_qa_fixture": {
+    "container_image_id": "sha256:108b27c919e6e7bc124350fb265deea9adac58e118eade428c6d1ad44b90debe",
+    "host_binding": "IPv4 loopback only",
+    "process_databases": "Separate marked database per integration process",
+    "container_and_anonymous_volume_removed": true,
+    "temporary_private_env_removed": true,
+    "shared_or_production_database_reset": false
+  }
+}

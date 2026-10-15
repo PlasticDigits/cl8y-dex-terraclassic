@@ -38,3 +38,45 @@ reconciled while retaining the current policies and issue crosslinks.
 
 These results establish local source behavior. They do not establish deployment,
 production settlement, or completion of unrelated live follow-up issues.
+
+## Cleanup
+
+All ten listed PRs were merged through `fj`; no open PR remained in the final
+inventory. After fetching both remotes and pulling origin main, the remaining
+local history was merged and pushed. Removed 30 merged origin branches, 26
+merged local branches, 17 auxiliary worktrees and the incorporated stash. Only
+local main and the primary worktree remain. The GitLab main reference was
+fetched and is already contained in origin main.
+
+Before removing worktrees, private env files, generated contract artifacts,
+reports, original uncommitted files and the stash patch were saved under a
+mode-0700 recovery directory in `~/.local/state/cl8y-dex-reconcile/` (archive
+files mode 0600). No private configuration was committed. Remote branch deletion
+used exact-head leases and excluded main and open-PR branches.
+
+Main rejected the initial direct push under its existing protection. The
+consolidation push temporarily allowed only PlasticDigits, then restored the
+original push restriction. Status and outdated-branch settings were also
+restored; protection changes were temporary.
+
+## Extended verification
+
+- `make verify-issue-1489`: **20 PASS, 0 FAIL, 2 SKIP**. Each round includes
+  30 focused library controls, one disposable-database socket test and 335
+  frontend tests.
+- `make verify-issue-1483`: **21 PASS, 0 FAIL, 2 SKIP**. Each round includes
+  nine focused library controls, two disposable-database socket tests and 323
+  frontend tests.
+
+The original attempts retain **FAIL** results: #1489 had 18 PASS / 2 FAIL /
+2 SKIP; #1483 had 20 PASS / 1 FAIL / 2 SKIP. Both failures were unavailable old
+QA database connections (`PoolTimedOut`), before product assertions ran. Fresh
+owned PostgreSQL and per-process child databases resolved the setup problem;
+complete reruns above passed without changing product code or budgets. The
+owned container, its anonymous volume and temporary private env were removed.
+
+The [verification receipt](verification.json) records commands, source
+fingerprints, original failures, corrected results and log checksums. Raw logs
+and private recovery files remain outside Git. Live deployment, funded scope
+and physical acceptance remain explicit skips; the skips do not block this
+merge close-out or establish acceptance.
