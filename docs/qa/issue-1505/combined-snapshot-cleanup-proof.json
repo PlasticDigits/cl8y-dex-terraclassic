@@ -1,0 +1,223 @@
+{
+  "source_sha256": {
+    "indexer/src/indexer/book_snapshot.rs": "d118a7312b0b1ff6bb09010a37a8e3d9d079847f93215a89cf483c20383807fa",
+    "indexer/tests/book_snapshot_loop.rs": "e34b0e2d7a993fdcb94924841baab056b1c1b6c2f2c1ad18ab7e20bdb05a183e"
+  },
+  "original_book_sha256": "ca1ecd154f5b61ab854eb37a60ed36cc3af0429ec79094ccd54403d007ca68a7",
+  "original_runtime_sha256": "fb3e09665a2deb6583cb4ffe734c8569973c7311ab98b0c53ef42329abc8ffad",
+  "historical_height699_phase": "unknown; retained, not reclassified",
+  "proven_defect": "Combined caller returned before queued rollback released advisory locks, allowing a sequential pass to coalesce without provider reads. Normal, partial denial and SQL error paths demonstrated.",
+  "schema_mutation": false,
+  "original_error_control": "connection-local search_path only; original 42P01 preserved",
+  "limits_ms": {
+    "attempt": 100,
+    "lcd_total": 400,
+    "height": 400,
+    "pair": 400
+  },
+  "runs": [
+    {
+      "verdict": "FAIL quiet original; unknown phase",
+      "sha256": "257f8c5ca97a27fb3c52942dfd7749951cec146bbf5a3da74cac7deb92bd2714",
+      "summary": [
+        "test result: FAILED. 21 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.72s"
+      ],
+      "log_basename": "dex-1505-head-restored-book-first.log",
+      "control_results": []
+    },
+    {
+      "verdict": "PASS spy diagnostic; not resolution",
+      "sha256": "fafa5f567ff3373adb324bb8666259cc62461ebc106794a598586f6bc4b1a9b9",
+      "summary": [
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.64s"
+      ],
+      "log_basename": "dex-1505-head-diagnostic-full.log",
+      "control_results": []
+    },
+    {
+      "verdict": "PASS post-only diagnostic; not resolution",
+      "sha256": "fb43e8a2739b6d529199ab01903706569fd19f0268e02b2569d4347b80bf32c8",
+      "summary": [
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.21s"
+      ],
+      "log_basename": "dex-1505-head-post-diagnostic-full.log",
+      "control_results": []
+    },
+    {
+      "verdict": "FAIL deterministic old controls",
+      "sha256": "e7f1b71f34c69eb0224ae14a708077b740b2cb111ada0b3f8eb444b547d8975b",
+      "summary": [
+        "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 22 filtered out; finished in 3.16s"
+      ],
+      "log_basename": "dex-1505-combined-old-control.log",
+      "control_results": [
+        {
+          "case": "original_sql_error",
+          "attempts": 0,
+          "queued_rollbacks": 1,
+          "probe_can_acquire_keys_1_2": [
+            false,
+            false
+          ]
+        },
+        {
+          "case": "normal",
+          "first_attempts": 10,
+          "second_attempts": 10,
+          "queued_rollbacks": 2,
+          "probe_can_acquire_keys_1_2": [
+            false,
+            false
+          ]
+        },
+        {
+          "case": "partial_denial",
+          "attempts": 0,
+          "queued_rollbacks": 1,
+          "probe_can_acquire_keys_1_2": [
+            false,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "verdict": "PASS fixed first",
+      "sha256": "06d37283ed855dec2c1d0396e6f8a58920148e5c567d338021f6f03bb5ae9c86",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 2.85s"
+      ],
+      "log_basename": "dex-1505-combined-first.log",
+      "control_results": [
+        {
+          "case": "original_sql_error",
+          "attempts": 0,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            true
+          ]
+        },
+        {
+          "case": "normal",
+          "first_attempts": 10,
+          "second_attempts": 19,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            true
+          ]
+        },
+        {
+          "case": "partial_denial",
+          "attempts": 0,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "verdict": "PASS fixed retest",
+      "sha256": "f7435fadafe9eb44045c492b9a641b76fba07953d2514a40d318f6dc7d8c8498",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 2.51s"
+      ],
+      "log_basename": "dex-1505-combined-retest.log",
+      "control_results": [
+        {
+          "case": "original_sql_error",
+          "attempts": 0,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            true
+          ]
+        },
+        {
+          "case": "normal",
+          "first_attempts": 10,
+          "second_attempts": 19,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            true
+          ]
+        },
+        {
+          "case": "partial_denial",
+          "attempts": 0,
+          "queued_rollbacks": 0,
+          "probe_can_acquire_keys_1_2": [
+            true,
+            false
+          ]
+        }
+      ]
+    },
+    {
+      "verdict": "PASS final source",
+      "name": "book-first",
+      "sha256": "0a9a4145b6bf57967dc1a8e87c2de1958f8201da95f26351dc0c2bd3a5f6659b",
+      "summary": [
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.81s"
+      ],
+      "maximum_profile_pass": false,
+      "log_basename": "dex-1505-combined-book-first.log",
+      "control_results": []
+    },
+    {
+      "verdict": "PASS final source",
+      "name": "book-retest",
+      "sha256": "ba3dc0f440c93fb46e2228ee179264826c709880cf7d3b121a899e80c2826fe4",
+      "summary": [
+        "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.64s"
+      ],
+      "maximum_profile_pass": false,
+      "log_basename": "dex-1505-combined-book-retest.log",
+      "control_results": []
+    },
+    {
+      "verdict": "PASS final source",
+      "name": "lib-first",
+      "sha256": "17d00ed3cb5a0d37718e898ad09ecbc05c023793614656f059f0af3d9d236caa",
+      "summary": [
+        "test result: ok. 877 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 19.71s"
+      ],
+      "maximum_profile_pass": true,
+      "log_basename": "dex-1505-combined-lib-first.log",
+      "control_results": []
+    },
+    {
+      "verdict": "PASS final source",
+      "name": "lib-retest",
+      "sha256": "ac2396fb54fa19f098322206d1bb5cb513164b1320501cf3dc25a0843e6d1abc",
+      "summary": [
+        "test result: ok. 877 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 19.09s"
+      ],
+      "maximum_profile_pass": true,
+      "log_basename": "dex-1505-combined-lib-retest.log",
+      "control_results": []
+    }
+  ],
+  "final_source_sha256": {
+    "indexer/src/lcd/mod.rs": "2ec8900d77cea0dbcf7ec62ac4ea2e7c80df56986f7aefc311f5a65939fde9c9",
+    "indexer/src/lcd/chain_identity.rs": "a3802a6d9924da8f5fb94a0aa06500fd9ff50d9fdfd4348f2ce665279fa548d5",
+    "indexer/src/lcd/deferred_recovery_tests.rs": "37c3b86f67ee2d8414f4b5d98f82e83c752d10405f9c3083881df9c0de5bcaf5",
+    "indexer/src/api/local_wrapper_quote.rs": "774059ac8b9f352b87f347c37498c57fcab621eaf62158538225bd75c5a2a1ce",
+    "indexer/src/api/local_quote.rs": "55a4d5746324fbcc7f3981ae9cc9c1e4b315c4b06babe99739f77605b9b06d30",
+    "indexer/src/api/local_quote/ingestion.rs": "e4fc9e8e7293a52d11cd1e8949dff2cd4188dfc0d42d616b7bd4681dd184b77f",
+    "indexer/src/indexer/book_snapshot.rs": "d118a7312b0b1ff6bb09010a37a8e3d9d079847f93215a89cf483c20383807fa",
+    "indexer/tests/book_snapshot_loop.rs": "e34b0e2d7a993fdcb94924841baab056b1c1b6c2f2c1ad18ab7e20bdb05a183e"
+  },
+  "verification_environment": {
+    "jobs": 2,
+    "stack_env": "unset",
+    "library_thread_env": "unset; default parallel harness",
+    "book_threads": 1,
+    "owned_QA": "fresh reset before final full sequence"
+  },
+  "issue": 1505
+}

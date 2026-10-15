@@ -1,0 +1,38 @@
+{
+  "issue": 1505,
+  "status": "INTERRUPTED for independent review fix",
+  "reason": "Identity timeout metadata cleanup could outlive the original total deadline. No assertion failed in this interrupted compatibility wave. Subsequent source changes need their own verification.",
+  "application_fingerprint_before_review": "ef2341430e7e2d6e8d00d82fafc26bb0242cace4a998d3b07e77fe9b4a043638",
+  "stages": [
+    {
+      "stage": "1396",
+      "command": [
+        "make",
+        "verify-issue-1396"
+      ],
+      "started": "2026-10-15T16:55:03.089888+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1396-release5-final-hostscope.log",
+      "exit_code": 0,
+      "finished": "2026-10-15T17:00:07.487476+00:00",
+      "log_sha256": "8afa2f7cabc719820ae080611aaee11682ac60d672bba33d98e2fcfa44e48c41"
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-15T17:00:07.488063+00:00",
+      "status": "INTERRUPTED",
+      "log_basename": "verify-1452-release5-final-hostscope.log",
+      "reason": "Independent review found unbounded identity timeout metadata cleanup; stop before source change.",
+      "log_sha256": "b6282335a18f44d68b0446f5d55fbd0b8b93f296ac9c8188f37a00699ef3904a"
+    }
+  ],
+  "scope_skips": [
+    "1396 default Docker bridge published-host positive query unavailable; internal/peer/host-mode/ACL checks passed.",
+    "1396 host IPv6 query unavailable because the host kernel disables loopback IPv6."
+  ],
+  "superseded_source": true
+}

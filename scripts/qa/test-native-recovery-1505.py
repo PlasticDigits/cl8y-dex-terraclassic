@@ -4,6 +4,10 @@ import copy
 import importlib.util
 import json
 import re
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -22,6 +26,41 @@ FIXTURES = module("quote_fixtures", "test-probe-issue-1473.py")
 
 
 class Tests(unittest.TestCase):
+    def test_verifier_cannot_mask_an_earlier_nested_command_failure(self):
+        root = Path(__file__).resolve().parents[2]
+        prefix = (root / "scripts/verify-issue-1505.sh").read_text().split("\nstart\n", 1)[0]
+        with tempfile.TemporaryDirectory(prefix="native-verifier-status-") as temporary:
+            fixture = Path(temporary)
+            (fixture / "scripts/qa").mkdir(parents=True)
+            script = fixture / "scripts/verify-issue-1505.sh"
+            script.write_text(prefix)
+            shutil.copyfile(root / "scripts/qa/verify-followup-common.sh", fixture / "scripts/qa/verify-followup-common.sh")
+            # Shell functions replace every executable: no Cargo, Node, Python
+            # probe, database connection or private env file is used.
+            control = r"""
+source "$1"
+seen=0
+command_stub() { seen=$((seen+1)); [[ "$seen" -ne "$FAIL_AT" ]]; }
+cargo() { command_stub; }
+node() { command_stub; }
+python3() { command_stub; }
+run injected "$GROUP"
+if [[ "$FAIL_AT" -eq 0 ]]; then
+  [[ "$FAIL" -eq 0 && "$PASS" -eq 1 && "$seen" -eq "$TOTAL" ]]
+else
+  [[ "$FAIL" -eq 1 && "$PASS" -eq 0 && "$seen" -eq "$FAIL_AT" ]]
+fi
+"""
+            for group, total in (("rust", 8), ("sockets", 2), ("qa", 2)):
+                for failure in range(total + 1):
+                    with self.subTest(group=group, failure=failure):
+                        env = {"PATH": os.environ["PATH"], "GROUP": group,
+                               "FAIL_AT": str(failure), "TOTAL": str(total),
+                               "TEST_DATABASE_ADMIN_URL": "postgres://unused"}
+                        result = subprocess.run(["bash", "-c", control, "status-control", str(script)],
+                                                cwd=fixture, env=env, capture_output=True, text=True, timeout=5)
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_original_expiry_and_request_id_are_independent_requirements(self):
         case, body = FIXTURES.Tests.executable_fixture()
         seen = set()
@@ -78,9 +117,10 @@ class Tests(unittest.TestCase):
             ["1", '\x1b[32mphase\x1b[0m="denom_mapping" reason="capacity" direction="native_input" request_id=0000000000000001 private=https://private.invalid/actor'],
             ["2", 'phase="private_phase" reason="private_reason" request_id=0000000000000002'],
             ["3", 'phase="output" reason="deadline"'],
+            ["4", 'LCD scheduled admission deferred phase="identity" reason="circuit_open" attempts=0 private=https://private.invalid/actor'],
         ]}]}}
         result = MONITOR.sample_summary(payload, ["0000000000000001"])
-        self.assertEqual(result["typed_fields"], {"phase": {"denom_mapping": 1, "output": 1}, "reason": {"capacity": 1, "deadline": 1}, "direction": {"native_input": 1}})
+        self.assertEqual(result["typed_fields"], {"phase": {"denom_mapping": 1, "output": 1, "identity": 1}, "reason": {"capacity": 1, "deadline": 1, "circuit_open": 1}, "direction": {"native_input": 1}})
         self.assertEqual(result["request_correlation"], {"0000000000000001": 1})
         self.assertNotIn("private", json.dumps(result))
         payload["data"]["result"][0]["values"] *= 101

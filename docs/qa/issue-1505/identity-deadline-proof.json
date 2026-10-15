@@ -1,0 +1,71 @@
+{
+  "scope": [
+    "indexer/src/lcd/chain_identity.rs",
+    "indexer/src/lcd/deferred_recovery_tests.rs"
+  ],
+  "source_sha256": {
+    "indexer/src/lcd/chain_identity.rs": "7bbfaece88a025b3ff931d6cff4ef6ad45496a2372bdf6b32e227cfea7b11c65",
+    "indexer/src/lcd/deferred_recovery_tests.rs": "a43ff7dba5caaf181b27e93f54f6c3005f330fdbcb014343d98e084c9528057e"
+  },
+  "previous_identity_sha256": "a3802a6d9924da8f5fb94a0aa06500fd9ff50d9fdfd4348f2ce665279fa548d5",
+  "cargo_build_jobs": 2,
+  "rust_min_stack": "unset",
+  "rust_test_threads": "unset; default parallel harness",
+  "test_policy_ms": {
+    "attempt": 100,
+    "original_total": 400,
+    "observation_guard": 500,
+    "blocked_accounting_sample": 150
+  },
+  "interpretation": "Old call remained pending past its original total deadline. Fixed call records failure before bounded metadata cleanup; cancellation cannot double-count. Deadline completion is checked only in uncancelled cases; cancelled cases check immediate/exactly-once accounting. Cached verified metadata cannot authorize a later identity call or new HTTP.",
+  "runs": [
+    {
+      "name": "old-control",
+      "verdict": "FAIL original boundary",
+      "command": "cargo test --locked --lib issue1505_identity_timeout_cleanup_retains_original_total_deadline -- --nocapture",
+      "sha256": "f850d716bdf698a068f525b046438cc43e78173edbcf7fe2886d3726f3342e6c",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 879 filtered out; finished in 0.57s"
+      ],
+      "controls": [
+        "identity_timeout_cleanup half_open=false cancelled=false bounded=false early_failures=0 final_failures=1 attempts=1 wire_reads=1"
+      ],
+      "log_basename": "dex-1505-identity-cleanup-old-control.log"
+    },
+    {
+      "name": "lcd-first",
+      "verdict": "PASS fixed first",
+      "command": "cargo test --locked --lib lcd:: -- --nocapture",
+      "sha256": "572b699c3e65ddda117929bc13b9090ffda7a94df610d05fc35283facf2e1ec4",
+      "summary": [
+        "test result: ok. 108 passed; 0 failed; 1 ignored; 0 measured; 771 filtered out; finished in 12.42s"
+      ],
+      "controls": [
+        "identity_timeout_cleanup half_open=false cancelled=true bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=false cancelled=false bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=true cancelled=true bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=true cancelled=false bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1"
+      ],
+      "log_basename": "dex-1505-identity-cleanup-lcd-first.log"
+    },
+    {
+      "name": "lcd-retest",
+      "verdict": "PASS fixed retest",
+      "command": "cargo test --locked --lib lcd:: -- --nocapture",
+      "sha256": "2d79301456d592c6291b8e2dcd46907e40c40b3d8bd2a13d7ccb06a2d66ee5b6",
+      "summary": [
+        "test result: ok. 108 passed; 0 failed; 1 ignored; 0 measured; 771 filtered out; finished in 12.55s"
+      ],
+      "controls": [
+        "identity_timeout_cleanup half_open=false cancelled=true bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=false cancelled=false bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=true cancelled=true bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1",
+        "identity_timeout_cleanup half_open=true cancelled=false bounded=true early_failures=1 final_failures=1 attempts=1 wire_reads=1"
+      ],
+      "log_basename": "dex-1505-identity-cleanup-lcd-retest.log"
+    }
+  ],
+  "issue": 1505,
+  "independent_review": "PASS; no findings; exact source hashes reviewed read-only.",
+  "upstream_manifest_sha256": "73c967a8854ade40d66d5925f6557aad622aab839e17a01b76a5ba7890c57b05"
+}

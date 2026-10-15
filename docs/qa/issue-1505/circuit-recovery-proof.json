@@ -1,0 +1,67 @@
+{
+  "module": "lcd::deferred_recovery_tests",
+  "source_sha256": {
+    "src/lcd/mod.rs": "2ec8900d77cea0dbcf7ec62ac4ea2e7c80df56986f7aefc311f5a65939fde9c9",
+    "src/lcd/chain_identity.rs": "a3802a6d9924da8f5fb94a0aa06500fd9ff50d9fdfd4348f2ce665279fa548d5",
+    "src/lcd/deferred_recovery_tests.rs": "37c3b86f67ee2d8414f4b5d98f82e83c752d10405f9c3083881df9c0de5bcaf5"
+  },
+  "jobs": 2,
+  "runs": [
+    {
+      "name": "old-control",
+      "verdict": "FAIL control",
+      "sha256": "d32fa843302aaea1898c8444db5b1c0f7c5ab02210d81a06ce4f3e323bed789b",
+      "summary": [
+        "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 863 filtered out; finished in 0.07s"
+      ],
+      "log_basename": "dex-1505-circuit-old-control.log"
+    },
+    {
+      "name": "first",
+      "verdict": "FAIL duplicate-URL fixture",
+      "sha256": "5740fd6019dd6c115e98ae88a7365a1f32c9428df15eb70bb67b2347cbbe821d",
+      "summary": [
+        "test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 855 filtered out; finished in 1.10s"
+      ],
+      "log_basename": "dex-1505-circuit-first.log"
+    },
+    {
+      "name": "final-first",
+      "verdict": "FAIL mock priority fixture",
+      "sha256": "c71df736ef79ca79ce2a290c1c430db686c6acfd077e09bf5ac0eac80f9089d6",
+      "summary": [
+        "test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 863 filtered out; finished in 1.12s"
+      ],
+      "log_basename": "dex-1505-circuit-final-first.log"
+    },
+    {
+      "name": "final2-first",
+      "verdict": "PASS mock reset",
+      "sha256": "c8d16d009e43ea84b75b627ff787946823c844214f9f18e803d0f4572fe87cea",
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 863 filtered out; finished in 1.18s"
+      ],
+      "log_basename": "dex-1505-circuit-final2-first.log"
+    },
+    {
+      "name": "final3-first",
+      "verdict": "PASS final source",
+      "sha256": "b68773c5d05e559aff561de04e166caf0c4e5946f46664fd86ae7db64408a4f1",
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 863 filtered out; finished in 1.09s"
+      ],
+      "log_basename": "dex-1505-circuit-final3-first.log"
+    },
+    {
+      "name": "final3-retest",
+      "verdict": "PASS final source",
+      "sha256": "b0107d381124a1d2ae0ffbe1243b94b40b48d04937e74abcd6e3a7511a318477",
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 863 filtered out; finished in 1.19s"
+      ],
+      "log_basename": "dex-1505-circuit-final3-retest.log"
+    }
+  ],
+  "issue": 1505,
+  "scope": "Controlled scheduled-ingestion LCD source evidence; no deployed acceptance or provider limits changed"
+}

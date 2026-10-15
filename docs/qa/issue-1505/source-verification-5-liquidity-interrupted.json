@@ -1,0 +1,43 @@
+{
+  "status": "INTERRUPTED_BY_PARENT_AFTER_SEPARATE_EXECUTED_FAILURE",
+  "parent_failure": "1392 first integration book failed: issue_1453_third_provider_recovers_known_height_within_head_budget, expected700 got699",
+  "log_sha256": "2d22ca4fd390df31eb953f9b7dbbe9d9526c8b7c781bebd6968eeec9ce8600a2",
+  "bytes": 1076350,
+  "rust_source_fingerprint_before": "a4476f9f1edc71c0fcd5f4aa1faadfef5ece99a573e846ab287ec69fecca1595",
+  "rust_source_fingerprint_after_stop": "a4476f9f1edc71c0fcd5f4aa1faadfef5ece99a573e846ab287ec69fecca1595",
+  "completed_rust_summaries": [
+    "test result: ok. 106 passed; 0 failed; 1 ignored; 0 measured; 771 filtered out; finished in 12.40s",
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 0.00s",
+    "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 870 filtered out; finished in 4.18s",
+    "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 858 filtered out; finished in 0.00s",
+    "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 872 filtered out; finished in 0.00s",
+    "test result: ok. 30 passed; 0 failed; 1 ignored; 0 measured; 847 filtered out; finished in 0.87s",
+    "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.89s",
+    "test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.64s",
+    "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.87s",
+    "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.60s",
+    "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.36s",
+    "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.76s",
+    "test result: ok. 106 passed; 0 failed; 1 ignored; 0 measured; 771 filtered out; finished in 12.21s",
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 0.00s",
+    "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 870 filtered out; finished in 4.14s",
+    "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 858 filtered out; finished in 0.00s",
+    "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 872 filtered out; finished in 0.00s",
+    "test result: ok. 30 passed; 0 failed; 1 ignored; 0 measured; 847 filtered out; finished in 0.96s",
+    "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 47.26s",
+    "test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.25s",
+    "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.07s",
+    "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.63s",
+    "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.83s",
+    "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.00s"
+  ],
+  "last_stage": [
+    "desktop/phone mocked outage and recovery"
+  ],
+  "controlled_browser_started": true,
+  "controlled_browser_finished": false,
+  "no_1464_started": true,
+  "owned_process_tree_stopped": true,
+  "remaining_live_owned_processes": 0,
+  "retry": false
+}

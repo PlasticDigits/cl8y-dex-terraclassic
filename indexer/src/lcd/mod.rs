@@ -96,6 +96,35 @@ pub enum LcdError {
     Base64(String),
 }
 
+/// Local scheduling evidence, separate from public error semantics. A deferred
+/// scan made no provider attempt and owns no provider/lane permit while waiting.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ScanDeferral {
+    Capacity,
+    Circuit,
+}
+struct ScanOutcome<T> {
+    result: Result<T, LcdError>,
+    attempts: usize,
+    deferral: Option<ScanDeferral>,
+}
+impl<T> ScanOutcome<T> {
+    fn completed(result: Result<T, LcdError>, attempts: usize) -> Self {
+        Self {
+            result,
+            attempts,
+            deferral: None,
+        }
+    }
+    fn deferred(error: LcdError, deferral: ScanDeferral) -> Self {
+        Self {
+            result: Err(error),
+            attempts: 0,
+            deferral: Some(deferral),
+        }
+    }
+}
+
 /// Preserve already observed typed integrity evidence before async metadata
 /// cleanup. Transport errors deliberately remain availability, not integrity.
 fn record_integrity_evidence(
@@ -413,41 +442,69 @@ impl LcdClient {
         if self.ingestion_budget.is_some() {
             constraints.max_bytes = Some(constraints.max_bytes.unwrap_or(65_536).min(65_536));
         }
+        let deadline = tokio::time::Instant::now()
+            + Duration::from_millis(self.inner.provider_policy.deadline_ms);
         let attempted = AtomicUsize::new(0);
         let integrity_error = std::sync::Mutex::new(None);
-        tokio::time::timeout(
-            Duration::from_millis(self.inner.provider_policy.deadline_ms),
-            async {
-                loop {
-                    let result = self
-                        .get_bounded_attempts(path, constraints, &attempted, &integrity_error)
-                        .await;
-                    if self.ingestion_budget.is_some()
-                        && attempted.load(Ordering::Relaxed) == 0
-                        && matches!(&result, Err(LcdError::AdmissionDeferred))
-                    {
-                        // Full-scan zero-attempt capacity denial only. All scan-owned
-                        // permits were dropped before this caller-owned wait; the
-                        // existing outer deadline also bounds every subsequent scan.
-                        tokio::time::sleep(Duration::from_millis(50)).await;
-                        continue;
-                    }
-                    return result;
-                }
-            },
-        )
-        .await
-        .unwrap_or_else(|_| {
+        let deferred_error = std::sync::Mutex::new(None);
+        let deadline_result = || {
             if let Some(error) = integrity_error.lock().unwrap().take() {
                 Err(error)
             } else if attempted.load(Ordering::Relaxed) == 0 {
-                Err(LcdError::AdmissionDeferred)
+                Err(deferred_error
+                    .lock()
+                    .unwrap()
+                    .take()
+                    .unwrap_or(LcdError::AdmissionDeferred))
             } else {
                 Err(LcdError::AllEndpointsFailed(
                     "total deadline exceeded".into(),
                 ))
             }
+        };
+        tokio::time::timeout_at(deadline, async {
+            let mut circuit_logged = false;
+            loop {
+                // Timeout polls its inner future first. Never begin a new scan
+                // after the original budget, even when this task was not polled.
+                if tokio::time::Instant::now() >= deadline {
+                    return deadline_result();
+                }
+                let scan = self
+                    .get_bounded_attempts(path, constraints, &attempted, &integrity_error, deadline)
+                    .await;
+                if self.ingestion_budget.is_some()
+                    && attempted.load(Ordering::Relaxed) == 0
+                    && scan.attempts == 0
+                    && scan.deferral.is_some()
+                {
+                    if scan.deferral == Some(ScanDeferral::Circuit) && !circuit_logged {
+                        tracing::warn!(
+                            phase = "data",
+                            reason = "circuit_open",
+                            attempts = 0,
+                            "LCD scheduled admission deferred"
+                        );
+                        circuit_logged = true;
+                    }
+                    // Retain the public terminal classification at hard expiry.
+                    // Every scan-owned permit was dropped before this owned wait.
+                    *deferred_error.lock().unwrap() = scan.result.err();
+                    tokio::time::sleep(
+                        Duration::from_millis(50)
+                            .min(deadline.saturating_duration_since(tokio::time::Instant::now())),
+                    )
+                    .await;
+                    continue;
+                }
+                if scan.attempts == 0 && tokio::time::Instant::now() >= deadline {
+                    return deadline_result();
+                }
+                return scan.result;
+            }
         })
+        .await
+        .unwrap_or_else(|_| deadline_result())
     }
 
     async fn get_bounded_attempts<T: DeserializeOwned>(
@@ -456,30 +513,51 @@ impl LcdClient {
         constraints: RequestConstraints<'_>,
         attempted: &AtomicUsize,
         integrity_error: &std::sync::Mutex<Option<LcdError>>,
-    ) -> Result<T, LcdError> {
+        deadline: tokio::time::Instant,
+    ) -> ScanOutcome<T> {
         let count = self.inner.endpoints.read().await.len();
         if count == 0 {
-            return Err(LcdError::AllEndpointsFailed(
-                "no endpoints configured".into(),
-            ));
+            return ScanOutcome::completed(
+                Err(LcdError::AllEndpointsFailed(
+                    "no endpoints configured".into(),
+                )),
+                0,
+            );
         }
         let start = self.inner.next_endpoint.fetch_add(1, Ordering::Relaxed) % count;
         let mut attempts = 0;
         let mut errors = Vec::new();
         let mut capacity_deferred = false;
+        let mut deadline_expired = false;
         for offset in 0..count {
             let idx = (start + offset) % count;
             let ep = self.inner.endpoints.read().await[idx].clone();
+            if tokio::time::Instant::now() >= deadline {
+                deadline_expired = true;
+                break;
+            }
             // Background pacing owns only its lane permit. Acquire provider capacity
             // after the wait: queued work must neither starve checkpoint reads nor
             // open a healthy provider's circuit when its caller is cancelled.
             let (_ingestion_permit, admission) =
                 if let Some(budget) = self.ingestion_budget.as_ref() {
-                    let lane = budget.permits.clone().acquire_owned().await.map_err(|_| {
-                        LcdError::AllEndpointsFailed("Ingestion budget closed".into())
-                    })?;
+                    let lane = match budget.permits.clone().acquire_owned().await {
+                        Ok(lane) => lane,
+                        Err(_) => {
+                            return ScanOutcome::completed(
+                                Err(LcdError::AllEndpointsFailed(
+                                    "Ingestion budget closed".into(),
+                                )),
+                                attempts,
+                            )
+                        }
+                    };
                     let mut next = budget.next_request.lock().await;
                     tokio::time::sleep_until(*next).await;
+                    if tokio::time::Instant::now() >= deadline {
+                        deadline_expired = true;
+                        break;
+                    }
                     // No provider permit exists during the pacing await. Serialize
                     // this synchronous admission/charge so only actual attempts
                     // advance the shared rate budget; denied circuits/capacity do
@@ -525,7 +603,7 @@ impl LcdClient {
                     self.inner
                         .next_endpoint
                         .store((idx + 1) % count, Ordering::Relaxed);
-                    return Ok(value);
+                    return ScanOutcome::completed(Ok(value), attempts);
                 }
                 Ok(Ok(EndpointOutcome::BelowMinimum)) => {
                     // Successful chain-attested I/O still proves provider health.
@@ -541,7 +619,7 @@ impl LcdClient {
                     // Deterministic contract outcomes prove provider availability, including recovery.
                     permit.succeeded();
                     self.inner.next_endpoint.store(idx, Ordering::Relaxed);
-                    return Err(error);
+                    return ScanOutcome::completed(Err(error), attempts);
                 }
                 Ok(Err(error @ LcdError::PairResponseMalformed(_))) => {
                     permit.succeeded();
@@ -583,15 +661,31 @@ impl LcdClient {
             }
         }
         if let Some(error) = integrity_error.lock().unwrap().take() {
-            return Err(error);
+            return ScanOutcome::completed(Err(error), attempts);
+        }
+        if deadline_expired {
+            return ScanOutcome::completed(
+                Err(if attempts == 0 {
+                    LcdError::AdmissionDeferred
+                } else {
+                    LcdError::AllEndpointsFailed("total deadline exceeded".into())
+                }),
+                attempts,
+            );
         }
         if attempts == 0 && capacity_deferred {
-            return Err(LcdError::AdmissionDeferred);
+            return ScanOutcome::deferred(LcdError::AdmissionDeferred, ScanDeferral::Capacity);
         }
-        if errors.is_empty() {
-            errors.push("all provider circuits open".into());
+        if attempts == 0 && errors.is_empty() {
+            return ScanOutcome::deferred(
+                LcdError::AllEndpointsFailed("all provider circuits open".into()),
+                ScanDeferral::Circuit,
+            );
         }
-        Err(LcdError::AllEndpointsFailed(errors.join("; ")))
+        ScanOutcome::completed(
+            Err(LcdError::AllEndpointsFailed(errors.join("; "))),
+            attempts,
+        )
     }
 
     async fn query_endpoint<T: DeserializeOwned>(
@@ -3664,6 +3758,9 @@ mod provider_resilience_tests {
         assert_eq!(only_bad.provider_counters().await[0].attempts, 1);
     }
 }
+
+#[cfg(test)]
+mod deferred_recovery_tests;
 
 #[cfg(test)]
 mod local_ingestion_budget_tests {

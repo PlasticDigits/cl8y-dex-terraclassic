@@ -1,0 +1,45 @@
+{
+  "issue": 1505,
+  "scope": "Fake shell functions only; no Rust/Node/Python probes, private env or network",
+  "baseline_revision": "358475f4cf71a3089f88259ee27339850512bacd",
+  "fixed_script_sha256": "270f88ef7797db6e2adfbb23a190551c33d405a78b62775f20691f07b8794a77",
+  "controls": [
+    {
+      "source": "baseline",
+      "group": "rust",
+      "injected_failure_position": 1,
+      "commands_executed": 6,
+      "reported_pass_groups": 1,
+      "reported_fail_groups": 0,
+      "interpretation": "FAIL: earlier command masked"
+    },
+    {
+      "source": "baseline",
+      "group": "qa",
+      "injected_failure_position": 1,
+      "commands_executed": 2,
+      "reported_pass_groups": 1,
+      "reported_fail_groups": 0,
+      "interpretation": "FAIL: earlier command masked"
+    },
+    {
+      "source": "fixed",
+      "group": "rust",
+      "injected_failure_position": 1,
+      "commands_executed": 1,
+      "reported_pass_groups": 0,
+      "reported_fail_groups": 1,
+      "interpretation": "PASS: failure propagated"
+    },
+    {
+      "source": "fixed",
+      "group": "qa",
+      "injected_failure_position": 1,
+      "commands_executed": 1,
+      "reported_pass_groups": 0,
+      "reported_fail_groups": 1,
+      "interpretation": "PASS: failure propagated"
+    }
+  ],
+  "final_regression": "Python native controls pass10 tests; status regression checks every nested position in Rust8,DB2,QA2 plus success"
+}

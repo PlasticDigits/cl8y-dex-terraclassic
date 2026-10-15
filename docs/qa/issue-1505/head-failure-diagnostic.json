@@ -1,0 +1,227 @@
+{
+  "initial_book_sha256": "ca1ecd154f5b61ab854eb37a60ed36cc3af0429ec79094ccd54403d007ca68a7",
+  "restored_book_sha256": "ca1ecd154f5b61ab854eb37a60ed36cc3af0429ec79094ccd54403d007ca68a7",
+  "original_regression": "FAIL; phase unknown; retained by root",
+  "runtime_changed": false,
+  "limits_ms": {
+    "attempt": 100,
+    "lcd_total": 400,
+    "height": 400,
+    "pair": 400,
+    "slow_head": 300
+  },
+  "controlled_healthy_head_stall_ms": 140,
+  "interpretation": "Quiet diagnostic passes; controlled healthy-head overrun reproduces699 with3failedheadattempts andzero poolreads. This does not establish original cause.",
+  "runs": [
+    {
+      "name": "diagnostic-setup-fail",
+      "verdict": "FAIL spy setup; no cycle",
+      "sha256": "ec0d9645829c5fb941b158476fb9a6391b748373f76e99d2653089d32c35429d",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 1.23s"
+      ],
+      "log_basename": "dex-1505-head-diagnostic-setup-fail.log",
+      "bounded_diagnostic": []
+    },
+    {
+      "name": "diagnostic-first",
+      "verdict": "PASS quiet diagnostic; not resolution",
+      "sha256": "73d97fc2f37ae66d11c03bc79ca06f50285f3702aa4c5636f164e5299b8b1331",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.13s"
+      ],
+      "log_basename": "dex-1505-head-diagnostic-first.log",
+      "bounded_diagnostic": [
+        {
+          "elapsed_ms": 283,
+          "raw_height": 700,
+          "hybrid_height": 700,
+          "events": [
+            {
+              "provider_ordinal": 1,
+              "phase": "head",
+              "at_ms": 42
+            },
+            {
+              "provider_ordinal": 2,
+              "phase": "head",
+              "at_ms": 142
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "head",
+              "at_ms": 244
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "pool",
+              "at_ms": 246
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "fee",
+              "at_ms": 255
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_head",
+              "at_ms": 263
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_order",
+              "at_ms": 265
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_order",
+              "at_ms": 266
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_order",
+              "at_ms": 268
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_head",
+              "at_ms": 269
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_order",
+              "at_ms": 271
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "book_order",
+              "at_ms": 272
+            }
+          ],
+          "provider_counters": [
+            {
+              "attempts": 1,
+              "successes": 0,
+              "failures": 1,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 9,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 1,
+              "circuit_open": true,
+              "half_open": false
+            },
+            {
+              "attempts": 1,
+              "successes": 0,
+              "failures": 1,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 9,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 1,
+              "circuit_open": true,
+              "half_open": false
+            },
+            {
+              "attempts": 10,
+              "successes": 10,
+              "failures": 0,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 0,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 0,
+              "circuit_open": false,
+              "half_open": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "controlled-a",
+      "verdict": "FAIL expected head-overrun control",
+      "sha256": "cb5ddf39f44e18ad46ad893b302c32270aec5ad082703bf959f8782fdd00129c",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.25s"
+      ],
+      "log_basename": "dex-1505-head-controlled-a.log",
+      "bounded_diagnostic": [
+        {
+          "elapsed_ms": 383,
+          "raw_height": 699,
+          "hybrid_height": 699,
+          "events": [
+            {
+              "provider_ordinal": 1,
+              "phase": "head",
+              "at_ms": 41
+            },
+            {
+              "provider_ordinal": 2,
+              "phase": "head",
+              "at_ms": 141
+            },
+            {
+              "provider_ordinal": 3,
+              "phase": "head",
+              "at_ms": 242
+            }
+          ],
+          "provider_counters": [
+            {
+              "attempts": 1,
+              "successes": 0,
+              "failures": 1,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 1,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 1,
+              "circuit_open": true,
+              "half_open": false
+            },
+            {
+              "attempts": 1,
+              "successes": 0,
+              "failures": 1,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 1,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 1,
+              "circuit_open": true,
+              "half_open": false
+            },
+            {
+              "attempts": 1,
+              "successes": 0,
+              "failures": 1,
+              "caller_cancellations": 0,
+              "rate_deferrals": 0,
+              "concurrency_deferrals": 0,
+              "circuit_deferrals": 1,
+              "recovery_probes": 0,
+              "in_flight": 0,
+              "consecutive_failures": 1,
+              "circuit_open": true,
+              "half_open": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "issue": 1505
+}

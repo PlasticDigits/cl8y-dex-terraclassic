@@ -79,3 +79,17 @@ body heights before acceptance. Their verified historical height must not enter 
 live-tip lag rejection and falsely open circuits after a newer head was observed.
 Substituted body heights remain integrity failures; exact pinned smart-query header
 validation remains mandatory. Run the #1464 historical-body recovery regression.
+
+For [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md), a complete zero-attempt scheduled
+scan may wait for ordinary circuit admission within its existing total deadline.
+Keep typed deferral separate from integrity errors, never force a probe or reset
+backoff, and stop rescanning after an actual attempt. Endpoint metadata locks and
+the freshly calculated identity attempt deadline share the original absolute
+bound. Recovered providers still require fresh expected-chain attestation before
+any data is accepted; direct/request callers retain prompt failure.
+
+When an admitted identity attempt times out, account for the provider failure
+through the already-owned provider state before waiting for endpoint metadata.
+Bound metadata invalidation by the same original total deadline; cancellation
+must neither lose quarantine nor count the same failure twice. Diagnostic
+verified metadata is never a substitute for a fresh successful identity read.

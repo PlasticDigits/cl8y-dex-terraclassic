@@ -1,0 +1,432 @@
+{
+  "issue": 1505,
+  "iteration": 4,
+  "revision": "358475f4cf71a3089f88259ee27339850512bacd",
+  "read_only": true,
+  "overall": "FAIL",
+  "scope": "Sanitized selected live failure correlation. Fixed enums/scalars and server request IDs only. Independent source/CI success does not establish live acceptance.",
+  "socket_summary": {
+    "requests": 148,
+    "useful": 135,
+    "missing_observations": 11,
+    "useful_max_ms": 306.331
+  },
+  "selected_socket_failures": [
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:27:01.755507+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0cc40"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:27:09.537503+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0cc4b"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:27:53.734150+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0cc9c"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:27:58.920509+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0cca8"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "utc_start": "2026-10-15T14:28:27.213764+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0ccd8"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:28:27.503557+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0ccd9"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "utc_start": "2026-10-15T14:28:29.794016+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0ccda"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "utc_start": "2026-10-15T14:28:30.084135+00:00",
+      "status": 503,
+      "outcome": "missing_observations",
+      "request_id": "b812ccb7b7d0ccdb"
+    }
+  ],
+  "selected_component_witnesses": [
+    {
+      "utc": "2026-10-15T14:28:27.362396+00:00",
+      "component": "wrapper",
+      "direction": "native_input",
+      "request_id": "b812ccb7b7d0ccd8",
+      "age_known": true,
+      "age_ms": 21662,
+      "expiry_known": true,
+      "expires_in_ms": -1662
+    },
+    {
+      "utc": "2026-10-15T14:28:27.652961+00:00",
+      "component": "wrapper",
+      "direction": "native_output",
+      "request_id": "b812ccb7b7d0ccd9",
+      "age_known": true,
+      "age_ms": 21952,
+      "expiry_known": true,
+      "expires_in_ms": -1952
+    },
+    {
+      "utc": "2026-10-15T14:28:29.943172+00:00",
+      "component": "wrapper",
+      "direction": "native_input",
+      "request_id": "b812ccb7b7d0ccda",
+      "age_known": true,
+      "age_ms": 24243,
+      "expiry_known": true,
+      "expires_in_ms": -4243
+    },
+    {
+      "utc": "2026-10-15T14:28:30.232581+00:00",
+      "component": "wrapper",
+      "direction": "native_output",
+      "request_id": "b812ccb7b7d0ccdb",
+      "age_known": true,
+      "age_ms": 24532,
+      "expiry_known": true,
+      "expires_in_ms": -4532
+    },
+    {
+      "utc": "2026-10-15T14:28:26.144162+00:00",
+      "component": "wrapper",
+      "direction": "native_input",
+      "request_id": "b812ccb7b7d0ccd5",
+      "age_known": true,
+      "age_ms": 20443,
+      "expiry_known": true,
+      "expires_in_ms": -443
+    }
+  ],
+  "browser_selected_failure": {
+    "request_id": "b812ccb7b7d0ccd5",
+    "server_witness_utc": "2026-10-15T14:28:26.144162+00:00",
+    "browser_native_utc": "2026-10-15T14:28:26.287+00:00",
+    "outcome": "missing_observations",
+    "component": "wrapper"
+  },
+  "producer_polls": [
+    {
+      "poll_id": 30,
+      "fixed_events": [
+        {
+          "utc": "2026-10-15T14:26:59.283067+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "tax_rate",
+          "reason": "provider_unavailable",
+          "poll_id": 30
+        },
+        {
+          "utc": "2026-10-15T14:27:00.050747+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 30
+        },
+        {
+          "utc": "2026-10-15T14:27:00.294857+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 30
+        },
+        {
+          "utc": "2026-10-15T14:27:00.294888+00:00",
+          "categories": [
+            "wrapper_completed"
+          ],
+          "elapsed_ms": 4593,
+          "observed_at_ms": 1792074415701,
+          "poll_id": 30,
+          "mappings": 2,
+          "output_tax": false,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": true,
+          "router": "Some(true)"
+        }
+      ],
+      "interpretation": "Completed wrapper lacked output tax after an explicitly provider_unavailable tax-rate read. This suffices to reject native output; native input does not require output tax."
+    },
+    {
+      "poll_id": 35,
+      "fixed_events": [
+        {
+          "utc": "2026-10-15T14:27:51.770689+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 35
+        },
+        {
+          "utc": "2026-10-15T14:27:52.223490+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 35
+        },
+        {
+          "utc": "2026-10-15T14:27:52.223518+00:00",
+          "categories": [
+            "wrapper_completed"
+          ],
+          "elapsed_ms": 6522,
+          "observed_at_ms": 1792074465700,
+          "poll_id": 35,
+          "mappings": 2,
+          "output_tax": true,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": false,
+          "router": "Some(true)"
+        }
+      ],
+      "interpretation": "Completed wrapper lacked USTC tax cap. No typed cap error or deadline event was observed, so clipped-future versus malformed/missing success cannot be distinguished from these logs."
+    },
+    {
+      "poll_id": 38,
+      "fixed_events": [
+        {
+          "utc": "2026-10-15T14:28:15.700992+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "chain",
+          "reason": "provider_unavailable",
+          "poll_id": 38
+        },
+        {
+          "utc": "2026-10-15T14:28:15.701020+00:00",
+          "categories": [
+            "wrapper_unavailable"
+          ],
+          "phase": "chain",
+          "reason": "missing_or_invalid",
+          "elapsed_ms": 0,
+          "observed_at_ms": 1792074495700,
+          "poll_id": 38
+        }
+      ],
+      "interpretation": "Chain prerequisite failed immediately with provider_unavailable/missing_or_invalid. No new wrapper was published; the prior original wrapper later expired. Adjacent all-circuit events support admission unavailability but are not a per-poll counter snapshot."
+    },
+    {
+      "poll_id": 39,
+      "fixed_events": [
+        {
+          "utc": "2026-10-15T14:28:30.472230+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 39
+        },
+        {
+          "utc": "2026-10-15T14:28:30.962322+00:00",
+          "categories": [
+            "wrapper_read_unavailable"
+          ],
+          "phase": "floor_capability",
+          "reason": "contract_rejected",
+          "poll_id": 39
+        },
+        {
+          "utc": "2026-10-15T14:28:30.962336+00:00",
+          "categories": [
+            "wrapper_completed"
+          ],
+          "elapsed_ms": 5261,
+          "observed_at_ms": 1792074505700,
+          "poll_id": 39,
+          "mappings": 2,
+          "output_tax": true,
+          "mapper_floor": false,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "uusd_cap": true,
+          "router": "Some(true)"
+        }
+      ],
+      "interpretation": "Fresh poll recovered a complete wrapper with its original poll timestamp. This does not renew the prior wrapper original."
+    }
+  ],
+  "historical_provider_evidence": {
+    "windows": [
+      {
+        "start_utc": "2026-10-15T14:25:54Z",
+        "end_utc": "2026-10-15T14:27:30Z",
+        "lines": 49,
+        "possibly_truncated": false
+      },
+      {
+        "start_utc": "2026-10-15T14:27:30Z",
+        "end_utc": "2026-10-15T14:29:06Z",
+        "lines": 79,
+        "possibly_truncated": false
+      }
+    ],
+    "identity_quarantine_count": 1,
+    "identity_quarantine_utc": [
+      "2026-10-15T14:28:14.754220+00:00"
+    ],
+    "all_provider_circuits_open_event_count": 25,
+    "circuit_event_first_utc": "2026-10-15T14:28:14.781264+00:00",
+    "circuit_event_last_utc": "2026-10-15T14:28:14.849232+00:00",
+    "scope_caveat": "These are fixed-message event counts, not distinct provider counts. They immediately precede poll38 but do not expose its per-provider counter snapshot or endpoint mapping."
+  },
+  "reference_publication_evidence": {
+    "windows": [
+      {
+        "start_utc": "2026-10-15T14:25:54Z",
+        "end_utc": "2026-10-15T14:27:30Z",
+        "lines": 49,
+        "possibly_truncated": false
+      },
+      {
+        "start_utc": "2026-10-15T14:27:30Z",
+        "end_utc": "2026-10-15T14:29:06Z",
+        "lines": 79,
+        "possibly_truncated": false
+      }
+    ],
+    "pool_completion_wakes": 19,
+    "atomic_commits": 46,
+    "economic_marks_per_commit": [
+      5
+    ],
+    "max_commit_elapsed_ms": 13,
+    "hub_refresh_failed_events": 0,
+    "book_pool_cycles": 37,
+    "scope_caveat": "Producer observations support continued publication. Selected third-cluster failures identify wrapper expiry; successful reference commits alone do not certify every possible pair reference."
+  },
+  "current_provider_snapshot": {
+    "issue": 1505,
+    "read_only": true,
+    "utc": "2026-10-15T14:33:03.702724+00:00",
+    "revision": "358475f4cf71a3089f88259ee27339850512bacd",
+    "configured_provider_count": 3,
+    "verified_provider_count": 2,
+    "circuit_open_count": 1,
+    "half_open_count": 0,
+    "counter_totals": {
+      "attempts": 8997,
+      "successes": 8517,
+      "failures": 417,
+      "caller_cancellations": 59,
+      "rate_deferrals": 0,
+      "concurrency_deferrals": 796,
+      "circuit_deferrals": 11880,
+      "recovery_probes": 338,
+      "in_flight": 4,
+      "consecutive_failures": 3
+    },
+    "scope": "Current process-owned counters only, after the failure window. This is not a historical circuit-state witness and initiates no provider probes. No endpoint or raw error fields retained."
+  },
+  "conclusions": [
+    {
+      "status": "OBSERVED",
+      "finding": "First output-only cluster coincides with fresh wrapper missing tax rate; the typed read reason is provider_unavailable."
+    },
+    {
+      "status": "OBSERVED",
+      "finding": "Second output-only cluster coincides with fresh wrapper missing USTC cap, with unavailable per-cap timeout/malformed provenance."
+    },
+    {
+      "status": "EXACT_REQUEST_WITNESS",
+      "finding": "Third cluster and selected browser input failure emit wrapper-only stale prerequisites from the original14:28:05.700 wrapper."
+    },
+    {
+      "status": "CORRELATED",
+      "finding": "Identity quarantine and25 all-circuit events immediately precede poll38 chain failure. This supports an admission gap without proving one sole cause for all clusters."
+    },
+    {
+      "status": "SOURCE_SUPPORTED_INFERENCE",
+      "finding": "The deployed output observation subdeadline is at most2s, shorter than the configured2.5s LCD attempt. It may clip a healthy read; the poll35 cap diagnostic does not prove that particular cause."
+    }
+  ],
+  "safeguards": {
+    "original_observation_ttl_ms": 20000,
+    "no_ttl_extension": true,
+    "no_known_negative_relaxation": true,
+    "no_extra_quote_requests": true,
+    "no_provider_or_infrastructure_mutation": true,
+    "no_raw_log_lines_or_endpoint_fields": true
+  },
+  "evidence_files": [
+    {
+      "name": "r4-selected-components-first-fail.json",
+      "sha256": "ce598480b363c5d17bc90dc06f44d9bb78a367892297c749314ab595b2c9193e"
+    },
+    {
+      "name": "r4-browser-ccd5-components.json",
+      "sha256": "04e3cf2c1b6a313db07238fe703a04b8a988d2d7940e0eeec5ca96907598d4a1"
+    },
+    {
+      "name": "r4-producer-census-first-a.json",
+      "sha256": "2654379586091db6884b029c115b865b5af85522082c8be862c56cc124546980"
+    },
+    {
+      "name": "r4-producer-census-first-b.json",
+      "sha256": "2d4c25c293cc9a5cbfe161da985aa3b343ba1d549ca8e12211b28876d3d2e2e3"
+    },
+    {
+      "name": "r4-reference-provider-census.json",
+      "sha256": "c5b3cfea6955353f68e0559f13f5023f568e8feba9bc0b5a5498e9e94b0612c3"
+    },
+    {
+      "name": "r4-provider-counters-after-failure.json",
+      "sha256": "1100c5a9a2725a835369a9c75cf750dc6af7141622d8cbda58c5ff33551eda53"
+    }
+  ],
+  "original_wrapper_before_third_cluster": {
+    "utc": "2026-10-15T14:28:13.433591+00:00",
+    "categories": [
+      "wrapper_completed"
+    ],
+    "elapsed_ms": 7733,
+    "observed_at_ms": 1792074485700,
+    "poll_id": 37,
+    "mappings": 2,
+    "output_tax": true,
+    "mapper_floor": false,
+    "treasury_floor": false,
+    "uluna_cap": true,
+    "uusd_cap": true,
+    "router": "Some(true)"
+  }
+}

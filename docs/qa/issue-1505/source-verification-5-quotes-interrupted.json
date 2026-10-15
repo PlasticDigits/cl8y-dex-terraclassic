@@ -1,0 +1,14 @@
+{
+  "status": "INTERRUPTED",
+  "reason": "Parent requested stop after separate1392 FIRST book integration failure21pass1fail known-height700got699; no rerun or source edits",
+  "owned_process_group": 1311255,
+  "issue1499_started": false,
+  "chrome_started": false,
+  "owned_processes_remaining": 0,
+  "active_qa_integration_sessions": 0,
+  "qa_status_check": "read-only pg_stat_activity; no reset or mutation",
+  "browser_receipts_created": false,
+  "tracked_browser_artifact_unchanged": true,
+  "application_source_unchanged": true,
+  "log_sha256": "dab4483420d303e3095c78205c67c4bf32341b45154aaa7ae4036cb85a4f6f5c"
+}

@@ -31,7 +31,7 @@ not merged status or liveness, to assess trading readiness.
 | PR1464-3 | Reorg/checkpoint mismatch and nonavailability parser/database/state failures halt unsafe progress visibly. Record processing/state failure once with the durable unsafe marker and halt before replay can skip a partial economic write; marked pending heights refuse replay after restart. Only prewrite LCD errors use the finite permanent-error retry budget. Repair incomplete projections before explicitly clearing the marker; this is not an atomic crash guarantee. |
 | PR1464-4 | Cloned clients share finite endpoint rate/concurrency/circuit state. Background pacing must not hold a provider permit while awaiting its pacing turn. Historical block/checkpoint/filtered-tx bodies must match the requested height and are not live-tip lag evidence. No additional client/queue may evade admission, and cancellation/leadership loss releases owned work. |
 | PR1464-5 | Independent still-fresh complete pool and hybrid views keep separate original publication watermarks and expiry. A newer complete pool must not revoke an otherwise compatible original hybrid or make its book fresh. Failed refresh cannot renew age, delete healthy unrelated candidates, clear known actor blocks or combine incompatible pool/book generations. |
-| PR1464-6 | Internal rejection reasons use fixed low-cardinality classes. Missing/stale/unsupported observations fail closed with an availability blocker; genuine protected execution rejection remains a protection blocker. Never advise arbitrary smaller sizes for infrastructure loss. |
+| PR1464-6 | Internal rejection reasons use fixed low-cardinality classes. Missing, stale or unknown prerequisites fail closed with an availability blocker. Validated pause/incompatibility remains a genuine 422 unsupported_semantics negative; genuine protected execution rejection remains a protection blocker. Never advise arbitrary smaller sizes for infrastructure loss. |
 | PR1464-7 | Quote, best, POST, progress, reference, refresh, preflight and reviewed-route preparation trigger zero RPC/LCD/network validation. Only independently scheduled producers acquire observations; traffic cannot accelerate their cadence. |
 | PR1464-8 | Exact integer gross debit, route-local tax funding, positive post-hook/hop/final floors, pause/freeze/blacklist and refund ownership remain mandatory. Actor/amount/mode/funding/namespace/generation cache isolation and reviewed signing context remain intact; ≥99% protection is nonwaivable. |
 | PR1464-9 | Count useful executable results separately from errors/loading/topology. The currently accepted temporary target is ≤500 ms for representative initialized useful hits/misses; the original <250 ms target is deferred. Report p50/p95/p99/max and sample counts, new/reused socket/browser transport and cold state independently, without operational location metadata. An executed latency failure remains FAIL. |
@@ -156,3 +156,14 @@ For component-timing fixtures, preserve the setup/active-phase distinction in
 separate active-component assertion clock; finite setup barriers still fail if
 the phase is never reached. Original provider/pair deadlines and failure
 observations remain mandatory. See [the #1505 phase evidence](../docs/qa/issue-1505/RESULTS.md).
+
+Native recovery [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) also covers a complete
+zero-attempt scheduled-ingestion scan denied by provider circuits. Wait and
+rescan ordinary admission only inside the original total deadline, with no held
+permits, backoff reset or forced half-open probe. Keep typed capacity/circuit
+provenance and integrity precedence. Once any actual attempt starts, never restart
+that query's attempt budget. Direct/request callers retain their existing prompt
+error behavior. An expired deadline starts no admission or HTTP work.
+Identity attempt timeout must charge provider failure before deadline-bounded
+metadata invalidation. Cancellation cannot lose quarantine or double-count it;
+historical verified metadata never substitutes for a fresh identity read.

@@ -1,0 +1,35 @@
+{
+  "issue": 1505,
+  "scope": "M5 first full chain-attestation verifier, stopped after actual integration failure; remaining stages not claimed",
+  "status": "FAIL",
+  "log_basename": "verify-1392-release5.log",
+  "sha256": "fd5e977ee8e2f3263e84ff6fae9ce15c9aafccca61825cedaa5dc6c53c2c7252",
+  "failure": {
+    "binary": "book_snapshot_loop",
+    "test": "issue_1453_third_provider_recovers_known_height_within_head_budget",
+    "passed": 21,
+    "failed": 1,
+    "expected_height": 700,
+    "observed_height": 699,
+    "phase_cause": "not established",
+    "constraints": {
+      "slow_providers": 2,
+      "slow_data_ms": 300,
+      "attempt_timeout_ms": 100,
+      "logical_deadline_ms": 400,
+      "head_deadline_ms": 400,
+      "pair_deadline_ms": 400
+    }
+  },
+  "prior_source_checks": "native14/0/1 and full default-parallel library877/0/1 twice passed separately; they do not erase this failure",
+  "quiet_full_sequence": {
+    "status": "FAIL",
+    "passed": 21,
+    "failed": 1,
+    "seconds": 27.72,
+    "log_basename": "dex-1505-head-restored-book-first.log",
+    "sha256": "257f8c5ca97a27fb3c52942dfd7749951cec146bbf5a3da74cac7deb92bd2714",
+    "original_book_restored": true,
+    "interpretation": "Shared load alone is insufficient explanation; full-sequence instrumentation required."
+  }
+}

@@ -19,6 +19,220 @@ fn bd(s: &str) -> BigDecimal {
     BigDecimal::from_str(s).unwrap()
 }
 
+/// Hold SQLx's public on-release callback before its ping flushes an implicit
+/// rollback. Explicitly awaited rollback never enters this gate. This makes
+/// lock ownership at a completed caller boundary deterministic without sleeps.
+struct DeferredRollbackPool {
+    pool: sqlx::PgPool,
+    release: tokio::sync::watch::Sender<bool>,
+    queued: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+impl DeferredRollbackPool {
+    async fn new(base: &sqlx::PgPool, missing_inventory: bool) -> Self {
+        use sqlx::Connection;
+        use std::sync::{atomic::Ordering, Arc};
+        let (release, wait) = tokio::sync::watch::channel(false);
+        let queued = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let queued_callback = queued.clone();
+        let options = (*base.connect_options()).clone();
+        let options = if missing_inventory {
+            options.options([("search_path", "pg_catalog")])
+        } else {
+            options
+        };
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(4)
+            .after_release(move |connection, _| {
+                let should_flush = connection.should_flush();
+                let mut wait = wait.clone();
+                let queued = queued_callback.clone();
+                Box::pin(async move {
+                    if should_flush {
+                        queued.fetch_add(1, Ordering::SeqCst);
+                        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                            while !*wait.borrow() {
+                                wait.changed().await.map_err(|_| {
+                                    sqlx::Error::Protocol("rollback control closed".into())
+                                })?;
+                            }
+                            Ok::<_, sqlx::Error>(())
+                        })
+                        .await
+                        .map_err(|_| sqlx::Error::Protocol("rollback control deadline".into()))??;
+                    }
+                    Ok(true)
+                })
+            })
+            .connect_with(options)
+            .await
+            .unwrap();
+        Self {
+            pool,
+            release,
+            queued,
+        }
+    }
+    async fn finish(&self) {
+        self.release.send_replace(true);
+        self.pool.close().await;
+    }
+}
+impl Drop for DeferredRollbackPool {
+    fn drop(&mut self) {
+        self.release.send_replace(true);
+    }
+}
+
+fn strict_combined_limits() -> book_snapshot::SnapshotLimits {
+    book_snapshot::SnapshotLimits {
+        concurrency: 2,
+        pair_timeout: std::time::Duration::from_millis(400),
+        height_timeout: std::time::Duration::from_millis(400),
+    }
+}
+fn strict_combined_lcd(server: &MockServer) -> LcdClient {
+    LcdClient::new_with_policy(
+        vec![server.uri()],
+        1000,
+        1000,
+        "columbus-5",
+        cl8y_dex_indexer::lcd::ProviderPolicy {
+            attempt_timeout_ms: 100,
+            deadline_ms: 400,
+            ..Default::default()
+        },
+    )
+}
+
+#[tokio::test]
+#[serial]
+async fn issue1505_combined_return_releases_locks_before_next_pass() {
+    let base = common::setup_pool().await;
+    common::seed_db(&base).await;
+    let controlled = DeferredRollbackPool::new(&base, false).await;
+    let mut probe = base.begin().await.unwrap();
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("700")).await;
+    let lcd = strict_combined_lcd(&server);
+    let first = book_snapshot::snapshot_all_pairs_with_limits(
+        &controlled.pool,
+        &lcd,
+        strict_combined_limits(),
+    )
+    .await;
+    let before = lcd.provider_counters().await[0].attempts;
+    let second = book_snapshot::snapshot_all_pairs_with_limits(
+        &controlled.pool,
+        &lcd,
+        strict_combined_limits(),
+    )
+    .await;
+    let after = lcd.provider_counters().await[0].attempts;
+    let keys: (bool, bool) = sqlx::query_as(
+        "SELECT pg_try_advisory_xact_lock(1453,1),pg_try_advisory_xact_lock(1453,2)",
+    )
+    .fetch_one(&mut *probe)
+    .await
+    .unwrap();
+    let queued = controlled.queued.load(std::sync::atomic::Ordering::SeqCst);
+    controlled.finish().await;
+    probe.rollback().await.unwrap();
+    println!("combined_return_control first_attempts={before} second_attempts={after} released_keys={keys:?} queued_rollbacks={queued}");
+    first.unwrap();
+    second.unwrap();
+    assert_eq!(
+        keys,
+        (true, true),
+        "normal completion releases both owned locks before returning"
+    );
+    assert!(
+        before > 0 && after > before,
+        "a sequential second pass cannot silently coalesce with a completed pass"
+    );
+}
+
+#[tokio::test]
+#[serial]
+async fn issue1505_combined_return_releases_partial_lock_on_denial() {
+    let base = common::setup_pool().await;
+    common::seed_db(&base).await;
+    let controlled = DeferredRollbackPool::new(&base, false).await;
+    let mut busy = base.begin().await.unwrap();
+    sqlx::query("SELECT pg_advisory_xact_lock(1453,2)")
+        .execute(&mut *busy)
+        .await
+        .unwrap();
+    let mut probe = base.begin().await.unwrap();
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("700")).await;
+    let lcd = strict_combined_lcd(&server);
+    let result = book_snapshot::snapshot_all_pairs_with_limits(
+        &controlled.pool,
+        &lcd,
+        strict_combined_limits(),
+    )
+    .await;
+    let keys: (bool, bool) = sqlx::query_as(
+        "SELECT pg_try_advisory_xact_lock(1453,1),pg_try_advisory_xact_lock(1453,2)",
+    )
+    .fetch_one(&mut *probe)
+    .await
+    .unwrap();
+    let attempts = lcd.provider_counters().await[0].attempts;
+    let queued = controlled.queued.load(std::sync::atomic::Ordering::SeqCst);
+    controlled.finish().await;
+    busy.rollback().await.unwrap();
+    probe.rollback().await.unwrap();
+    println!("combined_partial_control attempts={attempts} released_keys={keys:?} queued_rollbacks={queued}");
+    result.unwrap();
+    assert_eq!(
+        keys,
+        (true, false),
+        "denial releases its partial key without releasing the other owner's key"
+    );
+    assert_eq!(attempts, 0, "coalesced work cannot perform provider reads");
+}
+
+#[tokio::test]
+#[serial]
+async fn issue1505_combined_return_releases_locks_and_preserves_original_error() {
+    let base = common::setup_pool().await;
+    common::seed_db(&base).await;
+    let controlled = DeferredRollbackPool::new(&base, true).await;
+    let mut probe = base.begin().await.unwrap();
+    let server = common::lcd_mock::start_book_snapshot_mock(Some("700")).await;
+    let lcd = strict_combined_lcd(&server);
+    let result = book_snapshot::snapshot_all_pairs_with_limits(
+        &controlled.pool,
+        &lcd,
+        strict_combined_limits(),
+    )
+    .await;
+    let keys: (bool, bool) = sqlx::query_as(
+        "SELECT pg_try_advisory_xact_lock(1453,1),pg_try_advisory_xact_lock(1453,2)",
+    )
+    .fetch_one(&mut *probe)
+    .await
+    .unwrap();
+    let attempts = lcd.provider_counters().await[0].attempts;
+    let queued = controlled.queued.load(std::sync::atomic::Ordering::SeqCst);
+    controlled.finish().await;
+    probe.rollback().await.unwrap();
+    println!("combined_error_control attempts={attempts} released_keys={keys:?} queued_rollbacks={queued}");
+    let error = result.unwrap_err();
+    let sql = error
+        .downcast_ref::<sqlx::Error>()
+        .expect("retain the original SQL failure");
+    assert!(
+        matches!(sql,sqlx::Error::Database(error) if error.code().as_deref()==Some("42P01")),
+        "missing inventory stays the original error"
+    );
+    assert_eq!(
+        keys,
+        (true, true),
+        "an error return releases every acquired lock before returning"
+    );
+    assert_eq!(attempts, 0);
+}
+
 #[tokio::test]
 #[serial]
 async fn snapshot_populates_reserves_and_resting_book() {

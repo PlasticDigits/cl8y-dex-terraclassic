@@ -273,20 +273,59 @@ async fn snapshot_cycle(
     } else {
         None
     };
-    let lane_keys: &[i32] = match mode {
+    let admitted = match lane_lock.as_mut() {
+        Some(tx) => try_combined_lanes(tx).await,
         // Production lanes already own lifetime leadership above.
-        SnapshotMode::Pool | SnapshotMode::Book => &[],
-        SnapshotMode::Combined => &[1, 2],
+        None => Ok(true),
     };
-    for key in lane_keys {
+    let result = match admitted {
+        Ok(true) => snapshot_cycle_work(pool, lcd, limits, mode, max_staleness_ms).await,
+        Ok(false) => Ok(()),
+        Err(error) => Err(error.into()),
+    };
+    // Transaction::drop only queues ROLLBACK. A normal caller boundary must
+    // release ownership before a sequential pass can observe/coalesce with it.
+    // Cancellation still uses the transaction's existing RAII cleanup.
+    let released = match lane_lock {
+        Some(tx) => tx.rollback().await,
+        None => Ok(()),
+    };
+    match (result, released) {
+        (Err(original), Err(_)) => {
+            tracing::warn!(
+                reason = "lane_release_failed",
+                "Snapshot lane cleanup failed"
+            );
+            Err(original)
+        }
+        (Err(original), Ok(())) => Err(original),
+        (Ok(()), Err(error)) => Err(error.into()),
+        (Ok(()), Ok(())) => Ok(()),
+    }
+}
+
+async fn try_combined_lanes(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+) -> Result<bool, sqlx::Error> {
+    for key in [1_i32, 2] {
         let admitted: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(1453, $1)")
             .bind(key)
-            .fetch_one(&mut **lane_lock.as_mut().unwrap())
+            .fetch_one(&mut **tx)
             .await?;
         if !admitted {
-            return Ok(());
+            return Ok(false);
         }
     }
+    Ok(true)
+}
+
+async fn snapshot_cycle_work(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    limits: SnapshotLimits,
+    mode: SnapshotMode,
+    max_staleness_ms: u64,
+) -> Result<(), BoxError> {
     let started = Instant::now();
     // Every pinned read in this cycle keeps the head observation's original age;
     // queued tail jobs must not renew an old block with a later start timestamp.

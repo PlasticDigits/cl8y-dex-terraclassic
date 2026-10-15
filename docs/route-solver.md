@@ -983,20 +983,46 @@ typed quote-rejection reasons with safe local-quote spans; query strings are
 excluded. Scheduled native polls report fixed phase/result classes independently
 of requests. See [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md).
 
+Scheduled ingestion may wait after a complete zero-attempt circuit/capacity
+scan and rescan ordinary admission within its existing logical deadline. It holds
+no provider permit during that wait, never resets backoff or forces a half-open
+probe, and stops rescanning after any real attempt. Expired deadlines start no
+admission or network work. Direct callers retain prompt failure and native quote
+requests still consume local state only. Identity attempt timeout records provider
+failure before metadata cleanup, whose lock wait retains the same original total
+deadline; cancellation neither loses quarantine nor counts the failure twice.
+Positively observed mapper/treasury
+pauses revoke the previous wrapper immediately. Their bounded negative records
+return HTTP 422 `unsupported_semantics` to solve/progress consumers, which prevents
+same-intent provider-error retention from hiding the known negative. Positive
+views and negative records share the existing 32-namespace cap. Only a validated
+positive observation clears a pause; unavailable reads cannot restore permission
+or refresh an older observation's clock.
+
 Final503 responses can also emit request-owned stale prerequisite witnesses for
 eight fixed components, with bounded original age/expiry scalars. Each component
 emits at most once per request; successful alternatives emit no stale witnesses.
 These are candidate witnesses and do not alone establish the sole rejection
 cause. No asset, actor, query or provider body is recorded.
 
+A poll-local FIFO dispatcher starts at most two logical LCD reads together. The
+fixed owned read futures may wait for dispatch, but their transport/query clocks
+start only when dispatched. This avoids consuming a healthy read's total deadline
+while it waits behind the poll's own work. Dispatch stays inside the original
+7.9/8-second margin, with a fresh deadline check before starting transport. The
+shared provider lane, pacing, attempt caps and data-read count are unchanged.
+Cancellation drops the read futures and local waiters; no global queue or task
+is created. Required mapping/output work queues before later floor work.
+
 Native input and native output prerequisites remain independent. The scheduled
 wrapper worker polls every ten seconds with one outstanding pass. Once mapper
 configuration is known, router binding starts alongside all remaining work. After
-mapping admission, the bank-tax rate and each mapped native denom's tax cap are
-independent reads. Tax/caps run with `tokio::join!`
-and an individual timeout against the same original two-second phase deadline.
-Router configuration retains the provider's own attempt/total limits and the
-original 7.9-second publication margin. A shorter wrapper-only deadline must not
+validated treasury bindings, the bank-tax rate and eligible native denoms' tax
+caps run alongside mapping/rate reads. They share the original 7.9-second
+publication margin rather than a shorter two-second output subdeadline. A cap
+attaches only to a mapping successfully validated in that same poll; binding
+eligibility alone cannot admit a route. Router configuration retains the
+provider's own attempt/total limits and the same original margin. A shorter wrapper-only deadline must not
 cancel an otherwise permitted provider attempt. Its three-state result belongs
 to the same original poll, without another query or renewed clock.
 Completed fields survive when another field times out; an unavailable uluna cap
@@ -1004,8 +1030,9 @@ cannot erase a completed uusd cap, tax rate or compatible router observation.
 Only the requested denom's complete required observations can admit its output.
 Unknown tax/router/cap values remain unavailable, never guessed zero or permission.
 
-Mapper and treasury floor-capability reads use the same concurrent bounded
-collection in their separate existing two-second phase. A completed mapper
+Mapper and treasury floor-capability reads start after critical mapping and output
+reads finish, in their existing bounded two-second phase. This wait cannot
+extend the original publication margin. A completed mapper
 capability can establish direct unwrap protocol even if treasury capability is
 unavailable. Protected wrapping still requires both contracts' version-1
 capabilities, and all other exact quote/floor/budget checks still apply.

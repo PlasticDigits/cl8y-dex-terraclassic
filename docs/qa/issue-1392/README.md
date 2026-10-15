@@ -15,9 +15,11 @@ Issue [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392),
    and workspace objects private; use copies/reflinks for an optional cache seed,
    and never hardlink mutable `.fingerprint`, dep-info or workspace artifacts. Unit/shell trust tests do
    not require Postgres; focused API/cache integration checks use an **isolated**
-   test database in `indexer/.env`. Provision via `make setup-indexer-postgres`
-   when needed, then select a dedicated database and `TEST_DB_LOCK_FILE`. Never
-   run Cargo in a root Docker bind mount.
+   QA capability in `indexer/.env.qa` using `TEST_DATABASE_ADMIN_URL`. Provision
+   via `make setup-indexer-postgres` when needed. The [DB1396 helper](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md)
+   creates a random per-process disposable database and migrates only that child;
+   the admin-owned marked control database is never migrated or truncated. Tests
+   within each binary remain serial. Never run Cargo in a root Docker bind mount.
 2. Run `make verify-issue-1392`. It tests correct/wrong/missing/malformed network
    identities, unavailable/stale responses, failover, recovery, explicit overrides,
    code/hash disagreement and zero transaction preparation after failure. It

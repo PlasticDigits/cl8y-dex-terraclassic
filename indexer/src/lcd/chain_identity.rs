@@ -162,45 +162,72 @@ impl LcdClient {
         use std::time::Duration;
         let deadline = tokio::time::Instant::now()
             + Duration::from_millis(self.inner.provider_policy.deadline_ms);
+        let mut deferred_result = None;
+        let mut attempted = 0;
+        let mut circuit_logged = false;
         loop {
-            let (result, attempts) = self.probe_identity_scan(stop_on_success, deadline).await;
-            if self.ingestion_budget.is_some()
-                && attempts == 0
-                && matches!(&result, Err(LcdError::AdmissionDeferred))
-                && tokio::time::Instant::now() < deadline
-            {
+            // No zero-attempt rescan may begin at an elapsed total deadline.
+            if tokio::time::Instant::now() >= deadline {
+                return deferred_result.unwrap_or_else(|| {
+                    Err(LcdError::AllEndpointsFailed("no verified endpoint".into()))
+                });
+            }
+            let scan = self.probe_identity_scan(stop_on_success, deadline).await;
+            attempted += scan.attempts;
+            if self.ingestion_budget.is_some() && attempted == 0 && scan.deferral.is_some() {
+                if scan.deferral == Some(super::ScanDeferral::Circuit) && !circuit_logged {
+                    tracing::warn!(
+                        phase = "identity",
+                        reason = "circuit_open",
+                        attempts = 0,
+                        "LCD scheduled admission deferred"
+                    );
+                    circuit_logged = true;
+                }
+                deferred_result = Some(scan.result);
                 tokio::time::sleep(
                     Duration::from_millis(50)
                         .min(deadline.saturating_duration_since(tokio::time::Instant::now())),
                 )
                 .await;
-                if tokio::time::Instant::now() >= deadline {
-                    return result;
-                }
                 continue;
             }
-            return result;
+            return scan.result;
         }
     }
 
-    async fn probe_identity_scan(
+    pub(super) async fn probe_identity_scan(
         &self,
         stop_on_success: bool,
         deadline: tokio::time::Instant,
-    ) -> (Result<(), LcdError>, usize) {
+    ) -> super::ScanOutcome<()> {
         use std::time::Duration;
-        let count = self.inner.endpoints.read().await.len();
+        let count = match tokio::time::timeout_at(deadline, self.inner.endpoints.read()).await {
+            Ok(endpoints) => endpoints.len(),
+            Err(_) => {
+                return super::ScanOutcome::completed(
+                    Err(LcdError::AllEndpointsFailed("no verified endpoint".into())),
+                    0,
+                )
+            }
+        };
         let mut verified = false;
         let mut errors = Vec::new();
         let integrity_error = std::sync::Mutex::new(None);
         let mut attempts = 0;
         let mut capacity_deferred = false;
         for idx in 0..count {
+            if tokio::time::Instant::now() >= deadline {
+                break;
+            }
+            let ep = match tokio::time::timeout_at(deadline, self.inner.endpoints.read()).await {
+                Ok(endpoints) => endpoints[idx].clone(),
+                Err(_) => break,
+            };
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
             if remaining.is_zero() {
                 break;
             }
-            let ep = self.inner.endpoints.read().await[idx].clone();
             let mut permit = match ep.provider.admit() {
                 Ok(permit) => permit,
                 Err(reason) => {
@@ -214,13 +241,14 @@ impl LcdClient {
             attempts += 1;
             let attempt_timeout =
                 Duration::from_millis(self.inner.provider_policy.attempt_timeout_ms);
-            let timeout = remaining.min(attempt_timeout);
-            let outcome = tokio::time::timeout(
-                timeout,
+            let own_deadline = tokio::time::Instant::now() + attempt_timeout;
+            let attempt_deadline = deadline.min(own_deadline);
+            let outcome = tokio::time::timeout_at(
+                attempt_deadline,
                 self.attest_endpoint(idx, &ep.url, &mut permit, &integrity_error, None),
             )
             .await;
-            if outcome.is_err() && timeout < attempt_timeout && permit.closed_cancel_is_neutral() {
+            if outcome.is_err() && deadline < own_deadline && permit.closed_cancel_is_neutral() {
                 // The caller's remaining total budget is shorter than this
                 // closed provider's own attempt bound. Preserve its health;
                 // drop still charges admission and releases the shared slot.
@@ -235,7 +263,7 @@ impl LcdClient {
                     permit.succeeded();
                     verified = true;
                     if stop_on_success {
-                        return (Ok(()), attempts);
+                        return super::ScanOutcome::completed(Ok(()), attempts);
                     }
                 }
                 Ok(Err(
@@ -249,8 +277,20 @@ impl LcdClient {
                 Ok(Err(e)) => errors.push(e.to_string()),
                 Err(_) => {
                     permit.quarantine_if_cancelled();
-                    self.mark_failed(idx).await;
+                    // Provider failure is authoritative even if metadata cannot
+                    // be locked. Record it before awaiting cleanup, then disarm
+                    // permit-drop accounting so cancellation cannot count twice.
+                    ep.provider.failed(self.inner.cooldown_duration, None);
                     permit.completed();
+                    if tokio::time::Instant::now() < deadline {
+                        if let Ok(mut endpoints) =
+                            tokio::time::timeout_at(deadline, self.inner.endpoints.write()).await
+                        {
+                            if let Some(endpoint) = endpoints.get_mut(idx) {
+                                endpoint.verified = false;
+                            }
+                        }
+                    }
                     errors.push(format!("endpoint[{idx}] identity deadline exceeded"));
                 }
             }
@@ -264,7 +304,19 @@ impl LcdClient {
         } else if let Some(error) = retained_integrity {
             Err(error)
         } else if count > 0 && attempts == 0 && capacity_deferred {
-            Err(LcdError::AdmissionDeferred)
+            return super::ScanOutcome::deferred(
+                LcdError::AdmissionDeferred,
+                super::ScanDeferral::Capacity,
+            );
+        } else if count > 0
+            && attempts == 0
+            && errors.is_empty()
+            && tokio::time::Instant::now() < deadline
+        {
+            return super::ScanOutcome::deferred(
+                LcdError::AllEndpointsFailed("no verified endpoint".into()),
+                super::ScanDeferral::Circuit,
+            );
         } else {
             Err(LcdError::AllEndpointsFailed(if errors.is_empty() {
                 "no verified endpoint".into()
@@ -272,7 +324,7 @@ impl LcdClient {
                 errors.join("; ")
             }))
         };
-        (result, attempts)
+        super::ScanOutcome::completed(result, attempts)
     }
 
     pub(super) async fn attest_endpoint(

@@ -1,0 +1,103 @@
+{
+  "status": "PASS",
+  "scope": "local_wrapper_quote module source controls; no deployment or live acceptance claim",
+  "source": {
+    "path": "indexer/src/api/local_wrapper_quote.rs",
+    "sha256": "774059ac8b9f352b87f347c37498c57fcab621eaf62158538225bd75c5a2a1ce",
+    "bytes": 71941
+  },
+  "command": "cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote::tests -- --test-threads=1",
+  "default_stack": true,
+  "source_frozen": true,
+  "invariants": [
+    "original8s poll/7.9s publication margin and poll-start timestamp",
+    "same13healthy data reads; shared2provider permits/4RPS unchanged",
+    "poll-local FIFO2physicalread dispatcher before transport first poll; expiry checked after acquisition",
+    "mapping and bank reads overlap only after validated treasury bindings; cap attaches only same-poll validated mapping",
+    "optional floors start after all critical reads; min2s/original7.9s deadline",
+    "owned boxed-before-async reads; cancellation releases reads/permits; no detached tasks",
+    "only validated mapper/treasury paused booltrue yields typed Revoked; missing/malformed remains Unavailable",
+    "successful malformed tax/cap JSON emits fixedphase/reason with no raw values"
+  ],
+  "regressions": [
+    "healthy2200ms tax_rate and uusd_cap: old2s clip unavailable, fixed bothnative directions+bothfloor protocols+13reads under7900ms",
+    "all800ms provider data: bothfloor protocols and bothnative directions under7900ms",
+    "unrelated slowuluna cap retains uusd output and bothinput mappings with originalclock",
+    "invalid mapping never receives independently observed cap",
+    "validatedpausedtreasury drops slowbindings/router immediately",
+    "queuedexpiredfloor startszeroLCDwork even whenpermitreleasedatdeadline",
+    "productionObservationReads::read captures128KB inputfuture in<1KB returnedstate",
+    "successful malformed tax/cap fields returnNone with boundedfixed logs"
+  ],
+  "logs": {
+    "wrapper-m5-boxed-first": {
+      "sha256": "b6ecf0ab5c2c4f332ea8ec31c7bd0bba65e8a156851390799c6adfa0837eb466",
+      "bytes": 23705,
+      "result": "FAILED",
+      "passed": 26,
+      "failed": 1,
+      "ignored": 0,
+      "seconds": 56.99,
+      "log_basename": "wrapper-m5-boxed-first.log"
+    },
+    "wrapper-m5-dispatch-first": {
+      "sha256": "2775fbb1f2112d4444702026b698f63bf409973a690df09850e65a67eb4cd5fe",
+      "bytes": 24254,
+      "result": "FAILED",
+      "passed": 26,
+      "failed": 1,
+      "ignored": 0,
+      "seconds": 57.69,
+      "log_basename": "wrapper-m5-dispatch-first.log"
+    },
+    "wrapper-m5-final-first": {
+      "sha256": "19f69258bd949272e56e2170b9b039b94ce18dabe70574f631955abcddd6dce9",
+      "bytes": 23378,
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 61.66,
+      "log_basename": "wrapper-m5-final-first.log"
+    },
+    "wrapper-m5-final-retest": {
+      "sha256": "3cd9509f5f946def80ce8e3d7fc615dbc7c4c8d6a4dd90747c3b9ea55d25bc49",
+      "bytes": 23290,
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 61.56,
+      "log_basename": "wrapper-m5-final-retest.log"
+    },
+    "wrapper-m5-focused-first": {
+      "sha256": "8b162e5e44b72a33b25f6028483104a42c5ea058bf226f9213c5e6f60db57c52",
+      "bytes": 21766,
+      "result": "FAIL",
+      "failure": "default_stack_overflow",
+      "exit_code": 101,
+      "log_basename": "wrapper-m5-focused-first.log"
+    },
+    "wrapper-m5-queue-diagnostic": {
+      "sha256": "a2b593cf01dcfd83fc1a3b38693b1c9a75aa205590dbf31ea1ed6c1615938c07",
+      "bytes": 22882,
+      "result": "FAILED",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "seconds": 15.98,
+      "log_basename": "wrapper-m5-queue-diagnostic.log"
+    }
+  },
+  "retained_failures": [
+    "wrapper-m5-focused-first: stackoverflow before box-before-async fix",
+    "wrapper-m5-boxed-first:26pass/1fail healthy2200ms cap lost to ownqueuedLCD4s deadline",
+    "wrapper-m5-queue-diagnostic:0pass/1fail confirmeduusd_capNone alone; mappings2/tax/router/othercap/bothfloors good",
+    "wrapper-m5-dispatch-first:26pass/1fail treasuryfloor phase consumed FIFOqueuewait; fixedbyphaseaftercriticalreads"
+  ],
+  "limitations": [
+    "No production probes, browser runs, deployment, full-library or broader issue verifier run by this subtask; root owns those groups."
+  ],
+  "issue": 1505,
+  "cargo_build_jobs": 2
+}
