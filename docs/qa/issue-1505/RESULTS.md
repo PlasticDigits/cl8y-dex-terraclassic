@@ -426,3 +426,16 @@ cadence change from 40ms to 100ms, retaining the 500ms useful-response budget,
 retained separately. The integrated tree must preserve the new main commits and
 repeat its affected maximum-profile/default-parallel checks before hosted CI
 and deployment; this source receipt does not claim those future results.
+
+[Main integration verification](source-verification-4-main-integration.json)
+preserves main `6a3ab090af45ba1192791b455dcc6ab69078c65a` in tested merge
+`b070b08f1a85918596ef92e4bbf0f2a4b3a29c6d`. The only delta under application
+source directories is the reviewed `cfg(test)` probe cadence and elapsed output;
+production hash/publication modules match the reviewed feature exactly.
+Full default-parallel library checks pass twice (853 passed, zero failed, one
+existing ignored each). The full maximum profile passes twice at main's 100ms
+reader spacing: two useful quotes and at most 2ms each, with the original
+500ms/100-request/full-workload constraints. Its reported publication elapsed
+value includes the profile's mandatory reads and sleeps; it is not isolated
+CPU preparation time. Formatting passes. Genuine hosted and deployed evidence
+for the final PR head remains pending.
