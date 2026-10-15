@@ -738,12 +738,10 @@ mod tests {
 }
 /// Scheduled wrapper observation pass; requests never call it.
 pub async fn refresh_wrapper(state: &AppState) -> bool {
-    if let Some(w) = local_wrapper_quote::observe(state).await {
-        publish_wrapper(state.lcd.chain_cache_namespace(), w);
-        true
-    } else {
-        false
-    }
+    apply_wrapper_observation(
+        state.lcd.chain_cache_namespace(),
+        local_wrapper_quote::observe(state).await,
+    )
 }
 /// Counters contain no actor/input information and make cache/coalescing evidence testable.
 pub fn cache_counters() -> (u64, u64, usize, usize) {
@@ -774,9 +772,10 @@ pub fn start_ingestion_with_cancel(
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             timer.tick().await;
-            if let Some(w) = local_wrapper_quote::observe(&wrapper_state).await {
-                publish_wrapper(wrapper_state.lcd.chain_cache_namespace(), w);
-            }
+            apply_wrapper_observation(
+                wrapper_state.lcd.chain_cache_namespace(),
+                local_wrapper_quote::observe(&wrapper_state).await,
+            );
         }
     });
     let reserves = state.clone();

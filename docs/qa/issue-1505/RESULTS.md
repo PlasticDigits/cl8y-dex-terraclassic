@@ -7,6 +7,25 @@ See [the checklist](README.md) and
 
 Results are recorded separately for source, deployment and focused live checks.
 
+## Current status
+
+Issue #1505 remains **OPEN**. The fourth deployed revision
+`358475f4cf71a3089f88259ee27339850512bacd` retained live availability failures.
+The fifth candidate has not been deployed.
+
+The [final source wave](source-verification-5-final.json) passes the native,
+identity, offline quote, lifecycle, liquidity-feed and provider-recovery
+verifiers, including first/retest, with zero executed failures and explicit
+separate-scope skips. Clippy succeeds with 155 existing warnings. All 1,205
+application files and 2,005 verification inputs retain identical before/after
+fingerprints. The final LCD module passes 108 tests twice, including reproduced
+deadline/cancellation controls. Hosted CI, deployment and focused live
+FIRST/RETEST remain pending.
+
+The records below preserve each earlier revision/run, including failures and
+interim pending work. Later receipts establish later outcomes; they do not erase
+failed runs or prove an unavailable historical cause.
+
 ## Reproduction on the previous deployment
 
 Both Coolify applications still served `14055610ebe86fd3640ff85e8adc15e16785c6dd`
@@ -39,7 +58,7 @@ remains FAIL. A separate 35-second timer diagnostic received replacements before
 each deadline and could not distinguish timer delay from deferred React commit;
 it establishes no acceptance pass.
 
-## Demonstrated source defects
+## Historical first implementation: demonstrated source defects
 
 The wrapper producer serialized independent treasury and native-denom reads before
 its bounded output and capability phases. Ordinary provider latency could consume
@@ -65,7 +84,7 @@ Server-generated, process-randomized request IDs and fixed direction/reason/poll
 phase diagnostics provide bounded correlation without quote query strings,
 wallets, bodies or private provider endpoints.
 
-## Source verification
+## Historical first implementation: source verification
 
 `make verify-issue-1499` passed all selected groups twice: nine wrapper regressions
 and 188 frontend tests per pass, plus types, formatting and documentation.
@@ -439,3 +458,282 @@ reader spacing: two useful quotes and at most 2ms each, with the original
 value includes the profile's mandatory reads and sleeps; it is not isolated
 CPU preparation time. Formatting passes. Genuine hosted and deployed evidence
 for the final PR head remains pending.
+
+
+The preceding application-byte equivalence covers only its named M4 fixture
+revision. M5 subsequently changes wrapper, local quote, ingestion, LCD and book
+runtime bytes; none of that earlier whole-application equivalence is carried
+forward as M5 coverage. M5 records its own source fingerprints and checks.
+
+## Fourth deployment: source PASS, live FIRST FAIL
+
+[PR #1514](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1514) merged
+normally as `358475f4cf71a3089f88259ee27339850512bacd`; its entire tree matches
+CI479 head `757f2217df5ccfa5d697e23dcbec8f4ac2ed510f`. Both checkouts were
+synchronized. [CI479](ci-479.json) passed 999 contract, 3,470 frontend, 853 library
+and 86 PostgreSQL tests, zero failures and two existing ignored tests. Required
+aggregate checks passed without retries or policy changes.
+
+[Exact deployment attestation](deployment-1514-attestation.json) passed for both
+Coolify services. Frontend finished at 14:18:56 UTC and backend at 14:22:46 UTC
+on 2026-10-15. Their 59/291 deployment log records contained no build-failure
+markers. A separate invalid-input API control passed HTTP 400 typed rejection,
+correlation, CORS and no-store checks. Useful probes began after the three-minute
+backend warm-up.
+
+[Main CI480](ci-480.json) also passed all required stages with the same counts,
+separately from deployed availability.
+
+The [190-second socket FIRST](deployment-1514-socket-fail.json) remains **FAIL**:
+135 useful responses and 11 missing-observation HTTP 503s. Its 134 initialized
+useful samples stayed within 306.331ms, but sampled recovery reached 10.382s.
+No unchanged RETEST ran. The [interrupted browser FIRST](deployment-1514-browser-interrupted.json)
+completed one desktop window: 24 useful responses, one native-input 503 and
+372ms initial useful paint. Partial phone output was 2/2 useful at 377.6ms.
+No expiry or ownership flags were observed. The run stopped on the independent
+socket failure; remaining windows, RETEST and separate forced-expiry control did
+not run. This is incomplete failed acceptance, not a live pass.
+
+[Bounded correlation](deployment-1514-diagnosis.json) distinguishes separate patterns. Poll 30 returned no tax
+rate after a typed `tax_rate/provider_unavailable`; poll 35 lacked the USTC cap
+without an explicit typed cap failure. The source's two-second output subdeadline
+may clip a permitted provider attempt, but the retained cap log does not prove
+that happened in this poll. In the third cluster, selected native-input/output
+IDs and browser ID `b812ccb7b7d0ccd5` show wrapper-only stale witnesses retaining
+the original 14:28:05.700 UTC observation. The next scheduled poll exited at
+14:28:15.700 with chain/provider-unavailable and zero elapsed milliseconds; the
+following poll recovered at 14:28:30.962 with original 14:28:25.700 UTC.
+Reference staleness is not the witness in those correlated requests.
+
+The [early producer census](deployment-1514-wrapper-census.json) has 16/18
+complete routed-native observations. Incomplete observations are preserved as
+evidence; direct floor support remains unavailable and cannot authorize signing.
+Implementation continues on bounded producer scheduling and zero-attempt
+provider recovery. No old fields are spliced into new observations and no source
+clock, provider/work limit or execution permission is extended. Issue #1505 stays
+open; all earlier failed receipts remain retained.
+
+The bounded historical census records identity quarantine and 25 all-circuit-open
+events immediately before the zero-millisecond failed wrapper poll. This supports
+an admission-gap mechanism without claiming a per-poll provider-state snapshot.
+Across the live interval, the reference publisher records 19 pool-completion
+wakes and 46 atomic mark commits (five economic marks each, at most 13ms), with
+no hub-refresh failure event. Current provider counters taken afterward are
+explicitly separate from historical state.
+
+## Bounded native producer recovery follow-up
+
+Two controlled old-behavior checks reproduce immediate identity/data failure
+while a provider cooldown expires inside the unchanged total deadline. The
+follow-up carries typed private scan deferral and waits only after a complete
+zero-attempt scheduled scan. Ordinary backoff and half-open admission remain
+authoritative; actual attempts never restart their budget. Every rescan, paced
+admission and identity metadata/attempt wait stays within its original absolute
+deadline. A once-per-call fixed identity/data circuit diagnostic adds no private
+path or provider data.
+
+Independent tax/cap reads start after validated treasury bindings alongside
+mapping/rate work. Caps attach only to mappings validated in that same poll.
+The artificial two-second output subdeadline is removed in favor of the original
+7.9-second publication margin; the eight-second outer poll and existing read,
+provider and cadence limits remain unchanged. Capability reads retain their
+bounded two-second phase after critical mapping and output reads complete.
+
+Review also found a known-negative bug: positively observed mapper/treasury
+pauses previously returned the same absence as a transient failure, leaving the
+old wrapper until original expiry. Typed pause outcomes now cancel unrelated
+bindings/router work and revoke the prior wrapper. A negative record shares the
+existing 32-namespace cap with positive views and persists until a validated
+positive. Solve/progress return existing HTTP 422 `unsupported_semantics` so the
+client cannot mistake this known negative for recoverable provider loss and keep
+an executable display. Cached/deeper quote publication still requires the current
+wrapper. Unavailable reads cannot restore permission or renew a clock.
+
+The initial focused LCD run remains FAIL: ten tests passed and the mixed-capacity
+fixture failed because two identical URLs were correctly deduplicated before it
+indexed a second endpoint. The fixture is corrected to use distinct servers.
+The controlled failures and first-run failure remain separate from final source
+verification, which is pending. No live acceptance is claimed for this follow-up.
+
+A later focused LCD run remains FAIL with 12 passes and one fixture failure:
+the near-deadline case selected a preexisting immediate identity mock instead of
+the newly mounted delayed response. Its expected timeout therefore did not occur.
+Only the owned mock server setup is reset before mounting the delayed identity;
+the original deadline and assertions remain unchanged.
+
+The first wrapper run also remains FAIL: ten controls passed before a real-HTTP
+case overflowed its ordinary test-worker stack. Concurrent phases had inlined
+large transport futures into the surrounding future state. The observer now
+boxes the read before creating its returned async state, retaining owned
+cancellation and the same bounded reads. No task is detached and no stack limit
+is increased. A deliberately large-future control checks that observer state
+remains small; the real-HTTP suite still runs with the ordinary stack. Final
+checks are pending.
+
+The first FIFO-dispatch run fixed the healthy 2.2-second output case but retained
+one failure among 27 controls: the ordinary 800ms provider case lost treasury
+floor capability because its two-second phase included a wait behind queued bank
+work. Critical mappings, tax, router and caps were complete. The floor phase now
+starts after critical work finishes, retaining its original two-second maximum
+and the whole-poll margin. Existing positive-capability assertions remain intact;
+this failed run is not relabeled. Final full focused/source checks are pending.
+
+The final wrapper focused FIRST passes all 29 controls on the ordinary stack:
+healthy 2.2-second tax/cap observations preserve both native directions, both
+direct-floor capabilities and exactly 13 data reads within the original margin.
+Slow unrelated-denom isolation, queued-expired-floor refusal, production future
+state size, malformed-response diagnostics and immediate treasury-pause
+cancellation passed. The following final receipt records the subsequent
+unchanged-source RETEST; no deployment acceptance is inferred.
+
+[Final native observation proof](native-observation-proof.json) records 29 passes
+on both FIRST and unchanged RETEST (61.66s/61.56s), preserving all prior failures.
+[Scheduled circuit proof](circuit-recovery-proof.json) records 13 passes twice
+with original identity/data deadline, cancellation and attempt-limit controls.
+[Cached native pause proof](native-pause-proof.json) retains the former
+pause-as-unavailable control FAIL (zero passed, one failed), then fixed FIRST
+and RETEST PASS. The source file was restored byte-for-byte before fixed checks.
+Known pauses reject cached/native solve and progress with 422, including the
+interleaving where revocation arrives after cloning the old wrapper. Independent
+final review found no remaining LCD, dispatcher, floor or pause-consumer issue.
+These are source controls; full compatibility verifiers and the next deployment
+remain separate. Owned disposable QA was reset again after the final fixes.
+
+The broader wave stopped on an [executed head-recovery failure](source-verification-5-head-failure.json)
+in the chain-attestation verifier: 21 book tests passed and
+`issue_1453_third_provider_recovers_known_height_within_head_budget` retained
+height 699 instead of 700. Its 100ms attempts, 400ms logical/head/pair budgets
+and two delayed providers remain unchanged. The retained height alone does not
+identify the failed phase. Separate book passes do not waive this failure.
+The [liquidity verifier](source-verification-5-liquidity-interrupted.json) and
+[local-quote verifier](source-verification-5-quotes-interrupted.json) were
+interrupted without acceptance claims. All owned processes stopped before the
+disposable QA database was reset for bounded phase diagnosis; no shared
+infrastructure was reset.
+
+[Bounded head diagnosis](head-failure-diagnostic.json) leaves the original phase
+unknown. On fresh quiet QA, the unchanged limits allow the third head at 244ms
+and pool/fee/book work through 272ms, publishing raw and hybrid height 700 by
+283ms. A controlled 140ms healthy-head handler stall instead exhausts its 100ms
+attempt: all three providers fail, no pool/fee/book request starts and height
+699 remains. This proves a diagnostic signature, not the original cause. The
+instrumented spy setup failure is also retained. The original book file was
+restored exactly; no runtime change or deadline relaxation was made. Full book
+first/retest and remaining verifiers will run without overlapping timed stages.
+
+The restored full book FIRST also fails quietly: 21 passed and the same height
+assertion failed in 27.72s; RETEST did not run. This rules out treating shared
+load as a sufficient explanation. The source and 100/400ms constraints were
+unchanged. Diagnosis now instruments the full sequence to distinguish preceding
+fixture/state effects from head or pair failure; no source fix is claimed yet.
+
+A separate deterministic cleanup control identifies a real ownership defect:
+SQLx transaction drop queues rollback, while the pool's public `after_release`
+hook runs before that queue is flushed. Holding that release exposes three old
+failures without changing 100/400ms limits: normal completion returns with both
+1453 locks held and the next pass makes zero provider attempts; partial lane
+denial retains the first acquired key; an original 42P01 SQL error is preserved
+but both locks remain held. All three old controls fail. This proves the lifecycle
+defect, while the exact phase of the historical height failure remains unproven.
+The fix awaits owned transaction cleanup before normal/error returns, with the
+original error taking precedence. Cancellation retains the existing RAII fallback.
+The negative SQL control uses connection-local `search_path=pg_catalog` in an
+owned disposable database; it never drops or renames shared fixture tables.
+The following final receipt records fixed controls and full-sequence verification.
+
+[Final cleanup proof](combined-snapshot-cleanup-proof.json) records all three
+controls passing twice, followed by full book FIRST/RETEST (25 passed each) and
+default-parallel library FIRST/RETEST (877 passed, one existing ignored each).
+Both library runs include the maximum-publication profile. Independent final
+review found no ownership, cancellation, source-clock or budget issue.
+
+[Verifier status controls](verifier-status-proof.json) also reproduce a separate
+agent-facing defect: the old grouped Rust/QA function could report PASS after an
+earlier command failed. Explicit failure returns now stop those groups. The
+no-network regression checks every failure position and success for Rust, DB
+and QA. Prior recorded passes were supported by individual passing results;
+this defect does not turn any retained failure into a pass. The focused verifier
+now includes the three cleanup DB controls and ten Python control tests.
+Final serialized compatibility verifiers and deployed acceptance remain pending.
+
+The first database-isolation run correctly rejected an incompletely provisioned
+authenticated runtime QA fixture: its default `postgres` maintenance database
+still granted CONNECT through PUBLIC. The [fixture failure](source-verification-5-runtime-fixture-failure.json)
+remains FAIL (library 878 passed; isolation five passed, one failed). The private
+provisioner now revokes PUBLIC CONNECT on maintenance databases before enabling
+the disposable runtime login. After resetting only the owned cluster, a direct
+catalog check confirms zero accessible unrelated databases before any temporary
+fixture grant. No production permission or application source changed. The full
+affected verifier and subsequent stages are being repeated on that corrected
+fixture; the already-passing native/identity/discovery checks retain their
+unchanged application-source scope.
+
+The corrected database-isolation verifier subsequently passed 28 groups with
+zero failures. Its unavailable default Docker bridge host-forwarding prerequisite
+and host-disabled loopback IPv6 remain explicit network scope skips; internal,
+external-namespace rejection, opt-in IPv4 host mode and fresh role ACL checks
+passed. The [host prerequisite record](source-verification-5-host-network-unavailable.json)
+preserves the earlier interrupted probe and does not establish its root cause.
+
+Independent review then identified an unbounded metadata cleanup await after an
+identity attempt timed out. The remaining compatibility wave was
+[intentionally interrupted](source-verification-5-identity-review-interrupted.json)
+before changing source. No assertion failed in that interrupted wave. Provider
+quarantine and metadata invalidation must both preserve their semantics while
+completion respects the original total deadline. This is a separate boundary
+defect; it does not establish the cause of a historical live failure. Subsequent
+source verification must record its own fingerprint and cannot inherit the
+preceding run's unchanged-source claim.
+
+[Identity cleanup proof](identity-deadline-proof.json) records the old regression
+as FAIL: the 400ms total-budget call remained pending at 500ms while metadata was
+locked, after exactly one HTTP read. The fix records failure synchronously on the
+owned provider and disarms duplicate permit accounting before deadline-bounded
+metadata invalidation. FIRST/RETEST of the complete LCD module pass 108 tests
+with one existing ignored benchmark (12.42s/12.55s), using default stack and
+parallel harness settings. Closed and half-open cancellation/deadline controls
+each record exactly one attempt and one failure; no stale verified metadata can
+authorize a new read. Independent read-only review found no remaining concern.
+The owned QA cluster was reset before restarting applicable source verifiers on
+the final frozen application fingerprint
+`36587444f139b0fbe5b15e36116af9f277efd772b65e740dc1280669dc603f07`.
+
+## Fifth candidate: final source verification
+
+[The final source receipt](source-verification-5-final.json) records a serialized
+2026-10-15 17:09:54–17:49:47 UTC wave on the frozen implementation. Every selected
+runnable group passed; no source changed between first and retest.
+
+| Verifier | PASS | FAIL | Explicit scope SKIP |
+| --- | ---: | ---: | ---: |
+| Native #1505 | 14 | 0 | 1 |
+| Chain identity #1392 | 11 | 0 | 1 |
+| Offline quotes #1452 | 14 | 0 | 0 |
+| Quote lifecycle #1499 | 10 | 0 | 1 |
+| Liquidity feed #1453 | 12 | 0 | 2 |
+| Provider recovery #1464 | 11 | 0 | 2 |
+
+Clippy exits zero with unchanged existing warnings. The full library passes
+879 tests with one existing ignored benchmark; applicable verifiers separately
+run that benchmark. Controlled production-build browser FIRST/RETEST each record
+44 quote requests, zero provider requests and four scenario receipts. They prove
+the controlled offline boundary, not deployed latency or availability.
+
+The application fingerprint covers actual `smartcontracts` workspace roots as
+well as indexer/frontend/package source, including test-only source. Its final
+SHA-256 is
+`36587444f139b0fbe5b15e36116af9f277efd772b65e740dc1280669dc603f07`;
+the verification-input fingerprint adds tests, scripts and explicit package/
+toolchain inputs and is
+`e6d406cc92e61d076ec61af6c39d88b0609f08c63b1eb04b34cc32a2c5882f3b`.
+Documentation, receipts, private env and generated build/cache files are excluded.
+
+Discovery #1394 (23/0/0) and database isolation #1396 (28/0/2) completed before
+the isolated identity-cleanup delta and retain that preceding-source scope in
+the receipt. Database infrastructure and discovery code did not change afterward;
+the final identity/native/quote/feed verifiers cover the changed boundary.
+Authenticated role isolation passed twice. The host bridge positive-query and
+host-disabled IPv6 prerequisites remain unavailable, with failed/interrupted
+diagnostics retained. Separate deployed/history/funded/treasury scopes are not
+claimed by source passes. Exact-revision hosted CI and live acceptance remain
+pending.

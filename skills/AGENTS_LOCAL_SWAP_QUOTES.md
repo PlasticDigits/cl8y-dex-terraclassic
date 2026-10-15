@@ -121,3 +121,9 @@ bindings may reuse initialized digests. Recompute policy/reference/final identit
 and retain all original clocks and commit-time authority. Hash reuse is scheduled
 CPU preparation, never a request-side freshness or signing permission. Include
 `make verify-issue-1505` and `make verify-issue-1489` for this publication path.
+
+For native producer recovery, follow [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md):
+overlap same-poll tax/cap work with mappings under the original margin, attach
+only validated matching mappings and revoke positively observed pauses. Bounded
+zero-attempt circuit waiting belongs only to scheduled ingestion; request paths
+remain offline and cannot renew wrapper observations.

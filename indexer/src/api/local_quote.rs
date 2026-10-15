@@ -58,6 +58,8 @@ struct Store {
     snapshots: HashMap<String, Arc<Snapshot>>,
     admission_inventory: HashMap<String, diagnostics::Inventory>,
     wrappers: HashMap<String, super::local_wrapper_quote::WrapperSnapshot>,
+    // Jointly bounded with positive views; known negatives survive unavailable reads.
+    wrapper_revocations: HashMap<String, super::local_wrapper_quote::WrapperRevocation>,
     results: HashMap<String, Value>,
     jobs: HashSet<String>,
     deferred_jobs: std::collections::VecDeque<jobs::Work>,
@@ -1111,18 +1113,73 @@ fn wrapper_generation(market: &str, w: &super::local_wrapper_quote::WrapperSnaps
     ));
     format!("{:x}", hash.finalize())
 }
+fn wrapper_namespace_admitted(g: &Store, namespace: &str) -> bool {
+    g.wrappers.contains_key(namespace)
+        || g.wrapper_revocations.contains_key(namespace)
+        || g.wrappers.len() + g.wrapper_revocations.len() < 32
+}
+fn current_wrapper<'a>(
+    g: &'a Store,
+    namespace: &str,
+) -> Result<&'a super::local_wrapper_quote::WrapperSnapshot, Error> {
+    if g.wrapper_revocations.contains_key(namespace) {
+        return Err(diagnostics::Rejection::Unsupported.error());
+    }
+    g.wrappers.get(namespace).ok_or_else(unavailable)
+}
 fn publish_wrapper(namespace: String, w: super::local_wrapper_quote::WrapperSnapshot) {
     let mut g = store().lock().unwrap();
-    if g.wrappers.len() < 32 || g.wrappers.contains_key(&namespace) {
+    if wrapper_namespace_admitted(&g, &namespace) {
+        g.wrapper_revocations.remove(&namespace);
         g.wrappers.insert(namespace, w);
     }
 }
+/// One owned scheduled observation publishes a whole view or revokes it. A
+/// transient failure retains only the previous view's original expiry; a known
+/// pause cannot leave that view executable while awaiting its next deadline.
+fn apply_wrapper_observation(
+    namespace: String,
+    observation: super::local_wrapper_quote::WrapperObservation,
+) -> bool {
+    use super::local_wrapper_quote::WrapperObservation;
+    match observation {
+        WrapperObservation::Available(wrapper) => {
+            publish_wrapper(namespace, wrapper);
+            true
+        }
+        WrapperObservation::Revoked(reason) => {
+            let mut g = store().lock().unwrap();
+            if wrapper_namespace_admitted(&g, &namespace) {
+                g.wrappers.remove(&namespace);
+                g.wrapper_revocations.insert(namespace, reason);
+            }
+            drop(g);
+            tracing::warn!(
+                reason = reason.as_str(),
+                "Native wrapper observation revoked"
+            );
+            false
+        }
+        WrapperObservation::Unavailable => false,
+    }
+}
+
 #[derive(Clone)]
 struct NativeContext {
     request: route_solver::SolveRouteParams,
     wrapper: super::local_wrapper_quote::WrapperSnapshot,
     wrap: bool,
     unwrap: bool,
+}
+/// Revalidation may race an independently observed pause after the native view
+/// was cloned. Preserve its semantic rejection instead of inviting client
+/// retention through a recoverable missing-observation response.
+fn invalidated_snapshot_error(g: &Store, namespace: &str, native: bool) -> Error {
+    if native && g.wrapper_revocations.contains_key(namespace) {
+        diagnostics::Rejection::Unsupported.error()
+    } else {
+        unavailable()
+    }
 }
 /// Linearize result publication against independently observed guards and market
 /// generations. A request that started earlier cannot recreate a cleared cache.
@@ -1519,13 +1576,7 @@ async fn solve_local_with_plan(
         return Err(diagnostics::Rejection::Unsupported.error());
     }
     let native = if wrap || unwrap {
-        let w = store()
-            .lock()
-            .unwrap()
-            .wrappers
-            .get(namespace)
-            .cloned()
-            .ok_or_else(unavailable)?;
+        let w = current_wrapper(&store().lock().unwrap(), namespace)?.clone();
         if !w.is_fresh(now_ms()) {
             super::prerequisite_trace::record(
                 super::prerequisite_trace::Component::Wrapper,
@@ -1723,7 +1774,7 @@ async fn solve_local_with_plan(
         let body = modes::wrapper_only(&snapshot, q, native, spread).ok_or_else(eligible_error)?;
         let g = store().lock().unwrap();
         if !reviewed_snapshot_current(&g, namespace, &snapshot, Some(native)) {
-            return Err(unavailable());
+            return Err(invalidated_snapshot_error(&g, namespace, true));
         }
         return Ok(Json(body));
     }
@@ -1745,7 +1796,7 @@ async fn solve_local_with_plan(
     {
         let mut g = store().lock().unwrap();
         if !reviewed_snapshot_current(&g, namespace, &snapshot, native.as_ref()) {
-            return Err(unavailable());
+            return Err(invalidated_snapshot_error(&g, namespace, native.is_some()));
         }
         if let Some(body) = g
             .results
@@ -1943,7 +1994,7 @@ async fn solve_local_with_plan(
     {
         let mut g = store().lock().unwrap();
         if !reviewed_snapshot_current(&g, namespace, &snapshot, native.as_ref()) {
-            return Err(unavailable());
+            return Err(invalidated_snapshot_error(&g, namespace, native.is_some()));
         }
         if g.results.len() >= MAX_RESULTS {
             g.results.clear();
@@ -2006,7 +2057,7 @@ fn progress_local(
     if matches!(q.token_in.as_str(), "uluna" | "uusd")
         || matches!(q.token_out.as_str(), "uluna" | "uusd")
     {
-        let w = g.wrappers.get(&ns).ok_or_else(unavailable)?;
+        let w = current_wrapper(&g, &ns)?;
         s.generation = wrapper_generation(&s.generation, w);
     }
     let ck = key(&ns, &s, q, spread_atomics(q.max_spread.as_deref())?);
@@ -3481,6 +3532,129 @@ mod tests {
             recovered["estimated_amount_out_net"],
             original["estimated_amount_out_net"]
         );
+        assert_eq!(
+            store().lock().unwrap().wrappers[namespace].observed_at_ms,
+            original_clock
+        );
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn issue1505_observed_pause_revokes_cached_native_quotes_without_renewing_old_clocks() {
+        use super::super::local_wrapper_quote::{
+            NativeMapping, WrapperObservation, WrapperRevocation, WrapperSnapshot,
+        };
+        let namespace = "1505-pause-revocation";
+        let s = fixture();
+        initialize_for_test(namespace.into(), s.pairs, s.addresses, s.mirrors, 20_000);
+        let wrapper = WrapperSnapshot {
+            mapper: "mapper".into(),
+            treasury: "treasury".into(),
+            observed_at_ms: now_ms(),
+            mappings: HashMap::from([(
+                "uluna".into(),
+                NativeMapping {
+                    cw20: "out18".into(),
+                    maximum: None,
+                    used: 0,
+                    tax_cap: Some(0),
+                },
+            )]),
+            fee_wrap_bps: 0,
+            fee_unwrap_bps: 0,
+            tax_atomics: Some(0),
+            router_unwrap_supported: Some(true),
+            mapper_floor_version: Some(1),
+            treasury_floor_version: Some(1),
+        };
+        let original_clock = wrapper.observed_at_ms;
+        let mut q = request(10u128.pow(18));
+        q.token_out = "uluna".into();
+        q.pool_only = Some(true);
+        for reason in [
+            WrapperRevocation::MapperPaused,
+            WrapperRevocation::TreasuryWrappingPaused,
+        ] {
+            assert!(apply_wrapper_observation(
+                namespace.into(),
+                WrapperObservation::Available(wrapper.clone())
+            ));
+            let original = solve_local(namespace, &q).await.unwrap().0;
+            // Populate and then hit the exact native quote cache before revocation.
+            assert_eq!(
+                solve_local(namespace, &q).await.unwrap().0["estimated_amount_out_net"],
+                original["estimated_amount_out_net"]
+            );
+            assert!(!apply_wrapper_observation(
+                namespace.into(),
+                WrapperObservation::Unavailable
+            ));
+            assert_eq!(
+                store().lock().unwrap().wrappers[namespace].observed_at_ms,
+                original_clock
+            );
+            assert!(solve_local(namespace, &q).await.is_ok());
+            let reviewed = {
+                let g = store().lock().unwrap();
+                let mut reviewed = protocol_guards::derive(&g, namespace, &g.snapshots[namespace]);
+                reviewed.generation = wrapper_generation(&reviewed.generation, &wrapper);
+                reviewed
+            };
+            let native = NativeContext {
+                request: q.clone(),
+                wrapper: wrapper.clone(),
+                wrap: false,
+                unwrap: true,
+            };
+            assert!(!apply_wrapper_observation(
+                namespace.into(),
+                WrapperObservation::Revoked(reason)
+            ));
+            {
+                let g = store().lock().unwrap();
+                // Deterministic interleaving: the quote captured a valid wrapper,
+                // then the independent producer revoked it before final review.
+                assert!(!reviewed_snapshot_current(
+                    &g,
+                    namespace,
+                    &reviewed,
+                    Some(&native)
+                ));
+                assert_eq!(
+                    invalidated_snapshot_error(&g, namespace, true).0,
+                    StatusCode::UNPROCESSABLE_ENTITY
+                );
+                assert_eq!(
+                    invalidated_snapshot_error(&g, namespace, false).0,
+                    StatusCode::SERVICE_UNAVAILABLE
+                );
+            }
+            assert!(!store().lock().unwrap().wrappers.contains_key(namespace));
+            // The local consumer must reject even though its executable quote was cached.
+            let missing = solve_local(namespace, &q).await.unwrap_err();
+            assert_eq!(missing.0, StatusCode::UNPROCESSABLE_ENTITY);
+            assert_eq!(
+                serde_json::from_str::<Value>(&missing.1).unwrap()["error"],
+                "unsupported_semantics"
+            );
+            assert!(!apply_wrapper_observation(
+                namespace.into(),
+                WrapperObservation::Unavailable
+            ));
+            assert_eq!(
+                solve_local(namespace, &q).await.unwrap_err().0,
+                StatusCode::UNPROCESSABLE_ENTITY
+            );
+            assert_eq!(
+                progress_local(namespace, &q).unwrap_err().0,
+                StatusCode::UNPROCESSABLE_ENTITY
+            );
+        }
+        assert!(apply_wrapper_observation(
+            namespace.into(),
+            WrapperObservation::Available(wrapper)
+        ));
+        assert!(solve_local(namespace, &q).await.is_ok());
         assert_eq!(
             store().lock().unwrap().wrappers[namespace].observed_at_ms,
             original_clock

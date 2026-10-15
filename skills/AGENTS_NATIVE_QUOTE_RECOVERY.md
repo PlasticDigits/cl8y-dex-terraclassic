@@ -9,8 +9,8 @@ Preserve [QL1499](AGENTS_QUOTE_LIFECYCLE.md),
 | ID | Invariant |
 | --- | --- |
 | NR1505-1 | Quote, reverse, progress and refresh requests consume local observations only. Independently scheduled producers own all chain reads; demand cannot accelerate their cadence. |
-| NR1505-2 | Independent wrapper reads may overlap through the existing shared two-permit/four-RPS lane. Dependencies remain ordered. Run router configuration concurrently with all remaining observation work after validated mapper configuration, within the existing LCD attempt/total bounds and original 7.9-second publication margin. A shorter wrapper timeout must not clip a permitted provider attempt. Tax/caps and mapper/treasury capabilities retain their separate two-second phases. Log router publication-margin timeout as fixed router_config/deadline evidence. Preserve the eight-second poll, 7.9-second publication margin and original poll-start freshness. |
-| NR1505-3 | Missing, timed-out or malformed required fields refuse execution. Concurrent completion never invents a positive, reuses unknown state or renews original twenty-second market/wrapper expiry. Known negatives remain authoritative. |
+| NR1505-2 | Independent wrapper reads may overlap through the existing shared two-permit/four-RPS lane. Dependencies remain ordered. Run router configuration concurrently with all remaining observation work after validated mapper configuration, within the existing LCD attempt/total bounds and original 7.9-second publication margin. Required router/tax/cap reads must not acquire an artificial shorter subdeadline; the original whole-poll/publication deadlines still cancel owned work. After validated treasury bindings, run independent tax/cap reads alongside mappings within that same original margin. Attach caps only to mappings validated in the same poll. Optional capability reads retain their bounded two-second phase after critical mapping and output reads complete, with neutral cancellation at that phase deadline. Log router publication-margin timeout as fixed router_config/deadline evidence. Preserve the ten-second cadence, eight-second outer deadline, 7.9-second publication margin and original poll-start freshness. |
+| NR1505-3 | Missing, timed-out or malformed required fields refuse execution. Concurrent completion never invents a positive, reuses unknown state or renews original twenty-second market/wrapper expiry. Known pauses remain bounded negative records until a validated positive observation, and return the existing unsupported-semantics rejection rather than a recoverable provider error. Positive views and negative records share the original 32-namespace bound. Known negatives remain authoritative; a positively observed mapper/treasury pause revokes the previous wrapper immediately rather than being treated as transient absence or waiting behind unrelated bindings/router work. |
 | NR1505-4 | Native request diagnostics use server-generated correlation identifiers and fixed reason/phase classes. Final503s may emit at most one stale candidate witness for each of eight fixed prerequisite components, with bounded age/expiry scalars; failed alternatives are witnesses, not a sole-cause assertion. Successful responses emit none. Never log query strings, wallet identifiers, bodies, secrets or private provider endpoints. Identifiers belong in response headers/log fields, never metric labels. |
 | NR1505-5 | Display and signing payload disappear at the original deadline. A delayed React transition cannot leave an expired executable display waiting for a later scheduler task. No expiry callback initiates network validation or renews metadata. |
 | NR1505-6 | Browser measurements use the original input event and browser-observed response body clock. Node/CDP delivery lag cannot manufacture observation freshness or silently erase elapsed time. Retain ambiguous display owners until a distinguishable transition; qualify two-frame useful paint independently of first DOM observation. |
@@ -28,3 +28,24 @@ Canonical publication preparation follows
 digests, recalculate policy/reference/final identity and retain all original
 expiry and commit guards. Source verification includes fresh-hash equivalence
 and the unchanged maximum-publication useful-HTTP profile.
+
+Scheduled ingestion may wait after a full zero-attempt capacity/circuit deferral
+only inside its existing total deadline. Preserve typed deferral provenance,
+provider backoff and ordinary half-open admission. A real attempt ends that
+rescan loop; requests never acquire this behavior. Check the deadline before
+rescanning and retain cancellation ownership. No admission or network work may
+start at or after the original deadline.
+
+An identity attempt timeout records provider failure before metadata cleanup.
+The cleanup shares the original total deadline, including lock contention;
+cancellation cannot lose quarantine or double-count a failure. Historical
+verified metadata never admits data without a fresh positive identity read.
+
+Each poll owns a fixed set of data-read futures. A local FIFO dispatcher admits
+at most two logical LCD reads at once, before polling their transport futures;
+queued work must not consume an already-running query's deadline. Dispatch waits
+remain inside the original whole-poll/publication margin, check that deadline
+before starting a read, and release on cancellation. The shared provider lane,
+rate/attempt budgets and original read count remain unchanged. No global queue
+or detached work is introduced; required reads queue before later capability
+work. Box transport futures before constructing their enclosing async state.

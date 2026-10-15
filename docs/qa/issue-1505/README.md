@@ -24,11 +24,28 @@ No broad verification-only sweep, physical device or wallet signing is required
 by #1505. Historical failures remain evidence and are not relabeled by new runs.
 The issue closes only when its body and comments' actual required checks pass.
 
-After exact deployment attestation, run the focused socket and browser probes:
+Attest both exact deployment revisions and independently wait at least 180 seconds
+from backend deployment completion before useful measurements. Run one browser
+at a time without concurrent builds or integration timing jobs. Native browser
+FIRST must complete four sequential 190-second direction/viewport windows; run
+unchanged RETEST only after the entire FIRST passes. Run separate 190-second
+initialized socket FIRST/RETEST. Stop on an actual failure, preserve partial
+windows/attempts and diagnose before another implementation/deployment cycle.
+
+Use new receipt paths for each pass and retain helper hashes, useful/error sample
+counts, original input/observation clocks, ownership qualifications and bounded
+teardown counts. If natural windows never exercise expiry, record a separate
+bounded anonymous client-delivery-hold control: retain original response metadata,
+honor AbortSignal, observe synchronous amount/minimum revocation at original
+expiry and fresh same-intent recovery. This functional control cannot replace
+natural availability/latency acceptance or establish funded signing.
+
+After attestation and warm-up, run the focused probes:
 
 ```sh
 python3 scripts/qa/probe-native-recovery-1505.py \
-  --revision "$DEPLOYED_SHA" --require-correlation --output "$SOCKET_RECEIPT"
+  --revision "$DEPLOYED_SHA" --require-correlation --duration 190 --interval 2 \
+  --output "$SOCKET_RECEIPT"
 EXPECTED_SOURCE_SHA="$DEPLOYED_SHA" DEX_LIVE_ATTESTATION="$ATTESTATION" \
   DEX_LIVE_ISSUE=1505 DEX_LIVE_SHARD=0 DEX_LIVE_OUTPUT="$BROWSER_RECEIPT" \
   bash scripts/with-node.sh -- node scripts/qa/live-trading-lifecycle-1499.cjs
@@ -64,3 +81,39 @@ calls only for exact live immutable bindings. Detached/changed views and wrong
 address/kind bindings must rehash. Preserve base/reference/policy/final identity,
 negative actor/fee authority, original expiry and the two owned CPU slots. The
 maximum-publication profile keeps its complete workload, pacing and sample cap.
+
+Native observation regressions cover healthy tax/cap reads longer than the old
+two-second subdeadline while preserving the original complete-poll deadline and
+read count. Separate controls exercise short-circuit recovery through ordinary
+admission within the existing total deadline, long-circuit exhaustion without
+HTTP work, request fast failure, attempt caps, integrity precedence and owned
+cancellation. A validated pause must revoke a previously published wrapper without waiting
+behind unrelated bindings/router reads;
+transient unavailability cannot fabricate fields or renew their original clock.
+
+Database ownership isolates data and migrations, not CPU/I/O latency. Run the
+deadline-sensitive integration/verifier stages one at a time in the QA instance,
+without concurrent migrations, builds or browsers during timing measurements.
+Keep original provider/head/pair budgets; preserve failures from earlier runs and
+record the execution envelope. See the retained
+[head diagnostic](head-failure-diagnostic.json): a later quiet pass cannot establish
+the cause of an earlier uninstrumented failure or erase it.
+
+Snapshot cleanup regressions use the SQLx pool's public release hook to delay only
+queued rollback. Verify normal completion, partial advisory denial and original
+SQL-error returns release every acquired key before the next refresh. Preserve
+provider/head/pair deadlines and original errors, and use only owned disposable
+QA pools. A connection-local missing search path tests 42P01 without schema
+mutation.
+
+Grouped commands must return any nested failure explicitly: Bash disables
+`errexit` when a function runs inside a conditional. The focused verifier now
+short-circuits failed Rust/DB/QA commands;
+[status-injection proof](verifier-status-proof.json) uses fake executables and no
+network/private environment. The DB group also runs the three Combined cleanup
+controls on both source passes.
+
+Capture bounded 15-minute monitoring snapshots after each complete browser pass
+so the two snapshots cover the full FIRST/RETEST interval; preserve overlap rather
+than adding duplicate counts. Prometheus is queried only if provisioned. Pattern
+counts are monitoring evidence, not cohort availability or sole-cause proof.

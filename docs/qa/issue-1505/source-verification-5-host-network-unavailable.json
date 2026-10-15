@@ -1,0 +1,16 @@
+{
+  "issue": 1505,
+  "status": "UNAVAILABLE prerequisite; verifier interrupted",
+  "source_changed": false,
+  "owned_container_healthy": true,
+  "inside_listen_all": true,
+  "internal_query_pass": true,
+  "published_host_query_pass": false,
+  "failure_class": "connection_timeout",
+  "cause": "host bridge forwarding cause not established",
+  "assertion_timeout_reached": false,
+  "supported_scope": "VERIFY_ISSUE_1396_SKIP_BRIDGE_HOST_REASON; other network/isolation/ACL probes remain required",
+  "owned_probe_project_removed": true,
+  "log_basename": "verify-1396-release5-final-resume.log",
+  "log_sha256": "d3321928ea9a939d51b3e1b897c8a5643eb260f71358bb721cde1497ed808e41"
+}

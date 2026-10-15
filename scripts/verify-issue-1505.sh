@@ -5,12 +5,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 ISSUE=1505
 source scripts/qa/verify-followup-common.sh
 rust() {
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::quote_trace -- --test-threads=1
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_http_stale_origins -- --test-threads=1
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --test-threads=1
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib db::queries::hub_prices::scheduler -- --test-threads=1
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::generation -- --test-threads=1
-  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::publication -- --test-threads=1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::quote_trace -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_http_stale_origins -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib issue1505_observed_pause -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib lcd::deferred_recovery_tests -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib db::queries::hub_prices::scheduler -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::generation -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_quote::publication -- --test-threads=1 || return 1
 }
 sockets() {
   if [[ -f indexer/.env.qa ]]; then
@@ -22,7 +24,8 @@ sockets() {
     echo 'Disposable QA capability unavailable; provision the owned database or record an explicit DB skip reason.' >&2
     return 1
   }
-  cargo test --locked --manifest-path indexer/Cargo.toml --test native_reference_publication_1505 -- --test-threads=1
+  cargo test --locked --manifest-path indexer/Cargo.toml --test native_reference_publication_1505 -- --test-threads=1 || return 1
+  cargo test --locked --manifest-path indexer/Cargo.toml --test book_snapshot_loop issue1505_combined_return -- --test-threads=1 || return 1
 }
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/vitest run \
@@ -32,7 +35,7 @@ frontend() {
 qa() {
   node --test scripts/qa/test-live-input-clock-1499.cjs \
     scripts/qa/test-live-trading-lifecycle-1499.cjs scripts/qa/test-live-read-guard-1499.cjs \
-    scripts/qa/test-live-quote-economics-1500.cjs
+    scripts/qa/test-live-quote-economics-1500.cjs || return 1
   python3 scripts/qa/test-native-recovery-1505.py
 }
 docs() {

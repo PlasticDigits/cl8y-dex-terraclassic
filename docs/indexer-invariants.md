@@ -10,6 +10,11 @@ without logging query strings, actors or provider endpoints. Apply
 `make verify-issue-1505`; [focused source/deployed evidence](qa/issue-1505/RESULTS.md)
 does not renew original freshness or replace actual live acceptance.
 
+An identity timeout charges provider failure before metadata cleanup. Metadata
+lock waits share the original total deadline, including cancellation, without
+double-counting failure. Historical verified metadata cannot admit a read;
+fresh expected-chain attestation remains mandatory.
+
 Owned pool-cycle completion may coalesce one reference-publication wake. Keep the
 existing fallback timer, atomic qualified batch and original timestamps. One
 independent accounting worker consumes a consistent certified context and cannot
@@ -123,8 +128,8 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 ## Architecture
 
 - **Indexer task:** LCD → parse txs → Postgres (swaps, candles, traders, positions, limit fills and lifecycle rows, liquidity events, hooks, oracle rows, `protocol_fee_events`).
-- **API task:** Axum handlers (primarily `GET`) → SQLx (parameterized) → JSON; `POST /api/v1/route/solve` for hybrid-aware route merge and optional LCD simulation.
-- **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache, optional `router_address` for route simulation).
+- **API task:** Axum handlers consume parameterized SQL/local observations and return JSON. Current route GET/POST/progress/preflight handlers perform no LCD simulation or request-triggered validation; independently scheduled ingestion owns chain reads. Historical request-simulation descriptions below are superseded by [LQ1452](../skills/AGENTS_LOCAL_SWAP_QUOTES.md).
+- **Shared state:** `AppState` holds the database pool, scheduled-producer LCD client, price/ticker/book caches and configured route identities; request preparation consumes qualified local generations with original expiry.
 - **Protocol fee uniqueness (#1269):** `swap_amm` is pair-scoped; wrap/window/book/place stay NULL `pair_id`. Decision: [ADR 0005](./adr/0005-protocol-fee-multihop-hops.md). Overview: [architecture.md](./architecture.md#indexer-protocol-fee-ledger).
 - **Pair-creation fee ingest (#1209 / #1354):** accept one positive emitted `creation_fee_uluna` only from reserved `_contract_address == FACTORY_ADDRESS`; exclude gas, refunds, `reply_instantiate_pair`, and duplicate bank-send counting. Persist with `pair_id IS NULL` under #1269's non-pair partial unique key; keep fee USD / idle / unpriced and O(1) GET semantics. See [#1209 QA checklist](./qa/issue-1209/README.md), [fee-ledger agent playbook](../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md), and [factory audit item 11](./audits/factory-treasury-bank-send.md).
 
@@ -504,8 +509,10 @@ pacing slots; actual attempts still share finite rate/concurrency admission. Kno
 registered code IDs do not require redundant data-hash fallback. Independent
 ticker/hub timers preserve original timestamps, quorum and TTLs; optional wrapper
 output work cannot consume the publication margin for completed native input.
-Zero-attempt background capacity waiting remains inside the original logical
-deadline and holds no permits; real attempts never reset their work budget.
+Zero-attempt scheduled capacity/circuit waiting remains inside the original logical
+deadline and holds no permits. Typed scan provenance preserves integrity and
+ordinary circuit backoff; a real attempt ends the rescan loop, and an expired
+deadline starts no admission or HTTP work. Direct callers keep prompt failure.
 Production pool/book concurrency is four/two under unchanged shared provider caps.
 Static supported tax policy publishes before optional wallet work. Typed completed
 availability can retain only original qualification times; observed semantic

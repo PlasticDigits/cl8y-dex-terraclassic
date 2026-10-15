@@ -145,3 +145,19 @@ original per-pair deadline running, and require an active provider request with
 no cancellation or failure at the healthy observation. Never reset or extend
 provider deadlines to make setup latency pass. See
 [the controlled phase proof](../docs/qa/issue-1505/RESULTS.md).
+
+Native recovery [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) also covers a complete
+zero-attempt scheduled-ingestion scan denied by provider circuits. Wait and
+rescan ordinary admission only inside the original total deadline, with no held
+permits, backoff reset or forced half-open probe. Keep typed capacity/circuit
+provenance and integrity precedence. Once any actual attempt starts, never restart
+that query's attempt budget. Direct/request callers retain their existing prompt
+error behavior. An expired deadline starts no admission or HTTP work.
+
+Combined snapshot helpers must await their advisory transaction's rollback before
+returning, including partial lane denial and observation errors. Queuing rollback
+through transaction drop can leave the next refresh coalesced after the previous
+call already returned. Preserve the original error if cleanup also fails;
+cancellation still uses the existing owned RAII fallback. Dedicated Pool/Book
+lanes retain their lifetime leadership and unchanged provider/time/work bounds.
+See the [native follow-up evidence](../docs/qa/issue-1505/RESULTS.md).

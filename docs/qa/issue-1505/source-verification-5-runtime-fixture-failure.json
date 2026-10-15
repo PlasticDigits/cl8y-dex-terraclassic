@@ -1,0 +1,21 @@
+{
+  "issue": 1505,
+  "status": "FAIL",
+  "scope": "Authenticated runtime-login QA fixture, not a production permission change",
+  "log_basename": "verify-1396-release5-final.log",
+  "sha256": "7585edf2f306ea011242fa84bc8f9ddcfd87759c04e81ab055f93a317fc34f34",
+  "library": {
+    "passed": 878,
+    "failed": 0,
+    "ignored": 0
+  },
+  "database_isolation": {
+    "passed": 5,
+    "failed": 1,
+    "test": "runtime_credential_rejects_schema_ddl_and_detects_database_create_grants",
+    "guard_result": "Rejected runtime role with unrelated database CONNECT capability"
+  },
+  "cause": "Owned fixture enabled runtime LOGIN but retained PUBLIC CONNECT on default postgres maintenance database",
+  "correction": "Revoke maintenance database PUBLIC CONNECT during private fixture provisioning, reset only owned QA, inject fresh runtime fixture credential, rerun full affected verifier",
+  "source_changed": false
+}

@@ -1,0 +1,35 @@
+{
+  "issue": 1505,
+  "scope": "former pause-as-unavailable retention control versus final cached/native solve/progress and revalidation semantics",
+  "source_sha256": "55a4d5746324fbcc7f3981ae9cc9c1e4b315c4b06babe99739f77605b9b06d30",
+  "restored_exactly": true,
+  "runs": [
+    {
+      "name": "old-control",
+      "exit_code": 101,
+      "log_basename": "pause-old-control.log",
+      "sha256": "ed4d5578cd5e62d79f32640e981399ca21064fb198c60d37e7136fa64c44f122",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 877 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "name": "first",
+      "exit_code": 0,
+      "log_basename": "pause-first.log",
+      "sha256": "22481e488f1bb7f9736abe2ffa4df7d4661905869f549a7add07581033167aa7",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "name": "retest",
+      "exit_code": 0,
+      "log_basename": "pause-retest.log",
+      "sha256": "2f849a152da61dc23ce0be823f358355226d00cd663a8618c37739e865f52f61",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 0.01s"
+      ]
+    }
+  ]
+}

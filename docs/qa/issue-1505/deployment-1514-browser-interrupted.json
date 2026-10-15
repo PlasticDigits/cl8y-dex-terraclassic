@@ -1,0 +1,89 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "completed": false,
+  "expected_revision": "358475f4cf71a3089f88259ee27339850512bacd",
+  "measurement_version": "foreground_correlated_native_availability_v8",
+  "utc_start": "2026-10-15T14:26:10.072Z",
+  "utc_end": "2026-10-15T14:29:45.359Z",
+  "scope": "Interrupted M4 FIRST after independent root socketFAIL; no unchangedRETEST/control",
+  "raw_receipt_sha256": "f6685073ff9055ceafdc7dc97e95d6b0586f9f02142fbfe7551b3fc9f3216672",
+  "completed_window_count": 1,
+  "expected_window_count": 4,
+  "quote_progress_reads": 109,
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "elapsed_ms": 190037,
+      "samples": 936,
+      "first_useful_ms": 372,
+      "failures": [
+        "native_window_not_useful"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 25,
+        "useful": 24,
+        "not_useful": 1,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": [
+        {
+          "status": 503,
+          "reason": "missing_observations",
+          "request_id": "b812ccb7b7d0ccd5",
+          "at_ms": 125378,
+          "failure": null,
+          "diagnostic_delivery_lag_ms": 8,
+          "utc": "2026-10-15T14:28:26.287000+00:00",
+          "useful_before": {
+            "request_id": "b812ccb7b7d0ccd1",
+            "at_ms": 124085,
+            "observed": 1792074485700,
+            "expires": 1792074505700
+          },
+          "useful_after": {
+            "request_id": "b812ccb7b7d0cce2",
+            "at_ms": 136265,
+            "observed": 1792074505700,
+            "expires": 1792074525700
+          }
+        }
+      ]
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": false,
+      "elapsed_ms": null,
+      "samples": 39,
+      "first_useful_ms": 377.5999999977648,
+      "failures": [
+        "probe_unavailable"
+      ],
+      "failure_details": [],
+      "quote_availability": {
+        "responses": 2,
+        "useful": 2,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "ownership_qualification_count": 0,
+      "non_useful_responses": []
+    }
+  ],
+  "limits": "Completed and partial selected windows only; shutdown errors are separate from actual native availability failures. Generation/progress body not retained."
+}

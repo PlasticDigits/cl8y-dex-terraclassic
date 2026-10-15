@@ -1,0 +1,57 @@
+{
+  "jobs": 2,
+  "rust_min_stack": "unset",
+  "rust_test_threads": "unset; default parallel harness",
+  "source_sha256": {
+    "indexer/src/lcd/mod.rs": "2ec8900d77cea0dbcf7ec62ac4ea2e7c80df56986f7aefc311f5a65939fde9c9",
+    "indexer/src/lcd/chain_identity.rs": "a3802a6d9924da8f5fb94a0aa06500fd9ff50d9fdfd4348f2ce665279fa548d5",
+    "indexer/src/lcd/deferred_recovery_tests.rs": "37c3b86f67ee2d8414f4b5d98f82e83c752d10405f9c3083881df9c0de5bcaf5",
+    "indexer/src/api/local_wrapper_quote.rs": "774059ac8b9f352b87f347c37498c57fcab621eaf62158538225bd75c5a2a1ce",
+    "indexer/src/api/local_quote.rs": "55a4d5746324fbcc7f3981ae9cc9c1e4b315c4b06babe99739f77605b9b06d30",
+    "indexer/src/api/local_quote/ingestion.rs": "e4fc9e8e7293a52d11cd1e8949dff2cd4188dfc0d42d616b7bd4681dd184b77f"
+  },
+  "runs": [
+    {
+      "name": "lib-first",
+      "sha256": "41069f3f5c867ecdec16ed5f011abf12536f6f20d96cf1bbda5b6f92a85cb791",
+      "summary": [
+        "test result: ok. 877 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 18.49s"
+      ],
+      "metrics": [],
+      "log_basename": "dex-1505-m5-lib-first.log"
+    },
+    {
+      "name": "lib-retest",
+      "sha256": "f44a959df14e180dfdb704a058f2267c4bf44fbebee6534b290d286507c8620e",
+      "summary": [
+        "test result: ok. 877 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 19.18s"
+      ],
+      "metrics": [],
+      "log_basename": "dex-1505-m5-lib-retest.log"
+    },
+    {
+      "name": "maximum-first",
+      "sha256": "7c8115c63cf6d694aea687a27d4a7172c109df26d1246a13a758c7cb8cee880d",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 3.10s"
+      ],
+      "metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=2 publication_ms=206"
+      ],
+      "log_basename": "dex-1505-m5-maximum-first.log"
+    },
+    {
+      "name": "maximum-retest",
+      "sha256": "7c8115c63cf6d694aea687a27d4a7172c109df26d1246a13a758c7cb8cee880d",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 877 filtered out; finished in 3.10s"
+      ],
+      "metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=2 publication_ms=206"
+      ],
+      "log_basename": "dex-1505-m5-maximum-retest.log"
+    }
+  ],
+  "issue": 1505,
+  "scope": "Frozen source full default-parallel library and controlled maximum profile. Publication elapsed includes mandatory reads/sleeps; no live latency inference."
+}
