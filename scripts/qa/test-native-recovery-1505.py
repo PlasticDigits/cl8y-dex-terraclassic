@@ -94,6 +94,22 @@ class Tests(unittest.TestCase):
         for line in ('LCD provider admission deferred', 'all provider circuits open', 'reason="capacity"', 'reason="circuit_open"'):
             self.assertIsNotNone(re.search(pattern, line))
 
+    def test_stale_witnesses_keep_only_fixed_components_bounded_clocks_and_requested_ids(self):
+        line = 'Local quote prerequisite stale component="reference" age_known=true age_ms=20589 expiry_known=true expires_in_ms=-589 request_id=0000000000000001 actor=do-not-export'
+        self.assertEqual(MONITOR.stale_witness(line, ["0000000000000001"]), {
+            "component": "reference", "age_ms": 20589, "expires_in_ms": -589,
+            "request_id": "0000000000000001"})
+        self.assertNotIn("request_id", MONITOR.stale_witness(line, []))
+        unknown = line.replace('age_known=true', 'age_known=false').replace('expiry_known=true', 'expiry_known=false')
+        self.assertIsNone(MONITOR.stale_witness(unknown, [])["age_ms"])
+        self.assertIsNone(MONITOR.stale_witness(unknown, [])["expires_in_ms"])
+        for bad in (line.replace('"reference"', '"private_component"'), line.replace('20589', '86400001'), line.replace('20589', 'private_age')):
+            self.assertIsNone(MONITOR.stale_witness(bad, []))
+        payload = {"status": "success", "data": {"resultType": "streams", "result": [{"values": [["1", line]]}]}}
+        result = MONITOR.sample_summary(payload, ["0000000000000001"])
+        self.assertEqual(len(result["candidate_stale_witnesses"]), 1)
+        self.assertNotIn("do-not-export", json.dumps(result))
+
     def test_monitoring_uses_bounded_fixed_queries_without_raw_lines(self):
         instance = type("Monitor", (), {"reader": type("Reader", (), {"reads": 2})()})()
         paths = []
@@ -107,7 +123,7 @@ class Tests(unittest.TestCase):
             return {"status": "success", "data": {"resultType": "vector", "result": [{"value": [0, "2"], "metric": {"actor": "do-not-export"}}]}}
         instance.read = read
         result = MONITOR.collect(instance, ["0000000000000001"])
-        self.assertEqual(result["read_count"], 14)
+        self.assertEqual(result["read_count"], 15)
         self.assertEqual(result["prometheus"]["status"], "SKIP")
         self.assertNotIn("do-not-export", json.dumps(result))
         self.assertTrue(all("limit=300" in p for p in paths if "query_range" in p))

@@ -188,6 +188,9 @@ pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
             }
         }
     }
+    if status == StatusCode::SERVICE_UNAVAILABLE {
+        super::prerequisite_trace::emit();
+    }
     tracing::warn!(
         status = status.as_u16(),
         reason = public["error"].as_str().unwrap_or(fallback),
@@ -606,6 +609,16 @@ fn evaluate_with_plan(
             .unwrap_or(s.config_expiry_ms)
             <= now_ms()
         {
+            super::prerequisite_trace::record(
+                super::prerequisite_trace::Component::Config,
+                None,
+                Some(
+                    s.config_expiries
+                        .get(pair)
+                        .copied()
+                        .unwrap_or(s.config_expiry_ms),
+                ),
+            );
             return Err(diagnostics::Rejection::Stale);
         }
         let needs_book = plan.map_or(hop_index == 0 && book_input > 0, |plan| {
@@ -1152,6 +1165,11 @@ fn native_candidate_rejection(
         return Some(diagnostics::Rejection::Unsupported);
     }
     if !n.wrapper.is_fresh(now_ms()) {
+        super::prerequisite_trace::record(
+            super::prerequisite_trace::Component::Wrapper,
+            Some(n.wrapper.observed_at_ms),
+            Some(n.wrapper.observed_at_ms.saturating_add(20_000)),
+        );
         return Some(diagnostics::Rejection::Stale);
     }
     for (enabled, denom, amount) in [
@@ -1509,6 +1527,11 @@ async fn solve_local_with_plan(
             .cloned()
             .ok_or_else(unavailable)?;
         if !w.is_fresh(now_ms()) {
+            super::prerequisite_trace::record(
+                super::prerequisite_trace::Component::Wrapper,
+                Some(w.observed_at_ms),
+                Some(w.observed_at_ms.saturating_add(20_000)),
+            );
             return Err(unavailable());
         }
         if wrap {
@@ -2222,6 +2245,116 @@ mod tests {
             protocol_actor_tokens: HashMap::new(),
         }
     }
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn issue1505_http_stale_origins_are_bounded_private_and_correlated() {
+        use axum::{
+            body::{to_bytes, Body},
+            http::Request,
+            response::IntoResponse,
+            routing::get,
+            Router,
+        };
+        use tower::ServiceExt;
+        let app = Router::new()
+            .route(
+                "/api/v1/route/solve",
+                get(|| async {
+                    let mut snapshot = fixture();
+                    snapshot.references.prices.get_mut(&1).unwrap().as_of =
+                        Utc::now() - chrono::Duration::seconds(21);
+                    let path = vec![("pair7a".into(), 1, 10), ("pair7b".into(), 10, 2)];
+                    for _ in 0..64 {
+                        assert_eq!(
+                            evaluate_with_plan(
+                                &snapshot,
+                                &path,
+                                10u128.pow(18),
+                                SCALE / 20,
+                                0,
+                                8,
+                                None
+                            )
+                            .err(),
+                            Some(diagnostics::Rejection::Stale)
+                        );
+                    }
+                    public_error(diagnostics::Rejection::Stale.error())
+                }),
+            )
+            .route(
+                "/api/v1/route/solve/best",
+                get(|| async {
+                    // An unavailable alternative must not log a failed user request
+                    // when another candidate succeeds.
+                    super::super::prerequisite_trace::record(
+                        super::super::prerequisite_trace::Component::Reference,
+                        Some(now_ms() - 21_000),
+                        Some(now_ms() - 1_000),
+                    );
+                    Json(json!({"useful":true})).into_response()
+                }),
+            )
+            .layer(
+                tower_http::trace::TraceLayer::new_for_http()
+                    .make_span_with(super::super::quote_trace::http_span),
+            )
+            .layer(axum::middleware::from_fn(
+                super::super::quote_trace::correlate,
+            ));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/route/solve?trader=private-stale-actor&amount_in=private-amount")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let id = response.headers()["x-quote-request-id"]
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&to_bytes(response.into_body(), 2048).await.unwrap())
+                .unwrap(),
+            json!({"error":"stale_observations"})
+        );
+        assert_eq!(
+            app.oneshot(
+                Request::builder()
+                    .uri("/api/v1/route/solve/best")
+                    .body(Body::empty())
+                    .unwrap()
+            )
+            .await
+            .unwrap()
+            .status(),
+            StatusCode::OK
+        );
+        assert!(logs_contain(&id));
+        assert!(logs_contain("reference"));
+        assert!(logs_contain("age_known=true"));
+        assert!(!logs_contain("private-stale-actor"));
+        assert!(!logs_contain("private-amount"));
+        assert!(!logs_contain("pair7a"));
+        logs_assert(|lines: &[&str]| {
+            let count = lines
+                .iter()
+                .filter(|line| line.contains("Local quote prerequisite stale"))
+                .count();
+            if count == 1 {
+                Ok(())
+            } else {
+                Err(format!(
+                    "expected one stale witness only for rejected request, got {count}"
+                ))
+            }
+        });
+    }
+
     pub(super) fn request(amount: u128) -> route_solver::SolveRouteParams {
         route_solver::SolveRouteParams {
             max_spread: Some("0.05".into()),

@@ -41,6 +41,12 @@ Receipts use private 0600 files. The monitoring helper accepts up to eight
 counts, never raw lines. Monitor collection success is separate from useful-quote
 acceptance. Keep failed original runs and exact helper hashes.
 
+Final503 diagnostics retain at most one stale witness for each of eight fixed
+components. The monitor exports only allowlisted component names, bounded
+age/expiry scalars and explicitly requested server IDs. A failed alternative can
+contribute a candidate witness; these events do not alone prove the sole cause.
+Successful responses do not emit stale candidate witnesses.
+
 Native browser mode requires useful results during the sustained windows as well
 as the initialized probes. Recognized503s remain failures after recovery; ordinary
 same-intent display retention does not certify backend availability. Teardown

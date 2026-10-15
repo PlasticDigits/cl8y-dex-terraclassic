@@ -2,6 +2,7 @@
 //! local state. Labels and logs never include addresses, actors or endpoints.
 use super::pair_admission::AdmissionFailure;
 use super::*;
+use crate::api::prerequisite_trace::{record as stale_clock, Component};
 
 #[derive(Clone, Default)]
 pub(super) struct Inventory {
@@ -83,6 +84,16 @@ fn prerequisites(
             .unwrap_or(s.config_expiry_ms)
             <= at
         {
+            stale_clock(
+                Component::Config,
+                None,
+                Some(
+                    s.config_expiries
+                        .get(pair)
+                        .copied()
+                        .unwrap_or(s.config_expiry_ms),
+                ),
+            );
             return Some(Reason::Stale);
         }
         let needs_book = plan
@@ -125,6 +136,21 @@ fn prerequisites(
         if sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
             || mirror.freshness == sim::MirrorFreshness::Stale
         {
+            let component = if pool.is_some() {
+                Component::PoolMirror
+            } else {
+                Component::HybridMirror
+            };
+            stale_clock(
+                component,
+                Some(mirror.snapshot_at.timestamp_millis()),
+                Some(
+                    mirror
+                        .snapshot_at
+                        .timestamp_millis()
+                        .saturating_add(observation_max_age(s) as i64),
+                ),
+            );
             return Some(Reason::Stale);
         }
         if mirror.freshness == sim::MirrorFreshness::MissingReserves {
@@ -137,6 +163,11 @@ fn prerequisites(
             if let Some(tax) = s.taxes.get(token) {
                 if tax.observed_at_ms > at || at.saturating_sub(tax.observed_at_ms) >= CONFIG_TTL_MS
                 {
+                    stale_clock(
+                        Component::TaxPolicy,
+                        Some(tax.observed_at_ms),
+                        Some(tax.observed_at_ms.saturating_add(CONFIG_TTL_MS)),
+                    );
                     return Some(Reason::Stale);
                 }
                 if tax.rates(s.tax_trader.as_deref(), pair).is_none() {
@@ -159,6 +190,11 @@ fn prerequisites(
             }
             let observed = price.as_of.timestamp_millis();
             if observed > at || at.saturating_sub(observed) > 20_000 {
+                stale_clock(
+                    Component::Reference,
+                    Some(observed),
+                    Some(observed.saturating_add(20_000)),
+                );
                 return Some(Reason::Stale);
             }
         }
@@ -396,6 +432,11 @@ pub(super) fn tax_rejection(
         return Rejection::TradingBlocked;
     }
     if tax.observed_at_ms > at || at.saturating_sub(tax.observed_at_ms) >= CONFIG_TTL_MS {
+        stale_clock(
+            Component::TaxPolicy,
+            Some(tax.observed_at_ms),
+            Some(tax.observed_at_ms.saturating_add(CONFIG_TTL_MS)),
+        );
         return Rejection::Stale;
     }
     if !tax.pairs.contains(pair) {
@@ -408,6 +449,11 @@ pub(super) fn tax_rejection(
         if observed.observed_at_ms > at
             || at.saturating_sub(observed.observed_at_ms) >= CONFIG_TTL_MS
         {
+            stale_clock(
+                Component::TaxActor,
+                Some(observed.observed_at_ms),
+                Some(observed.observed_at_ms.saturating_add(CONFIG_TTL_MS)),
+            );
             return Rejection::Stale;
         }
         if tax.max_wallet.is_some() && observed.balance.is_none() {
@@ -423,7 +469,10 @@ pub(super) fn simulation_rejection(error: sim::DbSimError) -> Rejection {
         sim::DbSimError::InsufficientLiquidity | sim::DbSimError::ImplausibleHop => {
             Rejection::Liquidity
         }
-        sim::DbSimError::StaleMirror => Rejection::Stale,
+        sim::DbSimError::StaleMirror => {
+            stale_clock(Component::SimulationMirror, None, None);
+            Rejection::Stale
+        }
         sim::DbSimError::MissingMirror
         | sim::DbSimError::IncompleteFeeGeneration { .. }
         | sim::DbSimError::FeeGenerationRejected => Rejection::Missing,
@@ -431,15 +480,33 @@ pub(super) fn simulation_rejection(error: sim::DbSimError) -> Rejection {
     }
 }
 pub(super) fn mirror_rejection(s: &Snapshot, pair: &str, needs_book: bool) -> Rejection {
-    let views = s
-        .mirrors
-        .get(pair)
-        .into_iter()
-        .chain((!needs_book).then(|| s.pool_mirrors.get(pair)).flatten());
-    if views.clone().any(|m| {
-        sim::is_snapshot_stale(m.snapshot_at, observation_max_age(s))
-            || m.freshness == sim::MirrorFreshness::Stale
-    }) {
+    let mut stale = false;
+    for (component, view) in [
+        (Component::HybridMirror, s.mirrors.get(pair)),
+        (
+            Component::PoolMirror,
+            (!needs_book).then(|| s.pool_mirrors.get(pair)).flatten(),
+        ),
+    ] {
+        if let Some(mirror) = view {
+            if sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
+                || mirror.freshness == sim::MirrorFreshness::Stale
+            {
+                stale_clock(
+                    component,
+                    Some(mirror.snapshot_at.timestamp_millis()),
+                    Some(
+                        mirror
+                            .snapshot_at
+                            .timestamp_millis()
+                            .saturating_add(observation_max_age(s) as i64),
+                    ),
+                );
+                stale = true;
+            }
+        }
+    }
+    if stale {
         Rejection::Stale
     } else {
         Rejection::Missing
@@ -455,7 +522,19 @@ pub(super) fn reference_rejection(
             return match reason {
                 "reference_policy_excluded" => Rejection::ReferencePolicyExcluded,
                 "unsupported_semantics" => Rejection::Unsupported,
-                "stale_observations" => Rejection::Stale,
+                "stale_observations" => {
+                    let observed = s
+                        .references
+                        .prices
+                        .get(&id)
+                        .map(|p| p.as_of.timestamp_millis());
+                    stale_clock(
+                        Component::Reference,
+                        observed,
+                        observed.map(|at| at.saturating_add(20_000)),
+                    );
+                    Rejection::Stale
+                }
                 _ => Rejection::Missing,
             };
         }

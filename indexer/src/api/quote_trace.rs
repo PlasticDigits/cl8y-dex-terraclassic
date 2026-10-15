@@ -40,7 +40,7 @@ pub(super) async fn correlate(request: Request, next: Next) -> Response {
             .fetch_add(1, Ordering::Relaxed)
     );
     let span = tracing::info_span!("local_quote", request_id = %request_id);
-    let mut response = next.run(request).instrument(span).await;
+    let mut response = super::prerequisite_trace::scope(next.run(request).instrument(span)).await;
     response.headers_mut().insert(
         REQUEST_ID_HEADER,
         HeaderValue::from_str(&request_id).expect("fixed hexadecimal request ID"),

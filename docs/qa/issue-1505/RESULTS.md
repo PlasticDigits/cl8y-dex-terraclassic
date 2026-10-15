@@ -127,3 +127,70 @@ four-way output phase, then confirms early placement completes all routed
 prerequisites under the same bounds. A separate timeout control confirms native
 input remains usable, native output stays blocked and cancellation releases
 provider resources. Follow-up verification/deployment is recorded separately.
+
+## Second deployment: retained live FAIL
+
+[PR #1510](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1510) merged as
+`1c21064a91dcd51943a96f03108bf47ae8b31c22`. [CI467](ci-467.json) passed every
+required stage, including 843 library and 84 isolated PostgreSQL tests; one
+existing ignored case in each group remained recorded separately. Both Coolify
+deployments finished at that revision, with zero deployment-log failure markers
+and [exact attestation](deployment-1510-attestation.json).
+
+After independent producer startup, the [190-second socket FIRST](deployment-1510-socket-fail.json)
+failed: 142 useful quotes and four reverse `missing_observations`503s, with
+10,386ms sampled recovery. Useful initialized responses stayed within307ms.
+The [strict v8 browser FIRST](deployment-1510-browser-interrupted.json) separately
+caught two native-input `stale_observations`503s during its complete desktop
+window. Useful paint was366ms, and no expiry or ownership flag appeared, but
+availability remained FAIL. The run was stopped after the socket failure;
+reverse browser windows, unchanged retests and controlled expiry were not run.
+
+[Bounded router diagnostics](deployment-1510-router-deadline.json) identified
+explicit two-second router cancellations, including the poll preceding all four
+reverse failures. The deployed provider-attempt timeout is2.5seconds: the extra
+wrapper deadline could cancel an otherwise permitted attempt, including admission
+and identity work, before its provider timeout. Starting earlier did not resolve
+this mismatch. Native-input stale failures are a separate trace and must also be
+resolved before acceptance. These receipts remain FAIL throughout subsequent
+implementation and deployment loops.
+
+The [input failure window](deployment-1510-input-failure-window.json) showed
+fresh wrapper observations and all22 raw pools refreshed before both failures.
+[Adjacent useful response clocks](deployment-1510-input-clocks.json) had only
+704/706ms left before their original expiry; each503 arrived about589ms after
+that expiry. [Reference-window logs](deployment-1510-reference-window.json)
+showed no hub/liquidity refresh failure. These exclusions do not establish
+whether the selected complete mirror or fair-reference component was stale;
+newer raw reserves alone do not prove either component was published.
+
+## Third implementation: provider bounds and component evidence
+
+The independent router read now runs alongside all remaining settlement
+observations, bounded by the existing provider attempt/total limits and original
+7.9-second publication margin/eight-second outer poll. It has no extra shorter
+wrapper timeout. Tax/cap and floor phases keep their original two-second bounds;
+the same thirteen data reads, shared two-permit/four-RPS lane and original
+poll-start freshness remain. Settlement observation is a focused helper.
+
+A real-HTTP regression permits a2.2-second router response under the existing
+2.5-second attempt policy: the former wrapper cap cancels it, while the corrected
+schedule publishes both native directions. Separate controls prove original
+margin cancellation releases resources and router rejection preserves native
+input while refusing output. No snapshot retention or expiry extension was added.
+
+For the unresolved native-input trace, request-owned diagnostics record at most
+one candidate witness per fixed prerequisite component and emit only for a final
+503. Ages/expiry deltas are bounded; actors, assets, queries and provider bodies
+are absent. A real HTTP regression covers repeated stale-reference candidates,
+correlation, privacy and suppression when an alternative succeeds. A witness is
+not a sole-cause assertion; deployed measurements still determine acceptance.
+
+[Third-source verification](source-verification-3.json) passed
+`make verify-issue-1505`, `1499` and `1464` first/retest with stable source.
+The native verifier runs18 wrapper regressions, the HTTP stale-witness and
+request-correlation regressions,36 frontend tests,38 browser QA controls and
+nine probe controls per pass. Lifecycle checks passed188 frontend tests per
+pass. Provider recovery completed its disposable integration suites twice.
+Separate live/funded scope remains explicitly skipped by those source verifiers;
+it does not establish deployed acceptance.

@@ -687,8 +687,10 @@ See [the actor refresh evidence](qa/issue-1489/ACTOR-REFRESH.md),
 
 Expected order Slippage and trading Fee (#1500) are separate from original fair-reference risk deviation. Follow [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md) and the [metric contract](route-solver.md#expected-order-slippage-1500); costs use one DETAILS disclosure.
 
-Scheduled wrapper output and floor-capability reads (#1499) independently retain
-completed fields under unchanged two-second phase/eight-second global deadlines,
+Scheduled wrapper tax/cap and floor-capability reads (#1499) independently retain
+completed fields under unchanged two-second phase/eight-second global deadlines.
+Independent router configuration runs alongside remaining work within existing
+provider attempt/total limits and the original publication margin (#1505). Keep
 original poll-start freshness and shared two-permit/four-RPS provider budgets.
 Unknown required fields fail closed; no detached task or request polling is
 allowed. See [the contract](route-solver.md#scheduled-native-output-observations-1499)

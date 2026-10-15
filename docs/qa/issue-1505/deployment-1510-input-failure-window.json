@@ -1,0 +1,767 @@
+{
+  "issue": 1505,
+  "read_only": true,
+  "start_utc": "2026-10-15T08:58:00Z",
+  "end_utc": "2026-10-15T09:00:00Z",
+  "bounded_sample_lines": 84,
+  "fixed_events": [
+    {
+      "utc": "2026-10-15T08:58:02.597530+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 36,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:02.873988+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 36,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:02.874020+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5036,
+      "observed_at_ms": 1792054677837,
+      "poll_id": 36,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:07.403923+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5077,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5077,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:58:07.493566+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 17,
+      "failed_pair_count": 5,
+      "cycle_elapsed_ms": 12506,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5167,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:58:12.902513+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 37,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:13.159938+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 37,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:13.159989+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5322,
+      "observed_at_ms": 1792054687837,
+      "poll_id": 37,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:17.028784+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 4702,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 14702,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:58:20.418167+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 12924,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 18092,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:58:23.219219+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 38,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:23.540982+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 38,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:23.541018+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5703,
+      "observed_at_ms": 1792054697837,
+      "poll_id": 38,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:27.898091+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 16,
+      "failed_pair_count": 6,
+      "cycle_elapsed_ms": 7479,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5571,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:58:28.168489+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5842,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5842,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:58:32.774698+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "status": 503,
+      "reason": "stale_observations",
+      "direction": "native_input",
+      "request_id": "397bbeffd1188512"
+    },
+    {
+      "utc": "2026-10-15T08:58:33.992744+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 39,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:34.243341+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 39,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:34.243366+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 6405,
+      "observed_at_ms": 1792054707837,
+      "poll_id": 39,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:38.245058+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5918,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5918,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:58:42.875426+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 14977,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 10548,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:58:44.118720+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 40,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:45.732072+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7894,
+      "observed_at_ms": 1792054717837,
+      "poll_id": 40,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:46.131689+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 3805,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 3804,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:58:52.810528+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 41,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:53.370592+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 41,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:58:53.370620+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5533,
+      "observed_at_ms": 1792054727837,
+      "poll_id": 41,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:58:55.022902+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 12147,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 12696,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:58:57.145479+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 4818,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4818,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:02.081426+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 42,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:02.552576+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 42,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:02.552608+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 4715,
+      "observed_at_ms": 1792054737837,
+      "poll_id": 42,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:59:06.151045+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 17,
+      "failed_pair_count": 5,
+      "cycle_elapsed_ms": 11127,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 13824,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:59:07.900961+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5574,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5574,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:12.420757+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 43,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:12.973552+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 43,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:12.973619+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5136,
+      "observed_at_ms": 1792054747836,
+      "poll_id": 43,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:59:18.159779+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5832,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5833,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:20.427976+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 44,
+      "phase": "router_config",
+      "reason": "deadline"
+    },
+    {
+      "utc": "2026-10-15T08:59:20.602356+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 17,
+      "failed_pair_count": 5,
+      "cycle_elapsed_ms": 14450,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 8275,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:59:23.118498+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 44,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:23.688189+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 44,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:23.688245+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5850,
+      "observed_at_ms": 1792054757837,
+      "poll_id": 44,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "None"
+    },
+    {
+      "utc": "2026-10-15T08:59:28.774456+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 6447,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6448,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:30.551693+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 45,
+      "phase": "router_config",
+      "reason": "deadline"
+    },
+    {
+      "utc": "2026-10-15T08:59:32.773170+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "status": 503,
+      "reason": "stale_observations",
+      "direction": "native_input",
+      "request_id": "397bbeffd1188556"
+    },
+    {
+      "utc": "2026-10-15T08:59:33.221549+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 20,
+      "failed_pair_count": 2,
+      "cycle_elapsed_ms": 12618,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 10894,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:59:34.794224+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 45,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:35.222804+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7385,
+      "observed_at_ms": 1792054767837,
+      "poll_id": 45,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "None"
+    },
+    {
+      "utc": "2026-10-15T08:59:39.330092+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 7003,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 7003,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:43.257673+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 46,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:43.778015+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 46,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:43.778042+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5940,
+      "observed_at_ms": 1792054777837,
+      "poll_id": 46,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:59:45.812765+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 12590,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 13486,
+      "lane": "book",
+      "head_outcome": "skipped"
+    },
+    {
+      "utc": "2026-10-15T08:59:47.099801+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 4773,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4772,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:53.138797+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 47,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:53.611880+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "poll_id": 47,
+      "phase": "floor_capability",
+      "reason": "contract_rejected"
+    },
+    {
+      "utc": "2026-10-15T08:59:53.611906+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5774,
+      "observed_at_ms": 1792054787837,
+      "poll_id": 47,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T08:59:57.434654+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5107,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5107,
+      "lane": "pool",
+      "head_outcome": "observed"
+    },
+    {
+      "utc": "2026-10-15T08:59:58.450161+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 19,
+      "failed_pair_count": 3,
+      "cycle_elapsed_ms": 12637,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6122,
+      "lane": "book",
+      "head_outcome": "skipped"
+    }
+  ]
+}

@@ -194,20 +194,18 @@ async fn observe_router(lcd: &LcdClient, router: Option<&str>, mapper: &str) -> 
     Some(config["wrap_mapper"].as_str() == Some(mapper))
 }
 
-/// Router configuration is independent of treasury/mapping reads. Start its
-/// unchanged two-second clock early so bank-tax reads cannot consume its lane
-/// admission window. Cancellation remains owned by the same outer poll.
+/// Router admission, fresh identity and smart-query work retain the LCD client's
+/// existing attempt/total limits. A shorter wrapper-only timeout could cancel a
+/// healthy 2.5s provider attempt before it completed. The original publication
+/// margin still cancels this owned future without delaying native input beyond
+/// the whole poll's deadline.
 async fn observe_router_bounded(
     lcd: &LcdClient,
     router: Option<&str>,
     mapper: &str,
+    deadline: tokio::time::Instant,
 ) -> Option<bool> {
-    match tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        observe_router(lcd, router, mapper),
-    )
-    .await
-    {
+    match tokio::time::timeout_at(deadline, observe_router(lcd, router, mapper)).await {
         Ok(result) => result,
         Err(_) => {
             tracing::warn!(
@@ -463,13 +461,43 @@ async fn observe_inner(
         }
         _ => return None,
     };
+    let deadline = tokio::time::Instant::now()
+        + std::time::Duration::from_millis(7_900).saturating_sub(started.elapsed());
+    // The router is independent of the entire remaining settlement observation.
+    // Joining it only with treasury reads would serialize a slow query before
+    // mappings/tax and reproduce the same publication starvation elsewhere.
+    let (router_supported, snapshot) = tokio::join!(
+        observe_router_bounded(lcd, router, mapper, deadline),
+        observe_settlement(
+            lcd,
+            mapper,
+            treasury,
+            (wrap, unwrap),
+            observed_at_ms,
+            started,
+            phase
+        ),
+    );
+    let mut snapshot = snapshot?;
+    snapshot.router_unwrap_supported = router_supported;
+    Some(snapshot)
+}
+
+async fn observe_settlement(
+    lcd: &LcdClient,
+    mapper: &str,
+    treasury: String,
+    fees: (u16, u16),
+    observed_at_ms: i64,
+    started: std::time::Instant,
+    phase: &AtomicU8,
+) -> Option<WrapperSnapshot> {
     // These are independent prerequisites. Keeping them serial made ordinary
     // provider latency consume the output/capability publication budget (#1505).
     phase.store(2, Ordering::Relaxed);
     let config_query = json!({"config":{}});
     let bindings_query = json!({"denom_wrappers":{}});
-    let (router_supported, treasury_config, bindings) = tokio::join!(
-        observe_router_bounded(lcd, router, mapper),
+    let (treasury_config, bindings) = tokio::join!(
         observed_read(
             "treasury_config",
             lcd.query_contract_bounded::<Value>(&treasury, &config_query, 8_192)
@@ -518,7 +546,7 @@ async fn observe_inner(
                 })
                 .and_then(tax_rate)
         },
-        async { router_supported },
+        async { None },
         observe_tax_cap(lcd, "uluna", mappings.contains_key("uluna")),
         observe_tax_cap(lcd, "uusd", mappings.contains_key("uusd")),
     )
@@ -543,10 +571,10 @@ async fn observe_inner(
         treasury,
         observed_at_ms,
         mappings,
-        fee_wrap_bps: wrap,
-        fee_unwrap_bps: unwrap,
+        fee_wrap_bps: fees.0,
+        fee_unwrap_bps: fees.1,
         tax_atomics: output.tax_atomics,
-        router_unwrap_supported: output.router_supported,
+        router_unwrap_supported: None,
         mapper_floor_version: floors.0,
         treasury_floor_version: floors.1,
     })
@@ -704,22 +732,110 @@ mod tests {
     }
 
     #[tokio::test]
-    #[tracing_test::traced_test]
-    async fn issue1505_early_router_deadline_is_typed_and_keeps_native_input_only() {
+    async fn issue1505_router_attempt_fits_existing_policy_without_two_second_clipping() {
         let (_server, lcd) =
-            wrapper_fixture(Duration::from_millis(3_000), Duration::from_millis(50)).await;
+            wrapper_fixture(Duration::from_millis(2_200), Duration::from_millis(50)).await;
+        let old = observe_router_bounded(
+            &lcd,
+            Some("terra1router"),
+            "terra1mapper",
+            tokio::time::Instant::now() + Duration::from_secs(2),
+        )
+        .await;
+        assert_eq!(
+            old, None,
+            "old independent2s cap clips a valid2.2s provider response"
+        );
+        let before = Utc::now().timestamp_millis();
         let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
             .await
-            .expect("optional router timeout must not erase completed native input");
-        assert_eq!(snapshot.router_unwrap_supported, None);
-        let now = Utc::now().timestamp_millis();
-        assert!(snapshot.wrap_input("uusd", 10_000, now).is_some());
-        assert!(snapshot.unwrap_output("uusd", 10_000, now).is_none());
+            .expect("router and remaining work share the original bounded poll");
+        assert_eq!(snapshot.router_unwrap_supported, Some(true));
+        assert!(snapshot.observed_at_ms >= before && snapshot.observed_at_ms <= before + 100);
+        assert_eq!(snapshot.direct_floor_protocol(true), Some(1));
+        for denom in ["uluna", "uusd"] {
+            assert!(snapshot
+                .wrap_input(denom, 10_000, Utc::now().timestamp_millis())
+                .is_some());
+            assert!(snapshot
+                .unwrap_output(denom, 10_000, Utc::now().timestamp_millis())
+                .is_some());
+        }
+        let counters = lcd.provider_counters().await;
+        assert_eq!(counters[0].failures, 0);
+        assert_eq!(counters[0].caller_cancellations, 1);
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn issue1505_router_publication_margin_cancels_owned_read_neutrally() {
+        let (_server, lcd) =
+            wrapper_fixture(Duration::from_millis(2_200), Duration::from_millis(50)).await;
+        // Model the original margin left after earlier prerequisite work. The
+        // caller deadline stays authoritative even though the provider is healthy.
+        let router = observe_router_bounded(
+            &lcd,
+            Some("terra1router"),
+            "terra1mapper",
+            tokio::time::Instant::now() + Duration::from_millis(500),
+        )
+        .await;
+        assert_eq!(router, None);
         assert!(logs_contain("router_config"));
         assert!(logs_contain("deadline"));
         let counters = lcd.provider_counters().await;
         assert_eq!(counters[0].failures, 0);
         assert_eq!(counters[0].caller_cancellations, 1);
+        assert_eq!(counters[0].in_flight, 0);
+    }
+
+    #[tokio::test]
+    async fn issue1505_unavailable_router_still_publishes_completed_native_input() {
+        use wiremock::{
+            matchers::{method, path_regex},
+            Mock, ResponseTemplate,
+        };
+        let (server, lcd) =
+            wrapper_fixture(Duration::from_millis(800), Duration::from_millis(50)).await;
+        Mock::given(method("GET"))
+            .and(path_regex(
+                r"^/cosmwasm/wasm/v1/contract/terra1router/smart/",
+            ))
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "code":3,"message":"query wasm contract failed: unknown variant `config`"
+            })))
+            .with_priority(1)
+            .mount(&server)
+            .await;
+        let before = Utc::now().timestamp_millis();
+        let snapshot = observe_config(&lcd, "terra1mapper", Some("terra1router"))
+            .await
+            .expect("router read rejection cannot erase independent native input");
+        assert_eq!(snapshot.router_unwrap_supported, None);
+        assert_eq!(snapshot.direct_floor_protocol(true), Some(1));
+        assert!(snapshot.observed_at_ms >= before && snapshot.observed_at_ms <= before + 100);
+        for denom in ["uluna", "uusd"] {
+            assert!(snapshot
+                .wrap_input(denom, 10_000, Utc::now().timestamp_millis())
+                .is_some());
+            assert!(snapshot
+                .unwrap_output(denom, 10_000, Utc::now().timestamp_millis())
+                .is_none());
+        }
+        let count = server
+            .received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|request| request.url.path() != "/cosmos/base/tendermint/v1beta1/node_info")
+            .count();
+        assert_eq!(count, 13);
+        let counters = lcd.provider_counters().await;
+        assert_eq!(
+            counters[0].failures, 0,
+            "contract-local rejection is not provider failure"
+        );
         assert_eq!(counters[0].in_flight, 0);
     }
 
