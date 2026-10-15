@@ -1,0 +1,108 @@
+{
+  "source_sha256": {
+    "indexer/src/api/local_quote/generation.rs": "83dce5e4c0f5632290c875646940c7f58b47e1804707bb6754881f96ba5d2455",
+    "indexer/src/api/local_quote/publication.rs": "4a7f9d41b79280520e3e3608c2bb5ab0ea524305c1f15fc78dec5a02439db180"
+  },
+  "jobs": 2,
+  "runs": [
+    {
+      "name": "reuse-retest",
+      "log": "dex-1505-hash-reuse-retest.log",
+      "sha256": "1cc151cbfdb76e7c7b0528fb4c2a8ba676d8b68e922a53514750c5b0c4d8aa9c",
+      "summary": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 848 filtered out; finished in 0.02s"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "name": "reuse-first",
+      "log": "dex-1505-hash-reuse-first.log",
+      "sha256": "677ea1e2ddf3a4f9da17a54b955ab5e39f293b4a5c1bafbf86fe6ebfda295465",
+      "summary": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 848 filtered out; finished in 0.01s"
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "name": "reuse-control",
+      "log": "dex-1505-hash-reuse-control.log",
+      "sha256": "0c3da646363c51ea048568ea4bcfde1589dd390cdcd8305ac8ba07fce94789f7",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 850 filtered out; finished in 0.00s"
+      ],
+      "verdict": "FAIL control"
+    },
+    {
+      "name": "publication",
+      "exit_code": 0,
+      "elapsed_seconds": 1.189,
+      "log": "dex-1505-hash-publication.log",
+      "sha256": "c55069f02e47d1ff88e4fce3f336e8ceb85de5037a512010d8cf0a7a5d7f06dd",
+      "summary": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 852 filtered out; finished in 0.00s"
+      ],
+      "metrics": []
+    },
+    {
+      "name": "maximum-first",
+      "exit_code": 0,
+      "elapsed_seconds": 3.579,
+      "log": "dex-1505-hash-maximum-first.log",
+      "sha256": "b677103544b894ca9ace8eb6b00f542369681bd4ef95f5873e21d59cd9425875",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 853 filtered out; finished in 3.33s"
+      ],
+      "metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=3"
+      ]
+    },
+    {
+      "name": "maximum-retest",
+      "exit_code": 0,
+      "elapsed_seconds": 3.544,
+      "log": "dex-1505-hash-maximum-retest.log",
+      "sha256": "f7574cc6be4bd86654316e3c4cb5361f2b27b2fdf02801137539d82c97052b64",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 853 filtered out; finished in 3.30s"
+      ],
+      "metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=3"
+      ]
+    },
+    {
+      "name": "lib-first",
+      "exit_code": 0,
+      "elapsed_seconds": 17.064,
+      "log": "dex-1505-hash-lib-first.log",
+      "sha256": "08a7d1b9f33b1ee3a9bdb64b765a8af78093fbe5a04dfa62d7ff28d6aaca93b3",
+      "summary": [
+        "test result: ok. 853 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 16.78s"
+      ],
+      "metrics": []
+    },
+    {
+      "name": "lib-retest",
+      "exit_code": 0,
+      "elapsed_seconds": 17.07,
+      "log": "dex-1505-hash-lib-retest.log",
+      "sha256": "3d5db0760a249c964d44fefe16e68d7b9f93adbdfb455033f9801d3480883032",
+      "summary": [
+        "test result: ok. 853 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 16.80s"
+      ],
+      "metrics": []
+    }
+  ],
+  "isolated_target": true,
+  "issue": 1505,
+  "proof_scope": "Local source controls and unchanged maximum-publication profile; not deployed availability or latency.",
+  "negative_control_work": {
+    "former_full_hash_calls": 17,
+    "required_changed_view_hash_calls": 1,
+    "fixture_hybrid_views": 16,
+    "fixture_pool_companions": 1,
+    "former_verdict": "FAIL retained"
+  },
+  "review": "Independent final source review found no correctness findings; actual hosted CI and deployed acceptance remain required.",
+  "profile_reader_interval_ms": 40,
+  "profile_source_sha256": "7966c2d5b3fbb8c463c3a2c6c21b31dae9e09ace9a6aeee200457da797923966"
+}

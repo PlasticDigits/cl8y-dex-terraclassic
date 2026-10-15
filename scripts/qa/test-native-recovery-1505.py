@@ -123,7 +123,7 @@ class Tests(unittest.TestCase):
             return {"status": "success", "data": {"resultType": "vector", "result": [{"value": [0, "2"], "metric": {"actor": "do-not-export"}}]}}
         instance.read = read
         result = MONITOR.collect(instance, ["0000000000000001"])
-        self.assertEqual(result["read_count"], 15)
+        self.assertEqual(result["read_count"], 17)
         self.assertEqual(result["prometheus"]["status"], "SKIP")
         self.assertNotIn("do-not-export", json.dumps(result))
         self.assertTrue(all("limit=300" in p for p in paths if "query_range" in p))

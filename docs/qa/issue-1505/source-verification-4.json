@@ -1,0 +1,255 @@
+{
+  "issue": 1505,
+  "iteration": 4,
+  "production_fingerprint": "c10822c88fd9fa5054bf4ef018bf85044ad466085de61e56452d72212123cc18",
+  "production_unchanged_across_final_test_only_corrections": true,
+  "coverage_note": "1453 and 1473 completed on identical production bytes before test-only initializer/clock setup corrections; affected full targets and 1452/1464/1505/1479 completed afterward. Each verifier has its own exact fingerprint scope.",
+  "checks": [
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1505-release4-final.log",
+      "log_sha256": "afc6e3df3555eff9b405387cd1c15ce86871618f2751fc6491442ce77925eb6b",
+      "source_fingerprint": "2691a4585977ae2e3881424959796809aa26700d81baddd40363d1583d00f0fc",
+      "summary": [
+        "PASS first original wrapper deadlines, partials, cancellation and correlation",
+        "PASS first independent atomic reference publication and certified accounting",
+        "PASS first synchronous original expiry and exact intent",
+        "PASS first browser clocks, native transport and probe evidence",
+        "PASS retest original wrapper deadlines, partials, cancellation and correlation",
+        "PASS retest independent atomic reference publication and certified accounting",
+        "PASS retest synchronous original expiry and exact intent",
+        "PASS retest browser clocks, native transport and probe evidence",
+        "PASS frontend types",
+        "PASS Rust formatting",
+        "PASS verifier syntax",
+        "PASS invariant/checklist links",
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts",
+        "PASS diff whitespace",
+        "PASS stable source across first/retest",
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ]
+    },
+    {
+      "command": "make verify-issue-1452",
+      "overall": "PASS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1452-release4-final.log",
+      "log_sha256": "2668a27690d9d7e6390c70f38abc77c60713d12f9e4f885f33ceab495f493c91",
+      "source_fingerprint": "fc5108d1143f90e69c3f4b6938ec5aad2ba1d29eff60b56632fd044d0874d72f",
+      "summary": [
+        "PASS first indexer library",
+        "PASS first isolated socket selection/cache/network/performance",
+        "PASS first frontend quote/refresh/signing",
+        "PASS first production-build controlled browser",
+        "PASS retest indexer library",
+        "PASS retest isolated socket selection/cache/network/performance",
+        "PASS retest frontend quote/refresh/signing",
+        "PASS retest production-build controlled browser",
+        "PASS frontend types",
+        "PASS indexer formatting",
+        "PASS shell syntax",
+        "PASS diff whitespace",
+        "PASS documentation and invariant crosslinks",
+        "PASS unchanged source during verification/retest",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ]
+    },
+    {
+      "command": "make verify-issue-1464",
+      "overall": "PASS WITH SKIPS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1464-release4.log",
+      "log_sha256": "1c6f30775ed9843f270625c6f268586792e2817024903fbeb30af314713c4a57",
+      "source_fingerprint": "7cbaa41267eefd812fc96158993b4dfd7cd493230a60ab853ea5a449844635ce",
+      "summary": [
+        "PASS shell syntax",
+        "PASS corpus executable-shape and evidence controls",
+        "PASS bounded corpus CLI",
+        "PASS invariant and checklist crosslinks",
+        "PASS changed Rust formatting",
+        "PASS first provider/checkpoint/admission regressions",
+        "PASS first disposable socket/book/health regressions",
+        "PASS retest provider/checkpoint/admission regressions",
+        "PASS retest disposable socket/book/health regressions",
+        "PASS diff whitespace",
+        "PASS unchanged source during test/retest",
+        "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+        "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately",
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ]
+    },
+    {
+      "command": "make verify-issue-1453",
+      "overall": "PASS WITH SKIPS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1453-release4.log",
+      "log_sha256": "8512f7ab3a5e04b82239e3dba343147fc5e8312672fd9716a64a0662dd450426",
+      "source_fingerprint": null,
+      "summary": [
+        "PASS verifier shell syntax",
+        "PASS operational probe privacy and budget controls",
+        "PASS operational probe help",
+        "PASS documentation and evidence structure",
+        "PASS changed Rust formatting",
+        "PASS first provider/book/valuation/discovery library",
+        "PASS first disposable Postgres",
+        "PASS first retail retention/chart regressions",
+        "PASS retest provider/book/valuation/discovery library",
+        "PASS retest disposable Postgres",
+        "PASS retest retail retention/chart regressions",
+        "PASS desktop/phone mocked outage and recovery",
+        "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+        "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope",
+        "PASS=12 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ]
+    },
+    {
+      "command": "make verify-issue-1479",
+      "overall": "PASS WITH SKIPS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1479-release4-final.log",
+      "log_sha256": "47c4c1d44074e411f74c70abe9fc96c5d68832393202bb4697f716c71defeb15",
+      "source_fingerprint": "2691a4585977ae2e3881424959796809aa26700d81baddd40363d1583d00f0fc",
+      "summary": [
+        "PASS first original-time policy and readiness regressions",
+        "PASS first client reason recovery signing regressions",
+        "PASS first disposable socket zero-RPC and quote economics",
+        "PASS retest original-time policy and readiness regressions",
+        "PASS retest client reason recovery signing regressions",
+        "PASS retest disposable socket zero-RPC and quote economics",
+        "PASS frontend types",
+        "PASS Rust formatting",
+        "PASS verifier syntax",
+        "SKIP Complete funded/native/attack matrix and live wallet/browser acceptance require separate actual receipts; policy/source tests do not satisfy complete deployed acceptance",
+        "PASS invariant and checklist crosslinks",
+        "PASS diff whitespace",
+        "PASS stable source across first/retest",
+        "Overall: PASS WITH SKIPS; passed=12 failed=0 skipped=1"
+      ]
+    },
+    {
+      "command": "make verify-issue-1473",
+      "overall": "PASS WITH SKIPS",
+      "scope": "first and repeat selected source groups; separately declared live/funded scope is not an acceptance pass",
+      "log_file": "verify-1473-release4.log",
+      "log_sha256": "969403a367509871c56f4c4e19f28e02d8b2cb1830fe297972772cf07eeebb61",
+      "source_fingerprint": "73ff181f3d50d00eb5b84472225611e0edc3b96059a59a7c539ee1cad5de7d3e",
+      "summary": [
+        "PASS first shared corpus and actual socket safety",
+        "PASS first live helper DOM and verdict regressions",
+        "PASS first indexer integer/rejection/zero-RPC/security regressions",
+        "PASS first disposable socket matrix and mode regressions",
+        "PASS first frontend intent/default/signing regressions",
+        "PASS retest shared corpus and actual socket safety",
+        "PASS retest live helper DOM and verdict regressions",
+        "PASS retest indexer integer/rejection/zero-RPC/security regressions",
+        "PASS retest disposable socket matrix and mode regressions",
+        "PASS retest frontend intent/default/signing regressions",
+        "PASS first/retest desktop/phone controlled browser matrix",
+        "PASS frontend types",
+        "PASS Rust formatting",
+        "PASS verifier shell syntax",
+        "PASS invariants and checklist crosslinks",
+        "PASS diff whitespace",
+        "PASS stable source across first/retest",
+        "SKIP deployed frontend/backend provenance and sustained full matrix: inspect separate exact-revision deployment receipts",
+        "SKIP physical devices and funded execution: inspect separate owned LocalTerra/device receipts",
+        "PASS=17 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS: tested source scope; skipped acceptance criteria remain unchecked."
+      ]
+    }
+  ],
+  "affected_full_targets": [
+    {
+      "check": "ingestion-full-first",
+      "exit_code": 0,
+      "status": "PASS",
+      "counts": {
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0
+      },
+      "sha256": "aa1348d945395ee372a92ecd44ce1443f020992d3222e22d6c07033740127ac7",
+      "log": "dex-1505-fixture-final-ingestion-full-first.log"
+    },
+    {
+      "check": "ingestion-full-retest",
+      "exit_code": 0,
+      "status": "PASS",
+      "counts": {
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0
+      },
+      "sha256": "a01041ec713047dc02d41fb69ecd1b2cf1ded863a0e15b6809099b9a7df203d1",
+      "log": "dex-1505-fixture-final-ingestion-full-retest.log"
+    },
+    {
+      "check": "reference-sql-focused",
+      "exit_code": 0,
+      "status": "PASS",
+      "counts": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0
+      },
+      "sha256": "ef714517177233f61be1c743e54b7b0a765dc8d007f727717a56ffed78f52ec8",
+      "log": "dex-1505-fixture-final-reference-sql-focused.log"
+    },
+    {
+      "check": "dual-views-first",
+      "exit_code": 0,
+      "status": "PASS",
+      "counts": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 17
+      },
+      "sha256": "e1da613b1211e7871c911db9523595030d40b897f40530e059333e2377ff48ed",
+      "log": "dex-1505-fixture-final-dual-views-first.log"
+    },
+    {
+      "check": "dual-views-retest",
+      "exit_code": 0,
+      "status": "PASS",
+      "counts": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 17
+      },
+      "sha256": "a6c054b51e620295fb0dfa459b96d5017a607db9a6e312cbbc42e468194cdc0e",
+      "log": "dex-1505-fixture-final-dual-views-retest.log"
+    }
+  ],
+  "negative_controls": [
+    {
+      "mechanism": "independent mark timer misses completed pool phase",
+      "former": "FAIL original twenty-second consumer expiry",
+      "corrected": "PASS whole replacement with original timestamp"
+    },
+    {
+      "mechanism": "serial accounting blocks critical marks",
+      "former": "FAIL same locked-accounting SQL fixture",
+      "corrected": "PASS replacement committed before fallback timer"
+    }
+  ],
+  "historical_failures": [
+    "source-verification-4-initial.json",
+    "source-verification-4-fixture-integration.json"
+  ],
+  "deployment_acceptance": "NOT YET RUN for this implementation; prior deployments remain FAIL"
+}

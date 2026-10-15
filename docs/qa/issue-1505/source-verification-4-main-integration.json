@@ -1,0 +1,64 @@
+{
+  "issue": 1505,
+  "verified_merge": "b070b08f1a85918596ef92e4bbf0f2a4b3a29c6d",
+  "verified_feature_parent": "f70aaa3bf27b03562af7c2de08a7eac5b0a6dc4f",
+  "integrated_main": "6a3ab090af45ba1192791b455dcc6ab69078c65a",
+  "application_directory_delta": [
+    "indexer/src/api/local_quote/publication_tests.rs"
+  ],
+  "delta_is_cfg_test_only": true,
+  "main_reader_interval_ms": 100,
+  "prior_stricter_reader_interval_ms": 40,
+  "primary_limits_unchanged": {
+    "maximum_pairs": 512,
+    "orders_per_pair": 2048,
+    "request_cap": 100,
+    "response_budget_ms": 500,
+    "original_market_expiry_ms": 20000
+  },
+  "full_library_default_parallel": true,
+  "checks": [
+    {
+      "run": "lib-first",
+      "passed": 853,
+      "failed": 0,
+      "ignored": 1,
+      "log_file": "integrated-release4-lib-first.log",
+      "log_sha256": "218ce6753d41778c5d977dfdd760f1a13809319078214dbf1205d0876eb0e998",
+      "maximum_profile_metrics": []
+    },
+    {
+      "run": "lib-retest",
+      "passed": 853,
+      "failed": 0,
+      "ignored": 1,
+      "log_file": "integrated-release4-lib-retest.log",
+      "log_sha256": "ec1a5266a2df629ae01bdbcdb484bc108e39989c4c3abbf97bf7dfe26688a504",
+      "maximum_profile_metrics": []
+    },
+    {
+      "run": "maximum-first",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log_file": "integrated-release4-maximum-first.log",
+      "log_sha256": "ab7c309d2a884749fd4f73702aed207468f476a2c2f754122e4a226bd6a990c2",
+      "maximum_profile_metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=1 publication_ms=206"
+      ]
+    },
+    {
+      "run": "maximum-retest",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log_file": "integrated-release4-maximum-retest.log",
+      "log_sha256": "2923a8ce8d6b67f8211aae1157c68e3afa140f03568e0b409e869b09c00121ec",
+      "maximum_profile_metrics": [
+        "maximum_current_pairs=512 orders_per_pair=2048 total_orders=1048576 single_tokio_worker=true useful_http_quotes=2 max_ms=2 publication_ms=205"
+      ]
+    }
+  ],
+  "formatting": "PASS",
+  "scope": "Main archive/config updates preserved. Only application-directory delta is the reviewed test-only cadence/elapsed output; production generation/publication code matches the independently reviewed and broadly verified feature. Hosted CI and deployment remain required."
+}

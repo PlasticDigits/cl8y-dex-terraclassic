@@ -294,6 +294,8 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         .mount(&server)
         .await;
     let delayed_pool = recorded_pool.clone();
+    let slow_book_started = std::sync::Arc::new(tokio::sync::Notify::new());
+    let notify_slow_book = slow_book_started.clone();
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(move |req: &wiremock::Request| {
@@ -312,6 +314,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
                 )
                 .set_body_json(json!({ "data": data }));
             if req.url.path().contains(slow_addr) && q.get("order_book_head").is_some() {
+                notify_slow_book.notify_one();
                 response.set_delay(Duration::from_secs(3))
             } else {
                 response
@@ -332,6 +335,12 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
     let task = tokio::spawn(async move {
         book_snapshot::snapshot_all_pairs_with_limits(&task_pool, &task_lcd, budgets).await
     });
+    // Exclude cold cycle inventory/SQL setup from this active-pair assertion.
+    // The original 500 ms pair deadlines keep running without any reset, and
+    // this finite barrier fails if the delayed book phase is never reached.
+    tokio::time::timeout(Duration::from_secs(2), slow_book_started.notified())
+        .await
+        .expect("slow book request started within the finite setup budget");
     // Wait on the actual database condition, not on a timing-dependent fixed sleep.
     tokio::time::timeout(Duration::from_millis(400), async {
         loop {
@@ -351,6 +360,19 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
     assert!(
         !task.is_finished(),
         "healthy pair refreshed while slow book still pending"
+    );
+    let counters = lcd.provider_counters().await;
+    assert_eq!(
+        counters[0].caller_cancellations, 0,
+        "the active pair deadline has not cancelled the slow book"
+    );
+    assert_eq!(
+        counters[0].failures, 0,
+        "the slow book is still pending rather than failed"
+    );
+    assert!(
+        counters[0].in_flight > 0,
+        "the delayed book remains an active provider request"
     );
     tokio::time::timeout(Duration::from_secs(1), task)
         .await
@@ -545,15 +567,48 @@ async fn issue_1453_pool_success_survives_component_failures() {
         // Cancellation below exercises the initialized pool/book component,
         // while retaining the same shared provider budget and exact deadline.
         lcd.attest_endpoints().await.unwrap();
-        let result = tokio::time::timeout(
-            if index == 3 {
-                Duration::from_millis(200)
-            } else {
-                Duration::from_secs(2)
-            },
-            book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(100 + index as i64)),
-        )
-        .await;
+        let result = if index == 3 {
+            let height = Some(100 + index as i64);
+            let expected = bd(&(1000 + index).to_string());
+            let mut observation = Box::pin(book_snapshot::snapshot_single_pair(
+                &pool, &lcd, &pair, height,
+            ));
+            // The cancellation case owns an initialized committed pool and an
+            // outstanding delayed book read. A cold identity/SQL scheduling turn
+            // must not consume its separate, unchanged 200 ms cancellation window.
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let ready = async {
+                        let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
+                            .await.unwrap();
+                        let committed = current.as_ref().is_some_and(|row| {
+                            row.reserve_0 == expected && row.block_height == height
+                        });
+                        if !committed { return false; }
+                        server.received_requests().await.unwrap().iter().any(|request| {
+                            common::lcd_mock::smart_query_from_request(request)
+                                .get("order_book_head").is_some()
+                        })
+                    };
+                    tokio::select! {
+                        result = &mut observation => panic!(
+                            "snapshot completed before the committed-pool/delayed-book barrier: {result:?}"),
+                        ready = ready => if ready { break; },
+                    }
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }).await.expect("committed pool and delayed book request must initialize within 2 seconds");
+            let result = tokio::time::timeout(Duration::from_millis(200), &mut observation).await;
+            // Drop caller-owned work before inspecting persistence/old hybrids.
+            drop(observation);
+            result
+        } else {
+            tokio::time::timeout(
+                Duration::from_secs(2),
+                book_snapshot::snapshot_single_pair(&pool, &lcd, &pair, Some(100 + index as i64)),
+            )
+            .await
+        };
         assert!(!matches!(result, Ok(Ok(()))), "component work must fail");
         let current = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
             .await

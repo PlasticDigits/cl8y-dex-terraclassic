@@ -99,7 +99,10 @@ fn validated(body: &Value) {
     .sum::<BigInt>();
     assert_eq!(total, fair - net, "signed raw attribution must reconcile");
 }
+// The child isolates registry capacity. Share the existing publication-fixture
+// serial group so its heavy parent fixtures do not compete with this profile.
 #[test]
+#[serial_test::serial]
 fn issue1489_scheduled_maximum_publication_keeps_initialized_http_quote_clock() {
     const NAME: &str = "api::local_quote::publication_tests::issue1489_scheduled_maximum_publication_keeps_initialized_http_quote_clock";
     if std::env::var_os("DEX1489_PUBLICATION_PROFILE_CHILD").is_some() {

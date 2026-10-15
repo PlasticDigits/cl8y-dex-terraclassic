@@ -1,0 +1,26 @@
+{
+  "issue": 1505,
+  "iteration": "4-fixture-integration",
+  "production_fingerprint": "c10822c88fd9fa5054bf4ef018bf85044ad466085de61e56452d72212123cc18",
+  "production_unchanged": true,
+  "failures": [
+    {
+      "command": "make verify-issue-1464",
+      "overall": "FAIL",
+      "test": "native_reference_publication_1505::issue1505_blocked_accounting_does_not_delay_atomic_reference_replacement",
+      "cause": "unused global traced_test initializer conflicts with common initializer before SQL body",
+      "correction": "remove unused subscriber/instrumentation; full ingestion binary retested"
+    },
+    {
+      "command": "make verify-issue-1452",
+      "overall": "FAIL",
+      "test": "recovery1464_dual_views_survive_hybrid_expiry_without_another_scheduled_pass",
+      "first_quote_age_ms": 20829,
+      "original_deadline_ms": 20000,
+      "cause": "cold setup consumed deliberately short original observation window before quote assertions",
+      "correction": "prime configuration without executable complete views, then install controlled original view/reference observations during setup; original expiry/cold-negative/zero-RPC assertions preserved",
+      "log_sha256": "2c777ed8cfbf2d34a3e9014f2e56777d293acf75e70cfb4b62b44dfa7140c8ad"
+    }
+  ],
+  "next_action": "fresh owned QA reset followed by affected full verifier/target first-and-retest; original failures remain FAIL"
+}

@@ -276,11 +276,19 @@ async fn run_indexer_inner(
         });
     }
 
+    let reference_signal = std::sync::Arc::new(tokio::sync::Notify::new());
+    let pool_reference_signal = reference_signal.clone();
     let snapshot_pool = pool.clone();
     let snapshot_lcd = lcd.clone();
     let snapshot_interval = config.book_snapshot_interval_ms;
     spawn_worker(workers, &cancel, health, async move {
-        book_snapshot::run_book_snapshot_loop(snapshot_pool, snapshot_lcd, snapshot_interval).await;
+        book_snapshot::run_book_snapshot_loop_with_reference_signal(
+            snapshot_pool,
+            snapshot_lcd,
+            snapshot_interval,
+            Some(pool_reference_signal),
+        )
+        .await;
     });
 
     let hub_cfg = crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config);
@@ -289,12 +297,13 @@ async fn run_indexer_inner(
     let hub_lunc = oracle_prices.lunc.clone();
     let hub_interval = std::time::Duration::from_millis(snapshot_interval.clamp(1_000, 5_000));
     spawn_worker(workers, &cancel, health, async move {
-        crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
+        crate::db::queries::hub_prices::run_hub_usd_refresh_loop_with_signal(
             hub_pool,
             hub_cfg,
             hub_ustc,
             hub_lunc,
             hub_interval,
+            Some(reference_signal),
         )
         .await;
     });

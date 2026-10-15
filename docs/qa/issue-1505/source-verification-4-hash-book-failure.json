@@ -1,0 +1,29 @@
+{
+  "status": "FAIL_INTERRUPTED_AFTER_EXECUTED_FAILURE",
+  "wrapper_exit_code": 143,
+  "log_file": "verify-1464-release4-hash-before-book-phase-fix.log",
+  "log_sha256": "87acae4aa2458883083ec3d64ab3fd6a7d44dd31d52bbfd63edef2940615b4a4",
+  "bytes": 434971,
+  "source_fingerprint_before": "fa1df25dd25d3d41d5919d26947f53cb7e09b6f075f101a805a76655da2c344a",
+  "source_fingerprint_after_stop": "fa1df25dd25d3d41d5919d26947f53cb7e09b6f075f101a805a76655da2c344a",
+  "failed_test": "slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers",
+  "failure_location": "tests/book_snapshot_loop.rs:350:6",
+  "failure_text": "healthy reserve refreshed before delayed book deadline: Elapsed(())",
+  "failed_binary_summary": [
+    "test result: FAILED. 21 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.36s"
+  ],
+  "fixture_limits": {
+    "healthy_reserve_condition_timeout_ms": 400,
+    "pair_timeout_ms": 500,
+    "height_timeout_ms": 50,
+    "slow_book_response_delay_ms": 3000,
+    "lcd_timeout_ms": 5000,
+    "pair_concurrency": 2
+  },
+  "owned_processes_stopped": true,
+  "remaining_live_owned_processes": 0,
+  "scope": "First library filters and ingestion/health passed. First book binary failed; remaining first/retest acceptance not claimed. No retry, source change or QA reset.",
+  "log_archived_from": "verify-1464-release4-hash.log",
+  "cause_limitations": "The failed predicate is proven. Its timer includes prelude SQL before per-pair guards start, but the retained run does not identify CPU, DB or provider delay as the cause.",
+  "subsequent_action": "All independent verifiers finished on frozen runtime source. Owned QA was reset before test-only initialized-phase controls/correction."
+}

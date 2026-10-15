@@ -965,6 +965,9 @@ Agent contract: [OS1500](../skills/AGENTS_ORDER_SLIPPAGE.md). Verification:
 
 ### Scheduled native output observations (#1499)
 
+The [reference publication follow-up](#original-time-reference-publication-1505)
+keeps a completed pool cycle from waiting for the next independent mark timer.
+
 The [#1505 follow-up](qa/issue-1505/README.md) overlaps independent treasury
 configuration/bindings and the two denoms' mapping/rate prerequisites through
 the same scheduled provider lane. This removes unnecessary serial waiting
@@ -1022,3 +1025,46 @@ not treat every provider outage as harmless or bypass missing prerequisites.
 Follow [QL1499](../skills/AGENTS_QUOTE_LIFECYCLE.md) and verify original budgets,
 partial failures, explicit unsupported router state, expiry and cancellation with
 `make verify-issue-1499` plus the existing local-quote/provider/attribution checks.
+
+### Original-time reference publication (#1505)
+
+A pool result can arrive just after an independent five-second mark tick. Waiting
+for another tick and local publication can then cross the preceding reference's
+original twenty-second expiry even though newer raw reserves are available.
+The owned pool lane now sends one coalesced notification per completed cycle to
+the mark worker. The existing timer remains its fallback; a notification consumes
+the pending timer turn. One active mark pass and one pending notification bound
+the work. No request, cache miss or progress poll sends this signal.
+
+```mermaid
+flowchart LR
+  P[Owned pool cycle] -->|coalesced completion| M[Mark worker]
+  T[Existing timer] --> M
+  M --> B[Atomic qualified hub and economic batch]
+  B --> Q[Local quote publication and API]
+  B -->|read-only certified context| A[Independent accounting worker]
+```
+
+The mark worker runs alongside one independently owned accounting worker at the
+existing accounting cadence. Fee backfill, rollups, idle candles and protocol TVL
+cannot postpone critical mark commits. Accounting captures supplied oracle
+qualification and hub/economic prices in one repeatable-read, read-only context;
+an absent or mismatched supplied oracle remains unavailable. The legacy direct
+refresh helper retains its synchronous accounting behavior.
+
+The notification is advisory. The same original source/anchor clocks, quorum,
+range, reference-quality rules, $10 economic floor and $100 priced-leg depth floor
+still govern the atomic batch. It never certifies freshness or extends expiry.
+No chain reads, detached tasks, retained-field splices or new reference quality
+class are introduced. Apply [NR1505-9](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md),
+[LF1453](../skills/AGENTS_LIQUIDITY_FEED.md) and
+[SM1479](../skills/AGENTS_SMALL_MARKET_REFERENCE.md).
+
+Canonical preparation also avoids hashing unchanged immutable resting books
+again. It captures the current namespace's bounded digest map under the short
+Store lock, then reuses a digest only when address, view kind and a live Weak/Arc
+identity all match. Changed or detached views are fully hashed off-lock. Base
+policy/reference identity and the final canonical identity are still recomputed,
+and commit-time actor, fee, epoch and newer-view checks remain authoritative.
+This changes CPU work, not economic identity, source timestamps or execution
+eligibility; it adds no request work, global cache or extra publication slot.

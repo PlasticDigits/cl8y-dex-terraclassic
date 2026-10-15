@@ -1,0 +1,48 @@
+{
+  "pipeline": 472,
+  "revision": "f331811f0634a94aae9cd021d86622b610440cf8",
+  "read_only": true,
+  "repository_policy_settings": {
+    "config_extension_exclusive": true,
+    "config_extension_netrc": false,
+    "timeout": 120
+  },
+  "command_log_evidence": {
+    "plain_lib_command_observed": true,
+    "test_threads_flag_occurrences": 1,
+    "rust_test_threads_env_occurrences": 0,
+    "cargo_build_jobs_occurrences": 1
+  },
+  "lib_pass_line_time_range_seconds": [
+    329,
+    367
+  ],
+  "agents": [
+    {
+      "capacity": 1,
+      "no_schedule": false
+    }
+  ],
+  "lib_pass_lines": 848,
+  "trusted_runner_delimiters": [
+    "01849c7c93d2453ea5b30aad41632d9adb45382c0f5b52b315a732799f4d096c"
+  ],
+  "trusted_lib_arm_command": true,
+  "test_thread_flag_contexts": [
+    "postgres_subset"
+  ],
+  "local_runner_sha256": "01849c7c93d2453ea5b30aad41632d9adb45382c0f5b52b315a732799f4d096c",
+  "outer_pass_completion_overlap": {
+    "child_reported_duration_seconds": 15.76,
+    "parent_panic_capture_time_seconds": 367,
+    "conservative_integer_time_window_seconds": [
+      352,
+      366
+    ],
+    "other_outer_pass_lines_in_window": 64,
+    "first_other_pass_time_seconds": 352,
+    "last_other_pass_time_seconds": 360,
+    "interpretation": "Other outer harness tests completed during the child profile duration ending at parent panic capture; log clocks are coarse and this is not CPU utilization sampling."
+  },
+  "limitations": "Executed logs do not expose CPU utilization or simultaneous-running-test counts. Default-harness contention is inferred from the enforced command/source, not a sampled CPU witness."
+}

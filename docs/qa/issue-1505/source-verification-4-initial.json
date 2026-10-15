@@ -1,0 +1,42 @@
+{
+  "issue": 1505,
+  "iteration": "4-before-fixture-fix",
+  "checks": [
+    {
+      "command": "make verify-issue-1505",
+      "overall": "PASS WITH SKIPS",
+      "log_sha256": "9676670ae58783b6777eebbd7f08b59703873c53d1d0246212bb779803f23ef3",
+      "log_file": "verify-1505-release4-before-fixture-fix.log"
+    },
+    {
+      "command": "make verify-issue-1452",
+      "overall": "INTERRUPTED",
+      "log_sha256": "01c2772145276f0257ec953b3f33a925f7ca6540913a82d7f7c548abfbad5fcc",
+      "log_file": "verify-1452-release4-before-fixture-fix.log"
+    },
+    {
+      "command": "make verify-issue-1453",
+      "overall": "FAIL",
+      "log_sha256": "775b289fd5037b31af3022601a47a0da53349043cfc739d0645bf6d7a279dcae",
+      "log_file": "verify-1453-release4-before-fixture-fix.log"
+    },
+    {
+      "command": "make verify-issue-1479",
+      "overall": "INTERRUPTED",
+      "log_sha256": "2858f0564a91b89516a4a7a13c61391d21d48fbbd0ea42854f5a0e71eeb22676",
+      "log_file": "verify-1479-release4-before-fixture-fix.log"
+    }
+  ],
+  "executed_failure": {
+    "test": "issue_1453_pool_success_survives_component_failures",
+    "case": "timeout",
+    "assertion_line": 562,
+    "pool_reserve_before": 1002,
+    "expected_completed_pool_reserve": 1003,
+    "result": "Err(Elapsed(()))",
+    "deadline_ms": 200,
+    "interpretation": "cutoff occurred before the asserted pool-success phase; direct snapshot helper is unchanged by the notification wrapper"
+  },
+  "next_action": "fix bounded phase synchronization without changing production limits; reset owned QA infrastructure and repeat frozen-source verification",
+  "limits": "Interrupted groups are incomplete, not passes or skipped acceptance. Failed original run remains FAIL."
+}

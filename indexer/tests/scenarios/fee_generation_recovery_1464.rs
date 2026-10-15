@@ -461,10 +461,28 @@ async fn recovery1464_cold_changed_fee_cannot_reuse_old_hybrid_economics() {
 /// Give the scheduled publisher both real generations. The old book is deliberately
 /// kept in SQL: deleting it would bypass the preferential-hybrid bug under test.
 async fn seed_independent_views(state: &AppState) -> (i64, i64) {
+    // Prime configuration without publishing a newer complete mirror. An
+    // incomplete fee declines quote admission without recording a policy
+    // negative that would correctly reject the later backdated test cohorts.
+    let fee: i16 = sqlx::query_scalar(
+        "SELECT fee_bps FROM pair_reserves WHERE pair_id=(SELECT id FROM pairs WHERE contract_address=$1)")
+        .bind(PAIR).fetch_one(&state.pool).await.unwrap();
+    sqlx::query("UPDATE pair_reserves SET fee_bps=-1,snapshot_at=NOW() WHERE pair_id=(SELECT id FROM pairs WHERE contract_address=$1)")
+        .bind(PAIR).execute(&state.pool).await.unwrap();
+    local_quote::ingest_fixture(state).await.unwrap();
+    assert!(
+        quote(state).await.is_err(),
+        "configuration priming cannot authorize an incomplete-fee quote"
+    );
+    sqlx::query("UPDATE pair_reserves SET fee_bps=$1 WHERE pair_id=(SELECT id FROM pairs WHERE contract_address=$2)")
+        .bind(fee).bind(PAIR).execute(&state.pool).await.unwrap();
+    // Reference observations also begin after cold setup; their original
+    // deadlines are never refreshed during the expiry assertions below.
+    seed_reference_marks(&state.pool, 1).await;
     let at = chrono::Utc::now();
-    // Leave 3.75 seconds for owned cold scheduled admission. The original
+    // Leave 3.75 seconds for the chosen initialized publisher. The original
     // hybrid still expires inside the four-second pending-fee window, even
-    // before subtracting admission time. Neither production TTL is extended.
+    // before subtracting publication time. Neither production TTL is extended.
     let hybrid_at = at - chrono::Duration::milliseconds(16_250);
     let pool_at = at - chrono::Duration::milliseconds(9_000);
     sqlx::query("INSERT INTO hybrid_pair_reserves SELECT * FROM pair_reserves ON CONFLICT(pair_id) DO NOTHING")
@@ -567,9 +585,6 @@ async fn recovery1464_dual_views_survive_hybrid_expiry_without_another_scheduled
         let (state, _pair, _upstream, provider) =
             fixture_fee_with_ingestion(false, 35, false).await;
         let (hybrid_at, pool_at) = seed_independent_views(&state).await;
-        if !admission {
-            local_quote::ingest_fixture(&state).await.unwrap();
-        }
         publish_view(&state, admission).await;
         let before_calls = provider.calls.load(Ordering::SeqCst);
         eprintln!(
@@ -639,9 +654,6 @@ async fn recovery1464_dual_views_pending_fee_keeps_pool_and_shares_immediate_inv
             let (state, pair, _upstream, provider) =
                 fixture_fee_with_ingestion(outcome == "negative", 10_000, false).await;
             let (hybrid_at, pool_at) = seed_independent_views(&state).await;
-            if !admission {
-                local_quote::ingest_fixture(&state).await.unwrap();
-            }
             publish_view(&state, admission).await;
             eprintln!(
                 "dual-view publisher_admission={admission} outcome={outcome} first_quote_age_ms={}",

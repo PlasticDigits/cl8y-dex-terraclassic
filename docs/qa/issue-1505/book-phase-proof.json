@@ -1,0 +1,79 @@
+{
+  "test_source_sha256": "ca1ecd154f5b61ab854eb37a60ed36cc3af0429ec79094ccd54403d007ca68a7",
+  "production_sha256": {
+    "indexer/src/api/local_quote/generation.rs": "83dce5e4c0f5632290c875646940c7f58b47e1804707bb6754881f96ba5d2455",
+    "indexer/src/api/local_quote/publication.rs": "4a7f9d41b79280520e3e3608c2bb5ab0ea524305c1f15fc78dec5a02439db180"
+  },
+  "limits_ms": {
+    "setup": 2000,
+    "healthy": 400,
+    "pair": 500,
+    "height": 50,
+    "lcd": 5000,
+    "slow_book": 3000
+  },
+  "controlled_prelude_ms": 450,
+  "cause_scope": "Controlled setup confounding demonstrated; original failure resource cause unproven.",
+  "runs": [
+    {
+      "name": "old-control",
+      "verdict": "FAIL control",
+      "log": "dex-1505-book-phase-old-control.log",
+      "sha256": "9435ed75bf2ae41a77aa541e29caf71305b7937fb2a30cad15bf110c3dd72a19",
+      "summary": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 1.81s"
+      ],
+      "control": [
+        "controlled_inventory_blocked=true prelude_ms=450 pair_ms=500 healthy_ms=400"
+      ]
+    },
+    {
+      "name": "new-control",
+      "verdict": "PASS control",
+      "log": "dex-1505-book-phase-new-control.log",
+      "sha256": "fe07eb66e1988196833600b0fa32af15d92e30ddab6a8e7947c77dc9947d2a1f",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.78s"
+      ],
+      "control": [
+        "controlled_inventory_blocked=true prelude_ms=450 pair_ms=500 healthy_ms=400"
+      ]
+    },
+    {
+      "name": "full-first",
+      "verdict": "PASS",
+      "log": "dex-1505-book-phase-full-first.log",
+      "sha256": "75ad303813833da8e16e2cabab1da811c7ab3fd92cb8ed8d660ffa80d6a5ec91",
+      "summary": [
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.18s"
+      ],
+      "control": []
+    },
+    {
+      "name": "full-retest",
+      "verdict": "PASS",
+      "log": "dex-1505-book-phase-full-retest.log",
+      "sha256": "a468598065cc337116aa2d6d90232b7bd470e6fec2c4cee75e3d4f857f68dded",
+      "summary": [
+        "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.38s"
+      ],
+      "control": []
+    }
+  ],
+  "issue": 1505,
+  "application_source_equivalence": {
+    "scope": "Application source roots only, including cfg(test) modules under src; excludes integration fixtures, docs and QA scripts",
+    "roots": [
+      "indexer/src",
+      "frontend-dapp/src",
+      "smartcontracts/contracts",
+      "smartcontracts/packages"
+    ],
+    "file_count": 1162,
+    "sha256": "130a4b77206556e469bcda227cf1fdaf33416561c263c9705cc1a6e3d23bb6cb",
+    "application_sources_unchanged": true,
+    "fixture_changed": "indexer/tests/book_snapshot_loop.rs",
+    "fixture_sha256": "ca1ecd154f5b61ab854eb37a60ed36cc3af0429ec79094ccd54403d007ca68a7"
+  },
+  "scope": "Controlled local integration fixture clocks; not deployed recovery/latency acceptance."
+}

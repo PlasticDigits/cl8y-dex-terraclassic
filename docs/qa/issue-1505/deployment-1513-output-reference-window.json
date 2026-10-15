@@ -1,0 +1,232 @@
+{
+  "issue": 1505,
+  "read_only": true,
+  "start_utc": "2026-10-15T10:10:55+00:00",
+  "end_utc": "2026-10-15T10:11:25+00:00",
+  "bounded_sample_lines": 24,
+  "fixed_events": [
+    {
+      "utc": "2026-10-15T10:10:55.277489+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 17,
+      "failed_pair_count": 5,
+      "cycle_elapsed_ms": 12022,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 9953
+    },
+    {
+      "utc": "2026-10-15T10:10:58.542642+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7901,
+      "observed_at_ms": 1792059050641,
+      "poll_id": 33,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T10:11:01.260443+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5937,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5936
+    },
+    {
+      "utc": "2026-10-15T10:11:03.077248+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 13,
+      "failed_pair_count": 9,
+      "cycle_elapsed_ms": 7799,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 7754
+    },
+    {
+      "utc": "2026-10-15T10:11:07.058641+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 34
+    },
+    {
+      "utc": "2026-10-15T10:11:07.301933+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 34
+    },
+    {
+      "utc": "2026-10-15T10:11:07.301979+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 6660,
+      "observed_at_ms": 1792059060640,
+      "poll_id": 34,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T10:11:09.634070+00:00",
+      "categories": [
+        "admission_budget"
+      ]
+    },
+    {
+      "utc": "2026-10-15T10:11:10.934054+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5610,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5610
+    },
+    {
+      "utc": "2026-10-15T10:11:13.369582+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 19,
+      "failed_pair_count": 3,
+      "cycle_elapsed_ms": 10291,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 8046
+    },
+    {
+      "utc": "2026-10-15T10:11:15.172820+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 35
+    },
+    {
+      "utc": "2026-10-15T10:11:15.442730+00:00",
+      "categories": [
+        "stale_component"
+      ],
+      "component": "reference",
+      "direction": "native_output",
+      "request_id": "5417ff483aaaae1b",
+      "age_known": true,
+      "age_ms": 20119,
+      "expiry_known": true,
+      "expires_in_ms": -119
+    },
+    {
+      "utc": "2026-10-15T10:11:15.442740+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_output",
+      "reason": "stale_observations",
+      "request_id": "5417ff483aaaae1b",
+      "status": 503
+    },
+    {
+      "utc": "2026-10-15T10:11:15.451647+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 35
+    },
+    {
+      "utc": "2026-10-15T10:11:15.451678+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 4811,
+      "observed_at_ms": 1792059070640,
+      "poll_id": 35,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-15T10:11:15.769709+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_input",
+      "reason": "stale_observations",
+      "status": 503
+    },
+    {
+      "utc": "2026-10-15T10:11:16.362161+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_input",
+      "reason": "stale_observations",
+      "status": 503
+    },
+    {
+      "utc": "2026-10-15T10:11:18.445542+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 3122,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 3122
+    }
+  ],
+  "read_count": 4,
+  "limits": "At most300lines/180s; only requested request IDs and fixed enums/scalars exported. Unknown ages remain unknown. No raw logs, actor/context identifiers, prices, SQL or endpoints retained. No signing or production mutation."
+}

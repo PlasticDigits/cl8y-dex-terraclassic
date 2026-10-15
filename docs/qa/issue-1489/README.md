@@ -129,3 +129,9 @@ the issue open unless all body/comment requirements pass. Human-only custody
 actions belong in concise cl8y-pm inbox cards; engineering stays with agents.
 
 Bounded browser lifecycle and first-failure diagnostics: [BROWSER-LIFECYCLE.md](BROWSER-LIFECYCLE.md). Original caps/clocks remain mandatory; incomplete live checks remain unchecked.
+
+The maximum-publication profile's child isolates registry state; its parent also
+joins the existing serial group for heavy fixtures. Default-parallel full-library
+coverage is distinct from focused serial filters. Preserve all profile caps and
+original clocks; [the #1505 CI follow-up](../issue-1505/RESULTS.md#fourth-source-ci-failure-and-fixture-coordination)
+retains the executed sample-cap failure and the scoped fixture coordination.
