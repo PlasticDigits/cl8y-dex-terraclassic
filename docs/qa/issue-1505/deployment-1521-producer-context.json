@@ -1,0 +1,812 @@
+{
+  "issue": 1505,
+  "iteration": 8,
+  "revision": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+  "start_utc": "2026-10-16T01:48:45Z",
+  "end_utc": "2026-10-16T01:49:45Z",
+  "bounded_sample_lines": 54,
+  "possibly_truncated": false,
+  "fixed_events": [
+    {
+      "utc": "2026-10-16T01:48:45.625751+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 6,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115317803,
+      "newest_economic_as_of_ms": 1792115317803
+    },
+    {
+      "utc": "2026-10-16T01:48:47.955839+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 13162,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 10152
+    },
+    {
+      "utc": "2026-10-16T01:48:48.394026+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 51
+    },
+    {
+      "utc": "2026-10-16T01:48:48.971362+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 51
+    },
+    {
+      "utc": "2026-10-16T01:48:48.971382+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5823,
+      "observed_at_ms": 1792115323147,
+      "poll_id": 51,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:48:50.627795+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 8,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115317803,
+      "newest_economic_as_of_ms": 1792115317803
+    },
+    {
+      "utc": "2026-10-16T01:48:54.340004+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 6536,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6535
+    },
+    {
+      "utc": "2026-10-16T01:48:54.340037+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:48:54.347302+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115327803,
+      "newest_economic_as_of_ms": 1792115327803
+    },
+    {
+      "utc": "2026-10-16T01:48:58.170375+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 52
+    },
+    {
+      "utc": "2026-10-16T01:48:58.416812+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 52
+    },
+    {
+      "utc": "2026-10-16T01:48:58.416840+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5269,
+      "observed_at_ms": 1792115333147,
+      "poll_id": 52,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:48:59.348781+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115327803,
+      "newest_economic_as_of_ms": 1792115327803
+    },
+    {
+      "utc": "2026-10-16T01:49:00.215687+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 20,
+      "failed_pair_count": 2,
+      "cycle_elapsed_ms": 12259,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 12411
+    },
+    {
+      "utc": "2026-10-16T01:49:03.886684+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 6083,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6083
+    },
+    {
+      "utc": "2026-10-16T01:49:03.886711+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:49:03.893138+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 6,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115337803,
+      "newest_economic_as_of_ms": 1792115337803
+    },
+    {
+      "utc": "2026-10-16T01:49:08.895671+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 8,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115337803,
+      "newest_economic_as_of_ms": 1792115337803
+    },
+    {
+      "utc": "2026-10-16T01:49:11.049624+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "tax_cap",
+      "reason": "deadline",
+      "poll_id": 53
+    },
+    {
+      "utc": "2026-10-16T01:49:11.049659+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "mapper_floor",
+      "reason": "deadline",
+      "poll_id": 53
+    },
+    {
+      "utc": "2026-10-16T01:49:11.049668+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "treasury_floor",
+      "reason": "deadline",
+      "poll_id": 53
+    },
+    {
+      "utc": "2026-10-16T01:49:11.049675+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7901,
+      "observed_at_ms": 1792115343147,
+      "poll_id": 53,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": false,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:49:11.986964+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 4183,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4183
+    },
+    {
+      "utc": "2026-10-16T01:49:11.986992+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:49:11.992926+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115347803,
+      "newest_economic_as_of_ms": 1792115347803
+    },
+    {
+      "utc": "2026-10-16T01:49:12.223806+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 21,
+      "failed_pair_count": 1,
+      "cycle_elapsed_ms": 12008,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4419
+    },
+    {
+      "utc": "2026-10-16T01:49:15.270541+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_output",
+      "reason": "missing_observations",
+      "request_id": "27b594f64a04ae0c",
+      "status": 503
+    },
+    {
+      "utc": "2026-10-16T01:49:15.561715+00:00",
+      "categories": [
+        "quote_rejected"
+      ],
+      "direction": "native_output",
+      "reason": "missing_observations",
+      "request_id": "27b594f64a04ae0d",
+      "status": 503
+    },
+    {
+      "utc": "2026-10-16T01:49:16.995643+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115347803,
+      "newest_economic_as_of_ms": 1792115347803
+    },
+    {
+      "utc": "2026-10-16T01:49:20.828990+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 54
+    },
+    {
+      "utc": "2026-10-16T01:49:21.049211+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "deadline",
+      "poll_id": 54
+    },
+    {
+      "utc": "2026-10-16T01:49:21.049233+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 7901,
+      "observed_at_ms": 1792115353147,
+      "poll_id": 54,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:49:21.998762+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 9,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115347803,
+      "newest_economic_as_of_ms": 1792115357803
+    },
+    {
+      "utc": "2026-10-16T01:49:22.430855+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 16,
+      "failed_pair_count": 6,
+      "cycle_elapsed_ms": 10206,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4626
+    },
+    {
+      "utc": "2026-10-16T01:49:23.140359+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5336,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5336
+    },
+    {
+      "utc": "2026-10-16T01:49:23.140391+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:49:23.148520+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 8,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115357803,
+      "newest_economic_as_of_ms": 1792115357803
+    },
+    {
+      "utc": "2026-10-16T01:49:28.146895+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115357803,
+      "newest_economic_as_of_ms": 1792115357803
+    },
+    {
+      "utc": "2026-10-16T01:49:29.325815+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 55
+    },
+    {
+      "utc": "2026-10-16T01:49:29.701930+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 55
+    },
+    {
+      "utc": "2026-10-16T01:49:29.701991+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 6554,
+      "observed_at_ms": 1792115363146,
+      "poll_id": 55,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:49:33.148000+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 6,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115357803,
+      "newest_economic_as_of_ms": 1792115367803
+    },
+    {
+      "utc": "2026-10-16T01:49:33.405443+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 20,
+      "failed_pair_count": 2,
+      "cycle_elapsed_ms": 10974,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5602
+    },
+    {
+      "utc": "2026-10-16T01:49:33.543017+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 5739,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 5739
+    },
+    {
+      "utc": "2026-10-16T01:49:33.543064+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:49:33.552093+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 9,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115367803,
+      "newest_economic_as_of_ms": 1792115367803
+    },
+    {
+      "utc": "2026-10-16T01:49:38.304869+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 56
+    },
+    {
+      "utc": "2026-10-16T01:49:38.551372+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115367803,
+      "newest_economic_as_of_ms": 1792115367803
+    },
+    {
+      "utc": "2026-10-16T01:49:38.569333+00:00",
+      "categories": [
+        "wrapper_read_unavailable"
+      ],
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "poll_id": 56
+    },
+    {
+      "utc": "2026-10-16T01:49:38.569365+00:00",
+      "categories": [
+        "wrapper_completed"
+      ],
+      "elapsed_ms": 5422,
+      "observed_at_ms": 1792115373146,
+      "poll_id": 56,
+      "mappings": 2,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "utc": "2026-10-16T01:49:42.798805+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "pool",
+      "head_outcome": "observed",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 22,
+      "failed_pair_count": 0,
+      "cycle_elapsed_ms": 4995,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 4995
+    },
+    {
+      "utc": "2026-10-16T01:49:42.798836+00:00",
+      "categories": [
+        "reference_scheduled"
+      ],
+      "phase": "reference_schedule"
+    },
+    {
+      "utc": "2026-10-16T01:49:42.803974+00:00",
+      "categories": [
+        "reference_committed"
+      ],
+      "phase": "reference_marks",
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792115377802,
+      "newest_economic_as_of_ms": 1792115377802
+    },
+    {
+      "utc": "2026-10-16T01:49:44.615910+00:00",
+      "categories": [
+        "book_cycle"
+      ],
+      "lane": "book",
+      "head_outcome": "skipped",
+      "head_capacity_waits": 0,
+      "pair_count": 22,
+      "refreshed_pair_count": 18,
+      "failed_pair_count": 4,
+      "cycle_elapsed_ms": 11210,
+      "missing_reserve_count": 0,
+      "max_reserve_age_ms": 6813
+    }
+  ],
+  "physical_read_failure_witnesses": [
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5246,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 624,
+      "poll_id": 51,
+      "sample_timestamp_ms": 1792115328394
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5823,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 1202,
+      "poll_id": 51,
+      "sample_timestamp_ms": 1792115328971
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5022,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 519,
+      "poll_id": 52,
+      "sample_timestamp_ms": 1792115338170
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5269,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 765,
+      "poll_id": 52,
+      "sample_timestamp_ms": 1792115338416
+    },
+    {
+      "slot": "uusd_cap",
+      "phase": "tax_cap",
+      "reason": "deadline",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 7901,
+      "denom_wait_ms": 2367,
+      "global_wait_ms": 0,
+      "active_ms": 1158,
+      "poll_id": 53,
+      "sample_timestamp_ms": 1792115351049
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 7681,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 515,
+      "poll_id": 54,
+      "sample_timestamp_ms": 1792115360828
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "deadline",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 7901,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 735,
+      "poll_id": 54,
+      "sample_timestamp_ms": 1792115361049
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 6178,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 332,
+      "poll_id": 55,
+      "sample_timestamp_ms": 1792115369325
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 6554,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 708,
+      "poll_id": 55,
+      "sample_timestamp_ms": 1792115369701
+    },
+    {
+      "slot": "mapper_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5157,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 766,
+      "poll_id": 56,
+      "sample_timestamp_ms": 1792115378304
+    },
+    {
+      "slot": "treasury_floor",
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "stage": "lcd_read",
+      "lcd_polled": true,
+      "poll_elapsed_ms": 5422,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 1031,
+      "poll_id": 56,
+      "sample_timestamp_ms": 1792115378569
+    }
+  ],
+  "scheduled_alternative_witnesses": [],
+  "wrapper_dispatch_witnesses": [
+    {
+      "native_borrowed_reads": 1,
+      "poll_id": 51,
+      "sample_timestamp_ms": 1792115328971
+    },
+    {
+      "native_borrowed_reads": 0,
+      "poll_id": 52,
+      "sample_timestamp_ms": 1792115338416
+    },
+    {
+      "native_borrowed_reads": 0,
+      "poll_id": 53,
+      "sample_timestamp_ms": 1792115351049
+    },
+    {
+      "native_borrowed_reads": 0,
+      "poll_id": 54,
+      "sample_timestamp_ms": 1792115361049
+    },
+    {
+      "native_borrowed_reads": 0,
+      "poll_id": 55,
+      "sample_timestamp_ms": 1792115369701
+    },
+    {
+      "native_borrowed_reads": 0,
+      "poll_id": 56,
+      "sample_timestamp_ms": 1792115378569
+    }
+  ],
+  "separate_read_budget": 4,
+  "read_count": 4,
+  "scope": "Fixed enums/scalars only. lcd_polled denotes logical future polling, not a wire attempt. Raw logs retained separately and never embedded."
+}

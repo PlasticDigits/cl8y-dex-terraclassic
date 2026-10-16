@@ -1,0 +1,81 @@
+{
+  "utc": "2026-10-16T02:40:34.877858+00:00",
+  "status": "PASS",
+  "private_script": "native-expiry-control-1505-release9.cjs",
+  "private_script_sha256": "7c504dcdb2e67b2a03abb73e4a6047fda5c2e2db09a0e9f47bb8e39697c51c40",
+  "original_private_script_preserved": {
+    "file": "native-expiry-control-1505-v9-final.cjs",
+    "sha256": "26e5a2715187513e74a7eba5423c0507a4a58d4872ad4a32e5a90567ccdfa800"
+  },
+  "only_private_script_byte_change": "One hard-coded lifecycle driver hash efb627739... \u2192 ff9ceaba...; functional install/assessment logic and bounds unchanged",
+  "helper_hashes": {
+    "live-trading-lifecycle-1499.cjs": "ff9ceaba611e2b08789231db11b3f244ca0439f7836e54a949d7dc5d45c5dfdd",
+    "live-input-clock-1499.cjs": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b",
+    "live-quote-economics-1500.cjs": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662",
+    "live-read-guard-1499.cjs": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4",
+    "live-quote-budget-1505.cjs": "768c4fc852872caa4fd62f5d73beb703ecae74d86b182589f7d7f42c4cd0652b"
+  },
+  "public_node_test_sha256": "512543b7f42aa45d70903cc01ad13db3e160b8417ea4df23e4098b4435ecdb1b",
+  "runtime_check": {
+    "status": "PASS",
+    "pinned_helpers": 5,
+    "network_requests": 0,
+    "chrome": false
+  },
+  "offline_selftest_first": {
+    "status": "PASS",
+    "checks": 7,
+    "network_requests": 0,
+    "chrome": false
+  },
+  "offline_selftest_retest": {
+    "status": "PASS",
+    "checks": 7,
+    "network_requests": 0,
+    "chrome": false
+  },
+  "missing_attestation_first": {
+    "status": "PASS",
+    "actual_exit": 1,
+    "class": "explicit_control_run_revision_attestation_output_required",
+    "network_requests": 0,
+    "chrome": false
+  },
+  "missing_attestation_retest": {
+    "status": "PASS",
+    "actual_exit": 1,
+    "class": "explicit_control_run_revision_attestation_output_required",
+    "network_requests": 0,
+    "chrome": false
+  },
+  "full_public_node_qa": {
+    "passed": 59,
+    "failed": 0,
+    "skipped": 0,
+    "test_files": 5,
+    "scope": "Complete public lifecycle/readguard/economics/budget/inputclock NodeQA group including authorized actual loopback Chrome controls; not an entirely offline/no-Chrome test envelope",
+    "production_http_requests": 0,
+    "loopback_chrome_allowed": true
+  },
+  "functional_control_bounds": {
+    "window_seconds": 60,
+    "quote_progress_reads": 120,
+    "global_wall_seconds": 180,
+    "release": "Original adopted expiry plus1250ms",
+    "native_read_guard_and_original_clocks_preserved": true,
+    "funded_signing_claim": false
+  },
+  "logs": {
+    "expiry-control-release9-check.log": "2676b0fcea297f943f2db508f76f0cddb36d3be0bdc687ebb5501595f362e9f3",
+    "expiry-control-release9-selftest-first.log": "381fe956829db927edeaaa55c10c59f9c8fa6a71eb7afa2bae49b4ca956d58ca",
+    "expiry-control-release9-selftest-retest.log": "381fe956829db927edeaaa55c10c59f9c8fa6a71eb7afa2bae49b4ca956d58ca",
+    "expiry-control-release9-missing-attestation-first.log": "eaf1cc64d4fbb137041e9274b2912f1f22d55af53bff9652c3a2b12748918f5c",
+    "expiry-control-release9-missing-attestation-retest.log": "eaf1cc64d4fbb137041e9274b2912f1f22d55af53bff9652c3a2b12748918f5c",
+    "observer-final-full-node-qa.log": "602f71e0dbc7caefa83ff539d730e21e753bebab4cab4051bf54dc3e5d15fc7d"
+  },
+  "fresh_release9_outputs_absent": true,
+  "all_owned_node_chrome_exited": true,
+  "source_or_public_script_edits": false,
+  "production_requests": 0,
+  "more_jobs_planned": false
+}

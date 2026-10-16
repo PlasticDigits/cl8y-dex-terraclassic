@@ -1,0 +1,31 @@
+{
+  "issue": 1505,
+  "recorded_at": "2026-10-16T03:20:10.716713+00:00",
+  "status": "PASS; incoming documentation only, tested application and verification inputs unchanged",
+  "tested_base_revision": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+  "integrated_main_revision": "a21e697453564acb0f0af77dc9022a1ec857096e",
+  "incoming_commits": [
+    "a21e697453564acb0f0af77dc9022a1ec857096e",
+    "abd6d57a147478c75113aab0d0735730abf61bab",
+    "d489a74e143ea7a426b0ddca14cf92aff92a3006",
+    "f1fe8f7911b46c1dab2792a6b8a98643e801f4c5",
+    "b2e4fa3654c72fcf5a63642129ddaeb542b92bd2"
+  ],
+  "incoming_commit_count": 5,
+  "incoming_changed_path_count": 57,
+  "incoming_changed_path_scope": "incidents/ only",
+  "application": {
+    "files": 1210,
+    "sha256": "8806694267fe906831cc384a13b686af17cd340dddd22cd2a9f11907f99dba59"
+  },
+  "verification_inputs": {
+    "files": 2012,
+    "sha256": "c28ca761d7861ed13e4a1536ed6af5d37ba2b95041febce81019a9d1ad27f2d9"
+  },
+  "application_and_verification_unchanged": true,
+  "source_receipt": "source-verification-9-final.json",
+  "source_receipt_sha256": "adc24278bba8bf59166e0ed7e41a7d0d40f6944314b719ac91e5e2bf4527d041",
+  "integration_method": "Fast-forward both the primary main checkout and issue worktree; no conflict or source mutation",
+  "runtime_retest_required_by_incoming_changes": false,
+  "hosted_ci_and_live_acceptance": "Still pending for the eventual committed and merged revision"
+}

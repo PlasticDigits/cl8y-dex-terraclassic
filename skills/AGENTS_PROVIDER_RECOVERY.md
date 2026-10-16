@@ -199,3 +199,12 @@ Clones keep the same provider/ingestion state and cancellation policy. Poll,
 floor, head, spawned pair and nested query scopes cannot renew or leak into later
 owners. Data and identity paths respect the earlier absolute bound; late positive
 identity completion never overrides it or clears known typed integrity.
+
+
+For native router priority, preserve
+[NR1505-13](AGENTS_NATIVE_QUOTE_RECOVERY.md): initialize the common treasury
+admission plan before concurrent futures. Open the router gate only after both
+reads acquire their existing global permits and pass the original deadline
+check. Cooperative Pending is not admission. Waiting owns no permit, remains
+bounded by the original router/poll deadline, and never substitutes for validated
+common results. No-plan/absent-router behavior and all original budgets remain.

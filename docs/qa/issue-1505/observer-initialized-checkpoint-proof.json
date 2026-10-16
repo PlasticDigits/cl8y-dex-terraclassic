@@ -1,0 +1,86 @@
+{
+  "utc": "2026-10-16T02:24:29.026438+00:00",
+  "status": "PASS",
+  "source_frozen": true,
+  "finding": "Unrestricted Date.parse accepted parseable non-HTTP or normalized invalid Date headers as diagnostic clocks",
+  "fix": "Canonical HTTP-date grammar plus safe bounded integer and exact toUTCString roundtrip; unrecognized headers yield null without rejecting quotes",
+  "metadata_version": "initialized_api_checkpoint_v1",
+  "final_sources": {
+    "live-trading-lifecycle-1499.cjs": "ff9ceaba611e2b08789231db11b3f244ca0439f7836e54a949d7dc5d45c5dfdd",
+    "test-live-trading-lifecycle-1499.cjs": "512543b7f42aa45d70903cc01ad13db3e160b8417ea4df23e4098b4435ecdb1b"
+  },
+  "native_measurement_version": "foreground_correlated_native_availability_v9",
+  "generic_measurement_version": "foreground_correlated_native_availability_v8",
+  "old438_control": {
+    "source_file": "observer-init-checkpoint-438-driver.cjs",
+    "source_sha256": "438b06fc3af710aa9d2739da781bac6c8a58044d1b639343c3636f1f8a34705c",
+    "passed": 0,
+    "failed": 4,
+    "cases": [
+      "ISO-only",
+      "numeric",
+      "invalid calendar",
+      "wrong weekday"
+    ],
+    "actual_result": "Each malformed header produced a numeric epoch instead of required null"
+  },
+  "fixed_offline_first": {
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "network_requests": 0,
+    "chrome_started": false
+  },
+  "fixed_offline_retest": {
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "network_requests": 0,
+    "chrome_started": false
+  },
+  "canonical_valid_header_positive": true,
+  "prior_initial_checkpoint_proof": {
+    "file": "observer-initialized-checkpoint-proof.json",
+    "sha256": "dcbc5e5317646768c8779326ee8453564a7a450dd227e648a19697367b4716c0",
+    "immutable": true,
+    "original_missing_checkpoint_old_control": {
+      "passed": 0,
+      "failed": 3
+    },
+    "accidental_broader_initial_run": {
+      "passed": 11,
+      "failed": 0,
+      "actual_loopback_chrome_cases": 2,
+      "not_offline": true,
+      "production_requests": 0,
+      "scope_violation_retained": true
+    }
+  },
+  "logs": {
+    "observer-http-date-old438.log": "431c986b8b6ebd9ceeb52ebdbad992d5906dbc5b41ca5182426653f077706428",
+    "observer-http-date-format.log": "be6efc20cdc27020f03a744800bb9044f2fe64352b94428038cafb98fcefb85d",
+    "observer-http-date-offline-first.log": "748f849302c89b5f553d3a59d476115ecd5b1e5038a352f799c75cf9d06b181c",
+    "observer-http-date-offline-retest.log": "928339b9c0675574837e9624cda9ae573458385d32867beabcbec4e5362e8e3a"
+  },
+  "all_owned_node_chrome_exited": true,
+  "rust_jobs_started": false,
+  "private_expiry_edited_or_validated": false,
+  "production_requests": 0,
+  "network_requests_in_final_window": 0,
+  "chrome_started_in_final_window": false,
+  "invariants": {
+    "existing_initialized_solve_calls": 4,
+    "global_native_reads": 800,
+    "context_reads": 600,
+    "global_wall_ms": 960000,
+    "window_ms": 190000,
+    "socket_budget_ms": 500,
+    "browser_budget_ms": 750,
+    "fail_fast_added": false,
+    "window_sequence_changed": false,
+    "failure_scoring_changed": false,
+    "original_elapsed_clock_changed": false,
+    "unknown_date_affects_quote_scoring": false,
+    "historical_receipts_reclassified": false
+  }
+}

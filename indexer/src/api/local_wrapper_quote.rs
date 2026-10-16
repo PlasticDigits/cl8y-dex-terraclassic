@@ -15,6 +15,8 @@ use super::AppState;
 #[cfg(test)]
 mod borrowing_tests;
 mod dispatch;
+#[cfg(test)]
+mod router_priority_tests;
 use dispatch::ObservationDispatch;
 const SCALE: u128 = 1_000_000_000_000_000_000;
 
@@ -390,6 +392,9 @@ impl ObservationReads<'_> {
                 if self.deadline <= tokio::time::Instant::now() {
                     return None;
                 }
+                // Cooperative yielding can happen before semaphore queue entry.
+                // Signal only a real permit acquired within the parent margin.
+                self.dispatch.common_admitted(slot);
                 if _denom.as_ref().is_some_and(|permit| permit.borrowed()) {
                     self.dispatch.record_borrow();
                 }
@@ -457,8 +462,21 @@ async fn observe_router_bounded_with_reads(
         );
         return None;
     }
-    match tokio::time::timeout_at(deadline, observe_router_with_reads(reads, router, mapper)).await
-    {
+    let observation = async {
+        // This prerequisite wait is outside the physical read and owns no
+        // global/provider permit. Its duration cannot masquerade as LCD work.
+        reads.dispatch.wait_router_prerequisites().await;
+        if deadline <= tokio::time::Instant::now() {
+            tracing::warn!(
+                phase = "router_config",
+                reason = "deadline",
+                "Native wrapper read unavailable"
+            );
+            return None;
+        }
+        observe_router_with_reads(reads, router, mapper).await
+    };
+    match tokio::time::timeout_at(deadline, observation).await {
         Ok(result) => result,
         Err(_) => {
             tracing::warn!(
@@ -850,7 +868,11 @@ async fn observe_inner(
         return WrapperObservation::Unavailable;
     };
     let deadline = reads.deadline;
-    // The router remains independent of every subsequent settlement read.
+    if !reads.dispatch.plan_router_prerequisites() {
+        return WrapperObservation::Unavailable;
+    }
+    // Common settlement reads get both initial admissions before router work.
+    // The router then completes independently of their results and native work.
     let router_read = observe_router_bounded_with_reads(reads, router, mapper, deadline);
     let settlement_read = observe_settlement(
         reads,
@@ -1086,7 +1108,7 @@ mod tests {
         wrapper_fixture_with_smart_delay(router_delay, bank_delay, Duration::from_millis(800)).await
     }
 
-    async fn wrapper_fixture_with_smart_delay(
+    pub(super) async fn wrapper_fixture_with_smart_delay(
         router_delay: Duration,
         bank_delay: Duration,
         smart_delay: Duration,

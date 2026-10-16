@@ -1,0 +1,605 @@
+{
+  "all_owned_jobs_stopped": true,
+  "commands": {
+    "focused": "cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote::router_priority_tests -- --nocapture",
+    "whole_wrapper": "cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --nocapture"
+  },
+  "envelope": {
+    "cargo_build_jobs": 2,
+    "cargo_target": "indexer/target",
+    "fresh_process_per_run": true,
+    "full_source_wave_run_by_subagent": false,
+    "other_owned_heavy_jobs_during_final_runs": false,
+    "rust_min_stack": "unset",
+    "rust_test_threads": "unset",
+    "stack_override": false,
+    "test_threads_override": false
+  },
+  "final_sources": {
+    "indexer/src/api/local_wrapper_quote.rs": "37ea9e2af0192bfa16f325f27a251eb7cae80e79aea222b4aec9a537c76e74c9",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs": "38ba44108bc9d27a96fda8a241961e617fe0b51fde563db1472fa716bb0611e5",
+    "indexer/src/api/local_wrapper_quote/router_priority_tests.rs": "d6307d5c05b669194e3cadb43d2b9fcade6c353eb6a3fb71334306e7096019fe"
+  },
+  "fixture_variants": {
+    "common": {
+      "bank_default_ms": 100,
+      "bindings_ms": 1600,
+      "mapper_ms": 1000,
+      "optional_floors_ms": 100,
+      "router_ms": 2200,
+      "treasury_config_ms": 1600,
+      "uluna_mapping_ms": 200,
+      "uluna_rate_ms": 200
+    },
+    "final_paired_isolated_variant": {
+      "isolation": "Shorter permitted cap response isolates critical ordering from optional floor completion; all original runtime deadlines/work/provider limits unchanged.",
+      "uusd_cap_ms": 1200,
+      "uusd_mapping_ms": 1900,
+      "uusd_rate_ms": 1400
+    },
+    "old_order_only": {
+      "uusd_cap_ms": 1300,
+      "uusd_mapping_ms": 1200,
+      "uusd_rate_ms": 1200
+    },
+    "old_second_order_only": {
+      "uusd_cap_ms": 1700,
+      "uusd_mapping_ms": 1600,
+      "uusd_rate_ms": 1400
+    },
+    "original_availability_and_interim_candidate": {
+      "uusd_cap_ms": 1700,
+      "uusd_mapping_ms": 1900,
+      "uusd_rate_ms": 1400
+    }
+  },
+  "implementation": {
+    "cooperative_correction": "First Poll::Pending cannot prove semaphore FIFO insertion because Tokio polls cooperative budget first. Custom first-poll logic removed.",
+    "negative_handling": "Positive treasury/config/bindings validation still required for native work; settlement pause/error cancels owned router future.",
+    "plan": "One poll-local monotonic two-bit prerequisite plan initialized after validated mapper config before router/settlement futures.",
+    "router_wait": "Outside physical read, no global/provider permits held. Notify registered before predicate; no-plan and configured absence remain prompt. Original scoped deadline checked again after gate.",
+    "signal": "TreasuryConfig and DenomBindings signal only after real global semaphore acquisition and original parent deadline check, before logical LCD polling."
+  },
+  "invariants": {
+    "cadence_ms": 10000,
+    "healthy_planned_data_reads": 13,
+    "ingestion_permits": 2,
+    "ingestion_rps": 4,
+    "lcd_total_ms": 4000,
+    "logical_global_permits": 2,
+    "native_snapshot_ttl_ms": 20000,
+    "original_poll_margin_ms": 7900,
+    "outer_poll_ms": 8000,
+    "provider_attempt_ms": 2500,
+    "provider_policy_changed": false,
+    "request_rpc_added": false,
+    "retained_fields_spliced": false,
+    "timestamps_renewed": false
+  },
+  "issue": 1505,
+  "kind": "router_prerequisite_priority",
+  "limitations": [
+    "Historical M8 poll53 cap failure is proven, but its successful prerequisite/provider timings and router-first cause remain unproven.",
+    "Controlled availability failure clips rate/mapping, whereas historical partial view had both mappings and only USTC cap absent.",
+    "No-plan current-runtime counterfactual is separate from original M8-runtime OLD controls.",
+    "Logical admission order is not wire delivery or chain-read completion. Healthy fixture13 data wire reads do not imply a universal13-wire cap under original provider failover attempts.",
+    "Interim7874ms passing candidate was superseded after cooperative-yield flaw; no final verification is claimed for that hash.",
+    "This is source-only focused verification. Parent owns remaining verification, CI, deployment and live acceptance."
+  ],
+  "review": {
+    "browser_agent": "clean",
+    "parent": "clean",
+    "telemetry_agent": "clean final three file hashes independently checked"
+  },
+  "runs": [
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 2857,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7523,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 101,
+      "label": "old_order_only",
+      "log_basename": "dex-1505-router-priority-old.log",
+      "log_sha256": "1c1b5714e5eb9428562c61a3790a6a2c3cd7499c213df7b24c194db23ed0326b",
+      "native_admission_metrics": [],
+      "result": {
+        "elapsed_seconds": 7.56,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Original M8 runtime plus test-only no-op compatibility shim; useful output remained available. Failure was only the proposed ordering assertion."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 2858,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 0,
+          "data_wire": 12,
+          "elapsed_ms": 7902,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 13,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 101,
+      "label": "old_second_order_only",
+      "log_basename": "dex-1505-router-priority-old-discriminating.log",
+      "log_sha256": "e95f92436647b4d3be2fdde227d5032d3a7d9aba670d9ea790cfe1aca2486f71",
+      "native_admission_metrics": [],
+      "result": {
+        "elapsed_seconds": 7.94,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Original M8 runtime; output stayed useful, optional floor work clipped. Ordering assertion failed; not an availability defect."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 2857,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 101,
+      "label": "old_actual_availability",
+      "log_basename": "dex-1505-router-priority-old-long-mapping.log",
+      "log_sha256": "45f92f1aea3041ac08c02bd1d9f4763fe31a9cf09450244ee38ad17743bdc998",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5567,
+          "mapping_ms": 4460,
+          "rate_ms": 6614
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 7.94,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Original M8 runtime; required rate/mapping clipped. Native output unavailable. Shape differs from historical cap-only partial view."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 1004,
+          "bindings_index": 3,
+          "borrowed": 1,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7874,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 2606,
+          "router_index": 4,
+          "treasury_at_ms": 1003,
+          "treasury_index": 2,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 0,
+      "label": "interim_submission_candidate",
+      "log_basename": "dex-1505-router-priority-fixed-first.log",
+      "log_sha256": "d7f90d1475deed662b72ecb1cd4dfebe2e2a4bc9644c64009f347d9b69587555",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5667,
+          "mapping_ms": 3062,
+          "rate_ms": 5012
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 7.94,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 1
+      },
+      "scope": "Superseded first-poll submission candidate, original cap1700 fixture. Passing 7874ms result is not final runtime proof; cooperative-yield flaw found later."
+    },
+    {
+      "control_metrics": [],
+      "exit_code": 101,
+      "label": "old_cooperative_helper",
+      "log_basename": "dex-1505-router-priority-coop-old.log",
+      "log_sha256": "5e19036e7c58fdac477272fb51eb70e974bac653c23cb78932d59fc612f1a6c7",
+      "native_admission_metrics": [],
+      "result": {
+        "elapsed_seconds": 0.0,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Valid helper control: exhausted cooperative budget, both global permits free, router improperly released before semaphore entry."
+    },
+    {
+      "control_metrics": [],
+      "exit_code": 101,
+      "label": "cooperative_read_fixture_precondition_failure",
+      "log_basename": "dex-1505-router-priority-coop-read-old.log",
+      "log_sha256": "4e75d81109bf437c31b46a03fcb83dbb63b63d53c4f892c9cf0d7378f3341311",
+      "native_admission_metrics": [],
+      "result": {
+        "elapsed_seconds": 0.04,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Fixture setup consumed part of task budget; fixed128 consume loop crossed a yield. Failure was free-permit precondition, not additional runtime evidence."
+    },
+    {
+      "control_metrics": [],
+      "exit_code": 143,
+      "label": "old_cooperative_actual_read_interrupted_cleanup",
+      "log_basename": "dex-1505-router-priority-coop-read-old-corrected.log",
+      "log_sha256": "32f0e547f752372ca2823737148510d7ebb030e6c0509f4c9074725b4772982b",
+      "native_admission_metrics": [],
+      "result": null,
+      "scope": "Actual ObservationReads control reached improper router release, then panic cleanup stalled mock shutdown under exhausted budget. Only owned test/Cargo stopped; interrupted receipt retained."
+    },
+    {
+      "control_metrics": [],
+      "exit_code": 101,
+      "label": "old_cooperative_actual_read",
+      "log_basename": "dex-1505-router-priority-coop-read-old-final.log",
+      "log_sha256": "7478160def3a0a0579bb91c20c5e98f515679f57dc2a7e30c765ddca73fa2326",
+      "native_admission_metrics": [],
+      "result": {
+        "elapsed_seconds": 1.76,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Actual ObservationReads control exhausts only remaining budget, records state, yields before assertion. Runtime candidate improperly released router with both permits free."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 2858,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 101,
+      "label": "isolated_legacy_no_plan_old",
+      "log_basename": "dex-1505-router-priority-isolated-legacy-old.log",
+      "log_sha256": "71fd3b54a29bb9c451a54032e34f0e757b338c358805a16ce53d4e9d3aecd99c",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5570,
+          "mapping_ms": 4461,
+          "rate_ms": 6615
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 7.97,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Current runtime explicit no-plan counterfactual preserves old router-first competition with cap1200. Actual availability assertion failed; not a claim of historical FIFO/provider cause."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 1005,
+          "bindings_index": 3,
+          "borrowed": 1,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7376,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 2608,
+          "router_index": 4,
+          "treasury_at_ms": 1004,
+          "treasury_index": 2,
+          "useful": true,
+          "uusd_cap": true
+        },
+        {
+          "bindings_at_ms": 2856,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1002,
+          "router_index": 2,
+          "treasury_at_ms": 1002,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 0,
+      "label": "focused_first",
+      "log_basename": "dex-1505-router-priority-focused-first.log",
+      "log_sha256": "8f6e2e6e37139a0769a2cde218e6f9fd1cabaa6ea60b48db108d072a47bedd93",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5670,
+          "mapping_ms": 3063,
+          "rate_ms": 5014
+        },
+        {
+          "cap_ms": 5568,
+          "mapping_ms": 4460,
+          "rate_ms": 6615
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 8.17,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 8
+      },
+      "scope": "Final source: eight tests including planned robust success and intentional no-plan unavailable counterfactual."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 1003,
+          "bindings_index": 3,
+          "borrowed": 1,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7373,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 2605,
+          "router_index": 4,
+          "treasury_at_ms": 1003,
+          "treasury_index": 2,
+          "useful": true,
+          "uusd_cap": true
+        },
+        {
+          "bindings_at_ms": 2857,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 0,
+      "label": "focused_retest",
+      "log_basename": "dex-1505-router-priority-focused-retest.log",
+      "log_sha256": "dc28e954687f036a1f3739c37512a446c31b655704bb6b4c929f1b11fb0401e0",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5665,
+          "mapping_ms": 3062,
+          "rate_ms": 5013
+        },
+        {
+          "cap_ms": 5569,
+          "mapping_ms": 4461,
+          "rate_ms": 6615
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 8.13,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 8
+      },
+      "scope": "Unchanged final source, fresh process, same eight controls."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 1004,
+          "bindings_index": 3,
+          "borrowed": 1,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7373,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 2607,
+          "router_index": 4,
+          "treasury_at_ms": 1004,
+          "treasury_index": 2,
+          "useful": true,
+          "uusd_cap": true
+        },
+        {
+          "bindings_at_ms": 2858,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1003,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 0,
+      "label": "wrapper_first",
+      "log_basename": "dex-1505-router-priority-wrapper-first.log",
+      "log_sha256": "5754e325397e945db6837ba25b84e1de3d385971d7e74c575c70a039937b74f2",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5667,
+          "mapping_ms": 3061,
+          "rate_ms": 5013
+        },
+        {
+          "cap_ms": 5568,
+          "mapping_ms": 4462,
+          "rate_ms": 6616
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 18.15,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 51
+      },
+      "scope": "Final source whole api::local_wrapper_quote module, default parallel harness and stack."
+    },
+    {
+      "control_metrics": [
+        {
+          "bindings_at_ms": 1003,
+          "bindings_index": 3,
+          "borrowed": 1,
+          "cancellations": 0,
+          "data_wire": 13,
+          "elapsed_ms": 7368,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 2,
+          "provider_attempts": 14,
+          "router_at_ms": 2605,
+          "router_index": 4,
+          "treasury_at_ms": 1002,
+          "treasury_index": 2,
+          "useful": true,
+          "uusd_cap": true
+        },
+        {
+          "bindings_at_ms": 2859,
+          "bindings_index": 4,
+          "borrowed": 2,
+          "cancellations": 1,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "logical_peak": 2,
+          "mappings": 1,
+          "provider_attempts": 12,
+          "router_at_ms": 1003,
+          "router_index": 2,
+          "treasury_at_ms": 1004,
+          "treasury_index": 3,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 0,
+      "label": "wrapper_retest",
+      "log_basename": "dex-1505-router-priority-wrapper-retest.log",
+      "log_sha256": "0970b274a6733235299e3a9f79a769534ab3d1b649f4268175795c2b28763344",
+      "native_admission_metrics": [
+        {
+          "cap_ms": 5664,
+          "mapping_ms": 3058,
+          "rate_ms": 5010
+        },
+        {
+          "cap_ms": 5570,
+          "mapping_ms": 4463,
+          "rate_ms": 6617
+        }
+      ],
+      "result": {
+        "elapsed_seconds": 18.11,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 51
+      },
+      "scope": "Unchanged final source, fresh process, whole wrapper module."
+    }
+  ],
+  "schema_version": 1,
+  "source_frozen": true
+}

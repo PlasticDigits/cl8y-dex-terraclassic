@@ -9,17 +9,21 @@ Results are recorded separately for source, deployment and focused live checks.
 
 ## Current status
 
-Issue #1505 remains **OPEN**. The seventh deployed revision
-5f486532a73e6effb93a053a8d02029f78c07d4e passes final source verification,
-genuine CI485/486, exact Coolify deployment/log attestation, independent warmup
-and socket FIRST. Browser FIRST completes all four required windows but retains
-one actual native-output phone 503. The eighth candidate investigates
-work-conserving denomination dispatch after a fresh partial wrapper observation
-loses its USTC tax cap at the original publication deadline. Its old-code control
-reproduces the dispatch defect. Fixed focused/full FIRST/RETEST, independent
-reviews and final six-stage frozen-source verification pass. Hosted CI and
-deployed acceptance remain pending for the eighth candidate. No unchanged
-RETEST or expiry control runs after the seventh candidate fails FIRST.
+Issue #1505 remains **OPEN**. The eighth deployed revision
+`b34187f33f1e167ab9741c7135081496ba1daaf6` passes source checks, genuine
+CI489/490, exact deployment/log attestation, warmup and socket FIRST. Browser
+FIRST retains two initialized native-output 503s and deliberately incomplete
+windows. No unchanged live RETEST runs after that failed FIRST.
+
+The ninth candidate gives both common treasury reads initial admission priority
+before router work, with actual-permit and original-deadline guards. Focused
+8/8 and full wrapper 51/51 FIRST/RETEST pass on unchanged source; three independent
+reviews are clean. The observer checkpoints actual initialization outcomes before
+Chrome and validates supplemental timing metadata. Its full public QA group
+passes 59 tests; the separately pinned expiry helper passes offline preparation
+checks. The final six-stage source wave passes after an owned QA-only reset: 61 passing groups, zero failures and six explicit separate-scope skips; Clippy succeeds.
+Hosted CI, the next deployment and all mandatory live FIRST/RETEST acceptance
+remain pending. Source results do not establish deployed recovery.
 
 The [fifth candidate's source wave](source-verification-5-final.json) passes the native,
 identity, offline quote, lifecycle, liquidity-feed and provider-recovery
@@ -1330,3 +1334,203 @@ all 2,011 verification inputs remain
 625da21e0eb763387a2c80ab6b4f6b13992e00bcfa683d673873a36fe28d5620.
 Hosted CI, exact merged deployment and every focused live acceptance criterion
 still require new evidence for this candidate.
+
+## Eighth deployment: initialized native-output FAIL, incomplete windows
+
+[PR #1521](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1521) merges
+as `b34187f33f1e167ab9741c7135081496ba1daaf6`, with an entire tree identical
+to tested head `ce52a0f9554091ba97b6518719b296d73df5c52b`. [CI489](ci-489.json)
+and [main CI490](ci-490.json) pass all required stages: contracts 999, frontend
+3,470, library 916 plus one ignored case, and PostgreSQL 86 plus one ignored.
+The original maximum-publication profile passes. Forgejo's combined and required
+PR context independently report success; protection rules are unchanged.
+
+Both Coolify services finish on the exact merge: frontend at 01:38:15 UTC and
+backend at 01:41:03 UTC on 2026-10-16. [Build logs](deployment-1521-build-logs.json)
+have 101/367 entries with zero failure markers. [Exact attestation](deployment-1521-attestation.json)
+passes; independent backend warmup ends at 01:44:03 UTC before quote probes.
+[Socket FIRST](deployment-1521-socket-first.json) passes 190 seconds with
+148 reads including two health reads, 146 executable selected results and zero
+unavailable responses. Its 145 initialized samples have p50 295.468ms,
+p95 305.055ms, p99 311.353ms and maximum 311.440ms.
+
+The Browser FIRST process launches at 01:49:07.412 UTC; its
+[receipt](deployment-1521-browser-fail.json) starts at 01:49:10.373 UTC.
+Two initialized forward API calls are useful; both reverse initialization calls
+return actual 503 missing_observations: `27b594f64a04ae0c` and
+`27b594f64a04ae0d`, in 290.27ms/290.99ms. Fast error completion is not useful
+success. Source v9 records these failures but does not persist their results
+until a later window checkpoint or serialize their absolute clocks. Their
+original client interval is bounded by receipt start 01:49:10.373 and first
+input 01:49:21.387; exact request/response epochs and server Date remain unknown.
+
+The observer agent incorrectly inferred four API passes from entry into browser
+windows, and that inference was relayed in progress. Both statements are
+explicitly corrected. The final verdict remains **FAIL**. Forward desktop
+naturally completes 190.165 seconds with 34/34 useful selected responses; phone
+stops deliberately at 26.3 seconds with 6/6 useful responses, and both reverse
+windows are unstarted. A partial phone guard is unavailable, not an invented
+zero. All 176/800 calls are accounted for: 44 solves and 132 progress calls, with
+zero rejected/blocked calls. All owned Node/Chrome processes exit at 01:53:04.443.
+No natural RETEST or positive expiry control runs.
+
+[Bounded monitoring](deployment-1521-monitoring-first.json) uses 17/18 reads
+with both selected IDs; Prometheus is not provisioned. A separate
+[fixed context](deployment-1521-producer-context.json) uses exactly four reads
+and 54 untruncated lines for 01:48:45–01:49:45. The
+[diagnosis](deployment-1521-diagnosis.json) retains exact server rejections at
+01:49:15.270541 and 01:49:15.561715, both native_output/missing_observations,
+with no stale-component witness.
+
+Poll 53 completes at 01:49:11.049675, original observation 01:49:03.147, with
+both mappings, tax, router and ULUNA cap, but no USTC cap. The preceding forward
+successes carry exactly that poll's original clock, directly linking a fresh
+partial input view to the absent output prerequisite. Its cap deadline witness
+records 7,901ms poll time, 2,367ms denomination wait, zero global wait and 1,158ms
+logical LCD activity. That implies roughly 4,376ms before first physical-read polling enters
+denomination dispatch; it does not establish when the future was constructed,
+or identify a specific predecessor or provider cause.
+
+Previous complete poll 52 expires at 01:49:13.147; next complete poll 54 publishes
+at 01:49:21.049233, leaving about 7.902 seconds after original expiry. Retaining
+the prior whole view cannot bridge that gap. Nearby pool cycles are 22/22 and
+reference commits progress. The bounded sample contains 46 completed polls:
+36 zero-borrow, nine one-borrow, one two-borrow; polls 52–56 have zero admitted
+bypasses. Zero does not prove that a peer never finished, an idle slot existed,
+or the dispatcher malfunctioned. Raw production logs remain private.
+
+## Ninth candidate: initialized evidence persistence
+
+The [initial observer proof](observer-initialized-checkpoint-proof-initial.json)
+reproduces three metadata omissions against the old helper. The
+[final observer proof](observer-initialized-checkpoint-proof.json) records the
+final source hashes and strict HTTP Date controls. Its prior-proof filename is
+the original private filename; the immutable public archive has the `-initial`
+suffix above and retains the recorded hash.
+
+The separate initialized_api_checkpoint_v1 profile saves and emits actual
+initialized rows and sticky failures immediately after the same four existing
+API calls, before Chrome launch. Existing fetches record numeric request and
+body-complete response epochs plus a validated numeric server Date or null.
+Date accepts canonical HTTP-date syntax with a safe numeric epoch and exact
+calendar/weekday roundtrip. ISO strings, numeric strings, impossible calendar
+dates and wrong weekdays remain unknown. HTTP Date is coarse supplemental
+evidence; it does not replace original monotonic or browser clocks and does not
+change quote scoring.
+
+Native v9 and generic v8 measurement versions, request counts, 500/750ms limits,
+800/global and 600/context caps, wall limit, scoring and window sequence remain
+unchanged. No fail-fast or new request is added. The initial explicit offline
+allowlist FIRST/RETEST each passed nine tests. Review then reproduced four Date
+validation failures against that intermediate source. Final explicit offline
+FIRST/RETEST each pass thirteen tests, with no HTTP requests or Chrome process.
+An initial negative name filter accidentally admitted two existing loopback
+Chrome cases: that eleven-test PASS is retained as a browser run, not relabeled
+offline. No production request occurs, and all owned browser/Node processes exit
+before the next Rust timing control. An old private expiry helper correctly
+refuses the new driver hash and must receive a new separately pinned copy before
+future use. Future launchers must forward or inspect the
+initialized_api_checkpoint event; window entry does not establish initialized
+success.
+
+## Ninth candidate: common prerequisite admission priority
+
+The [priority proof](router-prerequisite-priority-proof.json) retains original
+controls, intermediate failures, final hashes and all thirteen run receipts.
+Router-first polling can occupy a shared slot before both treasury reads are
+admitted. The first actual pre-fix real-HTTP control confirms that order and
+a roughly 4,457ms binding prefix, derived from its 2,857ms admission and the
+configured 1,600ms fixture response delay rather than a separately logged
+completion. It still publishes a useful view in 7,523ms with thirteen healthy
+data requests. A second variant remains useful at 7,902ms with optional
+work clipped. Those assertion failures prove ordering only. A third permitted
+latency variant loses native availability at 7,901ms, with one mapping, eleven
+data requests, zero provider failures and one neutral cancellation. Its missing
+mapping/rate shape differs from production poll 53's absent-cap shape; it does
+not establish the historical provider sequence.
+
+An intermediate first-poll admission gate produces a useful view in 7,874ms,
+with only 26ms publication margin. Review finds an independent correctness gap:
+Tokio can yield for cooperative budget before a semaphore request reaches its
+FIFO. A focused regression reproduces the router gate opening while both
+semaphore requests remain unadmitted and both permits remain free. This gate is
+an unreleased candidate, not a defect claimed against deployed M8. Additional
+fixture-precondition and owned-cleanup failures remain retained separately from
+runtime findings.
+
+The correction signals admission only after acquiring the existing global
+permit and passing the original read deadline guard. Router waiting occurs
+outside its physical read, owns no permit, and shares its original absolute
+timeout. No-plan helpers and configured router absence retain their prompt
+behavior. Both validated common results are still required before native work;
+admission does not substitute for successful data.
+
+An isolated control preserves the same slow mapping/rate and common-read delays
+while reducing the independent cap fixture delay from 1,700ms to 1,200ms. Its
+explicit no-plan legacy-order control still loses availability at 7,901ms:
+eleven data requests, twelve provider attempts, zero failures and one neutral
+cancellation. This current-runtime counterfactual is separate from the actual
+pre-fix-source controls above. Fixed focused FIRST/RETEST each pass eight tests in 8.17/8.13 seconds. The
+planned native view is useful at 7,376/7,373ms with thirteen data requests,
+fourteen provider attempts, zero provider failures/cancellations and global peak
+two. The unchanged legacy-order control remains unavailable at 7,901ms. Safety
+cases cover cooperative exhaustion, one-permit/duplicate/no-plan admission,
+expiry/drop/absence without transport, late queued admission, production wiring,
+and pause/malformed-binding cancellation.
+
+The complete wrapper module passes 51/51 twice in 18.15/18.11 seconds on unchanged
+source; planned useful views complete in 7,373/7,368ms. Three independent reviews
+of the final parent, dispatcher and focused-test hashes are clean. These remain
+source results, separate from the required next deployment and live cohorts. Original provider, two-read, pacing, logical work, 7.9/8-second
+and freshness limits remain enforced.
+
+
+## Ninth final source verification
+
+The [frozen-source receipt](source-verification-9-final.json) records the complete
+serialized wave, 02:41:56–03:17:26 UTC on 2026-10-16, after resetting only the
+owned, marked QA database and verifying actual runtime-password authentication.
+No other builds or browser jobs overlap this verification.
+
+| Verifier | PASS | FAIL | Separate-scope SKIP |
+| --- | ---: | ---: | ---: |
+| Native recovery #1505 | 14 | 0 | 1 |
+| Offline quotes #1452 | 14 | 0 | 0 |
+| Quote lifecycle #1499 | 10 | 0 | 1 |
+| Liquidity feed #1453 | 12 | 0 | 2 |
+| Provider recovery #1464 | 11 | 0 | 2 |
+| Total | 61 | 0 | 6 |
+
+Clippy succeeds with the same 155 existing warnings and no diagnostic in either
+changed runtime file. The full indexer library passes 924 tests twice in
+168.46/167.90 seconds, with one existing ignored test. The 19-test route binary
+passes in 90.98/88.70 seconds and the frontend quote suite passes 536 tests twice.
+Controlled production-build browser FIRST/RETEST each make 44 quote requests and
+zero provider requests. These local fixtures do not establish deployed latency
+or availability.
+
+All 1,210 application files retain fingerprint
+`8806694267fe906831cc384a13b686af17cd340dddd22cd2a9f11907f99dba59`;
+all 2,012 verification inputs retain
+`c28ca761d7861ed13e4a1536ed6af5d37ba2b95041febce81019a9d1ad27f2d9`.
+The before/after scope includes tracked and unignored actual application roots,
+including cfg(test), tests, scripts and toolchain inputs. Documentation, private
+environment files and generated artifacts are excluded. The receipt guards exact
+changed application/verifier paths and all final focused/observer/expiry-helper
+pins. Prior identity, discovery and database-isolation results remain separately
+recorded; they are not claimed as rerun stages of this six-stage wave.
+
+Hosted CI, exact merged frontend/backend deployment/log attestation, independent
+180-second backend warmup, native socket FIRST/RETEST, all four native browser
+windows FIRST/RETEST, positive original-expiry callback controls and bounded
+monitoring remain pending. Historical M8 failure remains FAIL. Source skips for
+broader historical/deployment work do not establish acceptance or close other
+issues.
+
+
+The [fresh-main integration receipt](source-verification-9-main-integration.json)
+records five incoming commits through `a21e697453564acb0f0af77dc9022a1ec857096e`.
+Their 57 changed paths are confined to incidents/. Both local checkouts are
+fast-forwarded, with identical tested application and verification fingerprints.
+No application/verifier retest is claimed for those unrelated documentation
+changes; genuine CI still runs on the submitted head.

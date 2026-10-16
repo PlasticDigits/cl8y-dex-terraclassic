@@ -24,6 +24,13 @@ owned. Unbound work retires explicitly. No-plan callers retain strict isolation.
 Failed-read stage timings and the bounded completion borrowing count are local
 diagnostics, not wire proof or a new freshness clock.
 
+Router priority follows NR1505-13: initialize the common treasury plan after
+validated mapper configuration and before concurrent futures. Both common reads
+must acquire the existing global permits and pass their original deadline checks
+before router admission. A cooperative Pending poll is insufficient. Router
+waiting owns no permit, remains inside its original timeout and never establishes
+positive data. Downstream native work still requires validated same-poll results.
+
 Scheduled data continuation follows NR1505-10: within one original query scan,
 wait only for capacity-denied alternatives not already actually attempted. Keep
 one cursor, global actual-attempt limit and absolute deadline; release all
