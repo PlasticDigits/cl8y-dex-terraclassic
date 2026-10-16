@@ -12,6 +12,10 @@ use chrono::Utc;
 use serde_json::{json, Value};
 
 use super::AppState;
+#[cfg(test)]
+mod borrowing_tests;
+mod dispatch;
+use dispatch::ObservationDispatch;
 const SCALE: u128 = 1_000_000_000_000_000_000;
 
 #[derive(Debug, Clone)]
@@ -252,18 +256,6 @@ impl ReadSlot {
         }
     }
 }
-struct ObservationDispatch {
-    global: tokio::sync::Semaphore,
-    denoms: [tokio::sync::Semaphore; 2],
-}
-impl ObservationDispatch {
-    fn new(global: usize) -> Self {
-        Self {
-            global: tokio::sync::Semaphore::new(global),
-            denoms: std::array::from_fn(|_| tokio::sync::Semaphore::new(1)),
-        }
-    }
-}
 #[derive(Clone, Copy)]
 enum ReadStage {
     DenomDispatch,
@@ -357,8 +349,8 @@ impl Drop for ReadWitness {
     }
 }
 /// Poll-local dispatch starts each unchanged LCD budget only when admitted.
-/// A denom acquires its one-read slot BEFORE global admission, so it cannot
-/// monopolize both global slots or hold one while waiting for itself.
+/// A denom normally takes its one-read slot BEFORE global admission. Once its
+/// peer's entire required phase finishes, it may use the idle global capacity.
 #[derive(Clone, Copy)]
 struct ObservationReads<'a> {
     lcd: &'a LcdClient,
@@ -374,11 +366,18 @@ impl ObservationReads<'_> {
     ) -> impl std::future::Future<Output = Option<T>> + 'a {
         // Box before the returned async state can capture the transport future.
         let read = Box::pin(read);
+        let registration = self.dispatch.register(slot);
         async move {
+            // Construction/drop also retires an unpolled required slot. Keep
+            // retirement after every read-owned transport/permit/witness cleanup.
+            let registration = registration;
             let mut witness = ReadWitness::new(self, slot);
+            if !registration.allowed() {
+                return None;
+            }
             let result = bounded_observation(None, self.deadline, async {
                 let _denom = if let Some(index) = slot.denom() {
-                    let permit = self.dispatch.denoms[index].acquire().await.ok()?;
+                    let permit = Box::pin(self.dispatch.acquire_native(index)).await?;
                     witness.advance(ReadStage::GlobalDispatch);
                     Some(permit)
                 } else {
@@ -391,6 +390,11 @@ impl ObservationReads<'_> {
                 if self.deadline <= tokio::time::Instant::now() {
                     return None;
                 }
+                if _denom.as_ref().is_some_and(|permit| permit.borrowed()) {
+                    self.dispatch.record_borrow();
+                }
+                #[cfg(test)]
+                let _activity = self.dispatch.observe_admission(slot);
                 witness.advance(ReadStage::LcdRead);
                 match read.await {
                     Ok(value) => Some(value),
@@ -763,6 +767,7 @@ async fn observe_config(lcd: &LcdClient, mapper: &str, router: Option<&str>) -> 
                     treasury_floor = snapshot.treasury_floor_version.is_some(),
                     uluna_cap = snapshot.mappings.get("uluna").is_some_and(|m| m.tax_cap.is_some()),
                     uusd_cap = snapshot.mappings.get("uusd").is_some_and(|m| m.tax_cap.is_some()),
+                    native_borrowed_reads = dispatch.borrowed_reads(),
                     "Native wrapper observations completed");
                 WrapperObservation::Available(snapshot)
             }
@@ -933,6 +938,11 @@ async fn observe_settlement(
     // reads finish. A cap is attached only to a validated same-poll mapping.
     let uluna_bound = has_denom_binding(&bindings, mapper, "uluna");
     let uusd_bound = has_denom_binding(&bindings, mapper, "uusd");
+    // Declare all required physical work before any native future is built or
+    // polled. Validated absence retires that denom's whole plan immediately.
+    if !reads.dispatch.plan_native_reads([uluna_bound, uusd_bound]) {
+        return WrapperObservation::Unavailable;
+    }
     phase.store(3, Ordering::Relaxed);
     let mappings_read = async {
         let (uluna, uusd) = tokio::join!(
@@ -1054,7 +1064,7 @@ async fn observe_tax_cap(lcd: &LcdClient, denom: &str, bound: bool) -> Option<u1
 mod tests {
     use super::*;
     impl WrapperObservation {
-        fn expect_available(self, message: &str) -> WrapperSnapshot {
+        pub(super) fn expect_available(self, message: &str) -> WrapperSnapshot {
             match self {
                 Self::Available(snapshot) => snapshot,
                 other => panic!("{message}: {other:?}"),
@@ -1069,7 +1079,7 @@ mod tests {
         time::Duration,
     };
 
-    async fn wrapper_fixture(
+    pub(super) async fn wrapper_fixture(
         router_delay: Duration,
         bank_delay: Duration,
     ) -> (wiremock::MockServer, LcdClient) {
@@ -1348,7 +1358,7 @@ mod tests {
         assert_eq!(counters[0].in_flight, 0);
     }
 
-    async fn override_smart_read(
+    pub(super) async fn override_smart_read(
         server: &wiremock::MockServer,
         address: &str,
         query: Value,

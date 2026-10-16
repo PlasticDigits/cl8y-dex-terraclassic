@@ -19,6 +19,7 @@ Preserve [QL1499](AGENTS_QUOTE_LIFECYCLE.md),
 | NR1505-9 | Only the owned pool lane may send one coalesced reference wake per completed cycle. Keep the existing reference timer as fallback, one active mark pass and one independently owned accounting pass, with no queued work or request-triggered wake. Publish the same qualified hub/economic batch atomically with original source timestamps; never renew expiry. Accounting consumes one consistent certified context and cannot delay critical mark publication. All futures remain owned and cancellation-safe. |
 | NR1505-10 | Scheduled provider continuation may wait only for shared-capacity-denied alternatives not yet actually attempted, inside one original absolute deadline and global attempt allowance. Keep the original cursor and attempted-endpoint identity; never restart a failed endpoint or reset query work. Release all permits before owned waits, retain typed integrity on expiry, and require fresh exact-height/expected-chain validation from any successful alternative. Direct/request behavior remains prompt and unchanged. |
 | NR1505-11 | Each scheduled owner propagates its original absolute deadline through an owned LCD view before constructing read futures. Nested views take only the minimum; clones share admission/pacing/namespace and retain cancellation policy. Poll, shorter floor, head, pair and nested snapshot scopes remain distinct. A head scope cannot expire later pair jobs. Never store an expired scoped view as a long-lived client, renew a budget, or accept late identity success after its governing deadline. |
+| NR1505-12 | Native dispatch plans both denoms' three mapping/rate/cap slots once after validated bindings and before future construction. Keep one active read per denom while its peer has required work outstanding. Only after the peer finishes may remaining work bypass its busy denom gate, while still acquiring the existing global two-read gate. Own completion tokens from construction through success/error/drop, retire unbound work explicitly, and register notification before checking completion. No-plan callers retain strict isolation. Never add reads, provider capacity, a deadline or freshness allowance. |
 
 Run `make verify-issue-1505` and the applicable lifecycle/provider checks. Follow
 the [focused checklist](../docs/qa/issue-1505/README.md) and record actual results
@@ -57,13 +58,30 @@ rate/attempt budgets and original read count remain unchanged. No global queue
 or detached work is introduced; required reads queue before later capability
 work. Box transport futures before constructing their enclosing async state.
 
-Each known native denom also owns one poll-local slot shared by its individual
-mapping, rate and cap reads. Acquire that slot before the global two-read slot;
-never hold an outer mapping slot and reacquire it inside child reads. Gates are
-symmetric and release on every return/cancellation. Common prerequisite, tax and
-router reads use the global gate. A slow denom must not occupy both global slots
-and strand another denom's independently valid observations. This does not
-guarantee every slow source fits; missing required fields still fail closed.
+Each known native denom initially owns one poll-local slot shared by its
+individual mapping, rate and cap reads. Acquire it before the global two-read
+slot; never hold an outer mapping slot and reacquire it inside child reads.
+NR1505-12 makes this isolation work conserving: after the peer finishes all three
+planned reads, remaining reads may bypass their busy denom slot and use the
+unused share through the same global gate. Conditional same-denom concurrency
+can reach two; total concurrency remains two. The former strict isolation is
+retained while peer work is outstanding and for callers without a validated plan.
+
+Initialize the fixed plan once after validated treasury bindings, before read
+futures are constructed. Unbound denoms explicitly retire their three slots.
+Nonduplicated completion tokens are owned from future construction and retire
+work on success, error or cancellation. A peer notification is registered before
+checking completion, avoiding lost wakes; waiters remain poll-owned. Common
+prerequisite, tax and router reads use the global gate. Do not add tasks, global
+queues, RPCs, provider permits or time. Missing fields still fail closed; no
+previous field is spliced into a new observation. This cannot guarantee every
+slow provider fits the original deadline.
+
+The existing completion event may expose only native_borrowed_reads in 0..6.
+It counts bypassed logical reads admitted through the global gate, not provider
+or wire attempts. Export it from the existing bounded sample, with no extra
+query. Retain the 300-line and 18-read limits, fixed poll identity and numeric
+sample time; never export raw labels or actor/provider values.
 
 Failed-read evidence uses fourteen fixed slots, fixed phases/reasons and
 `denom_dispatch`, `global_dispatch` or `lcd_read` stages. Preserve one terminal

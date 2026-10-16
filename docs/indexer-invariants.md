@@ -15,11 +15,14 @@ lock waits share the original total deadline, including cancellation, without
 double-counting failure. Historical verified metadata cannot admit a read;
 fresh expected-chain attestation remains mandatory.
 
-Known native denoms each hold at most one poll-local mapping/rate/cap read before
-acquiring the shared two-read dispatcher. Keep gates symmetric and cancellation
-owned; unrelated denom work cannot monopolize both global slots. Failed-read
-slot/stage timings are bounded diagnostics under the original poll span. Logical
-LCD-future polling does not establish a wire attempt or renew freshness.
+Known native denoms each hold at most one poll-local mapping/rate/cap read while
+their peer has required work outstanding. Under NR1505-12, once the peer finishes
+its fixed three-read plan, remaining work may borrow its unused share through
+the unchanged global two-read dispatcher. Initialize the plan after validated
+bindings and before future construction; completion and cancellation remain
+owned. Unbound work retires explicitly. No-plan callers retain strict isolation.
+Failed-read stage timings and the bounded completion borrowing count are local
+diagnostics, not wire proof or a new freshness clock.
 
 Scheduled data continuation follows NR1505-10: within one original query scan,
 wait only for capacity-denied alternatives not already actually attempted. Keep

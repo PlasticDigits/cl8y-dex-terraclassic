@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "issue": 1505,
+  "created_utc": "2026-10-16T00:37:09.701668+00:00",
+  "scope": "Local source controls for poll-owned work-conserving native dispatch. No deployment acceptance claim.",
+  "baseline_commit": "5f486532",
+  "final_sources": {
+    "indexer/src/api/local_wrapper_quote.rs": "5d895e49a1f5b418a98662d2ca4245735419af0e40b557cbdc2381b0dd85ca4d",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs": "968086940607c275202ded94b46916e0996d96191c2f69c68ea947a83a2c8cf2",
+    "indexer/src/api/local_wrapper_quote/borrowing_tests.rs": "821795193e63a14b299fe169fb519ba8aed7328daadaf4f76b2a9639e3d7ac71"
+  },
+  "old_wrapper_test_only_sha256": "b35a21e6085fb2ad839350b6ee1d065838cc871227039de779781c62e323f62f",
+  "command_template": "env -u RUST_MIN_STACK -u RUST_TEST_THREADS CARGO_TARGET_DIR=<owned-worktree>/indexer/target CARGO_BUILD_JOBS=2 cargo test --locked --manifest-path indexer/Cargo.toml --lib <filter> -- --nocapture",
+  "final_filters": {
+    "primitive": "api::local_wrapper_quote::dispatch",
+    "focused": "api::local_wrapper_quote::borrowing_tests",
+    "full_wrapper": "api::local_wrapper_quote"
+  },
+  "execution_envelope": {
+    "cargo_build_jobs": 2,
+    "test_threads": "default; RUST_TEST_THREADS unset",
+    "stack": "default; RUST_MIN_STACK unset",
+    "target": "owned worktree target",
+    "process_ownership": "one Cargo owner, sequential fresh processes, fail-fast; all owned jobs stopped",
+    "fixtures": "new process-owned MockServer/LcdClient per test; no shared DB or production mutation"
+  },
+  "evidence": {
+    "old_real_http": {
+      "log_basename": "dex-1505-idle-peer-old.log",
+      "log_sha256": "83501bb4a2ddc7e7fda89e781e45c8857106d18e492db8ac74392f3880a451a5",
+      "test_result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 909 filtered out; finished in 7.95s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7900 idle_global_ms=3382 mappings=2 uusd_cap=false useful=false data_reads=11 failures=0 cancellations=1"
+      ]
+    },
+    "unchanged_standalone_fixed_first": {
+      "log_basename": "dex-1505-idle-peer-fixed-first.log",
+      "log_sha256": "8c8b3118c014bd7fc52e6d9c29b24e736e8daed96a300463d1d3494f94eef7a6",
+      "test_result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 909 filtered out; finished in 7.06s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7022 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0"
+      ]
+    },
+    "unchanged_standalone_fixed_retest": {
+      "log_basename": "dex-1505-idle-peer-fixed-retest.log",
+      "log_sha256": "4a3715f441e1914de6be6dc4079809a6c3e7862ce4f58eb1c5ea4ebbdb3f75a2",
+      "test_result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 909 filtered out; finished in 6.72s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=6671 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0"
+      ]
+    },
+    "primitive_first": {
+      "log_basename": "dex-1505-idle-peer-dispatch-first.log",
+      "log_sha256": "b345c4bd1da8a8c2b8331166e9722ab2865a7ab2e2537f060563e167e8179995",
+      "test_result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 914 filtered out; finished in 0.00s",
+      "fixed_scalar_records": []
+    },
+    "primitive_retest": {
+      "log_basename": "dex-1505-idle-peer-dispatch-retest.log",
+      "log_sha256": "f1d934f40302f54a7f7c9b92d974a33cef8eec8956fab3857a2525ac1accb151",
+      "test_result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 914 filtered out; finished in 0.00s",
+      "fixed_scalar_records": []
+    },
+    "focused_first": {
+      "log_basename": "dex-1505-idle-peer-borrowing-first.log",
+      "log_sha256": "64621cd7d3deaa626509faa4f7c03341934df75732a9226ab1c5d0464c7681f9",
+      "test_result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 912 filtered out; finished in 8.05s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7824 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0",
+        "idle_peer_dispatch_stats global_peak=2 uluna_peak=1 uusd_peak=2 early_parallel=false borrowed=2"
+      ]
+    },
+    "focused_retest": {
+      "log_basename": "dex-1505-idle-peer-borrowing-retest.log",
+      "log_sha256": "b12b78a8a8d6890f047ef1b6471deebfe4ebc134c85c94535722942bfae51382",
+      "test_result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 912 filtered out; finished in 7.75s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7522 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0",
+        "idle_peer_dispatch_stats global_peak=2 uluna_peak=1 uusd_peak=2 early_parallel=false borrowed=2"
+      ]
+    },
+    "full_wrapper_first": {
+      "log_basename": "dex-1505-idle-peer-full-wrapper-first.log",
+      "log_sha256": "4094e021cb5a63ac0f72703d49aaa6c9f6233d63c4b7f051391a6bd3ee86a002",
+      "test_result": "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 874 filtered out; finished in 18.93s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7522 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0",
+        "idle_peer_dispatch_stats global_peak=2 uluna_peak=1 uusd_peak=2 early_parallel=false borrowed=2"
+      ]
+    },
+    "full_wrapper_retest": {
+      "log_basename": "dex-1505-idle-peer-full-wrapper-retest.log",
+      "log_sha256": "1a310576186a79a4840423a0e535d08643106ba6d44624ba4a4a7834f8298115",
+      "test_result": "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 874 filtered out; finished in 18.36s",
+      "fixed_scalar_records": [
+        "idle_peer_control elapsed_ms=7520 idle_global_ms=0 mappings=2 uusd_cap=true useful=true data_reads=13 failures=0 cancellations=0",
+        "idle_peer_dispatch_stats global_peak=2 uluna_peak=1 uusd_peak=2 early_parallel=false borrowed=2"
+      ]
+    }
+  },
+  "old_control": {
+    "status": "FAIL",
+    "passed": 0,
+    "failed": 1,
+    "test_seconds": 7.95,
+    "producer_elapsed_ms": 7900,
+    "longest_measured_idle_global_ms": 3382,
+    "data_wire_requests": 11,
+    "provider_failures": 0,
+    "caller_cancellations": 1,
+    "mapping_count": 2,
+    "required_uusd_cap": false,
+    "useful_native_output": false,
+    "interpretation": "Original static one-per-denom gate stranded a required cap while a global dispatch slot was observably idle after the other denom completed all three reads."
+  },
+  "original_fixture_fixed_pairs": {
+    "fixture_payloads_delays_bounds_unchanged": true,
+    "first": {
+      "test_seconds": 7.06,
+      "producer_elapsed_ms": 7022,
+      "idle_global_ms": 0,
+      "data_wire_requests": 13,
+      "provider_failures": 0,
+      "caller_cancellations": 0
+    },
+    "retest": {
+      "test_seconds": 6.72,
+      "producer_elapsed_ms": 6671,
+      "idle_global_ms": 0,
+      "data_wire_requests": 13,
+      "provider_failures": 0,
+      "caller_cancellations": 0
+    },
+    "field_results": "Both mappings, required cap, useful native output and both floor capabilities present."
+  },
+  "final_control": {
+    "full_first": {
+      "producer_elapsed_ms": 7522,
+      "idle_global_ms": 0,
+      "data_wire_requests": 13,
+      "provider_failures": 0,
+      "caller_cancellations": 0,
+      "logical_global_peak": 2,
+      "uluna_logical_peak": 1,
+      "uusd_logical_peak": 2,
+      "parallel_before_peer_finished": false,
+      "borrowed_logical_reads": 2
+    },
+    "full_retest": {
+      "producer_elapsed_ms": 7520,
+      "idle_global_ms": 0,
+      "data_wire_requests": 13,
+      "provider_failures": 0,
+      "caller_cancellations": 0,
+      "logical_global_peak": 2,
+      "uluna_logical_peak": 1,
+      "uusd_logical_peak": 2,
+      "parallel_before_peer_finished": false,
+      "borrowed_logical_reads": 2
+    }
+  },
+  "design": [
+    "After validated bindings, declare exactly three required bits per bound denom, or zero for a validated unbound denom, once before constructing/polling native futures.",
+    "Non-clone construction-time RAII retires each slot after cleanup on success/error/drop, including unpolled cancellation; duplicate/absent registrations cannot retire another owner or renew bits.",
+    "Keep ordinary one-per-denom admission while peer work remains. Once the peer remaining mask is zero, an otherwise blocked read may bypass its own busy semaphore and queue for the existing global semaphore.",
+    "The global two-logical-read bound, global FIFO admission, scoped original deadline and provider pacing/attempt accounting remain intact. No additional global permit, RPC, task, retained queue or cross-poll state is added.",
+    "Notify wait is registered/enabled before checking peer completion; no native state mutex is held across await.",
+    "Existing completion event adds only native_borrowed_reads, bounded0..6 and incremented after successful global admission plus deadline recheck. It counts logical bypass admissions, never wire delivery.",
+    "Actual admission statistics used in controls are cfg(test) only; no production telemetry stream or provider counter change is added."
+  ],
+  "covered_controls": [
+    "Same real-HTTP original fixture fails on OLD static gating and passes twice unchanged after the fix.",
+    "Symmetric blocked-denom controls: peer three10ms reads finish30ms, then remaining denom may reach logical concurrency2; global peak stays2.",
+    "Both denoms hot: neither borrows before original deadline, queued expiry starts no late transport and records no false borrow.",
+    "Unregistered peer bits prevent early borrowing before peer future construction; only final of three retirements wakes peer waiters.",
+    "Duplicate registration cannot retire original bit; double finish is idempotent; one-shot plan cannot renew retired work.",
+    "Validated unbound slots are rejected; unpolled future drop retires only owned work and never first-polls a transport.",
+    "Peer error remains an absent observation; completion may free idle capacity without authorizing the rejected field.",
+    "No-plan helpers retain original one-per-denom behavior; closed gate cannot be bypassed.",
+    "Whole-wrapper43-test FIRST/RETEST also preserves existing scoped-deadline, pause/revocation, future-size/default-stack, provider-health, original-expiry and thirteen-healthy-read controls."
+  ],
+  "unchanged_bounds": {
+    "global_logical_reads": 2,
+    "per_denom_while_peer_pending": 1,
+    "per_denom_after_peer_done": "may use existing global capacity, maximum global2",
+    "native_physical_slots_per_poll": 6,
+    "healthy_data_logical_reads": 13,
+    "original_chain_identity_overhead": "unchanged",
+    "quote_ingestion_requests_per_second": 4,
+    "provider_attempt_ms": 2500,
+    "provider_total_ms": 4000,
+    "wrapper_margin_ms": 7900,
+    "outer_poll_ms": 8000,
+    "floor_phase_max_ms": 2000,
+    "poll_cadence_ms": 10000,
+    "observation_ttl_ms": 20000,
+    "configuration_ttl_ms": 180000,
+    "economic_and_reference_quality": "unchanged"
+  },
+  "limitations": [
+    "The historical M7 poll119 cap waited4218ms on its own denom and had646ms logical LCD activity, but its exact provider sequence and whether a global slot was idle remain UNPROVEN. This synthetic reproduction proves a source defect, not retrospective causation.",
+    "Global2 and borrowed-read counters refer to logical LCD futures. The13 healthy data wire requests observed here are not a universal wire cap under provider failover; original per-read attempt bounds and identity requests remain unchanged.",
+    "No original fields are retained/spliced or given new timestamps. Arbitrary provider outages may still fail closed.",
+    "Source tests do not establish hosted CI or live sustained useful-quote acceptance."
+  ],
+  "later_executed_failures": [],
+  "non_failure_notes": [
+    "The first primitive-test compilation identified one unused test-only Arc import, removed before final focused/full checks; no assertion or runtime policy changed.",
+    "After unchanged standalone FIRST/RETEST, the real fixture moved to a focused child test module with the same payloads/delays/bounds, and gained cfg(test) resource assertions. Existing whole-wrapper verifier filter includes all new modules."
+  ],
+  "independent_review": "Parent, telemetry and browser read-only reviews are clean at all three exact final source hashes. Telemetry additionally verified cfg(test) activity accounting is isolated/RAII-balanced and the runtime counter remains bounded/post-admission.",
+  "source_frozen": true,
+  "owned_jobs_stopped": true
+}

@@ -1014,13 +1014,23 @@ shared provider lane, pacing, attempt caps and data-read count are unchanged.
 Cancellation drops the read futures and local waiters; no global queue or task
 is created. Required mapping/output work queues before later floor work.
 
-Each known native denom has one additional poll-local slot shared by its
-individual mapping, rate and cap reads. Acquire that slot before the global two
-slots; common prerequisites, tax and router use only the global dispatcher.
-This symmetric ordering prevents one denom from occupying both global slots.
-All permits remain owned and release on cancellation, and original provider,
-work, deadline and freshness limits remain unchanged. Missing fields still fail
-closed; no earlier fields are spliced into a newer observation.
+Each known native denom initially has one additional poll-local slot shared by
+its mapping, rate and cap reads. Acquire it before the global two slots; common
+prerequisites, tax and router use only the global dispatcher. While peer work is
+outstanding, this symmetric isolation prevents one denom from monopolizing both
+slots. Once the peer completes its fixed three-read plan, NR1505-12 allows the
+remaining denom to borrow the unused share through the same global gate. Total
+concurrency remains two; only then may same-denom concurrency reach two.
+
+The plan is initialized once after validated bindings and before construction of
+native read futures. Completion tokens remain owned through success, error and
+cancellation; unbound work retires explicitly. Register peer notifications before
+checking completion. No-plan callers retain static isolation. Original provider,
+work, deadline and freshness limits remain unchanged; no reads or tasks are added.
+Missing fields fail closed; earlier fields are never spliced into a new observation.
+The existing completion event's native_borrowed_reads scalar is bounded to 0..6,
+counts admitted logical bypasses rather than wire attempts, and needs no new
+monitoring query.
 
 Failed reads emit one fixed-slot terminal witness under the original poll span,
 including cancellation. Its stage separates per-denom dispatch, global dispatch

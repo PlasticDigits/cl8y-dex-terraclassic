@@ -290,6 +290,41 @@ fi
         with self.assertRaises(ValueError):
             MONITOR.sample_summary(payload)
 
+    def test_wrapper_dispatch_witness_keeps_only_bounded_fixed_fields(self):
+        line = ('native_wrapper_poll{poll_id=119}: Native wrapper observations completed '
+                'native_borrowed_reads=2 actor=do-not-export endpoint=https://private.invalid/body')
+        self.assertEqual(MONITOR.wrapper_dispatch_witness(line, "1792109168515000000"), {
+            "native_borrowed_reads": 2, "poll_id": 119, "sample_timestamp_ms": 1792109168515})
+        for count in (0, 6):
+            self.assertEqual(MONITOR.wrapper_dispatch_witness(line.replace(
+                'native_borrowed_reads=2', 'native_borrowed_reads=' + str(count)))["native_borrowed_reads"], count)
+        for value in ('7', '-1', '2.0', '02', 'private', '"2"'):
+            with self.subTest(value=value):
+                self.assertIsNone(MONITOR.wrapper_dispatch_witness(line.replace(
+                    'native_borrowed_reads=2', 'native_borrowed_reads=' + value)))
+        for extra in (' native_borrowed_reads=2', ' native_borrowed_reads=private'):
+            self.assertIsNone(MONITOR.wrapper_dispatch_witness(line + extra))
+        self.assertIsNone(MONITOR.wrapper_dispatch_witness(line.replace('native_borrowed_reads=2', '')))
+        self.assertIsNone(MONITOR.wrapper_dispatch_witness(line.replace('observations completed', 'observations unavailable')))
+        result = json.dumps(MONITOR.wrapper_dispatch_witness(line))
+        self.assertNotIn('do-not-export', result)
+        self.assertNotIn('private.invalid', result)
+
+    def test_wrapper_dispatch_sample_preserves_existing_line_and_read_bounds(self):
+        line = ('native_wrapper_poll{poll_id=119}: Native wrapper observations completed '
+                'native_borrowed_reads=6 actor=do-not-export')
+        payload = {"status": "success", "data": {"resultType": "streams", "result": [
+            {"stream": {"actor": "do-not-export"}, "values": [["1792109168515000000", line]] * 300}]}}
+        result = MONITOR.sample_summary(payload)
+        self.assertEqual(result['bounded_sample_lines'], 300)
+        self.assertEqual(len(result['wrapper_dispatch_witnesses']), 300)
+        self.assertNotIn('do-not-export', json.dumps(result))
+        self.assertEqual(MONITOR.NATIVE_READ_BUDGET, 18)
+        self.assertEqual(len(MONITOR.PATTERNS), 12)
+        payload['data']['result'][0]['values'].append(['1', line])
+        with self.assertRaises(ValueError):
+            MONITOR.sample_summary(payload)
+
     def test_stale_witnesses_keep_only_fixed_components_bounded_clocks_and_requested_ids(self):
         line = 'Local quote prerequisite stale component="reference" age_known=true age_ms=20589 expiry_known=true expires_in_ms=-589 request_id=0000000000000001 actor=do-not-export'
         self.assertEqual(MONITOR.stale_witness(line, ["0000000000000001"]), {
