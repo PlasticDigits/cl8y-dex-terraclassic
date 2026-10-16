@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "overall": "PASS",
+  "scope": "Independent existing SHA-pinned FIRST receipt audit only; no new quotes or browser work; natural clocks do not prove an expiry timer callback",
+  "source_receipt_sha256": "52bb87388c9d4bc1c8716b2fdf362f3c34a2fde7fdc82e5f4708a385a95faf53",
+  "revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "utc_start": "2026-10-16T04:36:40.404Z",
+  "utc_end": "2026-10-16T04:49:54.831Z",
+  "initialized_api_samples": 4,
+  "initialized_api_useful": 4,
+  "initialized_api_max_ms": 304.06014199999936,
+  "windows": [
+    {
+      "completed": true,
+      "active_elapsed_ms": 190148,
+      "first_useful_ms": 369.59999999403954,
+      "availability": {
+        "responses": 29,
+        "useful": 29,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "context_admitted": 112,
+      "response_drain_settled": true,
+      "failure_or_clock_flags": 0
+    },
+    {
+      "completed": true,
+      "active_elapsed_ms": 190141,
+      "first_useful_ms": 385.20000000298023,
+      "availability": {
+        "responses": 32,
+        "useful": 32,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "context_admitted": 119,
+      "response_drain_settled": true,
+      "failure_or_clock_flags": 0
+    },
+    {
+      "completed": true,
+      "active_elapsed_ms": 190017,
+      "first_useful_ms": 439.80000001192093,
+      "availability": {
+        "responses": 27,
+        "useful": 27,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "context_admitted": 90,
+      "response_drain_settled": true,
+      "failure_or_clock_flags": 0
+    },
+    {
+      "completed": true,
+      "active_elapsed_ms": 190034,
+      "first_useful_ms": 414.1000000089407,
+      "availability": {
+        "responses": 32,
+        "useful": 32,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "context_admitted": 129,
+      "response_drain_settled": true,
+      "failure_or_clock_flags": 0
+    }
+  ],
+  "selected_useful": 120,
+  "quote_reads": 454,
+  "quote_read_budget": 800,
+  "actual_artifacts_unchanged": true
+}

@@ -1,0 +1,126 @@
+{
+  "issue": 1505,
+  "merged_pull_request": 1524,
+  "pipeline": 493,
+  "revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "event": "push",
+  "ref": "refs/heads/main",
+  "utc": "2026-10-16T04:40:48.830771+00:00",
+  "read_only": true,
+  "status": "success",
+  "policy_embedding": {
+    "expected_config_sha256": "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024",
+    "expected_config_embedded": true,
+    "embedded_asset_sha256": [
+      "01849c7c93d2453ea5b30aad41632d9adb45382c0f5b52b315a732799f4d096c",
+      "2c85cd222d91e49fc351f077c3aa305205553af45e9d754bb67c366ae800a38f",
+      "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024"
+    ]
+  },
+  "source_receipt_sha256": "d5ec5e87580f66b5df8637efb7c4824e53a2bc7a1536f55f38129246571aee7c",
+  "scope": "Genuine hosted CI metadata and numeric summaries only. Raw CI logs, raw-evidence manifests and individual test-name lists are omitted. CI success does not imply deployed live acceptance.",
+  "steps": [
+    {
+      "id": 12570,
+      "name": "git",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 4
+    },
+    {
+      "id": 12571,
+      "name": "postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 1075
+    },
+    {
+      "id": 12572,
+      "name": "gitleaks",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 27
+    },
+    {
+      "id": 12573,
+      "name": "contracts",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 82,
+      "rust_test_totals": {
+        "passed": 999,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "id": 12574,
+      "name": "frontend",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 446,
+      "vitest_results": [
+        {
+          "kind": "files",
+          "passed": 373,
+          "failed": 0,
+          "skipped": 0
+        },
+        {
+          "kind": "tests",
+          "passed": 3470,
+          "failed": 0,
+          "skipped": 0
+        }
+      ],
+      "failed_test_markers": 0
+    },
+    {
+      "id": 12575,
+      "name": "indexer-lib",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 224,
+      "rust_test_totals": {
+        "passed": 924,
+        "failed": 0,
+        "ignored": 1
+      },
+      "maximum_publication_profile": {
+        "test_pass_observed": true,
+        "unchanged_source_limits": {
+          "maximum_pairs": 512,
+          "orders_per_pair": 2048,
+          "total_orders": 1048576,
+          "hot_reader_cap": 100,
+          "initialized_useful_http_budget_ms": 500,
+          "original_observation_ttl_ms": 20000,
+          "single_tokio_worker": true
+        },
+        "runtime_profile_counters": null,
+        "counter_limitation": "Named test PASS and complete suite totals observed. Successful test stdout is captured by the standard Rust harness; no hidden per-profile timing is inferred.",
+        "test_name": "api::local_quote::publication_tests::issue1489_scheduled_maximum_publication_keeps_initialized_http_quote_clock"
+      },
+      "observed_native_recovery_test_pass_count": 85
+    },
+    {
+      "id": 12576,
+      "name": "indexer-postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 292,
+      "rust_test_totals": {
+        "passed": 86,
+        "failed": 0,
+        "ignored": 1
+      }
+    },
+    {
+      "id": 12577,
+      "name": "functional-required",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 1
+    }
+  ]
+}

@@ -1,0 +1,1281 @@
+{
+  "issue": 1505,
+  "candidate": 10,
+  "status": "PASS WITH EXPLICIT SOURCE SCOPE; deployed acceptance separate",
+  "recorded_at": "2026-10-16T06:00:42.607088+00:00",
+  "base_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "application_source_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs",
+    "indexer/src/api/local_wrapper_quote/identity_preflight_tests.rs"
+  ],
+  "runtime_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs"
+  ],
+  "verification_source_change_paths": [
+    "scripts/verify-issue-1505.sh"
+  ],
+  "verification_script_delta": "Only NR1505 documentation identifier range(1,14) to range(1,15); test commands unchanged.",
+  "application": {
+    "files": 1211,
+    "sha256": "4dabf413d298945256917142302159a9d5a26f59273c62b4ba4a37a98f938280"
+  },
+  "verification_inputs": {
+    "files": 2013,
+    "sha256": "b832ab60dfbb71482a5fe1c346a7ff51b539f1f9e91efc82038a4c8ae28c88a3"
+  },
+  "application_roots": [
+    "indexer/src/",
+    "frontend-dapp/src/",
+    "smartcontracts/contracts/",
+    "smartcontracts/packages/",
+    "packages/"
+  ],
+  "fingerprint_scope": "Tracked plus unignored sorted path/content hashes using the actual smartcontracts workspace roots. Application includes cfg(test) source; verification inputs add indexer tests, scripts and explicit toolchain/package inputs. Excludes docs, receipts, ignored private env and generated build/cache trees.",
+  "stable_before_after": true,
+  "stages": [
+    {
+      "stage": "1505",
+      "command": [
+        "make",
+        "verify-issue-1505"
+      ],
+      "started": "2026-10-16T05:24:00.530509+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1505-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T05:31:17.911397+00:00",
+      "log_sha256": "a507b0246ad69ff275ddabf82c8e40dbb6eda1d716d71e58da0e431447ada24e",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        {
+          "line_sha256": "aedf8ac3a4007084ee1cfb838066f705292cc72abff8a248b9c3c2f2a72d5174",
+          "reason": "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts",
+          "detail_retained_privately": false
+        }
+      ],
+      "rust_harnesses": [
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 57,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 874,
+          "elapsed_seconds": 118.8
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 916,
+          "elapsed_seconds": 4.46
+        },
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 922,
+          "elapsed_seconds": 13.11
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 919,
+          "elapsed_seconds": 8.51
+        },
+        {
+          "outcome": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 926,
+          "elapsed_seconds": 9.5
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 929,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 925,
+          "elapsed_seconds": 0.04
+        },
+        {
+          "outcome": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 927,
+          "elapsed_seconds": 3.34
+        },
+        {
+          "outcome": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 2.97
+        },
+        {
+          "outcome": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 22,
+          "elapsed_seconds": 11.56
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 57,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 874,
+          "elapsed_seconds": 118.66
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 916,
+          "elapsed_seconds": 4.43
+        },
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 922,
+          "elapsed_seconds": 13.16
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 919,
+          "elapsed_seconds": 8.52
+        },
+        {
+          "outcome": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 926,
+          "elapsed_seconds": 9.51
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 929,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 925,
+          "elapsed_seconds": 0.03
+        },
+        {
+          "outcome": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 927,
+          "elapsed_seconds": 3.34
+        },
+        {
+          "outcome": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 1.42
+        },
+        {
+          "outcome": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 22,
+          "elapsed_seconds": 2.32
+        }
+      ],
+      "largest_rust_harness": {
+        "outcome": "ok",
+        "passed": 57,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 874,
+        "elapsed_seconds": 118.8
+      },
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": [
+        "Test Files  4 passed (4)",
+        "Tests  36 passed (36)",
+        "Test Files  4 passed (4)",
+        "Tests  36 passed (36)"
+      ]
+    },
+    {
+      "stage": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "indexer/Cargo.toml",
+        "--lib"
+      ],
+      "started": "2026-10-16T05:31:17.912648+00:00",
+      "status": "PASS",
+      "log_basename": "verify-clippy-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T05:31:24.920628+00:00",
+      "log_sha256": "6d04e61aca352227827cdc0c3d4cb73f8b3ede83737e29f2ac68cdc4da0ce514",
+      "summaries": [],
+      "scope_skips": [],
+      "rust_harnesses": [],
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": [],
+      "warning_count": 155,
+      "prior_release_warning_count": 155
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-16T05:31:24.921183+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1452-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T05:46:30.656264+00:00",
+      "log_sha256": "a97e639581618d146d043dfd6776a290df0b4ba1cf97449ce2ced5de30311a0c",
+      "summaries": [
+        "Results: 14 PASS, 0 FAIL, 0 SKIP",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ],
+      "scope_skips": [],
+      "rust_harnesses": [
+        {
+          "outcome": "ok",
+          "passed": 930,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 188.05
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 1.29
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 3.57
+        },
+        {
+          "outcome": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 13.59
+        },
+        {
+          "outcome": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 23.61
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 8.24
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 13.93
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 2.43
+        },
+        {
+          "outcome": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 91.83
+        },
+        {
+          "outcome": "ok",
+          "passed": 930,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 187.6
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 1.27
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 1.86
+        },
+        {
+          "outcome": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 9.72
+        },
+        {
+          "outcome": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 15.92
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 6.34
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 19.52
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 4.12
+        },
+        {
+          "outcome": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 89.11
+        }
+      ],
+      "largest_rust_harness": {
+        "outcome": "ok",
+        "passed": 930,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered_out": 0,
+        "elapsed_seconds": 188.05
+      },
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": [
+        "Test Files  27 passed (27)",
+        "Tests  536 passed (536)",
+        "Test Files  27 passed (27)",
+        "Tests  536 passed (536)"
+      ]
+    },
+    {
+      "stage": "1499",
+      "command": [
+        "make",
+        "verify-issue-1499"
+      ],
+      "started": "2026-10-16T05:46:30.656776+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1499-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T05:47:32.240327+00:00",
+      "log_sha256": "045ff7d906f84cd935c742365da9203098a7c75964bed86d41f6febee79ab992",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        {
+          "line_sha256": "bd0824048f42856ac0e5ac2bdabffa76f7ef7bbb5a515acf346bb07e32ab553d",
+          "reason": "SKIP Sustained attested live API/browser/funded scope requires separate real receipts",
+          "detail_retained_privately": false
+        }
+      ],
+      "rust_harnesses": [
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 922,
+          "elapsed_seconds": 0.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 922,
+          "elapsed_seconds": 0.01
+        }
+      ],
+      "largest_rust_harness": {
+        "outcome": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 922,
+        "elapsed_seconds": 0.01
+      },
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": [
+        "Test Files  8 passed (8)",
+        "Tests  188 passed (188)",
+        "Test Files  8 passed (8)",
+        "Tests  188 passed (188)"
+      ]
+    },
+    {
+      "stage": "1453",
+      "command": [
+        "make",
+        "verify-issue-1453"
+      ],
+      "started": "2026-10-16T05:47:32.240871+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1453-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T05:52:02.078749+00:00",
+      "log_sha256": "464f61fa9262bca7648e97f39a4c3790120496f5d4c06d6df5bbb7c80d31dd08",
+      "summaries": [
+        "PASS=12 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        {
+          "line_sha256": "fd29c995762bc25b24a621c980645e0bf452ce3b427b3eaa250c664e32c8d75f",
+          "reason": "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+          "detail_retained_privately": false
+        },
+        {
+          "line_sha256": "5e45d198eb0f0e2c754f6238713761894fc887bc20ea812d558f5679621f263c",
+          "reason": "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope",
+          "detail_retained_privately": false
+        }
+      ],
+      "rust_harnesses": [
+        {
+          "outcome": "ok",
+          "passed": 129,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 801,
+          "elapsed_seconds": 13.09
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 921,
+          "elapsed_seconds": 4.31
+        },
+        {
+          "outcome": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 911,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 925,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 900,
+          "elapsed_seconds": 0.96
+        },
+        {
+          "outcome": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 27.49
+        },
+        {
+          "outcome": "ok",
+          "passed": 34,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 19.35
+        },
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 6.23
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 1.72
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 10.18
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 9.18
+        },
+        {
+          "outcome": "ok",
+          "passed": 129,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 801,
+          "elapsed_seconds": 12.81
+        },
+        {
+          "outcome": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 930,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 921,
+          "elapsed_seconds": 4.37
+        },
+        {
+          "outcome": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 911,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 925,
+          "elapsed_seconds": 0.0
+        },
+        {
+          "outcome": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 900,
+          "elapsed_seconds": 1.01
+        },
+        {
+          "outcome": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 28.71
+        },
+        {
+          "outcome": "ok",
+          "passed": 34,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 17.46
+        },
+        {
+          "outcome": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 5.53
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 1.52
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 8.07
+        },
+        {
+          "outcome": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 6.87
+        }
+      ],
+      "largest_rust_harness": {
+        "outcome": "ok",
+        "passed": 129,
+        "failed": 0,
+        "ignored": 1,
+        "measured": 0,
+        "filtered_out": 801,
+        "elapsed_seconds": 13.09
+      },
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": [
+        "Test Files  4 passed (4)",
+        "Tests  97 passed (97)",
+        "Test Files  4 passed (4)",
+        "Tests  97 passed (97)"
+      ]
+    },
+    {
+      "stage": "1464",
+      "command": [
+        "make",
+        "verify-issue-1464"
+      ],
+      "started": "2026-10-16T05:52:02.080369+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1464-release10-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T06:00:27.775386+00:00",
+      "log_sha256": "7b5457653d5d2f8c236d3b241f62c5c597e5a9389cd4fd0bee04d49822731e2b",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        {
+          "line_sha256": "1d95b54a30049070385c6f24ef0819e749d829658c57b108e10548f05f3aaa6a",
+          "reason": "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+          "detail_retained_privately": false
+        },
+        {
+          "line_sha256": "053e20822dec6b8cee1af8cc919da3a7247985d4e5cb3650cc82d8f929ef2abe",
+          "reason": "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately",
+          "detail_retained_privately": false
+        }
+      ],
+      "rust_harnesses": [
+        {
+          "outcome": "ok",
+          "passed": 129,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 801,
+          "elapsed_seconds": 45.74
+        },
+        {
+          "outcome": "ok",
+          "passed": 74,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 857,
+          "elapsed_seconds": 20.86
+        },
+        {
+          "outcome": "ok",
+          "passed": 146,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 785,
+          "elapsed_seconds": 3.52
+        },
+        {
+          "outcome": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 920,
+          "elapsed_seconds": 4.1
+        },
+        {
+          "outcome": "ok",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 904,
+          "elapsed_seconds": 0.75
+        },
+        {
+          "outcome": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 48.13
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 2.05
+        },
+        {
+          "outcome": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 28.1
+        },
+        {
+          "outcome": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 84.24
+        },
+        {
+          "outcome": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 3.9
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 2.03
+        },
+        {
+          "outcome": "ok",
+          "passed": 129,
+          "failed": 0,
+          "ignored": 1,
+          "measured": 0,
+          "filtered_out": 801,
+          "elapsed_seconds": 45.73
+        },
+        {
+          "outcome": "ok",
+          "passed": 74,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 857,
+          "elapsed_seconds": 20.98
+        },
+        {
+          "outcome": "ok",
+          "passed": 146,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 785,
+          "elapsed_seconds": 3.64
+        },
+        {
+          "outcome": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 920,
+          "elapsed_seconds": 4.08
+        },
+        {
+          "outcome": "ok",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 904,
+          "elapsed_seconds": 0.79
+        },
+        {
+          "outcome": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 46.48
+        },
+        {
+          "outcome": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 3.69
+        },
+        {
+          "outcome": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 33.96
+        },
+        {
+          "outcome": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 85.2
+        },
+        {
+          "outcome": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 3.5
+        },
+        {
+          "outcome": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 0,
+          "elapsed_seconds": 1.65
+        }
+      ],
+      "largest_rust_harness": {
+        "outcome": "ok",
+        "passed": 146,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 785,
+        "elapsed_seconds": 3.52
+      },
+      "rust_counts_scope": "Actual log summaries, per harness; no hardcoded library total or sum across nested child harnesses.",
+      "tap_totals": [],
+      "javascript_summaries": []
+    }
+  ],
+  "controlled_browser_archives": [
+    {
+      "phase": "first",
+      "candidate": 10,
+      "sha256": "ba566a594d3ed65cb805dde8627dba50f571606b6e392c4cd6b54a8a68eb20ac",
+      "recorded_at": "2026-10-16T05:39:35.144Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "New M10 production-build controlled source fixture; not deployed latency or availability acceptance."
+    },
+    {
+      "phase": "retest",
+      "candidate": 10,
+      "sha256": "83504a031808cc4da13dfda81512f3b384ca16fc2d1fbc1133d4d118dce1396a",
+      "recorded_at": "2026-10-16T05:46:14.251Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "New M10 production-build controlled source fixture; not deployed latency or availability acceptance."
+    }
+  ],
+  "owned_infrastructure_reset": {
+    "scope": "Only owned disposable QA container and its exclusive anonymous data volume; no shared or production reset",
+    "successful_reset": {
+      "issue": 1505,
+      "recorded_at": "2026-10-16T05:23:55.132024+00:00",
+      "scope": "Only owned disposable QA container and its exclusive anonymous data volume; no shared or production reset",
+      "old_container_label_verified": true,
+      "image_name_and_loopback_binding_verified": true,
+      "private_profile_and_database_marker_verified": true,
+      "volume_exclusive_verified": true,
+      "anonymous_local_volume_no_options_verified": true,
+      "old_volume_removed_verified": true,
+      "checkout_build_test_browser_idle_verified": true,
+      "fresh_fixture_authenticated_preflight": true,
+      "profile_mode": "0600",
+      "status": "PASS"
+    },
+    "successful_reset_sha256": "6e16933e27ba541423448d9fdd345646c46fd1e7eea226ffcf74e59c27935fc1",
+    "first_preflight_failure": {
+      "issue": 1505,
+      "stage": "Owned QA reset preflight",
+      "status": "FAIL before mutation",
+      "helper_sha256": "8de0420118303f11a63164775bec47b0c8d35a1aae8efe2813f3e16ba217a4a5",
+      "log_sha256": "40b44baaa56b04c0c46c4f91602f0ae2bedda3e4cb40d00fd2cb06236b30be2c",
+      "reason": "Guard incorrectly rejected the standard Docker anonymous-volume marker label; local driver, zero options, exact known anonymous label and 64-hex name observed",
+      "backup_created": false,
+      "container_or_volume_removed": false,
+      "private_profile_changed": false
+    },
+    "first_preflight_failure_sha256": "6a3ca59ccd243882ad957802c386ae9ee62d7456c65377e4e61424eb513dc338",
+    "successful_reset_helper_sha256": "65084c7a1648d83e749935eeb10c9a8ac521595d5567ddb4f9ace1cb2ba33fa2",
+    "successful_reset_log_sha256": "57a58a329853c5cfd7392aedaea99a521e88e2ea1af70d9e6ce46e59698112dc",
+    "qualification": "Initial guard falsely rejected the standard Docker anonymous-volume marker before any mutation. Its FAIL is retained; corrected owned reset and fresh authentication preflight passed separately."
+  },
+  "focused_control": "identity-preflight-proof.json",
+  "focused_control_sha256": "ad92c4496fea0638293437d5b449830acea8ac043fec364dde893a9bb7765ad4",
+  "focused_final_sources_match": true,
+  "focused_unchanged_sources_match": true,
+  "focused_actual_log_receipts": [
+    {
+      "label": "old",
+      "log_basename": "dex-1505-identity-preflight-old.log",
+      "log_sha256": "716bc672e781c2af45637248db52cb488d1044436cb25f89efbfe0f4476e808a",
+      "exit_code": 101,
+      "result": {
+        "elapsed_seconds": 7.95,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      }
+    },
+    {
+      "label": "healthy-old",
+      "log_basename": "dex-1505-identity-preflight-healthy-old.log",
+      "log_sha256": "b79d0569f60cf1ad79e8fbf07a60e067124fa7591b34ff336372590f6558dd93",
+      "exit_code": 101,
+      "result": {
+        "elapsed_seconds": 3.74,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      }
+    },
+    {
+      "label": "focused-first",
+      "log_basename": "dex-1505-identity-preflight-focused-first.log",
+      "log_sha256": "1a2ac7782e201e4c5e3a573fe9715928b5b598f70819a0768cd66880d1fb1490",
+      "exit_code": 0,
+      "result": {
+        "elapsed_seconds": 8.16,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 6
+      }
+    },
+    {
+      "label": "focused-retest",
+      "log_basename": "dex-1505-identity-preflight-focused-retest.log",
+      "log_sha256": "963929bf44b9136c8e6054a999ac9a3bd6f57832a018bd4fda9e4a0314e785f8",
+      "exit_code": 0,
+      "result": {
+        "elapsed_seconds": 8.11,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 6
+      }
+    },
+    {
+      "label": "wrapper-first",
+      "log_basename": "dex-1505-identity-preflight-wrapper-first.log",
+      "log_sha256": "a0e77ddcd89a8cf51de5ccfed248789dd7453c858170bae5bb2700ef9cda61d8",
+      "exit_code": 0,
+      "result": {
+        "elapsed_seconds": 18.51,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 57
+      }
+    },
+    {
+      "label": "wrapper-retest",
+      "log_basename": "dex-1505-identity-preflight-wrapper-retest.log",
+      "log_sha256": "ce6718cc67ec26fb9595b1ce0fd83be3d241a98de0d104b9e70eade819c9345b",
+      "exit_code": 0,
+      "result": {
+        "elapsed_seconds": 18.64,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 57
+      }
+    }
+  ],
+  "prior_observer_and_expiry_readiness": {
+    "recorded_for_candidate": 9,
+    "reused_for_candidate": 10,
+    "scope": "Previously executed unchanged observer/expiry readiness only; no new M10 live or expiry-callback acceptance is claimed.",
+    "observer_control": "observer-initialized-checkpoint-proof.json",
+    "observer_control_sha256": "00f404218f3a65483e7fba4e5cd932fcba77f2755bdd03c7bf2671fc25bd99ec",
+    "observer_final_sources_match": true,
+    "expiry_readiness": "expiry-control-release9-readiness.json",
+    "expiry_readiness_sha256": "bd8a99f771c7aed4202ac7de130c08622e06d342558f008d8b4631784d69ccdc",
+    "expiry_pinned_sources_match": true,
+    "new_live_acceptance": false
+  },
+  "prior_source_verification": "source-verification-9-final.json",
+  "prior_source_verification_sha256": "adc24278bba8bf59166e0ed7e41a7d0d40f6944314b719ac91e5e2bf4527d041",
+  "unchanged_prior_scope": {
+    "checks": [
+      "1392",
+      "1394",
+      "1396"
+    ],
+    "claim": "Prior separate identity/discovery/database infrastructure receipts only, not rerun as M10 final verification. LCD/provider/discovery/database configuration source unchanged; new wrapper identity controls and full source library exercise unchanged guards."
+  },
+  "prior_live_failure": "deployment-1524-browser-retest-fail.json",
+  "prior_live_failure_sha256": "457f4bd10203c062664d26792130a1114874fcbbcb2321d01032926a14925d06",
+  "prior_producer_context": "deployment-1524-producer-context.json",
+  "prior_producer_context_sha256": "b8a0a81e6f323895eb410267a84d5a60bee372d69b99e8e78f0050ccad7222f7",
+  "limits_of_inference": [
+    "Uniform-latency OLD/FIX source controls prove redundant serial identity work can lose required native fields; historical poll199 provider/identity timings remain unobserved.",
+    "OLD availability control lost caps, while historical poll199 lost the UUSD rate/mapping. They are distinct shapes.",
+    "Phase5 is settlement mapping/bank completion before optional floors, not router completion, publication, API usefulness or browser paint.",
+    "Fixed slow fixture publishes around the unchanged7.9-second margin after optional floor cancellation; unknown capabilities grant no direct-floor support.",
+    "Healthy14-to13 identity/attempt reduction with13 data is separate from clipped slow-fixture counts. Original failover work and per-attempt fresh attestation remain unchanged.",
+    "Library and other totals are derived from actual harness summaries, never a prior hardcoded total; nested child-process summaries are not summed.",
+    "Earlier live failures remain FAIL. Source checks and reused prior readiness do not establish new deployed recovery."
+  ],
+  "remaining": [
+    "Genuine hosted CI on the final exact head",
+    "Exact merged-revision Coolify deployment and log attestation, then independent backend warmup",
+    "Initialized API and natural native FIRST four190-second windows; unchanged RETEST only after complete FIRSTPASS; separate190-second socket pair and bounded monitoring",
+    "Positive original-expiry callback FIRST/RETEST unless directly instrumented natural evidence proves that path"
+  ]
+}

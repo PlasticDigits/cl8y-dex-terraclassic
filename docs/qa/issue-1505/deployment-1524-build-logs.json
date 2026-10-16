@@ -1,0 +1,22 @@
+{
+  "issue": 1505,
+  "expected_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "scope": "Actual completed application build-log summaries; raw private logs not exported",
+  "deployments": [
+    {
+      "label": "frontend",
+      "commit": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+      "status": "finished",
+      "log_count": 60,
+      "failure_pattern_lines": 0
+    },
+    {
+      "label": "backend",
+      "commit": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+      "status": "finished",
+      "log_count": 306,
+      "failure_pattern_lines": 0
+    }
+  ],
+  "overall": "PASS"
+}

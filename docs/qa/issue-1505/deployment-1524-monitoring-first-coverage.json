@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "collection_exit_code": 0,
+  "read_budget": 18,
+  "extra_network_reads": 0,
+  "requested_ids": 0,
+  "raw_logs_exported": false,
+  "query_windows": [
+    {
+      "start_ns": 1792125389078840576,
+      "end_ns": 1792126289078844672,
+      "sample_limit": 300
+    }
+  ],
+  "first_api_request_epoch_ms": 1792125404577,
+  "browser_completed_epoch_ms": 1792126194831.0,
+  "covers_all_initialized_api_through_browser_completion": true,
+  "original_receipt_utc_start": "2026-10-16T04:36:40.404Z",
+  "original_receipt_utc_end": "2026-10-16T04:49:54.831Z"
+}

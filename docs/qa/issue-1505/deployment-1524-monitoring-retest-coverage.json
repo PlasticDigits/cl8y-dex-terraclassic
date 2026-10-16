@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "collection_exit_code": 0,
+  "browser_verdict": "FAIL",
+  "source_receipt_sha256": "cab59d85a47d3b258891165de750ee4071bbd0f6d74add4a7d82927f2781786b",
+  "read_budget": 18,
+  "extra_network_reads": 0,
+  "requested_ids": [
+    "e4d6b2b79601545e",
+    "e4d6b2b796015461",
+    "e4d6b2b796015464"
+  ],
+  "raw_logs_exported": false,
+  "query_windows": [
+    {
+      "start_ns": 1792126200353197824,
+      "end_ns": 1792127100353200640,
+      "sample_limit": 300
+    },
+    {
+      "start_ns": 1792126200353197824,
+      "end_ns": 1792127100353200640,
+      "sample_limit": 300
+    }
+  ],
+  "first_api_request_epoch_ms": 1792126386539,
+  "browser_stopped_epoch_ms": 1792127006763.0,
+  "covers_initialized_api_through_stopped_browser": true,
+  "original_receipt_utc_start": "2026-10-16T04:53:02.348Z",
+  "original_receipt_utc_end": "2026-10-16T05:03:26.763Z"
+}

@@ -1005,6 +1005,16 @@ emits at most once per request; successful alternatives emit no stale witnesses.
 These are candidate witnesses and do not alone establish the sole rejection
 cause. No asset, actor, query or provider body is recorded.
 
+The scheduled wrapper starts directly with its mapper query under NR1505-14.
+That query freshly attests the exact selected endpoint before any data transport;
+each alternative repeats verification and all original deadline/negative guards.
+Removing its redundant standalone preflight reduces healthy identity/provider
+attempts fourteen to thirteen when no additional attempts occur, retaining the
+thirteen logical data reads and original poll-start clock. No cached metadata
+grants authority; unrelated trust gates remain enforced. Source timing controls
+do not identify historical provider latency. See
+[native recovery evidence](qa/issue-1505/RESULTS.md).
+
 A poll-local FIFO dispatcher starts at most two logical LCD reads together. The
 fixed owned read futures may wait for dispatch, but their transport/query clocks
 start only when dispatched. This avoids consuming a healthy read's total deadline

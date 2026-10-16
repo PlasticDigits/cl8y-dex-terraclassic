@@ -141,3 +141,12 @@ reads acquire their existing global permits and pass the original deadline
 check. Cooperative Pending is not admission. Waiting owns no permit, remains
 bounded by the original router/poll deadline, and never substitutes for validated
 common results. No-plan/absent-router behavior and all original budgets remain.
+
+For scheduled wrapper identity, preserve
+[NR1505-14](AGENTS_NATIVE_QUOTE_RECOVERY.md): the mapper data query freshly
+attests its actual endpoint before transport, including every alternative.
+Remove only the redundant standalone wrapper preflight. Keep original deadlines,
+provider admission/health, typed negative precedence, configured namespace and
+all unrelated discovery/actor trust gates. Healthy identity/provider attempts
+reduce fourteen to thirteen without additional attempts, while the thirteen logical data-read ceiling remains unchanged.
+Uniform-delay source controls do not prove historical production identity time.

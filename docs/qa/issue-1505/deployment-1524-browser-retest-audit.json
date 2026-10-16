@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "overall": "FAIL",
+  "scope": "Independent existing RETEST receipt audit; no new browser/API work. FIRST PASS separate; diagnostic gaps are not asserted as unavailable-response causes. Missing partial-window guard remains null. Explicit expiry callback verification was not run.",
+  "source_receipt_sha256": "cab59d85a47d3b258891165de750ee4071bbd0f6d74add4a7d82927f2781786b",
+  "revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "utc_start": "2026-10-16T04:53:02.348Z",
+  "utc_end": "2026-10-16T05:03:26.763Z",
+  "initialized_useful": 4,
+  "windows": [
+    {
+      "ordinal": 1,
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190091,
+      "active_window_stop_reason": "duration",
+      "quote_availability": {
+        "responses": 31,
+        "useful": 31,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "first_useful_ms": 384.09999999403954,
+      "read_guard": {
+        "remaining": 505,
+        "admitted": 95,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "acceptance_failure_count": 0,
+      "display_ownership_qualification_count": 0,
+      "diagnostic_frame_gap_count": 0,
+      "diagnostic_long_task_count": 0
+    },
+    {
+      "ordinal": 2,
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190085,
+      "active_window_stop_reason": "duration",
+      "quote_availability": {
+        "responses": 29,
+        "useful": 29,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "first_useful_ms": 400.80000001192093,
+      "read_guard": {
+        "remaining": 502,
+        "admitted": 98,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "acceptance_failure_count": 0,
+      "display_ownership_qualification_count": 0,
+      "diagnostic_frame_gap_count": 1,
+      "diagnostic_long_task_count": 0
+    },
+    {
+      "ordinal": 3,
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190036,
+      "active_window_stop_reason": "duration",
+      "quote_availability": {
+        "responses": 28,
+        "useful": 25,
+        "not_useful": 3,
+        "teardown_cancelled": 0
+      },
+      "first_useful_ms": 374.5,
+      "read_guard": {
+        "remaining": 487,
+        "admitted": 113,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "acceptance_failure_count": 1,
+      "display_ownership_qualification_count": 0,
+      "diagnostic_frame_gap_count": 1,
+      "diagnostic_long_task_count": 0
+    },
+    {
+      "ordinal": 4,
+      "completed": false,
+      "active_window_completed": false,
+      "active_window_elapsed_ms": 19928,
+      "active_window_stop_reason": "active_exception",
+      "quote_availability": {
+        "responses": 2,
+        "useful": 2,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "first_useful_ms": 400.09999999403954,
+      "read_guard": null,
+      "acceptance_failure_count": 2,
+      "display_ownership_qualification_count": 0,
+      "diagnostic_frame_gap_count": 0,
+      "diagnostic_long_task_count": 0
+    }
+  ],
+  "selected_useful": 87,
+  "selected_unavailable": 3,
+  "failed_samples": [
+    {
+      "request_id": "e4d6b2b79601545e",
+      "status": 503,
+      "reason": "missing_observations",
+      "at_ms": 47420,
+      "diagnostic_delivery_lag_ms": 8
+    },
+    {
+      "request_id": "e4d6b2b796015461",
+      "status": 503,
+      "reason": "missing_observations",
+      "at_ms": 48013,
+      "diagnostic_delivery_lag_ms": 2
+    },
+    {
+      "request_id": "e4d6b2b796015464",
+      "status": 503,
+      "reason": "missing_observations",
+      "at_ms": 48602,
+      "diagnostic_delivery_lag_ms": 4
+    }
+  ],
+  "quote_reads": 323,
+  "quote_budget": 800,
+  "route_reads": {
+    "solve": 94,
+    "progress": 229,
+    "best": 0
+  },
+  "rejected_quote_attempts": 0,
+  "audit_parser_note": "Two initial private inspections assumed useful on rejected rows and read_guard on the stopped partial window. Optional fields now remain absent/null; source receipt and FAIL verdict are unchanged."
+}

@@ -18,6 +18,9 @@ unused share, within the unchanged global two-read gate and original deadlines.
 Router priority follows NR1505-13: both common treasury reads must acquire their
 existing permits and pass the original deadline guard before router admission.
 First polling is insufficient under cooperative scheduling.
+Scheduled wrapper identity follows NR1505-14: remove only redundant standalone
+preflight; every actual data attempt still freshly attests its selected endpoint
+inside the original deadline. Other discovery/actor trust gates stay enforced.
 Inspect initialized_api_checkpoint outcomes (NR1505-6) before reporting initialized
 API success; entering browser windows does not certify those checks.
 
