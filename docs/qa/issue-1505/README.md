@@ -252,3 +252,16 @@ The ninth-candidate [final source receipt](source-verification-9-final.json)
 records the applicable six-stage FIRST/RETEST wave and unchanged before/after
 fingerprints. See [RESULTS](RESULTS.md) for counts, explicit skip scope and the
 separate deployment/live checklist.
+
+
+The [CI491 failure](ci-491.json) and
+[public-value provenance](ci-491-public-value-provenance.json) separate unrelated
+incoming incident-data scanner findings from the tested application. Apply
+[CI1400](../../../skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md) for the narrow reviewed
+policy update; a PR config edit alone cannot change trusted enforcement.
+
+
+The [local policy verification proof](public-literal-policy-proof.json) records
+exact-literal/same-detector controls, canonical secret fixtures, signed builds,
+runtime 200/401 checks and all twelve final asset hashes. Remote immutable policy
+rollout and genuine new-head CI are separate evidence.

@@ -22,8 +22,10 @@ reviews are clean. The observer checkpoints actual initialization outcomes befor
 Chrome and validates supplemental timing metadata. Its full public QA group
 passes 59 tests; the separately pinned expiry helper passes offline preparation
 checks. The final six-stage source wave passes after an owned QA-only reset: 61 passing groups, zero failures and six explicit separate-scope skips; Clippy succeeds.
-Hosted CI, the next deployment and all mandatory live FIRST/RETEST acceptance
-remain pending. Source results do not establish deployed recovery.
+Hosted CI491 failed secret scanning on incoming incident evidence; its required
+application jobs did not execute. A separately reviewed exact-public-literal
+policy correction is being verified. The next application deployment and all
+mandatory live FIRST/RETEST acceptance remain pending. Source results do not establish deployed recovery.
 
 The [fifth candidate's source wave](source-verification-5-final.json) passes the native,
 identity, offline quote, lifecycle, liquidity-feed and provider-recovery
@@ -1534,3 +1536,74 @@ Their 57 changed paths are confined to incidents/. Both local checkouts are
 fast-forwarded, with identical tested application and verification fingerprints.
 No application/verifier retest is claimed for those unrelated documentation
 changes; genuine CI still runs on the submitted head.
+
+
+## Ninth CI failure and public-fixture policy correction
+
+[Genuine CI491](ci-491.json), exact PR #1524 head
+`8b1ca65e2a969d6be84d9af8d89ae138b7258983`, fails secret scanning and completeness.
+Contracts, frontend, indexer library and PostgreSQL jobs are skipped and provide
+no executed test result. This failure remains retained; there is no unchanged
+pipeline retry or fabricated status.
+
+The scanner finds fourteen occurrences of five distinct values in two incident
+JSON files inherited byte-for-byte from fresh main. The staged local hook does
+not scan those unchanged files; required CI scans every tracked file with the
+same pinned gitleaks 8.30.0. The actual worker uses the independently bundled
+config, not PR-provided TOML. Its config/runner/scanner bytes match the repository
+mirrors before this repair.
+
+[Independent public provenance](ci-491-public-value-provenance.json) establishes
+that three values are Solana mint encodings, matched in base64, hex and base58
+against committed bridge deployment documentation. Exactly one bounded,
+unauthenticated public Relay GET confirms both remaining execution identifiers
+and both transaction links. No raw response, literal values, actors, credentials
+or endpoint URL is exported in that receipt.
+
+The correction adds exactly five escaped, fully anchored literal exceptions to
+the existing secret-target allowlist. All 46 prior entries and every other
+parsed TOML field remain unchanged; no directory, field-class, keyword or rule
+exception is added. Config SHA256 changes from
+`39ae76d2f5833b474fc62dd97d34c90836354335ce6217dde0283196ded408db` to
+`a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024`.
+Three independent reviews confirm the exact five-value delta and provenance.
+
+The [local policy proof and asset manifest](public-literal-policy-proof.json)
+records 82 successful scanner processes across focused FIRST/RETEST. Exact public
+literals fail the baseline generic-key detector and pass the corrected config;
+mutated, prefixed and padding-aware suffixed values first prove baseline
+detection and remain rejected. Unrelated synthetic secrets remain rejected.
+Canonical scanner FIRST/RETEST each pass all four guards in 24.770/23.916 seconds,
+including the tracked tree and both forced dependency-tree secret fixtures.
+
+`make verify-issue-1400` passes nine checks twice with zero skips in 57.080/4.724
+seconds. The first image build executes signed Go tests. The second build uses
+cached layers and is not counted as fresh Go execution. A further canonical
+no-cache build passes in 45.104 seconds and actually executes the unchanged Go
+suite. Fresh nonroot runtime containers then pass FIRST/RETEST: health 200,
+unsigned request 401 and eighteen decoded embedded-asset comparisons per run.
+Their 128MiB/one-CPU, read-only, no-network/no-host-mount configuration is verified;
+both containers are removed. Expected policy bundle is
+`e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1`.
+
+The proof retains the original detector-precondition, reporting-wrapper and
+serialized-YAML comparison failures separately. None establishes a policy
+broadening defect. Pure suffixes after Base64 padding are baseline-undetected
+and are not counted as successful security controls; the corrected vectors
+preserve the detector's grammar and compare exact captured hashes. The runtime
+comparison parses YAML and the documented Woodpecker dollar-escape layer rather
+than changing production escaping.
+
+Application and existing verification-source fingerprints remain unchanged;
+scanner configuration and twelve reviewed policy assets are recorded separately
+because that config is outside the explicit application/toolchain fingerprint
+scope. Local tests do not establish remote policy deployment or hosted CI.
+
+At the pre-deployment checkpoint, the trusted policy service runs immutable commit
+`60b6aa7418e4e6a4ca6b09e3193fd7b650a8e148`, bundle
+`9f9865defd9ad0287fb90400fe408c942020e1c431275902a35c18555d8775ec`.
+Its rollback pin/hash, nonroot 128MiB/one-CPU configuration, signing key,
+exclusive extension and netrc=false are preserved. A reviewed immutable policy
+release, exact bundle/health verification and genuine CI on the updated PR head
+remain required. No application deployment or native live acceptance is claimed
+for this policy work.

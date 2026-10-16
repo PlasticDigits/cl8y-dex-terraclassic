@@ -82,5 +82,12 @@ regexes = [
   '''^LUNC\-WEEK\-2_max_in$''',
   '''^LUNC\-WEEK\-2_max_out$''',
   '''^LUNC\-WEEK\-2_period_end$''',
-
+  # #1505 CI491: five independently verified public Solana mint encodings and
+  # Relay execution IDs from incoming incident evidence; exact literals only.
+  # Provenance and same-detector negative controls: docs/qa/issue-1505/RESULTS.md.
+  '''^0x3e9cc12c84cf8005a3571ab41a4635f43733ab36f3a83491403f301830ee79b0$''',
+  '''^zsZ34r5qb6Y/ODgbV4oH5UOKMkpHKgIUom9hLzEOhWg=$''',
+  '''^AY84tRh6UtgbqrEDSlhPQTKJyksngourykB8rXTmNVg=$''',
+  '''^0x9db4f23471e9b309b5933b6684691afc4c558251a444772cfe56f455d74b4f0a$''',
+  '''^Uinq2J7WIkHuy52Hb8wrXGE\+j\+Gn9CyigsnnyKzRbNE=$''',
 ]

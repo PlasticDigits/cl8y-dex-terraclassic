@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "pipeline": 491,
+  "revision": "8b1ca65e2a969d6be84d9af8d89ae138b7258983",
+  "utc": "2026-10-16T03:36:50.476473+00:00",
+  "finding_occurrences": 14,
+  "unique_literals": 5,
+  "destination_source_sha256": "96c0df2321138a222fc9d753018351bc0445a94cf9ba9f46e8756879a581cdac",
+  "public_mint_provenance": [
+    {
+      "label": "public_mint_1",
+      "literal_sha256": "74b41d2fab4301d64e790c91f33f01fefe5c70a17183f106b9abf677cc9cef92",
+      "occurrences": 1,
+      "source_pointers": [
+        "/deposits/56/dest_token_address"
+      ],
+      "decoded_bytes": 32,
+      "destination_chain_ids": [
+        5
+      ],
+      "public_document": {
+        "repository_commit": "4586378cea74e43ee3ba0a970a11607a526be56d",
+        "path": "docs/deployment-solana-mainnet.md",
+        "git_blob": "769c6dc82afef74a9f1a01b9764f8371940625ab",
+        "sha256": "45ee70b1c485fb30e2aff631d0c1d97fa160f7cf8ac3eb59f780befd12a42ec8",
+        "tracked_worktree_equals_committed": true,
+        "encoding_match_lines": {
+          "base64": [
+            1121,
+            1322
+          ],
+          "hex": [
+            1121,
+            1147,
+            1216,
+            1285
+          ],
+          "base58": [
+            111,
+            944,
+            962,
+            1079,
+            1484
+          ]
+        }
+      }
+    },
+    {
+      "label": "public_mint_2",
+      "literal_sha256": "c920b52e2702ddc692cf98f370eacfb31c3ea117d34a3d8bcf1c50444f090e9d",
+      "occurrences": 1,
+      "source_pointers": [
+        "/deposits/58/dest_token_address"
+      ],
+      "decoded_bytes": 32,
+      "destination_chain_ids": [
+        5
+      ],
+      "public_document": {
+        "repository_commit": "4586378cea74e43ee3ba0a970a11607a526be56d",
+        "path": "docs/deployment-solana-mainnet.md",
+        "git_blob": "769c6dc82afef74a9f1a01b9764f8371940625ab",
+        "sha256": "45ee70b1c485fb30e2aff631d0c1d97fa160f7cf8ac3eb59f780befd12a42ec8",
+        "tracked_worktree_equals_committed": true,
+        "encoding_match_lines": {
+          "base64": [
+            1122,
+            1333
+          ],
+          "hex": [
+            1122,
+            1157,
+            1226,
+            1296
+          ],
+          "base58": [
+            112,
+            944,
+            963,
+            1080,
+            1485
+          ]
+        }
+      }
+    },
+    {
+      "label": "public_mint_3",
+      "literal_sha256": "e181ce2bf027177f0bba3f2c2568500ab62c46a5638885432cee6c1c598b9cbe",
+      "occurrences": 10,
+      "source_pointers": [
+        "/deposits/41/dest_token_address",
+        "/deposits/43/dest_token_address",
+        "/deposits/44/dest_token_address",
+        "/deposits/51/dest_token_address",
+        "/deposits/52/dest_token_address",
+        "/deposits/53/dest_token_address",
+        "/deposits/54/dest_token_address",
+        "/deposits/55/dest_token_address",
+        "/deposits/59/dest_token_address",
+        "/deposits/63/dest_token_address"
+      ],
+      "decoded_bytes": 32,
+      "destination_chain_ids": [
+        5
+      ],
+      "public_document": {
+        "repository_commit": "4586378cea74e43ee3ba0a970a11607a526be56d",
+        "path": "docs/deployment-solana-mainnet.md",
+        "git_blob": "769c6dc82afef74a9f1a01b9764f8371940625ab",
+        "sha256": "45ee70b1c485fb30e2aff631d0c1d97fa160f7cf8ac3eb59f780befd12a42ec8",
+        "tracked_worktree_equals_committed": true,
+        "encoding_match_lines": {
+          "base64": [
+            1120,
+            1311
+          ],
+          "hex": [
+            1120,
+            1137,
+            1206,
+            1274
+          ],
+          "base58": [
+            110,
+            944,
+            961,
+            1078,
+            1090,
+            1483
+          ]
+        }
+      }
+    }
+  ],
+  "relay_provenance": {
+    "source_sha256": "7cc9b1cc972aa3a6733e710d1cd9d3b9ff5fae1c513cc332aaea3754166f25e3",
+    "execution_literal_sha256": [
+      "d946065e8468734653cdf74714216840864b6fa3519554ed762be334d9453c57",
+      "35bfca5e0eccaec6ba121899026a34e34a59d683c912fa9c5bbd6dd26d50d242"
+    ],
+    "source_transaction_sha256": "a688bfe2eed6ab858ab09f72fa299233de9f1f01d55ba5bea67b42c192b7186d",
+    "destination_transaction_sha256": "6c11e62ee06a8c1d9765a6e8efd12be25d1770bcd3bdf1e20f8e2260eb628e33",
+    "source_chain_id": 56,
+    "destination_chain_id": 1,
+    "public_read": {
+      "method": "GET",
+      "reads": 1,
+      "max_bytes": 1048576,
+      "timeout_seconds": 20,
+      "redirects_enabled": false,
+      "authentication_sent": false,
+      "cookies_sent": false,
+      "endpoint_domain_sha256": "526b76d8d8b0078493a62526a241dbf388fbae0f1d3fad9766a9001c22691fc1",
+      "status": 200,
+      "response_sha256": "6dcc376b9dc23a1a68a0a64ec9c598b2bbf28c10dea5163d93734942881ede6f",
+      "idempotency_matches": [
+        true,
+        true
+      ],
+      "transaction_link_matches": [
+        true,
+        true
+      ],
+      "request_record_match": true
+    }
+  },
+  "all_public_proven": true,
+  "raw_values_exported": false,
+  "raw_response_retained": false
+}
