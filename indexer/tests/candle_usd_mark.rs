@@ -101,8 +101,8 @@ async fn seed_hub_trio(pool: &sqlx::PgPool) -> HubTrio {
     }
 }
 
-// A healthy mark fixture supplies certified observations and distinct reserve
-// samples with an advanced synthetic observation clock; it never disables containment.
+// A healthy mark fixture supplies certified observations plus one fresh reserve
+// sample; live spots publish immediately with no fixed-reference gate.
 async fn confirmed_hub_fixture(pool: &sqlx::PgPool, lunc: bool) {
     use cl8y_dex_indexer::{db::queries::oracle, indexer::oracle::OracleTicker};
     oracle::record_observation(
@@ -126,21 +126,13 @@ async fn confirmed_hub_fixture(pool: &sqlx::PgPool, lunc: bool) {
         .unwrap();
     }
     let lunc_price = lunc.then(|| bd("0.00005"));
-    for _ in 0..3 {
-        sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()")
-            .execute(pool)
-            .await
-            .unwrap();
-        hub_prices::refresh_hub_prices(pool, &hub_cfg(), Some(&bd("0.005")), lunc_price.as_ref())
-            .await
-            .unwrap();
-        sqlx::query(
-            "UPDATE hub_price_references SET pending_since=pending_since-INTERVAL '61 seconds', last_observed_at=last_observed_at-INTERVAL '61 seconds', reference_at=reference_at-INTERVAL '61 seconds'",
-        )
+    sqlx::query("UPDATE pair_reserves SET snapshot_at=NOW()")
         .execute(pool)
         .await
         .unwrap();
-    }
+    hub_prices::refresh_hub_prices(pool, &hub_cfg(), Some(&bd("0.005")), lunc_price.as_ref())
+        .await
+        .unwrap();
 }
 
 async fn insert_swap(

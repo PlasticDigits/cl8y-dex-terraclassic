@@ -135,34 +135,16 @@ async fn seed_cl8y_hub(pool: &sqlx::PgPool) -> EconSeed {
     let mut cfg = common::test_config();
     cfg.book_snapshot_interval_ms = 10_000;
     let hub_cfg = HubUsdConfig::from_indexer_config(&cfg);
+    // Live reserve spots and their dependent economic marks publish on the first
+    // fresh observation; no fixed-reference confirmation window applies.
     hub_prices::refresh_hub_prices(pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
-        .expect("initial hub observation");
-    let observing = hub_prices::load_quote_usd(pool).await.unwrap();
-    assert!(observing.ust1.is_none());
-    assert!(observing
+        .expect("live hub+economic refresh");
+    let live = hub_prices::load_quote_usd(pool).await.unwrap();
+    assert!(live.ust1.is_some());
+    assert!(live
         .economic_usd_per_human(DEFAULT_HUB_CL8Y_ADDRESS)
-        .is_none());
-
-    // Simulate an earlier canonical observation without sleeping. Keep the
-    // complete reference chronology consistent, then provide a new fresh
-    // reserve timestamp for the confirmation interval required by #1391.
-    sqlx::query(
-        "UPDATE hub_price_references SET
-            pending_since = pending_since - INTERVAL '61 seconds',
-            last_observed_at = last_observed_at - INTERVAL '61 seconds',
-            reference_at = reference_at - INTERVAL '61 seconds'",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-    sqlx::query("UPDATE pair_reserves SET snapshot_at = NOW()")
-        .execute(pool)
-        .await
-        .unwrap();
-    hub_prices::refresh_hub_prices(pool, &hub_cfg, Some(&bd("0.005")), None)
-        .await
-        .expect("confirmed hub+economic refresh");
+        .is_some());
 
     EconSeed {
         cl8y_id: cl8y,

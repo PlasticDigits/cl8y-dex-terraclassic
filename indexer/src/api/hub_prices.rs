@@ -13,8 +13,9 @@ use crate::indexer::hub_usd::{hub_wrap_asset_address, HubTicker, HubUsdConfig, H
 pub const HUB_PRICES_METADATA: &str = concat!(
     "DEX hub USD marks from independently priced-leg depth (not CEX, not settlement, ",
     "not TWAP, not the UST1 window rate). Non-oracle-grade advisory values. ",
-    "Fixed USTC-unit reference rejects >10% divergence; bootstrap/source switches need 60s observations. ",
-    "Initial manipulation and <=10% shifts remain possible; no financial automation may trust spots. ",
+    "Marks publish the latest fresh reserve spot; genuine price movement, including ",
+    "large or fast moves, never suppresses a mark. Missing/stale/nonpositive evidence ",
+    "and depth below the configured floor still fail closed. ",
     "GET /api/v1/hub-prices for the snapshot; GET /api/v1/hub-prices/{ticker} for one ticker. ",
     "Tickers: custc (1:1 USTC CEX oracle), lunc (1:1 LUNC CEX oracle), ",
     "ust1 (deepest cUSTC/UST1 pool), ustr (deepest pair vs cUSTC or UST1). ",
@@ -38,8 +39,6 @@ pub struct HubPriceEntry {
     pub oracle_grade: bool,
     pub policy: String,
     pub priced_leg_depth_usd: Option<String>,
-    pub divergence_pct: Option<String>,
-    pub reference_at: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -65,7 +64,6 @@ pub(crate) fn entry_for(
     ticker: HubTicker,
     row: Option<&HubPriceRow>,
     cfg: &HubUsdConfig,
-    reference: Option<&crate::indexer::hub_guard::HubReference>,
 ) -> HubPriceEntry {
     let asset_address = hub_wrap_asset_address(ticker, cfg);
     let max_age_seconds = if matches!(ticker, HubTicker::Custc | HubTicker::Lunc) {
@@ -78,15 +76,7 @@ pub(crate) fn entry_for(
         if row.is_some() {
             "stale".into()
         } else {
-            reference
-                .map(|r| {
-                    if r.quality == "bounded_spot" {
-                        "unavailable".into()
-                    } else {
-                        r.quality.clone()
-                    }
-                })
-                .unwrap_or_else(|| "unavailable".into())
+            "unavailable".into()
         }
     });
     match usable {
@@ -102,10 +92,8 @@ pub(crate) fn entry_for(
             max_age_seconds,
             quality,
             oracle_grade: false,
-            policy: crate::indexer::hub_guard::HUB_POLICY.into(),
+            policy: crate::indexer::hub_usd::HUB_POLICY.into(),
             priced_leg_depth_usd: r.priced_leg_depth_usd.as_ref().map(|v| v.to_string()),
-            divergence_pct: reference.map(|r| r.divergence_pct.to_string()),
-            reference_at: reference.map(|r| r.reference_at.to_rfc3339()),
         },
         None => HubPriceEntry {
             ticker: ticker.as_str().to_string(),
@@ -119,10 +107,8 @@ pub(crate) fn entry_for(
             max_age_seconds,
             quality,
             oracle_grade: false,
-            policy: crate::indexer::hub_guard::HUB_POLICY.into(),
+            policy: crate::indexer::hub_usd::HUB_POLICY.into(),
             priced_leg_depth_usd: None,
-            divergence_pct: reference.map(|r| r.divergence_pct.to_string()),
-            reference_at: reference.map(|r| r.reference_at.to_rfc3339()),
         },
     }
 }
@@ -156,9 +142,6 @@ pub async fn get_hub_prices(
         .await
         .map_err(internal_err)?;
     qualify_process_prices(&mut rows, &state).await;
-    let references = hub_prices::get_hub_references(&state.pool)
-        .await
-        .map_err(internal_err)?;
     let prices = [
         HubTicker::Custc,
         HubTicker::Lunc,
@@ -168,12 +151,7 @@ pub async fn get_hub_prices(
     .into_iter()
     .map(|t| {
         let row = rows.iter().find(|r| r.ticker == t.as_str());
-        entry_for(
-            t,
-            row,
-            &state.hub_usd,
-            references.iter().find(|r| r.ticker == t.as_str()),
-        )
+        entry_for(t, row, &state.hub_usd)
     })
     .collect();
     Ok(Json(HubPricesResponse {
@@ -207,13 +185,5 @@ pub async fn get_hub_price(
     if let Some(row) = &mut row {
         qualify_process_prices(std::slice::from_mut(row), &state).await;
     }
-    let references = hub_prices::get_hub_references(&state.pool)
-        .await
-        .map_err(internal_err)?;
-    Ok(Json(entry_for(
-        ticker,
-        row.as_ref(),
-        &state.hub_usd,
-        references.iter().find(|r| r.ticker == ticker.as_str()),
-    )))
+    Ok(Json(entry_for(ticker, row.as_ref(), &state.hub_usd)))
 }

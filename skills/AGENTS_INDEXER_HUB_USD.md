@@ -38,7 +38,7 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 ## Ranking
 
 - Eligibility/ranking = human reserve of independently priced leg × its USD mark. Total self-valued TVL is descriptive only (18-dec vs 6-dec remain checked).
-- Ties: max independent depth, then lexicographic pair address; retain eligible pinned source and confirm a switch under the fixed reference bounds.
+- Ties: max independent depth, then lexicographic pair address. Each pass publishes the deepest fresh spot; price movement alone never suppresses it.
 - Bootstrap order is fixed (no UST1 from UST1/USTR using the old peg).
 - Materialized in `hub_prices`; refresh on book-snapshot cadence + oracle tick. GET is O(1).
 

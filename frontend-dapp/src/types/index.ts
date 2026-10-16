@@ -764,8 +764,6 @@ export interface IndexerHubPriceEntry {
   as_of?: string | null
   max_age_seconds?: number
   priced_leg_depth_usd?: string | null
-  divergence_pct?: string | null
-  reference_at?: string | null
   ticker: string
   asset_id?: number | null
   price_usd: string | null

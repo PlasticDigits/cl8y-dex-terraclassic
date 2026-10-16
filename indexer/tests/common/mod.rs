@@ -149,7 +149,6 @@ async fn clean_db_tables(pool: &PgPool) {
             venus_vfdusd_rates,
             oracle_prices,
             oracle_state,
-            hub_price_references,
             hook_events,
             limit_order_cancellations,
             limit_order_placements,

@@ -196,28 +196,8 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     let mut cfg = common::test_config();
     cfg.book_snapshot_interval_ms = 10_000;
     let hub_cfg = HubUsdConfig::from_indexer_config(&cfg);
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
-        .await
-        .expect("refresh");
-    assert!(
-        hub_prices::get_hub_price(&pool, cl8y_dex_indexer::indexer::hub_usd::HubTicker::Ust1)
-            .await
-            .unwrap()
-            .is_none(),
-        "bootstrap is observing, never immediate healthy"
-    );
-    // Fixture establishes a prior canonical observation without a real-time sleep.
-    sqlx::query(
-        "UPDATE hub_price_references SET pending_since = pending_since - INTERVAL '61 seconds'",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
-        .await
-        .expect("global stats rollup");
-    // This is a second original observation of the same owned, unchanged pool,
-    // after cold rollups. It does not rewrite an admitted mark's timestamps.
+    // A fresh positive reserve observation publishes immediately. There is no
+    // observing/confirmation window and no fixed-reference divergence gate.
     let confirmed_source_at = Utc::now();
     sqlx::query("UPDATE pair_reserves SET snapshot_at=$3 WHERE pair_id IN ($1,$2)")
         .bind(thin)
@@ -229,6 +209,9 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     let confirmed = hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .unwrap();
+    cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
+        .await
+        .expect("global stats rollup");
     assert_eq!(
         confirmed
             .ust1
@@ -238,7 +221,7 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
             .unwrap()
             .timestamp_micros(),
         confirmed_source_at.timestamp_micros(),
-        "scheduled mark keeps the original second reserve observation"
+        "published mark keeps the original reserve observation time"
     );
 
     let body: serde_json::Value = server.get("/api/v1/hub-prices").await.json();
@@ -268,7 +251,7 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     assert_eq!(ust1_p["source_pair"], "terra1deep556");
     assert_eq!(ust1_p["quality"], "bounded_spot");
     assert_eq!(ust1_p["oracle_grade"], false);
-    assert_eq!(ust1_p["policy"], "hub-fixed-reference-v1");
+    assert_eq!(ust1_p["policy"], "live-reserve-spot-v1");
     assert_eq!(
         chrono::DateTime::parse_from_rfc3339(ust1_p["as_of"].as_str().unwrap())
             .unwrap()
@@ -296,44 +279,33 @@ async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     assert!(ov["ust1_price_usd"].as_str().unwrap().starts_with("1"));
     assert!(ov["ustr_price_usd"].is_null());
 
-    // Manipulate the actual canonical pair reserve ratio, never a duplicate pool.
+    // A large reserve move is published as the new live spot. It is never treated
+    // as an error: consumers see the moved price for the same fresh observation.
     sqlx::query("UPDATE pair_reserves SET reserve_0=125000000,snapshot_at=NOW() WHERE pair_id=$1")
         .bind(deep)
         .execute(&pool)
         .await
         .unwrap();
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+    let moved = hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .unwrap();
-    let rejected: serde_json::Value = server.get("/api/v1/hub-prices/ust1").await.json();
-    assert!(rejected["price_usd"].is_null());
-    assert_eq!(rejected["quality"], "divergent");
-    assert_eq!(
-        rejected["divergence_pct"]
-            .as_str()
-            .unwrap()
-            .parse::<f64>()
-            .unwrap(),
-        100.0
+    let moved_ust1 = moved
+        .ust1
+        .as_ref()
+        .expect("price movement must not suppress UST1");
+    assert!(
+        moved_ust1.price_usd > bd("1.5"),
+        "published spot must reflect the moved reserves, got {}",
+        moved_ust1.price_usd
     );
+    let published: serde_json::Value = server.get("/api/v1/hub-prices/ust1").await.json();
+    assert!(!published["price_usd"].is_null());
+    assert_eq!(published["quality"], "bounded_spot");
     assert!(hub_prices::load_quote_usd(&pool)
         .await
         .unwrap()
         .ust1
-        .is_none());
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, None)
-        .await
-        .unwrap();
-    let baseline: BigDecimal =
-        sqlx::query_scalar("SELECT reference_ratio FROM hub_price_references WHERE ticker='ust1'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    assert_eq!(
-        baseline,
-        bd("200"),
-        "outage must not reset reference toward attack"
-    );
+        .is_some());
 
     // Restore canonical reserves; independent depth below $100 still cannot publish.
     sqlx::query("UPDATE pair_reserves SET reserve_0=50000000,reserve_1=10000000000,snapshot_at=NOW() WHERE pair_id=$1")

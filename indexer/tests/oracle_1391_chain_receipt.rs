@@ -40,7 +40,7 @@ async fn apply_stage(
 }
 
 #[tokio::test]
-async fn real_canonical_reserve_shift_and_lp_withdrawal_are_contained() {
+async fn real_canonical_reserve_shift_publishes_live_and_lp_withdrawal_fails_on_depth_loss() {
     let Ok(path) = std::env::var("ORACLE1391_CHAIN_RECEIPT") else {
         eprintln!("SKIP: set ORACLE1391_CHAIN_RECEIPT to a localterra-oracle-1391.py receipt");
         return;
@@ -105,38 +105,23 @@ async fn real_canonical_reserve_shift_and_lp_withdrawal_are_contained() {
         .await
         .unwrap();
     assert!(
-        boot.ust1.is_none(),
-        "bootstrap cannot immediately claim healthy spot"
-    );
-    // Advance only the reference fixture clock; reserve amounts remain actual chain receipts.
-    sqlx::query(
-        "UPDATE hub_price_references SET pending_since=pending_since-INTERVAL '61 seconds'",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    apply_stage(&pool, &stages[0], &pairs, &assets).await;
-    let before = hub_prices::refresh_hub_prices(&pool, &cfg, Some(&oracle), None)
-        .await
-        .unwrap();
-    assert!(
-        before.ust1.is_some(),
-        "healthy control must confirm canonical pool"
+        boot.ust1.is_some(),
+        "fresh canonical reserve publishes immediately"
     );
     assert!(
-        before.ustr.is_some(),
-        "healthy direct cUSTC-quoted USTR control must confirm"
+        boot.ustr.is_some(),
+        "fresh direct cUSTC-quoted USTR publishes immediately"
     );
     apply_stage(&pool, &stages[1], &pairs, &assets).await;
-    let manipulated = hub_prices::refresh_hub_prices(&pool, &cfg, Some(&oracle), None)
+    let moved = hub_prices::refresh_hub_prices(&pool, &cfg, Some(&oracle), None)
         .await
         .unwrap();
     assert!(
-        manipulated.ust1.is_none(),
-        "actual canonical reserve shift must suppress UST1"
+        moved.ust1.is_some(),
+        "a reserve shift publishes the new live spot, never suppresses it"
     );
     assert!(
-        manipulated.ustr.is_some(),
+        moved.ustr.is_some(),
         "independent cUSTC-quoted USTR remains usable"
     );
     apply_stage(&pool, &stages[2], &pairs, &assets).await;
@@ -146,6 +131,6 @@ async fn real_canonical_reserve_shift_and_lp_withdrawal_are_contained() {
     assert!(withdrawn.ust1.is_none());
     assert!(
         withdrawn.ustr.is_none(),
-        "depth loss cannot switch to manipulated UST1 anchor"
+        "depth loss still fails closed; movement alone does not"
     );
 }

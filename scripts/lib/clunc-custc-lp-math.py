@@ -523,7 +523,7 @@ def _fetch_oracles_inner(inp: dict[str, Any]) -> dict[str, Any]:
         if hub_px in (None, ""):
             errors.append(f"hub-prices {ticker} missing")
             continue
-        if row.get("quality") != "external_quorum" or row.get("policy") != "hub-fixed-reference-v1":
+        if row.get("quality") != "external_quorum" or row.get("policy") != "live-reserve-spot-v1":
             errors.append(f"hub-prices {ticker} lacks fresh external source quality")
         ttl = row.get("max_age_seconds")
         if type(ttl) is not int or ttl <= 0 or age_seconds(row.get("as_of")) > min(ttl, max_age, 300):

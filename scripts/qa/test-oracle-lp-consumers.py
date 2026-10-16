@@ -40,7 +40,7 @@ def quote(ticker):
 def hub():
     return {"prices": [
         {"ticker": ticker, "price_usd": px, "quality": "external_quorum",
-         "policy": "hub-fixed-reference-v1", "as_of": datetime.now(timezone.utc).isoformat(),
+         "policy": "live-reserve-spot-v1", "as_of": datetime.now(timezone.utc).isoformat(),
          "max_age_seconds": 300, "asset_address": address}
         for ticker, px, address in (("custc", "0.005", "synthetic-custc"),
                                     ("lunc", "0.00005", "synthetic-clunc"))
