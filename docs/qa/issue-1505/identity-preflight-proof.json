@@ -1,0 +1,354 @@
+{
+  "all_owned_jobs_stopped": true,
+  "baseline_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "commands": {
+    "focused": "cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote::identity_preflight_tests -- --nocapture",
+    "whole_wrapper": "cargo test --locked --manifest-path indexer/Cargo.toml --lib api::local_wrapper_quote -- --nocapture"
+  },
+  "controls": [
+    "Uniform permitted identity latency: actual OLD unavailable versus fixed useful within original poll.",
+    "Healthy actual observe_config14\u219213 identity/attempt count with all13data and both floor capabilities.",
+    "Old positive metadata then fresh wrong/malformed/503 identity: zero additional data and no wrapper publication.",
+    "Wrong preferred provider plus fresh qualified alternative: rejected provider serves no data, successful provider freshly attests all13data reads.",
+    "Positive identity resumed after original parent expiry and explicit owned cancellation: no data transport poll, no provider failure, exactly one neutral closed-provider cancellation.",
+    "Mapper and treasury pauses remain authoritative Revoked results."
+  ],
+  "envelope": {
+    "cargo_build_jobs": 2,
+    "cargo_target": "indexer/target",
+    "database_or_production_requests": 0,
+    "fresh_process_per_run": true,
+    "other_owned_heavy_jobs_during_runs": false,
+    "rust_min_stack": "unset",
+    "rust_test_threads": "unset",
+    "test_thread_override": false
+  },
+  "final_sources": {
+    "indexer/src/api/local_wrapper_quote.rs": "b109d7555f04c4412efa9999c69b9f9448b10974d73120c140d541a20d4b02cd",
+    "indexer/src/api/local_wrapper_quote/identity_preflight_tests.rs": "cdbd127aa8cd1cbb33de5254efd23ef4ffb5b81baccf5fdd18b1842561e2f9fc"
+  },
+  "healthy_count_result": {
+    "cancellations": 0,
+    "failures": 0,
+    "fixed_data_wire": 13,
+    "fixed_identity_wire": 13,
+    "fixed_provider_attempts": 13,
+    "old_data_wire": 13,
+    "old_identity_wire": 14,
+    "old_provider_attempts": 14,
+    "qualification": "Single healthy provider; failover retains original per-read attempts, so this is not a universal wire-count cap. Standalone old probe did not consume ingestion pacing, so no guaranteed250ms pacing savings is claimed."
+  },
+  "implementation": {
+    "authority_path": [
+      "query_contract_bounded",
+      "query_contract_request",
+      "get_at_height_with_body_limit",
+      "get_with_constraints",
+      "get_bounded_attempts",
+      "query_endpoint",
+      "attest_endpoint before data transport"
+    ],
+    "change": "Remove the extra serial require_verified_chain request before MapperConfig. Actual data attempts retain fresh selected-endpoint attestation.",
+    "floor_fixture_update": "Existing parent-deadline test first-floor identity ordinal13\u219212 after eleven required data identities; same50ms body delay, two-second phase and every assertion retained.",
+    "production_runtime_path_changed": "observe_inner in indexer/src/api/local_wrapper_quote.rs only",
+    "retained_safety": [
+      "expected configured chain and client-lifetime namespace",
+      "fresh actual endpoint identity on every attempt and alternative",
+      "typed identity/integrity/quarantine precedence",
+      "pre/post-attestation original caller and own-attempt guards",
+      "known mapper/treasury pause revocation",
+      "scoped original poll timestamp and expiry",
+      "closed-provider neutral caller cancellation; intrinsic failure rules unchanged"
+    ],
+    "test_only_compatibility": "ReadSlot::Chain and its name arm are cfg(test) for immutable legacy router controls; historical fourteen-slot diagnostics remain compatible."
+  },
+  "issue": 1505,
+  "kind": "redundant_wrapper_identity_preflight",
+  "limitations": [
+    "Historical M9 poll199 identity/provider durations and read order are unrecorded; this controlled defect is not retrospective proof of that exact provider cause.",
+    "Fixed slow fixture publication still reaches7901\u20137902ms while waiting for optional capability timeout; settlement required phase completes around7482\u20137494ms. No publication deadline or freshness extension is introduced.",
+    "The first two live RETEST failures preceding a prior quote expiry do not establish backend eligibility or safe old-view retention. No retention workaround was added.",
+    "Live availability, new deployment, hosted CI and final issue closure are not established by these source-only results."
+  ],
+  "result": "PASS",
+  "review": {
+    "browser_agent": "clean independent safety review",
+    "parent": "clean",
+    "telemetry": "clean independent full hashes"
+  },
+  "runs": [
+    {
+      "availability_metrics": [
+        {
+          "cancellations": 2,
+          "critical_ready_ms": 7903,
+          "data_wire": 9,
+          "elapsed_ms": 7903,
+          "failures": 0,
+          "identity_wire": 12,
+          "logical_peak": 2,
+          "mapper_floor": false,
+          "mappings": 2,
+          "provider_attempts": 12,
+          "router": true,
+          "tax": true,
+          "treasury_floor": false,
+          "uluna_cap": false,
+          "useful": false,
+          "uusd_cap": false
+        }
+      ],
+      "exit_code": 101,
+      "healthy_metrics": [],
+      "label": "old",
+      "log_basename": "dex-1505-identity-preflight-old.log",
+      "log_sha256": "716bc672e781c2af45637248db52cb488d1044436cb25f89efbfe0f4476e808a",
+      "result": {
+        "elapsed_seconds": 7.95,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Baseline runtime, cfgtest module only; actual required cap availability loss."
+    },
+    {
+      "availability_metrics": [],
+      "exit_code": 101,
+      "healthy_metrics": [
+        {
+          "cancellations": 0,
+          "data_wire": 13,
+          "failures": 0,
+          "identity_wire": 14,
+          "provider_attempts": 14,
+          "useful": true
+        }
+      ],
+      "label": "healthy-old",
+      "log_basename": "dex-1505-identity-preflight-healthy-old.log",
+      "log_sha256": "b79d0569f60cf1ad79e8fbf07a60e067124fa7591b34ff336372590f6558dd93",
+      "result": {
+        "elapsed_seconds": 3.74,
+        "failed": 1,
+        "ignored": 0,
+        "outcome": "FAILED",
+        "passed": 0
+      },
+      "scope": "Baseline healthy result remained useful with13data/14identity/14attempts; failure only on new desired identity-count assertion."
+    },
+    {
+      "availability_metrics": [
+        {
+          "cancellations": 2,
+          "critical_ready_ms": 7482,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "identity_wire": 13,
+          "logical_peak": 2,
+          "mapper_floor": false,
+          "mappings": 2,
+          "provider_attempts": 13,
+          "router": true,
+          "tax": true,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 0,
+      "healthy_metrics": [
+        {
+          "cancellations": 0,
+          "data_wire": 13,
+          "failures": 0,
+          "identity_wire": 13,
+          "provider_attempts": 13,
+          "useful": true
+        }
+      ],
+      "label": "focused-first",
+      "log_basename": "dex-1505-identity-preflight-focused-first.log",
+      "log_sha256": "1a2ac7782e201e4c5e3a573fe9715928b5b598f70819a0768cd66880d1fb1490",
+      "result": {
+        "elapsed_seconds": 8.16,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 6
+      },
+      "scope": "Final unchanged uniform identity fixture plus all six authority/availability controls."
+    },
+    {
+      "availability_metrics": [
+        {
+          "cancellations": 2,
+          "critical_ready_ms": 7483,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "identity_wire": 13,
+          "logical_peak": 2,
+          "mapper_floor": false,
+          "mappings": 2,
+          "provider_attempts": 13,
+          "router": true,
+          "tax": true,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 0,
+      "healthy_metrics": [
+        {
+          "cancellations": 0,
+          "data_wire": 13,
+          "failures": 0,
+          "identity_wire": 13,
+          "provider_attempts": 13,
+          "useful": true
+        }
+      ],
+      "label": "focused-retest",
+      "log_basename": "dex-1505-identity-preflight-focused-retest.log",
+      "log_sha256": "963929bf44b9136c8e6054a999ac9a3bd6f57832a018bd4fda9e4a0314e785f8",
+      "result": {
+        "elapsed_seconds": 8.11,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 6
+      },
+      "scope": "Same final sources/fixtures, fresh process."
+    },
+    {
+      "availability_metrics": [
+        {
+          "cancellations": 2,
+          "critical_ready_ms": 7494,
+          "data_wire": 11,
+          "elapsed_ms": 7901,
+          "failures": 0,
+          "identity_wire": 13,
+          "logical_peak": 2,
+          "mapper_floor": false,
+          "mappings": 2,
+          "provider_attempts": 13,
+          "router": true,
+          "tax": true,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 0,
+      "healthy_metrics": [
+        {
+          "cancellations": 0,
+          "data_wire": 13,
+          "failures": 0,
+          "identity_wire": 13,
+          "provider_attempts": 13,
+          "useful": true
+        }
+      ],
+      "label": "wrapper-first",
+      "log_basename": "dex-1505-identity-preflight-wrapper-first.log",
+      "log_sha256": "a0e77ddcd89a8cf51de5ccfed248789dd7453c858170bae5bb2700ef9cda61d8",
+      "result": {
+        "elapsed_seconds": 18.51,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 57
+      },
+      "scope": "Entire wrapper module; default parallel harness and stack."
+    },
+    {
+      "availability_metrics": [
+        {
+          "cancellations": 2,
+          "critical_ready_ms": 7483,
+          "data_wire": 11,
+          "elapsed_ms": 7902,
+          "failures": 0,
+          "identity_wire": 13,
+          "logical_peak": 2,
+          "mapper_floor": false,
+          "mappings": 2,
+          "provider_attempts": 13,
+          "router": true,
+          "tax": true,
+          "treasury_floor": false,
+          "uluna_cap": true,
+          "useful": true,
+          "uusd_cap": true
+        }
+      ],
+      "exit_code": 0,
+      "healthy_metrics": [
+        {
+          "cancellations": 0,
+          "data_wire": 13,
+          "failures": 0,
+          "identity_wire": 13,
+          "provider_attempts": 13,
+          "useful": true
+        }
+      ],
+      "label": "wrapper-retest",
+      "log_basename": "dex-1505-identity-preflight-wrapper-retest.log",
+      "log_sha256": "ce6718cc67ec26fb9595b1ce0fd83be3d241a98de0d104b9e70eade819c9345b",
+      "result": {
+        "elapsed_seconds": 18.64,
+        "failed": 0,
+        "ignored": 0,
+        "outcome": "ok",
+        "passed": 57
+      },
+      "scope": "Same final sources, entire module, fresh process."
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Focused source verification only; parent owns broad source checks, CI, deployment and live acceptance.",
+  "source_frozen": true,
+  "unchanged_bounds": {
+    "aggregate_ingestion_rps": 4,
+    "cadence_ms": 10000,
+    "config_ttl_ms": 180000,
+    "field_splicing_or_retention_added": false,
+    "global_logical_permits": 2,
+    "healthy_data_read_ceiling": 13,
+    "ingestion_permits": 2,
+    "lcd_total_ms": 4000,
+    "new_request_rpc_added": false,
+    "original_native_ttl_ms": 20000,
+    "original_publication_margin_ms": 7900,
+    "outer_poll_ms": 8000,
+    "provider_attempt_ms": 2500,
+    "provider_policy_changed": false
+  },
+  "unchanged_sources": {
+    "indexer/src/api/local_wrapper_quote/borrowing_tests.rs": "821795193e63a14b299fe169fb519ba8aed7328daadaf4f76b2a9639e3d7ac71",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs": "38ba44108bc9d27a96fda8a241961e617fe0b51fde563db1472fa716bb0611e5",
+    "indexer/src/api/local_wrapper_quote/router_priority_tests.rs": "d6307d5c05b669194e3cadb43d2b9fcade6c353eb6a3fb71334306e7096019fe",
+    "indexer/src/lcd/chain_identity.rs": "c9d9633488710a5eeeca06cf2d2132ddd7356a55bc97684ba652c03b6300bbe4",
+    "indexer/src/lcd/mod.rs": "b8338acea42e6fd8169916fe5d6fbac834fd6c29a352ba9e03bddcc875ef14f5",
+    "indexer/src/lcd/provider_pool.rs": "5c9e1e19ac16dab455a6d3960255f4eb59fbc5feec21c53195f0a5a35784c59f"
+  },
+  "uniform_availability_fixture": {
+    "data_response_delay_ms": 100,
+    "fixed_healthy_wire_claim": "Slow fixture has11successful data wire reads and13identity/attempt admissions;13successful data/identity counts belong only to separate fast healthy fixture.",
+    "fixed_optional_behavior": "Optional floor identity work is neutrally canceled at original margin. Capabilities remain UNKNOWN, so direct-floor support is not claimed.",
+    "identity_delay_applies_to": "Every actual identity request, including optional floor identities; never ordinal dependent.",
+    "identity_response_delay_ms": 1100,
+    "old_required_loss": "Both mappings present but both caps unavailable at original margin; differs from historical poll199 missing UUSD rate/mapping.",
+    "phase5_clock": "Observed transition after required mapping+bank join, before optional floors. It is not a publication, router-completion, browser or first-useful-paint clock.",
+    "runtime_and_fixture_parameters_unchanged_between_old_and_fixed": true
+  }
+}

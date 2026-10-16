@@ -1,0 +1,1513 @@
+{
+  "issue": 1505,
+  "utc": "2026-10-16T04:51:13.252768+00:00",
+  "read_only": true,
+  "read_budget": 18,
+  "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed enums and bounded producer-read/alternative-admission diagnostics; no log bodies, actors or endpoints exported; LCD-future polling does not prove a wire attempt and pattern counts do not prove causality",
+  "loki": {
+    "status": "PASS",
+    "window_seconds": 900,
+    "pattern_counts": {
+      "wrapper_completed": 90.0,
+      "wrapper_unavailable": 0.0,
+      "wrapper_read_unavailable": 178.0,
+      "stale_prerequisite": 0.0,
+      "reference_committed": 225.0,
+      "reference_woken": 90.0,
+      "provider_pressure": 3.0,
+      "historical_height": 2.0,
+      "http_429": 232.0,
+      "deadline": 74.0,
+      "admission_budget": 7.0,
+      "errors": 0.0
+    },
+    "bounded_sample_lines": 300,
+    "typed_fields": {
+      "phase": {
+        "reference_marks": 112,
+        "reference_schedule": 45,
+        "floor_capability": 90,
+        "data": 8
+      },
+      "reason": {
+        "contract_rejected": 87,
+        "capacity": 8,
+        "deadline": 3
+      },
+      "direction": {}
+    },
+    "candidate_stale_witnesses": [],
+    "producer_read_witnesses": [
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5879,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 877,
+        "poll_id": 144,
+        "sample_timestamp_ms": 1792126280700
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5642,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 639,
+        "poll_id": 144,
+        "sample_timestamp_ms": 1792126280462
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7164,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 766,
+        "poll_id": 143,
+        "sample_timestamp_ms": 1792126271984
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6930,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 532,
+        "poll_id": 143,
+        "sample_timestamp_ms": 1792126271751
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5763,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 765,
+        "poll_id": 142,
+        "sample_timestamp_ms": 1792126260584
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5537,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 539,
+        "poll_id": 142,
+        "sample_timestamp_ms": 1792126260358
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5654,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 685,
+        "poll_id": 141,
+        "sample_timestamp_ms": 1792126250473
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5480,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 512,
+        "poll_id": 141,
+        "sample_timestamp_ms": 1792126250300
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5150,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 857,
+        "poll_id": 140,
+        "sample_timestamp_ms": 1792126239970
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4808,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 516,
+        "poll_id": 140,
+        "sample_timestamp_ms": 1792126239629
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6157,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 717,
+        "poll_id": 139,
+        "sample_timestamp_ms": 1792126230979
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5952,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 512,
+        "poll_id": 139,
+        "sample_timestamp_ms": 1792126230772
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6564,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 577,
+        "poll_id": 138,
+        "sample_timestamp_ms": 1792126221384
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6304,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 318,
+        "poll_id": 138,
+        "sample_timestamp_ms": 1792126221124
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "deadline",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7900,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 622,
+        "poll_id": 137,
+        "sample_timestamp_ms": 1792126212720
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7796,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 518,
+        "poll_id": 137,
+        "sample_timestamp_ms": 1792126212616
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5807,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1020,
+        "poll_id": 136,
+        "sample_timestamp_ms": 1792126200628
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5246,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 458,
+        "poll_id": 136,
+        "sample_timestamp_ms": 1792126200067
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7538,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 688,
+        "poll_id": 135,
+        "sample_timestamp_ms": 1792126192358
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7297,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 447,
+        "poll_id": 135,
+        "sample_timestamp_ms": 1792126192117
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5073,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 698,
+        "poll_id": 134,
+        "sample_timestamp_ms": 1792126179897
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4713,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 337,
+        "poll_id": 134,
+        "sample_timestamp_ms": 1792126179534
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6036,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 874,
+        "poll_id": 133,
+        "sample_timestamp_ms": 1792126170857
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5525,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 363,
+        "poll_id": 133,
+        "sample_timestamp_ms": 1792126170345
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6959,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1252,
+        "poll_id": 132,
+        "sample_timestamp_ms": 1792126161779
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6269,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 562,
+        "poll_id": 132,
+        "sample_timestamp_ms": 1792126161090
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6305,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 546,
+        "poll_id": 131,
+        "sample_timestamp_ms": 1792126151126
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6082,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 322,
+        "poll_id": 131,
+        "sample_timestamp_ms": 1792126150903
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5815,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 759,
+        "poll_id": 130,
+        "sample_timestamp_ms": 1792126140635
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5578,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 522,
+        "poll_id": 130,
+        "sample_timestamp_ms": 1792126140398
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5466,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 544,
+        "poll_id": 129,
+        "sample_timestamp_ms": 1792126130287
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5212,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 290,
+        "poll_id": 129,
+        "sample_timestamp_ms": 1792126130032
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6122,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 782,
+        "poll_id": 128,
+        "sample_timestamp_ms": 1792126120943
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5859,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 519,
+        "poll_id": 128,
+        "sample_timestamp_ms": 1792126120679
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "deadline",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6120,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 2000,
+        "poll_id": 127,
+        "sample_timestamp_ms": 1792126110940
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4678,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 559,
+        "poll_id": 127,
+        "sample_timestamp_ms": 1792126109499
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "deadline",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7285,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 2000,
+        "poll_id": 126,
+        "sample_timestamp_ms": 1792126102106
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5798,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 514,
+        "poll_id": 126,
+        "sample_timestamp_ms": 1792126100619
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5394,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 935,
+        "poll_id": 125,
+        "sample_timestamp_ms": 1792126090214
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4823,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 363,
+        "poll_id": 125,
+        "sample_timestamp_ms": 1792126089643
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5639,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 862,
+        "poll_id": 124,
+        "sample_timestamp_ms": 1792126080460
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5528,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 750,
+        "poll_id": 124,
+        "sample_timestamp_ms": 1792126080349
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7471,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 907,
+        "poll_id": 123,
+        "sample_timestamp_ms": 1792126072290
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7105,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 541,
+        "poll_id": 123,
+        "sample_timestamp_ms": 1792126071925
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5455,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 777,
+        "poll_id": 122,
+        "sample_timestamp_ms": 1792126060276
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5170,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 491,
+        "poll_id": 122,
+        "sample_timestamp_ms": 1792126059990
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7004,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1195,
+        "poll_id": 121,
+        "sample_timestamp_ms": 1792126051825
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6144,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 335,
+        "poll_id": 121,
+        "sample_timestamp_ms": 1792126050966
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7406,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 797,
+        "poll_id": 120,
+        "sample_timestamp_ms": 1792126042226
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6861,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 251,
+        "poll_id": 120,
+        "sample_timestamp_ms": 1792126041681
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5444,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 730,
+        "poll_id": 119,
+        "sample_timestamp_ms": 1792126030265
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5048,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 334,
+        "poll_id": 119,
+        "sample_timestamp_ms": 1792126029869
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5413,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 756,
+        "poll_id": 118,
+        "sample_timestamp_ms": 1792126020234
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5157,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 499,
+        "poll_id": 118,
+        "sample_timestamp_ms": 1792126019978
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7281,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1844,
+        "poll_id": 117,
+        "sample_timestamp_ms": 1792126012101
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6491,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1054,
+        "poll_id": 117,
+        "sample_timestamp_ms": 1792126011311
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5976,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1076,
+        "poll_id": 116,
+        "sample_timestamp_ms": 1792126000796
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5764,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 864,
+        "poll_id": 116,
+        "sample_timestamp_ms": 1792126000585
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7819,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 757,
+        "poll_id": 115,
+        "sample_timestamp_ms": 1792125992640
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7567,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 505,
+        "poll_id": 115,
+        "sample_timestamp_ms": 1792125992388
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5479,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 695,
+        "poll_id": 114,
+        "sample_timestamp_ms": 1792125980300
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5115,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 331,
+        "poll_id": 114,
+        "sample_timestamp_ms": 1792125979936
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6026,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 760,
+        "poll_id": 113,
+        "sample_timestamp_ms": 1792125970846
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5781,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 515,
+        "poll_id": 113,
+        "sample_timestamp_ms": 1792125970601
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6530,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 761,
+        "poll_id": 112,
+        "sample_timestamp_ms": 1792125961351
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6288,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 519,
+        "poll_id": 112,
+        "sample_timestamp_ms": 1792125961109
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6777,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 703,
+        "poll_id": 111,
+        "sample_timestamp_ms": 1792125951597
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6565,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 491,
+        "poll_id": 111,
+        "sample_timestamp_ms": 1792125951385
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6074,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 929,
+        "poll_id": 110,
+        "sample_timestamp_ms": 1792125940894
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5829,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 685,
+        "poll_id": 110,
+        "sample_timestamp_ms": 1792125940650
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5427,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 762,
+        "poll_id": 109,
+        "sample_timestamp_ms": 1792125930247
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5190,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 525,
+        "poll_id": 109,
+        "sample_timestamp_ms": 1792125930011
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5435,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1547,
+        "poll_id": 108,
+        "sample_timestamp_ms": 1792125920255
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4277,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 389,
+        "poll_id": 108,
+        "sample_timestamp_ms": 1792125919099
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5644,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1005,
+        "poll_id": 107,
+        "sample_timestamp_ms": 1792125910464
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5400,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 761,
+        "poll_id": 107,
+        "sample_timestamp_ms": 1792125910221
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4978,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1108,
+        "poll_id": 106,
+        "sample_timestamp_ms": 1792125899799
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4516,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 646,
+        "poll_id": 106,
+        "sample_timestamp_ms": 1792125899336
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5465,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 706,
+        "poll_id": 105,
+        "sample_timestamp_ms": 1792125890285
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5110,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 351,
+        "poll_id": 105,
+        "sample_timestamp_ms": 1792125889930
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4823,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 773,
+        "poll_id": 104,
+        "sample_timestamp_ms": 1792125879643
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4570,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 521,
+        "poll_id": 104,
+        "sample_timestamp_ms": 1792125879391
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5368,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 750,
+        "poll_id": 103,
+        "sample_timestamp_ms": 1792125870189
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5138,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 519,
+        "poll_id": 103,
+        "sample_timestamp_ms": 1792125869958
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5661,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1006,
+        "poll_id": 102,
+        "sample_timestamp_ms": 1792125860482
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5221,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 566,
+        "poll_id": 102,
+        "sample_timestamp_ms": 1792125860041
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5011,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 1023,
+        "poll_id": 101,
+        "sample_timestamp_ms": 1792125849831
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4814,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 826,
+        "poll_id": 101,
+        "sample_timestamp_ms": 1792125849635
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6611,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 744,
+        "poll_id": 100,
+        "sample_timestamp_ms": 1792125841432
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6392,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 524,
+        "poll_id": 100,
+        "sample_timestamp_ms": 1792125841212
+      }
+    ],
+    "scheduled_alternative_witnesses": [
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3810,
+        "sample_timestamp_ms": 1792126260303
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3999,
+        "sample_timestamp_ms": 1792126228720
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 1105,
+        "sample_timestamp_ms": 1792126082061
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3670,
+        "sample_timestamp_ms": 1792126069050
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3578,
+        "sample_timestamp_ms": 1792126050911
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3923,
+        "sample_timestamp_ms": 1792126039225
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 3604,
+        "sample_timestamp_ms": 1792125989691
+      },
+      {
+        "phase": "data",
+        "reason": "capacity",
+        "attempt_count": 1,
+        "unattempted_capacity_count": 1,
+        "original_remaining_ms": 5069,
+        "sample_timestamp_ms": 1792125949957
+      }
+    ],
+    "wrapper_dispatch_witnesses": [
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 144,
+        "sample_timestamp_ms": 1792126280700
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 143,
+        "sample_timestamp_ms": 1792126271984
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 142,
+        "sample_timestamp_ms": 1792126260584
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 141,
+        "sample_timestamp_ms": 1792126250473
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 140,
+        "sample_timestamp_ms": 1792126239970
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 139,
+        "sample_timestamp_ms": 1792126230979
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 138,
+        "sample_timestamp_ms": 1792126221384
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 137,
+        "sample_timestamp_ms": 1792126212720
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 136,
+        "sample_timestamp_ms": 1792126200628
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 135,
+        "sample_timestamp_ms": 1792126192358
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 134,
+        "sample_timestamp_ms": 1792126179897
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 133,
+        "sample_timestamp_ms": 1792126170857
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 132,
+        "sample_timestamp_ms": 1792126161779
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 131,
+        "sample_timestamp_ms": 1792126151126
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 130,
+        "sample_timestamp_ms": 1792126140635
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 129,
+        "sample_timestamp_ms": 1792126130287
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 128,
+        "sample_timestamp_ms": 1792126120943
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 127,
+        "sample_timestamp_ms": 1792126110940
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 126,
+        "sample_timestamp_ms": 1792126102106
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 125,
+        "sample_timestamp_ms": 1792126090214
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 124,
+        "sample_timestamp_ms": 1792126080460
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 123,
+        "sample_timestamp_ms": 1792126072290
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 122,
+        "sample_timestamp_ms": 1792126060276
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 121,
+        "sample_timestamp_ms": 1792126051825
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 120,
+        "sample_timestamp_ms": 1792126042226
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 119,
+        "sample_timestamp_ms": 1792126030265
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 118,
+        "sample_timestamp_ms": 1792126020234
+      },
+      {
+        "native_borrowed_reads": 2,
+        "poll_id": 117,
+        "sample_timestamp_ms": 1792126012101
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 116,
+        "sample_timestamp_ms": 1792126000796
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 115,
+        "sample_timestamp_ms": 1792125992640
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 114,
+        "sample_timestamp_ms": 1792125980300
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 113,
+        "sample_timestamp_ms": 1792125970846
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 112,
+        "sample_timestamp_ms": 1792125961351
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 111,
+        "sample_timestamp_ms": 1792125951597
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 110,
+        "sample_timestamp_ms": 1792125940895
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 109,
+        "sample_timestamp_ms": 1792125930247
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 108,
+        "sample_timestamp_ms": 1792125920255
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 107,
+        "sample_timestamp_ms": 1792125910464
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 106,
+        "sample_timestamp_ms": 1792125899799
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 105,
+        "sample_timestamp_ms": 1792125890285
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 104,
+        "sample_timestamp_ms": 1792125879643
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 103,
+        "sample_timestamp_ms": 1792125870189
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 102,
+        "sample_timestamp_ms": 1792125860482
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 101,
+        "sample_timestamp_ms": 1792125849831
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 100,
+        "sample_timestamp_ms": 1792125841432
+      }
+    ],
+    "request_correlation": {}
+  },
+  "prometheus": {
+    "status": "SKIP",
+    "reason": "no_prometheus_datasource_provisioned"
+  },
+  "read_count": 16,
+  "overall": "PASS WITH SKIPS"
+}

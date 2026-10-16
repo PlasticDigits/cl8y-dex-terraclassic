@@ -1,0 +1,89 @@
+{
+  "issue": 1505,
+  "revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "backend_revisions": [
+    "4c21b49025f29c2862dedc26c2308ce3295e332a",
+    "4c21b49025f29c2862dedc26c2308ce3295e332a"
+  ],
+  "utc_start": "2026-10-16T04:31:43.232962+00:00",
+  "utc_end": "2026-10-16T04:34:54.282141+00:00",
+  "read_only": true,
+  "signing": false,
+  "duration_seconds": 190.0,
+  "interval_seconds": 2.0,
+  "requests": 148,
+  "socket_budget_ms": 500,
+  "require_correlation": true,
+  "measurement_clock": "original_request_start_through_body_parse_and_useful_validation; failed attempts retained; no retries",
+  "initialized_useful_timing": {
+    "samples": 145,
+    "p50_ms": 294.407,
+    "p95_ms": 296.133,
+    "p99_ms": 303.292,
+    "max_ms": 304.523
+  },
+  "initialized_useful_timing_by_direction": {
+    "USTC->CL8Y": {
+      "samples": 72,
+      "p50_ms": 294.434,
+      "p95_ms": 296.165,
+      "p99_ms": 300.74,
+      "max_ms": 300.74
+    },
+    "CL8Y->USTC": {
+      "samples": 73,
+      "p50_ms": 294.338,
+      "p95_ms": 296.133,
+      "p99_ms": 304.523,
+      "max_ms": 304.523
+    }
+  },
+  "counts": {
+    "executable": 146
+  },
+  "sampled_recoveries": [],
+  "unrecovered_directions": [],
+  "failures": [],
+  "overall": "PASS",
+  "limits": [
+    "two affected anonymous native directions at fixed original exact input; no broad matrix or signing",
+    "sampling recovery intervals are polling observations, not original browser-input latency",
+    "response validation rejects expired original observations; display expiry and browser budget require the independent browser observer",
+    "request IDs correlate server logs only; provider cause requires separate bounded scheduled diagnostics"
+  ],
+  "source_receipt_sha256": "766fd78a1a1aff4d27143d5a279d632101eebec31b87b5eddbadb8fdc256083c",
+  "scope": "Sanitized socket FIRST summary only; original selected sample receipt retained privately by hash. No socket RETEST was performed after browser RETEST failed.",
+  "selected_responses": 146,
+  "selected_useful": 146,
+  "selected_unavailable": 0,
+  "cold_new_transport_samples": [
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 0,
+      "utc_start": "2026-10-16T04:31:44.284800+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "e4d6b2b796015121",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792125094820,
+        "expires_at_ms": 1792125114820,
+        "age_at_validation_ms": 10344
+      },
+      "transport": "new",
+      "elapsed_ms": 880.327,
+      "elapsed_from_run_start_ms": 1932.186,
+      "socket_budget_pass": false
+    }
+  ],
+  "cold_new_transport_scope": "880.327ms is a real useful cold new-transport response outside the initialized500ms criterion; its socket_budget_pass:false remains visible and is not relabeled initialized success.",
+  "initialized_samples": 145,
+  "initialized_samples_within_budget": 145,
+  "individual_initialized_samples_omitted": 145,
+  "socket_retest_performed": false
+}

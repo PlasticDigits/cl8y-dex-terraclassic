@@ -16,6 +16,8 @@ use super::AppState;
 mod borrowing_tests;
 mod dispatch;
 #[cfg(test)]
+mod identity_preflight_tests;
+#[cfg(test)]
 mod router_priority_tests;
 use dispatch::ObservationDispatch;
 const SCALE: u128 = 1_000_000_000_000_000_000;
@@ -207,6 +209,7 @@ fn observation_reason(error: &LcdError) -> &'static str {
 /// dispatch or diagnostic labels.
 #[derive(Clone, Copy)]
 enum ReadSlot {
+    #[cfg(test)]
     Chain,
     MapperConfig,
     RouterConfig,
@@ -225,6 +228,7 @@ enum ReadSlot {
 impl ReadSlot {
     fn name(self) -> &'static str {
         match self {
+            #[cfg(test)]
             Self::Chain => "chain",
             Self::MapperConfig => "mapper_config",
             Self::RouterConfig => "router_config",
@@ -833,13 +837,8 @@ async fn observe_inner(
     phase: &AtomicU8,
     observed_at_ms: i64,
 ) -> WrapperObservation {
-    if reads
-        .read(ReadSlot::Chain, reads.lcd.require_verified_chain())
-        .await
-        .is_none()
-    {
-        return WrapperObservation::Unavailable;
-    }
+    // The mapper query freshly attests its selected endpoint before data I/O;
+    // a separate identity-only request adds no authority to this observation.
     phase.store(1, Ordering::Relaxed);
     let Some(config) = reads
         .read(
@@ -1332,9 +1331,11 @@ mod tests {
         Mock::given(path("/cosmos/base/tendermint/v1beta1/node_info"))
             .respond_with(move |_: &wiremock::Request| {
                 let ordinal = observed.fetch_add(1, Ordering::SeqCst) + 1;
+                // Eleven required data identities precede the first floor;
+                // no separate identity-only preflight precedes those reads.
                 ResponseTemplate::new(200)
                     .set_body_json(json!({"default_node_info":{"network":"columbus-5"}}))
-                    .set_delay(if ordinal >= 13 {
+                    .set_delay(if ordinal >= 12 {
                         Duration::from_millis(50)
                     } else {
                         Duration::ZERO
@@ -1345,7 +1346,7 @@ mod tests {
             .await;
         let mut work = Box::pin(observe_config(&lcd, "terra1mapper", Some("terra1router")));
         let floor_identity = async {
-            while identity_calls.load(Ordering::SeqCst) < 13 {
+            while identity_calls.load(Ordering::SeqCst) < 12 {
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
         };

@@ -1,0 +1,36 @@
+{
+  "issue": 1505,
+  "scope": "Actual independent immutable CI policy deployment; application deployment and new-head CI remain separate",
+  "overall": "PASS",
+  "recorded_at": "2026-10-16T03:59:02.215340+00:00",
+  "expected_revision": "1b43914eb74c42b4fb37751ebacb4e7f71a06b17",
+  "previous_source_pin": "60b6aa7418e4e6a4ca6b09e3193fd7b650a8e148",
+  "rollback_source_pin": "60b6aa7418e4e6a4ca6b09e3193fd7b650a8e148",
+  "rollback_policy_sha256": "9f9865defd9ad0287fb90400fe408c942020e1c431275902a35c18555d8775ec",
+  "expected_policy_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+  "deployed_policy_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+  "source_pin_patch_executed": true,
+  "deployment": {
+    "deployment_uuid": "7rf9thz7xfgruknnyv0rbfrq",
+    "status": "finished",
+    "commit": "1b43914eb74c42b4fb37751ebacb4e7f71a06b17",
+    "created_at": "2026-10-16T03:57:16.000000Z",
+    "finished_at": "2026-10-16T03:58:22.000000Z"
+  },
+  "unsigned_policy_status": 401,
+  "exclusive_extension_readback": true,
+  "netrc_readback": false,
+  "resource_configuration_unchanged": true,
+  "resource_limits": {
+    "memory": "128m",
+    "cpus": "1"
+  },
+  "public_signer_file_unchanged": true,
+  "policy_source_change_paths": [
+    ".gitleaks.toml"
+  ],
+  "config_sha256": "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024",
+  "local_proof_sha256": "1a9c16c0c101146992780fbacde41e3b72722e3c28b643a40b37efc8d37294fe",
+  "normal_deploy_force": false,
+  "application_deployment_changed": false
+}

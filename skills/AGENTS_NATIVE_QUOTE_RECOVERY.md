@@ -21,6 +21,7 @@ Preserve [QL1499](AGENTS_QUOTE_LIFECYCLE.md),
 | NR1505-11 | Each scheduled owner propagates its original absolute deadline through an owned LCD view before constructing read futures. Nested views take only the minimum; clones share admission/pacing/namespace and retain cancellation policy. Poll, shorter floor, head, pair and nested snapshot scopes remain distinct. A head scope cannot expire later pair jobs. Never store an expired scoped view as a long-lived client, renew a budget, or accept late identity success after its governing deadline. |
 | NR1505-12 | Native dispatch plans both denoms' three mapping/rate/cap slots once after validated bindings and before future construction. Keep one active read per denom while its peer has required work outstanding. Only after the peer finishes may remaining work bypass its busy denom gate, while still acquiring the existing global two-read gate. Own completion tokens from construction through success/error/drop, retire unbound work explicitly, and register notification before checking completion. No-plan callers retain strict isolation. Never add reads, provider capacity, a deadline or freshness allowance. |
 | NR1505-13 | Plan router priority once after validated mapper configuration and treasury address, before constructing concurrent futures. Router work owns no global/provider permit while waiting for both common treasury reads to acquire their existing global permits and pass the original deadline guard. First polling or cooperative Pending is not proof of admission. Register notification before checking the predicate; no-plan helpers remain prompt. The original router/poll deadline owns and cancels waiting work. Native validation still requires successful validated treasury configuration and bindings; admission never establishes positive data. Preserve read counts, two permits, provider budgets and original freshness. |
+| NR1505-14 | Scheduled wrapper observation starts with the mapper data query's mandatory fresh endpoint attestation, without a redundant standalone identity preflight. Each actual data attempt and alternative still verifies the configured expected chain on that exact endpoint and checks its original caller/attempt deadlines before data transport. Never substitute cached identity metadata, remove unrelated discovery/actor trust gates, or change provider admission, quarantine, typed-negative precedence, namespace, cadence or original poll-start freshness. Healthy identity/provider attempts reduce from fourteen to thirteen without additional attempts; the thirteen-logical-data-read ceiling is unchanged. |
 
 Run `make verify-issue-1505` and the applicable lifecycle/provider checks. Follow
 the [focused checklist](../docs/qa/issue-1505/README.md) and record actual results
@@ -156,3 +157,19 @@ validated common observations from the same poll. Retain the real router-first
 OLD/FIX availability controls, a cooperative-exhaustion regression and the
 original full wrapper suite. These controlled schedules do not identify the
 unobserved historical production order.
+
+The mapper query already owns fresh identity verification before any data HTTP
+work. NR1505-14 removes only the wrapper producer's preceding serial identity
+probe; it does not remove the query's attestation or authorize a cached positive.
+Every alternative repeats that verification on its actual endpoint. Known
+wrong-chain/malformed evidence, quarantine and existing fallback precedence
+remain authoritative; caller/attempt expiry still prevents late data work.
+The original configured namespace and poll-start clock are unchanged. A healthy
+full poll without additional attempts has thirteen identity/provider attempts and
+thirteen logical data reads; an
+availability control clipped by the original deadline may have fewer actual
+wire reads, and optional floor capability can remain unknown. Preserve those
+actual counts and neutral caller cancellation rather than claiming full optional
+capabilities. Legacy Chain-slot diagnostics and isolated historical ordering
+controls remain readable. Uniform-identity-delay OLD/FIX controls prove the
+redundant source work, not the unobserved identity latency of a production poll.

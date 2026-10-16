@@ -15,6 +15,14 @@ lock waits share the original total deadline, including cancellation, without
 double-counting failure. Historical verified metadata cannot admit a read;
 fresh expected-chain attestation remains mandatory.
 
+NR1505-14 removes the scheduled wrapper's redundant serial identity preflight.
+The mapper query still freshly attests its actual endpoint before data transport,
+as does every alternative. Original deadline checks, typed negative/quarantine,
+namespace and other discovery/actor trust gates remain unchanged. Healthy full
+poll identity/provider attempts reduce fourteen to thirteen without additional
+attempts; logical data reads stay thirteen.
+This source reduction does not establish a historical production identity delay.
+
 Known native denoms each hold at most one poll-local mapping/rate/cap read while
 their peer has required work outstanding. Under NR1505-12, once the peer finishes
 its fixed three-read plan, remaining work may borrow its unused share through

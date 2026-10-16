@@ -265,3 +265,20 @@ The [local policy verification proof](public-literal-policy-proof.json) records
 exact-literal/same-detector controls, canonical secret fixtures, signed builds,
 runtime 200/401 checks and all twelve final asset hashes. Remote immutable policy
 rollout and genuine new-head CI are separate evidence.
+
+Scheduled wrapper preflight regressions follow NR1505-14. Use identical identity
+latency for every request in the OLD/FIX control; retain the actual required-field
+loss, original deadline and exact wire/provider counts. Separate a healthy full
+poll's fourteen-to-thirteen identity reduction from a deadline-clipped control
+with fewer actual data reads. Unknown optional floor capability is not positive
+capability evidence. Wrong-chain, malformed/unavailable identity, previously
+verified metadata, qualified alternatives, late identity and known pause controls
+must retain fail-closed behavior. Every actual data attempt still freshly attests
+its selected endpoint; unrelated discovery/actor trust gates remain unchanged.
+
+The current [preflight source proof](identity-preflight-proof.json) and
+[final source wave](source-verification-10-final.json) preserve exact OLD/FIX
+counts, all required limits and source/deployment boundaries. The preceding
+[natural FIRST](deployment-1524-browser-first.json) passed while its
+[unchanged RETEST](deployment-1524-browser-retest-fail.json) failed. Keep both;
+never turn recovery or a later pass into a rewritten historical verdict.

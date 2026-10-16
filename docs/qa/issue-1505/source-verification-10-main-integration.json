@@ -1,0 +1,18 @@
+{
+  "issue": 1505,
+  "candidate": 10,
+  "recorded_at": "2026-10-16T06:01:46.567779+00:00",
+  "baseline_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "worktree_head_before_commit": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "local_main_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "fresh_origin_main_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "incoming_commit_count": 0,
+  "fetch_exit_code": 0,
+  "fetch_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "primary_main_clean": true,
+  "source_wave": "source-verification-10-final.json",
+  "source_wave_sha256": "74fe2734d66990f2aeeed984e7e5e0422a734a7814ca7290a59be13d9e2ac150",
+  "application_fingerprint_unchanged": true,
+  "verification_input_fingerprint_unchanged": true,
+  "scope": "Fresh read-only synchronization before the human commit; no incoming commits required a source merge. PR merge and deployment remain separate."
+}

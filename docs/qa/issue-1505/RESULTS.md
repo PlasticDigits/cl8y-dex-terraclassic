@@ -9,23 +9,43 @@ Results are recorded separately for source, deployment and focused live checks.
 
 ## Current status
 
-Issue #1505 remains **OPEN**. The eighth deployed revision
-`b34187f33f1e167ab9741c7135081496ba1daaf6` passes source checks, genuine
-CI489/490, exact deployment/log attestation, warmup and socket FIRST. Browser
-FIRST retains two initialized native-output 503s and deliberately incomplete
-windows. No unchanged live RETEST runs after that failed FIRST.
+Issue #1505 remains **OPEN**. The ninth deployed revision
+`4c21b49025f29c2862dedc26c2308ce3295e332a` passes source checks, genuine
+CI492/493, exact frontend/backend deployment and logs, independent warmup and
+socket FIRST. Natural browser FIRST completed all four 190-second windows with
+120/120 useful selected responses. Unchanged RETEST **failed** with three actual
+native-output `503 missing_observations` responses; sampled recovery took
+12.067 seconds. Its final phone window stopped deliberately. No unchanged rerun,
+socket RETEST or positive expiry controls followed that failure.
 
-The ninth candidate gives both common treasury reads initial admission priority
-before router work, with actual-permit and original-deadline guards. Focused
-8/8 and full wrapper 51/51 FIRST/RETEST pass on unchanged source; three independent
-reviews are clean. The observer checkpoints actual initialization outcomes before
-Chrome and validates supplemental timing metadata. Its full public QA group
-passes 59 tests; the separately pinned expiry helper passes offline preparation
-checks. The final six-stage source wave passes after an owned QA-only reset: 61 passing groups, zero failures and six explicit separate-scope skips; Clippy succeeds.
-Hosted CI491 failed secret scanning on incoming incident evidence; its required
-application jobs did not execute. A separately reviewed exact-public-literal
-policy correction is being verified. The next application deployment and all
-mandatory live FIRST/RETEST acceptance remain pending. Source results do not establish deployed recovery.
+Bounded logs link the rejections to a fresh partial wrapper poll whose required
+USTC rate-limit read exhausted the original publication margin. Keeping the
+preceding complete view until its original expiry would still leave a
+5.644-second publication gap. The historical provider/peer ordering remains
+unproven. Investigation has returned to implementation; source controls must
+establish any proposed cause before the next deployment.
+
+The ninth change gives both common treasury reads actual permit admission
+priority before router work. Its focused 8/8 and full wrapper 51/51 FIRST/RETEST,
+three independent reviews and final six-stage source wave pass: 61 passing groups,
+zero failures, six explicit separate-scope skips and successful Clippy. The
+observer's actual initialization checkpoint and validated supplemental timing
+metadata pass 59 public QA tests. These source results remain separate from the
+failed live RETEST.
+
+CI491's incoming-evidence scanner failure is retained. Five exact public literal
+exceptions were independently verified without broadening other scanner policy.
+The immutable trusted-policy rollout, local scanner/build/runtime controls and
+actual PR/main CI492/493 pass. Neither policy success nor the preceding natural
+FIRST pass establishes deployed recovery. The [ninth deployment evidence](#ninth-deployment-first-pass-and-retest-failure)
+retains the completed and unfinished checks.
+
+The tenth candidate removes only the wrapper's redundant serial identity
+preflight. Six focused controls and the full 57-test wrapper module pass twice.
+Its final serialized source wave passes 61 groups with zero failures and six
+explicit separate-scope skips; Clippy succeeds. All 1,211 application files and
+2,013 verification inputs match before/after. Hosted CI, deployment and new live
+acceptance remain pending; the ninth RETEST failure remains FAIL.
 
 The [fifth candidate's source wave](source-verification-5-final.json) passes the native,
 identity, offline quote, lifecycle, liquidity-feed and provider-recovery
@@ -1607,3 +1627,160 @@ exclusive extension and netrc=false are preserved. A reviewed immutable policy
 release, exact bundle/health verification and genuine CI on the updated PR head
 remain required. No application deployment or native live acceptance is claimed
 for this policy work.
+
+## Ninth deployment: FIRST pass and RETEST failure
+
+[PR #1524](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1524) merged as
+`4c21b49025f29c2862dedc26c2308ce3295e332a`, with the entire merged tree equal to
+tested head `1b43914eb74c42b4fb37751ebacb4e7f71a06b17`. Both local checkouts were
+fast-forwarded normally. Application and verification input fingerprints match
+the final source wave; no forced merge or hook bypass was used.
+
+The reviewed [independent policy rollout](deployment-1524-ci-policy-attestation.json)
+pins that tested head and matches bundle `e189b210…`. Its
+[actual build logs](deployment-1524-ci-policy-build-logs.json), unsigned401,
+exclusive extension and unchanged resources pass. This deployment is separate
+from the DEX services. Genuine [PR CI492](deployment-1524-ci-492.json) and
+[main CI493](deployment-1524-ci-493.json) pass all required stages: 999 contract,
+3,470 frontend, 924 library and 86 PostgreSQL tests, with two existing ignored
+cases recorded separately. CI491 remains FAIL. The maximum-publication profile
+is the actual named test with 512×2,048 = 1,048,576 orders; successful captured
+stdout does not expose hidden per-profile timing. Earlier private collector
+annotations using a different name/count were corrected from source and actual
+PASS records, without changing any historical executed verdict.
+
+Both DEX services [attest exactly](deployment-1524-attestation.json) to the merge,
+and [build-log summaries](deployment-1524-build-logs.json) retain zero failure
+markers. Backend deployment finished 04:28:05 UTC; independent 180-second warmup
+ended 04:31:05 before measurements. The reusable attestation helper retains its
+original issue1473 schema field; the actual expected revision, both services’ revisions and served frontend root
+artifacts identify the #1505 deployment.
+
+| Focused check | Actual outcome |
+| --- | --- |
+| [Socket FIRST](deployment-1524-socket-first.json) | PASS: 146 selected executable results, zero unavailable; 145 initialized results maximum304.523ms. The distinct cold/new-transport result is880.327ms with `socket_budget_pass:false`, outside the initialized criterion. |
+| [Natural browser FIRST](deployment-1524-browser-first.json) / [audit](deployment-1524-browser-first-audit.json) | PASS: four naturally completed190-second windows;120/120 useful selected responses; initialized4/4 useful; first useful paint369.6–439.8ms;454/800 reads accounted. |
+| [Natural browser RETEST](deployment-1524-browser-retest-fail.json) / [audit](deployment-1524-browser-retest-audit.json) | **FAIL**:87 useful selected window responses plus3 actual503s; initialized4/4 useful;323/800 reads accounted. Two full forward windows pass; reverse desktop completes and fails; final phone stops at19.928seconds. Its unavailable final guard remains null. |
+| Socket RETEST | Not run after the natural RETEST failure. |
+| Positive original-expiry callback FIRST/RETEST | Not run. Natural sampling does not directly instrument callback execution/adoption and cannot establish this criterion. |
+
+RETEST's exact rejected IDs are `e4d6b2b79601545e`, `e4d6b2b796015461` and
+`e4d6b2b796015464`. Browser body completion is05:00:34.114/.707/35.296 UTC;
+the next sampled useful response is05:00:46.181, a12,067ms recovery interval.
+The first two completions precede the preceding quote's latest possible
+05:00:34.819 original expiry, but client timing alone does not establish server
+eligibility or a missed safe fallback. Sampled blanking45ms after that expiry
+is retained without claiming exact timer execution or adoption. Two diagnostic
+frame gaps (101.9ms at input+13,220.5ms and149.1ms at input+523.6ms) occur after
+their first useful paints; they are preserved without assigning them as503
+causes. No expiry/ownership/probe acceptance flags preceded owned shutdown.
+All owned Node/Chrome processes exited05:03:26.801 UTC.
+
+[Bounded FIRST monitoring](deployment-1524-monitoring-first.json) uses16/18 reads;
+[RETEST failure correlation](deployment-1524-monitoring-retest.json) uses17/18.
+Their [FIRST](deployment-1524-monitoring-first-coverage.json) and
+[RETEST coverage](deployment-1524-monitoring-retest-coverage.json) include the
+actual initialized calls through phase completion/shutdown. Each sample retains
+the300-line cap. Both collection receipts pass with a conditional Prometheus
+skip because no datasource is provisioned; that is not an application PASS.
+
+One separately approved [producer-context collection](deployment-1524-producer-context.json)
+uses exactly4 reads and36 of300 lines over05:00:10–05:00:50 UTC. Poll198 completed
+at05:00:21.790 with original05:00:14.819; poll199 completed partially at32.721
+with original24.819; poll200 completed fully at40.463 with original34.820.
+Poll199's USTC rate read expires at7,901ms: denomination wait1,231ms, global
+wait846ms, logical LCD activity2,382ms and derived earlier prefix about3,442ms.
+Logical LCD activity includes admission/identity waits and is not wire evidence.
+The USTC mapping is absent while tax, router and the ULUNA cap remain present.
+All three exact server rejections are native-output/missing-observations with no
+stale-component witness. Nearby reference commits remain present; successful
+provider/peer timing/order is unobservable and is not inferred.
+
+Keeping poll198 unchanged until its original34.819 expiry could cover only the
+first two failures, leaving5.644seconds until poll200's completion. Extending
+expiry or splicing old fields would not be an acceptable fix. The actual RETEST
+failure stays sticky while implementation resumes on a new isolated branch.
+Earlier failed deployments remain FAIL. Wallet/device, funded signing and broad
+acceptance sweeps remain excluded; #1505 stays open.
+
+## Tenth candidate: redundant wrapper identity preflight
+
+The [source proof](identity-preflight-proof.json) traces the mapper query through
+`query_endpoint` and its mandatory fresh endpoint attestation before data I/O.
+The wrapper producer previously performed a separate serial identity-only query
+first. Removing only that redundant preflight preserves every actual data
+attempt's fresh expected-chain check and the original caller/attempt guards.
+LCD/provider, dispatcher and earlier ordering-control sources are unchanged.
+
+The OLD control gives **every** identity response the same permitted1,100ms
+delay, with100ms data responses and unchanged2.5/4/7.9/8-second limits. It loses
+both required caps at7,903ms and is actually unavailable:12 identity requests,
+9 data requests,12 provider attempts, zero failures and two neutral caller
+cancellations. This differs from production poll199's missing rate/mapping;
+it proves redundant source work, without retrospectively assigning production
+identity latency. A separate healthy OLD control is useful with13 data reads
+and14 identity/provider attempts; its FAIL is solely the desired13-count
+assertion, not an unavailable response.
+
+The identical delayed fixture becomes useful after the minimal removal, with
+both mappings/caps, tax and final router support present. Settlement-required
+phase completion is7,482–7,494ms, before the unchanged7,900ms margin. This clock
+is the phase5 transition before optional floors, not a separately instrumented
+router-completion, publication or browser-input clock. Publication still waits
+until7,901–7,902ms for optional capability work; both floor capabilities remain
+unknown. Its13 admitted identity attempts yield11 data requests, zero provider
+failures and two neutral cancellations. It does not claim successful optional
+reads, direct-floor support or a universal13-wire cap under failover.
+
+The separate healthy fixed control has13 data and13 identity/provider attempts,
+zero failures/cancellations and both validated capabilities. Six focused controls
+pass twice (8.16/8.11seconds); the full wrapper module passes57/57 twice
+(18.51/18.64seconds), using the unchanged default Rust stack and test threads.
+Controls also cover old verified metadata followed by wrong/malformed/unavailable
+identity, fresh qualified alternatives, late positive identity and explicit drop
+without data polling, and both authoritative pauses. Three independent source
+reviews are clean.
+
+The existing optional-floor parent-deadline fixture changes its first-floor
+identity ordinal13→12 after the removed preflight; the50ms delay, two-second
+phase and all safety assertions remain. Legacy `Chain` is test-only for the
+unchanged historical router controls, and older bounded diagnostics remain
+readable. [NR1505-14](../../../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), the
+[indexer invariants](../../indexer-invariants.md),
+[solver guide](../../route-solver.md), provider/feed/local-quote agent guidance
+and [focused checklist](README.md) document the narrow authority boundary.
+
+The [final serialized source wave](source-verification-10-final.json),
+05:24:00–06:00:27 UTC on 2026-10-16, passes after an
+[owned disposable QA reset](source-verification-10-owned-reset.json). The first
+[reset preflight rejection](source-verification-10-reset-preflight-fail.json)
+occurred before any mutation because a strict guard rejected Docker's standard
+anonymous-volume label. That FAIL remains recorded; the corrected guard permits
+only that exact marker or empty labels, retains all ownership checks, removes
+only the exclusive owned volume, and verifies fresh runtime authentication.
+No shared or production database was reset.
+
+| Source verifier | Passing groups | Failures | Explicit separate-scope skips |
+| --- | --- | --- | --- |
+| Native recovery 1505 | 14 | 0 | 1 |
+| Offline quotes 1452 | 14 | 0 | 0 |
+| Lifecycle 1499 | 10 | 0 | 1 |
+| Liquidity feed 1453 | 12 | 0 | 2 |
+| Provider recovery 1464 | 11 | 0 | 2 |
+| Total | 61 | 0 | 6 |
+
+Clippy passes with the same 155 existing warnings. Actual full-library totals
+are 930 passed plus one existing ignored case twice (188.05/187.60seconds),
+with the 19-test route suite twice (91.83/89.11seconds), 536 selected frontend
+tests twice, and two controlled production-build browser receipts recording
+44 quote requests and zero provider requests each. These local fixture results
+do not establish deployed latency or availability. Original skips retain their
+source/deployed/funded/historical scope; they cannot establish issue closure.
+
+All 1,211 application files and 2,013 verification inputs have identical sorted
+path/content fingerprints before and after. A
+[fresh main synchronization check](source-verification-10-main-integration.json)
+finds no incoming commits beyond baseline `4c21b490…`; both local main and
+origin/main remain that revision. Genuine hosted CI, normal merge, exact
+deployment and all new mandatory live criteria remain pending. The ninth
+deployment's actual RETEST remains FAIL and #1505 stays open.

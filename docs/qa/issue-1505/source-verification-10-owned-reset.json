@@ -1,0 +1,15 @@
+{
+  "issue": 1505,
+  "recorded_at": "2026-10-16T05:23:55.132024+00:00",
+  "scope": "Only owned disposable QA container and its exclusive anonymous data volume; no shared or production reset",
+  "old_container_label_verified": true,
+  "image_name_and_loopback_binding_verified": true,
+  "private_profile_and_database_marker_verified": true,
+  "volume_exclusive_verified": true,
+  "anonymous_local_volume_no_options_verified": true,
+  "old_volume_removed_verified": true,
+  "checkout_build_test_browser_idle_verified": true,
+  "fresh_fixture_authenticated_preflight": true,
+  "profile_mode": "0600",
+  "status": "PASS"
+}

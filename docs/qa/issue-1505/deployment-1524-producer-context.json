@@ -1,0 +1,558 @@
+{
+  "schema_version": 1,
+  "issue": 1505,
+  "source_revision": "4c21b49025f29c2862dedc26c2308ce3295e332a",
+  "overall": "EVIDENCE COLLECTED; application RETEST FAIL",
+  "scope": "One separately authorized fixed40-second producer/request context, four reads total. Fixed events/enums/numbers only; no raw log bodies, actors, endpoints or addresses exported. Missing successful read durations and provider path/order remain unknown. Logical LCD polling is not wire proof.",
+  "start_utc": "2026-10-16T05:00:10Z",
+  "end_utc": "2026-10-16T05:00:50Z",
+  "read_count": 4,
+  "read_budget": 4,
+  "bounded_sample_lines": 36,
+  "possibly_truncated": false,
+  "private_raw_sha256": "1c62f2c1de2465c647fc1ba2481ba7eee218d9587c34db72a980ca411570b833",
+  "events": [
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126810451,
+      "poll_id": 197,
+      "poll_elapsed_ms": 5630,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 512,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "treasury_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126810663,
+      "poll_id": 197,
+      "poll_elapsed_ms": 5842,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 724,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "mapper_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_completed",
+      "timestamp_ms": 1792126810663,
+      "poll_id": 197,
+      "elapsed_ms": 5842,
+      "observed_at_ms": 1792126804820,
+      "mappings": 2,
+      "native_borrowed_reads": 0,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "event": "reference_woken",
+      "timestamp_ms": 1792126812606,
+      "phase": "reference_schedule",
+      "trigger": "pool_completion"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126812616,
+      "elapsed_ms": 9,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126808157,
+      "newest_economic_as_of_ms": 1792126808157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126817615,
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126808157,
+      "newest_economic_as_of_ms": 1792126808157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126821530,
+      "poll_id": 198,
+      "poll_elapsed_ms": 6710,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 495,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "treasury_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126821790,
+      "poll_id": 198,
+      "poll_elapsed_ms": 6970,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 756,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "mapper_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_completed",
+      "timestamp_ms": 1792126821790,
+      "poll_id": 198,
+      "elapsed_ms": 6970,
+      "observed_at_ms": 1792126814819,
+      "mappings": 2,
+      "native_borrowed_reads": 0,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126822615,
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126808157,
+      "newest_economic_as_of_ms": 1792126818157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_woken",
+      "timestamp_ms": 1792126824215,
+      "phase": "reference_schedule",
+      "trigger": "pool_completion"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126824221,
+      "elapsed_ms": 6,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126818157,
+      "newest_economic_as_of_ms": 1792126818157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126829223,
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126818157,
+      "newest_economic_as_of_ms": 1792126818157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_woken",
+      "timestamp_ms": 1792126830474,
+      "phase": "reference_schedule",
+      "trigger": "pool_completion"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126830479,
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126828157,
+      "newest_economic_as_of_ms": 1792126828157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126832721,
+      "poll_id": 199,
+      "poll_elapsed_ms": 7901,
+      "denom_wait_ms": 1231,
+      "global_wait_ms": 846,
+      "active_ms": 2382,
+      "lcd_polled": true,
+      "phase": "rate_limit",
+      "reason": "deadline",
+      "slot": "uusd_rate",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126832721,
+      "poll_id": 199,
+      "phase": "mapper_floor",
+      "reason": "deadline"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126832721,
+      "poll_id": 199,
+      "phase": "treasury_floor",
+      "reason": "deadline"
+    },
+    {
+      "event": "wrapper_completed",
+      "timestamp_ms": 1792126832721,
+      "poll_id": 199,
+      "elapsed_ms": 7901,
+      "observed_at_ms": 1792126824819,
+      "mappings": 1,
+      "native_borrowed_reads": 1,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": false,
+      "router": "Some(true)"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126833974,
+      "request_id": "e4d6b2b79601545e",
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126833974,
+      "request_id": "e4d6b2b79601545e"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126834567,
+      "request_id": "e4d6b2b796015461",
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126834567,
+      "request_id": "e4d6b2b796015461"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126835156,
+      "request_id": "e4d6b2b796015464",
+      "status": 503,
+      "reason": "missing_observations",
+      "direction": "native_output"
+    },
+    {
+      "event": "selected_request",
+      "timestamp_ms": 1792126835156,
+      "request_id": "e4d6b2b796015464"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126835482,
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126828157,
+      "newest_economic_as_of_ms": 1792126828157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126840211,
+      "poll_id": 200,
+      "poll_elapsed_ms": 5391,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 497,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "treasury_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126840463,
+      "poll_id": 200,
+      "poll_elapsed_ms": 5643,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 749,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "mapper_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_completed",
+      "timestamp_ms": 1792126840463,
+      "poll_id": 200,
+      "elapsed_ms": 5643,
+      "observed_at_ms": 1792126834820,
+      "mappings": 2,
+      "native_borrowed_reads": 1,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126840482,
+      "elapsed_ms": 7,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126828157,
+      "newest_economic_as_of_ms": 1792126828157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_woken",
+      "timestamp_ms": 1792126844072,
+      "phase": "reference_schedule",
+      "trigger": "pool_completion"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126844077,
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126838157,
+      "newest_economic_as_of_ms": 1792126838157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "reference_committed",
+      "timestamp_ms": 1792126849079,
+      "elapsed_ms": 5,
+      "economic_marks": 5,
+      "oldest_economic_as_of_ms": 1792126838157,
+      "newest_economic_as_of_ms": 1792126838157,
+      "phase": "reference_marks"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126849358,
+      "poll_id": 201,
+      "poll_elapsed_ms": 4538,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 292,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "mapper_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_read_unavailable",
+      "timestamp_ms": 1792126849834,
+      "poll_id": 201,
+      "poll_elapsed_ms": 5013,
+      "denom_wait_ms": 0,
+      "global_wait_ms": 0,
+      "active_ms": 767,
+      "lcd_polled": true,
+      "phase": "floor_capability",
+      "reason": "contract_rejected",
+      "slot": "treasury_floor",
+      "stage": "lcd_read"
+    },
+    {
+      "event": "wrapper_completed",
+      "timestamp_ms": 1792126849834,
+      "poll_id": 201,
+      "elapsed_ms": 5013,
+      "observed_at_ms": 1792126844820,
+      "mappings": 2,
+      "native_borrowed_reads": 0,
+      "output_tax": true,
+      "mapper_floor": false,
+      "treasury_floor": false,
+      "uluna_cap": true,
+      "uusd_cap": true,
+      "router": "Some(true)"
+    }
+  ],
+  "fixed_native_summary": {
+    "bounded_sample_lines": 36,
+    "typed_fields": {
+      "phase": {
+        "reference_schedule": 4,
+        "reference_marks": 10,
+        "floor_capability": 8,
+        "rate_limit": 1,
+        "mapper_floor": 1,
+        "treasury_floor": 1
+      },
+      "reason": {
+        "contract_rejected": 8,
+        "deadline": 3,
+        "missing_observations": 3
+      },
+      "direction": {
+        "native_output": 3
+      }
+    },
+    "candidate_stale_witnesses": [],
+    "producer_read_witnesses": [
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5630,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 512,
+        "poll_id": 197,
+        "sample_timestamp_ms": 1792126810451
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5842,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 724,
+        "poll_id": 197,
+        "sample_timestamp_ms": 1792126810663
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6710,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 495,
+        "poll_id": 198,
+        "sample_timestamp_ms": 1792126821530
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 6970,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 756,
+        "poll_id": 198,
+        "sample_timestamp_ms": 1792126821790
+      },
+      {
+        "slot": "uusd_rate",
+        "phase": "rate_limit",
+        "reason": "deadline",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 7901,
+        "denom_wait_ms": 1231,
+        "global_wait_ms": 846,
+        "active_ms": 2382,
+        "poll_id": 199,
+        "sample_timestamp_ms": 1792126832721
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5391,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 497,
+        "poll_id": 200,
+        "sample_timestamp_ms": 1792126840211
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5643,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 749,
+        "poll_id": 200,
+        "sample_timestamp_ms": 1792126840463
+      },
+      {
+        "slot": "mapper_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 4538,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 292,
+        "poll_id": 201,
+        "sample_timestamp_ms": 1792126849358
+      },
+      {
+        "slot": "treasury_floor",
+        "phase": "floor_capability",
+        "reason": "contract_rejected",
+        "stage": "lcd_read",
+        "lcd_polled": true,
+        "poll_elapsed_ms": 5013,
+        "denom_wait_ms": 0,
+        "global_wait_ms": 0,
+        "active_ms": 767,
+        "poll_id": 201,
+        "sample_timestamp_ms": 1792126849834
+      }
+    ],
+    "scheduled_alternative_witnesses": [],
+    "wrapper_dispatch_witnesses": [
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 197,
+        "sample_timestamp_ms": 1792126810663
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 198,
+        "sample_timestamp_ms": 1792126821790
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 199,
+        "sample_timestamp_ms": 1792126832721
+      },
+      {
+        "native_borrowed_reads": 1,
+        "poll_id": 200,
+        "sample_timestamp_ms": 1792126840463
+      },
+      {
+        "native_borrowed_reads": 0,
+        "poll_id": 201,
+        "sample_timestamp_ms": 1792126849834
+      }
+    ],
+    "request_correlation": {
+      "e4d6b2b79601545e": 2,
+      "e4d6b2b796015461": 2,
+      "e4d6b2b796015464": 2
+    }
+  }
+}

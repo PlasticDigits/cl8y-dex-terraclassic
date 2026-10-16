@@ -1,0 +1,11 @@
+{
+  "issue": 1505,
+  "stage": "Owned QA reset preflight",
+  "status": "FAIL before mutation",
+  "helper_sha256": "8de0420118303f11a63164775bec47b0c8d35a1aae8efe2813f3e16ba217a4a5",
+  "log_sha256": "40b44baaa56b04c0c46c4f91602f0ae2bedda3e4cb40d00fd2cb06236b30be2c",
+  "reason": "Guard incorrectly rejected the standard Docker anonymous-volume marker label; local driver, zero options, exact known anonymous label and 64-hex name observed",
+  "backup_created": false,
+  "container_or_volume_removed": false,
+  "private_profile_changed": false
+}
