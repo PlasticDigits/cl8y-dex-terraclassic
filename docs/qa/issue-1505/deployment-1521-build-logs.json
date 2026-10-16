@@ -1,0 +1,20 @@
+{
+  "revision": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+  "services": [
+    {
+      "label": "frontend",
+      "commit": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+      "status": "finished",
+      "log_count": 101,
+      "failure_pattern_lines": 0
+    },
+    {
+      "label": "backend",
+      "commit": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+      "status": "finished",
+      "log_count": 367,
+      "failure_pattern_lines": 0
+    }
+  ],
+  "scope": "Final Coolify deployment build logs; raw logs and credentials not exported"
+}

@@ -1014,6 +1014,15 @@ shared provider lane, pacing, attempt caps and data-read count are unchanged.
 Cancellation drops the read futures and local waiters; no global queue or task
 is created. Required mapping/output work queues before later floor work.
 
+Before concurrent router/settlement futures are constructed, NR1505-13 plans the
+two common treasury admissions. Each must acquire the existing global permit and
+pass the original deadline guard before router work may enter the dispatcher.
+First polling cannot establish queue insertion because Tokio may yield for its
+cooperative budget first. Router waiting owns no permit, runs outside its
+physical read and retains the original router/poll timeout. No-plan helpers and
+configured router absence remain prompt. Admission never replaces validated
+common results or authorizes execution with missing native prerequisites.
+
 Each known native denom initially has one additional poll-local slot shared by
 its mapping, rate and cap reads. Acquire it before the global two slots; common
 prerequisites, tax and router use only the global dispatcher. While peer work is

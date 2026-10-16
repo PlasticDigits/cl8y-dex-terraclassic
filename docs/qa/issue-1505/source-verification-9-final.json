@@ -1,0 +1,210 @@
+{
+  "issue": 1505,
+  "candidate": 9,
+  "status": "PASS WITH EXPLICIT SOURCE SCOPE; deployed acceptance separate",
+  "recorded_at": "2026-10-16T03:18:07.001664+00:00",
+  "base_revision": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+  "application_source_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs",
+    "indexer/src/api/local_wrapper_quote/router_priority_tests.rs"
+  ],
+  "runtime_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs"
+  ],
+  "verification_source_change_paths": [
+    "scripts/qa/live-trading-lifecycle-1499.cjs",
+    "scripts/qa/test-live-trading-lifecycle-1499.cjs",
+    "scripts/verify-issue-1505.sh"
+  ],
+  "application": {
+    "files": 1210,
+    "sha256": "8806694267fe906831cc384a13b686af17cd340dddd22cd2a9f11907f99dba59"
+  },
+  "verification_inputs": {
+    "files": 2012,
+    "sha256": "c28ca761d7861ed13e4a1536ed6af5d37ba2b95041febce81019a9d1ad27f2d9"
+  },
+  "application_roots": [
+    "indexer/src/",
+    "frontend-dapp/src/",
+    "smartcontracts/contracts/",
+    "smartcontracts/packages/",
+    "packages/"
+  ],
+  "fingerprint_scope": "Tracked plus unignored sorted path/content hashes using the actual smartcontracts workspace roots. Application includes cfg(test) source; verification inputs add indexer tests, scripts and explicit toolchain/package inputs. Excludes docs, receipts, ignored private env and generated build/cache trees.",
+  "stable_before_after": true,
+  "stages": [
+    {
+      "stage": "1505",
+      "command": [
+        "make",
+        "verify-issue-1505"
+      ],
+      "started": "2026-10-16T02:41:56.929251+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1505-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T02:48:28.294266+00:00",
+      "log_sha256": "b3a8613411e95cbd7fa39f38dda6994c93c30bbfa099e2fa88cfa667723c22e5",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts"
+      ]
+    },
+    {
+      "stage": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "indexer/Cargo.toml",
+        "--lib"
+      ],
+      "started": "2026-10-16T02:48:28.295400+00:00",
+      "status": "PASS",
+      "log_basename": "verify-clippy-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T02:48:35.803378+00:00",
+      "log_sha256": "1e93b60303c8d30af8948b50faf5c90d4fe6011dba14708f2ebaf2d6fa97294b",
+      "summaries": [],
+      "scope_skips": [],
+      "warning_count": 155,
+      "prior_release_warning_count": 155
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-16T02:48:35.803941+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1452-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T03:02:43.389698+00:00",
+      "log_sha256": "a7d898a8f43264fbbaf0336fa93aa8684bde65defac999369260777e1ac5df4c",
+      "summaries": [
+        "Results: 14 PASS, 0 FAIL, 0 SKIP",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ],
+      "scope_skips": []
+    },
+    {
+      "stage": "1499",
+      "command": [
+        "make",
+        "verify-issue-1499"
+      ],
+      "started": "2026-10-16T03:02:43.390299+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1499-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T03:03:48.973523+00:00",
+      "log_sha256": "0f25ff68bad9bebcc62ca117500a98cd4a72cce9ffd5d47bd1fa80822c919e21",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Sustained attested live API/browser/funded scope requires separate real receipts"
+      ]
+    },
+    {
+      "stage": "1453",
+      "command": [
+        "make",
+        "verify-issue-1453"
+      ],
+      "started": "2026-10-16T03:03:48.974140+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1453-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T03:08:41.151828+00:00",
+      "log_sha256": "5c01d31e7bc9167451b7c0cab4e3b4ef371c9d33c524317ea02909e8a4dad550",
+      "summaries": [
+        "PASS=12 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+        "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope"
+      ]
+    },
+    {
+      "stage": "1464",
+      "command": [
+        "make",
+        "verify-issue-1464"
+      ],
+      "started": "2026-10-16T03:08:41.153463+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1464-release9-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T03:17:26.439801+00:00",
+      "log_sha256": "d945cbad6f98dd6bd7339f4bfd71c685292d6a4551308421af6217197b04d45e",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+        "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately"
+      ]
+    }
+  ],
+  "controlled_browser_archives": [
+    {
+      "phase": "first",
+      "sha256": "c753a493c82f4fa1d29053c166a2f1d007ab4fd81cebff0963b6c5b24fda83a0",
+      "recorded_at": "2026-10-16T02:56:07.877Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    },
+    {
+      "phase": "retest",
+      "sha256": "d673796686b46d41d8909cf1e9d261b138ce0a1919784f7cfd6afe88cc45b61e",
+      "recorded_at": "2026-10-16T03:02:25.067Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    }
+  ],
+  "focused_control": "router-prerequisite-priority-proof.json",
+  "focused_control_sha256": "8888bd0274668cc2cf8c5120fdd9b3b44aefd0c17ba480098277a2397aadf08c",
+  "focused_final_sources_match": true,
+  "observer_control": "observer-initialized-checkpoint-proof.json",
+  "observer_control_sha256": "00f404218f3a65483e7fba4e5cd932fcba77f2755bdd03c7bf2671fc25bd99ec",
+  "observer_final_sources_match": true,
+  "expiry_readiness": "expiry-control-release9-readiness.json",
+  "expiry_readiness_sha256": "bd8a99f771c7aed4202ac7de130c08622e06d342558f008d8b4631784d69ccdc",
+  "expiry_pinned_sources_match": true,
+  "prior_source_verification": "source-verification-8-final.json",
+  "unchanged_prior_scope": {
+    "checks": [
+      "1392",
+      "1394",
+      "1396"
+    ],
+    "claim": "Prior separate M7 results only, not rerun as M9 final verification; identity, discovery and database configuration source unchanged. M9 native/offline library and hosted CI still exercise their unchanged unit guards."
+  },
+  "prior_live_failure": "deployment-1521-browser-fail.json",
+  "prior_diagnosis": "deployment-1521-diagnosis.json",
+  "limits_of_inference": [
+    "Router-first controls prove a permitted source ordering can lose a native prerequisite, not the exact historical provider order.",
+    "Ordering-only OLD controls remain distinguished from actual native availability failures.",
+    "The cooperative-yield regression concerns an intermediate unreleased candidate, not deployed M8.",
+    "Provider and logical read counts remain distinct and every original deadline/freshness constraint is retained.",
+    "Earlier live failures remain FAIL and source checks do not establish deployed recovery."
+  ],
+  "remaining": [
+    "Genuine hosted CI on the final head",
+    "Exact merged-revision Coolify deployment/log attestation and independent 180-second backend warmup",
+    "Native v9 natural FIRST four 190-second windows and RETEST only after complete FIRST PASS, separate 190-second socket pair and bounded monitoring",
+    "Positive original-expiry callback FIRST/RETEST unless directly instrumented natural evidence proves that path"
+  ]
+}

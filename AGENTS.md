@@ -15,6 +15,11 @@ Propagate earlier producer/floor/pair deadlines through explicit owned LCD views
 (NR1505-11); nested scopes only tighten and never renew provider work.
 Native dispatch borrowing follows NR1505-12: only a completed peer releases its
 unused share, within the unchanged global two-read gate and original deadlines.
+Router priority follows NR1505-13: both common treasury reads must acquire their
+existing permits and pass the original deadline guard before router admission.
+First polling is insufficient under cooperative scheduling.
+Inspect initialized_api_checkpoint outcomes (NR1505-6) before reporting initialized
+API success; entering browser windows does not certify those checks.
 
 ## Trade entry, stable Swap layout and order metrics
 

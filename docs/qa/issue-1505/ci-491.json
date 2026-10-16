@@ -1,0 +1,83 @@
+{
+  "issue": 1505,
+  "pull_request": 1524,
+  "pipeline": 491,
+  "revision": "8b1ca65e2a969d6be84d9af8d89ae138b7258983",
+  "event": "pull_request",
+  "ref": "refs/pull/1524/head",
+  "utc": "2026-10-16T03:25:35.344799+00:00",
+  "read_only": true,
+  "status": "failure",
+  "steps": [
+    {
+      "id": 12554,
+      "name": "git",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 8
+    },
+    {
+      "id": 12555,
+      "name": "postgres",
+      "state": "success",
+      "exit_code": 0,
+      "duration_seconds": 69
+    },
+    {
+      "id": 12556,
+      "name": "gitleaks",
+      "state": "failure",
+      "exit_code": 1,
+      "duration_seconds": 55
+    },
+    {
+      "id": 12557,
+      "name": "contracts",
+      "state": "skipped",
+      "exit_code": 0
+    },
+    {
+      "id": 12558,
+      "name": "frontend",
+      "state": "skipped",
+      "exit_code": 0,
+      "vitest_results": [],
+      "failed_test_markers": 0
+    },
+    {
+      "id": 12559,
+      "name": "indexer-lib",
+      "state": "skipped",
+      "exit_code": 0,
+      "native_recovery_test_passes": [],
+      "maximum_publication_profile": {
+        "test_pass_observed": false,
+        "unchanged_source_limits": {
+          "maximum_pairs": 512,
+          "orders_per_pair": 2048,
+          "total_orders": 1049176,
+          "hot_reader_cap": 100,
+          "initialized_useful_http_budget_ms": 500,
+          "original_observation_ttl_ms": 20000,
+          "single_tokio_worker": true
+        },
+        "runtime_profile_counters": null,
+        "counter_limitation": "Successful test stdout captured by standard Rust harness; named PASS and complete suite totals are observable; no hidden per-profile timing is inferred."
+      }
+    },
+    {
+      "id": 12560,
+      "name": "indexer-postgres",
+      "state": "skipped",
+      "exit_code": 0
+    },
+    {
+      "id": 12561,
+      "name": "functional-required",
+      "state": "failure",
+      "exit_code": 1,
+      "duration_seconds": 1
+    }
+  ],
+  "scope": "Genuine hosted CI metadata and numeric result summaries only; no credentials, private endpoints, actors or raw logs included. Bounded raw logs are stored separately in private thread storage and must not be published."
+}

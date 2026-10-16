@@ -62,6 +62,7 @@ const receipt = {
   issues: NATIVE_1505 ? [1505] : [1498, 1499, 1500],
   expected_revision: SHA,
   qa_measurement_version: BUDGET_PROFILE.measurementVersion,
+  qa_metadata_version: "initialized_api_checkpoint_v1",
   shard: SHARD,
   shard_count: BUDGET_PROFILE.shardCount,
   expected_window_count: 4,
@@ -129,6 +130,7 @@ function save() {
 async function read(url, limit = 2 * 1024 * 1024) {
   ensure();
   if (++readCount > 64) throw Error("read_budget");
+  const requestEpoch = Date.now();
   const response = await fetch(url, {
       redirect: "error",
       signal: AbortSignal.timeout(15000),
@@ -141,11 +143,33 @@ async function read(url, limit = 2 * 1024 * 1024) {
     if (size > limit) throw Error("body_bound");
     chunks.push(data);
   }
+  const responseEpoch = Date.now();
   return {
     status: response.status,
     bytes: Buffer.concat(chunks),
     request_id: safeRequestId(response.headers.get("x-quote-request-id")),
+    request_epoch_ms: requestEpoch,
+    response_epoch_ms: responseEpoch,
+    server_date_epoch_ms: safeServerDateEpoch(response.headers.get("date")),
   };
+}
+function safeServerDateEpoch(value) {
+  // Date.parse also accepts non-HTTP strings and normalizes invalid calendars.
+  // Unknown formats remain unavailable metadata, without rejecting the quote.
+  if (
+    typeof value !== "string" ||
+    !/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), [0-9]{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2} GMT$/.test(
+      value,
+    )
+  )
+    return null;
+  const epoch = Date.parse(value);
+  return Number.isSafeInteger(epoch) &&
+    epoch >= 0 &&
+    epoch <= 8640000000000000 &&
+    new Date(epoch).toUTCString() === value
+    ? epoch
+    : null;
 }
 function safeRequestId(value) {
   return /^[0-9a-f]{16}$/.test(value || "") ? value : null;
@@ -277,10 +301,20 @@ async function probe(c, phase) {
   const p = params(c),
     t = performance.now();
   let invalidWindow = null;
+  let timing = {
+    request_epoch_ms: null,
+    response_epoch_ms: null,
+    server_date_epoch_ms: null,
+  };
   try {
     const r = await read(BE + "/api/v1/route/solve?" + new URLSearchParams(p));
-    const duration = performance.now() - t,
-      b = JSON.parse(r.bytes),
+    const duration = performance.now() - t;
+    timing = {
+      request_epoch_ms: r.request_epoch_ms,
+      response_epoch_ms: r.response_epoch_ms,
+      server_date_epoch_ms: r.server_date_epoch_ms,
+    };
+    const b = JSON.parse(r.bytes),
       reason = REASONS[b.error] === r.status ? b.error : null;
     let q = null;
     if (r.status === 200) {
@@ -303,6 +337,7 @@ async function probe(c, phase) {
       request_id: r.request_id,
       reason,
       elapsed_ms: duration,
+      ...timing,
       useful: !!q?.useful,
       ...q,
     };
@@ -317,11 +352,33 @@ async function probe(c, phase) {
       case: c.label,
       phase,
       useful: false,
+      ...timing,
       failure: safeError(e),
       ...(invalidWindow ? { original_window: invalidWindow } : {}),
     });
     fail("api_probe_failed");
   }
+}
+function checkpointInitializedApi() {
+  // This checkpoint reports only the existing initialized probes. Entering the
+  // browser phase never implies they passed, and cannot clear their failures.
+  receipt.initialized_api_checkpoint = {
+    utc: new Date().toISOString(),
+    completed: true,
+    samples: receipt.api.length,
+    useful: receipt.api.filter((row) => row.useful).length,
+    not_useful: receipt.api.filter((row) => !row.useful).length,
+    failures: [...receipt.failures],
+    overall: receipt.failures.length ? "FAIL" : "PASS",
+  };
+  save();
+  process.stderr.write(
+    JSON.stringify({
+      event: "initialized_api_checkpoint",
+      ...receipt.initialized_api_checkpoint,
+      api: receipt.api,
+    }) + "\n",
+  );
 }
 async function setup(page, c) {
   await page.goto(FE + "/?" + new URLSearchParams({ from: c.from, to: c.to }), {
@@ -555,7 +612,14 @@ async function windowCase(c, view, viewport) {
     const deadline = Date.now() + DURATION;
     while (Date.now() < deadline) {
       ensure();
-      if (quoteBudgetExhausted(QUOTE_BUDGET, quotes, contextQuoteStart, contextAllowance)) {
+      if (
+        quoteBudgetExhausted(
+          QUOTE_BUDGET,
+          quotes,
+          contextQuoteStart,
+          contextAllowance,
+        )
+      ) {
         problem("quote_budget");
         stoppedForBudget = true;
         break;
@@ -801,7 +865,9 @@ async function windowCase(c, view, viewport) {
     // and subsequent response-drain time cannot complete an early budget exit.
     row.active_window_elapsed_ms = Date.now() - inputAt;
     row.active_window_completed = !stoppedForBudget;
-    row.active_window_stop_reason = stoppedForBudget ? "quote_budget" : "duration";
+    row.active_window_stop_reason = stoppedForBudget
+      ? "quote_budget"
+      : "duration";
     const guard = await page.evaluate(() => window.__liveReadGuard1499);
     row.read_guard = guard;
     blockedWrites += guard?.writes ?? 0;
@@ -823,7 +889,9 @@ async function windowCase(c, view, viewport) {
     if (row.first_useful_ms == null) problem("no_useful_browser_quote");
   } catch (e) {
     row.completed = false;
-    row.active_window_stop_reason ??= activeStarted ? "active_exception" : "setup_exception";
+    row.active_window_stop_reason ??= activeStarted
+      ? "active_exception"
+      : "setup_exception";
     if (activeStarted && row.active_window_elapsed_ms == null)
       row.active_window_elapsed_ms = Date.now() - inputAt;
     problem(safeError(e));
@@ -924,6 +992,7 @@ async function main() {
     await probe(c, "initialized_first");
     await probe(c, "initialized_retest");
   }
+  checkpointInitializedApi();
   browser = await chromium.launch({
     channel: "chrome",
     headless: true,

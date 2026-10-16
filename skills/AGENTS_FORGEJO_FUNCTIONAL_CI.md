@@ -82,3 +82,15 @@ Related: [supply-chain playbook](AGENTS_SUPPLY_CHAIN_SECURITY.md),
 [deploy trace](AGENTS_DEPLOY_TRACE.md), [strict E2E](AGENTS_E2E_STRICT_CHAIN.md).
 
 Frozen third-party LocalTerra fixtures: [build-locked-fixtures.py](../scripts/ci/build-locked-fixtures.py), [optimize-project.sh](../scripts/ci/optimize-project.sh); Python 3.11+, exact DEX-locked Git revisions, graph-preserving lock-format conversion and source/lock/image/toolchain/output receipts. Legacy production-only CW20 build scripts are a separate scope.
+
+
+Public-chain fixture false positives require independent public provenance for
+each exact literal and a narrow anchored exception targeting the secret value.
+Never exclude an evidence directory, field class or credential pattern. Preserve
+baseline detection for modified/prefixed/suffixed negative controls before
+counting continued rejection; a vector the baseline never detects is not a
+passing security control. Repeat canonical tracked-tree and secret fixtures.
+Because the extension embeds its reviewed TOML, mirror edits also require an
+independent exact-commit policy release, bundle health/hash checks and genuine
+new-head CI. Preserve failed pipelines and skipped-job scope. See the
+[#1505 CI repair evidence](../docs/qa/issue-1505/RESULTS.md).

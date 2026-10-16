@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const http = require("node:http");
+const vm = require("node:vm");
 const { createRequire } = require("node:module");
 const {
   nativeResponseEpoch,
@@ -15,6 +16,312 @@ const {
 const { chromium } = createRequire(
   path.resolve(__dirname, "../../frontend-dapp/package.json"),
 )("@playwright/test");
+
+// Run the actual driver through its initialized phase without HTTP or Chrome.
+// The launch boundary snapshots the receipt before any window can begin.
+async function initializedCheckpointScenario({
+  native = true,
+  unavailable = false,
+  serverDates = null,
+} = {}) {
+  const source = fs.readFileSync(
+    path.join(__dirname, "live-trading-lifecycle-1499.cjs"),
+    "utf8",
+  );
+  const entry = source.lastIndexOf("\nmain()\n");
+  assert.ok(entry > 0);
+  const revision = "a".repeat(40),
+    attestationPath = "/fixture-attestation.json";
+  const attestation = {
+    overall: "PASS",
+    expected_revision: revision,
+    frontend: {
+      source_sha: revision,
+      deployment_status: "finished",
+      artifact: {},
+    },
+    backend: { git_sha: revision },
+    backend_deployment: { source_sha: revision, deployment_status: "finished" },
+  };
+  let wall = 1792115350000,
+    monotonic = 0,
+    launches = 0,
+    output;
+  const writes = [],
+    events = [],
+    calls = [];
+  const dates = serverDates ?? [
+    "Fri, 16 Oct 2026 01:49:10 GMT",
+    null,
+    "private-invalid-header",
+    "x".repeat(65),
+  ];
+  const fileSystem = {
+    ...fs,
+    statSync(name) {
+      return name === attestationPath ? { size: 1024 } : fs.statSync(name);
+    },
+    readFileSync(name, ...args) {
+      return name === attestationPath
+        ? JSON.stringify(attestation)
+        : fs.readFileSync(name, ...args);
+    },
+    writeFileSync(_name, body, options) {
+      writes.push({ receipt: JSON.parse(body), mode: options.mode });
+    },
+    chmodSync(_name, mode) {
+      assert.equal(mode, 0o600);
+    },
+  };
+  const fixture = {
+    async fetch(url, options) {
+      calls.push({ url, options, request_epoch_ms: wall });
+      let status = 200,
+        body,
+        date = null;
+      if (url.endsWith("/health")) body = { git_sha: revision };
+      else if (url.endsWith("/api/v1/tokens"))
+        body = [
+          { symbol: "cLUNC", contract_address: "terra1" + "a".repeat(38) },
+        ];
+      else {
+        const index =
+          calls.filter((call) => call.url.includes("/route/solve?")).length - 1;
+        status = unavailable && index >= 2 ? 503 : 200;
+        body =
+          status === 503
+            ? { error: "missing_observations" }
+            : { fixture: true };
+        date = dates[index];
+      }
+      wall += 25;
+      monotonic += 25;
+      return {
+        status,
+        headers: {
+          get(name) {
+            return name === "date"
+              ? date
+              : name === "x-quote-request-id"
+                ? "b".repeat(16)
+                : null;
+          },
+        },
+        body: (async function* () {
+          wall += 40;
+          monotonic += 40;
+          yield Buffer.from(JSON.stringify(body));
+          wall += 10;
+          monotonic += 10;
+        })(),
+      };
+    },
+    chromium: {
+      async launch() {
+        launches++;
+        // A browser launch itself cannot be mistaken for initialized success.
+        assert.equal(writes.length, 1);
+        assert.equal(writes[0].receipt.windows.length, 0);
+        throw Error("offline_stop_at_browser_launch");
+      },
+    },
+  };
+  output = await vm.runInNewContext(
+    source.slice(0, entry) +
+      `
+    artifacts = async () => ({});
+    main().then(() => { throw Error("unexpected_browser_completion"); }, error => {
+      if (error.message !== "offline_stop_at_browser_launch") throw error;
+      return { receipt, quotes, readCount, routeReads, duration: DURATION, wallBudget: GLOBAL_BUDGET };
+    });
+  `,
+    {
+      __dirname,
+      Buffer,
+      URL,
+      URLSearchParams,
+      AbortSignal,
+      fetch: fixture.fetch,
+      performance: { now: () => monotonic },
+      Date: class extends Date {
+        constructor(...args) {
+          super(...(args.length ? args : [wall]));
+        }
+        static now() {
+          return wall;
+        }
+      },
+      process: {
+        env: {
+          EXPECTED_SOURCE_SHA: revision,
+          DEX_LIVE_ATTESTATION: attestationPath,
+          DEX_LIVE_OUTPUT: "/fixture-receipt.json",
+          DEX_LIVE_ISSUE: native ? "1505" : "1499",
+          DEX_LIVE_SHARD: "0",
+        },
+        stderr: {
+          write(line) {
+            events.push(JSON.parse(line));
+          },
+        },
+      },
+      require(name) {
+        if (name === "node:fs") return fileSystem;
+        if (name === "node:module")
+          return {
+            createRequire: () => () => ({ chromium: fixture.chromium }),
+          };
+        if (name === "./live-quote-economics-1500.cjs")
+          return {
+            ...require(name),
+            validate: () => ({ useful: true, metrics: true }),
+          };
+        return require(name);
+      },
+    },
+    { timeout: 1000 },
+  );
+  return { output, writes, events, calls, launches };
+}
+
+test("initialized checkpoint retains two fast503 failures before browser launch without extra requests", async () => {
+  const { output, writes, events, calls, launches } =
+    await initializedCheckpointScenario({ unavailable: true });
+  const checkpoint = writes[0].receipt.initialized_api_checkpoint;
+  assert.equal(checkpoint.overall, "FAIL");
+  assert.equal(checkpoint.completed, true);
+  assert.equal(checkpoint.samples, 4);
+  assert.equal(checkpoint.useful, 2);
+  assert.equal(checkpoint.not_useful, 2);
+  assert.deepEqual(Array.from(checkpoint.failures), [
+    "native_socket_not_useful",
+    "native_socket_not_useful",
+  ]);
+  assert.deepEqual(
+    writes[0].receipt.api.map((row) => row.status),
+    [200, 200, 503, 503],
+  );
+  assert.equal(writes[0].receipt.completed, false);
+  assert.equal(writes[0].mode, 0o600);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event, "initialized_api_checkpoint");
+  assert.equal(events[0].overall, "FAIL");
+  assert.equal(events[0].api.length, 4);
+  assert.equal(
+    launches,
+    1,
+    "metadata checkpoint must not add fail-fast/skip semantics",
+  );
+  assert.equal(
+    calls.length,
+    6,
+    "only existing2 metadata calls and4 initialized solves reach mock transport",
+  );
+  assert.equal(output.quotes, 4);
+  assert.equal(output.readCount, 6);
+  assert.equal(output.routeReads.solve, 4);
+  assert.equal(output.routeReads.progress, 0);
+});
+
+test("initialized epochs use actual existing call/body completion and sanitize server Date to numeric or null", async () => {
+  const { writes, calls, events } = await initializedCheckpointScenario();
+  const receipt = writes[0].receipt;
+  const solves = calls.filter((call) => call.url.includes("/route/solve?"));
+  for (let i = 0; i < 4; i++) {
+    const row = receipt.api[i];
+    assert.equal(row.request_epoch_ms, solves[i].request_epoch_ms);
+    assert.equal(row.response_epoch_ms, row.request_epoch_ms + 75);
+    assert.equal(
+      row.elapsed_ms,
+      75,
+      "existing monotonic useful-response clock is unchanged",
+    );
+    assert.ok(Number.isSafeInteger(row.request_epoch_ms));
+    assert.ok(Number.isSafeInteger(row.response_epoch_ms));
+    assert.equal(
+      row.server_date_epoch_ms,
+      i === 0 ? Date.parse("Fri, 16 Oct 2026 01:49:10 GMT") : null,
+    );
+    assert.equal(solves[i].options.redirect, "error");
+    assert.equal(solves[i].options.headers["Cache-Control"], "no-cache");
+  }
+  assert.equal(receipt.qa_metadata_version, "initialized_api_checkpoint_v1");
+  assert.equal(receipt.initialized_api_checkpoint.overall, "PASS");
+  assert.equal(
+    receipt.overall,
+    undefined,
+    "initialized PASS cannot promote the incomplete full cohort to PASS",
+  );
+  assert.ok(
+    !JSON.stringify({ receipt, events }).includes("private-invalid-header"),
+  );
+  assert.ok(!JSON.stringify({ receipt, events }).includes("x".repeat(65)));
+});
+
+for (const [label, date] of [
+  ["ISO-only", "2026-10-16"],
+  ["numeric", "2026"],
+  ["invalid calendar", "Tue, 31 Feb 2026 01:49:10 GMT"],
+  ["wrong weekday", "Thu, 16 Oct 2026 01:49:10 GMT"],
+])
+  test(`initialized epochs reject parseable malformed HTTP Date (${label})`, async () => {
+    const { writes, calls } = await initializedCheckpointScenario({
+      serverDates: [date, null, null, null],
+    });
+    const receipt = writes[0].receipt;
+    assert.equal(receipt.api[0].server_date_epoch_ms, null);
+    assert.equal(receipt.initialized_api_checkpoint.overall, "PASS");
+    assert.ok(receipt.api.every((row) => row.useful && row.status === 200));
+    assert.ok(receipt.api.every((row) => row.elapsed_ms === 75));
+    assert.equal(
+      calls.filter((call) => call.url.includes("/route/solve?")).length,
+      4,
+    );
+    assert.equal(calls.length, 6);
+  });
+
+test("initialized checkpoint preserves native and generic versions, budgets, defaults and typed-outcome policy", async () => {
+  for (const native of [true, false]) {
+    const { output, writes, calls } = await initializedCheckpointScenario({
+      native,
+      unavailable: true,
+    });
+    const receipt = writes[0].receipt;
+    assert.equal(receipt.shard_quote_progress_budget, native ? 800 : 600);
+    assert.equal(receipt.cohort_quote_progress_budget, native ? 800 : 1800);
+    assert.equal(receipt.context_quote_progress_maximum, 600);
+    assert.equal(
+      receipt.qa_measurement_version,
+      native
+        ? "foreground_correlated_native_availability_v9"
+        : "foreground_correlated_native_availability_v8",
+    );
+    assert.equal(receipt.expected_window_count, 4);
+    assert.equal(receipt.browser_budget_ms, 750);
+    assert.equal(receipt.socket_budget_ms, 500);
+    assert.equal(output.duration, 190000);
+    assert.equal(output.wallBudget, 16 * 60000);
+    assert.equal(
+      receipt.initialized_api_checkpoint.overall,
+      native ? "FAIL" : "PASS",
+    );
+    assert.deepEqual(
+      receipt.api.map((row) => row.phase),
+      [
+        "initialized_first",
+        "initialized_retest",
+        "initialized_first",
+        "initialized_retest",
+      ],
+    );
+    const amounts = calls
+      .filter((call) => call.url.includes("/route/solve?"))
+      .map((call) => new URL(call.url).searchParams.get("amount_in"));
+    assert.equal(amounts.length, 4);
+    assert.equal(amounts[0], amounts[1]);
+    assert.equal(amounts[2], amounts[3]);
+  }
+});
 
 test("a fast typed503 fails native sustained availability even when a later useful quote recovers", () => {
   const row = { responses: [], failures: [] };

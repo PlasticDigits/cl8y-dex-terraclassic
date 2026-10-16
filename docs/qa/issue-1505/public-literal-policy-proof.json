@@ -1,0 +1,1624 @@
+{
+  "all_owned_jobs_stopped": true,
+  "all_owned_test_containers_removed": true,
+  "baseline_config_sha256": "39ae76d2f5833b474fc62dd97d34c90836354335ce6217dde0283196ded408db",
+  "baseline_revision": "8b1ca65e2a969d6be84d9af8d89ae138b7258983",
+  "canonical_and_build_checks": {
+    "completed_command_count": 5,
+    "original_driver_final_failure_scope": "Unindented TOML searched directly within serialized workflow YAML; corrected comparison below.",
+    "original_driver_final_result": "FAIL",
+    "original_driver_summary_sha256": "b70a9ab912527b0cd772f9a79118cb0cda95f6fdd2a278012df128734062eb7a",
+    "runs": [
+      {
+        "all_expected_guards_observed": true,
+        "elapsed_ms": 24770,
+        "exit_code": 0,
+        "expected_guard_count": 4,
+        "label": "canonical_gitleaks_first",
+        "log_basename": "canonical_gitleaks_first.log",
+        "log_sha256": "7561e8282a59d88ed82b06c4c36d8ec7ffb70d1db5dd05238ebbd5f9dd03a5b0"
+      },
+      {
+        "all_expected_guards_observed": true,
+        "elapsed_ms": 23916,
+        "exit_code": 0,
+        "expected_guard_count": 4,
+        "label": "canonical_gitleaks_retest",
+        "log_basename": "canonical_gitleaks_retest.log",
+        "log_sha256": "4412733d3a86eeb0317f399cee07fcd9728d618bc2c771daef8affa687e672fd"
+      },
+      {
+        "checks_failed": 0,
+        "checks_passed": 9,
+        "checks_skipped": 0,
+        "elapsed_ms": 57080,
+        "exit_code": 0,
+        "label": "verify_issue_1400_first",
+        "log_basename": "verify_issue_1400_first.log",
+        "log_sha256": "2bd71775c3fcfd0967536a2289ea19693842a44547a701de94ea7d6b76d39894"
+      },
+      {
+        "checks_failed": 0,
+        "checks_passed": 9,
+        "checks_skipped": 0,
+        "elapsed_ms": 4724,
+        "exit_code": 0,
+        "label": "verify_issue_1400_retest",
+        "log_basename": "verify_issue_1400_retest.log",
+        "log_sha256": "4a47a64825f51d6b1057997c13073163980ef13aef4524ef2e26f3a307233a99"
+      },
+      {
+        "actual_go_test_execution": true,
+        "elapsed_ms": 45104,
+        "exit_code": 0,
+        "go_package_elapsed_seconds": [
+          0.01
+        ],
+        "label": "canonical_policy_cold_build",
+        "log_basename": "canonical_policy_cold_build.log",
+        "log_sha256": "08081276439ef203491278e1238c5f8c6d3c89ef63967f8e8779dc38ce2be65e",
+        "unchanged_go_test_cases": [
+          "TestSignedPolicyIgnoresContributorConfiguration",
+          "TestBundleCopiesReviewedAssets"
+        ]
+      }
+    ]
+  },
+  "ci491_application_steps": "SKIPPED and not executed; original CI491 remains FAIL.",
+  "final_sources": {
+    ".gitleaks.toml": "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024",
+    ".woodpecker.yaml": "952793a35ae2e2b1801d646f4c29788c06420a6220ae56b7f57081044c0b653e",
+    "scripts/ci/functional-run.sh": "01849c7c93d2453ea5b30aad41632d9adb45382c0f5b52b315a732799f4d096c",
+    "scripts/ci/gitleaks-scan-tracked.sh": "2c85cd222d91e49fc351f077c3aa305205553af45e9d754bb67c366ae800a38f",
+    "scripts/ci/trusted-policy/Dockerfile": "35f65c61d560cc5368d729dc9947af5fc14fe134ff9187ab248fbbedc86115cc",
+    "scripts/ci/trusted-policy/go.mod": "c918b4fa5d6c43a513adf0d43664515811d48faabf16a1dbc0b7ada57b6b7933",
+    "scripts/ci/trusted-policy/go.sum": "ee223d6b7915b108cd7029882e50636c571e8143301cfee70cd46643653c7214",
+    "scripts/ci/trusted-policy/main.go": "1fd99084c56f8f310d6580ddaccc4f838e5aac13ef377ee3b51191492fbec407",
+    "scripts/ci/trusted-policy/main_test.go": "76eab6ea20ef11272391a30d8d025fef791d1cca2c3f4b0249573af684518314",
+    "scripts/ci/trusted-policy/woodpecker-public.pem": "fa02118c9629e72364a6f98a8728b1a9f45efbae9d7ec71b6817073d8e5dd773",
+    "scripts/ci/verify-gitleaks.sh": "1ade2f9beec5aeee5e302a0ec23b5604159e7cf4b5314b1f8f86ca2e5b697ed9",
+    "scripts/qa/verify-issue-1400.sh": "4d3f2a7c80c5b9fec6bf4b5867d7f707cae13adb6819045c61cb6ebddd8aa0c3"
+  },
+  "focused": {
+    "per_phase": {
+      "changed_value_baseline_and_fixed_rejections": 15,
+      "exact_baseline_rejections": 5,
+      "exact_fixed_acceptances": 5,
+      "invocations": 41,
+      "unrelated_fixed_rejections": 1
+    },
+    "summary": {
+      "baseline_config_sha256": "39ae76d2f5833b474fc62dd97d34c90836354335ce6217dde0283196ded408db",
+      "baseline_revision": "8b1ca65e2a969d6be84d9af8d89ae138b7258983",
+      "exact_anchor_count": 5,
+      "fixed_config_sha256": "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024",
+      "kind": "gitleaks_exact_public_literal_probe",
+      "literal_count": 5,
+      "other_semantic_policy_changes": false,
+      "path_allowlists_added": 0,
+      "private_input_sha256": "08ba2e22b149ea2675ca943c81c42c7b281d38a73f2a00f6b257586272fbca18",
+      "raw_reports_persisted": false,
+      "result": "PASS",
+      "runs": [
+        {
+          "elapsed_ms": 19155,
+          "phase": "first",
+          "result": "PASS",
+          "scans": [
+            {
+              "captured_secret_sha256": [
+                "74b41d2fab4301d64e790c91f33f01fefe5c70a17183f106b9abf677cc9cef92"
+              ],
+              "case": "public_mint_1-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 465,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "f33d7fbed7a760d3d8abb8d8447730b5a9c1dc0c8daa7581aef1bd655adcfb5d",
+              "matches_input_hash": true,
+              "report_sha256": "5c71df1af0b46051c2ccfe46b1ffc028655c7a3c3df4486538d59e86caafb6be"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_1-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 445,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "cb7fb1dde90e9ab795d0bb5a24b181de73af9ee054a7122c97d193a12ef36ef3",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "8d96378cd805b4cbcc3d95b86a6a2416cd7db634c1a2f5a90699690ad65995ac"
+              ],
+              "case": "public_mint_1-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 461,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "385f6afccbb503723d6c6f0b62c227dfd917cae0b12e8687d732027f4ca582d7",
+              "matches_input_hash": true,
+              "report_sha256": "89455cd06911aa3914ccc82e6ccd27376713eba75d06f3622cc1a00071fd6371"
+            },
+            {
+              "captured_secret_sha256": [
+                "8d96378cd805b4cbcc3d95b86a6a2416cd7db634c1a2f5a90699690ad65995ac"
+              ],
+              "case": "public_mint_1-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 457,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "d5ef748303f64a3bd80a8cc093744a1c6e320ecf9f8fae54fb9992b0c5a57192",
+              "matches_input_hash": true,
+              "report_sha256": "420bc2fc8187b193ff0828f5233843c001875de534220801258737e422c061ae"
+            },
+            {
+              "captured_secret_sha256": [
+                "7b61e5405251cc96fbb003434ea8c92a8468cc4a2371e49e47c13cd204195908"
+              ],
+              "case": "public_mint_1-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 473,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0f0d9fbb7f5b3192fff2cb6b83b9227132e93d540aa8b4d0dd5ec2ed60968905",
+              "matches_input_hash": true,
+              "report_sha256": "e895b9d78414cff4242823871f1d9b9a31d361d2805d599a0f5fc20faa092552"
+            },
+            {
+              "captured_secret_sha256": [
+                "7b61e5405251cc96fbb003434ea8c92a8468cc4a2371e49e47c13cd204195908"
+              ],
+              "case": "public_mint_1-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 499,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "69a648fa47103f934ce9646ee09cf7dc31a4f56956bd7e5199b115eb480020c7",
+              "matches_input_hash": true,
+              "report_sha256": "962d75c0cfbf3e820682773381b5216f87c16454113fd26f3e16c7cf543c0fc1"
+            },
+            {
+              "captured_secret_sha256": [
+                "eaf54d85c98ed1c1615e54f6a69155e558bed6c6e48abf36d0ab888bc292065a"
+              ],
+              "case": "public_mint_1-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 519,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "00f62b97c0ec18a2656e3507160bc84b6f3eb7fd1497199e79e135edc0604375",
+              "matches_input_hash": true,
+              "report_sha256": "062af5041450c5c0676408510502e8c6b921bb8b50c413b45965e291355ee78d"
+            },
+            {
+              "captured_secret_sha256": [
+                "eaf54d85c98ed1c1615e54f6a69155e558bed6c6e48abf36d0ab888bc292065a"
+              ],
+              "case": "public_mint_1-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 494,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "83cff0481e183b227c3e8ff70b973cfbfbaa89e1d04c5ac8cc9e1cfc47c71532",
+              "matches_input_hash": true,
+              "report_sha256": "ec9813d07ac2d0f524a3ee3445bc3d8f12c6a49fa4b6d3485c4bf467f822bb6a"
+            },
+            {
+              "captured_secret_sha256": [
+                "c920b52e2702ddc692cf98f370eacfb31c3ea117d34a3d8bcf1c50444f090e9d"
+              ],
+              "case": "public_mint_2-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 470,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "a39127e5117a8df6d81f34d99bdef3966882469e48db1d56e182fd1a588a83ed",
+              "matches_input_hash": true,
+              "report_sha256": "84400db091e8274c447fe77c6176dd90e9d0a40c9ed6183d03fbed349c53d905"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_2-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 499,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "1162b5f7fc84d510a97c70dbddcefd88e10dfb403c0be9afd3c3cdf27c084b8b",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0185a7414105efdbdc6f25f903ecba5300aa250c93f6b3908230635acda92d1c"
+              ],
+              "case": "public_mint_2-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 457,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "49c1293bb0a0264baabde9a684a1bdc1ab3f60d34a00c19a98e1270f7157cb32",
+              "matches_input_hash": true,
+              "report_sha256": "8195c420c650126deca6eef769efe0ea863a4f5a49a76fa25c07352b97947f1a"
+            },
+            {
+              "captured_secret_sha256": [
+                "0185a7414105efdbdc6f25f903ecba5300aa250c93f6b3908230635acda92d1c"
+              ],
+              "case": "public_mint_2-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 472,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "202ca7d9ebc60f614d108ce7a47612af4975c6c201c5b614cd9055303d3ce65a",
+              "matches_input_hash": true,
+              "report_sha256": "300423913afa0b5153950fb4f32b87d5734c91e60ae5ef0f29e1bd94d3785122"
+            },
+            {
+              "captured_secret_sha256": [
+                "16ef1af4b7335da17d17fa8c81b3e72be0e63bf37441d49ac8d3e5e485c2ac14"
+              ],
+              "case": "public_mint_2-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 452,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "f015243bbaa5d18a9fb0ad0a744fe122837310412d18162ffd3a7d2973e1b319",
+              "matches_input_hash": true,
+              "report_sha256": "0ad761a48bced69cf13f67768da841b9a257834d30d26c6bae868e6fcb9b1291"
+            },
+            {
+              "captured_secret_sha256": [
+                "16ef1af4b7335da17d17fa8c81b3e72be0e63bf37441d49ac8d3e5e485c2ac14"
+              ],
+              "case": "public_mint_2-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 441,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0a0833dd191ec2f0ae624b6ec830e72f1bdf2bf81963e5e8c7f5c8550d4934be",
+              "matches_input_hash": true,
+              "report_sha256": "076a3de32b06ac8912b0587ad3de6c4b26e3a2cb6f7496d1ed89441d46d2ee75"
+            },
+            {
+              "captured_secret_sha256": [
+                "31f6292161e5d65b09bf01970ec00f86f4df083d4913e7730d586e77db8d2c05"
+              ],
+              "case": "public_mint_2-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 477,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "defc3e648043495da362898773af952b66d15b7a4b52567b5787170b7cb7db75",
+              "matches_input_hash": true,
+              "report_sha256": "9bfcb3c5689a284139a1f1973af56f1309edd58aa0051b00420e1237fd6e2c83"
+            },
+            {
+              "captured_secret_sha256": [
+                "31f6292161e5d65b09bf01970ec00f86f4df083d4913e7730d586e77db8d2c05"
+              ],
+              "case": "public_mint_2-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 433,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "03db8fc50f11237f9e37342864589bbf5ff85086638cc0053aa03e3f21ab9309",
+              "matches_input_hash": true,
+              "report_sha256": "d0df0e2656d2249db2b52cb02b63fa2965021c1eb8d63b4ffa77976c72fd016b"
+            },
+            {
+              "captured_secret_sha256": [
+                "e181ce2bf027177f0bba3f2c2568500ab62c46a5638885432cee6c1c598b9cbe"
+              ],
+              "case": "public_mint_3-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 434,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "c48badadc74742e427406ac0347221926a037f83d4669f05ceaa06d1deeff490",
+              "matches_input_hash": true,
+              "report_sha256": "4a5aed210cdff80dc5c34d07d7329bde234edaa578c0744609bec5ba870abae1"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_3-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 478,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "ef69cb7b90bb05e9f294a56cd681f9f7d26286069f3c67f8565f548462323ff0",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "b423eea4f96163aaaa96da505ace573bcb8b5e3f7974d5e2c9ce0f7fb7525a92"
+              ],
+              "case": "public_mint_3-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 475,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "594732dd9c2bf10e07a297911c649aa20943718c4a480cd32f309b445bf5afda",
+              "matches_input_hash": true,
+              "report_sha256": "4da82aa6343f36adef94be89ad8e323d3423db4530e77ecc143d5632e7bf98bb"
+            },
+            {
+              "captured_secret_sha256": [
+                "b423eea4f96163aaaa96da505ace573bcb8b5e3f7974d5e2c9ce0f7fb7525a92"
+              ],
+              "case": "public_mint_3-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 489,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "61cc35ebaab0188232076e9be22561661a6550ad1c38769141082e779478e2d8",
+              "matches_input_hash": true,
+              "report_sha256": "68f5bbed2b5b5b507c0d87e0a86ccbba8995a2c97cac10aed9b74c13a4e2576e"
+            },
+            {
+              "captured_secret_sha256": [
+                "13809b2b96e787e48bf5558994ab4e621fa4e207c00998653fa27876637f1d58"
+              ],
+              "case": "public_mint_3-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 442,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "fb26da420c5abd94253a14645a605d9255a111a289c8089e25097148361981ff",
+              "matches_input_hash": true,
+              "report_sha256": "3f36f3f9e8b2de2c430299980b69d101919603b7241a0ff7bc0fc4ed8bd04ece"
+            },
+            {
+              "captured_secret_sha256": [
+                "13809b2b96e787e48bf5558994ab4e621fa4e207c00998653fa27876637f1d58"
+              ],
+              "case": "public_mint_3-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 438,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "8370c1978481e027f95d3ce82aa0b847fe1376fb2330bfd2167e57e04e152287",
+              "matches_input_hash": true,
+              "report_sha256": "f22c34504aa8ba989cab16cab62970a25445e7e421478741ba6fcc66724fb2ff"
+            },
+            {
+              "captured_secret_sha256": [
+                "fb594b44fcbcae0bd45c80bd57fc43c50665ec325aa9141d00cc060d4fe0f661"
+              ],
+              "case": "public_mint_3-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 453,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "134c6b89a07ff50b281bb0b7edc9aa8100a9c73cfffb8760361afb5ad50992d4",
+              "matches_input_hash": true,
+              "report_sha256": "6072260da275c2a130b00c9d71b3f700a3ca2e935bd17b73205946f388450d26"
+            },
+            {
+              "captured_secret_sha256": [
+                "fb594b44fcbcae0bd45c80bd57fc43c50665ec325aa9141d00cc060d4fe0f661"
+              ],
+              "case": "public_mint_3-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 430,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "fb26da420c5abd94253a14645a605d9255a111a289c8089e25097148361981ff",
+              "matches_input_hash": true,
+              "report_sha256": "6ad2d77d5b74c67cb5db5a356eec9d00168d75df04339f658860ff2509bae12b"
+            },
+            {
+              "captured_secret_sha256": [
+                "d946065e8468734653cdf74714216840864b6fa3519554ed762be334d9453c57"
+              ],
+              "case": "public_relay_execution_1-exact",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 437,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "99ffe35d01b17a942e673ea33267a391b064d81552cd7eb4cf8b8026fbb969c4",
+              "matches_input_hash": true,
+              "report_sha256": "4c8624780029cf2ddf197992d7fdc38ab959f7818f1fad235f0fe9d99685e48f"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_relay_execution_1-exact",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 434,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "d4e15484fedf8da1ab42d0af5c87f09a22ecd50b9ff6a7853e3515d909beb55a",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0f23356de411b1fce2cff40098ae170652c393e6ecc0eaddbb33a84a4b1ce0dc"
+              ],
+              "case": "public_relay_execution_1-modified",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 460,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "e18b69b5b15d7cbc8135cdd9f0b84ed3ef0cee854df8971fd8619f6293842f09",
+              "matches_input_hash": true,
+              "report_sha256": "9ca92e5101fa45404d9e8f0633c73697b7a6ad6084e6779af934a5cef4f7ebd4"
+            },
+            {
+              "captured_secret_sha256": [
+                "0f23356de411b1fce2cff40098ae170652c393e6ecc0eaddbb33a84a4b1ce0dc"
+              ],
+              "case": "public_relay_execution_1-modified",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 464,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "fb3815910966de00f263ea57f0495ccb3c7bd00098bb86b1ecf1b7519738caec",
+              "matches_input_hash": true,
+              "report_sha256": "dcaf5258dcc30064e69574bb1cff1b6b4e0292ce08c182cfa5336338b10c3a70"
+            },
+            {
+              "captured_secret_sha256": [
+                "b8de3327bc44225cb053afa00d1069e942853fd48dc8ac5a972757d8a036755f"
+              ],
+              "case": "public_relay_execution_1-prefix",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 476,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "599f43dc331889d76a66b5a5424efe16916bbae71239b20359ffd4abcb7432ac",
+              "matches_input_hash": true,
+              "report_sha256": "177be1fb8137b196eea67c78630d157f50500e9e5eb4f5f9649e833666a8d043"
+            },
+            {
+              "captured_secret_sha256": [
+                "b8de3327bc44225cb053afa00d1069e942853fd48dc8ac5a972757d8a036755f"
+              ],
+              "case": "public_relay_execution_1-prefix",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 583,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "28b24ffe7a764e94721ae9791488629ca369c91f5b2a81daecf7a3bc53c5b1ee",
+              "matches_input_hash": true,
+              "report_sha256": "5ff9878e02c9c01fcb091b2de01684e92150fcbeeebdff1a7bf96f6f5f6b217b"
+            },
+            {
+              "captured_secret_sha256": [
+                "8948caea12e5b2f1085fc77f19b37b2d70ee44ade052bd5586fbdb11227af65e"
+              ],
+              "case": "public_relay_execution_1-suffix_before_padding",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 472,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "316f81c2eba61d36ff9a7dd82d1959ca3f0ea5520d80a4d6328cb81ee58c3f4f",
+              "matches_input_hash": true,
+              "report_sha256": "0846eaf3e36c1dec9b837494fabdfc7b007638049817df052d877cbbc9e21939"
+            },
+            {
+              "captured_secret_sha256": [
+                "8948caea12e5b2f1085fc77f19b37b2d70ee44ade052bd5586fbdb11227af65e"
+              ],
+              "case": "public_relay_execution_1-suffix_before_padding",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 497,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "e24a2bef2e42331f01a6334b2644e16053896d35bddf26c2579927774087d5bd",
+              "matches_input_hash": true,
+              "report_sha256": "ddf0a298fd7f07d30713360eb98f9e584dd079dc193b4bc8ccedb96cbd9940b0"
+            },
+            {
+              "captured_secret_sha256": [
+                "35bfca5e0eccaec6ba121899026a34e34a59d683c912fa9c5bbd6dd26d50d242"
+              ],
+              "case": "public_relay_execution_2-exact",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 459,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "e18b69b5b15d7cbc8135cdd9f0b84ed3ef0cee854df8971fd8619f6293842f09",
+              "matches_input_hash": true,
+              "report_sha256": "1c042114b87d1ec1be0a0de226d17b555747a733195b847981731d535f7ad5dc"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_relay_execution_2-exact",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 464,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "1a40c13b66b6fc50d9a25be4b2c45b2bda622c21be55e9c46bedce32b3000d15",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0b7e14499bca40f87e9e0f378be7ef441427ada39f9ef55c13b905e3a1a38a3e"
+              ],
+              "case": "public_relay_execution_2-modified",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 471,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "5cb0fd1b724dc4479f9e083d0587f845a44cb1a4422b725129d6b0703b5c6496",
+              "matches_input_hash": true,
+              "report_sha256": "337aa166d856acd747341307927f02172fb327f52c241bded26f054aedea7316"
+            },
+            {
+              "captured_secret_sha256": [
+                "0b7e14499bca40f87e9e0f378be7ef441427ada39f9ef55c13b905e3a1a38a3e"
+              ],
+              "case": "public_relay_execution_2-modified",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 452,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "869c204f9f43ec90fc8c36ddd9851665c94943e9a576eb25b54364ea1b8d5429",
+              "matches_input_hash": true,
+              "report_sha256": "60378fb476d4da2de5add833012a4858d792687f7e462b8bf95443d6c6485cf2"
+            },
+            {
+              "captured_secret_sha256": [
+                "67e6a2f6f5852fd0efbf54dd85636ac5062f36025445738f9da9808881e0ded7"
+              ],
+              "case": "public_relay_execution_2-prefix",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 472,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "864e8baf74a981e98c293b26a5bc40dbc494cb74865d9cc0cdca1d67144248a4",
+              "matches_input_hash": true,
+              "report_sha256": "5ef9bf11648bdbc36c774a72aa4ef1e3cfa4a36e24565f3d0af99198b4084b05"
+            },
+            {
+              "captured_secret_sha256": [
+                "67e6a2f6f5852fd0efbf54dd85636ac5062f36025445738f9da9808881e0ded7"
+              ],
+              "case": "public_relay_execution_2-prefix",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 466,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "01a6c46d7a3396cc3c146955211e00b8ab36fa790733a795cecbf87a2e03037f",
+              "matches_input_hash": true,
+              "report_sha256": "bd25540d63eac8aa81ef9bb1637387e74ce2d9562c559685db2ba66e3a5e4a36"
+            },
+            {
+              "captured_secret_sha256": [
+                "7fd2b83f1c231abfefc6ecf43e997769d7d40bdec5f315425f9f833db1787a03"
+              ],
+              "case": "public_relay_execution_2-suffix_before_padding",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 469,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "3e24db2ca808ed09bcd894899379a5097fef1d8ce16e134a50fea0fff14488bc",
+              "matches_input_hash": true,
+              "report_sha256": "5999beaf2ba2ddf595c6720e48cf8543ead9a479ed37b4adf80c2772ffac71ba"
+            },
+            {
+              "captured_secret_sha256": [
+                "7fd2b83f1c231abfefc6ecf43e997769d7d40bdec5f315425f9f833db1787a03"
+              ],
+              "case": "public_relay_execution_2-suffix_before_padding",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 466,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0414d1193dc55b76a7a45b530bce32f4d86482299750da7efd5a25dd6041e777",
+              "matches_input_hash": true,
+              "report_sha256": "1e57f7eb5fa19eba714f830321d29bcea44b09940f5e717204ed0de3abc6dcdf"
+            },
+            {
+              "captured_secret_sha256": [
+                "f7dbecccd63c5469a0c7ec1e93fe2613cb8596049d2851794b416061a5ecc4f0"
+              ],
+              "case": "unrelated-synthetic",
+              "config": "fixed",
+              "context": "api_key",
+              "elapsed_ms": 426,
+              "exit_code": 1,
+              "finding_count": 2,
+              "finding_types": [
+                "generic-api-key",
+                "github-pat"
+              ],
+              "log_sha256": "f2ff780619c140702d0f7f9f955edc19c624489adc53130ad32c2c793f39e6fe",
+              "matches_input_hash": true,
+              "report_sha256": "9cc014fbe482fa120032fed4e6c991b35cf602c033b33bf8c3a6752b90c42ab2"
+            }
+          ]
+        },
+        {
+          "elapsed_ms": 19185,
+          "phase": "retest",
+          "result": "PASS",
+          "scans": [
+            {
+              "captured_secret_sha256": [
+                "74b41d2fab4301d64e790c91f33f01fefe5c70a17183f106b9abf677cc9cef92"
+              ],
+              "case": "public_mint_1-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 462,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "dad9fe2a6224a5b5577b29f56bb41836e4dc8fac3104dd94a72f96590e922fcb",
+              "matches_input_hash": true,
+              "report_sha256": "19ea18d381214fca68b6e870493d1ca1989528d455200f113974c55da4bd05b2"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_1-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 476,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "341379fdbaf51256e3f4619083a5ba0b44c0348e753c07d2d4afa93beede812b",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "8d96378cd805b4cbcc3d95b86a6a2416cd7db634c1a2f5a90699690ad65995ac"
+              ],
+              "case": "public_mint_1-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 490,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "32d86bc1db378c2f4af64997badb47458d11e45f42160186fc5161416bf7e228",
+              "matches_input_hash": true,
+              "report_sha256": "5d88a615fb1617556b711ed163b9deb01bacadba3bf932ad28a9f0dd1226e91d"
+            },
+            {
+              "captured_secret_sha256": [
+                "8d96378cd805b4cbcc3d95b86a6a2416cd7db634c1a2f5a90699690ad65995ac"
+              ],
+              "case": "public_mint_1-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 485,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "8ba6f13ab8676a850b383f34c12f5ce905caf15d26cd90167339a057b21917e1",
+              "matches_input_hash": true,
+              "report_sha256": "15401d7d65e6ed992ac292b6b8a984505583d8995b33e98bba470d309e8833a7"
+            },
+            {
+              "captured_secret_sha256": [
+                "7b61e5405251cc96fbb003434ea8c92a8468cc4a2371e49e47c13cd204195908"
+              ],
+              "case": "public_mint_1-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 488,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "e79e14805a9f9b1d6272a5aa53d0cbd5f42f1e6307b46d9e7ef7cab4ec9dc282",
+              "matches_input_hash": true,
+              "report_sha256": "8dda98d3e41bfd35720f845ec187ad1967a0e5242307742d1835ae751682d174"
+            },
+            {
+              "captured_secret_sha256": [
+                "7b61e5405251cc96fbb003434ea8c92a8468cc4a2371e49e47c13cd204195908"
+              ],
+              "case": "public_mint_1-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 449,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0bc75e09adad80b9e6e538b16750b67af7410620928ef54560a16f998b3e51ef",
+              "matches_input_hash": true,
+              "report_sha256": "291dfb334f6dc710983c7555464fd3845f32681cea7c2a3491e0fa2ed1f3e1e2"
+            },
+            {
+              "captured_secret_sha256": [
+                "eaf54d85c98ed1c1615e54f6a69155e558bed6c6e48abf36d0ab888bc292065a"
+              ],
+              "case": "public_mint_1-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 460,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "a083a795bc48ffd0412ea4cccb5e6136a790dce8a867ac7fee13122a5159df7d",
+              "matches_input_hash": true,
+              "report_sha256": "ff458981380034ff6ab5ac3bfc087c3afecf65778b76b8a0e84dbb93832fc58d"
+            },
+            {
+              "captured_secret_sha256": [
+                "eaf54d85c98ed1c1615e54f6a69155e558bed6c6e48abf36d0ab888bc292065a"
+              ],
+              "case": "public_mint_1-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 447,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "5ac0e899b88af1e5136d522c970902805c839b28701080715bdf921fea3d926b",
+              "matches_input_hash": true,
+              "report_sha256": "2967d358d0abd8978bdf60152dd6ed9c4fd62118a9e10948dc5593a48734e64a"
+            },
+            {
+              "captured_secret_sha256": [
+                "c920b52e2702ddc692cf98f370eacfb31c3ea117d34a3d8bcf1c50444f090e9d"
+              ],
+              "case": "public_mint_2-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 488,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "83e889b6726eaf8f402822423607cc9e7f0eed98cfc40cd905a4a03565cf26ce",
+              "matches_input_hash": true,
+              "report_sha256": "570aae8eabbc8a2cf9cc7690d9b8cbfb0c44f8d5968a956a575c89d6c99cbb14"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_2-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 488,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "4f7fbb2903e7823a152323f740f46a005d53045dc1103677f9e913bfe5913692",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0185a7414105efdbdc6f25f903ecba5300aa250c93f6b3908230635acda92d1c"
+              ],
+              "case": "public_mint_2-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 483,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "65b4c6a555094199ff5766710de2f84512fd273c1b0347d844cd9b8f848ae8e8",
+              "matches_input_hash": true,
+              "report_sha256": "47d28bd9ef2e520b0eb83c30afab1f05b24faca6aecb0500cd362283a78d1fbd"
+            },
+            {
+              "captured_secret_sha256": [
+                "0185a7414105efdbdc6f25f903ecba5300aa250c93f6b3908230635acda92d1c"
+              ],
+              "case": "public_mint_2-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 433,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "18086090ff3182764a6451081cd5f410f304a8c2620e93d1e09b1e6dfe5f03aa",
+              "matches_input_hash": true,
+              "report_sha256": "d3c3d3b770b19e42dbb2a479256ea83ba36041642bd18c3a2c412d3384b037ea"
+            },
+            {
+              "captured_secret_sha256": [
+                "16ef1af4b7335da17d17fa8c81b3e72be0e63bf37441d49ac8d3e5e485c2ac14"
+              ],
+              "case": "public_mint_2-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 470,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "50cee528e71c3b95f06ace21b82daef6be17c275b50051c6cde01467a56f757d",
+              "matches_input_hash": true,
+              "report_sha256": "c4832beca04176b6183903146d8eaa4f5fefaadd1949f34f0b951441ee664d89"
+            },
+            {
+              "captured_secret_sha256": [
+                "16ef1af4b7335da17d17fa8c81b3e72be0e63bf37441d49ac8d3e5e485c2ac14"
+              ],
+              "case": "public_mint_2-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 464,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "faa069f6318b44086a0595111f0a48ba3925b3a2cd96e912abdf72d5a17f75c6",
+              "matches_input_hash": true,
+              "report_sha256": "837a1fa1f10ca70f633a06308b50e916c7cbe034f389683bb2ec3b819cd87022"
+            },
+            {
+              "captured_secret_sha256": [
+                "31f6292161e5d65b09bf01970ec00f86f4df083d4913e7730d586e77db8d2c05"
+              ],
+              "case": "public_mint_2-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 476,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "f1062a79b2201dc658ddb7dfa58163ef077a8afbfedcd8290789fb24aa22dd87",
+              "matches_input_hash": true,
+              "report_sha256": "c4cb3d5d0382da07886d200a6bf6185e30056e673896e06ebd2329eb4383aade"
+            },
+            {
+              "captured_secret_sha256": [
+                "31f6292161e5d65b09bf01970ec00f86f4df083d4913e7730d586e77db8d2c05"
+              ],
+              "case": "public_mint_2-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 439,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "8e46171f4906d25f87a37afe7a5f69768ac62d8c11f729f1b81410f1896dc925",
+              "matches_input_hash": true,
+              "report_sha256": "1c4200b57de40519fb7060b559786ada1daa173c3c4d0ae36d10069c0e31b85d"
+            },
+            {
+              "captured_secret_sha256": [
+                "e181ce2bf027177f0bba3f2c2568500ab62c46a5638885432cee6c1c598b9cbe"
+              ],
+              "case": "public_mint_3-exact",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 471,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "3c5e0715f92fb48ca58a8a5b9aea8a97b667ceed535af7ce61ae762d9ff99d60",
+              "matches_input_hash": true,
+              "report_sha256": "11ca17fc893240e7b4bd4374fa7adba03a296017cdfec92c22fa11549a782c29"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_mint_3-exact",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 473,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "ef69cb7b90bb05e9f294a56cd681f9f7d26286069f3c67f8565f548462323ff0",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "b423eea4f96163aaaa96da505ace573bcb8b5e3f7974d5e2c9ce0f7fb7525a92"
+              ],
+              "case": "public_mint_3-modified",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 489,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "f438b93d4664676b55ff54df9dcec0ef472010d1dd1441fe9e79112ce5fa891a",
+              "matches_input_hash": true,
+              "report_sha256": "3580b2e4f7b6cc0c4f45c7fc347d30afca66e6e93ef62e28cdb62635405cbe91"
+            },
+            {
+              "captured_secret_sha256": [
+                "b423eea4f96163aaaa96da505ace573bcb8b5e3f7974d5e2c9ce0f7fb7525a92"
+              ],
+              "case": "public_mint_3-modified",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 449,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "9b568701194e07bd2f9b5a5e50b9d2d80d60d2d9fbcbefe0f4dc801aeb293bdc",
+              "matches_input_hash": true,
+              "report_sha256": "dd094990d376f0378ca1e61279d978bdd7fcbaa2214cb4db7675c3ac48924639"
+            },
+            {
+              "captured_secret_sha256": [
+                "13809b2b96e787e48bf5558994ab4e621fa4e207c00998653fa27876637f1d58"
+              ],
+              "case": "public_mint_3-prefix",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 451,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "00f62b97c0ec18a2656e3507160bc84b6f3eb7fd1497199e79e135edc0604375",
+              "matches_input_hash": true,
+              "report_sha256": "48beb443fb34449b20b14d958173fa86c545c7794f88474cf60891626a0f7abc"
+            },
+            {
+              "captured_secret_sha256": [
+                "13809b2b96e787e48bf5558994ab4e621fa4e207c00998653fa27876637f1d58"
+              ],
+              "case": "public_mint_3-prefix",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 466,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "48a394cc805171c0372c77c2669dc88b488ff47e7cc3b53748d6a3f1a4d65b7b",
+              "matches_input_hash": true,
+              "report_sha256": "9d5cf4b9af41e01701da77337868989f437cc1acca249b8ae0713468b66af2aa"
+            },
+            {
+              "captured_secret_sha256": [
+                "fb594b44fcbcae0bd45c80bd57fc43c50665ec325aa9141d00cc060d4fe0f661"
+              ],
+              "case": "public_mint_3-suffix_before_padding",
+              "config": "baseline",
+              "context": "dest_token_address",
+              "elapsed_ms": 457,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "00f62b97c0ec18a2656e3507160bc84b6f3eb7fd1497199e79e135edc0604375",
+              "matches_input_hash": true,
+              "report_sha256": "9a34dfce6b1b51fd5b0e9db11c691c779487f89528565da7310097c70e595636"
+            },
+            {
+              "captured_secret_sha256": [
+                "fb594b44fcbcae0bd45c80bd57fc43c50665ec325aa9141d00cc060d4fe0f661"
+              ],
+              "case": "public_mint_3-suffix_before_padding",
+              "config": "fixed",
+              "context": "dest_token_address",
+              "elapsed_ms": 454,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "7d98ddc3a53fbf39a4da4c63c8601855e046af798ab0278f3bc5ff4f88148cb6",
+              "matches_input_hash": true,
+              "report_sha256": "cb44e8b1c6c95dd01333883f3eb88b2b6f9122ddf74993690785ba04f38cf5a6"
+            },
+            {
+              "captured_secret_sha256": [
+                "d946065e8468734653cdf74714216840864b6fa3519554ed762be334d9453c57"
+              ],
+              "case": "public_relay_execution_1-exact",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 431,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "444d94d9b91564f13e94d6f1d6d4cb243b1b7264d5d641020a2e5f923636aaf4",
+              "matches_input_hash": true,
+              "report_sha256": "10673e2ee652934cfc68f5cf3a74f898b874e92058c2446472c80f8a9521f3a6"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_relay_execution_1-exact",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 438,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "25acbdf1389ca3862e9104c3a7fdd457eedc5697728018a5e98d761b87ef40e0",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0f23356de411b1fce2cff40098ae170652c393e6ecc0eaddbb33a84a4b1ce0dc"
+              ],
+              "case": "public_relay_execution_1-modified",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 461,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0568218eca2d63733ca106ff19144cb18a12e036d134768f9cb3213aede1bf8d",
+              "matches_input_hash": true,
+              "report_sha256": "c9eeb39ff2d19b3c37b4c047a7a2e83fda343d75f706affa524788c0996af7d2"
+            },
+            {
+              "captured_secret_sha256": [
+                "0f23356de411b1fce2cff40098ae170652c393e6ecc0eaddbb33a84a4b1ce0dc"
+              ],
+              "case": "public_relay_execution_1-modified",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 478,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "50f8e376a463e70210d7621419b4f17d3cd5cfb0db55be98b23708809f2eec73",
+              "matches_input_hash": true,
+              "report_sha256": "96d359df3d358ed5aac85663497d36cb55bb71ac9554c63c4cb9a4617f783242"
+            },
+            {
+              "captured_secret_sha256": [
+                "b8de3327bc44225cb053afa00d1069e942853fd48dc8ac5a972757d8a036755f"
+              ],
+              "case": "public_relay_execution_1-prefix",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 462,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "ab670a73df0306dea279d865330c00ba735b765619e801b62b0ad750e267ad98",
+              "matches_input_hash": true,
+              "report_sha256": "a358543e211a0472ea853d0850820c92ac242d9a7790721fb0d5fdb32be3aaf1"
+            },
+            {
+              "captured_secret_sha256": [
+                "b8de3327bc44225cb053afa00d1069e942853fd48dc8ac5a972757d8a036755f"
+              ],
+              "case": "public_relay_execution_1-prefix",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 484,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "f8bd427f92efdea98c616d8865beefe6ebf5c560cce614300d3b29e97a977ddb",
+              "matches_input_hash": true,
+              "report_sha256": "933eb9b82a3724d502d29ca1b102f583d3226daab99d78274cf6cee1aad628f4"
+            },
+            {
+              "captured_secret_sha256": [
+                "8948caea12e5b2f1085fc77f19b37b2d70ee44ade052bd5586fbdb11227af65e"
+              ],
+              "case": "public_relay_execution_1-suffix_before_padding",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 495,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "328de56bcb366c4788c4cc2dd69672e65d42c033b7aefe63bee6f2b8fb854597",
+              "matches_input_hash": true,
+              "report_sha256": "ab6a230196f872d2a079ee040b058836417e4b2028588b8c092108795e084483"
+            },
+            {
+              "captured_secret_sha256": [
+                "8948caea12e5b2f1085fc77f19b37b2d70ee44ade052bd5586fbdb11227af65e"
+              ],
+              "case": "public_relay_execution_1-suffix_before_padding",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 503,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "bbd7eb839da401455b9404d6f71a5bcab2edc2fa6f691208bb31aeda39f4536e",
+              "matches_input_hash": true,
+              "report_sha256": "95c54a3526a7f11eb2fc75efc00189176beb0f3d884adf1ce2a950920f0ffe6a"
+            },
+            {
+              "captured_secret_sha256": [
+                "35bfca5e0eccaec6ba121899026a34e34a59d683c912fa9c5bbd6dd26d50d242"
+              ],
+              "case": "public_relay_execution_2-exact",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 489,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "c86ba69909b6902f9c40e7886ea60be3bd87dcaee0462f6fb21fe51031dccf9c",
+              "matches_input_hash": true,
+              "report_sha256": "5f70eb3baeeb50f9a8f01fea9ae1f3e8f0f97f8087fe68c0b7b8a98efbfb7520"
+            },
+            {
+              "captured_secret_sha256": [],
+              "case": "public_relay_execution_2-exact",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 435,
+              "exit_code": 0,
+              "finding_count": 0,
+              "finding_types": [],
+              "log_sha256": "e02b850980095dd1c8c8bfaf6e9588a9dab7b560b1719c2c054245b47352339f",
+              "matches_input_hash": false,
+              "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+            },
+            {
+              "captured_secret_sha256": [
+                "0b7e14499bca40f87e9e0f378be7ef441427ada39f9ef55c13b905e3a1a38a3e"
+              ],
+              "case": "public_relay_execution_2-modified",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 459,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "b7aa61e0f40656aca8655d5c307a22bdc333386c583ced9814607b5ac26390c0",
+              "matches_input_hash": true,
+              "report_sha256": "e7ba067194b5efc4b13ea2872b02486e6742bfbb22444988dd3e180043a7d3b7"
+            },
+            {
+              "captured_secret_sha256": [
+                "0b7e14499bca40f87e9e0f378be7ef441427ada39f9ef55c13b905e3a1a38a3e"
+              ],
+              "case": "public_relay_execution_2-modified",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 452,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "869c204f9f43ec90fc8c36ddd9851665c94943e9a576eb25b54364ea1b8d5429",
+              "matches_input_hash": true,
+              "report_sha256": "610e064870b063d1eca6d44abaeb86aa434108f54c89aceaafe45ca513918a59"
+            },
+            {
+              "captured_secret_sha256": [
+                "67e6a2f6f5852fd0efbf54dd85636ac5062f36025445738f9da9808881e0ded7"
+              ],
+              "case": "public_relay_execution_2-prefix",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 454,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "0876e38742d801dc339cbd789ff60e9d556781e9a06784c35a26a52da1cceb72",
+              "matches_input_hash": true,
+              "report_sha256": "87d6203bb27393439a528a40dddeb9b05839855bfb06bffeb54f5243c48a1b3f"
+            },
+            {
+              "captured_secret_sha256": [
+                "67e6a2f6f5852fd0efbf54dd85636ac5062f36025445738f9da9808881e0ded7"
+              ],
+              "case": "public_relay_execution_2-prefix",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 437,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "e2020eb5e7654034732b499b9f6f866f9b336fb160c994d868a604f3257e0d28",
+              "matches_input_hash": true,
+              "report_sha256": "7de4411d2bcc2dea9a39fa4353958c278fb4d00b301c8a930b43e0f5e50acfbd"
+            },
+            {
+              "captured_secret_sha256": [
+                "7fd2b83f1c231abfefc6ecf43e997769d7d40bdec5f315425f9f833db1787a03"
+              ],
+              "case": "public_relay_execution_2-suffix_before_padding",
+              "config": "baseline",
+              "context": "idempotencyKey",
+              "elapsed_ms": 459,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "86c41b0d05c456e408dde2a0b2d38c1e3a1ff332dd5aa1a124e86b725e4f123e",
+              "matches_input_hash": true,
+              "report_sha256": "35626dd45fed04c20a188f7225bfc79151bb9b038974e04698bf15ef42c54e0d"
+            },
+            {
+              "captured_secret_sha256": [
+                "7fd2b83f1c231abfefc6ecf43e997769d7d40bdec5f315425f9f833db1787a03"
+              ],
+              "case": "public_relay_execution_2-suffix_before_padding",
+              "config": "fixed",
+              "context": "idempotencyKey",
+              "elapsed_ms": 504,
+              "exit_code": 1,
+              "finding_count": 1,
+              "finding_types": [
+                "generic-api-key"
+              ],
+              "log_sha256": "b0d7fc93de03e78f06ff173349038159b3bff191a3dc0f8b5485281f379ad4a5",
+              "matches_input_hash": true,
+              "report_sha256": "aa315065263bbac977f64bc02878a6aa61c07354696a948e48985ed4539c96e7"
+            },
+            {
+              "captured_secret_sha256": [
+                "a74bafcf4a2121bdaf1343d64c693163d8ab7b008b216c9890a6c96d0373e477"
+              ],
+              "case": "unrelated-synthetic",
+              "config": "fixed",
+              "context": "api_key",
+              "elapsed_ms": 475,
+              "exit_code": 1,
+              "finding_count": 2,
+              "finding_types": [
+                "generic-api-key",
+                "github-pat"
+              ],
+              "log_sha256": "2fd1c3ff79a50f4c5c183fff503a81f4b24e6e81b3b3fe398e17efdc3b640e90",
+              "matches_input_hash": true,
+              "report_sha256": "cd00b45f0e412e524949487ff3dc333ba0c75c934b1467f166b1fd4d21ae1028"
+            }
+          ]
+        }
+      ],
+      "scanner_sha256": "8b6fd684fcd5b4ebe39b68abb072ce59e1063ce7ed4abd556157697845f1f088",
+      "scanner_version": "8.30",
+      "schema_version": 1,
+      "suffix_vector": "insert Z before terminal padding when present",
+      "unsupported_initial_vector": "after-padding suffix not detected by baseline; retained as fixture precondition failure"
+    },
+    "summary_sha256": "3a8cb0bbd81c129d886f859ea4ce66e8d13d919c3a4617e3f36c63ca3a3aebc6",
+    "total_scanner_processes": 82
+  },
+  "human_fixture_commit_identity_verified": true,
+  "issue": 1505,
+  "limitations": [
+    "These local checks do not establish remote policy deployment, branch settings, hosted CI, application deployment or live issue acceptance.",
+    "Actual signed-policy Go test execution is proved by the first canonical build and the explicit no-cache canonical Docker build; the second make build reused Docker steps and is not fresh Go-test evidence.",
+    "Healthy exact-literal allowance does not validate arbitrary public-value exceptions; only these five provenance-verified literal matches were added."
+  ],
+  "new_hosted_ci_verified": false,
+  "policy_change": {
+    "exact_anchored_literal_exceptions_added": 5,
+    "parsed_configuration_otherwise_identical": true,
+    "paths_added": 0,
+    "regex_target": "secret",
+    "rules_disabled": 0,
+    "scanner_removed": false,
+    "trusted_policy_bypass": false
+  },
+  "private_evidence": {
+    "logs_and_reports_permissions_verified_private": true,
+    "permission_checked_file_count": 258,
+    "private_input_provenance_sha256": "f6d43eb29f4ab8f9f209b169d9e2a8cd8e70dc23e4080611361b43f6ca706e5d",
+    "private_input_sha256": "08ba2e22b149ea2675ca943c81c42c7b281d38a73f2a00f6b257586272fbca18",
+    "raw_report_transport": "Anonymous0600 memfd parsed only in memory, then redacted before disk.",
+    "raw_scanner_reports_persisted": false
+  },
+  "remote_policy_deployment_performed": false,
+  "result": "PASS",
+  "retained_failures": [
+    {
+      "detail": "Initial after-terminal-padding suffix produced no baseline finding; no fixed comparison attempted. This unsupported vector is not a policy pass.",
+      "kind": "fixture_detector_precondition",
+      "result": "FAIL",
+      "scans": 7,
+      "summary_sha256": "df6d20b3d8ff0fe4b715fd308a4cfcd4376895bc0e160bc3aa4e38a0cceb18cc"
+    },
+    {
+      "detail": "Three invalid after-padding suffix vectors not detected by baseline.",
+      "kind": "bounded_baseline_suffix_diagnostics",
+      "result": "FAIL",
+      "scans": 3,
+      "summary_sha256": "0a22f8a3f1d9e4d0fbd611bab1d81bc48804d33a372f5d1c70a8c8370f343afb"
+    },
+    {
+      "detail": "Original exact input detected with matching captured hash; prefix-plus-after-padding suffix still undetected.",
+      "kind": "bounded_baseline_suffix_followup",
+      "result": "FAIL",
+      "scans": 2,
+      "summary_sha256": "aca70ba98c49b47d7082c11b4c34873fdcecc1aea0fff0e5d793842427ef1229"
+    },
+    {
+      "detail": "Padding-preserving suffix detected exact changed hashes for all five values; final status printer had a stale vector-name list and raised ValueError after persisting results. No unchanged retry was used.",
+      "driver_exit_code": 1,
+      "kind": "diagnostic_reporter_failure",
+      "scanner_comparisons": "PASS",
+      "scans": 5,
+      "summary_sha256": "3c5b982af1277d5aba405a09c1252394891aed8e36f5b85cd9d4382f1693ba6a"
+    },
+    {
+      "detail": "Cold image tests passed; raw substring check failed against YAML serialization. Artifact parsing proved exact assets; fresh corrected runtime FIRST/RETEST passed on the same immutable cold image.",
+      "driver_result": "FAIL",
+      "kind": "runtime_comparison_harness",
+      "summary_sha256": "b70a9ab912527b0cd772f9a79118cb0cda95f6fdd2a278012df128734062eb7a"
+    }
+  ],
+  "runtime": {
+    "asset_comparisons_per_phase": 18,
+    "exact_heredoc_comparison": "JSON configs[0].data parsed as YAML, each commands[0] unescapes exactly one Woodpecker dollar layer, exact SHA delimiter extracts original newline-preserving body bytes.",
+    "summary": {
+      "image_id": "sha256:9d2b6e2c828e88a60dd3932f3067a84095efb5398e8b3391b578c0b3cff926bb",
+      "remote_deployment_performed": false,
+      "result": "PASS",
+      "runs": [
+        {
+          "bundle_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+          "cpu_limit": 1,
+          "decoded_asset_comparisons": 18,
+          "elapsed_ms": 493,
+          "health_status": 200,
+          "host_mounts": 0,
+          "memory_bytes": 134217728,
+          "network": "none",
+          "nonroot_user": "10001:10001",
+          "owned_container_cleanup_succeeded": true,
+          "phase": "first",
+          "policy_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+          "read_only": true,
+          "result": "PASS",
+          "secrets_supplied": false,
+          "unsigned_status": 401,
+          "workflow_steps": 6
+        },
+        {
+          "bundle_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+          "cpu_limit": 1,
+          "decoded_asset_comparisons": 18,
+          "elapsed_ms": 481,
+          "health_status": 200,
+          "host_mounts": 0,
+          "memory_bytes": 134217728,
+          "network": "none",
+          "nonroot_user": "10001:10001",
+          "owned_container_cleanup_succeeded": true,
+          "phase": "retest",
+          "policy_sha256": "e189b2102b9a93b574b29fcb9520bb7ef6400ce01ff9d257d27a7f60af4d1de1",
+          "read_only": true,
+          "result": "PASS",
+          "secrets_supplied": false,
+          "unsigned_status": 401,
+          "workflow_steps": 6
+        }
+      ],
+      "schema_version": 1,
+      "source_assets": {
+        ".gitleaks.toml": "a7f619790ab795838344e3bf33d602680a49b19bf8af1fa1743ead9a8cf98024",
+        "scripts/ci/functional-run.sh": "01849c7c93d2453ea5b30aad41632d9adb45382c0f5b52b315a732799f4d096c",
+        "scripts/ci/gitleaks-scan-tracked.sh": "2c85cd222d91e49fc351f077c3aa305205553af45e9d754bb67c366ae800a38f"
+      }
+    },
+    "summary_sha256": "0b30f75305ad5d571ebeb5d614495c147462c9c15cc380fe84a8c5ba49562a4f"
+  },
+  "scanner": {
+    "ambient_scanner_used": false,
+    "sha256": "8b6fd684fcd5b4ebe39b68abb072ce59e1063ce7ed4abd556157697845f1f088",
+    "version": "8.30.0"
+  },
+  "schema_version": 1,
+  "scope": "Local exact public-literal scanner policy validation only; application code and signed-policy implementation unchanged.",
+  "unchanged_baseline_assets": {
+    ".woodpecker.yaml": true,
+    "scripts/ci/functional-run.sh": true,
+    "scripts/ci/gitleaks-scan-tracked.sh": true,
+    "scripts/ci/trusted-policy/Dockerfile": true,
+    "scripts/ci/trusted-policy/go.mod": true,
+    "scripts/ci/trusted-policy/go.sum": true,
+    "scripts/ci/trusted-policy/main.go": true,
+    "scripts/ci/trusted-policy/main_test.go": true,
+    "scripts/ci/trusted-policy/woodpecker-public.pem": true,
+    "scripts/ci/verify-gitleaks.sh": true,
+    "scripts/qa/verify-issue-1400.sh": true
+  },
+  "unrelated_wallet_funded_or_chain_matrix_run": false
+}

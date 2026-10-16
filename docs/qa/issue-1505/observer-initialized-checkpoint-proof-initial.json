@@ -1,0 +1,77 @@
+{
+  "utc": "2026-10-16T02:03:22.341141+00:00",
+  "status": "PASS",
+  "source_frozen": true,
+  "metadata_version": "initialized_api_checkpoint_v1",
+  "native_measurement_version": "foreground_correlated_native_availability_v9",
+  "generic_measurement_version": "foreground_correlated_native_availability_v8",
+  "public_files": {
+    "live-trading-lifecycle-1499.cjs": "438b06fc3af710aa9d2739da781bac6c8a58044d1b639343c3636f1f8a34705c",
+    "test-live-trading-lifecycle-1499.cjs": "6ae73257f2f854280e3460e092eef1d1fc2d7c568f6ddc973514aeca595e9135"
+  },
+  "old_control": {
+    "passed": 0,
+    "failed": 3,
+    "cause": "Actual old driver reaches mocked browser launch without saving initialized checkpoint"
+  },
+  "initial_focused": {
+    "passed": 3,
+    "failed": 0,
+    "network_requests": 0,
+    "chrome_started": false
+  },
+  "offline_first": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "network_requests": 0,
+    "chrome_started": false
+  },
+  "offline_retest": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "network_requests": 0,
+    "chrome_started": false
+  },
+  "accidental_broader_first": {
+    "passed": 11,
+    "failed": 0,
+    "scope_violation": "Negative test-name filter admitted2 existing loopback-only actual Chrome cases despite no-Chrome instruction",
+    "actual_loopback_chrome_cases": 2,
+    "production_requests": 0,
+    "not_an_offline_run": true,
+    "retained_separately": true
+  },
+  "logs": {
+    "observer-init-checkpoint-old-control.log": "7d722e08661fed11387d4f6cbf1c39f26046b8001c0fb22ba7938150ce6522fb",
+    "observer-init-checkpoint-first.log": "a5829d603aff82f7ee56f5add203bd5103a43f596b179a1f53e11495fa5b6c31",
+    "observer-init-checkpoint-final-first.log": "cb9c094e3bca939a7deb45565ff7b991c99eeb855dc6ce2375761b76ede55a60",
+    "observer-init-checkpoint-offline-first.log": "37de464373f19f350f884f4c73333910af0daf69b2143e554dd961b4237f9746",
+    "observer-init-checkpoint-offline-retest.log": "2e4d6d050710b66821c7733771e091bc028f76b921305304ed1c7da60e0d01a7"
+  },
+  "all_owned_node_chrome_exited": true,
+  "rust_jobs_started": false,
+  "production_requests": 0,
+  "additional_jobs_planned": false,
+  "invariants": {
+    "existing_initialized_solve_calls": 4,
+    "global_native_reads": 800,
+    "context_reads": 600,
+    "global_wall_ms": 960000,
+    "window_ms": 190000,
+    "socket_budget_ms": 500,
+    "browser_budget_ms": 750,
+    "fail_fast_added": false,
+    "window_sequence_changed": false,
+    "failure_scoring_changed": false,
+    "native_v9_historical_receipts_reclassified": false
+  },
+  "private_expiry_compatibility": {
+    "existing_file": "native-expiry-control-1505-v9-final.cjs",
+    "existing_sha256": "26e5a2715187513e74a7eba5423c0507a4a58d4872ad4a32e5a90567ccdfa800",
+    "driver_pin_is_historical": true,
+    "compatible_with_new_driver_as_is": false,
+    "proposal": "Create a fresh private copy after root review/final freeze; replace only the lifecycle driver pin efb627739... with438b06fc..., preserving all other pins, functional code,60s/120read/180s bounds and original file. Offline validation deferred until root authorizes a window."
+  }
+}

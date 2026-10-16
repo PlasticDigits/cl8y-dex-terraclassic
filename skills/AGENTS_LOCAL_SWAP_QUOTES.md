@@ -132,3 +132,12 @@ shared two-read gate. Keep acquisition physical-read scoped, symmetric and
 cancellation-safe; do not strand another denom behind both slots held by its
 sibling. Fixed failure slot/stage timings describe logical LCD work, not wire
 attempts, and never authorize missing fields or renew original expiry.
+
+
+For native router priority, preserve
+[NR1505-13](AGENTS_NATIVE_QUOTE_RECOVERY.md): initialize the common treasury
+admission plan before concurrent futures. Open the router gate only after both
+reads acquire their existing global permits and pass the original deadline
+check. Cooperative Pending is not admission. Waiting owns no permit, remains
+bounded by the original router/poll deadline, and never substitutes for validated
+common results. No-plan/absent-router behavior and all original budgets remain.

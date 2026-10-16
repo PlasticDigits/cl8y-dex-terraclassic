@@ -17,17 +17,69 @@ pub(super) struct ObservationDispatch {
     pub(super) denoms: [Semaphore; 2],
     native: Mutex<Option<NativePlan>>,
     native_changed: Notify,
+    router_prerequisites: Mutex<Option<u8>>,
+    prerequisites_changed: Notify,
     #[cfg(test)]
     activity: Mutex<TestActivity>,
 }
 
 impl ObservationDispatch {
+    pub(super) fn plan_router_prerequisites(&self) -> bool {
+        let mut pending = self.router_prerequisites.lock().unwrap();
+        if pending.is_some() {
+            return false;
+        }
+        *pending = Some(0b11);
+        true
+    }
+
+    /// Router work follows both common settlement requests acquiring global
+    /// permits within their original deadline. No-plan helpers stay prompt.
+    pub(super) async fn wait_router_prerequisites(&self) {
+        loop {
+            let changed = self.prerequisites_changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if self
+                .router_prerequisites
+                .lock()
+                .unwrap()
+                .is_none_or(|bits| bits == 0)
+            {
+                return;
+            }
+            changed.await;
+        }
+    }
+
+    pub(super) fn common_admitted(&self, slot: ReadSlot) {
+        let bit = match slot {
+            ReadSlot::TreasuryConfig => 1,
+            ReadSlot::DenomBindings => 2,
+            _ => return,
+        };
+        let notify = {
+            let mut pending = self.router_prerequisites.lock().unwrap();
+            let Some(bits) = pending.as_mut() else {
+                return;
+            };
+            let before = *bits;
+            *bits &= !bit;
+            before != 0 && *bits == 0
+        };
+        if notify {
+            self.prerequisites_changed.notify_waiters();
+        }
+    }
+
     pub(super) fn new(global: usize) -> Self {
         Self {
             global: Semaphore::new(global),
             denoms: std::array::from_fn(|_| Semaphore::new(1)),
             native: Mutex::new(None),
             native_changed: Notify::new(),
+            router_prerequisites: Mutex::new(None),
+            prerequisites_changed: Notify::new(),
             #[cfg(test)]
             activity: Mutex::new(TestActivity::default()),
         }
@@ -131,6 +183,11 @@ impl ObservationDispatch {
         let denom = slot.denom();
         let peer_done = denom.is_some_and(|index| self.peer_finished(index));
         let mut activity = self.activity.lock().unwrap();
+        let index = usize::from(activity.admission_count);
+        if index < activity.admitted.len() {
+            activity.admitted[index] = Some((slot, tokio::time::Instant::now()));
+            activity.admission_count += 1;
+        }
         activity.active += 1;
         activity.peak = activity.peak.max(activity.active);
         if let Some(index) = denom {
@@ -154,6 +211,8 @@ impl ObservationDispatch {
 #[cfg(test)]
 #[derive(Clone, Copy, Default)]
 pub(super) struct TestActivity {
+    admission_count: u8,
+    pub(super) admitted: [Option<(ReadSlot, tokio::time::Instant)>; 14],
     active: u8,
     native_active: [u8; 2],
     pub(super) peak: u8,

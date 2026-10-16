@@ -185,3 +185,12 @@ plan completes. Keep the global two-read gate, original provider/pacing/work
 limits and poll deadlines. Initialize plans before future construction, retire
 unbound work explicitly and own cancellation. An idle-slot source reproduction
 does not prove the live provider sequence or increase original freshness.
+
+
+For native router priority, preserve
+[NR1505-13](AGENTS_NATIVE_QUOTE_RECOVERY.md): initialize the common treasury
+admission plan before concurrent futures. Open the router gate only after both
+reads acquire their existing global permits and pass the original deadline
+check. Cooperative Pending is not admission. Waiting owns no permit, remains
+bounded by the original router/poll deadline, and never substitutes for validated
+common results. No-plan/absent-router behavior and all original budgets remain.

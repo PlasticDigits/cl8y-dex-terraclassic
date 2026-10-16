@@ -207,3 +207,61 @@ attempts or establish an earlier production idle interval.
 The eighth-candidate [dispatch proof](dispatch-work-conservation-proof.json) retains the real OLD failure, final source hashes, symmetric ownership controls and fixed FIRST/RETEST. See [RESULTS](RESULTS.md) for the separate source/deployed verdicts.
 
 The eighth-candidate [final frozen-source receipt](source-verification-8-final.json) records the applicable six-stage wave separately from prior checks and deployed acceptance.
+
+Initialized metadata uses the separate initialized_api_checkpoint_v1 evidence
+profile; native v9 and generic v8 measurement definitions stay unchanged. Inspect
+or forward initialized_api_checkpoint immediately after the four native API
+checks, before Chrome launch. Count actual useful/failure rows and sticky flags;
+window entry is not evidence of initialization success. Supplemental request,
+body-complete response and server Date epochs never replace original monotonic
+latency or browser clocks. Missing timing is null/unknown; HTTP Date is coarse.
+Accept a server Date only when canonical HTTP-date grammar, bounded integer
+epoch and exact calendar/weekday roundtrip agree; otherwise preserve null. This
+diagnostic never changes quote acceptance. See the
+[final observer proof](observer-initialized-checkpoint-proof.json) and immutable
+[initial checkpoint proof](observer-initialized-checkpoint-proof-initial.json).
+
+
+For [NR1505-13](../../../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), force the legal
+router-first schedule against actual bounded HTTP reads and preserve the OLD
+availability failure. Distinguish earlier ordering-only failures from unavailable
+native views. Fixed FIRST/RETEST must retain provider/global/read/deadline/freshness
+bounds and sufficient timing margin in the isolated fixture. Exhaust a real
+Tokio task's cooperative budget before common read polling: Pending must leave
+the router waiting until both permits are actually acquired and the original
+deadline checks pass. Include no-plan, one-shot, cancellation, negative/error,
+no-router and deadline controls alongside the full wrapper suite. The gate
+holds no permit while waiting and never treats admission as successful data.
+
+
+The ninth-candidate [priority proof](router-prerequisite-priority-proof.json)
+retains all actual OLD and intermediate-candidate failures, final source hashes,
+eight-control and 51-test wrapper FIRST/RETEST receipts, original bounds and
+historical-cause limitations. The final observer proof is separate above.
+
+
+The [new expiry-helper readiness receipt](expiry-control-release9-readiness.json)
+records the final observer pins, offline self-test FIRST/RETEST and missing-
+attestation rejection. These are preparation checks; positive deployed callback
+FIRST/RETEST remain required. The full public NodeQA group passes 59 tests and
+includes loopback Chrome controls, separately from the private zero-network
+self-tests.
+
+
+The ninth-candidate [final source receipt](source-verification-9-final.json)
+records the applicable six-stage FIRST/RETEST wave and unchanged before/after
+fingerprints. See [RESULTS](RESULTS.md) for counts, explicit skip scope and the
+separate deployment/live checklist.
+
+
+The [CI491 failure](ci-491.json) and
+[public-value provenance](ci-491-public-value-provenance.json) separate unrelated
+incoming incident-data scanner findings from the tested application. Apply
+[CI1400](../../../skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md) for the narrow reviewed
+policy update; a PR config edit alone cannot change trusted enforcement.
+
+
+The [local policy verification proof](public-literal-policy-proof.json) records
+exact-literal/same-detector controls, canonical secret fixtures, signed builds,
+runtime 200/401 checks and all twelve final asset hashes. Remote immutable policy
+rollout and genuine new-head CI are separate evidence.

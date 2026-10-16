@@ -1,0 +1,1065 @@
+{
+  "issue": 1505,
+  "overall": "FAIL",
+  "scope": "M8 natural browser FIRST; initialized reverse API failures, one passing complete forward desktop window, one deliberately interrupted forward phone window, reverse browser windows unstarted",
+  "expected_revision": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+  "qa_measurement_version": "foreground_correlated_native_availability_v9",
+  "utc_start": "2026-10-16T01:49:10.373Z",
+  "utc_end": "2026-10-16T01:53:04.388Z",
+  "attestation": {
+    "file": "attestation-release8.json",
+    "sha256": "1ff0317d94a125f049b1f43f1120ae98ccff82730629d8aa4412912237e776e3",
+    "overall": "PASS",
+    "frontend_source_sha": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+    "backend_git_sha": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+    "backend_deployment_source_sha": "b34187f33f1e167ab9741c7135081496ba1daaf6",
+    "independent_backend_warm_ready_utc": "2026-10-16T01:44:03+00:00"
+  },
+  "helper_hashes": [
+    {
+      "file": "live-trading-lifecycle-1499.cjs",
+      "sha256": "efb6277391932678f87e133cd4e7d2d0227168b195f25d86b68a8b941a469440"
+    },
+    {
+      "file": "live-input-clock-1499.cjs",
+      "sha256": "6f9487f0d14b04f2014578c0fbfef05ed86d25113e37c718f3cc30c67ade930b"
+    },
+    {
+      "file": "live-quote-economics-1500.cjs",
+      "sha256": "a3f052ff16c5d8e1348a76157a014a1a403c7d575f428c540bc823bd77663662"
+    },
+    {
+      "file": "live-read-guard-1499.cjs",
+      "sha256": "3fcbbfb57997b5f551aa9986eed20608bf6a6310cf8fc4492c6b9b1be556a8c4"
+    },
+    {
+      "file": "live-quote-budget-1505.cjs",
+      "sha256": "768c4fc852872caa4fd62f5d73beb703ecae74d86b182589f7d7f42c4cd0652b"
+    }
+  ],
+  "helper_hashes_unchanged_after_run": true,
+  "completed": false,
+  "completed_window_count": 1,
+  "passing_completed_window_count": 1,
+  "attempted_window_count": 2,
+  "expected_window_count": 4,
+  "unstarted_window_count": 2,
+  "limits": {
+    "window_ms": 190000,
+    "browser_useful_ms": 750,
+    "initialized_socket_ms": 500,
+    "quote_progress_reads": 800,
+    "context_quote_progress_maximum": 600,
+    "global_wall_ms": 960000,
+    "completion_basis": "Explicit natural active-duration completion; drain time cannot complete an early stop"
+  },
+  "initialized_api": {
+    "samples": 4,
+    "useful": 2,
+    "not_useful": 2,
+    "useful_max_ms": 295.3747800000001,
+    "all_response_max_ms": 295.3747800000001,
+    "samples_safe": [
+      {
+        "case": "USTC->CL8Y",
+        "phase": "initialized_first",
+        "status": 200,
+        "request_id": "27b594f64a04ae0a",
+        "reason": null,
+        "elapsed_ms": 295.3747800000001,
+        "useful": true,
+        "metrics": true,
+        "observed": 1792115343147,
+        "expires": 1792115363147
+      },
+      {
+        "case": "USTC->CL8Y",
+        "phase": "initialized_retest",
+        "status": 200,
+        "request_id": "27b594f64a04ae0b",
+        "reason": null,
+        "elapsed_ms": 290.17911899999945,
+        "useful": true,
+        "metrics": true,
+        "observed": 1792115343147,
+        "expires": 1792115363147
+      },
+      {
+        "case": "CL8Y->USTC",
+        "phase": "initialized_first",
+        "status": 503,
+        "request_id": "27b594f64a04ae0c",
+        "reason": "missing_observations",
+        "elapsed_ms": 290.26628400000027,
+        "useful": false,
+        "metrics": null,
+        "observed": null,
+        "expires": null
+      },
+      {
+        "case": "CL8Y->USTC",
+        "phase": "initialized_retest",
+        "status": 503,
+        "request_id": "27b594f64a04ae0d",
+        "reason": "missing_observations",
+        "elapsed_ms": 290.99399099999937,
+        "useful": false,
+        "metrics": null,
+        "observed": null,
+        "expires": null
+      }
+    ]
+  },
+  "selected_window_outcomes": {
+    "responses": 40,
+    "useful": 40,
+    "not_useful": 0,
+    "teardown_cancelled": 0
+  },
+  "actual_application_failure": {
+    "scope": "Initialized CL8Y->USTC API responses",
+    "responses": [
+      {
+        "case": "CL8Y->USTC",
+        "phase": "initialized_first",
+        "status": 503,
+        "request_id": "27b594f64a04ae0c",
+        "reason": "missing_observations",
+        "elapsed_ms": 290.26628400000027,
+        "useful": false,
+        "metrics": null,
+        "observed": null,
+        "expires": null
+      },
+      {
+        "case": "CL8Y->USTC",
+        "phase": "initialized_retest",
+        "status": 503,
+        "request_id": "27b594f64a04ae0d",
+        "reason": "missing_observations",
+        "elapsed_ms": 290.99399099999937,
+        "useful": false,
+        "metrics": null,
+        "observed": null,
+        "expires": null
+      }
+    ],
+    "exact_absolute_response_epoch_ms": null,
+    "server_date_header_captured": false,
+    "bounded_response_interval_utc": {
+      "not_before": "2026-10-16T01:49:10.373Z",
+      "before_first_desktop_input": "2026-10-16T01:49:21.387000+00:00"
+    },
+    "timing_qualification": "Initialized API rows retain elapsed native response clocks but omit absolute epochs and server Date. Both reverse failures followed the2 forward useful calls and preceded browser startup; exact timestamps require correlated server logs.",
+    "original_window_validation_failure": false,
+    "classification": "Two real initialized selected503 missing_observations results; their fast290ms response times do not qualify as useful results. Not teardown, budget exhaustion or observer refusal."
+  },
+  "separate_resource_cutoff": null,
+  "budget_exhausted": false,
+  "request_accounting": {
+    "total_quote_progress_reads": 176,
+    "route_reads": {
+      "solve": 44,
+      "progress": 132,
+      "best": 0
+    },
+    "initialized_solves_included": 4,
+    "per_window": [
+      {
+        "solve": 34,
+        "progress": 113,
+        "best": 0
+      },
+      {
+        "solve": 6,
+        "progress": 19,
+        "best": 0
+      },
+      {
+        "solve": 0,
+        "progress": 0,
+        "best": 0
+      },
+      {
+        "solve": 0,
+        "progress": 0,
+        "best": 0
+      }
+    ],
+    "metadata_reader_calls": 10,
+    "metadata_reader_calls_include_initialized_probes": true,
+    "node_non_quote_reader_calls": 6,
+    "guard_rejections_recorded": 0,
+    "partial_window_guard_snapshot_unavailable": true,
+    "unattributed_solve_request_count": 0,
+    "qualification": "All44 solve calls reconcile to4 initialized API outcomes plus34 desktop and6 phone selected outcomes. Final phone guard unavailable after deliberate shutdown; aggregate blocked/rejected counters include captured contexts only."
+  },
+  "separate_interruption": {
+    "cause": "Owned Chrome stopped immediately after the initialized API failures were read from the first saved window checkpoint",
+    "stop_utc": "2026-10-16T01:53:04.335446+00:00",
+    "case": "USTC->CL8Y",
+    "viewport": "phone",
+    "active_window_elapsed_ms": 26300,
+    "active_window_stop_reason": "active_exception",
+    "completed": false,
+    "classification": "Incomplete deliberate observer shutdown; probe_unavailable/incomplete flags caused by shutdown are retained separately from the actual initialized503 failures."
+  },
+  "display_and_expiry": {
+    "expiry_validation_or_probe_flags": [],
+    "ownership_retained_qualification_events": 0,
+    "direct_adoption_qualification": "No ownership qualification flags were emitted in observed windows; exact adoption was not directly instrumented and interrupted coverage remains incomplete.",
+    "timer_callback_directly_instrumented": false,
+    "funded_signing_claim": false,
+    "positive_expiry_callback_acceptance": false
+  },
+  "windows": [
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "desktop",
+      "completed": true,
+      "active_window_completed": true,
+      "active_window_elapsed_ms": 190165,
+      "active_window_stop_reason": "duration",
+      "original_input_epoch_ms": 1792115361387,
+      "elapsed_ms": 190167,
+      "first_useful_ms": 372.09999999403954,
+      "first_dom_ms": 357.59999999403954,
+      "first_observed_dom_ms": 357.59999999403954,
+      "first_qualified_dom_ms": 357.59999999403954,
+      "samples": 938,
+      "failures": [],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "first_clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": {
+        "remaining": 453,
+        "admitted": 147,
+        "rejected": 0,
+        "writes": 0,
+        "providers": 0,
+        "actors": 0,
+        "unexpected": 0,
+        "workers": 0
+      },
+      "response_drain": {
+        "limit_ms": 5000,
+        "settled": true
+      },
+      "availability": {
+        "responses": 34,
+        "useful": 34,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 34,
+        "progress": 113,
+        "best": 0
+      },
+      "request_accounting_scope": "Completed context guard for desktop; interrupted phone counts are final global counters minus4 initialized calls and completed desktop counts",
+      "selected_response_outcome_gap": 0,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792115347803,
+          "expires_at_ms": 1792115367803
+        },
+        {
+          "observed_at_ms": 1792115353147,
+          "expires_at_ms": 1792115373147
+        },
+        {
+          "observed_at_ms": 1792115357803,
+          "expires_at_ms": 1792115377803
+        },
+        {
+          "observed_at_ms": 1792115363146,
+          "expires_at_ms": 1792115383146
+        },
+        {
+          "observed_at_ms": 1792115367803,
+          "expires_at_ms": 1792115387803
+        },
+        {
+          "observed_at_ms": 1792115373146,
+          "expires_at_ms": 1792115393146
+        },
+        {
+          "observed_at_ms": 1792115377802,
+          "expires_at_ms": 1792115397802
+        },
+        {
+          "observed_at_ms": 1792115383147,
+          "expires_at_ms": 1792115403147
+        },
+        {
+          "observed_at_ms": 1792115393147,
+          "expires_at_ms": 1792115413147
+        },
+        {
+          "observed_at_ms": 1792115397803,
+          "expires_at_ms": 1792115417803
+        },
+        {
+          "observed_at_ms": 1792115403147,
+          "expires_at_ms": 1792115423147
+        },
+        {
+          "observed_at_ms": 1792115407803,
+          "expires_at_ms": 1792115427803
+        },
+        {
+          "observed_at_ms": 1792115413147,
+          "expires_at_ms": 1792115433147
+        },
+        {
+          "observed_at_ms": 1792115417803,
+          "expires_at_ms": 1792115437803
+        },
+        {
+          "observed_at_ms": 1792115423146,
+          "expires_at_ms": 1792115443146
+        },
+        {
+          "observed_at_ms": 1792115427803,
+          "expires_at_ms": 1792115447803
+        },
+        {
+          "observed_at_ms": 1792115433147,
+          "expires_at_ms": 1792115453147
+        },
+        {
+          "observed_at_ms": 1792115443147,
+          "expires_at_ms": 1792115463147
+        },
+        {
+          "observed_at_ms": 1792115447803,
+          "expires_at_ms": 1792115467803
+        },
+        {
+          "observed_at_ms": 1792115453147,
+          "expires_at_ms": 1792115473147
+        },
+        {
+          "observed_at_ms": 1792115463147,
+          "expires_at_ms": 1792115483147
+        },
+        {
+          "observed_at_ms": 1792115467803,
+          "expires_at_ms": 1792115487803
+        },
+        {
+          "observed_at_ms": 1792115473147,
+          "expires_at_ms": 1792115488817
+        },
+        {
+          "observed_at_ms": 1792115477803,
+          "expires_at_ms": 1792115488817
+        },
+        {
+          "observed_at_ms": 1792115477803,
+          "expires_at_ms": 1792115497803
+        },
+        {
+          "observed_at_ms": 1792115483146,
+          "expires_at_ms": 1792115503146
+        },
+        {
+          "observed_at_ms": 1792115493147,
+          "expires_at_ms": 1792115513147
+        },
+        {
+          "observed_at_ms": 1792115497803,
+          "expires_at_ms": 1792115517803
+        },
+        {
+          "observed_at_ms": 1792115503147,
+          "expires_at_ms": 1792115523147
+        },
+        {
+          "observed_at_ms": 1792115507803,
+          "expires_at_ms": 1792115527803
+        },
+        {
+          "observed_at_ms": 1792115513147,
+          "expires_at_ms": 1792115533147
+        },
+        {
+          "observed_at_ms": 1792115523147,
+          "expires_at_ms": 1792115543147
+        },
+        {
+          "observed_at_ms": 1792115527803,
+          "expires_at_ms": 1792115547803
+        },
+        {
+          "observed_at_ms": 1792115533147,
+          "expires_at_ms": 1792115553147
+        }
+      ],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": [],
+      "exact_response_adoption_directly_instrumented": false,
+      "timer_callback_directly_instrumented": false,
+      "selected_responses": [
+        {
+          "response_epoch_ms": 1792115361716,
+          "response_utc": "2026-10-16T01:49:21.716000+00:00",
+          "input_age_ms": 329,
+          "status": 200,
+          "request_id": "27b594f64a04ae0e",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115347803,
+          "original_expires_at_ms": 1792115367803,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115367095,
+          "response_utc": "2026-10-16T01:49:27.095000+00:00",
+          "input_age_ms": 5708,
+          "status": 200,
+          "request_id": "27b594f64a04ae11",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115353147,
+          "original_expires_at_ms": 1792115373147,
+          "diagnostic_delivery_lag_ms": 1
+        },
+        {
+          "response_epoch_ms": 1792115372440,
+          "response_utc": "2026-10-16T01:49:32.440000+00:00",
+          "input_age_ms": 11053,
+          "status": 200,
+          "request_id": "27b594f64a04ae14",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115357803,
+          "original_expires_at_ms": 1792115377803,
+          "diagnostic_delivery_lag_ms": 3
+        },
+        {
+          "response_epoch_ms": 1792115377095,
+          "response_utc": "2026-10-16T01:49:37.095000+00:00",
+          "input_age_ms": 15708,
+          "status": 200,
+          "request_id": "27b594f64a04ae1a",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115363146,
+          "original_expires_at_ms": 1792115383146,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115382439,
+          "response_utc": "2026-10-16T01:49:42.439000+00:00",
+          "input_age_ms": 21052,
+          "status": 200,
+          "request_id": "27b594f64a04ae20",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115367803,
+          "original_expires_at_ms": 1792115387803,
+          "diagnostic_delivery_lag_ms": 2
+        },
+        {
+          "response_epoch_ms": 1792115387097,
+          "response_utc": "2026-10-16T01:49:47.097000+00:00",
+          "input_age_ms": 25710,
+          "status": 200,
+          "request_id": "27b594f64a04ae23",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115373146,
+          "original_expires_at_ms": 1792115393146,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115392439,
+          "response_utc": "2026-10-16T01:49:52.439000+00:00",
+          "input_age_ms": 31052,
+          "status": 200,
+          "request_id": "27b594f64a04ae26",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115377802,
+          "original_expires_at_ms": 1792115397802,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115397094,
+          "response_utc": "2026-10-16T01:49:57.094000+00:00",
+          "input_age_ms": 35707,
+          "status": 200,
+          "request_id": "27b594f64a04ae29",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115383147,
+          "original_expires_at_ms": 1792115403147,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115402440,
+          "response_utc": "2026-10-16T01:50:02.440000+00:00",
+          "input_age_ms": 41053,
+          "status": 200,
+          "request_id": "27b594f64a04ae2f",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115393147,
+          "original_expires_at_ms": 1792115413147,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115412440,
+          "response_utc": "2026-10-16T01:50:12.440000+00:00",
+          "input_age_ms": 51053,
+          "status": 200,
+          "request_id": "27b594f64a04ae32",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115397803,
+          "original_expires_at_ms": 1792115417803,
+          "diagnostic_delivery_lag_ms": 7
+        },
+        {
+          "response_epoch_ms": 1792115417097,
+          "response_utc": "2026-10-16T01:50:17.097000+00:00",
+          "input_age_ms": 55710,
+          "status": 200,
+          "request_id": "27b594f64a04ae35",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115403147,
+          "original_expires_at_ms": 1792115423147,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115422441,
+          "response_utc": "2026-10-16T01:50:22.441000+00:00",
+          "input_age_ms": 61054,
+          "status": 200,
+          "request_id": "27b594f64a04ae3b",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115407803,
+          "original_expires_at_ms": 1792115427803,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115427097,
+          "response_utc": "2026-10-16T01:50:27.097000+00:00",
+          "input_age_ms": 65710,
+          "status": 200,
+          "request_id": "27b594f64a04ae3e",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115413147,
+          "original_expires_at_ms": 1792115433147,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115432440,
+          "response_utc": "2026-10-16T01:50:32.440000+00:00",
+          "input_age_ms": 71053,
+          "status": 200,
+          "request_id": "27b594f64a04ae41",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115417803,
+          "original_expires_at_ms": 1792115437803,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115437099,
+          "response_utc": "2026-10-16T01:50:37.099000+00:00",
+          "input_age_ms": 75712,
+          "status": 200,
+          "request_id": "27b594f64a04ae44",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115423146,
+          "original_expires_at_ms": 1792115443146,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115442439,
+          "response_utc": "2026-10-16T01:50:42.439000+00:00",
+          "input_age_ms": 81052,
+          "status": 200,
+          "request_id": "27b594f64a04ae4a",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115427803,
+          "original_expires_at_ms": 1792115447803,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115447098,
+          "response_utc": "2026-10-16T01:50:47.098000+00:00",
+          "input_age_ms": 85711,
+          "status": 200,
+          "request_id": "27b594f64a04ae4d",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115433147,
+          "original_expires_at_ms": 1792115453147,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115452442,
+          "response_utc": "2026-10-16T01:50:52.442000+00:00",
+          "input_age_ms": 91055,
+          "status": 200,
+          "request_id": "27b594f64a04ae53",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115443147,
+          "original_expires_at_ms": 1792115463147,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115462441,
+          "response_utc": "2026-10-16T01:51:02.441000+00:00",
+          "input_age_ms": 101054,
+          "status": 200,
+          "request_id": "27b594f64a04ae56",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115447803,
+          "original_expires_at_ms": 1792115467803,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115467097,
+          "response_utc": "2026-10-16T01:51:07.097000+00:00",
+          "input_age_ms": 105710,
+          "status": 200,
+          "request_id": "27b594f64a04ae59",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115453147,
+          "original_expires_at_ms": 1792115473147,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115472442,
+          "response_utc": "2026-10-16T01:51:12.442000+00:00",
+          "input_age_ms": 111055,
+          "status": 200,
+          "request_id": "27b594f64a04ae5c",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115463147,
+          "original_expires_at_ms": 1792115483147,
+          "diagnostic_delivery_lag_ms": 7
+        },
+        {
+          "response_epoch_ms": 1792115482441,
+          "response_utc": "2026-10-16T01:51:22.441000+00:00",
+          "input_age_ms": 121054,
+          "status": 200,
+          "request_id": "27b594f64a04ae5f",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115467803,
+          "original_expires_at_ms": 1792115487803,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": 1792115487097,
+          "response_utc": "2026-10-16T01:51:27.097000+00:00",
+          "input_age_ms": 125710,
+          "status": 200,
+          "request_id": "27b594f64a04ae62",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115473147,
+          "original_expires_at_ms": 1792115488817,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115488390,
+          "response_utc": "2026-10-16T01:51:28.390000+00:00",
+          "input_age_ms": 127003,
+          "status": 200,
+          "request_id": "27b594f64a04ae65",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115477803,
+          "original_expires_at_ms": 1792115488817,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115489682,
+          "response_utc": "2026-10-16T01:51:29.682000+00:00",
+          "input_age_ms": 128295,
+          "status": 200,
+          "request_id": "27b594f64a04ae68",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115477803,
+          "original_expires_at_ms": 1792115497803,
+          "diagnostic_delivery_lag_ms": 8
+        },
+        {
+          "response_epoch_ms": 1792115497095,
+          "response_utc": "2026-10-16T01:51:37.095000+00:00",
+          "input_age_ms": 135708,
+          "status": 200,
+          "request_id": "27b594f64a04ae70",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115483146,
+          "original_expires_at_ms": 1792115503146,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115502440,
+          "response_utc": "2026-10-16T01:51:42.440000+00:00",
+          "input_age_ms": 141053,
+          "status": 200,
+          "request_id": "27b594f64a04ae76",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115493147,
+          "original_expires_at_ms": 1792115513147,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115512440,
+          "response_utc": "2026-10-16T01:51:52.440000+00:00",
+          "input_age_ms": 151053,
+          "status": 200,
+          "request_id": "27b594f64a04ae80",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115497803,
+          "original_expires_at_ms": 1792115517803,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115517096,
+          "response_utc": "2026-10-16T01:51:57.096000+00:00",
+          "input_age_ms": 155709,
+          "status": 200,
+          "request_id": "27b594f64a04ae86",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115503147,
+          "original_expires_at_ms": 1792115523147,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115522440,
+          "response_utc": "2026-10-16T01:52:02.440000+00:00",
+          "input_age_ms": 161053,
+          "status": 200,
+          "request_id": "27b594f64a04ae8c",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115507803,
+          "original_expires_at_ms": 1792115527803,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115527096,
+          "response_utc": "2026-10-16T01:52:07.096000+00:00",
+          "input_age_ms": 165709,
+          "status": 200,
+          "request_id": "27b594f64a04ae92",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115513147,
+          "original_expires_at_ms": 1792115533147,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": 1792115532441,
+          "response_utc": "2026-10-16T01:52:12.441000+00:00",
+          "input_age_ms": 171054,
+          "status": 200,
+          "request_id": "27b594f64a04ae95",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115523147,
+          "original_expires_at_ms": 1792115543147,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115542441,
+          "response_utc": "2026-10-16T01:52:22.441000+00:00",
+          "input_age_ms": 181054,
+          "status": 200,
+          "request_id": "27b594f64a04ae98",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115527803,
+          "original_expires_at_ms": 1792115547803,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": 1792115547095,
+          "response_utc": "2026-10-16T01:52:27.095000+00:00",
+          "input_age_ms": 185708,
+          "status": 200,
+          "request_id": "27b594f64a04ae9e",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115533147,
+          "original_expires_at_ms": 1792115553147,
+          "diagnostic_delivery_lag_ms": 4
+        }
+      ],
+      "display_transitions": [
+        {
+          "sample_epoch_ms": 1792115361396,
+          "input_age_ms": 9.099999994039536,
+          "has_output": false,
+          "loading": true,
+          "unsupported": false
+        },
+        {
+          "sample_epoch_ms": 1792115361803,
+          "input_age_ms": 416.70000000298023,
+          "has_output": true,
+          "loading": false,
+          "unsupported": false
+        },
+        {
+          "sample_epoch_ms": 1792115488883,
+          "input_age_ms": 127496.39999999106,
+          "has_output": false,
+          "loading": true,
+          "unsupported": false
+        },
+        {
+          "sample_epoch_ms": 1792115489696,
+          "input_age_ms": 128309.39999999106,
+          "has_output": true,
+          "loading": false,
+          "unsupported": false
+        }
+      ],
+      "interrupted_clock_qualification": null
+    },
+    {
+      "case": "USTC->CL8Y",
+      "viewport": "phone",
+      "completed": false,
+      "active_window_completed": false,
+      "active_window_elapsed_ms": 26300,
+      "active_window_stop_reason": "active_exception",
+      "original_input_epoch_ms": null,
+      "elapsed_ms": null,
+      "first_useful_ms": 364.3999999910593,
+      "first_dom_ms": 344,
+      "first_observed_dom_ms": 344,
+      "first_qualified_dom_ms": 344,
+      "samples": 130,
+      "failures": [
+        "probe_unavailable",
+        "incomplete_expiry_windows"
+      ],
+      "failure_details": [],
+      "response_probe_failures": [],
+      "clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "first_clock_diagnostics": {
+        "long_task_observer_available": true,
+        "long_tasks": [],
+        "frame_gaps": []
+      },
+      "read_guard": null,
+      "response_drain": null,
+      "availability": {
+        "responses": 6,
+        "useful": 6,
+        "not_useful": 0,
+        "teardown_cancelled": 0
+      },
+      "route_request_counts": {
+        "solve": 6,
+        "progress": 19,
+        "best": 0
+      },
+      "request_accounting_scope": "Completed context guard for desktop; interrupted phone counts are final global counters minus4 initialized calls and completed desktop counts",
+      "selected_response_outcome_gap": 0,
+      "unique_original_observation_windows": [
+        {
+          "observed_at_ms": 1792115543146,
+          "expires_at_ms": 1792115563146
+        },
+        {
+          "observed_at_ms": 1792115547803,
+          "expires_at_ms": 1792115567803
+        },
+        {
+          "observed_at_ms": 1792115553147,
+          "expires_at_ms": 1792115573147
+        },
+        {
+          "observed_at_ms": 1792115557803,
+          "expires_at_ms": 1792115577803
+        },
+        {
+          "observed_at_ms": 1792115563148,
+          "expires_at_ms": 1792115583148
+        },
+        {
+          "observed_at_ms": 1792115567803,
+          "expires_at_ms": 1792115587803
+        }
+      ],
+      "ownership_retained_qualification_count": 0,
+      "ownership_retained_qualification_scopes": [],
+      "exact_response_adoption_directly_instrumented": false,
+      "timer_callback_directly_instrumented": false,
+      "selected_responses": [
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 327,
+          "status": 200,
+          "request_id": "27b594f64a04aea1",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115543146,
+          "original_expires_at_ms": 1792115563146,
+          "diagnostic_delivery_lag_ms": 4
+        },
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 4353,
+          "status": 200,
+          "request_id": "27b594f64a04aea4",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115547803,
+          "original_expires_at_ms": 1792115567803,
+          "diagnostic_delivery_lag_ms": 1
+        },
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 9009,
+          "status": 200,
+          "request_id": "27b594f64a04aea7",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115553147,
+          "original_expires_at_ms": 1792115573147,
+          "diagnostic_delivery_lag_ms": 6
+        },
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 14353,
+          "status": 200,
+          "request_id": "27b594f64a04aead",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115557803,
+          "original_expires_at_ms": 1792115577803,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 19010,
+          "status": 200,
+          "request_id": "27b594f64a04aeb0",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115563148,
+          "original_expires_at_ms": 1792115583148,
+          "diagnostic_delivery_lag_ms": 5
+        },
+        {
+          "response_epoch_ms": null,
+          "response_utc": null,
+          "input_age_ms": 24355,
+          "status": 200,
+          "request_id": "27b594f64a04aeb6",
+          "reason": null,
+          "useful": true,
+          "original_observed_at_ms": 1792115567803,
+          "original_expires_at_ms": 1792115587803,
+          "diagnostic_delivery_lag_ms": 5
+        }
+      ],
+      "display_transitions": [
+        {
+          "sample_epoch_ms": 1792115558099,
+          "input_age_ms": 13.199999988079071,
+          "has_output": false,
+          "loading": true,
+          "unsupported": false
+        },
+        {
+          "sample_epoch_ms": 1792115558506,
+          "input_age_ms": 419.3999999910593,
+          "has_output": true,
+          "loading": false,
+          "unsupported": false
+        }
+      ],
+      "interrupted_clock_qualification": "Original input absolute epoch, elapsed time after drain and final read guard are not serialized on active exception. Relative useful-paint/response clocks and original observation windows remain retained; no absolute input epoch is reconstructed."
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "desktop",
+      "started": false,
+      "completed": false,
+      "reason": "Stopped owned cohort after initialized API failure was exposed in retained checkpoint; not an additional application failure"
+    },
+    {
+      "case": "CL8Y->USTC",
+      "viewport": "phone",
+      "started": false,
+      "completed": false,
+      "reason": "Stopped owned cohort after initialized API failure was exposed in retained checkpoint; not an additional application failure"
+    }
+  ],
+  "observer": {
+    "top_level_failures": [
+      "native_socket_not_useful",
+      "native_socket_not_useful",
+      "probe_unavailable"
+    ],
+    "blocked_writes_recorded": 0,
+    "blocked_provider_recorded": 0,
+    "blocked_other_recorded": 0,
+    "partial_guard_unavailable": true,
+    "ownership_direct_adoption_instrumentation": false,
+    "callback_instrumentation": false,
+    "unknown_ownership_not_promoted_to_acceptance": true,
+    "reporting_correction": "Initial progress inferred initialized success from browser launch. Receipt inspection proved2 failures; incorrect progress statement was explicitly corrected and owned browser stopped. Frozen driver retains failures but does not externally stream initialized outcomes."
+  },
+  "checkpoint_hashes": [
+    {
+      "file": "release8-browser-first-checkpoint-1.json",
+      "sha256": "49b723ed2e7baaafc626cae1732b6d42e964fe8cd87f5322f14d9965629a8e8d"
+    }
+  ],
+  "receipt_file": "release8-browser-first.json",
+  "receipt_sha256": "dd1c260c774415ccebf955b006fbbbada3c1daf64d0791f631dd409b8d404000",
+  "log_sha256": "62c672e5f6e3f9206ff970a1b63a40cfa324c9c6930fd4db6e95f7408635d356",
+  "all_owned_node_chrome_exited": true,
+  "retest_started": false,
+  "expiry_control_started": false,
+  "source_or_observer_edits": false,
+  "historical_and_partial_verdict_policy": "Actual selected initialized503 results remain FAIL. Intentional partial phone window and unstarted reverse windows are incomplete; no unchanged RETEST or expiry-control acceptance is claimed."
+}
