@@ -36,31 +36,28 @@ exposes a current price; `degraded`, `stale` and `unavailable` expose null. Path
 Venus remains a separate exact pinned BSC vToken redeem observation, also age
 bounded. Downstream wraps retain independent USTC and LUNC sources.
 
-`hub-fixed-reference-v1` requires exact configured CW20 identities, humanized
+`live-reserve-spot-v1` requires exact configured CW20 identities, humanized
 reserves and **$100 minimum independently priced leg depth** (configurable through
 existing `HUB_USD_TVL_FLOOR`). Candidate self-valued total TVL cannot qualify it.
 UST1 uses the actual canonical UST1/cUSTC pool; no duplicate canonical pair attack
-is assumed. USTR candidates retain deterministic ties and pin an eligible source.
+is assumed. USTR candidates retain deterministic ties.
 Spot expiry follows the ticker even when a source-pair foreign key is removed; loss of that key cannot turn a spot into a longer-lived external quote. Idle candle classification also requires exact canonical wrap contracts and consistent native/CW20 flags.
-A distinct reserve observation at least **60 seconds** later confirms initial
-reference or a source switch. Published mark / external USTC price must remain
-within **10%** of the fixed reference, so changing CEX prices does not trigger a
-reserve-manipulation alarm. Reference state persists across restarts and outages;
-it never ratchets toward repeated manipulated samples. Divergence/depth failures
-suppress marks and emit structured warning reasons; dependent USTR cannot launder
-an unavailable UST1. Economic marks preserve the oldest reserve/anchor observation and require current health for their exact USTC, LUNC, UST1 or USTR dependency; refresh cannot renew an old input. Cached overview live prices are requalified on each response. DeFiLlama daily prices remain explicitly historical advisory snapshots with original observation timestamps.
-Responses disclose policy, quality, as-of, TTL, independent
-depth, divergence and reference time. **All hub marks have `oracle_grade=false`.**
+Each scheduled pass publishes the latest fresh, positive reserve spot immediately.
+There is no fixed-reference band, no confirmation delay and no drift ratchet: large
+or fast genuine price movement is delivered as the new spot and never suppresses a
+mark. Missing, stale, nonpositive or below-floor-depth evidence still fails closed,
+so an outage, an empty pool or a missing anchor cannot fabricate a quote. Economic
+marks preserve the oldest reserve/anchor observation and require current health for
+their exact USTC, LUNC, UST1 or USTR dependency; refresh cannot renew an old input. Cached overview live prices are requalified on each response. DeFiLlama daily prices remain explicitly historical advisory snapshots with original observation timestamps.
+Responses disclose policy, quality, as-of, TTL and independent depth. **All hub marks have `oracle_grade=false`.**
 
-This bounds abrupt reserve manipulation; it does not establish independent fair
-value. A manipulated bootstrap, changes within the bound and coordinated sustained
-manipulation remain possible. Spot prices are unsuitable for collateral, settlement,
-automated spending authorization or treasury targets. No inspected settlement math
-uses these USD marks, and this fix makes no collateral-theft claim. An intentional
-market repricing beyond the reference requires separate maintenance: investigate,
-backup the affected `hub_price_references` rows and record independently reviewed
-reset evidence before deleting only those references. A reset enters confirmation
-again; never auto-reset after divergence or expose a public reset endpoint.
+These marks are live reserve spots; they do not establish independent fair value.
+Reserve manipulation visible only at the next observation, a manipulated bootstrap
+and coordinated sustained manipulation remain possible. Spot prices are unsuitable
+for collateral, settlement, automated spending authorization or treasury targets.
+No inspected settlement math uses these USD marks, and this change makes no
+collateral-theft claim. Financial consumers keep their separate fresh-quorum and
+movement checks (below); the quote path never blocks on price magnitude.
 
 ## Financial actions
 
@@ -82,9 +79,10 @@ production databases. Run available checks first and fix/retest executed failure
 
 - [ ] **AC1:** Run `make verify-issue-1391`; inspect parser/outlier/quorum tests,
   legacy and stale replay rejection, outage and recovered-quorum Postgres fixtures.
-- [ ] **AC2:** Run canonical-pool Postgres and fixed-clock hub tests. Confirm reserve
-  shift, independently priced depth loss, source tie/switch and propagated UST1
-  failure. Inspect hub, overview and DeFiLlama quality/provenance fields.
+- [ ] **AC2:** Run canonical-pool Postgres and fixed-clock hub tests. Confirm a
+  reserve shift publishes the moved live spot (never a suppression), independently
+  priced depth loss fails closed and propagated UST1/dependent marks degrade when
+  the anchor is missing. Inspect hub, overview and DeFiLlama quality/provenance fields.
 - [ ] **AC3:** Run financial consumer mock tests included in the verifier. For each
   actual prepare function, reject expired/future/degraded/no-quorum/spoofed input;
   verify the mocked terrad log stays empty, including deterioration after planning.
@@ -93,9 +91,10 @@ production databases. Run available checks first and fix/retest executed failure
 - [ ] **Chain attack:** Probe `make has-localterra`; provision
   `make setup-cloud-localterra` if absent. On isolated funded canonical pools,
   execute a reserve manipulation and LP withdrawal, retain actual block/timestamp
-  provenance, and verify reference suppression/recovery. Never alter production.
+  provenance, and verify the moved spot is published live while depth loss fails
+  closed. Never alter production.
 - [ ] **Deployment:** Deploy migrations/indexer and capture read-only timestamped
-  CEX/hub/API/adapter responses; inspect divergence warning receipts and verify
+  CEX/hub/API/adapter responses; confirm moved reserve spots are served and verify
   financial dry runs reject degraded data. Do not execute production spending as QA.
 
 Agents may report **overall PASS with explicit skips** when unavailable checks are

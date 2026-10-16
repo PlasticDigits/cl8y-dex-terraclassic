@@ -11,9 +11,11 @@ results/revision: [verification](../docs/qa/issue-1391/verification.md).
    become zero, a peg, a last-good current quote or fabricated healthy provenance.
 2. Keep canonical contract identity/decimals and independent USTC/LUNC CEX sources.
    `vfdusd` is FDUSD/USD; Venus rate is separately pinned, never a DEX volume oracle.
-3. Never self-value hub TVL as independent backing or reset reference automatically.
-   Preserve fixed reference state on restarts, outages and divergence; bootstrap
-   and confirmed switching remain non-oracle-grade spot observations.
+3. Hub marks are live reserve spots: never self-value hub TVL as independent
+   backing, and never add a fixed-reference or drift gate. Publish each fresh
+   positive observation immediately, including large or fast genuine moves;
+   missing/stale/nonpositive evidence and below-floor depth still fail closed.
+   Rejected values never become zero, a peg or fabricated healthy provenance.
 4. Use `oracle_safety.py`/`oracle-safety.sh` for live script inputs; require source,
    age, fresh quorum and revalidate before preparing transactions. Numeric overrides
    are dry-run only. Preserve explicit strategy seed constants as strategy.

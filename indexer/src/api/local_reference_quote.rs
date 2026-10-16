@@ -176,7 +176,9 @@ impl ReferencePrices {
                  AND os.ticker=CASE WHEN m.anchor_ticker='lunc' THEN 'lunc' ELSE 'ustc' END
                  AND os.as_of BETWEEN NOW()-INTERVAL '300 seconds' AND NOW())
                AND (m.anchor_ticker IN ('custc','lunc') OR EXISTS(
-                 SELECT 1 FROM hub_price_references r WHERE r.ticker=m.anchor_ticker AND r.quality='bounded_spot'))
+                 SELECT 1 FROM hub_prices hp WHERE hp.ticker=m.anchor_ticker
+                   AND hp.price_usd > 0
+                   AND hp.as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()))
              ORDER BY m.asset_id LIMIT 2048"
         )
         .bind(&hub.economic_tvl_floor)

@@ -212,9 +212,6 @@ async fn qualify_live_prices(
         resp.ustc_price_usd = None;
     }
     super::hub_prices::qualify_process_prices(&mut rows, &state).await;
-    let references = hub_prices::get_hub_references(&state.pool)
-        .await
-        .map_err(internal_err)?;
     resp.hub_price_quality = [
         HubTicker::Custc,
         HubTicker::Lunc,
@@ -227,7 +224,6 @@ async fn qualify_live_prices(
             ticker,
             rows.iter().find(|r| r.ticker == ticker.as_str()),
             &state.hub_usd,
-            references.iter().find(|r| r.ticker == ticker.as_str()),
         )
     })
     .collect();
@@ -323,7 +319,7 @@ pub async fn get_overview(
         ustc_price_usd: ustc_price.map(|p| p.to_string()),
         custc_price_usd: hub_usd(HubTicker::Custc),
         hub_oracle_grade: false,
-        hub_price_policy: crate::indexer::hub_guard::HUB_POLICY.into(),
+        hub_price_policy: crate::indexer::hub_usd::HUB_POLICY.into(),
         hub_price_quality: Vec::new(),
         ust1_price_usd: hub_usd(HubTicker::Ust1),
         ustr_price_usd: hub_usd(HubTicker::Ustr),

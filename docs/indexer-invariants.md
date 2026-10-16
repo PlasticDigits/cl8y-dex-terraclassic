@@ -456,9 +456,9 @@ Issue [#1391](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1391);
 | O1391-3 | Persist certified state atomically; failed polls clear quality/current caches. Legacy history alone cannot seed a fresh quote. |
 | O1391-4 | Current reads reject future timestamps and age >300s. API quality/provenance qualifies price; outage never renews last-good age. |
 | O1391-5 | Exact contract/denom and checked decimals only; USTC/LUNC remain independent, no symbol trust or FDUSD/Venus mix into DEX USD. |
-| O1391-6 | Hub candidate eligibility uses independently priced leg depth, not self-valued TVL; initial observation and switches require >=60s confirmation. |
-| O1391-7 | Persistent fixed reserve-ratio reference contains >10% deviations and source switching; no auto-reanchor or drift on failure. |
-| O1391-8 | All hub marks are non-oracle-grade; quality, provenance, depth and divergence propagate through USD APIs/adapters; unusable upstream marks cannot price dependent assets. |
+| O1391-6 | Hub candidate eligibility uses independently priced leg depth, not self-valued TVL. |
+| O1391-7 | Hub marks publish the latest fresh positive reserve spot; genuine price movement (including large or fast moves) never suppresses a mark. Missing, stale, nonpositive or below-floor-depth evidence still fails closed. |
+| O1391-8 | All hub marks are non-oracle-grade; quality, provenance and depth propagate through USD APIs/adapters; unusable upstream marks cannot price dependent assets. |
 | O1391-9 | Financial callers validate exact source identity, fresh quorum and age before transaction preparation; >1% plan movement aborts, manual overrides are dry-run only. |
 | O1391-10 | Verification uses synthetic isolated attack controls; unavailable checks are explicit skips, never deployment proof or a replacement for fixing executed failures. |
 

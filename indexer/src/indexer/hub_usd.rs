@@ -20,6 +20,11 @@ use chrono::{DateTime, Utc};
 use super::pair_price_usd::{fits_numeric_38_18, humanize_raw_amount};
 use crate::config::Config;
 
+/// Public provenance label for hub marks. Hub marks are freshly observed reserve
+/// spots with independent priced-leg depth; no fixed-reference divergence gate is
+/// applied, so genuine price movement can never suppress a mark.
+pub const HUB_POLICY: &str = "live-reserve-spot-v1";
+
 /// Allowlisted hub-price path tickers (`GET /api/v1/hub-prices/{ticker}`).
 /// Order: oracle-anchored wraps first, then DEX-derived hubs (GitLab #570).
 pub const HUB_TICKERS: [&str; 4] = ["custc", "lunc", "ust1", "ustr"];

@@ -94,8 +94,9 @@ make verify-issue-580
 
 Current responses add quality, as-of/age/TTL and source quorum/policy metadata.
 Only fresh certified values are numeric; stale, degraded and unavailable values
-are null. Hub metadata declares non-oracle-grade spot marks, independent priced-leg
-depth and fixed-reference divergence. Current hub/API/adapter reads qualify expiry.
+are null. Hub metadata declares non-oracle-grade spot marks and independent
+priced-leg depth. Genuine price movement, including large or fast moves, is
+published live and never suppresses a mark. Current hub/API/adapter reads qualify expiry.
 This does not prove independent fair value or authorize automated treasury use.
 See [the full policy, residual risks and release/agent checklist](../qa/issue-1391/README.md),
 [O1391 invariants](../indexer-invariants.md#oracle-integrity-and-hub-containment-1391)
