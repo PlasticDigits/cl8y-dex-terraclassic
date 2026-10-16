@@ -1,0 +1,14 @@
+{
+  "revision": "5f486532a73e6effb93a053a8d02029f78c07d4e",
+  "frontend": {
+    "status": "finished",
+    "log_count": 59,
+    "failure_pattern_lines": 0
+  },
+  "backend": {
+    "status": "finished",
+    "log_count": 309,
+    "failure_pattern_lines": 0
+  },
+  "scope": "Final Coolify deployment build logs; raw logs and credentials not exported"
+}

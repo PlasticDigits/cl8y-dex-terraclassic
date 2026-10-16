@@ -47,7 +47,7 @@ docs() {
 from pathlib import Path
 checks = {
  'AGENTS.md': ['AGENTS_NATIVE_QUOTE_RECOVERY.md', 'verify-issue-1505'],
- 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,12)), 'issue-1505/README.md'],
+ 'skills/AGENTS_NATIVE_QUOTE_RECOVERY.md': [*(f'NR1505-{n}' for n in range(1,13)), 'issue-1505/README.md'],
  'docs/qa/issue-1505/README.md': [*(f'AC{n}' for n in range(1,7)), 'Executed failures', 'RESULTS.md'],
  'docs/indexer-invariants.md': ['#1505', 'AGENTS_NATIVE_QUOTE_RECOVERY.md'],
  'docs/route-solver.md': ['x-quote-request-id', 'NR1505'],

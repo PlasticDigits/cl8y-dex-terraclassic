@@ -13,6 +13,8 @@ unattempted alternatives may wait within the same original deadline/attempt cap.
 Post-attestation transport guards retain caller/attempt origin and provider health.
 Propagate earlier producer/floor/pair deadlines through explicit owned LCD views
 (NR1505-11); nested scopes only tighten and never renew provider work.
+Native dispatch borrowing follows NR1505-12: only a completed peer releases its
+unused share, within the unchanged global two-read gate and original deadlines.
 
 ## Trade entry, stable Swap layout and order metrics
 

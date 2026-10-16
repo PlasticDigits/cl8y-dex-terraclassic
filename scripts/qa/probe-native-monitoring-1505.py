@@ -105,6 +105,21 @@ def scheduled_alternative_witness(line, timestamp=None):
     return row
 
 
+def wrapper_dispatch_witness(line, timestamp=None):
+    """Bounded poll-local borrowing count, without endpoints or raw labels."""
+    if "Native wrapper observations completed" not in line:
+        return None
+    if len(re.findall(r'\bnative_borrowed_reads=', line)) != 1:
+        return None
+    value = re.search(r'\bnative_borrowed_reads=(\d)(?=\s|$|[,}])', line)
+    if value is None or int(value[1]) > 6:
+        return None
+    poll_ids = re.findall(r'\bpoll_id=(\d{1,20})(?=\s|$|[,}])', line)
+    poll_id = int(poll_ids[0]) if len(poll_ids) == 1 and int(poll_ids[0]) <= 2**64 - 1 else None
+    return {"native_borrowed_reads": int(value[1]), "poll_id": poll_id,
+        "sample_timestamp_ms": int(timestamp) // 1_000_000 if isinstance(timestamp, str) and re.fullmatch(r"\d{1,20}", timestamp) else None}
+
+
 def stale_witness(line, requested_ids):
     """A bounded candidate witness is evidence, not a sole-cause assertion."""
     if "Local quote prerequisite stale" not in line:
@@ -158,8 +173,10 @@ def sample_summary(payload, requested_ids=()):
     witnesses = [w for line in lines if (w := stale_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
     reads = [w for timestamp, line in records if (w := read_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     alternatives = [w for timestamp, line in records if (w := scheduled_alternative_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
+    dispatches = [w for timestamp, line in records if (w := wrapper_dispatch_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     return {"bounded_sample_lines": len(lines), "typed_fields": counts, "candidate_stale_witnesses": witnesses,
         "producer_read_witnesses": reads, "scheduled_alternative_witnesses": alternatives,
+        "wrapper_dispatch_witnesses": dispatches,
         "request_correlation": {rid: sum(bool(re.search(r'\brequest_id[=:]"?' + rid + r'\b', re.sub(r"\x1b\[[0-9;]*m", "", line))) for line in lines) for rid in requested_ids}}
 
 

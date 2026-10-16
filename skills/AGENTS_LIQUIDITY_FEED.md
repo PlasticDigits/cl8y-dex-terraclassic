@@ -178,3 +178,10 @@ Clones keep the same provider/ingestion state and cancellation policy. Poll,
 floor, head, spawned pair and nested query scopes cannot renew or leak into later
 owners. Data and identity paths respect the earlier absolute bound; late positive
 identity completion never overrides it or clears known typed integrity.
+
+For native work-conserving dispatch, preserve [NR1505-12](AGENTS_NATIVE_QUOTE_RECOVERY.md).
+A denomination may borrow the unused share only after its peer's fixed three-read
+plan completes. Keep the global two-read gate, original provider/pacing/work
+limits and poll deadlines. Initialize plans before future construction, retire
+unbound work explicitly and own cancellation. An idle-slot source reproduction
+does not prove the live provider sequence or increase original freshness.

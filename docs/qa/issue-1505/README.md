@@ -191,3 +191,19 @@ this observed-versus-requested contract must be corrected and retained as a
 mis-specified failure, not used to justify changing policy.
 
 Final seventh-candidate source evidence: [frozen verification receipt](source-verification-7-final.json), [scheduled continuation controls](scheduled-provider-continuation-proof.json), and [enclosing deadline controls](parent-deadline-proof.json). Deployment acceptance remains separate in [RESULTS](RESULTS.md).
+
+For [NR1505-12](../../../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md), retain a real-HTTP
+OLD control proving a missing required cap and measured idle global capacity
+after the peer's three reads finish. Fixed FIRST/RETEST must cover both slow
+denom directions, no early borrowing while peer work remains, no-plan callers,
+unbound/error/drop completion, original deadlines and unchanged global two-read
+and original thirteen logical data reads. Provider attempts retain their separate
+original allowances. Run the existing full wrapper module through
+make verify-issue-1505; its Rust failure-propagation count remains unchanged.
+The native_borrowed_reads completion scalar is bounded to 0..6 and is collected
+from the existing 300-line sample without extra queries. It does not count wire
+attempts or establish an earlier production idle interval.
+
+The eighth-candidate [dispatch proof](dispatch-work-conservation-proof.json) retains the real OLD failure, final source hashes, symmetric ownership controls and fixed FIRST/RETEST. See [RESULTS](RESULTS.md) for the separate source/deployed verdicts.
+
+The eighth-candidate [final frozen-source receipt](source-verification-8-final.json) records the applicable six-stage wave separately from prior checks and deployed acceptance.

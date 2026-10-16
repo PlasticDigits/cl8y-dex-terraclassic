@@ -1,0 +1,198 @@
+{
+  "issue": 1505,
+  "candidate": 8,
+  "status": "PASS WITH EXPLICIT SOURCE SCOPE; deployed acceptance separate",
+  "recorded_at": "2026-10-16T01:11:36.830767+00:00",
+  "base_revision": "5f486532a73e6effb93a053a8d02029f78c07d4e",
+  "application_source_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs",
+    "indexer/src/api/local_wrapper_quote/borrowing_tests.rs",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs"
+  ],
+  "runtime_change_paths": [
+    "indexer/src/api/local_wrapper_quote.rs",
+    "indexer/src/api/local_wrapper_quote/dispatch.rs"
+  ],
+  "application": {
+    "files": 1209,
+    "sha256": "a7a8df9ecec322c700cb432534382536e11109aa9d185b7084ec567b4a94f0d1"
+  },
+  "verification_inputs": {
+    "files": 2011,
+    "sha256": "625da21e0eb763387a2c80ab6b4f6b13992e00bcfa683d673873a36fe28d5620"
+  },
+  "application_roots": [
+    "indexer/src/",
+    "frontend-dapp/src/",
+    "smartcontracts/contracts/",
+    "smartcontracts/packages/",
+    "packages/"
+  ],
+  "fingerprint_scope": "Tracked plus unignored sorted path/content hashes using the actual smartcontracts workspace roots. Application includes cfg(test) source; verification inputs add indexer tests, scripts and explicit toolchain/package inputs. Excludes docs, receipts, ignored private env and generated build/cache trees.",
+  "stable_before_after": true,
+  "stages": [
+    {
+      "stage": "1505",
+      "command": [
+        "make",
+        "verify-issue-1505"
+      ],
+      "started": "2026-10-16T00:37:32.831173+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1505-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T00:43:35.833487+00:00",
+      "log_sha256": "e171a4f070e5edbcf77758c6e9c1894332169d68ffce4f6eca8e762c82a458a4",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=14 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Focused exact-revision deployed socket/browser windows and monitoring require their separate live receipts"
+      ]
+    },
+    {
+      "stage": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--manifest-path",
+        "indexer/Cargo.toml",
+        "--lib"
+      ],
+      "started": "2026-10-16T00:43:35.834604+00:00",
+      "status": "PASS",
+      "log_basename": "verify-clippy-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T00:43:45.842829+00:00",
+      "log_sha256": "fd78850fc4c410234a5baa4e0738171ebd2467e3eb730c344bad5eb8fc28b54d",
+      "summaries": [],
+      "scope_skips": [],
+      "warning_count": 155,
+      "prior_release_warning_count": 155
+    },
+    {
+      "stage": "1452",
+      "command": [
+        "make",
+        "verify-issue-1452"
+      ],
+      "started": "2026-10-16T00:43:45.843329+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1452-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T00:56:57.022501+00:00",
+      "log_sha256": "730b976a2ceed75a0a82e5a0141e4eb30a13a10129ad7dd61f31aeab223ecd98",
+      "summaries": [
+        "Results: 14 PASS, 0 FAIL, 0 SKIP",
+        "Overall: PASS (local implementation only; deployed/browser acceptance separate)"
+      ],
+      "scope_skips": []
+    },
+    {
+      "stage": "1499",
+      "command": [
+        "make",
+        "verify-issue-1499"
+      ],
+      "started": "2026-10-16T00:56:57.023366+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1499-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T00:57:58.604670+00:00",
+      "log_sha256": "23c67e7e63241a0888ce2c0ccd31a37278da2db87d94236a8b1dcd58a2d45972",
+      "summaries": [
+        "Overall: PASS WITH SKIPS; passed=10 failed=0 skipped=1"
+      ],
+      "scope_skips": [
+        "SKIP Sustained attested live API/browser/funded scope requires separate real receipts"
+      ]
+    },
+    {
+      "stage": "1453",
+      "command": [
+        "make",
+        "verify-issue-1453"
+      ],
+      "started": "2026-10-16T00:57:58.605204+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1453-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T01:02:47.153768+00:00",
+      "log_sha256": "f8d36ca879c21b53949d99a081ab3409eac53af8f35a15dddf239931b9cce44f",
+      "summaries": [
+        "PASS=12 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP active production providers, lag/history and deployed failover acceptance: focused verifier is local; inspect the redacted operational receipt and independently verify its required live scope",
+        "SKIP exact historical missing contribution/chain reconstruction acceptance: focused verifier cannot reconstruct historical chain evidence; inspect historical reconciliation receipt and retain unknown scope"
+      ]
+    },
+    {
+      "stage": "1464",
+      "command": [
+        "make",
+        "verify-issue-1464"
+      ],
+      "started": "2026-10-16T01:02:47.155269+00:00",
+      "status": "PASS",
+      "log_basename": "verify-1464-release8-final.log",
+      "exit_code": 0,
+      "finished": "2026-10-16T01:11:02.530498+00:00",
+      "log_sha256": "f26fcbc686675ec96745efda7dac04b9a686262038fbb88c033fe6dfda75e3c3",
+      "summaries": [
+        "PASS=11 FAIL=0 SKIP=2",
+        "Overall PASS WITH SKIPS; skipped criteria remain unverified."
+      ],
+      "scope_skips": [
+        "SKIP deployed corpus/browser/region/sustained outage acceptance: focused verifier is source/socket scope; run bounded public corpus and inspect independent deployed evidence",
+        "SKIP funded quote/settlement parity: focused verifier does not broadcast; inspect funded LocalTerra parity receipt separately"
+      ]
+    }
+  ],
+  "controlled_browser_archives": [
+    {
+      "phase": "first",
+      "sha256": "1893c4e8da37e8663c3385780fa4d07d7b0504172498c248438537aa873833e7",
+      "recorded_at": "2026-10-16T00:50:57.861Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    },
+    {
+      "phase": "retest",
+      "sha256": "c30fc6030e2750ef0f15d9d10a0ef0165bd5978eb3cd12197dfd841d2c26b527",
+      "recorded_at": "2026-10-16T00:56:41.166Z",
+      "quote_requests": 44,
+      "provider_requests": 0,
+      "scope": "Production-build controlled fixture, not deployed latency or availability acceptance"
+    }
+  ],
+  "focused_control": "dispatch-work-conservation-proof.json",
+  "focused_control_sha256": "c81f01839fad4b6819d41249fb91ab6171dd3c9d7c50a4b9b5d6e5b3e06b7cbd",
+  "focused_final_sources_match": true,
+  "prior_source_verification": "source-verification-7-final.json",
+  "unchanged_prior_scope": {
+    "checks": [
+      "1392",
+      "1394",
+      "1396"
+    ],
+    "claim": "Prior separate M7 results only, not rerun as M8 final verification; identity, discovery and database configuration source unchanged. M8 native/offline library and hosted CI still exercise their unchanged unit guards."
+  },
+  "prior_live_failure": "deployment-1518-browser-fail.json",
+  "prior_diagnosis": "deployment-1518-diagnosis.json",
+  "limits_of_inference": [
+    "The OLD real-HTTP control proves an idle-capacity source defect, not the exact provider sequence or idle interval of the production failure.",
+    "The selected M7 failure has fresh partial wrapper prerequisites and no stale-component witness; it is not relabeled as reference/wrapper expiry.",
+    "Borrowing counts admitted logical reads; healthy fixture wire counts do not replace original multi-provider attempt budgets.",
+    "Earlier actual failures remain retained; completed later source checks do not establish deployed recovery."
+  ],
+  "remaining": [
+    "Genuine hosted CI on the final head",
+    "Exact merged-revision Coolify deployment/log attestation and independent 180-second backend warmup",
+    "Native v9 natural FIRST four 190-second windows and RETEST only after complete FIRST PASS, separate 190-second socket pair and bounded monitoring",
+    "Positive original-expiry callback FIRST/RETEST unless directly instrumented natural evidence proves that path"
+  ]
+}

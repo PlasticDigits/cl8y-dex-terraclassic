@@ -9,18 +9,17 @@ Results are recorded separately for source, deployment and focused live checks.
 
 ## Current status
 
-Issue #1505 remains **OPEN**. The sixth deployed revision
-`0b002042fbf6dd37f1e8577acbd995b367fe2b30` passed source checks, hosted CI and
-exact deployment, but browser FIRST retained a native-output availability
-failure. Its selected witness is reference-only; the nearby wrapper polls are
-complete and fresh. The seventh candidate investigates bounded scheduled
-provider continuation. Its old-code controls fail, and the frozen fix passes focused
-FIRST/RETEST and independent review. A subsequent full source checkpoint passes,
-but review identifies an enclosing-deadline gap beyond those checks. Its scoped fix
-passes focused FIRST/RETEST, independent review and the final nine-stage source
-wave. A private database-password provisioning failure is retained separately;
-the repaired fixture passes complete database FIRST/RETEST. Hosted and deployed
-acceptance remain pending.
+Issue #1505 remains **OPEN**. The seventh deployed revision
+5f486532a73e6effb93a053a8d02029f78c07d4e passes final source verification,
+genuine CI485/486, exact Coolify deployment/log attestation, independent warmup
+and socket FIRST. Browser FIRST completes all four required windows but retains
+one actual native-output phone 503. The eighth candidate investigates
+work-conserving denomination dispatch after a fresh partial wrapper observation
+loses its USTC tax cap at the original publication deadline. Its old-code control
+reproduces the dispatch defect. Fixed focused/full FIRST/RETEST, independent
+reviews and final six-stage frozen-source verification pass. Hosted CI and
+deployed acceptance remain pending for the eighth candidate. No unchanged
+RETEST or expiry control runs after the seventh candidate fails FIRST.
 
 The [fifth candidate's source wave](source-verification-5-final.json) passes the native,
 identity, offline quote, lifecycle, liquidity-feed and provider-recovery
@@ -1172,3 +1171,162 @@ ed85965ee59cc0bb1db8882689e40df43ab6adf15f4b4b0d5d5933d727479d55;
 all 2,009 verification inputs remain
 27d4556168a04b68534b82873552b567377ccd29a9e181b32683bd9dc842af1f.
 Genuine hosted CI, exact merged deployment and fresh live acceptance are next.
+
+## Seventh deployment: all windows complete, retained native-output FAIL
+
+[PR #1518](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1518) merges
+as `5f486532a73e6effb93a053a8d02029f78c07d4e`; its entire tree equals tested
+head `687ece3466f049ba7dd589ece386443a5ba9307e`. [PR CI485](ci-485.json) and
+[main CI486](ci-486.json) both pass every required stage: 999 contracts,
+3,470 frontend tests, 908 library tests plus one ignored case, and 86 PostgreSQL
+tests plus one ignored. The original maximum-publication profile also passes.
+
+Both Coolify applications deploy the exact merge. Frontend finishes at
+23:43:58 UTC and backend at 23:47:01 UTC. [Build logs](deployment-1518-build-logs.json)
+contain 59/309 entries and zero failure markers. [Independent attestation](deployment-1518-attestation.json)
+passes. Independent backend warmup completes at 23:50:01 UTC before native probes.
+[Socket FIRST](deployment-1518-socket-first.json) completes 190 seconds with
+148 reads including two health reads, 146 executable selected responses and
+zero unavailable outcomes. Its 145 initialized useful samples have p50 295.365ms,
+p95 305.272ms, p99 305.839ms and maximum 306.770ms, below 500ms.
+
+[Browser FIRST](deployment-1518-browser-fail.json) starts at 23:55:40.606 UTC
+and completes every 190-second window with unchanged v9 helpers:
+
+| Direction | Viewport | Useful selected | Unavailable | First useful paint |
+| --- | --- | ---: | ---: | ---: |
+| USTC → CL8Y | Desktop | 21 | 0 | 366.6ms |
+| USTC → CL8Y | Phone | 20 | 0 | 385.9ms |
+| CL8Y → USTC | Desktop | 20 | 0 | 381.2ms |
+| CL8Y → USTC | Phone | 19 | 1 | 368.7ms |
+
+Overall remains **FAIL** despite 80 useful responses. All 304 of the 800-call
+budget are accounted for, with zero blocked/rejected calls. There are no expiry,
+ownership-qualification, probe, long-task or frame-gap flags. Sampled blank
+27ms after the latest possible original expiry does not instrument adoption or
+callback execution. All owned Node/Chrome processes exit. RETEST and positive
+expiry controls do not run.
+
+The [selected diagnosis](deployment-1518-diagnosis.json) preserves failure
+`4463924d8b8a2c6d`, `missing_observations`, at 2026-10-16 00:06:09.907 UTC,
+26,233ms after original input, with 9ms observed delivery lag. Previous useful
+`4463924d8b8a2c6a` arrives at 00:05:59.907 with original observation
+00:05:50.614 and expiry 00:06:10.614. Next useful `4463924d8b8a2c71` arrives
+at 00:06:20.795 with observation 00:06:10.613 and expiry 00:06:30.613.
+Sampled recovery of 10,888ms does not remove the failure.
+
+[Bounded exact-ID monitoring](deployment-1518-monitoring-first.json) uses
+17/18 reads; Prometheus is not provisioned. The expired private Bao session
+initially blocks the CLI before any collector request; refreshed certificate
+authentication permits the single collection. The selected ID has no stale
+component witness, so it is not classified as reference or wrapper expiry.
+Six scheduled-alternative witnesses occur elsewhere; none is within 60 seconds
+of the failure.
+
+A separate [fixed producer context](deployment-1518-producer-context.json)
+uses exactly four bounded reads and 53 untruncated lines for 00:05:40–00:06:40.
+Poll 119 completes at 00:06:08.515 with both mappings, tax, router and uluna cap,
+but no uusd cap. Its cap deadline witness records poll elapsed 7,901ms,
+denomination wait 4,218ms, global wait zero and logical LCD activity 646ms.
+These are client-stage timings, not wire proof. Prior complete poll 118 expires
+at 00:06:10.614; next complete poll 120 publishes at 00:06:16.764 with original
+observation 00:06:10.613. The selected server rejection is at 00:06:09.765,
+consistent with a fresh partial prerequisite. Reference commits and 22/22 pool
+cycles are fresh nearby. Keeping the old view only until its original expiry
+cannot bridge the next completion.
+
+The live record does not prove the underlying provider delay or that a global
+slot was idle. The next source control tests whether the fixed one-read-per-denom
+dispatcher unnecessarily serializes remaining work after the other denom finishes.
+Any correction must keep the two global permits, existing pacing, thirteen data
+reads and original deadlines.
+
+## Eighth candidate: work-conserving native dispatch
+
+The [dispatch proof](dispatch-work-conservation-proof.json) uses the actual
+producer and real HTTP responses under the original 7.9/8-second deadline,
+provider attempt/total bounds, two-read global gate and shared pacing. The OLD
+control fails at 7,900ms: both mappings exist but the required USTC cap is missing.
+It measures 3,382ms with a global slot idle after all three ULUNA reads finish,
+while USTC predecessors retain their own denomination gate. Only 11 data wire
+requests start, with zero provider failures and one neutral caller cancellation.
+This proves a source scheduling defect, without proving that production poll 119
+had the same underlying provider sequence or idle interval.
+
+The fix extracts a private poll-owned dispatcher. After validated bindings, it
+plans each denomination's three required reads before future construction.
+Construction-time completion tokens retire exactly once on completion, error or
+drop, including unpolled futures. Duplicate/unbound registrations are refused.
+While peer work remains, denomination isolation stays at one read. Only after
+that peer finishes may queued remaining work bypass its busy denomination gate
+and acquire the existing global gate. Notifications register before the monotonic
+completion check. No-plan callers retain strict isolation. There are no new
+requests, provider permits, tasks, queued global work or time/freshness allowances.
+
+The original fixture passes standalone FIRST/RETEST in 7,022ms/6,671ms of producer
+work, with all 13 healthy data wire requests, both floor protocols, no measured
+idle interval, no failures and no cancellations. Final focused borrowing tests
+pass five cases twice; dispatcher primitives pass three cases twice. The full
+wrapper module passes all 43 cases in 18.93s/18.36s. Its instrumented real control
+finishes in 7,522ms/7,520ms, with global logical peak two and slow-denomination
+peak two only after peer completion, no early borrowing and two admitted
+bypasses. Healthy fixture wire counts do not replace the production logical-read
+and provider-attempt budgets.
+
+The controls cover both directions, both active denominations, unconstructed peer
+work, duplicate slots, unbound work, errors, unpolled drop, cancellation and
+post-deadline queued reads. Fresh processes and default stack/parallel settings
+are retained. No assertion failures occur after the OLD control, and its clock,
+fixture and isolation are not relaxed. Three independent read-only reviews are
+clean at the final source hashes.
+
+NR1505-12 and the linked provider, feed, solver and agent guides document the
+conditional borrowing rule. Existing completion diagnostics add only
+native_borrowed_reads, a bounded 0..6 logical admission count. Twenty Python
+privacy/resource tests pass; it uses the existing sample with no additional
+query and retains the 300-line/18-read bounds. Formatting, shell syntax and
+whitespace checks pass. Only the label/name/image/profile/marker-verified owned
+QA container and anonymous volume are reset. Fresh runtime authentication accepts
+the correct private password and rejects a wrong one, then revokes its temporary
+grant. Shared and production databases are untouched.
+
+The final applicable source wave is serialized: native recovery, Clippy, offline
+quotes, lifecycle, liquidity feed and provider recovery. Their unchanged-source
+FIRST/RETEST outcomes remain pending. Identity, discovery and database
+configuration source are unchanged from the seventh candidate; their prior
+separate results are retained, without claiming they were rerun for this one.
+The frozen 1,209 application files hash to
+a7a8df9ecec322c700cb432534382536e11109aa9d185b7084ec567b4a94f0d1;
+2,011 verification inputs hash to
+625da21e0eb763387a2c80ab6b4f6b13992e00bcfa683d673873a36fe28d5620.
+Hosted CI, exact deployment and fresh live acceptance remain pending.
+
+## Eighth candidate: final frozen-source verification
+
+The [final source receipt](source-verification-8-final.json) covers the applicable
+six-stage wave from 00:37:32 to 01:11:02 UTC on 2026-10-16. All log digests,
+focused-proof source hashes and before/after fingerprints match. No executed
+failure remains in this wave; the actual OLD and prior live failures stay retained.
+
+| Stage | PASS | FAIL | Explicit SKIP |
+| --- | ---: | ---: | ---: |
+| Native recovery #1505 | 14 | 0 | 1 |
+| Offline quotes #1452 | 14 | 0 | 0 |
+| Quote lifecycle #1499 | 10 | 0 | 1 |
+| Liquidity feed #1453 | 12 | 0 | 2 |
+| Provider recovery #1464 | 11 | 0 | 2 |
+
+Clippy succeeds with the same 155 warnings, with no diagnostic in the changed
+integration or dispatcher files. The full library passes 916 tests with one
+existing ignored benchmark twice, in 149.55s/148.88s. Controlled browser FIRST
+and RETEST each record 44 quotes and zero provider requests. Their production
+build fixtures do not establish deployed latency or availability.
+
+The unchanged identity, discovery and database-configuration checks remain
+separate seventh-candidate results, without a new rerun claim. The applicable
+source verifiers retain six explicit separate-scope skips. All 1,209 application
+files remain a7a8df9ecec322c700cb432534382536e11109aa9d185b7084ec567b4a94f0d1;
+all 2,011 verification inputs remain
+625da21e0eb763387a2c80ab6b4f6b13992e00bcfa683d673873a36fe28d5620.
+Hosted CI, exact merged deployment and every focused live acceptance criterion
+still require new evidence for this candidate.

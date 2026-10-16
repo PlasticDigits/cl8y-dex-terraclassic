@@ -171,9 +171,13 @@ Identity attempt timeout must charge provider failure before deadline-bounded
 metadata invalidation. Cancellation cannot lose quarantine or double-count it;
 historical verified metadata never substitutes for a fresh identity read.
 
-Native poll-local per-denom isolation precedes global two-read admission, with
-one mapping/rate/cap read per denom and symmetric cancellation ownership. It
-does not change provider permits, pacing, attempts, cadence or original clocks.
+Native poll-local per-denom isolation precedes global two-read admission.
+[NR1505-12](AGENTS_NATIVE_QUOTE_RECOVERY.md) permits borrowing only after the
+peer finishes its fixed mapping/rate/cap plan; while peer work remains, each
+denom retains one read. The existing global gate still caps total concurrency at
+two. Planned completion, unbound retirement and cancellation remain owned.
+No-plan callers retain strict isolation. Provider permits, pacing, attempts,
+cadence and original clocks do not change.
 For failures use the fixed [NR1505](AGENTS_NATIVE_QUOTE_RECOVERY.md) slot/stage
 witness: LCD-future activity includes internal admission/identity waiting and
 does not prove a wire attempt. Do not turn a controlled contention reproduction
