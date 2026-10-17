@@ -666,7 +666,8 @@ splice the old anchor scale with new token marks. Original freshness still appli
 `reference_policy_excluded` is a fixed 422 reason. Search completion is separate
 from executable eligibility. No diagnostic, quote, progress, refresh or signing
 preparation drives chain polling/network validation. Existing exact net floors,
-actor/tax/hook bindings and 20-second observation/180-second configuration limits
+actor/tax/hook bindings, 20-second producer observation ceilings and the 30-minute
+reviewed signing window (`LOCAL_QUOTE_SIGNING_WINDOW_MS`; accessibility policy)
 remain authoritative. Source evidence and policy authorization do not complete
 all issue acceptance; see [results](qa/issue-1479/RESULTS.md).
 

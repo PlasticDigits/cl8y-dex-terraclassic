@@ -17,6 +17,23 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | Minimal on-card copy | **Anti-cognitive-overload:** labels ≤ ~5 words; errors ≤ 1 short sentence; optional **Docs** link. No `token0`/`token1` or raw bid/ask in retail UI — use symbols + Buy/Sell. Keep blocking errors and required risk ack ([#488] reopen). **Reject** always-on educational, cross-nav (“use Swap/UST1”), and gas/burn-tax trivia under CTAs — page = title + controls + live status + CTA ([`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) invariant **9**, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). |
 | One chrome layer per region | Page `--bg-*` → **one** `shell-panel*` per region → **content**. Do **not** wrap `shell-panel*` in another `shell-panel*`, and do **not** wrap a **grid of** `card-glass` / default `StatBox` for the same region. Metric tiles use `StatBox variant="flat"` / `.stat-flat` (typography only). Nested `card-glass` is **not** a general exception — it is OK **only** on the short allowlist: Swap Pay/Receive IO cards; a **single** table/chart well; Trade **sibling** panels (not a panel-of-panels). `/trade` first applied this on the chart ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) **L561-2**). Repo-wide rule + dApp pass: [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). `/protocol` Global stats + fees **inline Δ%** stays [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652); chips sit with their headline, not `justify-between` to the next column ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)). Total liquidity is **24h-only**; chart date labels use actual width, readable gaps and noncolliding endpoints ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). |
 | Keyboard focus | Interactive primitives use `:focus-visible` with `var(--focus-ring)` — see [frontend.md § WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247). |
+| Accessible timing | UI/UX must be usable by people with disabilities, including motor and cognitive disabilities and screen-reader users. **Do not impose short reaction windows.** Reviewed quote signing stays valid for **30 minutes**, not seconds — see [§ Accessibility policy](#accessibility-policy). |
+
+## Accessibility policy
+
+This is a **product requirement**, not a nice-to-have. Every flow must be completable by
+keyboard-only and screen-reader users and by users who need more time. Concretely:
+
+| Rule | Requirement |
+|------|-------------|
+| No speed gates | A user must never have to race a wallet, timer or popup. Reviewed local quote signing is valid for **30 minutes** (`LOCAL_QUOTE_SIGNING_WINDOW_MS`; indexer `LOCAL_QUOTE_SIGNING_WINDOW_MS`). On-chain floors (`minimum_receive` / `max_spread`) — not the clock — protect against price/fee movement. Do not reintroduce a 20-second signing window. |
+| Screen reader | Async state (quote loading, quote result, success/failure, quote expiry) is announced via `aria-live` / `role="status"` / `role="alert"`. Icon-only controls carry an accessible name. Charts stay `aria-hidden` with a text summary ([A11Y CI](./frontend.md#accessibility-ci)). |
+| Keyboard | All controls are reachable and operable with Tab / Shift+Tab / Arrow / Enter / Escape; focus is never trapped or lost. Visible `:focus-visible` rings ([WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247)). |
+| Errors and recovery | Blocking errors are text, not sound, and persist until resolved. Never rely on the failure sound, colour alone, or a transient toast. Provide a retry/refresh path that does not require fast input. |
+| Reduced motion / audio | Respect `prefers-reduced-motion`; sounds are optional and mutable ([sound playbook](../skills/AGENTS_FRONTEND_SOUND_MUTE.md)). |
+
+Agent checklist: [`skills/AGENTS_FRONTEND_A11Y_CI.md`](../skills/AGENTS_FRONTEND_A11Y_CI.md),
+[`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
 
 ## Color & surface tokens
 

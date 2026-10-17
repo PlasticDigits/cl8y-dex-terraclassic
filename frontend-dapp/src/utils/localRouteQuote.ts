@@ -6,6 +6,7 @@ import { assetInfoLabel, getWrappedEquivalent, isNativeDenom } from '@/types'
 import { TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { quoteRelativeNetFloor, validatedLocalMarketSpread } from '@/utils/quoteRelativeProtection'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 import {
   hybridNoBeliefMaterialPoolReject,
   hybridSpreadCmpAndTotal,
@@ -57,7 +58,7 @@ export function hasFreshLocalQuoteWindow(
     Number.isSafeInteger(expires) &&
     expires > nowMs &&
     expires > observed &&
-    expires - observed <= 20_000
+    expires - observed <= LOCAL_QUOTE_SIGNING_WINDOW_MS
   )
 }
 

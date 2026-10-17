@@ -1,4 +1,5 @@
 import type { IndexerRouteSolveResponse } from '@/types'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 
 export const UNAVAILABLE_ECONOMIC_EXPLANATION = 'Cost breakdown unavailable.'
 const COMPONENTS = ['wrapper_loss', 'trading_cost', 'market_movement', 'reference_divergence'] as const
@@ -32,7 +33,7 @@ export function routeEconomicExplanation(quote: IndexerRouteSolveResponse): stri
     metadata.observed_at_ms > now ||
     metadata.expires_at_ms <= now ||
     metadata.expires_at_ms <= metadata.observed_at_ms ||
-    metadata.expires_at_ms - metadata.observed_at_ms > 20000 ||
+    metadata.expires_at_ms - metadata.observed_at_ms > LOCAL_QUOTE_SIGNING_WINDOW_MS ||
     (quote.estimated_amount_out_net != null && quote.estimated_amount_out_net !== quote.estimated_amount_out)
   )
     return UNAVAILABLE_ECONOMIC_EXPLANATION

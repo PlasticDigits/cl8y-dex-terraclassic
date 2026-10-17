@@ -57,8 +57,9 @@ limits still apply; this is not a guaranteed reservation or a larger quota.
 Client network path is unverified. Retain measured transport timing failures without geographical attribution; local compute and health cannot certify useful quote acceptance.
 
 Hub reference refresh targets 1–5 seconds with skipped missed ticks and no
-overlapping passes. Pool/book cadence and the existing 20 second local quote
-expiry remain unchanged. Faster scheduled observation is not a guarantee of
+overlapping passes. Pool/book cadence and the existing 20-second producer
+observation ceilings remain unchanged; the reviewed **signing window** is 30
+minutes (`LOCAL_QUOTE_SIGNING_WINDOW_MS`; accessibility policy). Faster scheduled observation is not a guarantee of
 availability: missing quorum, reserves or contained marks still fail closed.
 
 Scheduled configuration refresh retains a still-fresh validated pair observation with

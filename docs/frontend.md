@@ -2830,7 +2830,8 @@ to strictly higher raw output in the same original generation, and requests a
 normal quote through the existing validator. It aborts on intent changes, declared
 plans, receive sizing, consent/review or signing. Advisory errors stop this observer;
 the existing normal refresh cadence remains independent. No timer renews the
-original at-most-20-second observation window.
+original 30-minute reviewed signing window (producer observation freshness
+remains a separate, short ceiling).
 
 The #1489 price notice follows the same current, unexpired quote that supplies
 the displayed receive amount. A same-intent background fetch may block signing
