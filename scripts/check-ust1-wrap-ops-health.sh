@@ -19,6 +19,9 @@
 #   UST1_OPS_STRICT_INVENTORY=1  Fail if vFDUSD balance/allowance below warn thresholds
 #   UST1_OPS_STRICT_CAPABILITY=1 Fail if direct-wrapper floor capability v1 is missing
 #                                (#1506; legacy/rolled-back contracts re-block direct signing)
+#   UST1_OPS_CLUNC_MAX_LEVERAGE   LUNC/cLUNC leverage reference (default 10; the
+#                                community approved fractional-reserve cLUNC). Above it -> WARN.
+#   UST1_OPS_STRICT_SOLVENCY=1    Fail if LUNC/cLUNC leverage exceeds the reference cap.
 #   See scripts/lib/ust1-wrap-ops-defaults.sh for address overrides.
 #
 # Example:
@@ -47,6 +50,8 @@ STRICT_PAUSE="${UST1_OPS_STRICT_PAUSE:-0}"
 STRICT_STALE="${UST1_OPS_STRICT_STALE:-0}"
 STRICT_INVENTORY="${UST1_OPS_STRICT_INVENTORY:-0}"
 STRICT_CAPABILITY="${UST1_OPS_STRICT_CAPABILITY:-0}"
+CLUNC_MAX_LEVERAGE="${UST1_OPS_CLUNC_MAX_LEVERAGE:-10}"
+STRICT_SOLVENCY="${UST1_OPS_STRICT_SOLVENCY:-0}"
 
 PASS=0
 WARN=0
@@ -254,7 +259,37 @@ solvency_ok() {
     bad "$label: INSOLVENT treasury=$native < supply=$supply — pause unwrap"
   fi
 }
-solvency_ok "$ULUNA_BAL" "$CLUNC_SUPPLY" "cLUNC/uluna"
+
+# cLUNC/uluna is intentionally fractional-reserve: the community approved
+# fractional-reserve cLUNC (reference `UST1_OPS_CLUNC_MAX_LEVERAGE`). Wallet-floor
+# delivery is per-transaction, so the ratio is reported (WARN) rather than failing
+# a healthy deployment. `UST1_OPS_STRICT_SOLVENCY=1` turns a breach into FAIL.
+# cUSTC stays fully backed and keeps the hard check.
+solvency_leverage_ok() {
+  local native="$1" supply="$2" label="$3" max_leverage="$4"
+  if [[ -z "$native" || -z "$supply" ]]; then
+    bad "$label: LCD bank/supply query empty (refusing to treat as 0)"
+    return
+  fi
+  if ! [[ "$native" =~ ^[0-9]+$ && "$supply" =~ ^[0-9]+$ && "$max_leverage" =~ ^[0-9]+$ ]]; then
+    bad "$label: non-numeric native=$native supply=$supply max_leverage=$max_leverage"
+    return
+  fi
+  if [[ "$native" -eq 0 ]]; then
+    bad "$label: treasury native balance is 0 (no unwrap capacity)"
+    return
+  fi
+  local scaled=$(( supply * 100 / native ))
+  local ratio="$((scaled / 100)).$((scaled % 100))"
+  if [[ "$native" -ge "$supply" ]]; then
+    ok "$label: treasury native ≥ CW20 supply"
+  elif [[ "$STRICT_SOLVENCY" == "1" ]]; then
+    bad "$label: leverage ${ratio}x exceeds reference ${max_leverage}x (STRICT_SOLVENCY)"
+  else
+    warn "$label: fractional-reserve leverage ${ratio}x (reference ${max_leverage}x; community-approved; set UST1_OPS_STRICT_SOLVENCY=1 to fail)"
+  fi
+}
+solvency_leverage_ok "$ULUNA_BAL" "$CLUNC_SUPPLY" "cLUNC/uluna" "$CLUNC_MAX_LEVERAGE"
 solvency_ok "$UUSD_BAL" "$CUSTC_SUPPLY" "cUSTC/uusd"
 
 echo ""
