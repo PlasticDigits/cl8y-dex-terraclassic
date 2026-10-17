@@ -17,6 +17,8 @@
 #   UST1_OPS_STRICT_PAUSE=1      Fail if window/oracle/wrap-mapper/treasury wrapping paused
 #   UST1_OPS_STRICT_STALE=1      Fail if oracle stale (default: report only)
 #   UST1_OPS_STRICT_INVENTORY=1  Fail if vFDUSD balance/allowance below warn thresholds
+#   UST1_OPS_STRICT_CAPABILITY=1 Fail if direct-wrapper floor capability v1 is missing
+#                                (#1506; legacy/rolled-back contracts re-block direct signing)
 #   See scripts/lib/ust1-wrap-ops-defaults.sh for address overrides.
 #
 # Example:
@@ -44,6 +46,7 @@ LCD="${UST1_OPS_LCD_URL%/}"
 STRICT_PAUSE="${UST1_OPS_STRICT_PAUSE:-0}"
 STRICT_STALE="${UST1_OPS_STRICT_STALE:-0}"
 STRICT_INVENTORY="${UST1_OPS_STRICT_INVENTORY:-0}"
+STRICT_CAPABILITY="${UST1_OPS_STRICT_CAPABILITY:-0}"
 
 PASS=0
 WARN=0
@@ -176,6 +179,22 @@ if [[ -n "$TCFG" && "$TCFG" != "null" ]]; then
   else
     ok "treasury wrapping not paused"
   fi
+fi
+
+echo ""
+echo "[2c] direct-wrapper floor capability (#1506)"
+MAPPER_CAP="$(smart "$UST1_OPS_WRAP_MAPPER" '{"execution_capabilities":{}}')" || MAPPER_CAP=""
+TREASURY_CAP="$(smart "$UST1_OPS_TREASURY" '{"execution_capabilities":{}}')" || TREASURY_CAP=""
+MAPPER_CAP_V="$(echo "${MAPPER_CAP:-null}" | jq -r '.direct_wrapper_floor_version // empty')"
+TREASURY_CAP_V="$(echo "${TREASURY_CAP:-null}" | jq -r '.direct_wrapper_floor_version // empty')"
+echo "    mapper   direct_wrapper_floor_version=${MAPPER_CAP_V:-<none>}"
+echo "    treasury direct_wrapper_floor_version=${TREASURY_CAP_V:-<none>}"
+if [[ "$MAPPER_CAP_V" == "1" && "$TREASURY_CAP_V" == "1" ]]; then
+  ok "direct-wrapper floor capability v1 on mapper + treasury (protected signing enabled)"
+elif [[ "$STRICT_CAPABILITY" == "1" ]]; then
+  bad "direct-wrapper floor capability missing (mapper=${MAPPER_CAP_V:-<none>} treasury=${TREASURY_CAP_V:-<none>}) - direct signing blocked"
+else
+  warn "direct-wrapper floor capability missing (mapper=${MAPPER_CAP_V:-<none>} treasury=${TREASURY_CAP_V:-<none>}) - direct signing blocked"
 fi
 
 echo ""

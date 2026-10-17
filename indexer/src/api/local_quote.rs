@@ -16,7 +16,17 @@ use crate::db::queries::{assets, pairs};
 const MAX_PAIRS: usize = 512;
 const MAX_RESULTS: usize = 256;
 const MAX_JOBS: usize = 4;
-const CONFIG_TTL_MS: i64 = 180_000;
+/// Reviewed local quote signing window. This is deliberately long so that
+/// disabled users and assistive-technology users are never forced to race a
+/// wallet popup. On-chain floors (`minimum_receive` / `max_spread`) remain the
+/// economic protection if prices or fees move during the window.
+///
+/// Accessibility policy: 30 minutes, not 20 seconds.
+pub(crate) const LOCAL_QUOTE_SIGNING_WINDOW_MS: i64 = 30 * 60 * 1000;
+/// Producer-side observation validity for cached pair/config/tax rows. The
+/// scheduled poller refreshes these well inside this window; it is not the
+/// user's signing deadline.
+const CONFIG_TTL_MS: i64 = LOCAL_QUOTE_SIGNING_WINDOW_MS;
 const MAX_WORK: u64 = 16_384;
 const SCALE: u128 = 1_000_000_000_000_000_000;
 type Error = (StatusCode, String);
@@ -173,9 +183,9 @@ pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
                 .is_some_and(|at| at > 0 && at <= now_ms())
             && parsed["expires_at_ms"].as_i64().is_some_and(|at| {
                 at > now_ms()
-                    && at <= now_ms() + 20_000
+                    && at <= now_ms() + LOCAL_QUOTE_SIGNING_WINDOW_MS
                     && parsed["observed_at_ms"].as_i64().is_some_and(|observed| {
-                        at > observed && at.saturating_sub(observed) <= 20_000
+                        at > observed && at.saturating_sub(observed) <= LOCAL_QUOTE_SIGNING_WINDOW_MS
                     })
             })
             && !public["generation"].is_null()
@@ -991,7 +1001,7 @@ fn response(
     let floor = c.hops.last().unwrap()["min_return"].as_str().unwrap();
     let mut expires = c
         .oldest
-        .saturating_add(observation_max_age(s) as i64)
+        .saturating_add(LOCAL_QUOTE_SIGNING_WINDOW_MS)
         .min(s.config_expiry_ms);
     for (pair, offer, ask) in &c.path {
         expires = expires.min(
@@ -1011,7 +1021,7 @@ fn response(
     }
     for id in [c.path[0].1, c.path.last().unwrap().2] {
         if let Some(price) = s.references.prices.get(&id) {
-            expires = expires.min(price.as_of.timestamp_millis() + 20_000);
+            expires = expires.min(price.as_of.timestamp_millis() + LOCAL_QUOTE_SIGNING_WINDOW_MS);
         }
     }
     for (index, operation) in c.operations.iter().enumerate() {
@@ -1399,7 +1409,7 @@ fn final_response(
     body["execution_metadata"]["expires_at_ms"] = json!(body["execution_metadata"]
         ["expires_at_ms"]
         .as_i64()?
-        .min(n.wrapper.observed_at_ms + 20_000));
+        .min(n.wrapper.observed_at_ms + LOCAL_QUOTE_SIGNING_WINDOW_MS));
     body["execution_metadata"]["wrapper"] = json!({"input_token":n.request.token_in,"output_token":n.request.token_out,"input_amount":gross.to_string(),"route_input_amount":input.to_string(),"route_output_amount":c.output.to_string(),"minimum_receive_base":minimum_base.to_string(),"wrap_input":n.wrap,"unwrap_output":n.unwrap,"treasury":n.wrapper.treasury,"mapper":n.wrapper.mapper});
     body["economic_attribution"] = attribution::route(c, gross, input, output, &body);
     body["order_economics"] = order_economics::route(c, gross, &body);

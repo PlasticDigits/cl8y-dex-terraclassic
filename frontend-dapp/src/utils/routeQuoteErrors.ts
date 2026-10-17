@@ -1,3 +1,5 @@
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
+
 /** Public local-quote outcomes (#1473). No remote text or executable plan crosses this boundary. */
 export const ROUTE_QUOTE_REASONS = {
   protection: 'This amount exceeds the selected price protection.',
@@ -76,13 +78,13 @@ export function parseRouteQuoteError(status: number, text: string, nowMs = Date.
       typeof expires === 'number' &&
       Number.isSafeInteger(expires) &&
       expires > nowMs &&
-      expires <= nowMs + 20_000 &&
+      expires <= nowMs + LOCAL_QUOTE_SIGNING_WINDOW_MS &&
       typeof observed === 'number' &&
       Number.isSafeInteger(observed) &&
       observed > 0 &&
       observed <= nowMs &&
       expires > observed &&
-      expires - observed <= 20_000 &&
+      expires - observed <= LOCAL_QUOTE_SIGNING_WINDOW_MS &&
       generation != null
         ? data.indicative_amount_out
         : undefined

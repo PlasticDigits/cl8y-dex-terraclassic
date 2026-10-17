@@ -68,7 +68,7 @@ that amount-specific receive via positive rounded-up hop/final floors. Pinned
 market impact informs a separate bounded router L9 ceiling; its unchanged metric
 no longer confuses expected curve impact with movement after the quote. The client
 checks the explicit `quote_relative_v1` policy, exact integer ceiling, original
-20-second observation window and selected floors before signing. Legacy API
+30-minute reviewed signing window and selected floors before signing. Legacy API
 requests retain direct L9 admission. Price-only data never becomes retail receive
 or a signing plan. Read [the current contract](route-solver.md#quote-relative-execution-protection),
 [TQ1473](../skills/AGENTS_TRADING_QUOTE_OUTCOMES.md) and

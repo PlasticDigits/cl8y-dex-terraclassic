@@ -117,7 +117,8 @@ with [#1453](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1453).
 | Cached results / skeletons / namespaces / concurrent deeper jobs | 256 / 128 / 32 / 4; exact results, namespace/topology/freeze-bound skeletons, coalesced jobs with cleanup |
 | Configuration admission | Nonoverlapping 2 s cadence, 60 s slice deadline; 8 pairs per slice; original per-pair 180 s validity ceiling and 6 s dependent-check deadline |
 | Local reserve/reference publication | Nonoverlapping 2 s cadence and 2 s pass deadline; original observation times retained |
-| Wrapper observation | 10 s cadence, 8 s deadline, 20 s observation-age ceiling |
+| Wrapper observation | 10 s cadence, 8 s deadline, 20 s observation-age ceiling (producer freshness) |
+| Reviewed signing window | 30 minutes from the quote's original observation; on-chain `minimum_receive` / `max_spread` floors protect against movement during the window |
 | Quote-worker provider traffic | Two data-request permits, one aggregate request start every 250 ms; 64 KiB response ceiling, 32 KiB config and 8 KiB wrapper sublimits |
 
 Configuration admission rotates through bounded slices and publishes each completed
@@ -755,8 +756,12 @@ Verification: [client integer policy](../frontend-dapp/src/utils/quoteRelativePr
 
 Official callers bind the requested response policy. Provided execution-support
 flags must be Boolean and consistent at both levels. The client checks safe
-timestamps and original `expires_at_ms − observed_at_ms ≤ 20,000` during display
-and mutation, preventing future expiry from reviving an old observation.
+timestamps and original `expires_at_ms − observed_at_ms ≤ 1,800,000` (**30-minute
+reviewed signing window**; accessibility policy) during display and mutation,
+preventing future expiry from reviving an old observation. Producer observation-age
+ceilings (mirrors, references, wrapper, config) remain separate and short; the
+long signing window never extends how old an observation may be to *produce* a
+quote.
 
 ## Small-market reference eligibility (#1479)
 

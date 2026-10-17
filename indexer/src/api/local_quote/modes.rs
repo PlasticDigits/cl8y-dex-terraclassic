@@ -105,7 +105,7 @@ pub(super) fn wrapper_only(
         return None;
     }
     let observed = n.wrapper.observed_at_ms.min(reference_at);
-    let expires = (observed + 20_000).min(s.config_expiry_ms);
+    let expires = (observed + super::LOCAL_QUOTE_SIGNING_WINDOW_MS).min(s.config_expiry_ms);
     if expires <= now_ms() {
         return None;
     }

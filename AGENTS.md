@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## UI/UX accessibility policy
+
+Frontend UI/UX must be usable by people with disabilities, including motor and
+cognitive disabilities and screen-reader users. Do not impose short reaction
+windows: reviewed local quote signing stays valid for **30 minutes**
+(`LOCAL_QUOTE_SIGNING_WINDOW_MS`), not seconds. Async state is announced via
+`aria-live` / `role="status"` / `role="alert"`; failures are text and persist,
+never sound-only. Full policy: [docs/design-system.md § Accessibility policy](docs/design-system.md#accessibility-policy);
+checklists: [A11Y CI](skills/AGENTS_FRONTEND_A11Y_CI.md) and
+[A11Y focus](skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
+
 ## Native quote recovery
 
 For native observations, reference publication, quote rejection/request correlation or original

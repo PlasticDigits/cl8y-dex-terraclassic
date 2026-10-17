@@ -19,6 +19,7 @@ Use when adding **retail-critical UI** on `/trade`, `/charts`, `/swap`, `/limits
 4. **Wallet menu** — `role="menu"` wraps **menuitems only** (header `AddressRow` sits outside); focus moves to first `menuitem` on open and returns to trigger on Escape/close ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214)).
 5. **axe gate** — WCAG 2.1 A+AA tags; **zero critical/serious** on scanned routes (`/trade`, `/charts`, `/swap`, `/limits`, `/pool`, `/portfolio`, wallet chrome — [#366](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/366)). Canvas excluded via `[data-testid="price-chart-lightweight-canvas"] canvas` only.
 6. **No silent rule disables** — document any `disableRules` in spec comments + `docs/frontend.md`.
+7. **No speed gates** — UI/UX must be usable by people with disabilities and screen-reader users. Reviewed quote signing stays valid for **30 minutes** (`LOCAL_QUOTE_SIGNING_WINDOW_MS`; indexer `LOCAL_QUOTE_SIGNING_WINDOW_MS`), never the historical 20-second window. On-chain floors protect economics; the clock must not force fast clicking. Do not add short reaction timers or sound-only failure signals. Canonical policy: [`docs/design-system.md` § Accessibility policy](../docs/design-system.md#accessibility-policy).
 
 ## Related skills
 

@@ -26,8 +26,10 @@ Approved window params (governance-updatable; always re-query on-chain): `fee_bp
 
 | Role | Address | Code ID | Coolify / env key |
 |------|---------|---------|-------------------|
-| CMM treasury (wrap custody) | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | — | `VITE_TREASURY_ADDRESS` |
-| wrap-mapper | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` | **11574** | `VITE_WRAP_MAPPER_ADDRESS` |
+| CMM treasury (wrap custody) | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | **11728** | `VITE_TREASURY_ADDRESS` |
+| wrap-mapper | `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2` | **11729** | `VITE_WRAP_MAPPER_ADDRESS` |
+
+**Protected direct-wrapper floors ([#1506](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1506), ustr-cmm [#62](https://git.cl8y.com/code/ustr-cmm/pulls/62)):** both contracts were migrated on **2026-10-17** (mapper 11574 → **11729**, treasury 11667 → **11728**) and now answer `{"execution_capabilities":{}}` with `{"direct_wrapper_floor_version":1}`. Signs `wrap_deposit_with_minimum` / `unwrap_with_minimum`; addresses are unchanged. Legacy code IDs stay stored for rollback. Verified by the scheduled indexer capability read; `execution_supported` flips to `true` for direct wrap/unwrap. Code SHA256: treasury `709B2B1A7026342518BBBE58713690A2E35DFD6127582A12FC9C205FCD33DA76`, mapper `B9FC56BAFE0B0C8066ED3F47CE64CC8936C92648352E91304F1632A9FB84C966`.
 | cLUNC CW20 | `terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg` | — | `VITE_LUNC_C_TOKEN_ADDRESS` |
 | cUSTC CW20 | `terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch` | — | `VITE_USTC_C_TOKEN_ADDRESS` |
 
