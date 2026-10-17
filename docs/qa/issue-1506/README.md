@@ -76,22 +76,26 @@ The protected floor settled and delivered `9,800,000 >= 9,310,000`.
 (`wrap_deposit_with_minimum` uusd `9,525,900` → cUSTC `9,335,382`, floor
 `8,868,613`), not an unwrap. `received=9,335,382 >= 8,868,613`.
 
-**Outstanding:** no executed **protected unwrap** (`unwrap_with_minimum`) has been
-broadcast yet; it needs a funded signer (wallet custody). The path was verified
-by simulating the exact signed transaction against columbus-5 for the same
-account (1 cUSTC, floor `900000`):
+## Live protected unwrap (executed)
+
+`902DF32EE8EC7F7B91F418814C41CC3C84903C8A8067238588513E2943E5683E`
+(block 30874148 · 2026-10-17T06:26:40Z · code 0), sender
+`terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`:
 
 ```
-cUSTC     action=send               to=mapper amount=1000000
-gas_used 577065 (limit 1200000)
-mapper    action=unwrap             denom=uusd fee=5100 gross_amount=1000000
-cUSTC     action=burn               amount=1000000
-treasury  action=instant_withdraw   amount=994900 denom=uusd
-mapper    action=direct_floor_settled minimum_receive=900000 received=979977
+cUSTC     action=send               to=mapper amount=19135382
+mapper    action=unwrap             denom=uusd fee=97590 gross_amount=19135382 recipient=terra1hu4...
+cUSTC     action=burn               amount=19135382 from=mapper
+treasury  action=instant_withdraw   amount=19037792 denom=uusd recipient=terra1hu4...
+mapper    action=direct_floor_settled minimum_receive=17814615 received=18752226
 ```
 
-So the deployed mapper/treasury enforce the wallet receive floor for the unwrap
-direction too; only the live broadcast receipt is custody-gated.
+The protected floor settled on the actual recipient native delta and delivered
+`18,752,226 >= 17,814,615` after the mapper fee, burn tax and bank deduction.
+
+A pre-broadcast simulation of the same path (1 cUSTC, floor `900000`) also
+passed (`gas_used 577065 / 1200000`, `direct_floor_settled received=979977`),
+which is how the path was validated before the live broadcast.
 
 ## Regression: legacy/unknown capability still blocks
 
@@ -123,9 +127,12 @@ scripts/check-ust1-wrap-ops-health.sh
 curl -sS 'https://indexer.dex.cl8y.com/api/v1/route/solve?token_in=uusd&token_out=terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch&amount_in=10000000&pool_only=true&protection_policy=quote_relative_v1&max_spread=0.05'
 ```
 
-## Agent skip policy
+## Acceptance
 
-Unavailable checks (e.g. the custody-gated live unwrap) may be recorded as
-explicit SKIP with the concrete prerequisite. Executed failures remain FAIL.
-Deployment/migrate success and source support are not the same as the live
-unwrap acceptance; the unwrap line above stays open until a real receipt exists.
+Both directions are now verified by executed mainnet transactions with positive
+wallet floors: protected **wrap** `2EF256D3…` and protected **unwrap**
+`902DF32E…`. The deployed mapper/treasury enforce the reviewed `minimum_receive`
+via the actual recipient balance delta and revert atomically on a miss. Legacy
+and unknown capabilities still block direct signing (source-verified). The
+30-minute accessible signing window is in `main` but takes effect only after the
+indexer and frontend are redeployed.
