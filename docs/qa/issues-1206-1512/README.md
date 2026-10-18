@@ -57,3 +57,14 @@ failed before and passes afterward across all three windows. The focused backend
 count is now 71, including nine cohort tests; existing fee-source/token shapes
 remain unchanged. Public deployment checks use the [bounded API smoke](../../../scripts/qa/live-evidence-1206-1211.py)
 and [separate desktop/phone browser cases](../../../scripts/qa/browser-price-campaign-1512.cjs).
+
+Final pre-deployment follow-ups add the real mapper `depositor` binding, initialize
+all cohort windows from the prior published fee snapshot (retaining its clock),
+and fix a campaign-test URL-settlement race found by genuine hosted CI. Focused
+backend verification is now 72 checks plus the actual owned-chain ingestion/API
+case. The full query-parameter file passes 57 tests. The standalone migration
+adds 19 control checks and a real 11.957s SQLx 67→68 rehearsal with runtime login,
+four permission denials, exact history preservation, idempotent replay and full
+snapshot restore. [Rehearsal provenance](../issue-1211/local-migration-rehearsal.json)
+explicitly identifies a dirty worktree based on the checkout, rather than claiming
+a deployed release image. The production job must compile the exact merged main.

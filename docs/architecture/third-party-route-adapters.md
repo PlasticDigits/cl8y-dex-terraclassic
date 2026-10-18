@@ -30,40 +30,59 @@ hops share the existing global bounds; adding a DEX never multiplies them.
 
 ## Exact fee and execution economics
 
-The issue requires a flat **290 basis points** (2.9%) independent of trader tier.
-The following v1 incidence, input basis and rounding choices are proposed design
-decisions, rather than already deployed or issue-specified behavior. They need
-contract/economic review with the adapter implementation.
+[#690 XDex-1–XDex-14](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/690)
+is the existing protocol specification. Its latest fee comment changes **300 to
+290 basis points**, on top of wrapper and venue fees; its other constraints remain.
+This corrects the initial proposed input-basis/ceiling design, which was not
+consistent with that specification. No such input fee was implemented.
 
-Under this proposed version, an admitted path containing any third-party DEX pays **290 basis points**
-(2.9%), independent of the trader's CL8Y registry tier. Charge once per complete
-route, rather than once per third-party hop. First-party-only paths do not gain
-this surcharge. Calculate in integer raw units with the funding asset's actual
-decimals and a published rounding rule: `ceil(gross_input * 290 / 10000)`.
-The funded gross input is the trader's authorized ceiling, including this fee;
-only the remainder can enter the route. Reject fee-consuming dust and unsupported
-fee-token semantics. Any change to that incidence requires a new explicit protocol
-version, rather than an off-chain UI adjustment.
+A route may contain **at most one external pair**, within the existing total hop
+bound. A foreign-only route is allowed only through the same guarded executor.
+Collect `floor(measured_foreign_ask_delta * 290 / 10000)` in the foreign hop's
+**ask asset**, paid to the pinned CMM treasury
+`terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2`.
+The recipient is neither governance nor the CL8Y pair's treasury. The surcharge
+is independent of the trader's CL8Y registry tier. It is not an input-asset debit
+or a ceiling-rounded charge. Test dust and exact floor rounding independently.
+The whole transaction, including treasury payment, reverts on failure.
 
-The execution adapter must transfer the fee to the protocol treasury atomically
-with the swap and authenticate the original payer. It cannot request another
-wallet debit after the route begins. Existing native wrap/unwrap principal,
-wrapper fees, community tax and post-hook minimum-return rules apply independently.
-Third-party tax/transfer behavior must have a measured, supported execution model;
-unknown behavior never gets estimated as zero. Route-local tax funding remains
-versioned and can spend only the authorized gross input.
+Candidate ranking compares final delivered net after the venue's actual AMM fee,
+this post-hop skim, required wrapper fees, transfer taxes and hooks. A simulation
+that already subtracts the venue fee must not have it subtracted twice. Keep
+native network fees separate. Attribute signed components in final-output units
+under RC1483. CL8Y-only candidates have no external skim or foreign preference
+boost. No multi-path amount splitting is added.
 
-Candidate ranking compares final delivered net after all wrapper, DEX, transfer,
-surcharge and hook costs in final-output units. Keep the native network fee
-separate. Attribute every signed component and reconcile exactly as RC1483
-requires. A direct third-party path can lose to a CL8Y middle-hop path after fees;
-fixtures must also prove the inverse. Spot-price superiority cannot choose a
-winner. No multi-path amount split is added under #1330.
+Every external pair requires both independently priced reserves and at least
+**$1,000 TVL**, plus at least one canonical LUNC/USTC leg (native or its pinned
+wrapper). Every CW20 code ID must remain factory-whitelisted; missing or changed
+code, fee or price refuses eligibility. Native uluna/uusd are allowed only in
+the specified intermediate role; IBC USDC remains outside this issue. These are
+separate external-edge admission rules, not changes to existing CL8Y small-market
+reference floors or a new fair-price quality class.
+
+Skip wrap only when native input is actually the first external offer; skip
+unwrap only when the last external ask already pays the requested native.
+Otherwise include the complete existing wrapper/burn-tax stack, in addition to
+2.9% and the venue fee. Never route native user funds through a second taxable
+transfer merely to fit an existing CW20 envelope. Native forwarding, native CMM
+payment and guarded solo/mixed settlement need an independently verified atomic
+protocol. A raw direct external send that skips the skim/delta guards is not a
+supported alternative. Native paths remain disabled until those conditions are
+implemented and measured.
+
+Terraport and Classic TerraSwap are the initial specified families, using their
+verified pinned factories and measured schemas/fees. Garuda, Weso, LuncSwap and
+any additional venue remain disabled until factory/pair/swap/simulation identity
+and behavior have recorded probes. Terraport/TerraSwap are not Astroport.
+External pairs must never be registered as CL8Y listed pairs, enter CL8Y TVL or
+volume accounting, or receive CL8Y listed-hop tax semantics. Existing CL8Y hops
+retain hybrid execution, blacklist/F6/launch guards and original tax behavior.
 
 ## Atomic settlement and trust boundaries
 
 Use an audited on-chain adapter schema with an allowlisted DEX operation enum,
-exact token/pair identities, gross funding, fee version, ordered legs, recipient,
+exact token/pair identities, authorized funding, measured ask-delta fee version, ordered legs, recipient,
 final positive net minimum and original reviewed execution identity. Never permit
 arbitrary wasm messages from an API or third-party response. Router/adapter state
 must authenticate the caller, enforce allowed operation ordering and repeated-asset
@@ -96,8 +115,7 @@ without renewing producer observations or other original safety deadlines.
 1. Add the manifest/schema and adapter-specific independently scheduled ingestion;
    test changed/unknown code, wrong chain, malformed/late data and cancellation.
 2. Add the atomic contract adapter/fee settlement with native/CW20 test fixtures;
-   test exact treasury receipt, rounding/dust, single charge over multiple external
-   hops, tier independence, no extra wallet debit, refund ownership and rollback.
+   test exact treasury receipt, rounding/dust, one allowed external hop and rejection of two, tier independence, no extra wallet debit, refund ownership and rollback.
 3. Add off-chain simulation/attribution and exact-net ranking; test both direct and
    CL8Y-middle winners in mixed 6/18 decimals and tax/wrap directions.
 4. Bind UI, refresh, progress and signing to the reviewed operation identity. Test
@@ -110,5 +128,7 @@ without renewing producer observations or other original safety deadlines.
    retain every executed failure; close #1330 only after its live criteria and
    comment requirements pass.
 
+The design follows XDex-1–XDex-14 with the later 290-bps correction; it does not
+replace the native atomic-execution proof or permit raw/integrator fee bypass.
 Source or presentation tests do not establish a deployed adapter. Third-party
 integration and 290-bps treasury settlement remain unimplemented acceptance items.

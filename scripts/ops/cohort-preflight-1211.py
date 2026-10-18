@@ -115,7 +115,7 @@ def render_dockerfile(template, checksums):
     require(any(isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'EXPECTED_CHECKSUMS' for t in node.targets) for node in tree.body), 'maintenance_checksum_guard_missing')
     # Preserve the reviewed runtime-compatible source byte-for-byte. Python3.12
     # ast.unparse may emit syntax unavailable in the pinned Debian3.11 runtime.
-    guard = candidates[0] + '\nEXPECTED_CHECKSUMS = ' + repr(checksums) + '\nTABLES.update(' + repr(TABLES) + ')\n'
+    guard = candidates[0] + '\nEXPECTED_CHECKSUMS = ' + repr(dict(sorted(checksums.items()))) + '\nTABLES.update(' + repr(sorted(TABLES)) + ')\n'
     ast.parse(guard, feature_version=(3, 11))
     worker = (ROOT / 'scripts/ops/cohort-preflight-worker-1211.py').read_text()
     require('READ_ONLY_PREFLIGHT_V1' in worker and 'subprocess.run' not in worker, 'worker_identity')

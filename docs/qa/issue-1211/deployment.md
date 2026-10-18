@@ -60,3 +60,71 @@ checks before/after, digest UTC/privacy/query/method/OpenAPI checks and all thre
 cohort windows with plain-decimal USD/shares. It exports booleans/counts rather
 than response bodies. It does not establish historical cohort reconstruction,
 actual-chain payer coverage or the long native acceptance matrix.
+
+## Exact-release standalone migration
+
+The [migration helper](../../../scripts/ops/cohort-migration-1211.py) and
+[worker](../../../scripts/ops/cohort-migration-worker-1211.py) prepare a distinct
+job using a public Git fetch of the exact merged main SHA and the release's
+pinned Rust image. The compiled HEAD is checked before build and retained in
+the image. All forward SQLx SHA384 checksums come from that exact Git object;
+only `20261018110000` is allowed to be pending. The reviewed historical guard's
+security conditions remain in force, with complete-prefix checks and explicit
+new-table/runtime permission verification.
+
+`plan` is GET-only. `build` creates the isolated job and a unique private named
+snapshot volume, then compiles in credential-free WAITING mode. No migration
+can start in WAITING. `inspect` temporarily injects only the job's shown-once
+runtime credential and enforces PostgreSQL read-only mode. `status` accepts only
+the current job/revision/action/run-ID receipt, stops that job and removes the
+credential with readback. Prior or conflicting receipts cannot authorize a later
+action. The serving application's environment never changes.
+
+After exact-main hosted checks and operator authorization, `stop-serving`
+requests the existing indexer's stop. `apply` requires stopped application status;
+the worker additionally checks real database sessions before taking its private
+custom snapshot. It invokes the **new compiled binary's** `migrate` command using
+DSN `options` to establish the existing effective migrator, retains all original
+SQLx rows, verifies the new marker/table grants and four actual runtime permission
+denials, and checks unchanged roles/credentials/memberships. No checksum/marker
+SQL repair or password rotation exists. Failed states remain failed; a new
+explicit run ID owns any retry. A filesystem lock prevents concurrent job work.
+
+```bash
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
+  python3 scripts/ops/cohort-migration-1211.py plan \
+  --revision FULL_MERGED_MAIN_SHA --journal /tmp/cohort-migration.json
+```
+
+Run `build`, `status`, `inspect`, `status`, then the explicitly authorized
+`stop-serving`, `apply`, `status` phases. `verify` and `cleanup` are separate
+bounded operations. Preserve the private snapshot volume after cleanup. A
+migration receipt does not deploy applications: deploy that same SHA through
+Coolify, then run [exact frontend/backend artifact attestation](../../../scripts/qa/attest-trading-quotes-1473.py)
+and relevant live API checks. Restore source settings only after exact revision
+acceptance. Do not start an incompatible older binary against an advanced marker.
+
+The [owned local rehearsal](local-migration-rehearsal.json) passes in 11.957s:
+real filtered SQLx baseline 67, actual new debug binary to 68, full original
+history preservation, priced/unpriced/idle bootstrap rows and original clock,
+actual runtime login/four permission denials, immutable snapshot restored into a
+second owned database, and actual binary replay. Wrong owner, altered expected
+checksum and active runtime sessions are refused. A fresh labeled PostgreSQL
+container and its anonymous volume are removed afterward. No shared QA migration
+history was used. The snapshot/permission engine is exercised directly; only
+filesystem locations and the local debug binary path differ from production.
+
+This rehearsal used checkout head `47ebbc2d` **plus working-tree seed/depositor
+changes**, identified by the recorded migration SHA384 and debug-binary SHA256.
+It does not attest a release image from that commit. Production build must pin
+the final merged main revision. Retained setup/teardown failures remain separate
+from the passing final rehearsal; none was converted into a skip or ledger edit.
+
+Build the baseline fixture separately, then cap each test invocation:
+
+```bash
+cargo build --manifest-path indexer/Cargo.toml --example cohort_baseline_1211
+timeout 59s python3 scripts/tests/test_cohort_migration_ops.py
+timeout 59s bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
+  python3 scripts/tests/test_cohort_migration_local.py
+```

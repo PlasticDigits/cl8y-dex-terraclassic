@@ -23,7 +23,7 @@ breakdowns publish atomically from a consistent repeatable-read snapshot; GET
 reads only these rollups in a single read snapshot and retains the 60-second
 cache. Existing source/token payloads remain additive.
 
-[Executed local results](RESULTS.md) record 71 passing relevant checks.
+[Executed local results](RESULTS.md) record 72 passing focused checks plus the separately executed actual LocalTerra ingestion/API case.
 
 ## Acceptance checklist
 
@@ -44,6 +44,11 @@ this task's release comment; unchecked boxes above require live receipts before 
 
 ## Actual-chain limitations
 
+The actual pinned mapper `notify_deposit` receipt names the native fee payer as
+`depositor`; attribution accepts this authenticated field and rejects duplicate
+values. Mapper unwrap `recipient` is a beneficiary and cannot establish the
+payer, so unwrap receipts without a payer field remain unknown.
+
 The current pair swap receipt emits `sender` without a `trader` attribute; routed
 swaps lacking an authenticated original trader therefore remain unknown. Current
 factory `create_pair` and community invoice receipts omit payer `sender`; those
@@ -51,8 +56,11 @@ receipts likewise remain unknown. A manager/receiver is not a substitute for the
 fee payer. Synthetic fixtures that contain these attributes verify future
 compatible receipts and cannot establish that the deployed contracts emit them.
 
-No LocalTerra registration→paid wrap/create evidence, production migration,
-deployment, or live provider acceptance is established by the local tests alone.
+The [owned LocalTerra receipt](localterra-ingestion.json) proves an actual paid
+direct swap → retail, registry tier-0 registration → paid wrap → MM, exact H−1
+provider queries, replay and aggregate-only public HTTP through production
+ingestion. Explicit synthetic QA prices are not real USD feed acceptance.
+Production migration, deployment and mainnet provider acceptance remain separate.
 Servers undergoing upgrades are not reset by this work. Leave #1211 open until
 its body and comments' runnable/live criteria have corresponding evidence.
 
@@ -79,3 +87,19 @@ wallet signing.
 Production schema preparation and isolated SELECT-only evidence are documented in
 [deployment.md](deployment.md). This preflight does not apply the migration or
 establish deployed cohort acceptance.
+
+## Reproducing the owned LocalTerra path
+
+Prepare `scripts/qa/localterra-cohort-1211.py prepare` separately from actual
+acceptance. It reuses the owned #1229 manager and exact reviewed wasm hashes,
+creates independent contracts/liquidity and does not reset shared infrastructure.
+Build `localterra_fee_cohorts_1211` with `cargo test --no-run` before the timed
+run. Under a single 59-second outer timeout, run the Python helper's `run` mode,
+then the emitted Rust test executable with `--ignored --test-threads=1`.
+
+The Rust case uses a marked, process-owned disposable QA database and the real
+local LCD. Fresh receipts keep historical queries within the chain's retained
+state. Registration changes the owned registry, so another actual run requires
+an explicitly reset/new owned registry before starting; never alter a shared
+registry to make the case pass. Source/provider fixtures continue to verify
+missing or uncertified history fails closed.

@@ -853,3 +853,75 @@ async fn cohort_http_dust_amounts_and_shares_use_plain_decimal_strings() {
         assert_eq!(dust_row["share_pct"], "0.000000000000000001");
     }
 }
+
+#[tokio::test]
+#[serial]
+async fn captured_mapper_depositor_is_payer_but_unwrap_recipient_is_not() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let cfg = cfg();
+    let actor = addr(9);
+    let other = addr(10);
+    let mapper = cfg.wrap_mapper_address.as_deref().unwrap();
+    baseline(&pool, &cfg, &actor, 99, true, 0).await;
+    let tx = tx(
+        "MAPPER_DEPOSITOR",
+        100,
+        vec![
+            action(mapper, "notify_deposit", &[("depositor", &actor)]),
+            action(
+                mapper,
+                "notify_deposit",
+                &[("depositor", &actor), ("depositor", &other)],
+            ),
+            action(mapper, "unwrap", &[("recipient", &actor)]),
+        ],
+    );
+    let first = fee(
+        &pool,
+        FeeSource::Wrap,
+        0,
+        &tx.txhash,
+        100,
+        seed.asset_0_id,
+        None,
+        Some(1),
+    )
+    .await;
+    let duplicate = fee(
+        &pool,
+        FeeSource::Wrap,
+        1,
+        &tx.txhash,
+        100,
+        seed.asset_0_id,
+        None,
+        Some(1),
+    )
+    .await;
+    let recipient = fee(
+        &pool,
+        FeeSource::Unwrap,
+        2,
+        &tx.txhash,
+        100,
+        seed.asset_0_id,
+        None,
+        Some(1),
+    )
+    .await;
+    attribute_transaction(
+        &pool,
+        &lcd("http://127.0.0.1:9"),
+        &cfg,
+        &tx,
+        100,
+        0,
+        &mut AttributionBudget::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(tag(&pool, first).await, (Some(actor), "mm".into()));
+    assert_eq!(tag(&pool, duplicate).await, (None, "unknown".into()));
+    assert_eq!(tag(&pool, recipient).await, (None, "unknown".into()));
+}

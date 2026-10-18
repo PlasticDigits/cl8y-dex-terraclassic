@@ -1,0 +1,39 @@
+{
+  "by_cohort": [
+    {
+      "amount_usd": "0.00297",
+      "cohort": "retail",
+      "event_count": 1,
+      "share_pct": "37.264742785445420326"
+    },
+    {
+      "amount_usd": "0.005",
+      "cohort": "mm",
+      "event_count": 1,
+      "share_pct": "62.735257214554579674"
+    },
+    {
+      "amount_usd": "0",
+      "cohort": "unknown",
+      "event_count": 0,
+      "share_pct": "0"
+    }
+  ],
+  "chain_id": "localterra",
+  "heights": [
+    2287244,
+    2287246,
+    2287248
+  ],
+  "pricing_scope": "explicit owned QA economic mark and USTC oracle fixture; not real USD feed acceptance",
+  "production_ingestion": "process_block_txs",
+  "public_cohort_json_has_no_actor": true,
+  "real_h_minus_one_registry_queries": true,
+  "registered_tier_zero_paid_wrap": "mm",
+  "registration_tx": "B70E4EABB0A11FA0DAECAB24FC6668C16D8E4096F8AB51D5113C5F0BC274866C",
+  "replay_keeps_historical_cohort": true,
+  "status": "PASS",
+  "swap_tx": "35D27B260A55842A555EC146942D28C077EDBCA0FD16DC6B88583732F15D44CE",
+  "unregistered_paid_swap": "retail",
+  "wrap_tx": "1CBD45D3E375D29BAF9981DA19B3F1CDD50A6EEE733D6925908636B7CEF491DD"
+}

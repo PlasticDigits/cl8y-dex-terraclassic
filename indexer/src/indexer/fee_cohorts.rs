@@ -128,13 +128,15 @@ fn actions(tx: &TxResponse) -> Vec<Action<'_>> {
                 .iter()
                 .position(|a| matches!(a.key.as_str(), "action" | "_contract_address"))
                 .map_or(event.attributes.len(), |n| index + 1 + n);
-            let ambiguous_actor = ["sender", "trader", "owner", "wallet"].iter().any(|key| {
-                event.attributes[index + 1..end]
-                    .iter()
-                    .filter(|a| a.key == *key)
-                    .count()
-                    > 1
-            });
+            let ambiguous_actor = ["sender", "trader", "owner", "wallet", "depositor"]
+                .iter()
+                .any(|key| {
+                    event.attributes[index + 1..end]
+                        .iter()
+                        .filter(|a| a.key == *key)
+                        .count()
+                        > 1
+                });
             out.push(Action {
                 emitter,
                 primary_wasm: event.event_type == "wasm",
@@ -262,6 +264,10 @@ fn resolve<'a>(
         action.swap_actor(config)
     } else if fee.source == "limit_place" {
         action.actor("owner", config)
+    } else if fee.source == "wrap" && action.name == "notify_deposit" {
+        // The pinned mapper authenticates treasury callbacks and emits the
+        // actual native depositor; callback sender is not the fee payer.
+        action.actor("depositor", config)
     } else {
         action.actor("sender", config)
     }?;

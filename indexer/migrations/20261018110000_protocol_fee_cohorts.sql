@@ -36,3 +36,34 @@ CREATE TABLE protocol_fee_stats_by_cohort (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY ("window", cohort)
 );
+
+-- Before the new indexer performs its first scheduled refresh, preserve the
+-- existing published fee snapshot. Historical payer membership is unobserved,
+-- so all existing activity starts in unknown; no event scan or history rewrite.
+-- Reading this one materialized row keeps migration initialization O(1).
+INSERT INTO protocol_fee_stats_by_cohort
+    ("window", cohort, amount_usd, event_count, share_pct, updated_at)
+SELECT w."window", c.cohort,
+       CASE WHEN c.cohort <> 'unknown' OR w.event_count <= 0 THEN 0
+            WHEN w.amount_usd > 0 THEN w.amount_usd ELSE NULL END,
+       CASE WHEN c.cohort = 'unknown' THEN w.event_count ELSE 0 END,
+       CASE WHEN w.event_count > 0 AND w.amount_usd > 0
+            THEN CASE WHEN c.cohort = 'unknown' THEN 100 ELSE 0 END
+            ELSE NULL END,
+       COALESCE(w.updated_at, NOW())
+FROM (
+    SELECT v."window", g.updated_at,
+           CASE v."window"
+             WHEN '24h' THEN g.total_fees_24h_usd
+             WHEN '7d' THEN g.total_fees_7d_usd
+             WHEN '30d' THEN g.total_fees_30d_usd
+           END AS amount_usd,
+           COALESCE(CASE v."window"
+             WHEN '24h' THEN g.fee_event_count_24h
+             WHEN '7d' THEN g.fee_event_count_7d
+             WHEN '30d' THEN g.fee_event_count_30d
+           END, 0) AS event_count
+    FROM (VALUES ('24h'), ('7d'), ('30d')) AS v("window")
+    LEFT JOIN global_stats_24h g ON g.id = 1
+) AS w
+CROSS JOIN (VALUES ('retail'), ('mm'), ('unknown')) AS c(cohort);

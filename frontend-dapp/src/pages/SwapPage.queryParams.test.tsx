@@ -621,6 +621,11 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&amount=1&utm_source=launch&utm_campaign=middle%20hop&ref=agent`)
     await waitForSwapReady()
     await screen.findByTestId('swap-quote-retry-error')
+    // The address bar independently debounces its amount. Capture the reviewed
+    // canonical URL only once that same input has settled, before retrying.
+    await waitFor(() =>
+      expect(new URLSearchParams(screen.getByTestId('receive-search-probe').textContent!).get('exactAmount')).toBe('1')
+    )
     const failedSearch = screen.getByTestId('receive-search-probe').textContent!
     const campaign = new URLSearchParams(failedSearch)
     expect(campaign.get('utm_source')).toBe('launch')

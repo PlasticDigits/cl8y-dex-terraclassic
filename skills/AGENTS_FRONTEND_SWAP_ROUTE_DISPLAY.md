@@ -132,6 +132,6 @@ remaining third-party integration criteria, follow
 admit an external DEX operation or change candidate economics.
 
 Third-party integration follows the [adapter architecture/security design](../docs/architecture/third-party-route-adapters.md)
-for #1330/#690: exact admitted identities, one flat tier-independent 290-bps
-route surcharge, atomic treasury settlement and final-net ranking. The design
+for #1330/#690: exact admitted identities, at most one foreign hop and the tier-independent
+`floor(measured foreign ask delta × 290 / 10000)` skim to pinned CMM, atomic treasury settlement and final-net ranking. The design
 is documentation, not adapter deployment or signing authorization.
