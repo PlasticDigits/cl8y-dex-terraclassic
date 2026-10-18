@@ -1,0 +1,17 @@
+{
+  "utc": "2026-10-18T10:55:22.206612+00:00",
+  "queries": {
+    "historical_observation": {
+      "promql": "dex_observation_timestamp_seconds{job=\"cl8y-dex-api\"} @ 1792320886",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-api"
+          },
+          "value": 1792320859.844942
+        }
+      ]
+    }
+  },
+  "sanitized": true
+}

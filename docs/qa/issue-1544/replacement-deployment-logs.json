@@ -1,0 +1,12 @@
+{
+  "utc": "2026-10-18T10:59:03.427183+00:00",
+  "deployment_uuid": "18s8f490jphntqc0lr7tunml",
+  "status": "finished",
+  "source_sha": "fc5b128298d142481e55384b0fcd4b7f981aa228",
+  "entries_checked": 70,
+  "classes": {
+    "expected_missing_cleanup_container": 1,
+    "other_error_pattern_entries": 0
+  },
+  "scope": "Raw deployment messages inspected in memory only; no log lines or configuration values retained."
+}

@@ -1,0 +1,25 @@
+{
+  "alert": {
+    "alertname": "DexMonitoringDrill",
+    "job": "cl8y-dex-monitor",
+    "purpose": "monitoring",
+    "service": "cl8y-dex-terraclassic-indexer"
+  },
+  "deadline_seconds": 240,
+  "issue": 1544,
+  "markers_utc": {
+    "delivered": "2026-10-18T10:46:23.411649+00:00",
+    "disabled": "2026-10-18T10:46:23.411649+00:00",
+    "firing": "2026-10-18T10:46:14.511328+00:00",
+    "pending": "2026-10-18T10:45:56.713541+00:00",
+    "recovered": "2026-10-18T10:47:00.911784+00:00"
+  },
+  "observed_utc": "2026-10-18T10:47:01.106301+00:00",
+  "overall": "PASS",
+  "phase": "PASS",
+  "reason": null,
+  "scope": "Monitoring-only synthetic alert; no DEX calls or availability/lag fault injection.",
+  "started_utc": "2026-10-18T10:45:38.607819+00:00",
+  "steps": 10,
+  "transport_errors": 0
+}

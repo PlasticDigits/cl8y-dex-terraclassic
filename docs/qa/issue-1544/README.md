@@ -4,6 +4,7 @@ Issue: [#1544](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1544).
 Implementation: [`monitoring/dex/`](../../../monitoring/dex/).
 Operations: [Prometheus runbook](../../runbooks/dex-prometheus-monitoring.md).
 Agent contract: [DM1544-1–DM1544-10](../../../skills/AGENTS_DEX_MONITORING.md).
+Current live evidence and remaining work: [RESULTS.md](RESULTS.md).
 
 Run `make verify-issue-1544` for focused source checks. Each test process must
 finish under 60 seconds. Keep real failures in the record after fixes; a passing
@@ -15,25 +16,35 @@ Missing Prometheus is FAIL, never `SKIP: no_prometheus_datasource_provisioned`.
 Check an item only against its sanitized live evidence. A source check alone
 cannot complete these items.
 
-- [ ] Prometheus is healthy; configuration and sample storage survive monitoring
+- [x] Prometheus is healthy; configuration and sample storage survive monitoring
   replacement; both expected DEX scrape jobs produce fresh observations.
-- [ ] The existing Grafana at `https://logs.cl8y.com` reports datasource health;
+- [x] The existing Grafana at `https://logs.cl8y.com` reports datasource health;
   representative PromQL passes for the exact service and jobs; dashboard panels
   use the expected datasource and time range.
-- [ ] Existing Loki queries still work. Record logs and metrics separately;
+- [x] Existing Loki queries still work. Record logs and metrics separately;
   document missing traffic latency/5xx and provider pressure instrumentation.
-- [ ] A monitoring-only synthetic rule shows pending, firing, a persisted alert
+- [x] A monitoring-only synthetic rule shows pending, firing, a persisted alert
   delivery receipt and recovered states without changing DEX behavior.
-- [ ] The bounded verifier rejects missing datasource, missing/stale series,
+- [x] The bounded verifier rejects missing datasource, missing/stale series,
   wrong-service identity and failed scrapes. Record UTC, exact source/deployed
   revisions, scoped queries and bounded sanitized results.
-- [ ] The serving API stays available across monitoring rollout; deployment
+- [x] The serving API stays available across monitoring rollout; deployment
   actions do not stop/restart it or reset production infrastructure.
 - [ ] Labels and exported evidence omit actors, transaction/request IDs,
   provider URLs, query strings and credentials; administrative endpoints remain
   access-controlled and series/alert receipt counts stay bounded.
-- [ ] Provisioning, configuration, replacement/recovery, focused verification
+- [x] Provisioning, configuration, replacement/recovery, focused verification
   and agent guidance are committed and cross-linked; deployment logs are checked.
+
+The privacy item remains open because the separate credential remediation is
+incomplete; metric-label/privacy controls themselves pass. Serving continuity
+is supported by 40/40 successful sampled requests, 20/20 admitted serving checks
+and unchanged DEX source; sampling does not prove every interval between checks.
+Same-source replacement changed all four container identities, preserved every
+named volume binding and historical sample, and retained the original terminal
+drill proof without a second enable request. Coolify's aggregate app status is
+`running:unknown`; actual datasource and target health passed independently.
+See [RESULTS.md](RESULTS.md) for artifacts, UTCs and exact limitations.
 
 ## Evidence contract
 
@@ -81,9 +92,10 @@ deployment durability improvement that removes production host-bind dependence.
 Config parsers and unit tests passed before the startup failure; they do not
 validate process argument acceptance or full-stack health. The corrected local
 stack starts healthy and all five scoped scrape jobs report up. Its synthetic
-drill has observed pending/firing/delivery; recovery remains pending at this
-recording. Local runtime success does not establish a successful subsequent
-live deployment. Keep these failures alongside subsequent live results.
+drill subsequently completed recovery; [local proof](local-drill.json) and
+[live proof](live-drill.json) both pass. The corrected live monitoring deployment
+and scoped checks pass as recorded in [RESULTS.md](RESULTS.md). Keep the two
+failed attempts alongside those subsequent results.
 
 This stack observes four existing health/readiness endpoints. It does not add
 traffic request histograms/counters or provider admission gauges, identify the
