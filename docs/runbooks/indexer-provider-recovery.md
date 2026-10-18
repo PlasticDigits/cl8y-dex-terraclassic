@@ -225,3 +225,20 @@ Also run the cold-namespace fixtures: qualification during a rejected fee reques
 must stay unavailable, and a newly completed changed fee cannot borrow older
 hybrid economics. Unqualified guards allocate no retained mirrors or registry
 entries and cannot clear newer negative evidence.
+
+## Block-read HTTP 400 recovery
+
+The 2026-10-18 pricing incident stopped indexing at checkpoint 30893904 after
+an LCD block read returned HTTP 400. The fatal lifecycle classification then
+canceled price producers, so all reference marks expired while `/health` stayed
+available. The logs establish an HTTP rejection, not a chain/hash mismatch or
+an accounting write failure; the upstream response body was not retained.
+
+Only a top-level `BlockIndexError::Lcd` with HTTP 400 retries through the existing
+paced, cancellation-owned availability loop. Block, transaction-page, tip and
+checkpoint reads finish before economic writes. Keep the original checkpoint
+until a fully validated block commits. The generic LCD protocol classification
+is unchanged; a parser/processing HTTP 400 still halts and preserves its unsafe
+failure marker. Wrong-chain, wrong-height, malformed payload, actual hash mismatch,
+SQL and accounting failures retain their fatal behavior. No marker clearance,
+checkpoint reset, extended freshness or request-triggered polling is needed.

@@ -61,6 +61,21 @@ pub enum BlockIndexError {
 /// Only typed availability/capacity failures may bypass the fatal retry budget.
 /// Inspect parser cause chains without matching untrusted upstream error text.
 pub fn is_retryable_availability(error: &(dyn std::error::Error + 'static)) -> bool {
+    // A valid block/checkpoint/tip request can receive HTTP 400 from an
+    // unavailable provider. These reads precede all economic writes; retain the
+    // checkpoint and retry through the existing paced, cancellation-owned loop.
+    // Keep this check outside cause traversal: the same HTTP error during
+    // ProcessingFailed may follow persisted projections and must remain fatal.
+    // No response has passed chain/height/hash validation merely by retrying.
+    if matches!(
+        error.downcast_ref::<BlockIndexError>(),
+        Some(BlockIndexError::Lcd {
+            source: LcdError::HttpRejected(400),
+            ..
+        })
+    ) {
+        return true;
+    }
     let mut cause = Some(error);
     while let Some(error) = cause {
         if let Some(lcd) = error.downcast_ref::<LcdError>() {
@@ -533,6 +548,29 @@ mod tests {
                 canonical: "B".into()
             }
         ));
+    }
+
+    #[test]
+    fn recovery1464_http400_retry_is_only_for_prewrite_block_reads() {
+        assert!(is_retryable_availability(&BlockIndexError::Lcd {
+            height: 41,
+            source: LcdError::HttpRejected(400),
+        }));
+        // A parser may already have committed economic projections. Its HTTP
+        // failure must still quarantine the block, never automatically replay.
+        assert!(!is_retryable_availability(
+            &BlockIndexError::ProcessingFailed {
+                height: 41,
+                source: LcdError::HttpRejected(400).into(),
+            }
+        ));
+        assert!(!is_retryable_availability(&LcdError::HttpRejected(400)));
+        for status in [401, 403, 404, 422] {
+            assert!(!is_retryable_availability(&BlockIndexError::Lcd {
+                height: 41,
+                source: LcdError::HttpRejected(status),
+            }));
+        }
     }
 
     #[tokio::test(start_paused = true)]

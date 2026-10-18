@@ -149,6 +149,11 @@ fn record_integrity_evidence(
         observer();
     }
     let mut retained = slot.lock().unwrap();
+    // A later rejected block read must not hide earlier chain/height/body
+    // integrity evidence when the poller classifies HTTP 400 as availability.
+    if matches!(copied, LcdError::HttpRejected(400)) && retained.is_some() {
+        return;
+    }
     if matches!(copied, LcdError::PairResponseMalformed(_))
         && matches!(
             *retained,
@@ -770,7 +775,7 @@ impl LcdClient {
                     // Still try a qualified alternative, but preserve unsafe evidence if
                     // none succeeds. Lifecycle recovery must not mistake it for an outage.
                     errors.push(format!("endpoint[{idx}] integrity rejected"));
-                    *integrity_error.lock().unwrap() = Some(error);
+                    record_integrity_evidence(integrity_error, &error, None);
                 }
                 Ok(Err(_)) => errors.push(format!("endpoint[{idx}] provider unavailable")),
                 Err(_) | Ok(Ok(EndpointOutcome::Expired(DeadlineOrigin::Attempt))) => {
@@ -3475,6 +3480,54 @@ mod provider_resilience_tests {
         ));
         assert_eq!(lcd.provider_counters().await[0].failures, 0);
         assert!(!lcd.provider_counters().await[0].circuit_open);
+    }
+
+    #[tokio::test]
+    async fn recovery1464_http400_cannot_hide_an_earlier_integrity_failure() {
+        for wrong_chain in [true, false] {
+            let wrong = MockServer::start().await;
+            let rejected = MockServer::start().await;
+            mock_chain_identity(
+                &wrong,
+                if wrong_chain {
+                    "localterra"
+                } else {
+                    "columbus-5"
+                },
+            )
+            .await;
+            mock_chain_identity(&rejected, "columbus-5").await;
+            let route = "/cosmos/base/tendermint/v1beta1/blocks/41";
+            Mock::given(path(route))
+                .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                    "block_id":{"hash":"wrong-height"}, "block":{"header":{
+                        "chain_id":"columbus-5","height":"42","time":"2026-10-10T00:00:00Z"}}})))
+                .mount(&wrong)
+                .await;
+            Mock::given(path(route))
+                .respond_with(ResponseTemplate::new(400))
+                .mount(&rejected)
+                .await;
+            let lcd = LcdClient::new(vec![wrong.uri(), rejected.uri()], 1000, 0, "columbus-5");
+            let error = lcd.get_block_hash(41).await.unwrap_err();
+            assert!(
+                if wrong_chain {
+                    matches!(error, LcdError::ChainIdentity(_))
+                } else {
+                    matches!(error, LcdError::HistoricalHeightUnavailable)
+                },
+                "HTTP 400 cannot downgrade observed integrity: {error}"
+            );
+            assert_eq!(hits(&rejected, route).await, 1);
+            assert_eq!(
+                lcd.provider_counters()
+                    .await
+                    .iter()
+                    .map(|p| p.in_flight)
+                    .sum::<usize>(),
+                0
+            );
+        }
     }
 
     #[tokio::test]
