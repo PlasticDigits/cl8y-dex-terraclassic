@@ -8,6 +8,7 @@ import { quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
 import { assertLocalRouteSubmit, validateLocalRouteQuote } from './localRouteQuote'
 import { buildSubmitAlignedSimPayload } from '@/utils/quoteDebounce'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 vi.mock('@/services/indexer/client', () => ({ getRouteSolve: vi.fn(), postRouteSolve: vi.fn() }))
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn(() => {
@@ -67,8 +68,8 @@ function nativeQuote(unwrap = false) {
 }
 describe('local quote settlement policies #1452', () => {
   it.each([
-    [30000, 10000],
-    [15000, 5001],
+    [LOCAL_QUOTE_SIGNING_WINDOW_MS, 10000],
+    [LOCAL_QUOTE_SIGNING_WINDOW_MS - 5000, 5001],
     [1000, Number.NaN],
     [1000, Number.POSITIVE_INFINITY],
   ])('rejects renewed/unsafe original windows: age%s expiry%s (#1473)', async (age, expiry) => {

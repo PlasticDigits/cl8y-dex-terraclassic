@@ -555,8 +555,8 @@ fn original_view(body: &Value, height: i64, observed: i64) {
     assert_eq!(body["execution_metadata"]["observed_at_ms"], observed);
     assert_eq!(
         body["execution_metadata"]["expires_at_ms"],
-        observed + 20_000,
-        "publication and fallback must not renew the original 20-second deadline"
+        observed + 30 * 60 * 1000,
+        "publication and fallback must not renew the original 30-minute signing deadline"
     );
 }
 

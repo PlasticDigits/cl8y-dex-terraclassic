@@ -8,7 +8,7 @@
 #     --build-arg VITE_WC_PROJECT_ID=... \
 #     -t cl8y-dex-frontend .
 
-FROM node:24-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS builder
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS builder
 
 WORKDIR /app
 COPY frontend-dapp/package.json frontend-dapp/package-lock.json ./
@@ -87,7 +87,7 @@ RUN test -n "$VITE_FACTORY_ADDRESS" \
   && case "$VITE_INDEXER_URL" in https://*) ;; *) echo "VITE_INDEXER_URL must be https://" >&2; exit 1 ;; esac \
   && npm run build
 
-FROM nginx:1.31-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2 AS runtime
+FROM nginx:1.31-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d AS runtime
 
 COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html

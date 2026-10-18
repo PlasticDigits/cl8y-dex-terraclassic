@@ -7,6 +7,7 @@ import type { IndexerRouteSolveResponse } from '@/types'
 import { quoteCw20ExactOutputViaRouteSolve, quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
 import { assertLocalRouteSubmit } from './localRouteQuote'
 import { DIRECT_WRAPPER_FLOOR_UNSUPPORTED, validateWrapperOnlyQuote } from './localWrapperOnlyQuote'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 vi.mock('@/services/indexer/client', () => ({
   getRouteSolve: vi.fn(),
   getRouteSolveExactOutput: vi.fn(),
@@ -89,7 +90,7 @@ describe('zero-hop local wrapper arithmetic #1452', () => {
     const metadata = idx.execution_metadata!
     metadata.execution_supported = true
     metadata.wrapper!.floor_protocol_version = 1
-    metadata.observed_at_ms = Date.now() - 30_000
+    metadata.observed_at_ms = Date.now() - LOCAL_QUOTE_SIGNING_WINDOW_MS
     metadata.expires_at_ms = Date.now() + 10_000
     expect(() => validateWrapperOnlyQuote(idx, { ...input, trader: 'terra1trader' })).toThrow('Quote unavailable')
     expect(() =>

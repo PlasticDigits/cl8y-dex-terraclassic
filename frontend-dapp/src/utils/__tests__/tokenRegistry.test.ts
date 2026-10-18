@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { CL8Y_TOKEN_ADDRESS } from '../constants'
 import {
   lookupByDenom,
   lookupByCW20,
@@ -103,9 +104,7 @@ describe('lookupTokenIdByProductTicker (GitLab #711)', () => {
     expect(lookupTokenIdByProductTicker('LUNC')).toBe('uluna')
     expect(lookupTokenIdByProductTicker('lunc')).toBe('uluna')
     expect(lookupTokenIdByProductTicker('USTC')).toBe('uusd')
-    expect(lookupTokenIdByProductTicker('CL8Y')).toBe(
-      'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
-    )
+    expect(lookupTokenIdByProductTicker('CL8Y')).toBe(CL8Y_TOKEN_ADDRESS)
     expect(lookupTokenIdByProductTicker('cLUNC')?.startsWith('terra1')).toBe(true)
     expect(lookupTokenIdByProductTicker('RUBY')).toBeUndefined()
     expect(lookupTokenIdByProductTicker('ETH')).toBeUndefined()

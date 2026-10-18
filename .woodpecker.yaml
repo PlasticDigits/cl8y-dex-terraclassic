@@ -13,7 +13,7 @@ when:
 
 clone:
   - name: git
-    image: woodpeckerci/plugin-git:2.9.3@sha256:b2d65ece33918fd8763192effb11b226ff4631faa1f3568c941ae69462b1f1be
+    image: woodpeckerci/plugin-git:2.10.1@sha256:550075c844fcec0af41d9d28f9860aa5d8c43e1e9419be4b9266dc02c2f29804
     settings:
       lfs: false
       recursive: false
@@ -34,7 +34,7 @@ steps:
         timeout 300 bash scripts/ci/functional-run.sh gitleaks
 
   - name: contracts
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [gitleaks]
     commands:
       # Official Rust images use a minimal toolchain without cargo-fmt.
@@ -43,20 +43,20 @@ steps:
       - timeout --signal=TERM --kill-after=30s 35m bash scripts/ci/functional-run.sh contracts
 
   - name: frontend
-    image: node:24-bookworm@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0
+    image: node:24-bookworm@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0
     depends_on: [contracts]
     commands:
       - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh frontend
 
   - name: indexer-lib
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [frontend]
     commands:
       - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
       - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh indexer-lib
 
   - name: indexer-postgres
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [indexer-lib]
     environment:
       TEST_DATABASE_ADMIN_URL: postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test

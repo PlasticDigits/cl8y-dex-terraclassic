@@ -1333,6 +1333,19 @@ test-custc-ust1-buyback:
 		scripts/lib/custc-ust1-buyback-math.py
 	./scripts/qa/test-custc-ust1-buyback.sh
 
+# Columbus-5: spend CMM USDT (Treasury InstantWithdrawCw20) via best-solver into UST1
+# every 20 minutes until CMM is down to a USDT floor. --setup-spender registers the
+# hot wallet as the USDT spender (DEX 2-of-3). Runbook: docs/runbooks/cmm-usdt-buy-ust1.md
+.PHONY: cmm-usdt-buy-ust1 test-cmm-usdt-buy-ust1
+cmm-usdt-buy-ust1:
+	@chmod +x scripts/cmm-usdt-buy-ust1.sh scripts/lib/cmm-usdt-buy-ust1-defaults.sh
+	./scripts/cmm-usdt-buy-ust1.sh
+
+test-cmm-usdt-buy-ust1:
+	@chmod +x scripts/qa/test-cmm-usdt-buy-ust1.sh scripts/cmm-usdt-buy-ust1.sh \
+		scripts/lib/cmm-usdt-buy-ust1-defaults.sh
+	./scripts/qa/test-cmm-usdt-buy-ust1.sh
+
 # GitLab #508 — UST1 secondary AMM create+seed tooling / Path B waiver (U1–U7).
 # Optional: VERIFY508_LOCAL=1 (LocalTerra fixture) VERIFY508_MAINNET=1 (live pair presence).
 verify-issue-508:
