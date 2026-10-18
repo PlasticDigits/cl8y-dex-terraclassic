@@ -219,6 +219,31 @@ class WorkflowTests(unittest.TestCase):
         self.http.assert_not_called()
         self.assertEqual(self.writes, [])
 
+    def test_private_pipe_input_stages_without_a_terminal_or_getpass(self):
+        body = json.dumps({"access_key": "candidate-access-key", "secret_key": "candidate-secret-key"}).encode()
+        stream = type("Stream", (), {"buffer": io.BytesIO(body), "isatty": lambda self: False})()
+        with patch.object(STAGE.sys, "stdin", stream):
+            code, result = self.invoke(["--input-json"])
+        self.assertEqual(code, 0)
+        self.assertEqual(result["candidate_state"], "staged_verified_read")
+        self.prompts.assert_not_called()
+        self.assertEqual(self.record["data"]["secret_key"], "candidate-secret-key")
+
+    def test_private_input_rejects_terminal_oversize_and_extra_fields_without_output(self):
+        bodies = (b"x" * 4097, json.dumps({"access_key": "candidate-access-key", "secret_key": "candidate-secret-key", "extra": "synthetic-private-error"}).encode())
+        for body in bodies:
+            stream = type("Stream", (), {"buffer": io.BytesIO(body), "isatty": lambda self: False})()
+            with patch.object(STAGE.sys, "stdin", stream):
+                code, result = self.invoke(["--input-json"])
+            self.assertEqual(code, 1)
+            self.assertEqual(result["reason"], "credential_input_shape")
+        stream = type("Stream", (), {"isatty": lambda self: True})()
+        with patch.object(STAGE.sys, "stdin", stream):
+            code, _ = self.invoke(["--input-json"])
+        self.assertEqual(code, 1)
+        self.assertEqual(self.writes, [])
+        self.http.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -63,5 +63,20 @@
     "collector_inventory_correction": "Original environment assignment parser excluded digits and missed CL8Y_*; fixed parser and regression controls. /etc/default/alloy remains authoritative per systemd/config references.",
     "runtime_credentials_changed": false,
     "old_credentials_revoked": false
+  },
+  "guard_compatibility_followup": {
+    "utc": "2026-10-18T12:06:53.472682+00:00",
+    "legacy_terminal_child_started": false,
+    "failure_class": "installed guard intentionally rejects terminal-connected streams",
+    "candidate_present_in_read_only_preflight": false,
+    "operator_launcher": "scripts/ops/stage-logs-s3-operator.py",
+    "guard_mode": "guarded",
+    "secret_channel": "private bounded stdin pipe; local getpass prompts with echo disabled",
+    "raw_mode_used": false,
+    "closed_operator_reports": true,
+    "synthetic_terminal_tests": 9,
+    "synthetic_staging_tests": 18,
+    "installed_guard_read_only_preflight": "PASS",
+    "runtime_credentials_changed": false
   }
 }

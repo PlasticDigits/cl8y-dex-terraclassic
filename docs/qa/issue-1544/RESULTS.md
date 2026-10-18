@@ -155,3 +155,20 @@ parser/privacy controls; each focused process passes in under one second. No
 runtime storage/ingestion credentials were changed or revoked during diagnosis.
 See the [updated runbook](../../runbooks/dex-prometheus-monitoring.md#retrying-storage-staging-and-using-the-completed-collector-inventory)
 and [security receipt](security-remediation.json). #1544 remains open.
+
+## Installed output guard and operator terminal compatibility
+
+The later terminal retry was refused by the newly installed OpenBao output
+guard before the child launched. That attempt reached no S3 prompts or bucket
+request and saved no candidate; it was separate from the initial staging
+failure. The replacement key remains unavailable, and actual rotation remains
+incomplete. Read-only guarded preflight confirms the pending record is absent.
+
+The operator launcher now prompts locally and calls a guarded subprocess with
+all streams piped. New credentials use private bounded stdin; the launcher
+validates closed reports before showing any child result, and never uses raw
+output mode. Nine real-PTY/boundary checks with synthetic fetch and the installed
+guard pass, along with eighteen staging workflow controls; each process takes
+under one second. A live read-only preflight through the launcher boundary
+passes. The updated operator entrypoint is documented in the runbook; no service
+was restarted, no runtime credential changed, and no S3 adoption is claimed.

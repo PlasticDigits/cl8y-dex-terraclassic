@@ -29,6 +29,7 @@ SAFE_REASONS = frozenset((
     "openbao_unavailable", "openbao_write_denied", "openbao_stage_failed",
     "openbao_readback_failed", "pending_exists_use_resume", "pending_missing",
     "pending_shape", "pending_identity_changed", "bao_admin_required", "new_key_probe",
+    "credential_input_shape",
 ))
 
 
@@ -168,7 +169,21 @@ def valid_version(previous):
             raise ValueError("pending_shape")
 
 
-def stage(*, resume=False, replace_pending=False, progress=None, preflight=False):
+def private_input(stream):
+    """Receive the launcher's bounded private pipe; never prompt in guarded children."""
+    if stream.isatty():
+        raise ValueError("credential_input_shape")
+    raw = stream.buffer.read(4097)
+    if len(raw) > 4096:
+        raise ValueError("credential_input_shape")
+    data = json.loads(raw)
+    if (not isinstance(data, dict) or set(data) != {"access_key", "secret_key"}
+            or any(not isinstance(v, str) or not 16 <= len(v) <= 256 for v in data.values())):
+        raise ValueError("credential_input_shape")
+    return data["access_key"], data["secret_key"]
+
+
+def stage(*, resume=False, replace_pending=False, progress=None, preflight=False, input_json=False):
     progress = {} if progress is None else progress
     progress.update(phase="configuration", candidate_retention="none", prior_candidate_present=None)
     env = environment()
@@ -199,13 +214,16 @@ def stage(*, resume=False, replace_pending=False, progress=None, preflight=False
         if previous is not None and not replace_pending:
             raise ValueError("pending_exists_use_resume")
         progress.update(phase="hidden_input", candidate_retention="none")
-        if not sys.stdin.isatty():
-            raise ValueError("interactive_hidden_prompt_required")
-        # getpass must never fall back to echoed input if terminal control fails.
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", getpass.GetPassWarning)
-            access = getpass.getpass("New Hetzner S3 access key (hidden): ")
-            secret = getpass.getpass("New Hetzner S3 secret key (hidden): ")
+        if input_json:
+            access, secret = private_input(sys.stdin)
+        else:
+            if not sys.stdin.isatty():
+                raise ValueError("interactive_hidden_prompt_required")
+            # getpass must never fall back to echoed input if terminal control fails.
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", getpass.GetPassWarning)
+                access = getpass.getpass("New Hetzner S3 access key (hidden): ")
+                secret = getpass.getpass("New Hetzner S3 secret key (hidden): ")
         data = {"access_key": access, "secret_key": secret, "endpoint": env["S3_ENDPOINT"],
                 "bucket": env["S3_BUCKET"], "region": env["S3_REGION"], "state": "staged_unverified",
                 "staged_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat()}
@@ -236,6 +254,7 @@ def main(argv=None):
     mode.add_argument("--preflight", action="store_true", help="Read configuration and verify staging authority; no prompts or writes")
     mode.add_argument("--resume", action="store_true", help="Verify the privately retained candidate without prompting")
     mode.add_argument("--replace-pending", action="store_true", help="Explicitly replace a pending candidate through hidden prompts")
+    mode.add_argument("--input-json", action="store_true", help="Receive credential pair over the trusted launcher's private stdin pipe")
     args = parser.parse_args(argv)
     progress = {"phase": "dependency_check", "candidate_retention": "none", "prior_candidate_present": None}
     try:
@@ -246,7 +265,7 @@ def main(argv=None):
             result = {"status": "PASS", "scope": "dependency only; no secrets read or changed"}
         else:
             result = stage(resume=args.resume, replace_pending=args.replace_pending,
-                           progress=progress, preflight=args.preflight)
+                           progress=progress, preflight=args.preflight, input_json=args.input_json)
         print(json.dumps(result, sort_keys=True))
         return 0
     except Exception as error:

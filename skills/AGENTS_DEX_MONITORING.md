@@ -31,3 +31,12 @@ success. Emit only fixed diagnostics; no raw exception/subprocess/HTTP bodies.
 Collector environment names include digits (`CL8Y_*`); the earlier digit-blind
 inventory is not absence evidence. Completed operator discovery does not grant
 unavailable sudo or certify credential rotation.
+
+For manual secret entry use the reviewed local `stage-logs-s3-operator.py`
+launcher directly in the operator terminal. Its credential-bearing subprocess
+retains `bao-exec --output=guarded` with all standard streams piped; new input
+uses bounded private stdin JSON, never arguments, environment or files. The
+launcher emits only validated closed reports. Do not disable the output guard
+or run the terminal launcher in an agent transcript; agents use guarded,
+noninteractive `--preflight`/`--resume`. A terminal guard rejection occurs before
+the staging child launches and does not prove an S3 failure or credential change.
