@@ -20,7 +20,7 @@ Missing `price_usd` never selects legacy raw units, symbol pegs or candle substi
 ## API rolling readiness
 
 For startup/standby promotion and container healthchecks, follow
-[AR1–AR6](skills/AGENTS_API_ROLLING_READINESS.md) and run
+[AR1–AR7](skills/AGENTS_API_ROLLING_READINESS.md) and run
 `make verify-api-rolling-readiness`; use the [checklist](docs/qa/api-rolling-readiness/README.md).
 Keep the serving API available throughout future migration/deployment. Explicit
 native readiness scenarios consume unchanged local quote observations; indexing

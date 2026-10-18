@@ -71,13 +71,13 @@ Verification checklist:
   closed while the admitted startup health stays200; a fresh gate resets and
   refuses the same missing data.
 - [x] Wrong schema rejects dynamic readiness; missing/invalid scenarios remain fail closed.
-- [ ] Owned actual old/new-process67→68 compatibility, proxy health filtering and
-  failed-replacement preservation pass before any production change.
+- [x] Owned67→68 API compatibility plus independent HTTP/state/proxy handoff,
+  cold-candidate exclusion and old-serving preservation pass on frozen source.
 - [ ] After promotion, native original-clock/freshness/live checks pass. No
   production acceptance is claimed by this source implementation.
 
 Commands: `make verify-api-rolling-readiness`. Invariants:
-[AR1–AR6](../../../skills/AGENTS_API_ROLLING_READINESS.md).
+[AR1–AR7](../../../skills/AGENTS_API_ROLLING_READINESS.md).
 
 Retained first controls: initial compile passed1m45s; profile/executable contract
 units2/2 passed0.00s. The first HTTP fixture failed32.78s with
@@ -156,3 +156,33 @@ establish an actual production deployment.
 The [owned dual-HTTP/proxy fixture](owned-handoff.md) is separate from platform
 source eligibility and live deployment. Its paced 150-call profile and retained
 unresolved stress 503 remain explicit; it does not establish full #1505 acceptance.
+
+[Combined local verification](combined-local-results.json): 15 focused groups /
+126 passing checks on one frozen compiled-input manifest, every child below59s.
+The whole verification took about42s; compilation was separate (3m01s). The paced
+handoff used106 total client calls /44 native successes with no unexpected HTTP
+failure. Its earlier stress503 remains FAIL and unexplained. The first combined
+attempt stopped during owned database setup before application assertions; that
+receipt remains. The fixture now waits for final TCP PostgreSQL readiness and
+exports fixed stage guards. The fresh run passed; no application rule was relaxed.
+
+For third-party agents, the [combined runner](../../../scripts/qa/verify-api-serving-continuity.py)
+recreates the proof from precompiled executables in a frozen checkout. Provision
+only an owned QA database per [DB1396](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md).
+Capture the manifest **before** compilation, then keep source unchanged:
+
+```sh
+python3 scripts/ops/api-rolling-eligibility.py manifest --output /tmp/api-build-source.json
+cargo test --manifest-path indexer/Cargo.toml --locked --no-run --message-format=json \
+  --lib --test cohort_online_compat --test indexer_fee_cohorts \
+  --test indexer_protocol_fees --test route_local_quotes_1452 > /tmp/api-build.json
+python3 scripts/qa/verify-api-serving-continuity.py \
+  --source-manifest /tmp/api-build-source.json --build-report /tmp/api-build.json \
+  --output-dir /tmp/api-serving-owned
+```
+
+Each executed test child has a57s timeout. The runner stops on the first failure,
+keeps private raw logs and emits a FAIL proof. Only the complete passing suite
+can produce `api-owned-proof.json`; source changes invalidate it. This proof
+covers owned HTTP/state, block processing and proxy forwarding. Actual platform
+promotion, live DDL, served artifacts and native outcomes remain separate.

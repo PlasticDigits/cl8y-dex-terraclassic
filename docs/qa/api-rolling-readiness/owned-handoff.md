@@ -56,3 +56,11 @@ timeout 59s /path/to/shared-target/debug/deps/route_local_quotes_1452-HASH \
   --exact api_rolling_handoff::rolling_proxy_keeps_old_until_standby_native_admission_then_real_block_handoff \
   --nocapture --test-threads=1
 ```
+
+The [combined frozen-source run](combined-local-results.json) now passes its
+paced case in 17.877s: 106 total client calls, 44 proxied bidirectional native
+successes, zero unexpected HTTP failures, maximum loopback latency5ms, three
+actually parsed/checkpointed blocks and zero request-only LCD calls. All15 focused
+groups passed on the same unchanged compiled-input manifest. The earlier design
+history's PENDING status predates this run; its stress503 remains an unresolved
+FAIL. This scoped local PASS does not certify live #1505 acceptance.
