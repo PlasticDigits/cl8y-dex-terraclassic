@@ -4,7 +4,7 @@
 # Build context: repository root
 #   docker build -f docker/indexer/Dockerfile -t cl8y-dex-indexer .
 
-FROM rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663 AS builder
+FROM rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29 AS builder
 
 WORKDIR /build
 # Normalize vendored Swagger asset timestamps for repeatable native bytecode.
