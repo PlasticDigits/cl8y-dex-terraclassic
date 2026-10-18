@@ -34,7 +34,7 @@ steps:
         timeout 300 bash scripts/ci/functional-run.sh gitleaks
 
   - name: contracts
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [gitleaks]
     commands:
       # Official Rust images use a minimal toolchain without cargo-fmt.
@@ -49,14 +49,14 @@ steps:
       - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh frontend
 
   - name: indexer-lib
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [frontend]
     commands:
       - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
       - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh indexer-lib
 
   - name: indexer-postgres
-    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    image: rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677936bf3e8b32de29
     depends_on: [indexer-lib]
     environment:
       TEST_DATABASE_ADMIN_URL: postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test
