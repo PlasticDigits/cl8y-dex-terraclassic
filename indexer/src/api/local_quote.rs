@@ -2572,7 +2572,7 @@ mod tests {
         assert_eq!(body["generation"], s.generation);
         assert!(
             body["expires_at_ms"].as_i64().unwrap()
-                <= s.mirrors["pair0a"].snapshot_at.timestamp_millis() + 20_000
+                <= s.mirrors["pair0a"].snapshot_at.timestamp_millis() + LOCAL_QUOTE_SIGNING_WINDOW_MS
         );
         for absent in [
             "router_operations",
