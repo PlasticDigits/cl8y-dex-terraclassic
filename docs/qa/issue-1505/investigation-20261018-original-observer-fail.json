@@ -1,0 +1,476 @@
+{
+  "issue": 1505,
+  "revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "backend_revisions": [
+    "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "0a3c251755a88ee9cbbbbc222fc747811c9da08c"
+  ],
+  "utc_start": "2026-10-18T05:21:36.559461+00:00",
+  "utc_end": "2026-10-18T05:21:58.510093+00:00",
+  "read_only": true,
+  "signing": false,
+  "duration_seconds": 21.0,
+  "interval_seconds": 5.0,
+  "requests": 10,
+  "socket_budget_ms": 500,
+  "require_correlation": true,
+  "measurement_clock": "original_request_start_through_body_parse_and_useful_validation; failed attempts retained; no retries",
+  "initialized_useful_timing": {
+    "samples": 0,
+    "p50_ms": null,
+    "p95_ms": null,
+    "p99_ms": null,
+    "max_ms": null
+  },
+  "initialized_useful_timing_by_direction": {
+    "USTC->CL8Y": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    },
+    "CL8Y->USTC": {
+      "samples": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "counts": {
+    "client_validation": 8
+  },
+  "sampled_recoveries": [],
+  "unrecovered_directions": [
+    "CL8Y->USTC",
+    "USTC->CL8Y"
+  ],
+  "samples": [
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 0,
+      "utc_start": "2026-10-18T05:21:37.497683+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af4d",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300898411,
+        "observed_at_ms": 1792300883580,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000",
+        "estimated_amount_out_net": "1123948458363632969",
+        "minimum_receive": "1067751035445451321",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.053101386391110723",
+        "hop_floors": [
+          {
+            "return_amount": "1123948458363632969",
+            "min_return": "1067751035445451321"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "new",
+      "elapsed_ms": 913.637,
+      "elapsed_from_run_start_ms": 1851.874,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 1,
+      "utc_start": "2026-10-18T05:21:38.411352+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af4e",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300898715,
+        "observed_at_ms": 1792300888149,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000000000000000",
+        "estimated_amount_out_net": "13648458386",
+        "minimum_receive": "12966035467",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.10678989177297427",
+        "hop_floors": [
+          {
+            "return_amount": "13927332323",
+            "min_return": "13230965707"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 303.905,
+      "elapsed_from_run_start_ms": 2155.805,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 2,
+      "utc_start": "2026-10-18T05:21:43.715370+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af4f",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300904016,
+        "observed_at_ms": 1792300893580,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000",
+        "estimated_amount_out_net": "1123948458363632969",
+        "minimum_receive": "1067751035445451321",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.053101386391110723",
+        "hop_floors": [
+          {
+            "return_amount": "1123948458363632969",
+            "min_return": "1067751035445451321"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 301.259,
+      "elapsed_from_run_start_ms": 7457.188,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 3,
+      "utc_start": "2026-10-18T05:21:44.016668+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af50",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300904317,
+        "observed_at_ms": 1792300893580,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000000000000000",
+        "estimated_amount_out_net": "13648458386",
+        "minimum_receive": "12966035467",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.10678989177297427",
+        "hop_floors": [
+          {
+            "return_amount": "13927332323",
+            "min_return": "13230965707"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 301.31,
+      "elapsed_from_run_start_ms": 7758.529,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 4,
+      "utc_start": "2026-10-18T05:21:49.318093+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af51",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300909619,
+        "observed_at_ms": 1792300898149,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000",
+        "estimated_amount_out_net": "1123948458363632969",
+        "minimum_receive": "1067751035445451321",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.053101386391110723",
+        "hop_floors": [
+          {
+            "return_amount": "1123948458363632969",
+            "min_return": "1067751035445451321"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 301.308,
+      "elapsed_from_run_start_ms": 13059.963,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 5,
+      "utc_start": "2026-10-18T05:21:49.619441+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af52",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300909921,
+        "observed_at_ms": 1792300898149,
+        "expires_at_ms": 1792302571109,
+        "input_amount": "132000000000000000000",
+        "estimated_amount_out_net": "13648458386",
+        "minimum_receive": "12966035467",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.10678989177297427",
+        "hop_floors": [
+          {
+            "return_amount": "13927332323",
+            "min_return": "13230965707"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 302.131,
+      "elapsed_from_run_start_ms": 13362.121,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 6,
+      "utc_start": "2026-10-18T05:21:54.921684+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af53",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300915224,
+        "observed_at_ms": 1792300903580,
+        "expires_at_ms": 1792302703580,
+        "input_amount": "132000000",
+        "estimated_amount_out_net": "1123948458363632969",
+        "minimum_receive": "1067751035445451321",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.053101386391110723",
+        "hop_floors": [
+          {
+            "return_amount": "1123948458363632969",
+            "min_return": "1067751035445451321"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 302.412,
+      "elapsed_from_run_start_ms": 18664.659,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 7,
+      "utc_start": "2026-10-18T05:21:55.224137+00:00",
+      "status": 200,
+      "outcome": "client_validation",
+      "classified": false,
+      "useful": false,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af54",
+      "correlation_pass": true,
+      "validation_diagnostic": {
+        "reasons": [
+          "observation_lifetime"
+        ],
+        "validation_at_ms": 1792300915525,
+        "observed_at_ms": 1792300903580,
+        "expires_at_ms": 1792302703580,
+        "input_amount": "132000000000000000000",
+        "estimated_amount_out_net": "13648458386",
+        "minimum_receive": "12966035467",
+        "max_spread": "0.05",
+        "execution_market_spread": "0.10678989177297427",
+        "hop_floors": [
+          {
+            "return_amount": "13927332323",
+            "min_return": "13230965707"
+          }
+        ],
+        "hop_floors_truncated": false
+      },
+      "transport": "reused",
+      "elapsed_ms": 301.867,
+      "elapsed_from_run_start_ms": 18966.551,
+      "socket_budget_pass": false
+    }
+  ],
+  "failures": [
+    {
+      "pair": "USTC->CL8Y",
+      "failure_class": "no_useful_output"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 0,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 0,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 2,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 2,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 4,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 4,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 6,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 6,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "failure_class": "no_initialized_useful_sample"
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "failure_class": "no_observation_replacement"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "failure_class": "no_useful_output"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 1,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 1,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 3,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 3,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 5,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 5,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 7,
+      "failure_class": "unclassified_outcome"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 7,
+      "failure_class": "native_unavailable",
+      "outcome": "client_validation"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "failure_class": "no_initialized_useful_sample"
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "failure_class": "no_observation_replacement"
+    }
+  ],
+  "overall": "FAIL",
+  "limits": [
+    "two affected anonymous native directions at fixed original exact input; no broad matrix or signing",
+    "sampling recovery intervals are polling observations, not original browser-input latency",
+    "response validation rejects expired original observations; display expiry and browser budget require the independent browser observer",
+    "request IDs correlate server logs only; provider cause requires separate bounded scheduled diagnostics"
+  ]
+}

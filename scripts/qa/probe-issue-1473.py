@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("quote_probe", Path(__file__).with_name("probe-issue-1464.py"))
 common = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(common)
+# Original signing expiry and producer admission age are separate contracts.
+SIGNING_WINDOW_MS = 30 * 60 * 1000
+PRODUCER_MAX_AGE_MS = 20_000
 REASONS = {
     "protection": 422, "price_impact_too_high": 422, "amount_too_small": 422, "amount_too_large": 422, "insufficient_liquidity": 422,
     "unsupported_semantics": 422, "reference_policy_excluded": 422, "trading_blocked": 422, "no_route": 422,
@@ -59,7 +62,11 @@ def quoted_policy_valid(body, scenario, now_ms=None):
         meta = body["execution_metadata"]
         now_ms = int(time.time() * 1000) if now_ms is None else now_ms
         observed, expiry = meta.get("observed_at_ms"), meta.get("expires_at_ms")
-        if type(observed) is not int or type(expiry) is not int or not 0 <= observed <= now_ms < expiry or not 0 < expiry - observed <= 20_000:
+        if (any(type(value) is not int or not 0 <= value <= 2 ** 53 - 1 for value in (observed, expiry, now_ms))
+                or not observed <= now_ms < expiry or not 0 < expiry - observed <= SIGNING_WINDOW_MS):
+            return False
+        age = body.get("snapshot_age_ms")
+        if type(age) is not int or not 0 <= age <= PRODUCER_MAX_AGE_MS:
             return False
         if meta.get("protection_policy") != "quote_relative_v1":
             return False
@@ -114,8 +121,8 @@ def classify(status, body, scenario, now_ms):
                  and isinstance(body.get("generation"), str)
                  and re.fullmatch(r"[a-zA-Z0-9:_-]{1,256}", body["generation"]) is not None
                  and type(observed) is int and type(expiry) is int
-                 and 0 < observed <= now_ms < expiry <= now_ms + 20_000
-                 and expiry - observed <= 20_000
+                 and 0 < observed <= now_ms < expiry <= now_ms + SIGNING_WINDOW_MS
+                 and expiry - observed <= SIGNING_WINDOW_MS
                  and not any(field in body for field in ("router_operations", "execution_metadata", "hops", "minimum_receive")))
         return ("indicative_protection" if valid else "malformed_indicative"), valid
     return reason, True
@@ -160,8 +167,13 @@ def validation_diagnostic(body, scenario, now_ms):
             reasons.append("observation_in_future")
         if expiry <= clock:
             reasons.append("observation_expired")
-        if not 0 < expiry - observed <= 20_000:
+        if not 0 < expiry - observed <= SIGNING_WINDOW_MS:
             reasons.append("observation_lifetime")
+    age = body.get("snapshot_age_ms")
+    if type(age) is not int or not 0 <= age <= PRODUCER_MAX_AGE_MS:
+        reasons.append("producer_freshness")
+    if type(age) is int and 0 <= age <= 60_000:
+        evidence["snapshot_age_ms"] = age
     if body.get("token_in") != scenario.get("token_in") or body.get("token_out") != scenario.get("token_out"):
         reasons.append("identity_mismatch")
     if (body.get("execution_blocker") is not None or body.get("execution_supported", True) is not True

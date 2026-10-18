@@ -23,6 +23,17 @@ Preserve [QL1499](AGENTS_QUOTE_LIFECYCLE.md),
 | NR1505-13 | Plan router priority once after validated mapper configuration and treasury address, before constructing concurrent futures. Router work owns no global/provider permit while waiting for both common treasury reads to acquire their existing global permits and pass the original deadline guard. First polling or cooperative Pending is not proof of admission. Register notification before checking the predicate; no-plan helpers remain prompt. The original router/poll deadline owns and cancels waiting work. Native validation still requires successful validated treasury configuration and bindings; admission never establishes positive data. Preserve read counts, two permits, provider budgets and original freshness. |
 | NR1505-14 | Scheduled wrapper observation starts with the mapper data query's mandatory fresh endpoint attestation, without a redundant standalone identity preflight. Each actual data attempt and alternative still verifies the configured expected chain on that exact endpoint and checks its original caller/attempt deadlines before data transport. Never substitute cached identity metadata, remove unrelated discovery/actor trust gates, or change provider admission, quarantine, typed-negative precedence, namespace, cadence or original poll-start freshness. Healthy identity/provider attempts reduce from fourteen to thirteen without additional attempts; the thirteen-logical-data-read ceiling is unchanged. |
 
+Observer timing follows the accessibility signing contract: validate the unchanged
+original `observed_at_ms`/`expires_at_ms` window up to **30 minutes**, while
+requiring published `snapshot_age_ms` at quote construction in **0–20,000ms**.
+Producer/reference/wrapper admission remains bounded by its original twenty-second
+freshness rules. Never apply a new `now - observed <= 20s` restriction to a
+reviewed quote, renew its expiry, or treat an indicative protection response as
+signable. Indicative responses retain their actual original expiry (at most
+thirty minutes), without execution payload fields. See the [observer correction
+evidence](../docs/qa/issue-1505/RESULTS.md#observer-signing-window-correction-2026-10-18);
+prior failed receipts remain immutable.
+
 Run `make verify-issue-1505` and the applicable lifecycle/provider checks. Follow
 the [focused checklist](../docs/qa/issue-1505/README.md) and record actual results
 in [RESULTS.md](../docs/qa/issue-1505/RESULTS.md). This issue excludes physical

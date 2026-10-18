@@ -22,7 +22,7 @@ class Tests(unittest.TestCase):
     @staticmethod
     def executable_fixture():
         case = next(probe.corpus("reproduction"))
-        body = {"token_in": case["token_in"], "token_out": case["token_out"],
+        body = {"token_in": case["token_in"], "token_out": case["token_out"], "snapshot_age_ms": 1000,
                 "estimated_amount_out_net": "9000", "router_operations": [{"terra_swap": {"min_return": "8550"}}],
                 "execution_metadata": {"input_amount": case["amount"], "generation": "a" * 64,
                     "observed_at_ms": 1000, "expires_at_ms": 21000,
@@ -34,12 +34,24 @@ class Tests(unittest.TestCase):
         case = {**case, "spread": "0.05"}
         return case, body
 
+    def test_original_signing_window_is_separate_from_producer_admission_age(self):
+        case, body = self.executable_fixture()
+        body["execution_metadata"]["expires_at_ms"] = 1801000
+        self.assertEqual(probe.classify(200, body, case, 60000), ("executable", True))
+        self.assertEqual(probe.classify(200, body, case, 1801000), ("client_validation", False))
+        body["snapshot_age_ms"] = 20000
+        self.assertEqual(probe.classify(200, body, case, 60000), ("executable", True))
+        for age in [20001, -1, True, "1000", None]:
+            body["snapshot_age_ms"] = age
+            self.assertEqual(probe.classify(200, body, case, 60000), ("client_validation", False))
+            self.assertIn("producer_freshness", probe.validation_diagnostic(body, case, 60000)["reasons"])
+
     def test_failed_quote_diagnostic_distinguishes_expiry_future_lifetime_and_shape(self):
         case, good = self.executable_fixture()
         self.assertEqual(probe.classify(200, good, case, 2000), ("executable", True))
         for changes, reason in [({"expires_at_ms": 2000}, "observation_expired"),
                                 ({"observed_at_ms": 2001}, "observation_in_future"),
-                                ({"expires_at_ms": 21001}, "observation_lifetime"),
+                                ({"expires_at_ms": 1801001}, "observation_lifetime"),
                                 ({"observed_at_ms": True}, "observation_shape"),
                                 ({"expires_at_ms": "private-url"}, "observation_shape")]:
             with self.subTest(reason=reason, changes=changes):
@@ -199,9 +211,11 @@ class Tests(unittest.TestCase):
         body = {"error": "protection", "indicative_amount_out": "123", "generation": "a" * 64,
                 "execution_supported": False, "observed_at_ms": 1000, "expires_at_ms": 21000}
         self.assertEqual(probe.classify(422, body, case, 2000), ("indicative_protection", True))
+        self.assertEqual(probe.classify(422, {**body, "expires_at_ms": 1801000}, case, 60000),
+                         ("indicative_protection", True))
         self.assertEqual(probe.classify(200, body, case, 2000), ("client_validation", False))
         for field, value in [("execution_supported", True), ("observed_at_ms", 3000),
-                             ("expires_at_ms", 2000), ("expires_at_ms", 22001),
+                             ("expires_at_ms", 2000), ("expires_at_ms", 1801001),
                              ("router_operations", []), ("indicative_amount_out", str(2 ** 128)),
                              ("generation", "<script>"), ("minimum_receive", "1")]:
             altered = {**body, field: value}
@@ -224,12 +238,12 @@ class Tests(unittest.TestCase):
         hop = {"pool_return_amount": "9000", "commission_amount": "0", "book_return_net": "0",
                "pool_input_actual": "1000", "book_offer_consumed": "0", "spread_amount": "900",
                "return_amount": "9000", "min_return": "8550"}
-        body = {"estimated_amount_out_net": "9000", "execution_metadata": {
+        body = {"estimated_amount_out_net": "9000", "snapshot_age_ms": 1000, "execution_metadata": {
             "protection_policy": "quote_relative_v1", "max_spread": "0.05", "hops": [hop],
             "minimum_receive": "8550", "execution_market_spread": "0.157894736842105264",
             "observed_at_ms": 1000, "expires_at_ms": 21000}}
         self.assertTrue(probe.quoted_policy_valid(body, scenario, 2000))
-        for observed, expiry in [(0, 30000), (2001, 21000), (1000, 21001), (1000, 2000)]:
+        for observed, expiry in [(0, 1800001), (2001, 21000), (1000, 1801001), (1000, 2000)]:
             altered = json.loads(json.dumps(body))
             altered["execution_metadata"].update(observed_at_ms=observed, expires_at_ms=expiry)
             self.assertFalse(probe.quoted_policy_valid(altered, scenario, 2000))

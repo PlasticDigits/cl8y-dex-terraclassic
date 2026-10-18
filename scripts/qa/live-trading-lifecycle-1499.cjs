@@ -271,6 +271,7 @@ const SAFE_FAILURES = new Set([
   "operation_path",
   "original_stage",
   "original_window",
+  "producer_freshness",
   "output_floor",
   "pool_overflow",
   "projection_overflow",

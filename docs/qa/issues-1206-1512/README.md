@@ -12,12 +12,16 @@ Source/checklist evidence:
 [Swap campaigns/routes](../issue-1330/README.md),
 [native recovery](../issue-1505/README.md),
 [USD display](../issue-1512/README.md).
+The [QA signing-window correction](../issue-1505/RESULTS.md#observer-signing-window-correction-2026-10-18)
+retains the original failed baseline and a separately recorded corrected bounded
+probe against the unchanged deployment; it does not replace sustained acceptance.
 
 The owner explained that temporary HTTPS/SSH outages during this work were
 server upgrades. No hosting/server recovery or shared infrastructure reset was
 attempted. Local QA failures reset only process-owned disposable databases.
-All actual test invocations are below 60 seconds; compilation and provisioning
-are separate. Long #1505 four-by-190s acceptance windows remain explicitly
+All locally invoked focused test processes are below 60 seconds; compilation and
+provisioning are separate. Repository-mandated hosted full matrix execution is
+separate. Long #1505 four-by-190s acceptance windows remain explicitly
 unavailable under that test-duration constraint; shortened probes cannot replace
 them or erase the retained historical failed RETEST.
 

@@ -1,0 +1,55 @@
+{
+  "scope": "QA-only observer correction; application unchanged",
+  "source_base": "7bc04522a1c0085fbe7a24a88e2577fdaaf67a4b",
+  "worktree_dirty": true,
+  "contract": "original signing window <=1800000ms; published snapshot age at quote construction <=20000ms; no now-observed 20s retention restriction",
+  "old_validator_regression": {
+    "python": "FAIL: valid30-minute quote classified client_validation",
+    "javascript": "FAIL: valid30-minute quote throws original_window",
+    "historical_failure_unchanged": true
+  },
+  "focused_tests": [
+    {
+      "command": "timeout 59s python3 scripts/qa/test-probe-issue-1473.py",
+      "passed": 17,
+      "duration_seconds": 3.316
+    },
+    {
+      "command": "timeout 59s node --test scripts/qa/test-live-quote-economics-1500.cjs scripts/qa/test-browser-live-trading-quotes-1473.cjs scripts/qa/test-live-input-clock-1499.cjs",
+      "passed": 39,
+      "duration_seconds": 0.977
+    },
+    {
+      "command": "timeout 59s python3 scripts/qa/test-native-recovery-1505.py",
+      "passed": 20,
+      "duration_seconds": 0.098
+    }
+  ],
+  "observer_inputs_sha256": [
+    {
+      "path": "scripts/qa/probe-issue-1473.py",
+      "sha256": "46431ee75d483128c6e1b7901b307430551ec5ffad1bf89dce16de7c8addf878"
+    },
+    {
+      "path": "scripts/qa/live-quote-economics-1500.cjs",
+      "sha256": "02e72ec6ac3ebed0a623f800de65cf7f036520778bb93e9c32c0e30abfbf4b9d"
+    },
+    {
+      "path": "scripts/qa/browser-live-trading-quotes-1473.cjs",
+      "sha256": "17fb6183ee433149f8db1f5734ea7c3a875955e01a12c98a1257fb191684e54d"
+    },
+    {
+      "path": "scripts/qa/live-trading-lifecycle-1499.cjs",
+      "sha256": "63bde277d53dc2a2eb65e32c375c389656b301c3da805c5a118c144734ac773b"
+    }
+  ],
+  "live_receipts": [
+    "investigation-20261018-original-observer-fail.json",
+    "investigation-20261018-corrected-observer-pass.json"
+  ],
+  "limits": [
+    "Corrected21-second olddeployment baseline does not replace four190-second browser windows or complete issue1505 acceptance",
+    "Original retained deployed503 failures remain FAIL; no historical verdict rewritten",
+    "All locally invoked focused test processes below60s; compilation/provisioning separate. Repository-mandated hosted fullmatrix separate."
+  ]
+}

@@ -443,13 +443,19 @@ try {
               body.execution_blocker != null ||
               m.trader != null ||
               m.sender != null ||
+              // Retain original 30-minute signing expiry; admission age stays 20s.
+              !Number.isSafeInteger(now) ||
+              now < 0 ||
+              !Number.isSafeInteger(body.snapshot_age_ms) ||
+              body.snapshot_age_ms < 0 ||
+              body.snapshot_age_ms > 20000 ||
               !Number.isSafeInteger(m.observed_at_ms) ||
               m.observed_at_ms < 0 ||
               m.observed_at_ms > now ||
               !Number.isSafeInteger(m.expires_at_ms) ||
               m.expires_at_ms <= now ||
               m.expires_at_ms <= m.observed_at_ms ||
-              m.expires_at_ms - m.observed_at_ms > 20000 ||
+              m.expires_at_ms - m.observed_at_ms > 30 * 60 * 1000 ||
               typeof m.generation !== "string" ||
               !/^[a-zA-Z0-9:_-]{1,256}$/.test(m.generation) ||
               !Array.isArray(m.hops) ||

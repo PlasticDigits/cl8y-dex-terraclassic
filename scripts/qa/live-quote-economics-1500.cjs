@@ -1,6 +1,8 @@
 // Independent bounded raw-stage validator for anonymous live receipts. No production imports.
 const MAX = (1n << 128n) - 1n,
-  S = 10n ** 18n;
+  S = 10n ** 18n,
+  SIGNING_WINDOW_MS = 30 * 60 * 1000,
+  PRODUCER_MAX_AGE_MS = 20000;
 function integer(v, signed = false) {
   if (
     typeof v !== "string" ||
@@ -76,7 +78,11 @@ function originalWindowDiagnostics(metadata, now) {
       ? metadata.expires_at_ms
       : null;
   const reason =
-    observed == null || expires == null
+    observed == null ||
+    expires == null ||
+    observed < 0 ||
+    !Number.isSafeInteger(now) ||
+    now < 0
       ? "invalid_clock"
       : expires <= observed
         ? "nonpositive_window"
@@ -84,7 +90,7 @@ function originalWindowDiagnostics(metadata, now) {
           ? "future_observation"
           : expires <= now
             ? "expired_at_response"
-            : expires - observed > 20000
+            : expires - observed > SIGNING_WINDOW_MS
               ? "overlong_window"
               : typeof metadata.generation !== "string" ||
                   !/^[a-zA-Z0-9:_-]{1,256}$/.test(metadata.generation)
@@ -125,6 +131,13 @@ function validate(body, params, now) {
   )
     throw Error("execution_binding");
   if (originalWindowDiagnostics(m, now).reason) throw Error("original_window");
+  // snapshot_age_ms is the producer age at quote construction, not time spent reviewing.
+  if (
+    !Number.isSafeInteger(body.snapshot_age_ms) ||
+    body.snapshot_age_ms < 0 ||
+    body.snapshot_age_ms > PRODUCER_MAX_AGE_MS
+  )
+    throw Error("producer_freshness");
   const net = integer(body.estimated_amount_out_net),
     fair = integer(body.spot_amount_out),
     input = integer(m.input_amount),
