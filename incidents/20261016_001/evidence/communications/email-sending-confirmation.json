@@ -1,0 +1,41 @@
+{
+  "case_id": "20261016_001",
+  "recorded_at_utc": "2026-10-16T03:06:15.591390+00:00",
+  "source_type": "requester_statement_in_conversation",
+  "statement_summary": "The requester confirmed that both prepared exchange emails were sent from contact@cl8y.com.",
+  "sender_reported": "contact@cl8y.com",
+  "sending_reported": true,
+  "exact_sent_at_utc": null,
+  "original_sent_email_exports_supplied": false,
+  "delivery_independently_verified": false,
+  "exchange_acknowledgement_reported": false,
+  "email_resulting_asset_recovery_reported": false,
+  "onchain_notice_status_changed_by_this_confirmation": false,
+  "prepared_text_reference": "recovery/EXCHANGE_EMAILS_20261016.md",
+  "messages": [
+    {
+      "service": "FixedFloat",
+      "prepared_to": [
+        "help@fixedfloat.com"
+      ],
+      "prepared_cc": [
+        "compliance@fixedfloat.com"
+      ],
+      "prepared_subject": "Urgent asset recovery and records preservation request — CL8Y incident 20261016_001",
+      "recipient_details_basis": "prepared draft; sending confirmed by requester; original headers not supplied",
+      "message_id": null,
+      "case_reference": null
+    },
+    {
+      "service": "KuCoin",
+      "prepared_to": [
+        "support@kucoin.com"
+      ],
+      "prepared_cc": [],
+      "prepared_subject": "Urgent Security/Compliance escalation — preserve withdrawal records — CL8Y incident 20261016_001",
+      "recipient_details_basis": "prepared draft; sending confirmed by requester; original headers not supplied",
+      "message_id": null,
+      "case_reference": null
+    }
+  ]
+}

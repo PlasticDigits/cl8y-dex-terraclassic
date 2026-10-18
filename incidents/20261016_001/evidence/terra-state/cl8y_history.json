@@ -1,0 +1,47 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_UNSPECIFIED",
+      "code_id": "10181",
+      "updated": {
+        "block_height": "24103161",
+        "tx_index": "10793178"
+      },
+      "msg": {
+        "name": "CeramicLiberty.com CL8Y.com/bridge",
+        "symbol": "CL8Y-cb",
+        "decimals": 18,
+        "initial_balances": [
+          {
+            "address": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+            "amount": "500000000000000000000000"
+          }
+        ],
+        "mint": {
+          "minter": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+        },
+        "marketing": {
+          "project": "https://ceramicliberty.com",
+          "description": "CeramicLiberty.com bridged via CL8Y.com/bridge",
+          "marketing": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+          "logo": {
+            "url": "https://ceramicliberty.com/wp-content/uploads/2025/06/CLAY-150.png"
+          }
+        }
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_UNSPECIFIED",
+      "code_id": "10184",
+      "updated": {
+        "block_height": "24103771",
+        "tx_index": "10902135"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

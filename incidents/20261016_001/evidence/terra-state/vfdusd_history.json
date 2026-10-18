@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10184",
+      "updated": {
+        "block_height": "29719831",
+        "tx_index": "11257990"
+      },
+      "msg": {
+        "name": "Venus FDUSD (bridged)",
+        "symbol": "vFDUSD",
+        "decimals": 6,
+        "initial_balances": [],
+        "mint": {
+          "minter": "terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la",
+          "cap": null
+        },
+        "marketing": null
+      }
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

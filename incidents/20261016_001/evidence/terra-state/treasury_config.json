@@ -1,0 +1,8 @@
+{
+  "data": {
+    "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "timelock_duration": 604800,
+    "wrapping_paused": false,
+    "cw20_instant_withdraw_paused": false
+  }
+}

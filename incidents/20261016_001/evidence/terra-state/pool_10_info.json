@@ -1,0 +1,23 @@
+[
+  {
+    "address": "terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "UST1-CUSTC cl8ydex lp",
+      "created": {
+        "block_height": "29958470",
+        "tx_index": "113499"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm21ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:28 GMT",
+    "Content-Type": "application/json",
+    "x-cosmos-block-height": "30846432"
+  }
+]

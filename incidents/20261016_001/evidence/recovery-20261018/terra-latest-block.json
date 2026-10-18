@@ -1,0 +1,51 @@
+{
+  "collected_at_utc": "2026-10-18T07:41:53.404377+00:00",
+  "url": "https://terra-classic-lcd.publicnode.com/cosmos/base/tendermint/v1beta1/blocks/latest?incident_capture=20261018",
+  "request": null,
+  "request_headers": {},
+  "http_status": 200,
+  "response_headers": {
+    "date": "Sun, 18 Oct 2026 07:41:53 GMT",
+    "content-type": "application/json",
+    "grpc-metadata-x-cosmos-block-height": "30889465",
+    "x-cosmos-block-height": "30889465"
+  },
+  "response": {
+    "block_id": {
+      "hash": "1ubR2+MX6LkL/tFqkHHuWtYoeC+gVIcLlreleWphOzo=",
+      "part_set_header": {
+        "total": 1,
+        "hash": "kBMznCm/QGMZYeD2VIGO6TGlQG3OH8dHydmF6RIB9IY="
+      }
+    },
+    "block": {
+      "header": {
+        "version": {
+          "block": "11",
+          "app": "0"
+        },
+        "chain_id": "columbus-5",
+        "height": "30889465",
+        "time": "2026-10-18T07:41:46.198788429Z",
+        "last_block_id": {
+          "hash": "EDBGfI0KcIVFFGIiTfD77g9+KQTPvuO7SL3/qIcUeI0=",
+          "part_set_header": {
+            "total": 1,
+            "hash": "bfnBRPBTicxZNpY9KyzKjDnrNXv1J+MOpcRu8UEnZL8="
+          }
+        },
+        "last_commit_hash": "J59cQI9SP+XsomZ7BmlHkEhMYh2EB54WhK2Sxjtvwgg=",
+        "data_hash": "k+zRe1fbA1AHGsUysF97V7nZ0LFLJoXKpAmKfpCJDfU=",
+        "validators_hash": "SSu8amDdtHlB9O9YdpfqQ3qpw2iY9DzkjSvYKJa+c6M=",
+        "next_validators_hash": "SSu8amDdtHlB9O9YdpfqQ3qpw2iY9DzkjSvYKJa+c6M=",
+        "consensus_hash": "DHGkgcYVHl/p32F/XoN09hpJ6geIV5TuqUCt/SmT2f4=",
+        "app_hash": "43x9vGiY2D/KjK63U5CciuKfjYXLk8JZeFYWRXl3b8s=",
+        "last_results_hash": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+        "evidence_hash": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+        "proposer_address": "iEckDjqoz8QpcDmf3xaVV6ARKwk="
+      }
+    }
+  },
+  "source_response_canonical_json_sha256": "c925ada6e6e8e3828e671ca4ea55f2ac0484228b932daabb3cb9654e3131100e",
+  "transformation": "Only block identifier and header retained; block body, last commit signatures and unrelated transactions omitted. Source digest hashes canonical JSON, not HTTP bytes."
+}

@@ -1,0 +1,19 @@
+{
+  "utc": "2026-10-15T10:24:41.106795+00:00",
+  "url": "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin,terra-luna,tether&vs_currencies=usd&include_last_updated_at=true",
+  "status": 200,
+  "response": {
+    "binancecoin": {
+      "usd": 719.04,
+      "last_updated_at": 1792059857
+    },
+    "terra-luna": {
+      "usd": 4.676e-5,
+      "last_updated_at": 1792059875
+    },
+    "tether": {
+      "usd": 0.999077,
+      "last_updated_at": 1792059875
+    }
+  }
+}

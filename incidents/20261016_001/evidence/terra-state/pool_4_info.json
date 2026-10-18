@@ -1,0 +1,22 @@
+[
+  {
+    "address": "terra1nqjvd2xatac5ydcs6nstw7zp2yjc20p632ycxtevtf3rr2554fqswstx0n",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "JADE-TOPAZ cl8ydex lp",
+      "created": {
+        "block_height": "29458565",
+        "tx_index": "1146452"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm21nqjvd2xatac5ydcs6nstw7zp2yjc20p632ycxtevtf3rr2554fqswstx0n"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:21 GMT",
+    "Content-Type": "application/json"
+  }
+]

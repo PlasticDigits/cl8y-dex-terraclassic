@@ -1,0 +1,26 @@
+{
+  "account": {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "address": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "pub_key": {
+      "@type": "/cosmos.crypto.multisig.LegacyAminoPubKey",
+      "threshold": 2,
+      "public_keys": [
+        {
+          "@type": "/cosmos.crypto.secp256k1.PubKey",
+          "key": "A+7iz2WaOj/1BQb1H71NddOiPjYygfHVImHz4nOEFWmk"
+        },
+        {
+          "@type": "/cosmos.crypto.secp256k1.PubKey",
+          "key": "AnoHI0WAvhg4mx3B4hVIdeiRjRVZvTLbRXk8SiEIPLx/"
+        },
+        {
+          "@type": "/cosmos.crypto.secp256k1.PubKey",
+          "key": "AmS14yFlZT8Z68M3IkeQyfBk0KoI1dm9pLR6KIin8tEq"
+        }
+      ]
+    },
+    "account_number": "5508506",
+    "sequence": "530"
+  }
+}

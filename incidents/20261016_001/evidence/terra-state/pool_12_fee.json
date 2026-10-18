@@ -1,0 +1,14 @@
+[
+  {
+    "data": {
+      "fee_config": {
+        "fee_bps": 180,
+        "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2"
+      }
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:29 GMT",
+    "Content-Type": "application/json"
+  }
+]
