@@ -151,3 +151,13 @@ timeout 59s python3 scripts/tests/test_cohort_migration_ops.py
 timeout 59s bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
   python3 scripts/tests/test_cohort_migration_local.py
 ```
+
+The [interrupted first apply](production-worker-interrupted-20261018.json) remains
+unverified: a finished Coolify deployment and stale `exited` app state were not
+proof that its worker had completed. Normal status now waits for the exact
+current action/run/revision receipt within one persisted finite 70-second
+waiting/inspect or 915-second apply/verify allowance. It never renews that owner
+on polling. Timeout/known deployment failure remains FAIL and cleans the owned
+job; explicit cleanup still removes credentials. Recover uncertain applies with
+verification-only against the retained snapshot/full history before considering
+another apply; never repair SQLx history or restart an incompatible old binary.

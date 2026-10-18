@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 import secrets
 import subprocess
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('preflight', ROOT / 'scripts/ops/cohort-preflight-1211.py')
@@ -221,6 +222,7 @@ def start_action(api, state, action):
 def remember_start(state, response, previous):
     state['previous_deployment_uuids'] = previous
     state.pop('active_deployment_uuid', None)
+    state.pop('terminal_receipt_deadline', None)
     value = response.get('deployment_uuid') if isinstance(response, dict) else None
     if value is not None:
         pre.require(isinstance(value, str) and pre.ID.fullmatch(value) and value not in previous, 'start_deployment_identity')
@@ -346,6 +348,15 @@ def status(api, state, cleanup=False):
     pre.require(len({json.dumps(row,sort_keys=True) for row in found}) <= 1, 'conflicting_terminal_receipts')
     found = found[-1:]
     result['receipts'] = found
+    if not cleanup and result.get('overall') != 'FAIL' and not found:
+        # Finished BuildKit and an old exited application status say nothing
+        # about completion of this worker. Never stop a snapshot/migration while
+        # its bounded owner is still allowed to produce the current-run receipt.
+        allowance = 915 if state.get('active_action') in {'apply', 'verify'} else 70
+        deadline = state.setdefault('terminal_receipt_deadline', time.time() + allowance)
+        if time.time() < deadline:
+            return {**result, 'overall': 'PENDING'}
+        result.update(overall='FAIL', failure_class='terminal_receipt_timeout')
     if found or cleanup or result.get('overall') == 'FAIL' or any(word in str(app.get('status','')) for word in ['stopped','exited']):
         result.update(pre.cleanup_owned(api, state['job_uuid']))
         state.update({key: result[key] for key in ['credential_removed', 'stop_acknowledged', 'cleanup_overall']})

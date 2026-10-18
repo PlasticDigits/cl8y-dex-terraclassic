@@ -324,5 +324,22 @@ class MigrationOpsTests(unittest.TestCase):
             self.assertFalse(any(path.endswith('/cancel') for path,_,_ in api.calls[start:]))
             self.journal.unlink()
 
+    def test_finished_deployment_with_stale_exited_status_waits_for_terminal_receipt(self):
+        for action,allowance in [('waiting',70),('inspect',70),('apply',915),('verify',915)]:
+            api,state=self.built();state['active_action']=action
+            api.job['status']='exited:unhealthy'
+            start=len(api.calls)
+            with patch.object(ops.time,'time',return_value=1000):
+                result=ops.status(api,state)
+            self.assertEqual(result['overall'],'PENDING')
+            self.assertEqual(state['terminal_receipt_deadline'],1000+allowance)
+            self.assertTrue(all(method=='GET' for _,method,_ in api.calls[start:]))
+            with patch.object(ops.time,'time',return_value=1000+allowance):
+                result=ops.status(api,state)
+            self.assertEqual(result['overall'],'FAIL')
+            self.assertEqual(result['failure_class'],'terminal_receipt_timeout')
+            self.assertEqual(result['cleanup_overall'],'PASS')
+            self.journal.unlink()
+
 
 if __name__=='__main__': unittest.main()
