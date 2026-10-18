@@ -1428,6 +1428,47 @@ describe('TradePage', () => {
       ])
     }
 
+    it.each([false, true])(
+      '#1512 missing latest USD clears prior headline in both orientations (desktop=%s)',
+      async (desktop) => {
+        mockTradeDesktopLayout(desktop)
+        mockUst1AndOtherPairs()
+        const pair: IndexerPair = {
+          ...ust1IndexerPair,
+          asset_1: { ...ust1IndexerPair.asset_1, symbol: 'USTR', decimals: 18 },
+        }
+        vi.mocked(indexerClient.getPair).mockResolvedValue(pair)
+        const trade = {
+          id: 1,
+          pair_address: UST1_PAIR,
+          block_height: 1,
+          block_timestamp: '2026-08-15T00:00:00Z',
+          tx_hash: 'AA',
+          sender: 'terra1fixture',
+          offer_asset: 'UST1',
+          ask_asset: 'USTR',
+          offer_amount: '1000000',
+          return_amount: '160756280899197382191',
+          price: '160.756280899197382191',
+          price_usd: '0.849756570385773539',
+        }
+        vi.mocked(indexerClient.getTrades).mockResolvedValue([trade])
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+        renderTradeRoutes([`/trade/${UST1_PAIR}`], { queryClient: client })
+        await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('0.00528599'))
+        await act(async () => client.setQueryData(['pair-trades-trade', UST1_PAIR], [{ ...trade, price_usd: null }]))
+        await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—'))
+        await userEvent.setup().click(screen.getByTestId('trade-pair-invert-pill'))
+        expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
+        await act(async () => client.setQueryData(['pair-trades-trade', UST1_PAIR], [trade]))
+        await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('0.849757'))
+        await act(async () =>
+          client.setQueryData(['pair-trades-trade', UST1_PAIR], [{ ...trade, pair_address: OTHER_PAIR }])
+        )
+        await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—'))
+      }
+    )
+
     it('defaults UST1/cUSTC to other-side pill, heading, and no Order ticket', async () => {
       mockUst1AndOtherPairs()
       renderWithProviders(<TradePage />, { route: `/trade/${UST1_PAIR}` })

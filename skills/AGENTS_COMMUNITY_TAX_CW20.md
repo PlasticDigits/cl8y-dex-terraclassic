@@ -140,3 +140,10 @@ Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.
 - Charge settings fees on `Mint` or `SkimToLp`.
 - Enable MintControl after instantiate.
 - Treat this template as a license to whitelist other tax tokens.
+
+## Launcher origin hardening (#1229)
+
+Follow [LO1229-1–LO1229-6](./AGENTS_LAUNCHER_ORIGIN.md) for instantiate origin,
+launcher invoice forwarding and AutoLP binding. `Some(launcher)` must equal the
+instantiate sender. Launcher membership comes only from its authenticated token
+reply. Catalog code/admin/transaction provenance checks remain independent.

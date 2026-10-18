@@ -263,7 +263,7 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
     let token = app
         .instantiate_contract(
             token_code,
-            manager.clone(),
+            Addr::unchecked("launcher"),
             &InstantiateMsg {
                 name: "Comm".into(),
                 symbol: "COMM".into(),

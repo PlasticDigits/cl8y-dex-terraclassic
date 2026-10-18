@@ -222,7 +222,7 @@ fn p2_same_crate_empty_migrate_ok() {
     let token = app
         .instantiate_contract(
             tax_a,
-            manager.clone(),
+            Addr::unchecked("launcher"),
             &InstantiateMsg {
                 name: "Demo".into(),
                 symbol: "DEMO".into(),

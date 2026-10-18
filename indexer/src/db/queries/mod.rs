@@ -29,3 +29,7 @@ pub mod usd_as_of;
 pub mod usdt_quote_usd;
 pub mod venus_vfdusd;
 pub mod volume;
+
+pub mod evidence_digest;
+
+pub mod fee_cohorts;

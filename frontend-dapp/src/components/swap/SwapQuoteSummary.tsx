@@ -46,7 +46,12 @@ export function SwapQuoteSummary({
             <span className="inline-flex items-center gap-1 whitespace-nowrap">
               {tokens.map((id, index) => (
                 <Fragment key={`${index}:${id}`}>
-                  {index > 0 && <span aria-hidden="true">→</span>}
+                  {index > 0 && (
+                    <>
+                      <span aria-hidden="true">→</span>
+                      <span className="sr-only"> to </span>
+                    </>
+                  )}
                   <span className="inline-flex items-center gap-1" title={id} data-token-identity={id}>
                     <TokenLogo
                       addressForBlockie={id.startsWith('terra1') ? id : undefined}

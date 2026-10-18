@@ -83,3 +83,12 @@ Playwright (when Vite + factory tokens): `e2e/swap-query-params.spec.ts` plus ex
 - [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — ignore `pool_only` / `hybrid_optimize`
 
 Current receive-sizing extension: [#1376 agent protocol](AGENTS_SWAP_EXACT_OUTPUT.md), with explicit bounded solver sizing and finite disconnected errors. This supersedes earlier no-indexer-exact-out restrictions.
+
+## Campaign retention (#1330)
+
+When synchronizing the **current** Swap address bar, call
+`canonicalSwapSearch(input, searchParams)`: preserve unrelated/repeated query
+fields while removing consumed aliases case-insensitively. They remain inert URL
+values; never forward them to quote/signing requests or persist them. Generated
+Share links keep the one-argument helper and therefore omit inbound campaigns.
+See [R1330-1–R1330-4 and focused QA](../docs/qa/issue-1330/README.md).

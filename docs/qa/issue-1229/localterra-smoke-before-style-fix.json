@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "utc": "2026-10-18T04:19:17.557584+00:00",
+  "elapsed_seconds": 10.36641298800032,
+  "chain_id": "localterra",
+  "start_height": "2276411",
+  "end_height": "2276424",
+  "token_code": 110,
+  "launcher_code": 111,
+  "owned_launcher": "terra1h4d732h8dg632c2pxgsv6l0qcmgq5k07plzdwh8lenrgz9e0sc3qndhvfs",
+  "owned_token": "terra1rv8wvth6up77pnd7vrcl5gdng9w7sqv2q7wz70gjh50nvkep387sfaa0u6",
+  "owned_direct_token": "terra13z6nh45p0nzrv6dan37tnpmfmg44tz6ut44cejdkfmrz9aalpw5sexflfn",
+  "create_tx": "363897C32261B58E195E715AC834A83B89468007E7154D8A5058DE39537D1364",
+  "enable_tx": "6CBC2D880CABD65DBA689F4C14E8ACF6456CB35C85090B58E0AB509AD76E7714",
+  "cmm_invoice_raw": 50000000,
+  "mismatched_origin": {
+    "rejected": true,
+    "stage": "prebroadcast",
+    "reason": "Unauthorized"
+  },
+  "uncreated_forward": {
+    "rejected": true,
+    "stage": "prebroadcast",
+    "reason": "Unauthorized"
+  },
+  "scope": "new random keys and contracts only; no infra reset or existing contract changes",
+  "community_tax_wasm_digest": "038c4406f7d3b308832cc8a2faca7e7b8775c7434437fd1dd85df0ebd189dde4",
+  "launcher_wasm_digest": "743e09cf42674b116247a0e0208619088d6f1e30c1a95e273448ab6687b1b25c"
+}

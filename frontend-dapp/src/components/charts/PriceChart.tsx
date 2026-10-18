@@ -27,7 +27,7 @@ const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'] as const
 interface PriceChartProps {
   pairAddress: string
   defaultInterval?: string
-  /** Latest trade price in USD from indexer tape (newest-first); preferred over candle close for headline */
+  /** Latest indexed historical trade USD in displayed direction, or unavailable (#1512). */
   tapeLastPriceUsd?: string | null
   /** UI-only invert of factory USD series (GitLab #524). */
   displayInverted?: boolean
@@ -106,9 +106,8 @@ export default function PriceChart({
 
   const headlineUsd = useMemo(() => {
     if (humanPane) return null
-    if (plotted.kind === 'subject') return resolveTradeChartHeadlineUsd(tapeLastPriceUsd, [])
-    return resolveTradeChartHeadlineUsd(tapeLastPriceUsd, chartPoints)
-  }, [humanPane, plotted.kind, tapeLastPriceUsd, chartPoints])
+    return resolveTradeChartHeadlineUsd(tapeLastPriceUsd)
+  }, [humanPane, tapeLastPriceUsd])
 
   const humanLast = useMemo(() => {
     if (!humanPane || chartPoints.length === 0) return null
@@ -247,11 +246,11 @@ export default function PriceChart({
                   </span>
                 </div>
               )}
-              {headlineUsd != null && (
+              {!humanPane && (
                 <div
                   className="flex items-baseline gap-2"
                   data-testid="trade-chart-headline-price"
-                  title="Last trade price (USD) from the tape when available; otherwise last candle close for this interval."
+                  title="Last indexed trade price (USD). Unavailable when that trade has no USD price."
                 >
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wide"
@@ -260,7 +259,7 @@ export default function PriceChart({
                     Last
                   </span>
                   <span className="text-lg font-semibold tabular-nums font-heading" style={{ color: 'var(--ink)' }}>
-                    {headlineUsd}
+                    {headlineUsd ?? '—'}
                   </span>
                 </div>
               )}
@@ -385,7 +384,13 @@ export default function PriceChart({
         </div>
       )}
 
-      {showEmptyState && <PriceChartEmptyState pairStats={statsQuery.data} statsLoading={statsQuery.isLoading} />}
+      {showEmptyState && (
+        <PriceChartEmptyState
+          pairStats={statsQuery.data}
+          statsLoading={statsQuery.isLoading}
+          displayInverted={displayInverted}
+        />
+      )}
     </section>
   )
 }

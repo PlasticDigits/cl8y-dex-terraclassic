@@ -125,3 +125,13 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 - **Client BFS fallback indicator (Swap — #329):** When submit uses client multihop `findRoute` without indexer `router_operations`, **`swap-route-source-client-fallback`** appears under **`swap-route-summary`**. **Trade market** passes `clientRoute: null` — indexer/pool-only direct line only; no client-BFS fallback label there unless product extends indexer-outage multihop.
 - **Explainability (descoped for #302):** Token arrow only; no separate "best route" rationale beyond existing hybrid execution callouts and the client-BFS warning copy above.
+
+For #1330 campaign retention, screen-reader route legs, current verification and
+remaining third-party integration criteria, follow
+[R1330-1–R1330-4](../docs/qa/issue-1330/README.md). A retained campaign URL does not
+admit an external DEX operation or change candidate economics.
+
+Third-party integration follows the [adapter architecture/security design](../docs/architecture/third-party-route-adapters.md)
+for #1330/#690: exact admitted identities, one flat tier-independent 290-bps
+route surcharge, atomic treasury settlement and final-net ranking. The design
+is documentation, not adapter deployment or signing authorization.

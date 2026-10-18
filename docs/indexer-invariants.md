@@ -754,3 +754,35 @@ original poll-start freshness and shared two-permit/four-RPS provider budgets.
 Unknown required fields fail closed; no detached task or request polling is
 allowed. See [the contract](route-solver.md#scheduled-native-output-observations-1499)
 and [QL1499](../skills/AGENTS_QUOTE_LIFECYCLE.md).
+
+### Anonymous UTC-day digest (#1206)
+
+`/api/v1/evidence/digest` aggregates one strict UTC day without actors, transaction
+hashes, event linkage or unique-trader counts. It includes gem activity and is not
+a listing feed. Parent swaps, limit fills and LP events count separately; wrap and
+window counts are treasury fee-event counts, not principal. Current `FeeSource::ALL`
+is ten paths after #1209/#1210; the original seven retain stable order. Source/token
+unpriced activity is null, while headline USD retains priced sums. SQL uses a
+read-only consistent snapshot, short query budgets and bounded top-eight token mix.
+It shares evidence admission and the normal peer governor, never LCD reads.
+Unlike this digest, `/evidence/daily` retains public-chain transaction linkage;
+Llama is listing-specific and `/protocol/fees` uses trailing windows.
+See [AD1206](../skills/AGENTS_ACTIVITY_DIGEST.md) and the
+[acceptance checklist](qa/issue-1206/README.md); run `make verify-issue-1206`.
+
+### Fee-payer cohort aggregates (#1211)
+
+[FC1211-1–FC1211-10](../skills/AGENTS_FEE_COHORTS.md) define internal immutable
+payer/cohort storage at the fee's chain position. `mm` requires registered tier 0;
+unregistered default tier 0, self-register tiers and tier 255 are retail. An exact
+H−1 provider snapshot and ordered pinned registry receipts provide historical
+membership; unavailable history or unjoinable actors remain unknown. Never join
+mutable `traders` or reclassify a prior fee on deregistration. Book fees follow the
+taker, and router identity cannot stand in for its unobserved original trader.
+
+The public `by_cohort` contains only three aggregate rows for each fee window.
+Unpriced activity contributes event counts, with null USD/share; idle is zero.
+Scheduled fee scalar/source/token/cohort publication is atomic and uses one
+repeatable-read snapshot; GET reads one consistent rollup snapshot with the
+existing 60-second cache and never scans economic rows or private actors.
+See [verification and real-emitter limitations](qa/issue-1211/README.md).

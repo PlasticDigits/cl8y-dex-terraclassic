@@ -1,6 +1,6 @@
 [package]
 name = "cl8y-community-token-launcher"
-version.workspace = true
+version = "1.1.0"
 edition.workspace = true
 
 [lib]

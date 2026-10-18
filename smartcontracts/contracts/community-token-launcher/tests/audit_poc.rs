@@ -1237,3 +1237,160 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
     assert_eq!(policy.tax_reserve, Uint128::new(1_000_000));
     assert_eq!(policy.total_share, Uint128::new(1_000_000));
 }
+
+/// #1229: a direct instantiator cannot claim another contract as its origin.
+#[test]
+fn origin_1229_instantiate_requires_launcher_sender() {
+    let mut hub = setup(None);
+    let mut init = default_instantiate(&hub, None, 0, 0);
+    init.launcher = Some(hub.launcher.to_string());
+    let err = hub
+        .app
+        .instantiate_contract(
+            hub.token_code,
+            Addr::unchecked("manager"),
+            &init,
+            &[],
+            "unratified",
+            None,
+        )
+        .unwrap_err();
+    assert!(format!("{err:?}").contains("Unauthorized"));
+}
+
+/// A fixture of pre-fix state: self-report must remain insufficient even when a
+/// legacy/adopted token can honestly answer every token query.
+#[test]
+fn origin_1229_uncreated_legacy_token_cannot_forward_or_bind() {
+    fn legacy_instantiate(
+        deps: cosmwasm_std::DepsMut,
+        env: cosmwasm_std::Env,
+        mut info: cosmwasm_std::MessageInfo,
+        msg: TokenInstantiate,
+    ) -> Result<cosmwasm_std::Response, cl8y_community_tax_token::error::ContractError> {
+        info.sender = Addr::unchecked(msg.launcher.as_ref().unwrap());
+        cl8y_community_tax_token::contract::instantiate(deps, env, info, msg)
+    }
+    let mut hub = setup(None);
+    let legacy_code = hub.app.store_code(Box::new(ContractWrapper::new(
+        cl8y_community_tax_token::contract::execute,
+        legacy_instantiate,
+        cl8y_community_tax_token::contract::query,
+    )));
+    let mut init = default_instantiate(&hub, None, 0, 0);
+    init.launcher = Some(hub.launcher.to_string());
+    init.cmm_treasury = "other_treasury".into();
+    let token = hub
+        .app
+        .instantiate_contract(
+            legacy_code,
+            Addr::unchecked("manager"),
+            &init,
+            &[],
+            "legacy",
+            Some("cmm".into()),
+        )
+        .unwrap();
+    let manager_before = bal(&hub.app, &hub.ust1, "manager");
+    let cmm_before = bal(&hub.app, &hub.ust1, "cmm");
+    for sku in [Sku::TransferTax, Sku::AutoV2Lp] {
+        let err = hub
+            .app
+            .execute_contract(
+                Addr::unchecked("manager"),
+                hub.ust1.clone(),
+                &Cw20ExecuteMsg::Send {
+                    contract: hub.launcher.to_string(),
+                    amount: Uint128::new(UST1_INVOICE),
+                    msg: to_json_binary(&LauncherInvoice::EnableFeature {
+                        token: token.to_string(),
+                        sku,
+                    })
+                    .unwrap(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(format!("{err:?}").contains("Unauthorized"));
+        assert_eq!(bal(&hub.app, &hub.ust1, "manager"), manager_before);
+        assert_eq!(bal(&hub.app, &hub.ust1, "cmm"), cmm_before);
+        assert_eq!(bal(&hub.app, &hub.ust1, "other_treasury"), 0);
+        assert_eq!(bal(&hub.app, &hub.ust1, hub.launcher.as_str()), 0);
+    }
+    let features: FeaturesResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(&token, &TokenQuery::GetFeatures {})
+        .unwrap();
+    assert!(!features.transfer_tax && !features.auto_v2_lp);
+    let config: TokenConfigResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(&token, &TokenQuery::GetConfig {})
+        .unwrap();
+    assert!(config.autolp.is_none());
+}
+
+#[test]
+fn origin_1229_direct_token_retains_manager_invoice_path() {
+    let mut hub = setup(None);
+    let init = default_instantiate(&hub, None, 0, 0);
+    let token = hub
+        .app
+        .instantiate_contract(
+            hub.token_code,
+            Addr::unchecked("manager"),
+            &init,
+            &[],
+            "direct",
+            None,
+        )
+        .unwrap();
+    let origin: cl8y_community_tax_token::msg::LauncherOriginResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(&token, &TokenQuery::GetLauncherOrigin {})
+        .unwrap();
+    assert!(origin.launcher.is_none());
+    let err = hub
+        .app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            hub.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: hub.launcher.to_string(),
+                amount: Uint128::new(UST1_INVOICE),
+                msg: to_json_binary(&LauncherInvoice::EnableFeature {
+                    token: token.to_string(),
+                    sku: Sku::TransferTax,
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(format!("{err:?}").contains("Unauthorized"));
+    let cmm_before = bal(&hub.app, &hub.ust1, "cmm");
+    hub.app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            hub.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: token.to_string(),
+                amount: Uint128::new(UST1_INVOICE),
+                msg: to_json_binary(&TokenInvoice::EnableFeature {
+                    sku: Sku::TransferTax,
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(bal(&hub.app, &hub.ust1, "cmm") - cmm_before, UST1_INVOICE);
+    let features: FeaturesResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(&token, &TokenQuery::GetFeatures {})
+        .unwrap();
+    assert!(features.transfer_tax);
+}

@@ -15,7 +15,7 @@ use crate::msg::{
     ConfigResponse, CreateTokenMsg, ExecuteMsg, InstantiateMsg, InvoiceHookMsg as LauncherHook,
     QueryMsg,
 };
-use crate::state::{Config, PendingAutolp, CONFIG, PENDING_AUTOLP};
+use crate::state::{Config, PendingAutolp, CONFIG, CREATED_TOKENS, PENDING_AUTOLP};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-token-launcher";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -325,6 +325,7 @@ fn enable_feature(
     }
     let token = deps.api.addr_validate(&token)?;
     let payer = deps.api.addr_validate(payer)?;
+    assert_created_token(deps.as_ref(), &token)?;
 
     // **T606-2** — only the token's manager may buy a SKU via this launcher.
     let token_cfg: TokenConfigResponse = deps
@@ -393,6 +394,13 @@ fn enable_feature(
     Ok(resp)
 }
 
+fn assert_created_token(deps: Deps, token: &Addr) -> Result<(), ContractError> {
+    if CREATED_TOKENS.may_load(deps.storage, token)? != Some(true) {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
 fn forward_ust1(cfg: &Config, amount: Uint128) -> StdResult<WasmMsg> {
     Ok(WasmMsg::Execute {
         contract_addr: cfg.ust1.to_string(),
@@ -418,6 +426,8 @@ fn reply_token(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
     let parsed = cw_utils::parse_reply_instantiate_data(msg)
         .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
     let addr = parsed.contract_address;
+    let token = deps.api.addr_validate(&addr)?;
+    CREATED_TOKENS.save(deps.storage, &token, &true)?;
     let cfg = CONFIG.load(deps.storage)?;
     let mut resp = Response::new()
         .add_attribute("action", "create_token_ready")
@@ -445,6 +455,7 @@ fn reply_autolp(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
         .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
     let autolp = parsed.contract_address;
     let pending = PENDING_AUTOLP.load(deps.storage)?;
+    assert_created_token(deps.as_ref(), &pending.token)?;
     PENDING_AUTOLP.remove(deps.storage);
     let bind = WasmMsg::Execute {
         contract_addr: pending.token.to_string(),

@@ -146,6 +146,7 @@ pub struct InstantiateMsg {
     pub transfer_bps: Option<u16>,
     pub sinks: Option<Vec<Sink>>,
     pub autolp: Option<String>,
+    /// Ratified only when this address equals the instantiate sender (#1229).
     pub launcher: Option<String>,
     pub launch_guards: Option<LaunchGuardsConfig>,
     /// Written to `MANAGER_EXEMPT` when `ExemptionDirectory` is in `features` (#605).

@@ -611,6 +611,30 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     )
   })
 
+  it('keeps campaign parameters through solver failure and one-action retry (#1330)', async () => {
+    seedCw20Route()
+    let failQuote = true
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      if (failQuote) throw new Error('Pricing service unavailable')
+      return localQuote(from, to, amount, options)
+    })
+    renderWithSearch(`/?from=${LISTED}&to=${UST1}&amount=1&utm_source=launch&utm_campaign=middle%20hop&ref=agent`)
+    await waitForSwapReady()
+    await screen.findByTestId('swap-quote-retry-error')
+    const failedSearch = screen.getByTestId('receive-search-probe').textContent!
+    const campaign = new URLSearchParams(failedSearch)
+    expect(campaign.get('utm_source')).toBe('launch')
+    expect(campaign.get('utm_campaign')).toBe('middle hop')
+    expect(campaign.get('ref')).toBe('agent')
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    failQuote = false
+    fireEvent.click(screen.getByTestId('retry-error-button'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
+    expect(screen.queryByTestId('swap-quote-retry-error')).not.toBeInTheDocument()
+    expect(screen.getByTestId('receive-search-probe').textContent).toBe(failedSearch)
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
+  })
+
   it('protection estimates stay unsigned and amount edits remove obsolete errors (#1473)', async () => {
     seedCw20Route()
     useWalletStore.setState({ address: 'terra1wallet000000000000000000000000001', walletType: 'dev' })

@@ -173,7 +173,10 @@ export function parseSwapExactField(search: string | URLSearchParams | null | un
  * Unique tokenlist symbols when known (`LUNC`, `UST1`); else execute id. Uniswap aliases
  * are inbound-only. Empty / illegal amount is omitted.
  */
-export function canonicalSwapSearch(input: CanonicalSwapSearchInput): URLSearchParams {
+export function canonicalSwapSearch(
+  input: CanonicalSwapSearchInput,
+  existingSearch?: URLSearchParams
+): URLSearchParams {
   const q = new URLSearchParams()
   q.set('from', executeIdToQueryToken(input.payId))
   q.set('to', executeIdToQueryToken(input.receiveId))
@@ -184,6 +187,16 @@ export function canonicalSwapSearch(input: CanonicalSwapSearchInput): URLSearchP
   if (input.exactField === 'output') {
     q.set('exactField', 'output')
   }
+  // Canonicalize only Swap-owned fields. Other parameters (including repeated
+  // campaign fields) stay inert in the address bar; never forward them to quotes.
+  const ownedKeys = new Set<string>(
+    [...SWAP_QUERY_PAY_KEYS, ...SWAP_QUERY_RECEIVE_KEYS, ...SWAP_QUERY_AMOUNT_KEYS, ...SWAP_QUERY_EXACT_FIELD_KEYS].map(
+      (key) => key.toLowerCase()
+    )
+  )
+  existingSearch?.forEach((value, key) => {
+    if (!ownedKeys.has(key.toLowerCase())) q.append(key, value)
+  })
   return q
 }
 

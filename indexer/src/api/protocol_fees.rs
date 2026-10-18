@@ -40,6 +40,15 @@ pub struct ProtocolFeeSourceRow {
     pub event_count: i64,
 }
 
+/// Aggregates only. The internal payer and registry journal are never serialized.
+#[derive(Serialize, ToSchema, Clone)]
+pub struct ProtocolFeeCohortRow {
+    pub cohort: String,
+    pub amount_usd: Option<String>,
+    pub share_pct: Option<String>,
+    pub event_count: i64,
+}
+
 #[derive(Serialize, ToSchema, Clone)]
 pub struct ProtocolFeeTokenRow {
     pub asset_id: Option<i32>,
@@ -61,6 +70,7 @@ pub struct ProtocolFeesResponse {
     pub community_invoices_configured: bool,
     pub by_source: Vec<ProtocolFeeSourceRow>,
     pub by_token: Vec<ProtocolFeeTokenRow>,
+    pub by_cohort: Vec<ProtocolFeeCohortRow>,
 }
 
 /// Drop the 60s `/protocol/fees` response cache (tests).
@@ -105,13 +115,18 @@ pub async fn get_protocol_fees(
         }
     }
 
-    let rollup = fee_q::get_fee_rollup(&state.pool)
+    let mut read_snapshot = state.pool.begin().await.map_err(internal_err)?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+        .execute(&mut *read_snapshot)
         .await
         .map_err(internal_err)?;
-    let sources = fee_q::get_fees_by_source(&state.pool, window)
+    let rollup = fee_q::get_fee_rollup(&mut *read_snapshot)
         .await
         .map_err(internal_err)?;
-    let tokens = fee_q::get_fees_by_token(&state.pool, window)
+    let sources = fee_q::get_fees_by_source(&mut *read_snapshot, window)
+        .await
+        .map_err(internal_err)?;
+    let tokens = fee_q::get_fees_by_token(&mut *read_snapshot, window)
         .await
         .map_err(internal_err)?;
 
@@ -157,6 +172,20 @@ pub async fn get_protocol_fees(
         })
         .collect();
 
+    let by_cohort = crate::db::queries::fee_cohorts::get(&mut *read_snapshot, window)
+        .await
+        .map_err(internal_err)?
+        .into_iter()
+        .map(|r| ProtocolFeeCohortRow {
+            cohort: r.cohort,
+            amount_usd: r.amount_usd.map(|v| v.to_string()),
+            share_pct: r.share_pct.map(|v| v.to_string()),
+            event_count: r.event_count,
+        })
+        .collect();
+
+    read_snapshot.commit().await.map_err(internal_err)?;
+
     let resp = ProtocolFeesResponse {
         window: window.to_string(),
         wrap_mapper_configured: rollup.wrap_mapper_configured,
@@ -165,6 +194,7 @@ pub async fn get_protocol_fees(
         community_invoices_configured: rollup.community_invoices_configured,
         by_source,
         by_token,
+        by_cohort,
     };
 
     if let Ok(mut guard) = fees_cache().lock() {

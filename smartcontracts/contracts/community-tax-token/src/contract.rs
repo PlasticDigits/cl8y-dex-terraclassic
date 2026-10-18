@@ -34,9 +34,18 @@ pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     mut deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    // Origin is ratified by the instantiate sender, never a caller-chosen claim (#1229).
+    let launcher = msg
+        .launcher
+        .as_ref()
+        .map(|a| deps.api.addr_validate(a))
+        .transpose()?;
+    if launcher.as_ref().is_some_and(|a| a != info.sender) {
+        return Err(ContractError::Unauthorized {});
+    }
     identity::validate_identity(&msg.name, &msg.symbol, msg.decimals)?;
     validate_instantiate_caps(msg.max_buy_bps, msg.max_sell_bps, msg.max_transfer_bps)?;
     validate_bps_at_init(msg.buy_bps, msg.max_buy_bps)?;
@@ -90,11 +99,6 @@ pub fn instantiate(
         .transpose()?;
     let autolp = msg
         .autolp
-        .as_ref()
-        .map(|a| deps.api.addr_validate(a))
-        .transpose()?;
-    let launcher = msg
-        .launcher
         .as_ref()
         .map(|a| deps.api.addr_validate(a))
         .transpose()?;

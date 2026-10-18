@@ -71,13 +71,13 @@ describe('PriceChart', () => {
     expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum('3.14159265', 6))
   })
 
-  it('shows headline from last candle close when tape is omitted', async () => {
+  it('keeps USD headline unavailable while historical candles remain valid (#1512)', async () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([
       candle({ open_time: '2024-01-02T12:00:00.000Z', open: '2', close: '2.5' }),
     ])
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toBeInTheDocument())
-    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6))
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
   })
 
   it('renders chart toolbar with indicators menu and fullscreen control', async () => {
@@ -181,6 +181,18 @@ describe('PriceChart', () => {
     ).toBeInTheDocument()
     expect(screen.queryByTestId('price-chart-lightweight-canvas')).not.toBeInTheDocument()
     await waitFor(() => expect(indexerClient.getPairStats).toHaveBeenCalledWith(pairA))
+  })
+
+  it('#1512 empty-state 24h close follows displayed direction without becoming the current headline', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([])
+    vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+      ...emptyStats,
+      close_price_usd: '0.8',
+      close_price: '80',
+    })
+    renderWithProviders(<PriceChart pairAddress={pairA} displayInverted />)
+    expect(await screen.findByText('24h close (USD): 0.01')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
   })
 
   it('shows optional 24h close from getPairStats when candles are empty', async () => {
@@ -340,7 +352,7 @@ describe('PriceChart', () => {
       }[]
       expect(rows?.[0]).toMatchObject({ open: 9, close: 9.99 })
     })
-    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(9.99, 6))
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
 
     resolveA([candle({ open: '1', close: '1.01' })])
     await new Promise((r) => setTimeout(r, 50))
@@ -352,7 +364,7 @@ describe('PriceChart', () => {
       | { open: number }[]
       | undefined
     expect(lastCandleRows?.[0]?.open).toBe(9)
-    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(9.99, 6))
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
   })
 
   it('remounts chart on pair switch and keeps interval switches responsive (GitLab #148 pair QA)', async () => {
@@ -380,7 +392,7 @@ describe('PriceChart', () => {
     expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
   })
 
-  it('inverted last-close headline is invertUsd not 1/x (GitLab #543 A1)', async () => {
+  it('inverted candles cannot substitute for missing latest-trade USD (#1512 / #543)', async () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([
       candle({
         open: '1.06',
@@ -396,8 +408,8 @@ describe('PriceChart', () => {
     renderWithProviders(<PriceChart pairAddress={pairA} displayInverted />)
     await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toBeInTheDocument())
     const text = screen.getByTestId('trade-chart-headline-price').textContent ?? ''
-    expect(text).toMatch(/0\.012/)
-    expect(text).not.toMatch(/0\.94|1\.06/)
+    expect(text).toContain('—')
+    expect(text).not.toMatch(/0\.012|0\.94|1\.06/)
   })
 
   it('renders pair invert pill and names display token in aria-live (GitLab #524)', async () => {
@@ -462,9 +474,7 @@ describe('PriceChart', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Price (ALPHA per CL8Y)' })).toBeInTheDocument())
     expect(screen.queryByRole('heading', { name: 'Price (USD)' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('trade-pair-invert-pill')).not.toBeInTheDocument()
-    await waitFor(() =>
-      expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6))
-    )
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6)))
     await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]?.setData).toHaveBeenCalled())
     const rows = lwChartTestDouble.seriesSpies[0]?.setData.mock.calls.at(-1)?.[0] as { close: number }[]
     expect(rows[0]?.close).toBe(2.5)

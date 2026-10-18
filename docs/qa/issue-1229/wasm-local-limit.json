@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "artifacts": [
+    {
+      "path": "/tmp/dex-origin-1229-build-op-ref/cl8y_community_tax_token.wasm",
+      "sha256": "81161a25d87a76a7527d2bd37dd4ec50484cee1a2506bf5a35166775cd0fbcc2",
+      "defined_functions": 864,
+      "max_declared_locals": 59,
+      "limit": 100,
+      "violations": [],
+      "status": "PASS"
+    },
+    {
+      "path": "/tmp/dex-origin-1229-build-op-ref/cl8y_community_token_launcher.wasm",
+      "sha256": "743e09cf42674b116247a0e0208619088d6f1e30c1a95e273448ab6687b1b25c",
+      "defined_functions": 538,
+      "max_declared_locals": 64,
+      "limit": 100,
+      "violations": [],
+      "status": "PASS"
+    }
+  ]
+}

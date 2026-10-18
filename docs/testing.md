@@ -838,3 +838,9 @@ Both runners repeat stable-source functional tests and preserve FAIL/SKIP outcom
 The #1264 runner now executes the actual Swap test file without a zero-match name
 filter, plus the strict offline budget suite. Historical 2.71M non-local fixtures
 do not certify the calibrated local route budget.
+
+Launcher-origin authority (#1229): `make verify-issue-1229` runs the affected
+contract crates and operator adapter behavior tests, each test command capped at
+59 seconds. [LO1229](../skills/AGENTS_LAUNCHER_ORIGIN.md) and the
+[QA/migration checklist](qa/issue-1229/README.md) distinguish source acceptance,
+local artifact preflight and governed token/launcher migration receipts.

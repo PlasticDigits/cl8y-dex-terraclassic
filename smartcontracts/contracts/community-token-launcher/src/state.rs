@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Uint128};
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
 #[cw_serde]
 pub struct Config {
@@ -24,3 +24,7 @@ pub struct PendingAutolp {
 
 pub const CONFIG: Item<Config> = Item::new("cfg");
 pub const PENDING_AUTOLP: Item<PendingAutolp> = Item::new("pending_autolp");
+
+/// Only authenticated instantiate replies admit tokens to launcher privileges (#1229).
+/// Migration starts empty; historical/adopted tokens are never inferred from self-report.
+pub const CREATED_TOKENS: Map<&Addr, bool> = Map::new("created_tokens");

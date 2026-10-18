@@ -130,6 +130,8 @@ for label_table in \
   "limit_order_placements:limit_order_placements" \
   "limit_order_cancellations:limit_order_cancellations" \
   "protocol_fee_events:protocol_fee_events" \
+  "fee_registry_events:fee_registry_events" \
+  "fee_registry_snapshots:fee_registry_snapshots" \
   "listing_wrap_principal:listing_wrap_principal" \
   "listing_mapper_custody:listing_mapper_custody" \
   "hook_events:hook_events"; do
@@ -166,6 +168,8 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
+DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
+DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};
@@ -208,6 +212,8 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
+DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
+DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};

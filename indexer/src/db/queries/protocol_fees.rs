@@ -291,6 +291,11 @@ pub async fn refresh_protocol_fees_with_sources(
     factory_configured: bool,
     community_invoices_configured: bool,
 ) -> Result<(), sqlx::Error> {
+    let mut publication = pool.begin().await?;
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *publication)
+        .await?;
+    let connection = &mut *publication;
     let now = Utc::now();
     let c24 = now - chrono::Duration::hours(24);
     let c48 = now - chrono::Duration::hours(48);
@@ -338,7 +343,7 @@ pub async fn refresh_protocol_fees_with_sources(
     .bind(c48)
     .bind(c14)
     .bind(c60)
-    .fetch_one(pool)
+    .fetch_one(&mut *connection)
     .await?;
 
     let usd24 = window_usd(agg.n24, clamp_usd(agg.usd24));
@@ -395,11 +400,11 @@ pub async fn refresh_protocol_fees_with_sources(
     .bind(ust1_window_configured)
     .bind(factory_configured)
     .bind(community_invoices_configured)
-    .execute(pool)
+    .execute(&mut *connection)
     .await?;
 
     refresh_source_breakdown(
-        pool,
+        &mut *connection,
         "24h",
         c24,
         wrap_mapper_configured,
@@ -409,7 +414,7 @@ pub async fn refresh_protocol_fees_with_sources(
     )
     .await?;
     refresh_source_breakdown(
-        pool,
+        &mut *connection,
         "7d",
         c7,
         wrap_mapper_configured,
@@ -419,7 +424,7 @@ pub async fn refresh_protocol_fees_with_sources(
     )
     .await?;
     refresh_source_breakdown(
-        pool,
+        &mut *connection,
         "30d",
         c30,
         wrap_mapper_configured,
@@ -428,15 +433,19 @@ pub async fn refresh_protocol_fees_with_sources(
         community_invoices_configured,
     )
     .await?;
-    refresh_token_breakdown(pool, "24h", c24).await?;
-    refresh_token_breakdown(pool, "7d", c7).await?;
-    refresh_token_breakdown(pool, "30d", c30).await?;
+    refresh_token_breakdown(&mut *connection, "24h", c24).await?;
+    refresh_token_breakdown(&mut *connection, "7d", c7).await?;
+    refresh_token_breakdown(&mut *connection, "30d", c30).await?;
+    super::fee_cohorts::refresh(&mut *connection, "24h", c24).await?;
+    super::fee_cohorts::refresh(&mut *connection, "7d", c7).await?;
+    super::fee_cohorts::refresh(&mut *connection, "30d", c30).await?;
+    publication.commit().await?;
 
     Ok(())
 }
 
 async fn refresh_source_breakdown(
-    pool: &PgPool,
+    connection: &mut sqlx::PgConnection,
     window: &str,
     cutoff: DateTime<Utc>,
     wrap_mapper_configured: bool,
@@ -446,7 +455,7 @@ async fn refresh_source_breakdown(
 ) -> Result<(), sqlx::Error> {
     sqlx::query(r#"DELETE FROM protocol_fee_stats_by_source WHERE "window" = $1"#)
         .bind(window)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
 
     #[derive(FromRow)]
@@ -465,7 +474,7 @@ async fn refresh_source_breakdown(
            GROUP BY source"#,
     )
     .bind(cutoff)
-    .fetch_all(pool)
+    .fetch_all(&mut *connection)
     .await?;
 
     let priced_total: BigDecimal = rows
@@ -513,20 +522,20 @@ async fn refresh_source_breakdown(
         .bind(amount_usd.as_ref())
         .bind(event_count)
         .bind(share.as_ref())
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
     }
     Ok(())
 }
 
 async fn refresh_token_breakdown(
-    pool: &PgPool,
+    connection: &mut sqlx::PgConnection,
     window: &str,
     cutoff: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(r#"DELETE FROM protocol_fee_stats_by_token WHERE "window" = $1"#)
         .bind(window)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
 
     #[derive(FromRow)]
@@ -547,7 +556,7 @@ async fn refresh_token_breakdown(
            ORDER BY amount_usd DESC NULLS LAST, asset_id ASC"#,
     )
     .bind(cutoff)
-    .fetch_all(pool)
+    .fetch_all(&mut *connection)
     .await?;
 
     let priced_total: BigDecimal = rows
@@ -586,7 +595,7 @@ async fn refresh_token_breakdown(
         .bind(amount_usd.as_ref())
         .bind(share.as_ref())
         .bind(rank)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
         rank += 1;
     }
@@ -617,14 +626,16 @@ async fn refresh_token_breakdown(
         .bind(amount_usd.as_ref())
         .bind(share.as_ref())
         .bind(rank)
-        .execute(pool)
+        .execute(&mut *connection)
         .await?;
     }
 
     Ok(())
 }
 
-pub async fn get_fee_rollup(pool: &PgPool) -> Result<ProtocolFeeRollup, sqlx::Error> {
+pub async fn get_fee_rollup<'e>(
+    pool: impl sqlx::Executor<'e, Database = sqlx::Postgres>,
+) -> Result<ProtocolFeeRollup, sqlx::Error> {
     #[derive(FromRow)]
     struct Row {
         total_fees_24h_usd: Option<BigDecimal>,
@@ -681,8 +692,8 @@ pub fn parse_fee_window(raw: Option<&str>) -> Result<&'static str, ()> {
     }
 }
 
-pub async fn get_fees_by_source(
-    pool: &PgPool,
+pub async fn get_fees_by_source<'e>(
+    pool: impl sqlx::Executor<'e, Database = sqlx::Postgres>,
     window: &str,
 ) -> Result<Vec<FeeSourceStatRow>, sqlx::Error> {
     sqlx::query_as::<_, FeeSourceStatRow>(
@@ -696,8 +707,8 @@ pub async fn get_fees_by_source(
     .await
 }
 
-pub async fn get_fees_by_token(
-    pool: &PgPool,
+pub async fn get_fees_by_token<'e>(
+    pool: impl sqlx::Executor<'e, Database = sqlx::Postgres>,
     window: &str,
 ) -> Result<Vec<FeeTokenStatRow>, sqlx::Error> {
     sqlx::query_as::<_, FeeTokenStatRow>(

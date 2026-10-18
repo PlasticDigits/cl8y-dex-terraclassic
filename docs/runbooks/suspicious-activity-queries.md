@@ -365,3 +365,6 @@ make has-localterra
 curl -sf "$INDEXER_URL/api/v1/traders/leaderboard?sort=volume_24h&limit=3" | jq 'length'
 curl -sf "$INDEXER_URL/api/v1/pairs?sort=volume_24h&order=desc&limit=3" | jq '.items | length'
 ```
+
+For shareable protocol totals without actors or transaction linkage use the
+[anonymous UTC-day digest](../qa/issue-1206/README.md); incident SQL remains the unredacted investigation path.

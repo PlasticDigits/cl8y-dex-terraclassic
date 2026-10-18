@@ -405,12 +405,15 @@ export default function SwapPage() {
     const fromOk = allTokens.some((t) => t.trim().toLowerCase() === fromToken.trim().toLowerCase())
     const toOk = allTokens.some((t) => t.trim().toLowerCase() === toToken.trim().toLowerCase())
     if (!fromOk || !toOk) return
-    const canonical = canonicalSwapSearch({
-      payId: fromToken,
-      receiveId: toToken,
-      amountHuman: debouncedInputAmount,
-      exactField: exactField === 'output' ? 'output' : null,
-    })
+    const canonical = canonicalSwapSearch(
+      {
+        payId: fromToken,
+        receiveId: toToken,
+        amountHuman: debouncedInputAmount,
+        exactField: exactField === 'output' ? 'output' : null,
+      },
+      searchParams
+    )
     if (swapSearchEquals(canonical, searchParams)) return
     appliedSwapQueryKeyRef.current = canonical.toString()
     setSearchParams(canonical, { replace: true })
