@@ -19,7 +19,8 @@ def state(phase="preflight_started"):
             "compose_sha256": hashlib.sha256(m.compose_source("synthetic recipe", "b" * 16).encode()).hexdigest(), "job_uuid": "c" * 24,
             "job_name": "synthetic-job", "binding": {"environment_uuid": "d" * 24, "environment_id": 101},
             "payload": {"new_access": "NEW_SYNTHETIC_ACCESS", "new_secret": "NEW_SYNTHETIC_SECRET",
-                        "expected_old_access": "OLD_SYNTHETIC_ACCESS", "expected_old_secret": "OLD_SYNTHETIC_SECRET"},
+                        "expected_old_access": "OLD_SYNTHETIC_ACCESS", "expected_old_secret": "OLD_SYNTHETIC_SECRET",
+                        "endpoint": "nbg1.your-objectstorage.com", "bucket": "logs", "region": "nbg1"},
             "subapp_uuid": "e" * 24, "job_id": 303, "pending_version": 3}
 
 
@@ -187,6 +188,7 @@ class Tests(unittest.TestCase):
                         "environment": {"uuid": "d" * 24, "project": {"uuid": "p" * 24}},
                         "destination": {"uuid": "t" * 24, "server": {"uuid": m.SERVER}}}
             if path == "services" and method == "POST":
+                self.assertNotIn("connect_to_docker_network", value)
                 self.assertEqual(len(saved), 1)
                 self.assertNotIn("job_uuid", saved[0])
                 document = json.loads(m.base64.b64decode(value["docker_compose_raw"]))
@@ -244,7 +246,42 @@ class Tests(unittest.TestCase):
                 result = m.status(api, {"data": s})
             self.assertEqual(result["phase"], "adoption_failed" if terminal else "adoption_started")
             self.assertEqual(save.called, terminal)
-            self.assertIn("/applications/" + s["subapp_uuid"] + "/logs", api.call.call_args.args[0])
+            self.assertEqual(api.call.call_args.args[0], "services/" + s["job_uuid"] + "/logs?sub_service_name=maintenance&lines=60")
+
+    def test_resume_create_revalidates_candidate_recipe_binding_and_absence(self):
+        s = state("prepared")
+        for key in ("job_uuid", "job_id", "subapp_uuid"):
+            s.pop(key)
+        stage = Mock()
+        stage.environment.return_value = {"S3_ACCESS_KEY": s["payload"]["expected_old_access"],
+                                          "S3_SECRET_KEY": s["payload"]["expected_old_secret"]}
+        pending = {"metadata": {"version": s["pending_version"]}, "data": {
+            "state": "staged_verified_read", "access_key": s["payload"]["new_access"],
+            "secret_key": s["payload"]["new_secret"], "endpoint": s["payload"]["endpoint"],
+            "bucket": s["payload"]["bucket"], "region": s["payload"]["region"]}}
+        stage.bao_read.return_value = pending
+        api = Mock()
+        api.call.side_effect = [{}, []]
+        with patch.object(m, "binding", return_value=s["binding"]), patch.object(m, "load", return_value=stage), \
+             patch.object(m, "recipe", return_value="synthetic recipe") as recipe, \
+             patch.object(m, "create_service_job", return_value={"resumed": True}) as create:
+            self.assertEqual(m.resume_create(api, {"data": s}), {"resumed": True})
+        recipe.assert_called_once_with(s["revision"])
+        self.assertEqual(create.call_args.args[3], m.compose_source("synthetic recipe", s["transaction"]))
+        for rows, change, reason in (([{"name": s["job_name"]}], None, "owned_job_name_exists_use_recover"),
+                                     ([], "candidate", "candidate_changed"),
+                                     ([], "recipe", "journal_recipe_changed"),
+                                     ([{}] * 513, None, "recovery_inventory_bound")):
+            record = copy.deepcopy(pending)
+            if change == "candidate":
+                record["data"]["secret_key"] = "CHANGED_SYNTHETIC_SECRET"
+            stage.bao_read.return_value = record
+            api.call.side_effect = [{}, rows]
+            with patch.object(m, "binding", return_value=s["binding"]), patch.object(m, "load", return_value=stage), \
+                 patch.object(m, "recipe", return_value="changed" if change == "recipe" else "synthetic recipe"), \
+                 patch.object(m, "create_service_job") as create, self.assertRaisesRegex(m.GuardError, reason):
+                m.resume_create(api, {"data": s})
+            create.assert_not_called()
 
     def test_cleanup_accepts_verified_rollback_but_preserves_failed_rollback(self):
         s = state("adoption_failed")

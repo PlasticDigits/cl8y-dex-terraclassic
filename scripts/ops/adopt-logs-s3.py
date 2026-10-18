@@ -199,11 +199,15 @@ def create(api, revision):
         "job_name": "loki-s3-adopt-" + transaction, "payload": payload, "pending_version": record["metadata"]["version"],
         "created_at_utc": datetime.now(timezone.utc).isoformat()}
     previous = save(state, None)  # Old-key rollback record must precede ANY deployment.
-    create_scope = {key: scope[key] for key in ("project_uuid", "server_uuid", "environment_uuid", "destination_uuid")}
+    return create_service_job(api, state, previous, raw)
+
+
+def create_service_job(api, state, previous, raw):
+    create_scope = {key: state["binding"][key] for key in ("project_uuid", "server_uuid", "environment_uuid", "destination_uuid")}
     result = api.call("services", "POST", {**create_scope,
         "docker_compose_raw": base64.b64encode(raw.encode()).decode(), "name": state["job_name"],
-        "description": "Loki-only S3 adoption #1544; " + transaction,
-        "instant_deploy": False, "connect_to_docker_network": False})
+        "description": "Loki-only S3 adoption #1544; " + state["transaction"],
+        "instant_deploy": False})
     job = result.get("uuid")
     require(isinstance(job, str) and ID.fullmatch(job) and job not in PROTECTED, "job_identity")
     state["job_uuid"] = job
@@ -212,7 +216,7 @@ def create(api, revision):
     child = bind_job(app, state)
     state["job_id"], state["subapp_uuid"] = child["service_id"], child["uuid"]
     values = {"LOKI_S3_JOB_UUID": job, "LOKI_S3_JOB_ID": str(state["job_id"]), "LOKI_S3_MODE": "preflight",
-              "LOKI_S3_NETWORK": APP, "LOKI_S3_PAYLOAD_JSON": json.dumps(payload)}
+              "LOKI_S3_NETWORK": APP, "LOKI_S3_PAYLOAD_JSON": json.dumps(state["payload"])}
     rows = api.call("services/" + job + "/envs")
     require(isinstance(rows, list) and len(rows) <= 64
             and all(sum(row.get("key") == key for row in rows) == 1 for key in values), "job_environment_shape")
@@ -223,6 +227,33 @@ def create(api, revision):
     api.call("services/" + job + "/start", "POST")
     return summary(state)
 
+
+
+def resume_create(api, previous):
+    """Retry a rejected create only after proving the owned name is absent."""
+    state = previous["data"]
+    validate(state)
+    require(state["phase"] == "prepared" and "job_uuid" not in state, "resume_create_phase")
+    require(binding(api.call("applications/" + APP)) == state["binding"], "logs_binding_changed")
+    stage = load("s3_stage", ROOT / "scripts/ops/stage-logs-s3-credentials.py")
+    old, pending = stage.environment(), stage.bao_read()
+    stage.valid_version(pending)
+    require(pending is not None and pending["metadata"]["version"] == state["pending_version"]
+            and pending["data"].get("state") == "staged_verified_read", "candidate_changed")
+    stage.validate_pending(pending["data"], old)
+    for field, source in (("access_key", "new_access"), ("secret_key", "new_secret"),
+                          ("endpoint", "endpoint"), ("bucket", "bucket"), ("region", "region")):
+        require(pending["data"].get(field) == state["payload"][source], "candidate_changed")
+    require(old["S3_ACCESS_KEY"] == state["payload"]["expected_old_access"]
+            and old["S3_SECRET_KEY"] == state["payload"]["expected_old_secret"], "configuration_changed")
+    rows = api.call("services")
+    require(isinstance(rows, list) and len(rows) <= 512 and all(isinstance(row, dict) for row in rows), "recovery_inventory_bound")
+    require(not any(row.get("name") == state["job_name"] for row in rows), "owned_job_name_exists_use_recover")
+    dockerfile = recipe(state["revision"])
+    raw = compose_source(dockerfile, state["transaction"])
+    require(hashlib.sha256(dockerfile.encode()).hexdigest() == state["recipe_sha256"]
+            and hashlib.sha256(raw.encode()).hexdigest() == state["compose_sha256"], "journal_recipe_changed")
+    return create_service_job(api, state, previous, raw)
 
 def receipts(raw):
     """Ignore all raw log text except complete closed worker JSON reports."""
@@ -299,8 +330,8 @@ def status(api, previous):
     validate(state)
     require("job_uuid" in state, "create_outcome_requires_inventory")
     app = api.call("services/" + state["job_uuid"])
-    child = bind_job(app, state)
-    found = receipts(api.call("services/" + state["job_uuid"] + "/applications/" + child["uuid"] + "/logs?lines=60"))
+    bind_job(app, state)
+    found = receipts(api.call("services/" + state["job_uuid"] + "/logs?sub_service_name=maintenance&lines=60"))
     if state["phase"] == "adoption_started" and found:
         last = found[-1]
         if (last.get("mode") == "adopt" and last.get("status") == "FAIL"
@@ -409,7 +440,7 @@ def main():
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("create", "recover", "status", "adopt", "finalize", "cleanup", "cleanup-status"))
+    parser.add_argument("phase", choices=("create", "resume-create", "recover", "status", "adopt", "finalize", "cleanup", "cleanup-status"))
     parser.add_argument("--revision")
     args = parser.parse_args()
     try:
