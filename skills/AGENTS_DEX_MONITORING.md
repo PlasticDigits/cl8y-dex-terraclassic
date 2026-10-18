@@ -40,3 +40,36 @@ launcher emits only validated closed reports. Do not disable the output guard
 or run the terminal launcher in an agent transcript; agents use guarded,
 noninteractive `--preflight`/`--resume`. A terminal guard rejection occurs before
 the staging child launches and does not prove an S3 failure or credential change.
+
+For S3 runtime adoption follow the [Loki-only transaction](../docs/runbooks/dex-prometheus-monitoring.md#adopting-staged-s3-credentials-without-restarting-the-logs-stack)
+and [separate acceptance items](../docs/qa/issue-1544/README.md#credential-remediation-acceptance).
+Never redeploy the full logs Compose application: Coolify stops every service
+first. Only the exact Loki container may be replaced; preserve image, command,
+WAL/data mounts, networks, security/resources and all noncredential environment,
+with bounded verified rollback. Journal old/new values privately with CAS before
+deployment; bind the unchanged candidate, source SHA and worker recipe hash.
+Embed scripts from `git show` at that SHA. Use a separate Coolify Service with
+raw Compose and `build.dockerfile_inline`, explicit mounts and `restart: "no"`;
+Dockerfile Application custom run options cannot enforce this contract. Raw
+Compose contains runtime environment references only, never private payload or
+build arguments. Bind the exact Service/maintenance child and require closed
+preflight/adoption receipts; an Application deployment status is not this
+Service's proof. Only the maintenance Service may restart to enter adoption.
+
+The one-shot socket-mounted worker has effective host-root authority. Use only
+the reviewed owned job, read-only application directory and nonsecret state
+volume; disable automatic retries, attach/detach only the existing application
+network, and never deliver workstation identity, OpenBao or Coolify credentials
+to it. No root SSH or ACL expansion. Unknown child/log fields remain private;
+emit only closed reports. Ambiguous adoption requires status inspection.
+
+Keep source checks, staged HEAD, independent candidate PUT/GET/DELETE, runtime
+adoption, successful Loki storage writes, canonical Coolify credential readback,
+maintenance secret/job removal, old-key revocation and ingestion rotation
+distinct. Push/flush HTTP204 alone is insufficient; require successful chunk
+storage/flush deltas without new flush failures, marker readback and preserved
+historical reads. Do not claim uncached historical GET or exact-marker object
+durability from those checks. Finalize only the two credential configuration
+fields without stack deployment; remove the saved job payload and maintenance
+Service while preserving shared volumes/networks. No source/staging/adoption
+PASS closes the remaining revocation or ingestion acceptance.
