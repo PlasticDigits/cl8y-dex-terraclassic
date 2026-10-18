@@ -1,0 +1,67 @@
+{
+  "issue": 1544,
+  "utc": "2026-10-18T10:51:30.871878+00:00",
+  "scope": "Independent authenticated Grafana dashboard model and bounded representative one-hour range-query checks; no log lines or arbitrary labels retained.",
+  "dashboard": {
+    "uid": "cl8y-dex-monitoring",
+    "timezone": "utc",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panel_count": 19,
+    "model_matches_committed": true
+  },
+  "datasource": {
+    "uid": "cl8y-dex-prometheus",
+    "health": "OK",
+    "bound_to_expected_prometheus": true
+  },
+  "overall": "PASS",
+  "queries": [
+    {
+      "panel_id": 2,
+      "query": "dex_endpoint_up{job=\"cl8y-dex-api\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"liveness|serving\"}",
+      "status": "PASS",
+      "series_count": 2,
+      "finite_sample_count": 4
+    },
+    {
+      "panel_id": 3,
+      "query": "dex_endpoint_up{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\",purpose=\"indexer_readiness\"}",
+      "status": "PASS",
+      "series_count": 1,
+      "finite_sample_count": 1
+    },
+    {
+      "panel_id": 3,
+      "query": "dex_endpoint_up{job=\"cl8y-dex-api\",service=\"cl8y-dex-terraclassic-indexer\",purpose=\"quote_readiness\"}",
+      "status": "PASS",
+      "series_count": 1,
+      "finite_sample_count": 2
+    },
+    {
+      "panel_id": 4,
+      "query": "dex_endpoint_http_status{job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"liveness|serving|quote_readiness|indexer_readiness\"}",
+      "status": "PASS",
+      "series_count": 4,
+      "finite_sample_count": 7
+    },
+    {
+      "panel_id": 5,
+      "query": "dex_endpoint_duration_seconds{job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"liveness|serving|quote_readiness|indexer_readiness\"}",
+      "status": "PASS",
+      "series_count": 4,
+      "finite_sample_count": 7
+    },
+    {
+      "panel_id": 9,
+      "query": "dex_indexer_lag_blocks{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+      "status": "PASS",
+      "series_count": 1,
+      "finite_sample_count": 1
+    }
+  ],
+  "read_count": 10,
+  "observer_revision": "57fbe254c82d4de582f391f9c1aa6a97024c40cf"
+}

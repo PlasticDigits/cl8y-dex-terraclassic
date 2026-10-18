@@ -1,0 +1,124 @@
+{
+  "utc": "2026-10-18T10:54:15.443890+00:00",
+  "queries": {
+    "infrastructure": {
+      "promql": "up{job=~\"cl8y-dex-prometheus|cl8y-dex-alertmanager|cl8y-dex-monitor\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-alertmanager"
+          },
+          "value": 1.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-monitor"
+          },
+          "value": 1.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-prometheus"
+          },
+          "value": 1.0
+        }
+      ]
+    },
+    "lag": {
+      "promql": "dex_indexer_lag_blocks{job=\"cl8y-dex-indexer\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-indexer"
+          },
+          "value": 1.0
+        }
+      ]
+    },
+    "endpoint_status": {
+      "promql": "dex_endpoint_http_status{job=~\"cl8y-dex-api|cl8y-dex-indexer\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-api",
+            "purpose": "liveness"
+          },
+          "value": 200.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-api",
+            "purpose": "serving"
+          },
+          "value": 200.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-api",
+            "purpose": "quote_readiness"
+          },
+          "value": 200.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-indexer",
+            "purpose": "indexer_readiness"
+          },
+          "value": 503.0
+        }
+      ]
+    },
+    "alerts": {
+      "promql": "ALERTS{job=~\"cl8y-dex-api|cl8y-dex-indexer|cl8y-dex-monitor\"}",
+      "rows": []
+    },
+    "deliveries": {
+      "promql": "dex_alert_notifications_total{job=\"cl8y-dex-monitor\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-monitor",
+            "status": "firing"
+          },
+          "value": 1.0
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-monitor",
+            "status": "resolved"
+          },
+          "value": 1.0
+        }
+      ]
+    },
+    "config": {
+      "promql": "prometheus_config_last_reload_successful{job=\"cl8y-dex-prometheus\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-prometheus"
+          },
+          "value": 1.0
+        }
+      ]
+    },
+    "observations": {
+      "promql": "dex_observation_timestamp_seconds{job=~\"cl8y-dex-api|cl8y-dex-indexer\"}",
+      "rows": [
+        {
+          "labels": {
+            "job": "cl8y-dex-api"
+          },
+          "value": 1792320829.789585
+        },
+        {
+          "labels": {
+            "job": "cl8y-dex-indexer"
+          },
+          "value": 1792320829.789585
+        }
+      ]
+    }
+  },
+  "sanitized": true
+}

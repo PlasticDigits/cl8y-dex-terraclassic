@@ -1,0 +1,13 @@
+{
+  "utc": "2026-10-18T10:57:28.182239+00:00",
+  "revision": "fc5b128298d142481e55384b0fcd4b7f981aa228",
+  "source_unchanged": true,
+  "container_identities_changed": {
+    "dex-prometheus": true,
+    "dex-exporter": true,
+    "dex-drill": true,
+    "dex-alertmanager": true
+  },
+  "data_volume_bindings_unchanged": true,
+  "historical_query_at": 1792320886
+}

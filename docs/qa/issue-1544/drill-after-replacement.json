@@ -1,0 +1,30 @@
+{
+  "utc": "2026-10-18T10:57:39.267161+00:00",
+  "app_uuid": "o4htirce3mwp89dzip3vdikt",
+  "receipt": {
+    "issue": 1544,
+    "overall": "PASS",
+    "phase": "PASS",
+    "started_utc": "2026-10-18T10:51:03.638923+00:00",
+    "observed_utc": "2026-10-18T10:57:36.305881+00:00",
+    "deadline_seconds": 240,
+    "steps": 10,
+    "transport_errors": 0,
+    "markers_utc": {
+      "delivered": "2026-10-18T10:52:08.446476+00:00",
+      "disabled": "2026-10-18T10:52:08.446476+00:00",
+      "firing": "2026-10-18T10:51:58.038808+00:00",
+      "pending": "2026-10-18T10:51:36.039121+00:00",
+      "recovered": "2026-10-18T10:52:41.341942+00:00"
+    },
+    "reason": null,
+    "alert": {
+      "alertname": "DexMonitoringDrill",
+      "job": "cl8y-dex-monitor",
+      "purpose": "monitoring",
+      "service": "cl8y-dex-terraclassic-indexer"
+    }
+  },
+  "log_rows_inspected": 2,
+  "scope": "Sanitized persisted monitoring-only alert drill proof; no raw logs."
+}
