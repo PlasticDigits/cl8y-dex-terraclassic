@@ -46,7 +46,10 @@ and [separate acceptance items](../docs/qa/issue-1544/README.md#credential-remed
 Never redeploy the full logs Compose application: Coolify stops every service
 first. Only the exact Loki container may be replaced; preserve image, command,
 WAL/data mounts, networks, security/resources and all noncredential environment,
-with bounded verified rollback. Journal old/new values privately with CAS before
+with bounded verified rollback. Clone daemon-native Config/HostConfig through
+the local Engine API; keep the original container until acceptance, and restore
+that same ID on failure. Compose rendering is source attestation only. Journal
+old/new values privately with CAS before
 deployment; bind the unchanged candidate, source SHA and worker recipe hash.
 Embed scripts from `git show` at that SHA. Use a separate Coolify Service with
 raw Compose and `build.dockerfile_inline`, explicit mounts and `restart: "no"`;
@@ -73,3 +76,11 @@ durability from those checks. Finalize only the two credential configuration
 fields without stack deployment; remove the saved job payload and maintenance
 Service while preserving shared volumes/networks. No source/staging/adoption
 PASS closes the remaining revocation or ingestion acceptance.
+
+Failed attempts retain their terminal receipt and latch. A verified read-only
+recovery observation must establish current old-key matching, fresh readiness
+and the fixed canonical source before `reset-preflight` can replace only the
+maintenance recipe. Preserve any unavailable original-projection limitation.
+Use a fresh nonce in both the state-volume key/name and image tag; stale or
+wrong-nonce receipts cannot authorize adoption. A reset never deletes old
+latches, changes candidate credentials or redeploys the logs application.

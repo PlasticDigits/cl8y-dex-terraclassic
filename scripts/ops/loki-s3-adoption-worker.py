@@ -24,7 +24,8 @@ PHASES = frozenset(("worker_preflight", "worker_transaction", "worker_setup", "p
     "replacement", "adoption_verification", "adopted", "input", "storage_verification", "historical_preflight"))
 BOOL_FIELDS = frozenset(("runtime_changed", "network_checked", "network_detached", "adoption_latched",
     "rollback_attempted", "rollback_verified", "ready", "backing_storage_write_verified",
-    "marker_readback_verified", "historical_readback_verified"))
+    "marker_readback_verified", "historical_readback_verified", "rollback_identity_verified",
+    "rollback_old_pair_verified", "rollback_ready"))
 
 
 def load_helper():
@@ -41,11 +42,13 @@ def closed_report(value):
         required = {"schema", "mode", "status", "phase", "runtime_changed", "network_checked",
                     "network_detached", "adoption_latched"}
         allowed = required | BOOL_FIELDS | {"failure_reason", "source_file", "loki_count", "immutable_drift",
-                                            "flush_success_delta", "flush_failure_delta"}
+                                            "flush_success_delta", "flush_failure_delta", "attempt_nonce"}
         require(required <= set(value) <= allowed and value["schema"] == "loki_s3_adoption_v1"
                 and value["mode"] in ("preflight", "adopt") and value["status"] in ("PASS", "FAIL")
                 and value["phase"] in PHASES, "worker_report")
         require(all(type(value[k]) is bool for k in BOOL_FIELDS & set(value)), "worker_report")
+        if "attempt_nonce" in value:
+            require(isinstance(value["attempt_nonce"], str) and re.fullmatch(r"[a-f0-9]{16}", value["attempt_nonce"]), "worker_report")
         if "failure_reason" in value:
             require(value["failure_reason"] in WORKER_REASONS | load_helper().FAILURE_REASONS | {"operation_failed"}, "worker_report")
         if "source_file" in value:
@@ -222,7 +225,8 @@ def sanitized_helper(report, helper):
         require(isinstance(report["immutable_drift"], list) and set(report["immutable_drift"]) <=
                 {"image", "config", "host", "mounts", "networks", "name"}, "worker_report")
         result["immutable_drift"] = sorted(set(report["immutable_drift"]))
-    for key in ("backing_storage_write_verified", "marker_readback_verified", "historical_readback_verified"):
+    for key in ("backing_storage_write_verified", "marker_readback_verified", "historical_readback_verified",
+                "rollback_identity_verified", "rollback_old_pair_verified", "rollback_ready"):
         if key in report:
             require(type(report[key]) is bool, "worker_report")
             result[key] = report[key]
@@ -247,6 +251,13 @@ def execute(helper, values, *, state_dir=Path("/state")):
         require(isinstance(own, list) and len(own) == 1, "worker_identity")
         identity = self_identity(own[0], values, hostname)
         volume = isolation(own[0])
+        image = re.fullmatch(r"cl8y-loki-s3-adoption:([a-f0-9]{16})", own[0]["Config"].get("Image", ""))
+        require(image is not None, "worker_identity")
+        # Coolify versions may preserve explicit volume names or prefix the
+        # nonce-bearing Compose volume key with its exact project UUID.
+        require(volume in {"dex-loki-s3-" + image[1],
+                           values["LOKI_S3_JOB_UUID"] + "_transaction-state-" + image[1]}, "worker_identity")
+        report["attempt_nonce"] = image[1]
         users = command(["ps", "-aq", "--no-trunc", "--filter", "volume=" + volume], deadline).split()
         require(users == [identity], "worker_state_shared")
         before = private_call(helper.discover)
@@ -275,7 +286,7 @@ def execute(helper, values, *, state_dir=Path("/state")):
     finally:
         if joined and identity:
             try:
-                command(["network", "disconnect", values["LOKI_S3_NETWORK"], identity], started + 218)
+                command(["network", "disconnect", values["LOKI_S3_NETWORK"], identity], started + 248)
                 report["network_detached"] = True
             except Exception:
                 report.update(status="FAIL", failure_reason="worker_network")
