@@ -62,7 +62,9 @@ class FakeApi:
         if path.startswith('applications/new-job/envs/') and method=='DELETE':
             self.env=[row for row in self.env if row['uuid']!=path.rsplit('/',1)[-1]]; return {}
         if path=='applications/new-job/storages':
-            if method=='POST': self.volumes.append({**payload,'uuid':'volume','host_path':None}); return {}
+            if method=='POST':
+                storage={**payload,'name':'new-job-'+payload['name'],'uuid':'volume','host_path':None}
+                self.volumes.append(storage); return dict(storage)
             return {'persistent_storages':self.volumes,'file_storages':[]}
         if path=='applications/new-job/logs?lines=60': return {'logs':[{'output':json.dumps(row)} for row in self.logs]}
         if method=='POST' and path.endswith(('/start','/stop')): return {}
@@ -111,12 +113,37 @@ class MigrationOpsTests(unittest.TestCase):
         self.assertEqual(next(row['value'] for row in api.env if row['key']=='OPS_ROUTINE_ACTION'),'waiting')
         self.assertTrue(all(row['is_runtime'] and not row['is_buildtime'] for row in api.env))
         self.assertEqual(api.volumes[0]['type'],'persistent')
-        self.assertEqual(api.volumes[0]['name'],'cohort-new-job')
+        self.assertEqual(api.volumes[0]['name'],'new-job-cohort-new-job')
         self.assertEqual(api.volumes[0]['mount_path'],'/state')
         self.assertIsNone(api.volumes[0]['host_path'])
         self.assertTrue(state['snapshot_storage_configured'])
         self.assertNotIn('SYNTHETIC_PASSWORD',self.journal.read_text())
         self.assertFalse(any(path.startswith('applications/'+ops.pre.BACKEND) and method!='GET' for path,method,_ in api.calls))
+
+    def test_storage_readback_refuses_wrong_scope_uuid_path_host_or_ambiguous_mount(self):
+        for mutation in ['name','uuid','path','host','duplicate','extra','file','nestedfile','fileops']:
+            with self.subTest(mutation=mutation):
+                api=FakeApi(); original=api.call
+                def call(path,method='GET',payload=None):
+                    result=original(path,method,payload)
+                    if path=='applications/new-job/storages' and method=='GET':
+                        volume=api.volumes[0]
+                        if mutation=='name': volume['name']='other-job-cohort-new-job'
+                        elif mutation=='uuid': volume['uuid']='other-volume'
+                        elif mutation=='path': volume['mount_path']='/other'
+                        elif mutation=='host': volume['host_path']='/host/private'
+                        elif mutation=='duplicate': api.volumes.append(dict(volume))
+                        elif mutation=='extra': api.volumes.append({**volume,'uuid':'extra-volume','mount_path':'/ops'})
+                        elif mutation=='file': result['file_storages']=[{'mount_path':'/state'}]
+                        elif mutation=='nestedfile': result['file_storages']=[{'mount_path':'/state/subpath'}]
+                        elif mutation=='fileops': result['file_storages']=[{'mount_path':'/ops'}]
+                    return result
+                api.call=call
+                journal=Path(self.temp.name)/(mutation+'.json')
+                with self.assertRaisesRegex(ops.pre.GuardError,'private_snapshot_storage_readback'):
+                    ops.build(api,SHA,journal)
+                self.assertFalse(any(path.endswith('/start') for path,_,_ in api.calls))
+                self.assertFalse(any(row['key']=='DB_ADMIN_URL' for row in api.env))
 
     def test_apply_refuses_running_serving_app_before_credentials_or_actions(self):
         api,state=self.built(); state['inspection_passed']=True

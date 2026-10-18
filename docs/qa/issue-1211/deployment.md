@@ -80,6 +80,17 @@ the current job/revision/action/run-ID receipt, stops that job and removes the
 credential with readback. Prior or conflicting receipts cannot authorize a later
 action. The serving application's environment never changes.
 
+Coolify prefixes the requested persistent volume name with the owning
+application UUID. The coordinator requires that exact scoped name, the same
+storage UUID in POST and GET, exactly one persistent mount at `/state`, no host
+path and zero file mounts anywhere. It refuses before job start on any mismatch.
+The [first production readback failure](production-storage-readback-fail-20261018.json)
+is retained: the old coordinator expected the unprefixed name, stopped before
+starting a build, and cleanup confirmed its job stopped and credential-free.
+The focused transport suite models the actual prefixed API response and tests
+wrong application prefix/UUID/path, host mount, duplicate/extra mounts and direct/nested file shadows.
+This coordinator correction changes no application or database migration bytes.
+
 After exact-main hosted checks and operator authorization, `stop-serving`
 requests the existing indexer's stop. `apply` requires stopped application status;
 the worker additionally checks real database sessions before taking its private

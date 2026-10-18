@@ -1,0 +1,35 @@
+{
+  "revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "phase": "build",
+  "overall": "FAIL",
+  "guard": "private_snapshot_storage_readback",
+  "job_uuid": "zsp1ypo1imshw83plslgxwio",
+  "serving_stop_requested": false,
+  "job_start_requested": false,
+  "database_credential_injected": false,
+  "database_mutation": false,
+  "cleanup": {
+    "stop_acknowledged": true,
+    "credential_removed": true,
+    "cleanup_overall": "PASS"
+  },
+  "cause": "Coolify prefixes persistent named storage with owning application UUID; coordinator expected unprefixed request name.",
+  "storage": {
+    "uuid": "oihbmlqmozetimtgstvaebor",
+    "actual_name": "zsp1ypo1imshw83plslgxwio-cohort-zsp1ypo1imshw83plslgxwio",
+    "mount_path": "/state",
+    "host_path_empty": true
+  },
+  "source": "https://github.com/coollabsio/coolify/blob/v4.x/app/Http/Controllers/Api/ApplicationsController.php#L5181",
+  "correction": "Require exact application-prefixed name plus matching POST/GET storage UUID, exactly one persistent volume at /state, no host path and zero file mounts anywhere.",
+  "focused_controls": {
+    "command": "timeout 59s python3 scripts/tests/test_cohort_migration_ops.py",
+    "passed": 10,
+    "duration_seconds": 0.062
+  },
+  "limits": [
+    "No release build or database inspection occurred in this failed attempt.",
+    "Existing application remained serving; no stop/apply was requested.",
+    "Private journal retained separately; no credentials exported."
+  ]
+}

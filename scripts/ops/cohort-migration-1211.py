@@ -166,13 +166,21 @@ def build(api, revision, journal):
     # Build starts credential-free in WAITING. No DB action can run in this mode.
     for key, value in {**ROLES, 'OPS_ROUTINE_ACTION': 'waiting', 'OPS_RUN_ID': 'build'}.items(): set_env(api, job, key, value)
     # A private named volume retains immutable snapshots and history on replacement.
-    storage = api.call('applications/' + job + '/storages', 'POST', {'type': 'persistent', 'name': 'cohort-' + job, 'mount_path': '/state'})
+    requested_name = 'cohort-' + job
+    storage = api.call('applications/' + job + '/storages', 'POST', {'type': 'persistent', 'name': requested_name, 'mount_path': '/state'})
     storages = api.call('applications/' + job + '/storages')
     volumes = storages.get('persistent_storages', []) if isinstance(storages, dict) else []
-    matches = [volume for volume in volumes if volume.get('mount_path') == '/state' and volume.get('name') == 'cohort-' + job and not volume.get('host_path')]
-    pre.require(len(matches) == 1, 'private_snapshot_storage_readback')
+    # Coolify's create_storage controller prefixes named volumes with the
+    # owning application's UUID. Bind the returned UUID and the full scoped
+    # name; accepting a suffix alone could select another application's volume.
+    files = storages.get('file_storages', []) if isinstance(storages, dict) else []
+    pre.require(isinstance(storage, dict) and pre.ID.fullmatch(str(storage.get('uuid', '')))
+        and len(volumes) == 1 and volumes[0].get('uuid') == storage['uuid']
+        and volumes[0].get('mount_path') == '/state'
+        and volumes[0].get('name') == job + '-' + requested_name
+        and not volumes[0].get('host_path') and files == [], 'private_snapshot_storage_readback')
     state['snapshot_storage_configured'] = True
-    state['snapshot_storage_uuid'] = matches[0].get('uuid')
+    state['snapshot_storage_uuid'] = volumes[0]['uuid']
     api.call('applications/' + job + '/start', 'POST')
     state['build_started'] = True
     pre.write_state(journal, state)
