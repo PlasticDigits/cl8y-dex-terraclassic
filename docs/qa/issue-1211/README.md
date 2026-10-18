@@ -1,7 +1,7 @@
 # Fee actor and registry cohort verification (#1211)
 
 Issue: [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211).
-Contract: [FC1211-1–FC1211-11](../../../skills/AGENTS_FEE_COHORTS.md).
+Contract: [FC1211-1–FC1211-14](../../../skills/AGENTS_FEE_COHORTS.md).
 Related: [fee-ledger home](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md),
 [source provenance](../issue-1210/README.md),
 [database isolation](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md),
@@ -105,3 +105,5 @@ state. Registration changes the owned registry, so another actual run requires
 an explicitly reset/new owned registry before starting; never alter a shared
 registry to make the case pass. Source/provider fixtures continue to verify
 missing or uncertified history fails closed.
+
+Current deployment: [online migration and continuity checklist](online-migration.md).

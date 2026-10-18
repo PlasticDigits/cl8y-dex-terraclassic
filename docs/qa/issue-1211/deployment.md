@@ -6,7 +6,9 @@
 # Cohort schema rollout
 
 The additive [cohort migration](../../../indexer/migrations/20261018110000_protocol_fee_cohorts.sql)
-needs a separate migrator before the new serving binary starts. Preserve
+uses a separate migrator. First roll out the server that accepts both reviewed
+67/68 schema markers, then use the [online migration flow](online-migration.md)
+while the API remains serving. Cohort ingestion activates only after schema 68. Preserve
 [DB1396](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md) and the
 [role/snapshot runbook](../../runbooks/indexer-database-isolation.md).
 Never put migration credentials in the serving application or its build inputs.
@@ -66,103 +68,44 @@ cohort windows with plain-decimal USD/shares. It exports booleans/counts rather
 than response bodies. It does not establish historical cohort reconstruction,
 actual-chain payer coverage or the long native acceptance matrix.
 
-## Exact-release standalone migration
+## Current rollout: online additive migration
 
-The [migration helper](../../../scripts/ops/cohort-migration-1211.py) and
-[worker](../../../scripts/ops/cohort-migration-worker-1211.py) prepare a distinct
-job using a public Git fetch of the exact merged main SHA and the release's
-pinned Rust image. The compiled HEAD is checked before build and retained in
-the image. All forward SQLx SHA384 checksums come from that exact Git object;
-only `20261018110000` is allowed to be pending. The reviewed historical guard's
-security conditions remain in force, with complete-prefix checks and explicit
-new-table/runtime permission verification.
+Follow [the online migration checklist](online-migration.md). It requires the
+useful exact-revision 67/68-compatible server before credential injection and
+rechecks serving readiness after its concurrent snapshot, immediately before DDL.
+The separate mode-bound job preserves existing history, roles and ACLs. It never
+stops the serving application or restores its database. Its runtime credential
+is shown-once and removed with readback; the serving environment stays unchanged.
 
-`plan` is GET-only. `build` creates the isolated job and a unique private named
-snapshot volume, then compiles in credential-free WAITING mode. No migration
-can start in WAITING. `inspect` temporarily injects only the job's shown-once
-runtime credential and enforces PostgreSQL read-only mode. `status` accepts only
-the current job/revision/action/run-ID receipt, stops that job and removes the
-credential with readback. Prior or conflicting receipts cannot authorize a later
-action. The serving application's environment never changes.
+The exact job/storage/deployment ownership bindings and finite current-run
+receipt checks remain required. Normal starts refuse an unresolved prior
+operation before API or credential access. Only a verified terminal status or
+explicit cleanup resolves that owner. Explicit cleanup deliberately cancels only
+the bound maintenance job and removes its private credential.
 
-Coolify prefixes the requested persistent volume name with the owning
-application UUID. The coordinator requires that exact scoped name, the same
-storage UUID in POST and GET, exactly one persistent mount at `/state`, no host
-path and zero file mounts anywhere. It refuses before job start on any mismatch.
-The [first production readback failure](production-storage-readback-fail-20261018.json)
-is retained: the old coordinator expected the unprefixed name, stopped before
-starting a build, and cleanup confirmed its job stopped and credential-free.
-The focused transport suite models the actual prefixed API response and tests
-wrong application prefix/UUID/path, host mount, duplicate/extra mounts and direct/nested file shadows.
-This coordinator correction changes no application or database migration bytes.
+## Historical standalone evidence (superseded)
 
-Each start records the returned deployment UUID. If Coolify omits it, bounded
-owned-app history excludes every pre-start deployment before selecting a new
-identity. Status binds the deployment UUID, numeric application ID and embedded
-application UUID/name; queued/in-progress deployments return PENDING without
-stopping an old exited container or accepting its receipts. This applies to
-build, inspect, apply and verify. A single already-running credential-free legacy
-build can be adopted read-only only with its original WAITING/build journal,
-one owned deployment and the exact stored singleton storage binding. Explicit
-cleanup cancels only that bound pending deployment, then stops the owned job and
-removes credentials. Cancel/identity failures still attempt credential removal
-and remain failed. Finished previous runs cannot authorize a new action.
+The historical standalone helper/worker and
+[old local rehearsal](local-migration-rehearsal.json) remain for audit. That
+rehearsal refused active runtime sessions and restored a snapshot into a second
+owned database; those are historical offline controls, not the current rollout
+procedure. The legacy `stop-serving` command now refuses before credential or
+API access. Do not use a serving stop or database restore for the online flow.
 
-After exact-main hosted checks and operator authorization, `stop-serving`
-requests the existing indexer's stop. `apply` requires stopped application status;
-the worker additionally checks real database sessions before taking its private
-custom snapshot. It invokes the **new compiled binary's** `migrate` command using
-DSN `options` to establish the existing effective migrator, retains all original
-SQLx rows, verifies the new marker/table grants and four actual runtime permission
-denials, and checks unchanged roles/credentials/memberships. No checksum/marker
-SQL repair or password rotation exists. Failed states remain failed; a new
-explicit run ID owns any retry. A filesystem lock prevents concurrent job work.
+The [first storage readback failure](production-storage-readback-fail-20261018.json)
+is retained: its coordinator expected an unprefixed volume name and refused
+before starting. Current job creation requires Coolify's exact scoped volume
+name, storage UUID, owning application ID, one private `/state` mount, no host
+mount and no file shadows. Current status also binds deployment UUID, application
+UUID/name and numeric application ID before interpreting receipts.
 
-```bash
-bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
-  python3 scripts/ops/cohort-migration-1211.py plan \
-  --revision FULL_MERGED_MAIN_SHA --journal /tmp/cohort-migration.json
-```
+The [interrupted earlier apply](production-worker-interrupted-20261018.json)
+remains unverified. A finished Coolify build and stale exited-app status were not
+a worker completion receipt. Preserve uncertain history and snapshots; never
+repair SQLx history or infer success from container state. Current receipt owners
+use finite 70-second waiting/inspect and 915-second apply/verify allowances;
+polling never renews those deadlines. Only the current revision/action/run/mode
+receipt may authorize verification and cleanup of the owned maintenance job.
 
-Run `build`, `status`, `inspect`, `status`, then the explicitly authorized
-`stop-serving`, `apply`, `status` phases. `verify` and `cleanup` are separate
-bounded operations. Preserve the private snapshot volume after cleanup. A
-migration receipt does not deploy applications: deploy that same SHA through
-Coolify, then run [exact frontend/backend artifact attestation](../../../scripts/qa/attest-trading-quotes-1473.py)
-and relevant live API checks. Restore source settings only after exact revision
-acceptance. Do not start an incompatible older binary against an advanced marker.
-
-The [owned local rehearsal](local-migration-rehearsal.json) passes in 11.957s:
-real filtered SQLx baseline 67, actual new debug binary to 68, full original
-history preservation, priced/unpriced/idle bootstrap rows and original clock,
-actual runtime login/four permission denials, immutable snapshot restored into a
-second owned database, and actual binary replay. Wrong owner, altered expected
-checksum and active runtime sessions are refused. A fresh labeled PostgreSQL
-container and its anonymous volume are removed afterward. No shared QA migration
-history was used. The snapshot/permission engine is exercised directly; only
-filesystem locations and the local debug binary path differ from production.
-
-This rehearsal used checkout head `47ebbc2d` **plus working-tree seed/depositor
-changes**, identified by the recorded migration SHA384 and debug-binary SHA256.
-It does not attest a release image from that commit. Production build must pin
-the final merged main revision. Retained setup/teardown failures remain separate
-from the passing final rehearsal; none was converted into a skip or ledger edit.
-
-Build the baseline fixture separately, then cap each test invocation:
-
-```bash
-cargo build --manifest-path indexer/Cargo.toml --example cohort_baseline_1211
-timeout 59s python3 scripts/tests/test_cohort_migration_ops.py
-timeout 59s bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
-  python3 scripts/tests/test_cohort_migration_local.py
-```
-
-The [interrupted first apply](production-worker-interrupted-20261018.json) remains
-unverified: a finished Coolify deployment and stale `exited` app state were not
-proof that its worker had completed. Normal status now waits for the exact
-current action/run/revision receipt within one persisted finite 70-second
-waiting/inspect or 915-second apply/verify allowance. It never renews that owner
-on polling. Timeout/known deployment failure remains FAIL and cleans the owned
-job; explicit cleanup still removes credentials. Recover uncertain applies with
-verification-only against the retained snapshot/full history before considering
-another apply; never repair SQLx history or restart an incompatible old binary.
+Real online API continuity, a released compatible image, live migration and live
+schema/API acceptance remain pending in [the current checklist](online-migration.md).

@@ -25,6 +25,7 @@ spec.loader.exec_module(pre)
 ROUTINE_HASH = '58227362ea3020121b9b6f1141a92a07a930f4f8090a050a4b9c1bdeab03de65'
 ROLES = {'OPS_APPLICATION_DB': 'postgres', 'INDEXER_RUNTIME_ROLE': 'dex_indexer_runtime_20261006',
     'INDEXER_MIGRATOR_ROLE': 'dex_indexer_migrator_20261006', 'OPS_AUTH_MODE': 'bootstrap_owner_session'}
+ONLINE_MODE = 'online_additive_cohorts_v1'
 
 
 def git(*args):
@@ -124,8 +125,13 @@ def prepare(api, revision):
 
 
 def owned(api, state):
+    pre.require(isinstance(state.get('job_uuid'), str) and pre.ID.fullmatch(state['job_uuid'])
+        and state['job_uuid'] not in {pre.BACKEND, pre.TEMPLATE}, 'protected_application_job_forbidden')
     app = api.call('applications/' + state['job_uuid'])
-    pre.require(app.get('name') == state['job_name'] and app.get('description') == 'Standalone cohort migration; exact release ' + state['revision'], 'migration_job_binding')
+    mode = state.get('mode')
+    pre.require(mode in {None, ONLINE_MODE}, 'migration_mode')
+    description = 'Online additive cohort migration; exact release ' if mode == ONLINE_MODE else 'Standalone cohort migration; exact release '
+    pre.require(app.get('name') == state['job_name'] and app.get('description') == description + state['revision'], 'migration_job_binding')
     pre.require(hashlib.sha256(str(app.get('dockerfile', '')).encode()).hexdigest() == state['recipe_sha256'], 'migration_recipe_binding')
     return app
 
@@ -158,6 +164,11 @@ class Api(pre.Api):
 def build(api, revision, journal):
     pre.require(not journal.exists(), 'migration_journal_exists')
     payload, _, plan = prepare(api, revision)
+    return create_prepared_job(api, payload, plan, journal)
+
+
+def create_prepared_job(api, payload, plan, journal, extra_environment=None):
+    pre.require(not journal.exists(), 'migration_journal_exists')
     result = api.call('applications/dockerfile', 'POST', payload)
     job = result.get('uuid')
     pre.require(isinstance(job, str) and pre.ID.fullmatch(job) and job not in {pre.BACKEND, pre.TEMPLATE}, 'new_migration_identity')
@@ -165,7 +176,7 @@ def build(api, revision, journal):
     pre.write_state(journal, state)
     owned(api, state)
     # Build starts credential-free in WAITING. No DB action can run in this mode.
-    for key, value in {**ROLES, 'OPS_ROUTINE_ACTION': 'waiting', 'OPS_RUN_ID': 'build'}.items(): set_env(api, job, key, value)
+    for key, value in {**ROLES, 'OPS_ROUTINE_ACTION': 'waiting', 'OPS_RUN_ID': 'build', **(extra_environment or {})}.items(): set_env(api, job, key, value)
     # A private named volume retains immutable snapshots and history on replacement.
     requested_name = 'cohort-' + job
     storage = api.call('applications/' + job + '/storages', 'POST', {'type': 'persistent', 'name': requested_name, 'mount_path': '/state'})
@@ -193,6 +204,7 @@ def build(api, revision, journal):
 
 
 def start_action(api, state, action):
+    pre.require(state.get('mode') is None, 'offline_action_mode')
     job = state['job_uuid']
     owned(api, state)
     serving = api.call('applications/' + pre.BACKEND)
@@ -291,11 +303,14 @@ def receipts(logs):
                 if row.get('overall') not in {'PASS', 'WAITING', 'FAIL'}: continue
                 allowed = {'schema', 'action', 'run_id', 'overall', 'revision', 'history_count', 'pending_versions', 'database_read_only_enforced',
                     'schema_marker', 'complete_history_preserved', 'runtime_table_grants', 'actual_permission_denials',
-                    'runtime_login_tested', 'roles_credentials_memberships_unchanged', 'failure_class', 'database_access'}
+                    'runtime_login_tested', 'roles_credentials_memberships_unchanged', 'failure_class', 'database_access',
+                    'mode', 'existing_acl_unchanged', 'serving_compatibility_verified', 'failure_guard'}
                 if row.get('action') not in {'waiting','inspect','apply','verify'} or not pre.ID.fullmatch(str(row.get('run_id',''))) or not pre.SHA.fullmatch(str(row.get('revision',''))): continue
                 clean = {key: val for key, val in row.items() if key in allowed}
                 if 'failure_class' in clean and clean['failure_class'] not in {'RuntimeError','ValueError','KeyError','TimeoutError','OSError','FileNotFoundError','PermissionError','JSONDecodeError','TimeoutExpired','BlockingIOError','IndexError','TypeError'}: clean['failure_class'] = 'Error'
-                boolean_keys = {'database_read_only_enforced','complete_history_preserved','runtime_table_grants','runtime_login_tested','roles_credentials_memberships_unchanged','database_access'}
+                if 'mode' in clean and clean['mode'] != ONLINE_MODE: continue
+                if clean.get('failure_guard') is not None and not re.fullmatch(r'[a-z_]{1,80}', str(clean['failure_guard'])): continue
+                boolean_keys = {'database_read_only_enforced','complete_history_preserved','runtime_table_grants','runtime_login_tested','roles_credentials_memberships_unchanged','database_access', 'existing_acl_unchanged', 'serving_compatibility_verified'}
                 if any(key in clean and type(clean[key]) is not bool for key in boolean_keys): continue
                 if any(key in clean and (type(clean[key]) is not int or not 0 <= clean[key] < 100000000000000) for key in ['history_count','schema_marker','actual_permission_denials']): continue
                 if 'pending_versions' in clean and clean['pending_versions'] not in [[],[pre.TARGET]]: continue
@@ -305,7 +320,10 @@ def receipts(logs):
                         clock = datetime.fromisoformat(str(backup.get('observed_at_utc','')).replace('Z','+00:00'))
                         valid_backup = clock.tzinfo is not None and type(backup.get('bytes')) is int and 0 < backup['bytes'] < 1000000000000 and type(backup.get('structurally_valid')) is bool
                     except ValueError: valid_backup = False
-                    if valid_backup: clean['backup'] = {key: backup[key] for key in ['bytes', 'sha256', 'observed_at_utc', 'structurally_valid']}
+                    if valid_backup:
+                        clean['backup'] = {key: backup[key] for key in ['bytes', 'sha256', 'observed_at_utc', 'structurally_valid']}
+                        if backup.get('mode') == 'concurrent_mvcc' and backup.get('automatic_database_restore_allowed') is False:
+                            clean['backup'].update(mode='concurrent_mvcc', automatic_database_restore_allowed=False)
                 result.append(clean)
     visit(logs)
     return result[-16:]
@@ -344,7 +362,7 @@ def status(api, state, cleanup=False):
     result = {'job_uuid': state['job_uuid'], 'job_status': app.get('status'), 'receipts': found, 'logs_http_status': log_status, **(deployment or {})}
     if not cleanup and deployment and deployment['deployment_status'] in {'failed', 'cancelled', 'cancelled-by-user'}:
         result['overall'] = 'FAIL'
-    found = [row for row in found if row.get('action') == state.get('active_action') and row.get('run_id') == state.get('active_run_id') and row.get('revision') == state['revision']]
+    found = [row for row in found if row.get('action') == state.get('active_action') and row.get('run_id') == state.get('active_run_id') and row.get('revision') == state['revision'] and row.get('mode') == state.get('mode')]
     pre.require(len({json.dumps(row,sort_keys=True) for row in found}) <= 1, 'conflicting_terminal_receipts')
     found = found[-1:]
     result['receipts'] = found
@@ -363,11 +381,16 @@ def status(api, state, cleanup=False):
     if result.get('overall') != 'FAIL' and found and found[0].get('overall') == 'PASS':
         row = found[0]
         pre.require(row.get('revision') == state['revision'], 'receipt_revision')
+        if state.get('mode') == ONLINE_MODE:
+            pre.require(row.get('serving_compatibility_verified') is True, 'online_serving_receipt')
         if row.get('action') == 'inspect':
             pre.require(row.get('pending_versions') in [[], [pre.TARGET]] and row.get('database_read_only_enforced') is True and row.get('history_count') == state['expected_migration_count'] - len(row.get('pending_versions', [])), 'inspection_receipt')
             state['inspection_passed'] = True
         elif row.get('action') in {'apply', 'verify'}:
             pre.require(row.get('schema_marker') == pre.TARGET and row.get('history_count') == state['expected_migration_count'] and row.get('complete_history_preserved') is True and row.get('actual_permission_denials') == 4 and row.get('runtime_table_grants') is True and row.get('roles_credentials_memberships_unchanged') is True and row.get('backup', {}).get('structurally_valid') is True, 'migration_receipt_incomplete')
+            if state.get('mode') == ONLINE_MODE:
+                pre.require(row.get('existing_acl_unchanged') is True and row.get('backup', {}).get('mode') == 'concurrent_mvcc'
+                    and row['backup'].get('automatic_database_restore_allowed') is False, 'online_migration_receipt_incomplete')
             state['migration_verified'] = True
             state['verification'] = row
     return result
@@ -379,6 +402,11 @@ def main():
     parser.add_argument('--revision', required=True)
     parser.add_argument('--journal', type=Path, required=True)
     args = parser.parse_args()
+    # Production availability is an invariant, including legacy journals. The
+    # historical offline operation remains readable for audit and cleanup only.
+    if args.phase == 'stop-serving':
+        print(json.dumps({'overall': 'FAIL', 'guard': 'production_api_stop_forbidden'}))
+        return 1
     state = None
     try:
         api = Api(pre.load_reader())
@@ -388,13 +416,7 @@ def main():
             state = json.loads(args.journal.read_text())
             pre.require(state['revision'] == args.revision, 'journal_revision')
             owned(api, state)
-            if args.phase == 'stop-serving':
-                serving = api.call('applications/' + pre.BACKEND)
-                pre.require(any(pre.urllib.parse.urlsplit(x.strip()).hostname == 'indexer.dex.cl8y.com' for x in serving.get('fqdn', '').split(',')), 'serving_identity')
-                pre.require(state.get('inspection_passed'), 'preflight_before_serving_stop')
-                api.call('applications/' + pre.BACKEND + '/stop', 'POST')
-                result = {'serving_stop_requested': True}
-            elif args.phase in {'inspect', 'apply', 'verify'}: result = start_action(api, state, args.phase)
+            if args.phase in {'inspect', 'apply', 'verify'}: result = start_action(api, state, args.phase)
             else: result = status(api, state, args.phase == 'cleanup')
             pre.write_state(args.journal, state)
         print(json.dumps(result))

@@ -2,6 +2,9 @@
 # #1211: separate compilation from bounded test execution.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+for control in cohort_preflight_1211 cohort_migration_ops cohort_online_worker_1211 cohort_online_ops; do
+  timeout 59s python3 "scripts/tests/test_${control}.py"
+done
 artifacts="$(mktemp -d)"
 trap 'rm -rf "$artifacts"' EXIT
 (cd indexer && cargo test --locked --no-run --message-format=json --lib \
