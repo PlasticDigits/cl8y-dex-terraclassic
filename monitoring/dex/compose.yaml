@@ -1,0 +1,80 @@
+# Separate Coolify application. No DEX or logging containers are replaced.
+services:
+  dex-exporter:
+    build:
+      context: ../..
+      dockerfile: monitoring/dex/Dockerfile
+    volumes:
+      - alert-receipts:/state
+    expose: ["9800", "9801"]
+    mem_limit: 256m
+    cpus: 0.25
+    restart: unless-stopped
+    networks: [default]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9800/metrics', timeout=2).read(65536)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+  dex-prometheus:
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=2GB
+      - --web.enable-admin-api=false
+      - --query.max-concurrency=4
+      - --query.timeout=10s
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    expose: ["9090"]
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+    networks:
+      default:
+      logs:
+        aliases: [dex-prometheus]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  dex-alertmanager:
+    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager", "--cluster.listen-address="]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    expose: ["9093"]
+    mem_limit: 128m
+    cpus: 0.25
+    restart: unless-stopped
+    networks: [default]
+  dex-drill:
+    build:
+      context: ../..
+      dockerfile: monitoring/dex/Dockerfile
+    command: ["/bin/sh", "-c", "while true; do python3 -I /app/drill.py --step; sleep 5; done"]
+    volumes:
+      - drill-receipts:/state
+    mem_limit: 64m
+    cpus: 0.1
+    restart: unless-stopped
+    networks: [default]
+    depends_on:
+      dex-prometheus:
+        condition: service_healthy
+networks:
+  logs:
+    external: true
+    # Existing Grafana network, verified against Coolify resource identity.
+    name: iyi1s7ihy8icleonjdivpac9
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  alert-receipts:
+  drill-receipts:

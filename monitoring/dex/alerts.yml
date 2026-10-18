@@ -1,0 +1,41 @@
+groups:
+  - name: dex-availability
+    rules:
+      - alert: DexScrapeMissing
+        expr: up{job=~"cl8y-dex-(api|indexer)"} == 0 or absent(up{job="cl8y-dex-api"}) or absent(up{job="cl8y-dex-indexer"})
+        for: 1m
+        labels:
+          severity: critical
+          service: cl8y-dex-terraclassic-indexer
+      - alert: DexObservationStale
+        expr: time() - dex_observation_timestamp_seconds{job=~"cl8y-dex-(api|indexer)"} > 90 or absent(dex_observation_timestamp_seconds{job="cl8y-dex-api"}) or absent(dex_observation_timestamp_seconds{job="cl8y-dex-indexer"})
+        for: 1m
+        labels:
+          severity: critical
+          service: cl8y-dex-terraclassic-indexer
+      - alert: DexServingUnavailable
+        expr: dex_endpoint_up{job="cl8y-dex-api",purpose=~"liveness|serving"} == 0
+        for: 1m
+        labels:
+          severity: critical
+      - alert: DexIndexerLag
+        expr: dex_indexer_lag_blocks{job="cl8y-dex-indexer"} > 20
+        for: 2m
+        labels:
+          severity: warning
+      - alert: DexIndexerProgressStalled
+        expr: time() - dex_indexer_progress_timestamp_seconds{job="cl8y-dex-indexer"} > 180
+        for: 1m
+        labels:
+          severity: warning
+      - alert: DexQuoteUnavailable
+        expr: dex_endpoint_up{job="cl8y-dex-api",purpose="quote_readiness"} == 0
+        for: 2m
+        labels:
+          severity: warning
+      - alert: DexMonitoringDrill
+        expr: dex_monitoring_drill{job="cl8y-dex-monitor"} == 1
+        for: 20s
+        labels:
+          severity: info
+          purpose: monitoring

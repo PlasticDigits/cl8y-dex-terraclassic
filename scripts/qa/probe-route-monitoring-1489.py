@@ -36,14 +36,10 @@ def run():
     for label, (service, predicate) in predicates.items():
         query = 'sum(count_over_time({service="' + service + '"}' + predicate + '[15m]))'
         counts[label] = COMMON.aggregate(monitor.read(prefix + urlencode({"query": query})))
-    prometheus = [source for source in sources if isinstance(source, dict) and source.get("type") == "prometheus"]
-    prom = {"status": "SKIP", "reason": "no_prometheus_datasource_provisioned"}
-    if len(prometheus) == 1 and COMMON.ATTESTER.APP_ID.fullmatch(str(prometheus[0].get("uid", ""))):
-        prefix = "/api/datasources/proxy/uid/" + quote(prometheus[0]["uid"], safe="") + "/api/v1/query?"
-        prom = {"status": "PASS", "up_sum": COMMON.aggregate(monitor.read(prefix + urlencode({"query": "sum(up)"})))}
+    prom = COMMON.collect_prometheus(monitor, sources)
     return {"issue": 1489, "utc": datetime.now(timezone.utc).isoformat(), "read_only": True,
             "window_seconds": 900, "counts": counts, "prometheus": prom,
-            "overall": "FAIL" if counts["indexer_error_lines"] or counts["frontend_server_failure_lines"] else "PASS WITH SKIPS" if prom["status"] == "SKIP" else "PASS",
+            "overall": "FAIL" if counts["indexer_error_lines"] or counts["frontend_server_failure_lines"] else "PASS",
             "scope": "Fixed text-pattern aggregate counts only; capacity/stage counts do not prove cause, readiness, stage coverage or settlement."}
 
 

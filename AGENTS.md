@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## DEX metrics and monitoring
+
+For Prometheus/Grafana provisioning, target verification or alert delivery, follow
+[DM1544-1–DM1544-10](skills/AGENTS_DEX_MONITORING.md), run
+`make verify-issue-1544`, and use the [live checklist](docs/qa/issue-1544/README.md).
+Monitoring is a separate application; keep the serving API and existing logs
+stack available. Require exact DEX targets and fresh observations, never a
+datasource-only or missing-Prometheus skip. Synthetic probes do not establish
+traffic SLOs or close native recovery acceptance. Operations:
+[Prometheus runbook](docs/runbooks/dex-prometheus-monitoring.md).
+
 ## UI/UX accessibility policy
 
 Frontend UI/UX must be usable by people with disabilities, including motor and

@@ -93,7 +93,7 @@ slow provider fits the original deadline.
 The existing completion event may expose only native_borrowed_reads in 0..6.
 It counts bypassed logical reads admitted through the global gate, not provider
 or wire attempts. Export it from the existing bounded sample, with no extra
-query. Retain the 300-line and 18-read limits, fixed poll identity and numeric
+query. Retain the 300-line and 19-read limits, fixed poll identity and numeric
 sample time; never export raw labels or actor/provider values.
 
 Failed-read evidence uses fourteen fixed slots, fixed phases/reasons and
@@ -119,8 +119,12 @@ prior unavailable response or incomplete cohort into a pass. See the
 Window completion comes from natural active-duration completion, never setup or
 response-drain elapsed time. Budget exits and setup/active exceptions remain
 incomplete; a full-duration window can still be complete and FAIL availability.
-Native monitoring has an explicit fixed 18-read profile for bootstrap, counts,
-bounded samples, optional requested-ID correlation and optional Prometheus.
+Native monitoring has an explicit fixed 19-read profile for bootstrap, counts,
+bounded samples, optional requested-ID correlation, required Prometheus datasource
+health and one fixed target/freshness query. The stronger
+[#1544 monitoring contract](AGENTS_DEX_MONITORING.md) replaces optional Prometheus
+SKIP and global `sum(up)` acceptance; it adds one bounded read to the former
+18-read profile while preserving every existing Loki query.
 Shared monitoring retains its default 16-read profile; exercise actual capped
 transport in tests, not only a fake counter. Keep 300 sampled lines and eight
 requested IDs as hard bounds, with no extra query or raw-data export.

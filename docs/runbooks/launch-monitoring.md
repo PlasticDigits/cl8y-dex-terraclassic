@@ -1,8 +1,12 @@
 # Launch monitoring runbook (SEC-G01 / GitLab #434)
 
-Minimum **operator eyes-on-system** for launch. The stack ships **no Prometheus `/metrics`**
-endpoint ([#200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)) — monitoring
-is `tracing` logs + indexer Postgres queries + on-chain LCD queries. This runbook lists, for each
+Minimum **operator eyes-on-system** for launch. The monitoring-only exporter and
+Prometheus configuration for [#1544](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1544)
+are documented in [DEX Prometheus monitoring](dex-prometheus-monitoring.md), with
+[live acceptance](../qa/issue-1544/README.md) and
+[agent invariants](../../skills/AGENTS_DEX_MONITORING.md). Its cached endpoint
+observations complement `tracing` logs + indexer Postgres queries + on-chain LCD queries;
+traffic latency/5xx and provider pressure remain instrumentation gaps. This runbook lists, for each
 launch signal, a **tested command**, its **healthy baseline**, and the **escalation trigger**.
 
 Proactive **reorg** alerting (`INDEXER_REORG_HALT` stderr prefix + `REORG_ALERT_WEBHOOK_URL`) is

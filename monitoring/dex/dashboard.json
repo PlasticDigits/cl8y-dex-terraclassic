@@ -1,0 +1,1164 @@
+{
+  "uid": "cl8y-dex-monitoring",
+  "title": "CL8Y DEX availability and monitoring",
+  "tags": [
+    "cl8y",
+    "dex",
+    "monitoring",
+    "1544"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "15m",
+      "1h",
+      "6h",
+      "24h",
+      "7d"
+    ]
+  },
+  "links": [
+    {
+      "title": "Monitoring runbook",
+      "url": "https://git.cl8y.com/code/cl8y-dex-terraclassic/src/branch/main/docs/runbooks/dex-prometheus-monitoring.md",
+      "type": "link",
+      "targetBlank": true
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "DEX job",
+        "type": "custom",
+        "query": "cl8y-dex-api,cl8y-dex-indexer",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "cl8y-dex-api|cl8y-dex-indexer",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "cl8y-dex-api",
+            "value": "cl8y-dex-api",
+            "selected": false
+          },
+          {
+            "text": "cl8y-dex-indexer",
+            "value": "cl8y-dex-indexer",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "purpose",
+        "label": "Request purpose",
+        "type": "custom",
+        "query": "liveness,serving,indexer_readiness,quote_readiness",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "liveness|serving|indexer_readiness|quote_readiness",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "liveness",
+            "value": "liveness",
+            "selected": false
+          },
+          {
+            "text": "serving",
+            "value": "serving",
+            "selected": false
+          },
+          {
+            "text": "indexer_readiness",
+            "value": "indexer_readiness",
+            "selected": false
+          },
+          {
+            "text": "quote_readiness",
+            "value": "quote_readiness",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Coverage and interpretation",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Monitoring observations, agent-owned response.** Health/readiness requests are synthetic probes, not traffic latency or 5xx-rate SLOs. Serving liveness, indexer leadership/readiness and configured useful-quote readiness are separate. A readiness HTTP503 alone is not a serving outage. **Instrumentation gaps:** production request latency/5xx counters and provider pressure are not exported. Loki panels show bounded text-pattern counts, not traffic metrics or provider capacity gauges. `/ready` head is last observed, not an independent live chain tip. All panels share this dashboard time range. Alerts deliver to persistent internal webhook receipts; no human/email/chat/pager destination is configured."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "API serving and liveness",
+      "description": "1 = valid HTTP200 synthetic probe; separate from current quote admission.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_endpoint_up{job=\"cl8y-dex-api\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"liveness|serving\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{purpose}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Readiness classes",
+      "description": "Readiness may fail while serving remains available. Quote readiness covers configured bounded scenarios only.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_endpoint_up{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\",purpose=\"indexer_readiness\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "indexer readiness",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "dex_endpoint_up{job=\"cl8y-dex-api\",service=\"cl8y-dex-terraclassic-indexer\",purpose=\"quote_readiness\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "useful-quote readiness",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP status by fixed purpose",
+      "description": "Numeric probe response status, not production request counts. Interpret HTTP503 by purpose.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_endpoint_http_status{job=~\"$job\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"$purpose\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{purpose}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Synthetic probe duration",
+      "description": "Per-probe duration. This is not production traffic latency or a request percentile.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_endpoint_duration_seconds{job=~\"$job\",service=\"cl8y-dex-terraclassic-indexer\",purpose=~\"$purpose\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{purpose}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Expected DEX scrape health",
+      "description": "Both exact DEX jobs must be present and healthy; a global sum(up) is insufficient.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{job}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Underlying observation and scrape age",
+      "description": "Observation timestamp exists only when all four current cycle payloads are valid. Valid readiness503 is an observation; invalid payloads remove freshness.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - dex_observation_timestamp_seconds{job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{job}} observation age",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "time() - timestamp(up{job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{job}} scrape age",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Checkpoint and last observed head",
+      "description": "The observed head comes from /ready; no independent live tip is polled.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_indexer_checkpoint_height{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "checkpoint",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "dex_indexer_observed_head_height{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "last observed head",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Observed indexer lag",
+      "description": "A frozen observed head can hide actual lag. Compare checkpoint progress age and Loki evidence.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_indexer_lag_blocks{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "observed lag blocks",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Time since observed checkpoint change",
+      "description": "Exporter restart initializes this clock; it cannot prove prior stall duration. Chain halt and provider loss require separate interpretation.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - dex_indexer_progress_timestamp_seconds{job=\"cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "checkpoint progress age",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Alert evaluation states",
+      "description": "Pending/firing series disappear after recovery; correlate persisted resolved delivery below.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "ALERTS{service=\"cl8y-dex-terraclassic-indexer\",alertname=~\"DexScrapeMissing|DexObservationStale|DexServingUnavailable|DexIndexerLag|DexIndexerProgressStalled|DexQuoteUnavailable|DexMonitoringDrill\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{alertname}} {{alertstate}}",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Persisted alert receipt window",
+      "description": "Bounded-window GAUGES, despite _total suffix. Persistent local webhook is agent-owned; no external notification implied.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "dex_alert_notifications_total{job=\"cl8y-dex-monitor\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{status}} receipts in retained window",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Last receipt age and synthetic drill",
+      "description": "The drill self-clears after at most180 seconds. Absence of a receipt timestamp means no retained receipt.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - dex_alert_last_notification_timestamp_seconds{job=\"cl8y-dex-monitor\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "last receipt age seconds",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "dex_monitoring_drill{job=\"cl8y-dex-monitor\",service=\"cl8y-dex-terraclassic-indexer\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "monitoring-only drill",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Monitoring process memory",
+      "description": "Prometheus512MB/0.5CPU, Alertmanager128MB/0.25CPU, exporter256MB/0.25CPU limits; this is resident memory, not a container limit census.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_resident_memory_bytes{job=~\"cl8y-dex-prometheus|cl8y-dex-alertmanager\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "{{job}} resident memory",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Prometheus retained blocks and active series",
+      "description": "Retention7d/2GB; block bytes excludes head and WAL. Named volumes preserve samples across replacement.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 53,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "prometheus_tsdb_storage_blocks_bytes{job=\"cl8y-dex-prometheus\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "retained block bytes",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "prometheus_tsdb_head_series{job=\"cl8y-dex-prometheus\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "head series",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Prometheus config and alert delivery failures",
+      "description": "Infrastructure counters do not establish actual DEX traffic or provider coverage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cl8y-dex-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "prometheus_config_last_reload_successful{job=\"cl8y-dex-prometheus\"}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "last config reload successful",
+          "range": true,
+          "instant": false
+        },
+        {
+          "refId": "B",
+          "expr": "sum(alertmanager_notifications_failed_total{job=\"cl8y-dex-alertmanager\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cl8y-dex-prometheus"
+          },
+          "legendFormat": "Alertmanager notification failures",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Loki indexer log volume",
+      "description": "Aggregate only; no raw log lines/actors are displayed.",
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 61,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"cl8y-dex-terraclassic-indexer\"}[$__interval]))",
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "legendFormat": "indexer log lines"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Loki error-pattern context",
+      "description": "Text patterns can include benign warnings; this is not an API5xx counter.",
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"cl8y-dex-terraclassic-indexer\"} |~ \"(?i)(error|panic|fatal)\" [$__interval]))",
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "legendFormat": "error-pattern log lines"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Loki provider-pattern context",
+      "description": "Text-pattern counts do not establish provider admission pressure, request origin or the cause of historical503s.",
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"cl8y-dex-terraclassic-indexer\"} |~ \"(?i)(capacity|429|cooldown)\" [$__interval]))",
+          "datasource": {
+            "type": "loki",
+            "uid": "Loki"
+          },
+          "legendFormat": "provider-pattern log lines"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    }
+  ]
+}
