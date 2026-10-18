@@ -12,7 +12,7 @@ The issue body and all comments were read using openbao-tools `bao-exec` and
 | Same owned warm target, `timeout 59s make verify-issue-606` | PASS: 8 verification steps, including its required retests, 2 inverted launcher cases and 7 frontend invoice tests |
 | Scoped `git diff --check` | PASS |
 | Python operator wrapper behavioral tests + compilation and verifier `bash -n` | PASS: 5 tests cover plan/execute/verify/finalize modes, real artifact identity/hash checks, tampering, unrelated migrations and invalid modes and local preflight without network/custody |
-| Focused catalog attestation tests | Pending parent verification |
+| Focused catalog attestation tests | PASS: 3 source attestation cases; production catalog readback remains pending governed migration |
 | LocalTerra deployed wasm smoke | PASS in 4.19 seconds under timeout 59s; token112/launcher111 match optimized checksums; free create/origin/CMM admin, exact50UST1, mismatched origin and uncreated launcher forwarding covered |
 | Scoped pinned optimizer build, source provenance, SHA-256 and declared-local compatibility | PASS: token max locals 59; launcher max locals 64; 100-local cap |
 | `python3 scripts/ops/launcher-origin-1229.py --check-artifacts` | PASS against the actual token/launcher and unchanged core wasm inputs; no network/custody |

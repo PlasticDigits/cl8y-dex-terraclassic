@@ -46,6 +46,16 @@ the new owned deployment. A transport exception after dispatch does not abort th
 worker or remove its current credential. The shown-once runtime credential is
 removed with readback after the owned job reaches its bound terminal state.
 
+Before a snapshot, obtain a fresh read-only capacity receipt on the exact
+private `/state` mount and database resource. The release recorded database size
+via `pg_database_size(current_database())`, free filesystem bytes and free inodes;
+no directory scan or snapshot-file read is needed. Its conservative threshold was
+`max(2 × database bytes + 8GiB, 20% filesystem bytes)` and 10,000 free inodes.
+This is an operator check, not an automatic guard in the migration coordinator,
+and cannot guarantee against concurrent host growth. Stop only the capacity job
+and remove its credential afterward; never delete its shared snapshot volume.
+The [live receipt](../issues-1206-1512/live-release-20261018.md) records the result.
+
 The migrator DSN establishes the effective existing owner, with `lock_timeout`
 250ms and `statement_timeout` 5s. A busy lock fails the transaction rather than
 waiting indefinitely. Preserve the original snapshot and inspect the exact

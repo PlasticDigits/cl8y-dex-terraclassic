@@ -31,3 +31,7 @@ The closure audit added the required digest-specific socket-peer governor check.
 loopback PostgreSQL fixture, including actual HTTP200→429 with integer
 `Retry-After`. Only that container/volume was removed; no production request ran.
 The required hosted security matrix remains a separate CI receipt.
+
+Dated production follow-up: [exact release, online migration and bounded live API evidence](../issues-1206-1512/live-release-20261018.md).
+Historical local scope/failed receipts above are retained. The dated follow-up
+records actual deployment separately and keeps remaining issue acceptance explicit.

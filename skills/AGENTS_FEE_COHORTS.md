@@ -39,3 +39,9 @@ The [compatibility transition checklist](../docs/qa/issue-1211/compatibility.md)
 records owned-local67→68 serving/ingestion verification separately from any
 production migration or traffic switch.
 
+
+For online snapshot capacity, follow the [same-volume read-only check](../docs/qa/issue-1211/online-migration.md#job-sequence-and-boundaries).
+Record database size, actual mount free bytes/inodes and owned credential cleanup;
+metadata from another volume cannot establish snapshot headroom. This operator
+check is separate from coordinator guards. Keep the serving API active and never
+delete shared snapshot storage during probe cleanup.

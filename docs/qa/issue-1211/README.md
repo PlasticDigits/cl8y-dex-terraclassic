@@ -109,3 +109,7 @@ registry to make the case pass. Source/provider fixtures continue to verify
 missing or uncertified history fails closed.
 
 Current deployment: [online migration and continuity checklist](online-migration.md).
+
+Dated production follow-up: [exact release, online migration and bounded live API evidence](../issues-1206-1512/live-release-20261018.md).
+Historical local scope/failed receipts above are retained. The dated follow-up
+records actual deployment separately and keeps remaining issue acceptance explicit.
