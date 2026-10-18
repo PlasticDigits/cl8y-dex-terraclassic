@@ -754,6 +754,15 @@ async fn recovery1464_block_outage_resumes_same_checkpoint_without_failed_accoun
 
 #[tokio::test]
 async fn recovery1464_checkpoint_outage_retries_without_advancing_or_skipping() {
+    checkpoint_rejection_recovers(429).await;
+}
+
+#[tokio::test]
+async fn recovery1464_checkpoint_http400_recovers_without_stopping_price_producers() {
+    checkpoint_rejection_recovers(400).await;
+}
+
+async fn checkpoint_rejection_recovers(status: u16) {
     use cl8y_dex_indexer::indexer::lifecycle::IndexerHealth;
     use cl8y_dex_indexer::lcd::ProviderPolicy;
     use std::sync::{
@@ -778,7 +787,7 @@ async fn recovery1464_checkpoint_outage_retries_without_advancing_or_skipping() 
         )))
         .respond_with(move |_: &wiremock::Request| {
             if reads.fetch_add(1, Ordering::SeqCst) < 3 {
-                ResponseTemplate::new(429)
+                ResponseTemplate::new(status)
             } else {
                 ResponseTemplate::new(200).set_body_json(block_json(height, "SAME"))
             }
@@ -817,6 +826,18 @@ async fn recovery1464_checkpoint_outage_retries_without_advancing_or_skipping() 
     assert_eq!(
         state::get_indexer_checkpoint(&pool).await.unwrap(),
         (height, Some("SAME".into()))
+    );
+    assert!(
+        !health.halt_token().is_cancelled(),
+        "independent price producers stay alive"
+    );
+    let failures: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexer_failed_blocks")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        failures, 0,
+        "a rejected read is not a failed economic write"
     );
     assert!(!health.snapshot().ready);
     assert_eq!(health.snapshot().pending_height, Some(height + 1));
