@@ -831,10 +831,12 @@ async fn checkpoint_rejection_recovers(status: u16) {
         !health.halt_token().is_cancelled(),
         "independent price producers stay alive"
     );
-    let failures: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexer_failed_blocks")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let failures: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM indexer_failed_blocks WHERE height=$1")
+            .bind(height)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(
         failures, 0,
         "a rejected read is not a failed economic write"
