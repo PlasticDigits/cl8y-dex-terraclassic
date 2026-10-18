@@ -1,0 +1,12 @@
+{
+  "balances": [
+    {
+      "denom": "uluna",
+      "amount": "10657752203473"
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "1"
+  }
+}

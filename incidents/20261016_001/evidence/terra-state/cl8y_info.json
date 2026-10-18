@@ -1,0 +1,16 @@
+{
+  "address": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+  "contract_info": {
+    "code_id": "10184",
+    "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+    "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "label": "CeramicLiberty.com CL8Y.com/bridge",
+    "created": {
+      "block_height": "24103161",
+      "tx_index": "10793178"
+    },
+    "ibc_port_id": "",
+    "extension": null,
+    "ibc2_port_id": ""
+  }
+}

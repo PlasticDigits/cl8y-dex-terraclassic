@@ -1,0 +1,12 @@
+{
+  "data": {
+    "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+    "default_fee_bps": 180,
+    "default_limit_batch_max_rungs": 20,
+    "pair_code_id": 11715,
+    "lp_token_code_id": 10184,
+    "pair_creation_fee_uluna": "100000000",
+    "discount_registry": "terra1wcczsdk7jwj99n3my6wx8wr4ee0hn6yaapgd792lgx5elrdtrn2scfnecz"
+  }
+}

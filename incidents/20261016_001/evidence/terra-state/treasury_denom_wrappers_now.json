@@ -1,0 +1,20 @@
+[
+  {
+    "data": {
+      "wrappers": [
+        {
+          "denom": "uluna",
+          "wrapper": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+        },
+        {
+          "denom": "uusd",
+          "wrapper": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+        }
+      ]
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:47:24 GMT",
+    "Content-Type": "application/json"
+  }
+]

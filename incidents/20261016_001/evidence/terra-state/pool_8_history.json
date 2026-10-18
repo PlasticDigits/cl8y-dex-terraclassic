@@ -1,0 +1,133 @@
+[
+  {
+    "entries": [
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+        "code_id": "11506",
+        "updated": {
+          "block_height": "29458641",
+          "tx_index": "10895823"
+        },
+        "msg": {
+          "asset_infos": [
+            {
+              "token": {
+                "contract_addr": "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena"
+              }
+            },
+            {
+              "token": {
+                "contract_addr": "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs"
+              }
+            }
+          ],
+          "fee_bps": 180,
+          "treasury": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+          "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+          "lp_token_code_id": 6036,
+          "token_symbols": ["CORAL", "PEARL"],
+          "governance": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+          "max_batch_rungs": 20
+        }
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11577",
+        "updated": {
+          "block_height": "29959813",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11580",
+        "updated": {
+          "block_height": "29965130",
+          "tx_index": "360970"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11582",
+        "updated": {
+          "block_height": "29974152",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11586",
+        "updated": {
+          "block_height": "29986398",
+          "tx_index": "123579"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11601",
+        "updated": {
+          "block_height": "30039731",
+          "tx_index": "10006709"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11639",
+        "updated": {
+          "block_height": "30205233",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11664",
+        "updated": {
+          "block_height": "30364489",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11672",
+        "updated": {
+          "block_height": "30495641",
+          "tx_index": "9546057"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11676",
+        "updated": {
+          "block_height": "30526097",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11715",
+        "updated": {
+          "block_height": "30727692",
+          "tx_index": "0"
+        },
+        "msg": {}
+      }
+    ],
+    "pagination": {
+      "next_key": null,
+      "total": "0"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:26 GMT",
+    "Content-Type": "application/json"
+  }
+]

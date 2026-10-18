@@ -1,0 +1,25 @@
+{
+  "collected_at_utc": "2026-10-18T07:41:53.760774+00:00",
+  "url": "https://terra-classic-lcd.publicnode.com/cosmwasm/wasm/v1/contract/terra1sc8tz0delrw32f58nhaxqj4k2gar9thnhlwpzx/smart/eyJvd25lcl9vZiI6eyJ0b2tlbl9pZCI6IjE1MDkiLCJpbmNsdWRlX2V4cGlyZWQiOmZhbHNlfX0%3D?incident_capture=20261018-30889465",
+  "request": null,
+  "request_headers": {
+    "x-cosmos-block-height": "30889465"
+  },
+  "http_status": 200,
+  "response_headers": {
+    "date": "Sun, 18 Oct 2026 07:41:54 GMT",
+    "content-type": "application/json"
+  },
+  "response": {
+    "data": {
+      "owner": "terra1gjd5r45mv334d0qm5mkqhhj64q8fafw3kg62du",
+      "approvals": []
+    }
+  },
+  "decoded_query": {
+    "owner_of": {
+      "token_id": "1509",
+      "include_expired": false
+    }
+  }
+}

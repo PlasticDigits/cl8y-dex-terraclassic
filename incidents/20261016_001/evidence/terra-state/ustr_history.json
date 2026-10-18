@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10184",
+      "updated": {
+        "block_height": "26687150",
+        "tx_index": "435670"
+      },
+      "msg": {
+        "name": "USTC Repeg",
+        "symbol": "USTR",
+        "decimals": 18,
+        "initial_balances": [
+          {
+            "address": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+            "amount": "28557430733302000000000000"
+          }
+        ],
+        "mint": {
+          "minter": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l"
+        }
+      }
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

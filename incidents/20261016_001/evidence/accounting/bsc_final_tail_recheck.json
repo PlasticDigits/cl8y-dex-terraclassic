@@ -1,0 +1,79 @@
+{
+  "start_exclusive": "0x79d7244",
+  "end": "0x79d785d",
+  "chunks": 2,
+  "logs": [],
+  "state": [
+    {
+      "label": "HACKER_A",
+      "method": "eth_getBalance",
+      "result": "0x36a4191e1c4e0605"
+    },
+    {
+      "label": "HACKER_A",
+      "method": "eth_getTransactionCount",
+      "result": "0x38"
+    },
+    {
+      "label": "HACKER_A",
+      "method": "eth_getCode",
+      "result": "0x"
+    },
+    {
+      "label": "HACKER_A",
+      "token": "CL8Y",
+      "raw_balance": 25452503948354102807429
+    },
+    {
+      "label": "HACKER_A",
+      "token": "USDT",
+      "raw_balance": 578336355470164688681
+    },
+    {
+      "label": "HACKER_A",
+      "token": "WBNB",
+      "raw_balance": 0
+    },
+    {
+      "label": "HACKER_A",
+      "token": "vFDUSD",
+      "raw_balance": 0
+    },
+    {
+      "label": "HACKER_B",
+      "method": "eth_getBalance",
+      "result": "0x0"
+    },
+    {
+      "label": "HACKER_B",
+      "method": "eth_getTransactionCount",
+      "result": "0x0"
+    },
+    {
+      "label": "HACKER_B",
+      "method": "eth_getCode",
+      "result": "0x"
+    },
+    {
+      "label": "HACKER_B",
+      "token": "CL8Y",
+      "raw_balance": 0
+    },
+    {
+      "label": "HACKER_B",
+      "token": "USDT",
+      "raw_balance": 0
+    },
+    {
+      "label": "HACKER_B",
+      "token": "WBNB",
+      "raw_balance": 0
+    },
+    {
+      "label": "HACKER_B",
+      "token": "vFDUSD",
+      "raw_balance": 0
+    }
+  ],
+  "collected_utc": "2026-10-15T09:12:34.950992+00:00"
+}

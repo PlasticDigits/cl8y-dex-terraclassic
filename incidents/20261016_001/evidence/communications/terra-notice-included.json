@@ -1,0 +1,533 @@
+{
+  "tx": {
+    "auth_info": {
+      "fee": {
+        "amount": [
+          {
+            "amount": "11330000",
+            "denom": "uluna"
+          }
+        ],
+        "gas_limit": "400000",
+        "granter": "",
+        "payer": ""
+      },
+      "signer_infos": [
+        {
+          "mode_info": {
+            "single": {
+              "mode": "SIGN_MODE_DIRECT"
+            }
+          },
+          "public_key": {
+            "@type": "/cosmos.crypto.secp256k1.PubKey",
+            "key": "AiTnHQ19SF+H1Lp8fqzNerQuJF1NteqjXQ0cVYW13P3g"
+          },
+          "sequence": "706"
+        }
+      ],
+      "tip": null
+    },
+    "body": {
+      "extension_options": [],
+      "memo": "CL8Y Asset Recovery: Regarding assets associated with the 15 October 2026 incident, please contact t.me/ceramicfingers or contact@cl8y.com to coordinate their secure return. Please preserve remaining assets pending recovery.",
+      "messages": [
+        {
+          "@type": "/cosmos.bank.v1beta1.MsgSend",
+          "amount": [
+            {
+              "amount": "1",
+              "denom": "uluna"
+            }
+          ],
+          "from_address": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+          "to_address": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+        }
+      ],
+      "non_critical_extension_options": [],
+      "timeout_height": "0",
+      "timeout_timestamp": null,
+      "unordered": false
+    },
+    "signatures": [
+      "JDDThFPvGkpp6WlC985UJQKfVoE827269Iy9HDym+s5CVgd+GcylRTXz8L+qNg42aUOS9pfDxz2JNUpEn1zK8w=="
+    ]
+  },
+  "tx_response": {
+    "code": 0,
+    "codespace": "",
+    "data": "12260A242F636F736D6F732E62616E6B2E763162657461312E4D736753656E64526573706F6E7365",
+    "events": [
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "spender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "11330000uluna"
+          }
+        ],
+        "type": "coin_spent"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "receiver",
+            "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "11330000uluna"
+          }
+        ],
+        "type": "coin_received"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "recipient",
+            "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+          },
+          {
+            "index": true,
+            "key": "sender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "11330000uluna"
+          }
+        ],
+        "type": "transfer"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "sender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          }
+        ],
+        "type": "message"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "fee",
+            "value": "11330000uluna"
+          },
+          {
+            "index": true,
+            "key": "fee_payer",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          }
+        ],
+        "type": "tx"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "acc_seq",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv/706"
+          }
+        ],
+        "type": "tx"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "signature",
+            "value": "JDDThFPvGkpp6WlC985UJQKfVoE827269Iy9HDym+s5CVgd+GcylRTXz8L+qNg42aUOS9pfDxz2JNUpEn1zK8w=="
+          }
+        ],
+        "type": "tx"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "action",
+            "value": "/cosmos.bank.v1beta1.MsgSend"
+          },
+          {
+            "index": true,
+            "key": "sender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "module",
+            "value": "bank"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "message"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "reverse_charge",
+            "value": "false"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "tax_payment"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "spender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "1uluna"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "coin_spent"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "receiver",
+            "value": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "1uluna"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "coin_received"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "recipient",
+            "value": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+          },
+          {
+            "index": true,
+            "key": "sender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "amount",
+            "value": "1uluna"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "transfer"
+      },
+      {
+        "attributes": [
+          {
+            "index": true,
+            "key": "sender",
+            "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+          },
+          {
+            "index": true,
+            "key": "msg_index",
+            "value": "0"
+          }
+        ],
+        "type": "message"
+      }
+    ],
+    "gas_used": "83923",
+    "gas_wanted": "400000",
+    "height": "30847615",
+    "info": "",
+    "logs": [
+      {
+        "events": [
+          {
+            "attributes": [
+              {
+                "key": "spender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "amount",
+                "value": "11330000uluna"
+              }
+            ],
+            "type": "coin_spent"
+          },
+          {
+            "attributes": [
+              {
+                "key": "receiver",
+                "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+              },
+              {
+                "key": "amount",
+                "value": "11330000uluna"
+              }
+            ],
+            "type": "coin_received"
+          },
+          {
+            "attributes": [
+              {
+                "key": "recipient",
+                "value": "terra17xpfvakm2amg962yls6f84z3kell8c5lkaeqfa"
+              },
+              {
+                "key": "sender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "amount",
+                "value": "11330000uluna"
+              }
+            ],
+            "type": "transfer"
+          },
+          {
+            "attributes": [
+              {
+                "key": "sender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              }
+            ],
+            "type": "message"
+          },
+          {
+            "attributes": [
+              {
+                "key": "fee",
+                "value": "11330000uluna"
+              },
+              {
+                "key": "fee_payer",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              }
+            ],
+            "type": "tx"
+          },
+          {
+            "attributes": [
+              {
+                "key": "acc_seq",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv/706"
+              }
+            ],
+            "type": "tx"
+          },
+          {
+            "attributes": [
+              {
+                "key": "signature",
+                "value": "JDDThFPvGkpp6WlC985UJQKfVoE827269Iy9HDym+s5CVgd+GcylRTXz8L+qNg42aUOS9pfDxz2JNUpEn1zK8w=="
+              }
+            ],
+            "type": "tx"
+          },
+          {
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmos.bank.v1beta1.MsgSend"
+              },
+              {
+                "key": "sender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "module",
+                "value": "bank"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "message"
+          },
+          {
+            "attributes": [
+              {
+                "key": "reverse_charge",
+                "value": "false"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "tax_payment"
+          },
+          {
+            "attributes": [
+              {
+                "key": "spender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "amount",
+                "value": "1uluna"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "coin_spent"
+          },
+          {
+            "attributes": [
+              {
+                "key": "receiver",
+                "value": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+              },
+              {
+                "key": "amount",
+                "value": "1uluna"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "coin_received"
+          },
+          {
+            "attributes": [
+              {
+                "key": "recipient",
+                "value": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+              },
+              {
+                "key": "sender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "amount",
+                "value": "1uluna"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "transfer"
+          },
+          {
+            "attributes": [
+              {
+                "key": "sender",
+                "value": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv"
+              },
+              {
+                "key": "msg_index",
+                "value": "0"
+              }
+            ],
+            "type": "message"
+          }
+        ],
+        "log": "",
+        "msg_index": 0
+      }
+    ],
+    "raw_log": "",
+    "timestamp": "2026-10-15T10:42:06Z",
+    "tx": {
+      "@type": "/cosmos.tx.v1beta1.Tx",
+      "auth_info": {
+        "fee": {
+          "amount": [
+            {
+              "amount": "11330000",
+              "denom": "uluna"
+            }
+          ],
+          "gas_limit": "400000",
+          "granter": "",
+          "payer": ""
+        },
+        "signer_infos": [
+          {
+            "mode_info": {
+              "single": {
+                "mode": "SIGN_MODE_DIRECT"
+              }
+            },
+            "public_key": {
+              "@type": "/cosmos.crypto.secp256k1.PubKey",
+              "key": "AiTnHQ19SF+H1Lp8fqzNerQuJF1NteqjXQ0cVYW13P3g"
+            },
+            "sequence": "706"
+          }
+        ],
+        "tip": null
+      },
+      "body": {
+        "extension_options": [],
+        "memo": "CL8Y Asset Recovery: Regarding assets associated with the 15 October 2026 incident, please contact t.me/ceramicfingers or contact@cl8y.com to coordinate their secure return. Please preserve remaining assets pending recovery.",
+        "messages": [
+          {
+            "@type": "/cosmos.bank.v1beta1.MsgSend",
+            "amount": [
+              {
+                "amount": "1",
+                "denom": "uluna"
+              }
+            ],
+            "from_address": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+            "to_address": "terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n"
+          }
+        ],
+        "non_critical_extension_options": [],
+        "timeout_height": "0",
+        "timeout_timestamp": null,
+        "unordered": false
+      },
+      "signatures": [
+        "JDDThFPvGkpp6WlC985UJQKfVoE827269Iy9HDym+s5CVgd+GcylRTXz8L+qNg42aUOS9pfDxz2JNUpEn1zK8w=="
+      ]
+    },
+    "txhash": "1092C2E48B2A1B4A5B8FECE1B42F686B26456227C1A4B4045DADC7142A670183"
+  }
+}

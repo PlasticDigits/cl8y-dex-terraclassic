@@ -1,0 +1,82 @@
+{
+  "collected_at_utc": "2026-10-18T07:42:47.830527+00:00",
+  "url": "https://lcd.terra-classic.hexxagon.io/cosmos/tx/v1beta1/txs/8BAF1EBFEADE35117F21DD53610718A3BD8FB8B4B3D88E558D3F1BAE543C21C6",
+  "request": null,
+  "request_headers": {},
+  "http_status": 200,
+  "response_headers": {
+    "date": "Sun, 18 Oct 2026 07:42:48 GMT",
+    "content-type": "application/json",
+    "grpc-metadata-x-cosmos-block-height": "30889474",
+    "x-cosmos-block-height": "30889474"
+  },
+  "response": {
+    "tx": {
+      "body": {
+        "messages": [
+          {
+            "@type": "/cosmwasm.wasm.v1.MsgExecuteContract",
+            "contract": "terra1sc8tz0delrw32f58nhaxqj4k2gar9thnhlwpzx",
+            "funds": [],
+            "msg": {
+              "transfer_nft": {
+                "recipient": "terra1gjd5r45mv334d0qm5mkqhhj64q8fafw3kg62du",
+                "token_id": "1509"
+              }
+            },
+            "sender": "terra10jr9whfvrs3kg96409r8vge3mjwqdaejl7jv9d"
+          }
+        ],
+        "memo": ""
+      }
+    },
+    "tx_response": {
+      "height": "30870523",
+      "txhash": "8BAF1EBFEADE35117F21DD53610718A3BD8FB8B4B3D88E558D3F1BAE543C21C6",
+      "codespace": "",
+      "code": 0,
+      "gas_wanted": "3112473",
+      "gas_used": "1060361",
+      "timestamp": "2026-10-17T00:27:56Z",
+      "events": [
+        {
+          "attributes": [
+            {
+              "index": true,
+              "key": "_contract_address",
+              "value": "terra1sc8tz0delrw32f58nhaxqj4k2gar9thnhlwpzx"
+            },
+            {
+              "index": true,
+              "key": "action",
+              "value": "transfer_nft"
+            },
+            {
+              "index": true,
+              "key": "sender",
+              "value": "terra10jr9whfvrs3kg96409r8vge3mjwqdaejl7jv9d"
+            },
+            {
+              "index": true,
+              "key": "recipient",
+              "value": "terra1gjd5r45mv334d0qm5mkqhhj64q8fafw3kg62du"
+            },
+            {
+              "index": true,
+              "key": "token_id",
+              "value": "1509"
+            },
+            {
+              "index": true,
+              "key": "msg_index",
+              "value": "0"
+            }
+          ],
+          "type": "wasm"
+        }
+      ]
+    }
+  },
+  "source_response_canonical_json_sha256": "895fe4f40c576545f3fdbd3e4ea0e5f3d523a2ca4df2a376648eba4c47ab7e1f",
+  "transformation": "Selected message, empty memo, included result, gas, timestamp and transfer_nft event extracted; signatures, public keys, duplicate logs and unrelated events omitted. Source digest hashes canonical JSON (sorted keys, compact separators), not HTTP bytes."
+}

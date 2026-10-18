@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "11507",
+      "updated": {
+        "block_height": "29458431",
+        "tx_index": "10896423"
+      },
+      "msg": {
+        "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea"
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11576",
+      "updated": {
+        "block_height": "29958992",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11640",
+      "updated": {
+        "block_height": "30205251",
+        "tx_index": "9960454"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11712",
+      "updated": {
+        "block_height": "30726875",
+        "tx_index": "1726627"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

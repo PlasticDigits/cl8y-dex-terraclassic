@@ -1,0 +1,13 @@
+{
+  "collected_at_utc": "2026-10-16T02:42:07.996238+00:00",
+  "address": "0xcb49c4125db32522ba508362fdfba693e63dfc4b",
+  "pre_deposit_nonce": 0,
+  "pre_deposit_balance_wei": "0",
+  "followup_nonce": 7,
+  "followup_balance_wei": "1000000000",
+  "followup_block": {
+    "number": "0x18fd03a",
+    "hash": "0xcbc0a7f5b9a95d028feac6aee750f4fa7422a638a807f1a9279138a9b3ee480c",
+    "timestamp": "0x6ad18ef7"
+  }
+}
