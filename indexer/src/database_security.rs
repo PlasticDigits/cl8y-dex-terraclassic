@@ -3,6 +3,8 @@ use sqlx::PgPool;
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 pub const QA_DATABASE_MARKER: &str = "cl8y-dex:isolated-qa:v1";
+pub const PRE_COHORT_SCHEMA_VERSION: i64 = 20261016120000;
+pub const COHORT_SCHEMA_VERSION: i64 = 20261018110000;
 
 fn required_schema_version() -> i64 {
     MIGRATOR
@@ -64,6 +66,31 @@ pub async fn verify_schema_ready(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn serving_schema_supported(version: i64) -> bool {
+    let required = required_schema_version();
+    version == required
+        || (required == COHORT_SCHEMA_VERSION && version == PRE_COHORT_SCHEMA_VERSION)
+}
+
+/// Serving alone supports the reviewed additive 67 -> 68 transition. A future
+/// compiled migration restores strict startup until its compatibility is reviewed.
+/// Call within the owner's snapshot; the result never grants migration authority.
+pub async fn cohorts_ready<'e>(
+    executor: impl sqlx::Executor<'e, Database = sqlx::Postgres>,
+) -> Result<bool, sqlx::Error> {
+    let version: i64 = sqlx::query_scalar(
+        "SELECT version FROM public.indexer_schema_version WHERE singleton = true",
+    )
+    .fetch_one(executor)
+    .await?;
+    if !serving_schema_supported(version) {
+        return Err(sqlx::Error::Protocol(
+            "unsupported serving schema version".into(),
+        ));
+    }
+    Ok(version >= COHORT_SCHEMA_VERSION)
+}
+
 async fn verify_unprivileged_role(pool: &PgPool) -> anyhow::Result<()> {
     let safe: bool = sqlx::query_scalar(
         "SELECT current_user = session_user AND NOT (r.rolsuper OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR r.rolbypassrls)
@@ -75,7 +102,7 @@ async fn verify_unprivileged_role(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn verify_runtime(pool: &PgPool) -> anyhow::Result<()> {
+async fn verify_runtime_permissions(pool: &PgPool) -> anyhow::Result<()> {
     verify_unprivileged_role(pool).await?;
     let database_create: bool = sqlx::query_scalar(
         "SELECT has_database_privilege(current_user, current_database(), 'CREATE')",
@@ -113,7 +140,20 @@ pub async fn verify_runtime(pool: &PgPool) -> anyhow::Result<()> {
         !ledger_access,
         "runtime database role can access migration history; run migrate grant reconciliation"
     );
+    Ok(())
+}
+
+/// Strict entry point for QA, maintenance and callers outside server startup.
+pub async fn verify_runtime(pool: &PgPool) -> anyhow::Result<()> {
+    verify_runtime_permissions(pool).await?;
     verify_schema_ready(pool).await
+}
+
+/// Identical least-privilege checks, with only the reviewed serving version pair.
+pub async fn verify_serving_runtime(pool: &PgPool) -> anyhow::Result<()> {
+    verify_runtime_permissions(pool).await?;
+    cohorts_ready(pool).await?;
+    Ok(())
 }
 
 pub async fn verify_qa(pool: &PgPool, expected_database: &str) -> anyhow::Result<()> {

@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "overall": "PASS",
+  "date_utc": "2026-10-18",
+  "scope": "Additional deployed frontend fixture pair/orientation race+reload matrix only; not full issue acceptance, current market pricing, native latency or signing. No application change.",
+  "frontend_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "identity": "Observed served asset hashes match prior independently attested frontend M receipts; per-case new asset hashes retained. Backend was not changed or separately reprobed by this fixture.",
+  "browser_budget_ms": 52000,
+  "outer_timeout_seconds": 59,
+  "request_cap_per_process": 240,
+  "requests_include": "Two full page script/asset loads; Playwright routing disables HTTP cache. Six fixture trade reads per corrected case.",
+  "cases": [
+    {
+      "entry": "trade",
+      "viewport": "desktop",
+      "verdict": "PASS",
+      "elapsed_ms": 15599,
+      "total_requests": 192,
+      "trade_reads": 6,
+      "delayed_http200_completions": 2,
+      "all_eight_checks": true,
+      "shared_prior_attested_asset_hashes": 45,
+      "receipt": "deployed-race-trade-desktop.json"
+    },
+    {
+      "entry": "trade",
+      "viewport": "phone",
+      "verdict": "PASS",
+      "elapsed_ms": 23093,
+      "total_requests": 197,
+      "trade_reads": 6,
+      "delayed_http200_completions": 2,
+      "all_eight_checks": true,
+      "shared_prior_attested_asset_hashes": 45,
+      "receipt": "deployed-race-trade-phone.json"
+    },
+    {
+      "entry": "charts",
+      "viewport": "desktop",
+      "verdict": "PASS",
+      "elapsed_ms": 9157,
+      "total_requests": 173,
+      "trade_reads": 6,
+      "delayed_http200_completions": 2,
+      "all_eight_checks": true,
+      "shared_prior_attested_asset_hashes": 30,
+      "receipt": "deployed-race-charts-desktop.json"
+    },
+    {
+      "entry": "charts",
+      "viewport": "phone",
+      "verdict": "PASS",
+      "elapsed_ms": 8766,
+      "total_requests": 171,
+      "trade_reads": 6,
+      "delayed_http200_completions": 2,
+      "all_eight_checks": true,
+      "shared_prior_attested_asset_hashes": 30,
+      "receipt": "deployed-race-charts-phone.json"
+    }
+  ],
+  "first_attempt": {
+    "verdict": "FAIL",
+    "qualification": "HARNESS_REQUEST_BUDGET",
+    "receipt": "deployed-race-first-harness-budget-fail.json",
+    "explanation": "150 total request cap blocked reload scripts after the four race checks passed. Original raw receipt and original script with matching tool digest retained. Corrected scope combines cleanURL and reload into one navigation, bound240 for two asset loads; no app code change."
+  },
+  "inputs": [
+    {
+      "path": "scripts/qa/browser-price-races-1512.cjs",
+      "sha256": "80c071caf1bcb4d33f6a925e909d8fb29cb4ce77e911d86fc128175b6eaec9fd"
+    },
+    {
+      "path": "scripts/qa/browser-price-campaign-1512.cjs",
+      "sha256": "3df8377289bc75f37a0aeb6dfadbd8ae035a42c432e066e186bdad8ff665dc04"
+    },
+    {
+      "path": "scripts/qa/test-browser-price-races-1512.cjs",
+      "sha256": "9aa63868ff7b2908aa3002836abdf7395450b9e1ee4658fad511b2dcc439d5e8"
+    }
+  ],
+  "receipts": [
+    {
+      "path": "deployed-race-trade-desktop.json",
+      "sha256": "ad4952726e0eb8643ab453b0afe427d2a6648ad2c5a072788771392797a30ffb"
+    },
+    {
+      "path": "deployed-race-trade-desktop-without-browser-receipt.json",
+      "sha256": "52d7ed0c1052111f54e52ede637ea50d2d9c399375686097ab778bffebcc9996"
+    },
+    {
+      "path": "deployed-race-trade-phone.json",
+      "sha256": "ca9fe7cba225584c73c9646aa2727f671c99ad2a719b27eebbf1976131b60b45"
+    },
+    {
+      "path": "deployed-race-trade-phone-without-browser-receipt.json",
+      "sha256": "058e4dbe23da5e3599192812ea590705c3ef54268e51bde343018ea7f44457b9"
+    },
+    {
+      "path": "deployed-race-charts-desktop.json",
+      "sha256": "be727732b9e47e69e2a4f11d4b64ffca4cb9221d2391fe6aa2aea48226ccb0bd"
+    },
+    {
+      "path": "deployed-race-charts-desktop-without-browser-receipt.json",
+      "sha256": "0f3a164ba7b94a1b5291a4bbae2a086bdcf535677bf9f883ff9c281733ded3ee"
+    },
+    {
+      "path": "deployed-race-charts-phone.json",
+      "sha256": "34ebfc8e1c123d06352a79744e31a48e5cd8113ef1eec9d2238eb0402979935a"
+    },
+    {
+      "path": "deployed-race-charts-phone-without-browser-receipt.json",
+      "sha256": "544f64c9e02f2cc26d7daf6f2ffc8a57c3e8a9d9b792d8eb31cc24a44eda5978"
+    },
+    {
+      "path": "deployed-race-first-harness-budget-fail.json",
+      "sha256": "e94012bd22f4ffc037840ee0a9d963f885b90d3f17135375a21c8166bb2740eb"
+    }
+  ],
+  "remaining_acceptance": [
+    "Comprehensive API amount/USD/candle timestamp matrix",
+    "Broader empty-tape/oracle/rejection/expiry/attack, mixed identity and extreme rounding/dust cases",
+    "Funded market/limit place/update/crossing and LP valuation in both orientations",
+    "No full issue closure from these focused browser fixtures"
+  ],
+  "prior_transport_attempts": [
+    {
+      "receipt": "deployed-race-trade-desktop-without-browser-receipt.json",
+      "raw_verdict": "PASS",
+      "qualification": "INCONCLUSIVE_TRANSPORT_WITNESS",
+      "reason": "Interception fulfill ACK did not prove browser response/body completion; no original raw data changed."
+    },
+    {
+      "receipt": "deployed-race-trade-phone-without-browser-receipt.json",
+      "raw_verdict": "PASS",
+      "qualification": "INCONCLUSIVE_TRANSPORT_WITNESS",
+      "reason": "Interception fulfill ACK did not prove browser response/body completion; no original raw data changed."
+    },
+    {
+      "receipt": "deployed-race-charts-desktop-without-browser-receipt.json",
+      "raw_verdict": "PASS",
+      "qualification": "INCONCLUSIVE_TRANSPORT_WITNESS",
+      "reason": "Interception fulfill ACK did not prove browser response/body completion; no original raw data changed."
+    },
+    {
+      "receipt": "deployed-race-charts-phone-without-browser-receipt.json",
+      "raw_verdict": "PASS",
+      "qualification": "INCONCLUSIVE_TRANSPORT_WITNESS",
+      "reason": "Interception fulfill ACK did not prove browser response/body completion; no original raw data changed."
+    }
+  ],
+  "transport_proof": "Exact held Playwright Request.response() status200, response.finished()==null, no requestfailed event and null Request.failure(); interception ACK alone is insufficient."
+}

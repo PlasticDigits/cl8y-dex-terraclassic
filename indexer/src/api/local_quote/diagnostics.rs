@@ -2,7 +2,12 @@
 //! local state. Labels and logs never include addresses, actors or endpoints.
 use super::pair_admission::AdmissionFailure;
 use super::*;
-use crate::api::prerequisite_trace::{record as stale_clock, Component};
+use crate::api::prerequisite_trace::{record as stale_clock, record_missing, Component};
+
+pub(super) fn missing(stage: MissingStage) -> Rejection {
+    record_missing(stage);
+    Rejection::Missing
+}
 
 #[derive(Clone, Default)]
 pub(super) struct Inventory {
@@ -122,6 +127,7 @@ fn prerequisites(
                     )
             });
         let Some(mirror) = pool.or_else(|| s.mirrors.get(pair)) else {
+            record_missing(MissingStage::MirrorAdmission);
             return Some(Reason::Missing);
         };
         if !crate::indexer::fee_phase::permits_view(
@@ -131,6 +137,7 @@ fn prerequisites(
             mirror.snapshot_at,
             pool.is_some(),
         ) {
+            record_missing(MissingStage::MirrorAdmission);
             return Some(Reason::Missing);
         }
         if sim::is_snapshot_stale(mirror.snapshot_at, observation_max_age(s))
@@ -154,10 +161,12 @@ fn prerequisites(
             return Some(Reason::Stale);
         }
         if mirror.freshness == sim::MirrorFreshness::MissingReserves {
+            record_missing(MissingStage::MirrorAdmission);
             return Some(Reason::Missing);
         }
         for id in [offer, ask] {
             let Some(token) = s.addresses.get(id) else {
+                record_missing(MissingStage::AssetIdentity);
                 return Some(Reason::Missing);
             };
             if let Some(tax) = s.taxes.get(token) {
@@ -183,6 +192,7 @@ fn prerequisites(
     if let (Some(first), Some(last)) = (path.first(), path.last()) {
         for id in [first.1, last.2] {
             let Some(price) = s.references.prices.get(&id) else {
+                record_missing(MissingStage::ReferencePrice);
                 return Some(Reason::Missing);
             };
             if price.decimals > 38 || price.price <= bigdecimal::BigDecimal::from(0) {
@@ -244,6 +254,7 @@ fn classify_with_plan(
     }
     let Some(inventory) = inventory else {
         return if s.pairs.is_empty() {
+            record_missing(MissingStage::PairAdmission);
             Reason::Missing
         } else {
             Reason::Protection
@@ -277,6 +288,7 @@ fn classify_with_plan(
             })
             .collect::<Vec<_>>();
         if failures.iter().any(|r| *r == AdmissionFailure::Missing) {
+            record_missing(MissingStage::PairAdmission);
             return Reason::Missing;
         }
         unsupported |= failures.iter().any(|r| *r == AdmissionFailure::Unsupported);
@@ -440,11 +452,11 @@ pub(super) fn tax_rejection(
         return Rejection::Stale;
     }
     if !tax.pairs.contains(pair) {
-        return Rejection::Missing;
+        return missing(MissingStage::TaxPair);
     }
     if let Some(actor) = actor {
         let Some(observed) = tax.actors.get(actor) else {
-            return Rejection::Missing;
+            return missing(MissingStage::TaxActor);
         };
         if observed.observed_at_ms > at
             || at.saturating_sub(observed.observed_at_ms) >= CONFIG_TTL_MS
@@ -457,10 +469,10 @@ pub(super) fn tax_rejection(
             return Rejection::Stale;
         }
         if tax.max_wallet.is_some() && observed.balance.is_none() {
-            return Rejection::Missing;
+            return missing(MissingStage::TaxBalance);
         }
     } else if tax.max_wallet.is_some() {
-        return Rejection::Missing;
+        return missing(MissingStage::TaxActor);
     }
     Rejection::TradingBlocked
 }
@@ -473,9 +485,9 @@ pub(super) fn simulation_rejection(error: sim::DbSimError) -> Rejection {
             stale_clock(Component::SimulationMirror, None, None);
             Rejection::Stale
         }
-        sim::DbSimError::MissingMirror
-        | sim::DbSimError::IncompleteFeeGeneration { .. }
-        | sim::DbSimError::FeeGenerationRejected => Rejection::Missing,
+        sim::DbSimError::MissingMirror => missing(MissingStage::SimulationMirror),
+        sim::DbSimError::IncompleteFeeGeneration { .. }
+        | sim::DbSimError::FeeGenerationRejected => missing(MissingStage::SimulationFee),
         _ => Rejection::Accounting,
     }
 }
@@ -509,7 +521,7 @@ pub(super) fn mirror_rejection(s: &Snapshot, pair: &str, needs_book: bool) -> Re
     if stale {
         Rejection::Stale
     } else {
-        Rejection::Missing
+        missing(MissingStage::MirrorAdmission)
     }
 }
 pub(super) fn reference_rejection(
@@ -535,7 +547,7 @@ pub(super) fn reference_rejection(
                     );
                     Rejection::Stale
                 }
-                _ => Rejection::Missing,
+                _ => missing(MissingStage::ReferencePrice),
             };
         }
     }

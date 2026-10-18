@@ -19,6 +19,8 @@ const TOKEN_CAP: i64 = 8;
 
 #[derive(Debug, Clone, Default)]
 pub struct ProtocolFeeRollup {
+    pub updated_at: Option<DateTime<Utc>>,
+    pub cohort_publication_at: Option<DateTime<Utc>>,
     pub total_fees_24h_usd: Option<BigDecimal>,
     pub total_fees_7d_usd: Option<BigDecimal>,
     pub total_fees_30d_usd: Option<BigDecimal>,
@@ -36,6 +38,7 @@ pub struct ProtocolFeeRollup {
 
 #[derive(Debug, Clone, FromRow)]
 pub struct FeeSourceStatRow {
+    pub updated_at: DateTime<Utc>,
     pub window: String,
     pub source: String,
     pub amount_usd: Option<BigDecimal>,
@@ -45,6 +48,7 @@ pub struct FeeSourceStatRow {
 
 #[derive(Debug, Clone, FromRow)]
 pub struct FeeTokenStatRow {
+    pub updated_at: DateTime<Utc>,
     pub window: String,
     pub asset_id: Option<i32>,
     pub amount_human: Option<BigDecimal>,
@@ -296,6 +300,9 @@ pub async fn refresh_protocol_fees_with_sources(
         .execute(&mut *publication)
         .await?;
     let connection = &mut *publication;
+    // The marker and ledger use one RR snapshot. A transaction that began on67
+    // keeps its old publication path even when migration commits before it does.
+    let cohorts_ready = crate::database_security::cohorts_ready(&mut *connection).await?;
     let now = Utc::now();
     let c24 = now - chrono::Duration::hours(24);
     let c48 = now - chrono::Duration::hours(48);
@@ -384,7 +391,8 @@ pub async fn refresh_protocol_fees_with_sources(
                wrap_mapper_configured = $10,
                ust1_window_configured = $11,
                factory_configured = $12,
-               community_invoices_configured = $13
+               community_invoices_configured = $13,
+               updated_at = now()
            WHERE id = 1"#,
     )
     .bind(usd24.as_ref())
@@ -436,9 +444,13 @@ pub async fn refresh_protocol_fees_with_sources(
     refresh_token_breakdown(&mut *connection, "24h", c24).await?;
     refresh_token_breakdown(&mut *connection, "7d", c7).await?;
     refresh_token_breakdown(&mut *connection, "30d", c30).await?;
-    super::fee_cohorts::refresh(&mut *connection, "24h", c24).await?;
-    super::fee_cohorts::refresh(&mut *connection, "7d", c7).await?;
-    super::fee_cohorts::refresh(&mut *connection, "30d", c30).await?;
+    if cohorts_ready {
+        super::fee_cohorts::refresh(&mut *connection, "24h", c24).await?;
+        super::fee_cohorts::refresh(&mut *connection, "7d", c7).await?;
+        super::fee_cohorts::refresh(&mut *connection, "30d", c30).await?;
+        sqlx::query("INSERT INTO indexer_state(key,value,updated_at) VALUES('protocol_fee_cohort_publication','20261018110000',now()) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=EXCLUDED.updated_at")
+            .execute(&mut *connection).await?;
+    }
     publication.commit().await?;
 
     Ok(())
@@ -638,6 +650,8 @@ pub async fn get_fee_rollup<'e>(
 ) -> Result<ProtocolFeeRollup, sqlx::Error> {
     #[derive(FromRow)]
     struct Row {
+        updated_at: Option<DateTime<Utc>>,
+        cohort_publication_at: Option<DateTime<Utc>>,
         total_fees_24h_usd: Option<BigDecimal>,
         total_fees_7d_usd: Option<BigDecimal>,
         total_fees_30d_usd: Option<BigDecimal>,
@@ -654,7 +668,9 @@ pub async fn get_fee_rollup<'e>(
     }
 
     let row = sqlx::query_as::<_, Row>(
-        r#"SELECT total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
+        r#"SELECT updated_at,
+                  (SELECT updated_at FROM indexer_state WHERE key='protocol_fee_cohort_publication' AND value='20261018110000') AS cohort_publication_at,
+                  total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
                   fees_change_24h_pct, fees_change_7d_pct, fees_change_30d_pct,
                   fee_event_count_24h, fee_event_count_7d, fee_event_count_30d,
                   wrap_mapper_configured, ust1_window_configured, factory_configured, community_invoices_configured
@@ -665,6 +681,8 @@ pub async fn get_fee_rollup<'e>(
 
     Ok(match row {
         Some(r) => ProtocolFeeRollup {
+            updated_at: r.updated_at,
+            cohort_publication_at: r.cohort_publication_at,
             total_fees_24h_usd: r.total_fees_24h_usd,
             total_fees_7d_usd: r.total_fees_7d_usd,
             total_fees_30d_usd: r.total_fees_30d_usd,
@@ -697,7 +715,7 @@ pub async fn get_fees_by_source<'e>(
     window: &str,
 ) -> Result<Vec<FeeSourceStatRow>, sqlx::Error> {
     sqlx::query_as::<_, FeeSourceStatRow>(
-        r#"SELECT "window", source, amount_usd, event_count, share_pct
+        r#"SELECT "window", source, amount_usd, event_count, share_pct, updated_at
            FROM protocol_fee_stats_by_source
            WHERE "window" = $1
            ORDER BY source"#,
@@ -712,7 +730,7 @@ pub async fn get_fees_by_token<'e>(
     window: &str,
 ) -> Result<Vec<FeeTokenStatRow>, sqlx::Error> {
     sqlx::query_as::<_, FeeTokenStatRow>(
-        r#"SELECT t."window", t.asset_id, t.amount_human, t.amount_usd, t.share_pct,
+        r#"SELECT t."window", t.asset_id, t.amount_human, t.amount_usd, t.share_pct, t.updated_at,
                   t.rank, t.is_other,
                   a.symbol, a.contract_address, a.denom
            FROM protocol_fee_stats_by_token t

@@ -35,7 +35,7 @@ timeout 55s bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin
 - [x] Repeated campaign values survive; stale case-varied Swap aliases are removed.
 - [x] Quote/retry never executes a swap.
 - [ ] Live columbus-5 quote demonstrates CL8Y middle-hop winner over direct alternative.
-- [ ] Live deployment failure/retry and campaign checks.
+- [x] Deployed frontend campaign failure/retry on desktop and phone with actual anonymous prior-backend quote recovery; exact mixed revisions recorded below.
 - [x] [Third-party DEX architecture/security plan](../../architecture/third-party-route-adapters.md), including tier-independent flat 2.9% fee semantics.
 - [ ] Third-party adapters, atomic 2.9% treasury settlement and deployed acceptance requested in comments.
 
@@ -66,3 +66,32 @@ missing useful backend quote remains failed/incomplete acceptance rather than a
 synthetic success. Served-script hashes bind each receipt to observed frontend
 assets; source/deployment identity is attested separately. This does not prove
 middle-hop ranking or third-party adapters.
+
+## Mixed-deployment live campaign result (2026-10-18)
+
+| Viewport | Result | Process time |
+| --- | --- | --- |
+| [Desktop](deployed-campaign-desktop.json) | PASS | 11.521s |
+| [Phone](deployed-campaign-phone.json) | PASS | 11.932s |
+
+Both cases observed exactly two solver requests: one controlled HTTP **503**,
+then an actual backend **200** after one Retry click. A new solver request and
+positive receive amount are required before recovery passes. Repeated campaign
+values survived both states, and campaign keys did not enter the solver request.
+All cases recorded zero writes and actor-shaped requests. No wallet, signing,
+trade-tape export or screenshot was used. Each actual test process stayed under
+its 59-second outer ceiling; browser processes ran sequentially.
+
+The [initial desktop failure](deployed-campaign-desktop-first-selector-fail.json)
+is retained unchanged. It looked only for `swap-quote-retry-error`; a generic
+503 can instead render the existing Swap market-data-outage banner with its
+`simRetry.retry` action. This was a harness selector mismatch, not an application
+change. The corrected helper accepts only those two named Swap containers and
+binds the Retry assertion to an observed forced solver failure, another solver
+request after the click, and positive amount recovery.
+
+The [identity manifest](../issue-1512/deployed-mixed-acceptance.json) records
+frontend `2df4a471a9ca98a8672d911b67d4bd8134f411fd` with prior backend
+`0a3c251755a88ee9cbbbbc222fc747811c9da08c`. It does not claim backend M
+was deployed. Middle-hop winner evidence and third-party adapters remain
+unchecked above; these campaign checks do not close that remaining scope.

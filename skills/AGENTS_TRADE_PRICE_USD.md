@@ -18,3 +18,11 @@ See [frontend contract](../docs/frontend.md#trade-page-price-chart-invariants),
 [focused checklist/results](../docs/qa/issue-1512/README.md).
 Run `make verify-issue-1512`; keep each test process under 60 seconds. Do not
 claim deployment/browser/full issue acceptance from source unit checks.
+
+For the additional deployed pair/orientation race and actual reload-persistence
+cases, use the [bounded fixture checklist and coverage audit](../docs/qa/issue-1512/deployed-races.md).
+Keep held responses actually fulfilled, own refetch clocks before navigation,
+strip carried Charts price parameters before testing session persistence, and
+retain failed attempts. These cases do not authorize signing or establish the
+complete API/attack/funded matrix. Run only missing/relevant cases under 59s each;
+the two document loads share one explicit total-request budget.

@@ -1,7 +1,7 @@
 # Fee actor and registry cohort verification (#1211)
 
 Issue: [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211).
-Contract: [FC1211-1–FC1211-10](../../../skills/AGENTS_FEE_COHORTS.md).
+Contract: [FC1211-1–FC1211-14](../../../skills/AGENTS_FEE_COHORTS.md).
 Related: [fee-ledger home](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md),
 [source provenance](../issue-1210/README.md),
 [database isolation](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md),
@@ -18,7 +18,9 @@ back to prior membership; missing wallet identity creates a conservative unknown
 Four reads and a shared two-second deadline bound additional provider work per
 block; failures remain unknown. Ledger amounts are independent of these reads.
 
-Three materialized aggregate rows per window supply `by_cohort`. All fee
+Three materialized aggregate rows per window supply `by_cohort` after a joint
+published generation. [Compatibility serving](compatibility.md) keeps the API
+active on 67 with cohorts explicitly pending and gates all new table access. All fee
 breakdowns publish atomically from a consistent repeatable-read snapshot; GET
 reads only these rollups in a single read snapshot and retains the 60-second
 cache. Existing source/token payloads remain additive.
@@ -76,13 +78,15 @@ shared or production database is reset. Use `indexer/.env.qa`, never runtime DB
 credentials. If compiling manually, retain the same `CARGO_TARGET_DIR` across
 build/run steps and run the named executables emitted by Cargo.
 
-For deployment: run the separate migrator with its private migration environment
-first; do not start a new runtime against an unprepared schema. Use the existing
-Coolify rollout for the reviewed commit. Check `/health` SHA and fees windows,
-then inspect a bounded logs.cl8y.com interval for that deployment. Compare new
-cohort totals with source totals and classify remaining unjoined receipts without
-exposing actors. This is read-only after migration/deployment; it requires no
-wallet signing.
+For deployment, follow the [compatibility-first online sequence](online-migration.md):
+first deploy and verify the exact released server supporting schema 67/68 while
+the API remains serving. Then run the separate additive online migrator with its
+private owner credential; the runtime never receives it. Require useful serving
+health before and after the concurrent snapshot, preserved history/roles/ACLs,
+and verified cleanup. After joint schema-68 publication, check the exact `/health`
+SHA, all three cohort windows and a bounded logs.cl8y.com deployment interval.
+Compare cohort totals with source totals without exposing actors. Do not repeat
+the superseded stop-serving/migrate-first procedure. No wallet signing is needed.
 
 Production schema preparation and isolated SELECT-only evidence are documented in
 [deployment.md](deployment.md). This preflight does not apply the migration or
@@ -103,3 +107,5 @@ state. Registration changes the owned registry, so another actual run requires
 an explicitly reset/new owned registry before starting; never alter a shared
 registry to make the case pass. Source/provider fixtures continue to verify
 missing or uncertified history fails closed.
+
+Current deployment: [online migration and continuity checklist](online-migration.md).

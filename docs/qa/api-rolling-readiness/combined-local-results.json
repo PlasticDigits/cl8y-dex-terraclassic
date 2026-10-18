@@ -1,0 +1,192 @@
+{
+  "schema": "combined_serving_tests_v1",
+  "overall": "PASS",
+  "source_unchanged": true,
+  "tests": [
+    {
+      "name": "schema_compatibility",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 5.451,
+      "utc": "2026-10-18T07:49:04.454170+00:00",
+      "output_sha256": "1bd66bd9a8f0d28546fca8983ff743dc9c6a0431da300841b3530bb15eae4fb8",
+      "passed_tests": 1
+    },
+    {
+      "name": "paced_proxy_handoff",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 17.877,
+      "utc": "2026-10-18T07:49:09.905773+00:00",
+      "output_sha256": "bc8dbf2c52b6b037b399e98802b3d0a24c25f56a4bd498b76db31c4b17955647",
+      "passed_tests": 1
+    },
+    {
+      "name": "readiness_latch",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 6.466,
+      "utc": "2026-10-18T07:49:27.783395+00:00",
+      "output_sha256": "5b105e98ce667f85d0ad432494dab85666e0b827e46d1066af4cea3fef371d8d",
+      "passed_tests": 1
+    },
+    {
+      "name": "readiness_contract",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.008,
+      "utc": "2026-10-18T07:49:34.249776+00:00",
+      "output_sha256": "50b93f0e09e07f2be42720f9ddea9f4ba95ca2218eea572a02925c5c2791bfd6",
+      "passed_tests": 2
+    },
+    {
+      "name": "missing_trace",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.03,
+      "utc": "2026-10-18T07:49:34.257687+00:00",
+      "output_sha256": "13345368115bbbf3950c923fbba115fc92fac01e1c708c226226bd3fe6221d90",
+      "passed_tests": 2
+    },
+    {
+      "name": "trace_eight_slot_cap",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.007,
+      "utc": "2026-10-18T07:49:34.288328+00:00",
+      "output_sha256": "84901c03292427eff36c7340f2bf5c48d03f641f471c6319dc095ef37a40be78",
+      "passed_tests": 1
+    },
+    {
+      "name": "original_stale_trace",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.011,
+      "utc": "2026-10-18T07:49:34.295189+00:00",
+      "output_sha256": "494d8d0a4888f3e3e8bd8e9d1ae59c3c68b95b6b2cc7f5f441faa9dadf292786",
+      "passed_tests": 1
+    },
+    {
+      "name": "cohort_regression",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 2.583,
+      "utc": "2026-10-18T07:49:34.306160+00:00",
+      "output_sha256": "f2d33fd0165f692cd2dee7f36610c38d0210edbd64d54c542675466ae57d0f75",
+      "passed_tests": 10
+    },
+    {
+      "name": "protocol_fee_regression",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 8.696,
+      "utc": "2026-10-18T07:49:36.889975+00:00",
+      "output_sha256": "e0b990a0921d88eea4b7650787f3833e2418a97fe09cc5104a7011af0c000f50",
+      "passed_tests": 31
+    },
+    {
+      "name": "test_cohort_preflight_1211.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.093,
+      "utc": "2026-10-18T07:49:45.585998+00:00",
+      "output_sha256": "2d407504d003cfe404f23be48347e686ae1f67393860d4067d9a0bf06b1ddd60",
+      "passed_tests": 10
+    },
+    {
+      "name": "test_cohort_migration_ops.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.239,
+      "utc": "2026-10-18T07:49:45.679236+00:00",
+      "output_sha256": "e791772218963a2d7cbb6a6d2d1f3b6d13b6319b9eff4e76ae4081483792738c",
+      "passed_tests": 19
+    },
+    {
+      "name": "test_cohort_online_worker_1211.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.082,
+      "utc": "2026-10-18T07:49:45.918738+00:00",
+      "output_sha256": "7c758af7411e05fc2e6c4fb89045f7a03d9a5957d5305092903a23a66373d034",
+      "passed_tests": 9
+    },
+    {
+      "name": "test_cohort_online_ops.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.187,
+      "utc": "2026-10-18T07:49:46.001601+00:00",
+      "output_sha256": "8a38b148f8e928b5dd51a1a1387e6158537ac262aed69d22fb26f0233e584c17",
+      "passed_tests": 11
+    },
+    {
+      "name": "test_api_rolling_eligibility.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.078,
+      "utc": "2026-10-18T07:49:46.188984+00:00",
+      "output_sha256": "ca18ffc8e8fdc6b71e49e9b4fd64e04661daa3243fb767d57a64ce80ea2d7b63",
+      "passed_tests": 9
+    },
+    {
+      "name": "test_api_rolling_release.py",
+      "overall": "PASS",
+      "return_code": 0,
+      "elapsed_seconds": 0.096,
+      "utc": "2026-10-18T07:49:46.267155+00:00",
+      "output_sha256": "23647b6b5f82f22241b887655fa005b67e271c456b33cadb6bb20cb490b0af80",
+      "passed_tests": 18
+    }
+  ],
+  "handoff": {
+    "actual_advisory_lock_transfer": true,
+    "actual_checkpoint_height": 14522,
+    "client_http_cap": 150,
+    "client_http_requests": 106,
+    "cold_candidate_rejected": true,
+    "http_failures": 0,
+    "independent_namespaces": true,
+    "max_loopback_ms": 5,
+    "measurement_profile": "paced_native_200ms_total_client_cap150_v1",
+    "native_quote_successes": 44,
+    "never_ready_candidate_left_old_leader_and_api_unchanged": true,
+    "old_inflight_drained": true,
+    "parsed_blocks_after_handoff": 1,
+    "parsed_blocks_before_handoff": 2,
+    "positive_scope": "continuous_proxied_bidirectional_native_quotes; intentional_source_loss_control_separate",
+    "proxy_requests": 44,
+    "request_lcd_calls": 0,
+    "schema": "owned_api_rolling_handoff_v1",
+    "scope": "independent_http_appstates_and_production_block_indexer; not_os_binaries_or_coolify_proxy",
+    "source_loss_dynamic503_latch200_cheap_api200": true,
+    "standby_indexer_ready_status": 503
+  },
+  "scope": "Owned local verification only; retained stress failure and full live1505 acceptance remain unresolved.",
+  "source_manifest": {
+    "schema": "indexer_compiled_inputs_v1",
+    "sha256": "30b5a1ab606bcbd7f6f5d873c1c0d62c54a586051d659b32e7f16350baeb3a37",
+    "file_count": 246,
+    "total_bytes": 3318631
+  },
+  "retained_first_combined_failure": {
+    "overall": "FAIL",
+    "scope": "disposable database setup before application assertions",
+    "original_setup_stage_unknown": true,
+    "tests": [
+      {
+        "name": "schema_compatibility",
+        "overall": "FAIL",
+        "return_code": 1,
+        "elapsed_seconds": 4.226,
+        "utc": "2026-10-18T07:46:56.718804+00:00",
+        "output_sha256": "aaa8d17bee04b3269eacd15358913466b8241d94367610e894303778b285d4e6",
+        "passed_tests": 0
+      }
+    ],
+    "correction": "Wait for final TCP PostgreSQL listener and retain fixed stage guards; a fresh owned fixture passed. No application guard changed."
+  },
+  "earlier_unresolved_stress_failure": "owned-handoff-history.json",
+  "production_deployment_verified": false,
+  "issue1505_full_acceptance": false
+}

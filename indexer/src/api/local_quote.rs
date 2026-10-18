@@ -10,6 +10,7 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
+use super::prerequisite_trace::MissingStage;
 use super::{db_orderbook_sim as sim, route_paths, route_solver, AppState};
 use crate::db::queries::{assets, pairs};
 
@@ -600,7 +601,7 @@ fn evaluate_with_plan(
         let asset = s
             .addresses
             .get(&id)
-            .ok_or(diagnostics::Rejection::Missing)?;
+            .ok_or_else(|| diagnostics::missing(MissingStage::AssetIdentity))?;
         if s.taxes.contains_key(asset) && !visited.insert(asset) {
             return Err(diagnostics::Rejection::TradingBlocked);
         }
@@ -646,11 +647,11 @@ fn evaluate_with_plan(
         let offer_token = s
             .addresses
             .get(offer_id)
-            .ok_or(diagnostics::Rejection::Missing)?;
+            .ok_or_else(|| diagnostics::missing(MissingStage::AssetIdentity))?;
         let ask_token = s
             .addresses
             .get(ask_id)
-            .ok_or(diagnostics::Rejection::Missing)?;
+            .ok_or_else(|| diagnostics::missing(MissingStage::AssetIdentity))?;
         let (rin, rout) =
             if offer_token == &mirror.asset_0_addr && ask_token == &mirror.asset_1_addr {
                 (mirror.reserve_0, mirror.reserve_1)
@@ -1262,7 +1263,7 @@ fn native_candidate_rejection(
             return Some(diagnostics::Rejection::AmountLimit);
         };
         let Some(mapping) = n.wrapper.mappings.get(denom) else {
-            return Some(diagnostics::Rejection::Missing);
+            return Some(diagnostics::missing(MissingStage::NativeMapping));
         };
         if mapping.maximum.is_some_and(|limit| {
             mapping
@@ -1280,15 +1281,17 @@ fn native_candidate_rejection(
         match n.wrapper.router_unwrap_supported {
             Some(true) => {}
             Some(false) => return Some(diagnostics::Rejection::Unsupported),
-            None => return Some(diagnostics::Rejection::Missing),
+            None => return Some(diagnostics::missing(MissingStage::NativeRouter)),
         }
-        if n.wrapper.tax_atomics.is_none()
-            || n.wrapper
-                .mappings
-                .get(&n.request.token_out)
-                .is_none_or(|m| m.tax_cap.is_none())
+        if n.wrapper.tax_atomics.is_none() {
+            return Some(diagnostics::missing(MissingStage::NativeTaxRate));
+        }
+        if n.wrapper
+            .mappings
+            .get(&n.request.token_out)
+            .is_none_or(|m| m.tax_cap.is_none())
         {
-            return Some(diagnostics::Rejection::Missing);
+            return Some(diagnostics::missing(MissingStage::NativeTaxCap));
         }
         if n.wrapper
             .unwrap_output(&n.request.token_out, c.output, now_ms())
@@ -2183,6 +2186,8 @@ mod discovery_tests;
 mod generation;
 mod ingestion;
 mod jobs;
+#[cfg(test)]
+mod missing_trace_tests;
 mod modes;
 mod order_economics;
 mod pair_admission;

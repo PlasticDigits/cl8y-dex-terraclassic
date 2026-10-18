@@ -2,7 +2,7 @@
 mod common;
 use axum::{
     body::Body,
-    http::{Request, StatusCode},
+    http::{header, Request, StatusCode},
 };
 use axum_test::TestServer;
 use bigdecimal::BigDecimal;
@@ -14,7 +14,7 @@ use cl8y_dex_indexer::{
 use common::{build_test_app, seed_db, setup_pool};
 use serde_json::Value;
 use serial_test::serial;
-use std::str::FromStr;
+use std::{net::SocketAddr, str::FromStr};
 use tower::ServiceExt;
 const DAY: &str = "2026-06-10";
 const SENDER: &str = "terra1evidencesenderaaaaaaaaaaaa";
@@ -389,4 +389,52 @@ async fn partial_pricing_and_bounded_other_bucket_preserve_headline() {
     assert_eq!(other["is_other"], true);
     assert_eq!(other["event_count"], 4);
     assert!(other["contract_or_denom"].is_null());
+}
+
+#[tokio::test]
+#[serial]
+async fn digest_socket_peer_governor_returns_429_with_retry_after() {
+    let pool = setup_pool().await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 1;
+    config.rate_limit_lcd_heavy_rps = 0;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    // Exercise the real production peer-IP extractor: mocked HTTP lacks the
+    // socket ConnectInfo required by the global governor.
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+    let mut successful = 0;
+    let mut limited = false;
+    for _ in 0..12 {
+        let response = server
+            .get(&format!("/api/v1/evidence/digest?day={DAY}"))
+            .await;
+        match response.status_code() {
+            StatusCode::OK => successful += 1,
+            StatusCode::TOO_MANY_REQUESTS => {
+                let retry = response
+                    .headers()
+                    .get(header::RETRY_AFTER)
+                    .expect("digest governor must provide Retry-After")
+                    .to_str()
+                    .expect("Retry-After must be an HTTP integer");
+                assert!(
+                    retry.parse::<u64>().is_ok(),
+                    "Retry-After must be delay-seconds"
+                );
+                limited = true;
+                break;
+            }
+            status => panic!("unexpected digest status before rate limit: {status}"),
+        }
+    }
+    assert!(
+        successful > 0,
+        "burst must exercise the actual digest handler first"
+    );
+    assert!(
+        limited,
+        "digest route must remain behind the global socket-peer governor"
+    );
 }

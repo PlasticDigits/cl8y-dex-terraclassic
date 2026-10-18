@@ -1,0 +1,55 @@
+{
+  "schema": "owned_rolling_handoff_design_v1",
+  "status": "PENDING_COMBINED_PACED_RUN",
+  "measurement_profile": "paced_native_200ms_total_client_cap150_v1",
+  "continuous_native_spacing_ms": 200,
+  "candidate_probe_spacing_ms": 500,
+  "client_http_request_cap": 150,
+  "entire_owned_test_deadline_seconds": 48,
+  "test_process_timeout_seconds": 59,
+  "scope": "Two real independent HTTP/AppState/LCD namespaces plus actual forwarding proxy, production block-indexer RPC/parser/checkpoints and real advisory sessions. Not OS binary processes, full poller supervisor or Coolify/Traefik execution.",
+  "retained_previous_profile_runs": [
+    {
+      "artifact": "rolling-proxy-first.log",
+      "sha256": "c676b773aecaa2fcddef6df8a2f726fefa5f81327ce573f501275bb12fa7a547",
+      "result": "FAIL_fixture_noncanonical_asset",
+      "test_seconds": 0.71
+    },
+    {
+      "artifact": "rolling-proxy-canonical.log",
+      "sha256": "ff9d6c7019189fa81f8555a83583a36abd82de9d682c8331e3aba18ccbd0105b",
+      "result": "FAIL_native503_missing_observations_unresolved",
+      "test_seconds": 16.61
+    },
+    {
+      "artifact": "rolling-proxy-diagnostics.log",
+      "sha256": "3c4d434ab9f28079e4075ec5ae417ed8e58b713877d97aad54403ea730f1c880",
+      "result": "PASS_stress_scope_only",
+      "test_seconds": 16.82,
+      "actual_receipt": {
+        "actual_advisory_lock_transfer": true,
+        "actual_checkpoint_height": 14522,
+        "cold_candidate_rejected": true,
+        "http_failures": 0,
+        "independent_namespaces": true,
+        "max_loopback_ms": 6,
+        "native_quote_successes": 1362,
+        "never_ready_candidate_left_old_leader_and_api_unchanged": true,
+        "old_inflight_drained": true,
+        "parsed_blocks_after_handoff": 1,
+        "parsed_blocks_before_handoff": 2,
+        "positive_scope": "continuous_proxied_bidirectional_native_quotes; intentional_source_loss_control_separate",
+        "proxy_requests": 1362,
+        "request_lcd_calls": 0,
+        "schema": "owned_api_rolling_handoff_v1",
+        "scope": "independent_http_appstates_and_production_block_indexer; not_os_binaries_or_coolify_proxy",
+        "source_loss_dynamic503_latch200_cheap_api200": true,
+        "standby_indexer_ready_status": 503
+      },
+      "resolves_previous_native503": false
+    }
+  ],
+  "unresolved_prior_failure": "The selected old native503 remains FAIL and unexplained. Neither stress PASS nor pacing reclassifies it. New causal diagnostics plus paced run are pending.",
+  "production_mutations": false,
+  "issue1505_full_acceptance": false
+}

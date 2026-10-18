@@ -196,6 +196,7 @@ def remove_credential(api, job):
 
 
 def cleanup_owned(api, job):
+    require(isinstance(job, str) and ID.fullmatch(job) and job not in {BACKEND, TEMPLATE}, 'protected_application_cleanup_forbidden')
     result = {'stop_acknowledged': False, 'credential_removed': False}
     try:
         api.call('applications/' + job + '/stop', 'POST')

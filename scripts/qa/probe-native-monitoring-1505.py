@@ -19,7 +19,7 @@ PATTERNS = {
     "wrapper_unavailable": "Native wrapper observations unavailable",
     "wrapper_read_unavailable": "Native wrapper read unavailable",
     "stale_prerequisite": "Local quote prerequisite stale",
-    "reference_committed": "Reference cohort committed",
+    "reference_committed": "Hub mark cohort committed",
     "reference_woken": "Reference refresh scheduled",
     "provider_pressure": r'(?i)(LCD provider admission deferred|all provider circuits open|reason="?(capacity|circuit_open))',
     "historical_height": "(?i)(historical|height.*(unavailable|not available|not found|pruned)|requested height|lowest height)",
@@ -28,7 +28,7 @@ PATTERNS = {
     "admission_budget": "Local quote admission exhausted pass budget",
     "errors": "(?i)(error|panic|fatal)",
 }
-PHASES = frozenset(("uluna_tax_cap", "uusd_tax_cap", "uluna_mapping", "uusd_mapping", "mapper_floor", "treasury_floor", "identity", "data", "chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability", "reference_marks", "reference_schedule", "reference_accounting"))
+PHASES = frozenset(("uluna_tax_cap", "uusd_tax_cap", "uluna_mapping", "uusd_mapping", "mapper_floor", "treasury_floor", "identity", "data", "chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability", "hub_marks", "reference_marks", "reference_schedule", "reference_accounting"))
 REASONS = frozenset(("mapper_paused", "treasury_wrapping_paused", "capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "cancelled", "missing_or_invalid", "missing_observations", "stale_observations", "accounting_unavailable", "protection", "unsupported_semantics", "no_route"))
 REQUEST_ID = re.compile(r"[0-9a-f]{16}")
 COMPONENTS = frozenset(("pair_config", "pool_mirror", "hybrid_mirror", "reference", "tax_policy", "tax_actor", "wrapper", "simulation_mirror"))
@@ -39,6 +39,14 @@ READ_SLOTS = {
     "uluna_rate": "rate_limit", "uusd_rate": "rate_limit",
     "uluna_cap": "tax_cap", "uusd_cap": "tax_cap", "tax_rate": "tax_rate",
     "mapper_floor": "floor_capability", "treasury_floor": "floor_capability",
+}
+MISSING_STAGES = {
+    "asset_identity": "pair_config", "pair_admission": "pair_config",
+    "mirror_admission": "simulation_mirror", "simulation_mirror": "simulation_mirror",
+    "simulation_fee": "simulation_mirror", "tax_pair": "tax_policy",
+    "tax_actor": "tax_actor", "tax_balance": "tax_actor", "reference_price": "reference",
+    "native_mapping": "wrapper", "native_router": "wrapper",
+    "native_tax_rate": "wrapper", "native_tax_cap": "wrapper",
 }
 READ_STAGES = frozenset(("denom_dispatch", "global_dispatch", "lcd_read"))
 READ_REASONS = frozenset(("capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "cancelled"))
@@ -120,6 +128,31 @@ def wrapper_dispatch_witness(line, timestamp=None):
         "sample_timestamp_ms": int(timestamp) // 1_000_000 if isinstance(timestamp, str) and re.fullmatch(r"\d{1,20}", timestamp) else None}
 
 
+def missing_witness(line, requested_ids):
+    """A fixed missing stage with explicitly unknown original clocks."""
+    if "Local quote prerequisite missing" not in line:
+        return None
+
+    def field(name, pattern):
+        values = re.findall(r'\b' + name + r'="?(' + pattern + r')"?(?=\s|$|[,}])', line)
+        return values[0] if len(values) == 1 else None
+
+    stage = field("stage", r"[a-z_]{1,24}")
+    component = field("component", r"[a-z_]{1,24}")
+    if stage not in MISSING_STAGES or component != MISSING_STAGES[stage]:
+        return None
+    if any(field(name, "true|false") != "false" for name in ("age_known", "expiry_known")):
+        return None
+    if any(field(name, r"-?\d{1,9}") != "0" for name in ("age_ms", "expires_in_ms")):
+        return None
+    row = {"component": component, "stage": stage, "age_ms": None, "expires_in_ms": None}
+    for rid in requested_ids:
+        if re.search(r'\brequest_id[=:]"?' + rid + r'\b', line):
+            row["request_id"] = rid
+            break
+    return row
+
+
 def stale_witness(line, requested_ids):
     """A bounded candidate witness is evidence, not a sole-cause assertion."""
     if "Local quote prerequisite stale" not in line:
@@ -171,11 +204,12 @@ def sample_summary(payload, requested_ids=()):
                 if selected in allowlist:
                     counts[field][selected] = counts[field].get(selected, 0) + 1
     witnesses = [w for line in lines if (w := stale_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
+    missing = [w for line in lines if (w := missing_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), requested_ids)) is not None]
     reads = [w for timestamp, line in records if (w := read_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     alternatives = [w for timestamp, line in records if (w := scheduled_alternative_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     dispatches = [w for timestamp, line in records if (w := wrapper_dispatch_witness(re.sub(r"\x1b\[[0-9;]*m", "", line), timestamp)) is not None]
     return {"bounded_sample_lines": len(lines), "typed_fields": counts, "candidate_stale_witnesses": witnesses,
-        "producer_read_witnesses": reads, "scheduled_alternative_witnesses": alternatives,
+        "candidate_missing_witnesses": missing, "producer_read_witnesses": reads, "scheduled_alternative_witnesses": alternatives,
         "wrapper_dispatch_witnesses": dispatches,
         "request_correlation": {rid: sum(bool(re.search(r'\brequest_id[=:]"?' + rid + r'\b', re.sub(r"\x1b\[[0-9;]*m", "", line))) for line in lines) for rid in requested_ids}}
 
@@ -195,7 +229,7 @@ def collect(instance, request_ids=()):
     for label, pattern in PATTERNS.items():
         query = "sum(count_over_time(" + selector + " |~ " + json.dumps(pattern) + "[15m]))"
         counts[label] = MONITORING.aggregate(instance.read(prefix + "query?" + urlencode({"query": query})))
-    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|LCD scheduled alternatives deferred|Local quote rejected|Local quote prerequisite stale|Reference cohort committed|Reference refresh scheduled)"',
+    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|LCD scheduled alternatives deferred|Local quote rejected|Local quote prerequisite stale|Local quote prerequisite missing|Hub mark cohort committed|Reference refresh scheduled)"',
         "start": str(int((time.time() - 900) * 1e9)), "end": str(int(time.time() * 1e9)), "limit": "300", "direction": "backward"}
     sample = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)))
     if request_ids:
@@ -203,6 +237,7 @@ def collect(instance, request_ids=()):
         requested = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)), request_ids)
         sample["request_correlation"] = requested["request_correlation"]
         sample["candidate_stale_witnesses"] = requested["candidate_stale_witnesses"]
+        sample["candidate_missing_witnesses"] = requested["candidate_missing_witnesses"]
     prometheus = [row for row in sources if isinstance(row, dict) and row.get("type") == "prometheus"]
     prom = {"status": "SKIP", "reason": "no_prometheus_datasource_provisioned"}
     if len(prometheus) == 1 and MONITORING.ATTESTER.APP_ID.fullmatch(str(prometheus[0].get("uid", ""))):

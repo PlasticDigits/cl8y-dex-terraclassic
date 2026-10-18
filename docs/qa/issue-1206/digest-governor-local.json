@@ -1,0 +1,10 @@
+{
+  "overall": "PASS",
+  "scope": "Owned loopback PostgreSQL, actual HTTP digest router only; no production requests.",
+  "return_code": 0,
+  "actual_test_seconds": 4.984,
+  "test_summary": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.98s",
+  "owned_container_and_volume_removed": true,
+  "test_source_sha256": "cd0f8110a1034309812f1bfe3f11e02162379ebb325c91118075d2c8d4a89ad7",
+  "compiled_input_sha256": "30b5a1ab606bcbd7f6f5d873c1c0d62c54a586051d659b32e7f16350baeb3a37"
+}

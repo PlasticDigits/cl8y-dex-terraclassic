@@ -25,3 +25,9 @@ The issue predates three canonical fee paths added by #1209/#1210. This change
 explicitly reconciles that stale exact-seven expectation with current
 `FeeSource::ALL` (ten), retaining the original seven in order. It does not alter
 trailing fees, the Llama API or the public-chain-linked event tape.
+
+The closure audit added the required digest-specific socket-peer governor check.
+[All five digest cases passed](digest-governor-local.json) in4.98s on a new owned
+loopback PostgreSQL fixture, including actual HTTP200→429 with integer
+`Retry-After`. Only that container/volume was removed; no production request ran.
+The required hosted security matrix remains a separate CI receipt.

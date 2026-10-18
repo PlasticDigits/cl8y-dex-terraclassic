@@ -16,15 +16,26 @@ Fee source/provenance home: [L1213](AGENTS_INDEXER_FEE_LEDGER_HOME.md).
 | FC1211-7 | Public `by_cohort` is three static aggregate rows (`retail`, `mm`, `unknown`); no actors, registry events, tier dump, wallet roster, or campaign fields. Shares use stamped priced USD only. Unpriced activity increments event count, with null USD/share; configured idle is `"0"`. Cohort USD and percent strings use the existing #557 `bd_plain_string` helper, including dust values; never emit scientific notation. |
 | FC1211-8 | Scheduled global/source/token/cohort publication uses one repeatable-read transaction. GET reads one read-only repeatable-read snapshot and caches the aggregate response for 60 seconds. GET never scans fee events or joins actors. |
 | FC1211-9 | Reorg recovery deletes registry events/snapshots at and after the rewind and cascades fee attribution. Historical snapshots below the rewind stay valid. No automatic rewrites of historical cohorts from reconciled/live tiers. |
-| FC1211-10 | Local synthetic receipts prove implementation behavior, not deployed payer emission or completed live evidence. Current pair/factory/token invoice contracts omit some required payer fields; keep those paths unknown and report that limitation. Runtime never migrates: the separate migrator must prepare this additive schema before deploying the new indexer. |
+| FC1211-10 | Local synthetic receipts prove implementation behavior, not deployed payer emission or completed live evidence. Current pair/factory/token invoice contracts omit some required payer fields; keep those paths unknown and report that limitation. Runtime never migrates: the separate migrator prepares this additive schema. The compatibility server may serve 67 first with cohort features explicitly pending; it never migrates itself. |
+| FC1211-11 | Compatibility startup alone accepts reviewed markers 67 (`20261016120000`) and 68 (`20261018110000`) with every runtime privilege check unchanged. Maintenance/QA stay strict; future compiled migrations remove this older-schema exception. Cache one marker per block and decide rollup/GET access inside their RR snapshot. On 67, never query cohort tables; omit `by_cohort` with `cohort_status=pending_schema`. On 68, publish cohorts only after an actual atomic joint refresh stamps the existing `indexer_state` publication key and global/source/token/cohort clocks agree. Bootstrap, missing or mixed generations remain `pending_publication`, never three fabricated zeros. Preserve migration bytes and rollback compatibility; never stop the serving API for this transition. |
+| FC1211-12 | Preserve serving availability: deploy the exact useful 67/68-compatible revision before online credentials or DDL. The distinct online journal/job never stops or reconfigures the API, rotates roles or restores its database. Recheck ownership/readiness after the concurrent snapshot before migration. |
+| FC1211-13 | Online migration keeps all original SQLx rows and existing semantic ACLs/roles unchanged. Use existing migrator-role DSN options with 250ms lock and 5s statement limits; verify new-table grants and four actual runtime denials. Retain and reuse the original private MVCC snapshot on bounded retry; never rewrite history. |
+| FC1211-14 | A normal action cannot interrupt an unresolved prior job: require terminal cleanup/credential-removal acknowledgements before another start. Scope receipt acceptance to exact job, recipe, storage, deployment, revision, action, run ID and online mode with fixed deadlines. Explicit cleanup aborts only that owned job. SQL continuity fixtures do not prove actual serving HTTP continuity. |
+
 
 Run `make verify-issue-1211`. Build commands may exceed a minute; each actual test
 process is bounded to 59 seconds. Keep missing live/LocalTerra evidence explicit.
 
-Standalone rollout follows the [deployment guide](../docs/qa/issue-1211/deployment.md):
-`cohort-migration-1211.py plan/build` pins exact merged main and builds without a
-DB credential; only explicit inspect/stop/apply phases can advance the owned job.
-Keep complete SQLx history, effective migrator DSN options, private snapshot,
-new-schema runtime grants/denials, current run-ID receipts and credential cleanup.
-Never infer deployed migration from the [owned-local rehearsal](../docs/qa/issue-1211/local-migration-rehearsal.json)
-or initialize source cohorts as idle when historical published fees exist.
+Online rollout follows the [online checklist](../docs/qa/issue-1211/online-migration.md)
+and [deployment history](../docs/qa/issue-1211/deployment.md). Exact-main source,
+credential-free build, private snapshot, migration owner and complete current-run
+receipts remain required. The legacy serving-stop procedure is superseded and
+its stop command is rejected before API access. The
+[owned SQL rehearsal](../docs/qa/issue-1211/online-owned-rehearsal.json) proves local
+database behavior only; live API continuity/rolling migration need their own
+receipts. Never initialize published historical fees as idle.
+
+The [compatibility transition checklist](../docs/qa/issue-1211/compatibility.md)
+records owned-local67→68 serving/ingestion verification separately from any
+production migration or traffic switch.
+

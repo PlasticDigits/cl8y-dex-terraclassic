@@ -81,3 +81,22 @@ unwrap recipients unjoined. The focused regression passed with all ten cohort
 checks. The owned fixture also initially hit the expected F6 code-ID guard:
 matching CW20 bytes can have different code IDs; listing both actual owned IDs
 in the owned factory completed provisioning without changing shared contracts.
+
+## Compatibility-first local verification
+
+The [compatibility checklist](compatibility.md) and [executed local receipt](compatibility-local-results.json)
+record a serving-only 67/68 version pair with unchanged runtime privilege checks.
+The focused wave passed 42 tests: one real-prefix owned HTTP/block-ingestion
+transition (3.67 seconds including provisioning/cleanup), 10 cohort tests
+(2.83 seconds) and 31 protocol-fee tests (9.10 seconds). Compiles were separate;
+every locally invoked test process was bounded to 59 seconds. The initial fixture
+mistakenly counted a down migration and stopped before applying migrations; its
+owned container was removed and the corrected genuine 67-prefix run passed.
+
+The final fixture checks actual 67 publisher overlap, typed pending schema/seed/mixed
+clock states, coherent joint 68 publication, actual runtime login/startup guards
+on both schemas, older/future rejection, protected runtime denials and unchanged
+history/role attributes. This is a handler/startup-guard rehearsal, not a full
+production process/native-quote or zero-downtime deployment attestation. The API
+must remain serving; the prior stopped-runtime maintenance workflow is historical
+and must not be repeated for this transition.

@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "scope": "Read-only post-interruption inspection and exact prior API recovery; no cohort migration success is claimed.",
+  "observed_at_utc": "2026-10-18T06:42:05.926921+00:00",
+  "post_failure_inspection": {
+    "history_count": 67,
+    "pending_versions": [
+      20261018110000
+    ],
+    "database_read_only_enforced": true,
+    "cleanup_overall": "PASS",
+    "credential_removed": true
+  },
+  "recovery": {
+    "overall": "PASS",
+    "kind": "indexer",
+    "deployment_uuid": "kneay1det9bmqfcz6jzuybyr",
+    "release": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "deployment_status": "finished",
+    "observed_commit": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "deployment_commit_matches": true,
+    "observed_at_utc": "2026-10-18T06:42:05.926921+00:00",
+    "application_status": "running:healthy",
+    "created_at": "2026-10-18T06:40:45+00:00",
+    "finished_at": "2026-10-18T06:41:38+00:00",
+    "logs": {
+      "log_entries": 57,
+      "failure_markers": {
+        "build_failure": 0,
+        "health_failure": 0,
+        "memory_failure": 0,
+        "schema_failure": 0
+      }
+    }
+  },
+  "public_health": {
+    "observed_at_utc": "2026-10-18T06:42:00.738536+00:00",
+    "http_status": 200,
+    "health_status": "ok"
+  },
+  "retained_backend_pin": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "constraint": "Do not take the API down again. No future stop/restart/deploy that interrupts serving; require a proven online/rolling plan and compatibility proof before rollforward."
+}

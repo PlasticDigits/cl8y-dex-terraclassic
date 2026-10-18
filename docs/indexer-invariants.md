@@ -5,7 +5,12 @@
 Independent scheduled wrapper reads share existing provider capacity and original
 deadlines. Native requests remain local and fail closed on unknown prerequisites.
 Fixed reason/phase diagnostics correlate a server-generated request identifier
-without logging query strings, actors or provider endpoints. Apply
+without logging query strings, actors or provider endpoints. Final503 evidence
+shares the original eight component slots across missing and stale witnesses;
+retain the first original witness per component. Missing stages have unknown
+clocks and a separate event name. Successes and non503 rejections emit neither
+kind. Candidate witnesses cannot establish a sole historical cause; see the
+[focused trace-gap correction](qa/issue-1505/RESULTS.md#missing-candidate-trace-gap-correction-2026-10-18). Apply
 [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md) and run
 `make verify-issue-1505`; [focused source/deployed evidence](qa/issue-1505/RESULTS.md)
 does not renew original freshness or replace actual live acceptance.
@@ -786,3 +791,18 @@ Scheduled fee scalar/source/token/cohort publication is atomic and uses one
 repeatable-read snapshot; GET reads one consistent rollup snapshot with the
 existing 60-second cache and never scans economic rows or private actors.
 See [verification and real-emitter limitations](qa/issue-1211/README.md).
+
+### Cohort schema compatibility (FC1211-11)
+
+Server startup retains every DB1396 privilege boundary and permits only the
+reviewed 67/68 pair while the compiled latest schema is 68. Other entry points
+and future binaries keep strict required-version checks. A 67 block caches its
+feature decision and cannot begin cohort SQL after migration commits mid-block.
+Fee publication and GET choose from their own repeatable-read marker snapshot.
+The existing `indexer_state.protocol_fee_cohort_publication` key is written only
+inside an actual 68 joint refresh, with global/source/token/cohort clocks. GET
+exposes cohorts only when every published clock matches; missing, seed-only or
+legacy-interleaved generations omit cohorts with a fixed pending status.
+Neither this compatibility nor source passes authorize stopping the serving API.
+See [the compatibility checklist](qa/issue-1211/compatibility.md) and
+[the agent contract](../skills/AGENTS_FEE_COHORTS.md).
