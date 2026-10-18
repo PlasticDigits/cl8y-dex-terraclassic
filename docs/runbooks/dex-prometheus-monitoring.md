@@ -119,6 +119,8 @@ the independent Coolify application and existing Grafana API configuration:
 REVISION='<exact-main-sha>'
 bao-exec --only COOLIFY_WIRE_TOKEN,COOLIFY_URL -- python3 scripts/ops/dex-monitoring-1544.py create --revision "$REVISION"
 MONITOR_APP='<returned-monitoring-app-uuid>'
+# For an existing monitoring app, select the new exact revision before deploy.
+bao-exec --only COOLIFY_WIRE_TOKEN,COOLIFY_URL -- python3 scripts/ops/dex-monitoring-1544.py pin --app "$MONITOR_APP" --revision "$REVISION"
 bao-exec --only COOLIFY_WIRE_TOKEN,COOLIFY_URL -- python3 scripts/ops/dex-monitoring-1544.py deploy --app "$MONITOR_APP"
 bao-exec --only COOLIFY_WIRE_TOKEN,COOLIFY_URL -- python3 scripts/ops/dex-monitoring-1544.py status --app "$MONITOR_APP"
 bao-exec --only COOLIFY_WIRE_TOKEN,COOLIFY_URL -- python3 scripts/ops/dex-monitoring-1544.py provision
@@ -133,6 +135,24 @@ Use Grafana's authenticated `/api/ds/query` for Prometheus queries: the existing
 logs proxy restricts datasource proxy URLs to Loki and is preserved. Loki
 continues through its existing allowed datasource proxy. Browser access to
 private Prometheus is unnecessary.
+
+`pin` changes only the owned monitoring application's commit SHA, validates the
+selected revision contains the Compose file and verifies exact readback; it
+does not dispatch deployment. `deploy` uses a POST with the owned application
+UUID and accepts exactly one matching deployment receipt. An ambiguous response
+is a failure to reconcile through `status`, never a reason to repeat dispatch.
+
+Coolify evaluates this nested Compose file from the **repository root**.
+Its build context is `.` and bind mounts use `./monitoring/dex/...`, despite
+the file residing in `monitoring/dex/`. Preserve that convention. Local config
+checks must select the same project directory:
+
+```sh
+timeout 55s docker compose --project-directory "$PWD" -f monitoring/dex/compose.yaml config --quiet
+```
+
+Run that command from the checkout root. Paths relative to the Compose file
+directory can pass a differently rooted local check and still fail in Coolify.
 
 Committed configuration:
 

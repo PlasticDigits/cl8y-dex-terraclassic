@@ -119,9 +119,13 @@ def status(api, app):
                 and latest.get("status") in DEPLOYMENT_STATES and SHA.fullmatch(str(latest.get("commit", ""))), "deployment_identity")
         result["deployment"] = {k: latest[k] for k in ("deployment_uuid", "status", "commit")}
         detail = api.api("deployments/" + latest["deployment_uuid"])
+        embedded = detail.get("application") or {}
+        app_id = str(embedded.get("id", ""))
         require(detail.get("deployment_uuid") == latest["deployment_uuid"]
-                and detail.get("application_id") == row.get("id")
-                and row.get("id") is not None and detail.get("commit") == latest["commit"], "deployment_application_binding")
+                and re.fullmatch(r"[1-9][0-9]{0,18}", app_id)
+                and str(detail.get("application_id")) == app_id
+                and embedded.get("uuid") == app and embedded.get("name") == NAME
+                and detail.get("commit") == latest["commit"], "deployment_application_binding")
         # Inspect raw logs in memory only; build environments can contain secrets.
         logs = detail.get("logs")
         if isinstance(logs, str):
@@ -133,6 +137,25 @@ def status(api, app):
         result["deployment_log_entries"] = len(logs)
         result["deployment_error_entries"] = sum(bool(re.search(r"(?i)\b(error|fatal|panic)\b", r["output"])) for r in logs)
     return result
+
+
+def deploy(api, app):
+    api.owned(app)
+    result = api.api("deploy", "POST", {"uuid": app, "force": False})
+    rows = result.get("deployments") if isinstance(result, dict) else None
+    require(isinstance(rows, list) and len(rows) == 1 and isinstance(rows[0], dict)
+            and rows[0].get("resource_uuid") == app
+            and ID.fullmatch(str(rows[0].get("deployment_uuid", ""))), "deployment_receipt")
+    return {"app_uuid": app, "deployment_uuid": rows[0]["deployment_uuid"], "deployment_requested": True}
+
+
+def pin(api, app, revision):
+    api.owned(app)
+    require(SHA.fullmatch(revision or ""), "revision")
+    subprocess.run(["git", "cat-file", "-e", revision + ":monitoring/dex/compose.yaml"], cwd=ROOT, check=True, capture_output=True)
+    api.api("applications/" + app, "PATCH", {"git_commit_sha": revision})
+    require(api.owned(app).get("git_commit_sha") == revision, "pin_readback")
+    return {"app_uuid": app, "revision": revision, "deployment_requested": False}
 
 
 def provision():
@@ -163,6 +186,9 @@ def main():
     sub.add_parser("create").add_argument("--revision", required=True)
     for action in ("deploy", "status"):
         sub.add_parser(action).add_argument("--app", required=True)
+    select = sub.add_parser("pin")
+    select.add_argument("--app", required=True)
+    select.add_argument("--revision", required=True)
     sub.add_parser("provision")
     sub.add_parser("verify")
     args = parser.parse_args()
@@ -177,11 +203,10 @@ def main():
                 result = create(api, args.revision)
             elif args.action == "status":
                 result = status(api, args.app)
+            elif args.action == "pin":
+                result = pin(api, args.app, args.revision)
             else:
-                api.owned(args.app)
-                result = api.api("deploy?uuid=" + args.app + "&force=false")
-                # Deployment response is restricted to UUIDs and fixed counters.
-                result = {"app_uuid": args.app, "deployment_requested": True}
+                result = deploy(api, args.app)
         print(json.dumps(result, indent=2))
         return 0
     except Exception as error:

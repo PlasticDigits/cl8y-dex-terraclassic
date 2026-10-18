@@ -24,7 +24,7 @@ def owned_row():
     return {'uuid': APP, 'name': OPS.NAME, 'git_repository': OPS.REPOSITORY,
             'build_pack': 'dockercompose', 'git_branch': 'main', 'docker_compose_location': '/monitoring/dex/compose.yaml',
             'destination_id': 0, 'environment_id': 19, 'git_commit_sha': REVISION,
-            'status': 'running:healthy', 'id': 1544}
+            'status': 'running:healthy'}
 
 
 class FakeAPI(OPS.Coolify):
@@ -34,6 +34,8 @@ class FakeAPI(OPS.Coolify):
         self.row = owned_row()
         self.history = {'deployments': []}
         self.detail = {}
+        self.pin_applies = True
+        self.deploy_response = {'deployments': [{'resource_uuid': APP, 'deployment_uuid': 'deployment1544'}]}
 
     def api(self, path, method='GET', payload=None):
         self.calls.append((path, method, copy.deepcopy(payload)))
@@ -42,7 +44,11 @@ class FakeAPI(OPS.Coolify):
         if path == 'applications/' + OPS.LOGS:
             return {'uuid': OPS.LOGS, 'name': 'cl8y-logs', 'destination_id': 0, 'environment_id': 19}
         if path == 'applications/' + APP:
+            if method == 'PATCH' and self.pin_applies:
+                self.row.update(payload)
             return copy.deepcopy(self.row)
+        if path == 'deploy' and method == 'POST':
+            return copy.deepcopy(self.deploy_response)
         if path == 'applications/public' and method == 'POST':
             return {'uuid': APP}
         if path == 'deployments/applications/' + APP + '?skip=0&take=1':
@@ -136,7 +142,7 @@ class GuardTests(unittest.TestCase):
         api = FakeAPI()
         api.history = {'deployments': [{'deployment_uuid': 'deployment1544', 'status': 'finished', 'commit': REVISION,
                                        'created_at': 'credential-private-body'}]}
-        api.detail = {'deployment_uuid': 'deployment1544', 'application_id': 1544, 'commit': REVISION,
+        api.detail = {'deployment_uuid': 'deployment1544', 'application_id': '1544', 'application': {'id': 1544, 'uuid': APP, 'name': OPS.NAME}, 'commit': REVISION,
                       'logs': json.dumps([{'output': 'ERROR credential-private-body'}, {'output': 'private-actor'}])}
         result = OPS.status(api, APP)
         self.assertEqual(result['deployment_log_entries'], 2)
@@ -148,9 +154,68 @@ class GuardTests(unittest.TestCase):
         for logs in (None, '', 'not-json', {}, [{}], [{'output': 7}], [{'output': 'x'}] * 4097):
             api = FakeAPI()
             api.history = {'deployments': [{'deployment_uuid': 'deployment1544', 'status': 'finished', 'commit': REVISION}]}
-            api.detail = {'deployment_uuid': 'deployment1544', 'application_id': 1544, 'commit': REVISION, 'logs': logs}
+            api.detail = {'deployment_uuid': 'deployment1544', 'application_id': '1544', 'application': {'id': 1544, 'uuid': APP, 'name': OPS.NAME}, 'commit': REVISION, 'logs': logs}
             with self.subTest(shape=type(logs).__name__), self.assertRaisesRegex(ValueError, 'deployment_logs_unavailable'):
                 OPS.status(api, APP)
+
+    def test_embedded_deployment_identity_rejects_foreign_or_invalid_application(self):
+        for field, wrong in [('id', 0), ('id', 'credential-private'), ('uuid', 'other-app'), ('name', 'cl8y-logs')]:
+            api = FakeAPI()
+            api.history = {'deployments': [{'deployment_uuid': 'deployment1544', 'status': 'finished', 'commit': REVISION}]}
+            api.detail = {'deployment_uuid': 'deployment1544', 'application_id': '1544', 'commit': REVISION,
+                          'application': {'id': 1544, 'uuid': APP, 'name': OPS.NAME}, 'logs': []}
+            api.detail['application'][field] = wrong
+            with self.subTest(field=field, wrong=wrong), self.assertRaisesRegex(ValueError, 'deployment_application_binding'):
+                OPS.status(api, APP)
+
+    def test_deploy_posts_only_owned_app_and_returns_bound_receipt(self):
+        api = FakeAPI()
+        result = OPS.deploy(api, APP)
+        self.assertEqual(api.calls[-1], ('deploy', 'POST', {'uuid': APP, 'force': False}))
+        self.assertEqual(result, {'app_uuid': APP, 'deployment_uuid': 'deployment1544', 'deployment_requested': True})
+        api = FakeAPI()
+        api.row['name'] = 'cl8y-logs'
+        with self.assertRaises(ValueError):
+            OPS.deploy(api, APP)
+        self.assertTrue(all(method == 'GET' for _, method, _ in api.calls))
+
+    def test_deploy_rejects_missing_duplicate_foreign_or_unbounded_receipt(self):
+        for receipt in ({}, {'deployments': []}, {'deployments': [{}, {}]},
+                        {'deployments': [{'resource_uuid': 'other', 'deployment_uuid': 'deployment1544'}]},
+                        {'deployments': [{'resource_uuid': APP, 'deployment_uuid': '../credential-private'}]}):
+            api = FakeAPI()
+            api.deploy_response = receipt
+            with self.subTest(receipt=receipt), self.assertRaisesRegex(ValueError, 'deployment_receipt'):
+                OPS.deploy(api, APP)
+            self.assertEqual(sum(method == 'POST' for _, method, _ in api.calls), 1, 'ambiguous dispatch must never retry')
+
+    def test_pin_updates_only_sha_of_owned_app_and_requires_exact_readback(self):
+        revision = 'b' * 40
+        api = FakeAPI()
+        with patch.object(OPS.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)) as git:
+            result = OPS.pin(api, APP, revision)
+        self.assertEqual(api.calls, [('applications/' + APP, 'GET', None),
+                                     ('applications/' + APP, 'PATCH', {'git_commit_sha': revision}),
+                                     ('applications/' + APP, 'GET', None)])
+        self.assertIn(revision + ':monitoring/dex/compose.yaml', git.call_args.args[0])
+        self.assertFalse(result['deployment_requested'])
+        api = FakeAPI()
+        api.pin_applies = False
+        with patch.object(OPS.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)):
+            with self.assertRaisesRegex(ValueError, 'pin_readback'):
+                OPS.pin(api, APP, revision)
+
+    def test_pin_invalid_revision_or_foreign_app_never_mutates(self):
+        for app, revision in ((APP, 'main'), (OPS.LOGS, REVISION), ('../other', REVISION)):
+            api = FakeAPI()
+            with self.subTest(app=app, revision=revision), self.assertRaises(ValueError):
+                OPS.pin(api, app, revision)
+            self.assertTrue(all(method == 'GET' for _, method, _ in api.calls))
+        api = FakeAPI()
+        with patch.object(OPS.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, ['git'])):
+            with self.assertRaises(subprocess.CalledProcessError):
+                OPS.pin(api, APP, REVISION)
+        self.assertTrue(all(method == 'GET' for _, method, _ in api.calls))
 
     def test_provision_rejects_duplicate_or_wrong_datasource_before_mutation(self):
         for sources in ([{'uid': OPS.UID}, {'uid': OPS.UID}],
