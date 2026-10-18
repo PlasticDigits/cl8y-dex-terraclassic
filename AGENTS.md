@@ -17,6 +17,15 @@ For missing trade USD, human ratio units, headline fallback or inversion, follow
 [TP1512](skills/AGENTS_TRADE_PRICE_USD.md) and run `make verify-issue-1512`.
 Missing `price_usd` never selects legacy raw units, symbol pegs or candle substitution.
 
+## API rolling readiness
+
+For startup/standby promotion and container healthchecks, follow
+[AR1–AR6](skills/AGENTS_API_ROLLING_READINESS.md) and run
+`make verify-api-rolling-readiness`; use the [checklist](docs/qa/api-rolling-readiness/README.md).
+Keep the serving API available throughout future migration/deployment. Explicit
+native readiness scenarios consume unchanged local quote observations; indexing
+leadership, liveness and API usefulness remain distinct.
+
 ## Native quote recovery
 
 For native observations, reference publication, quote rejection/request correlation or original

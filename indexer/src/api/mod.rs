@@ -39,6 +39,7 @@ mod protocol_fees;
 mod protocol_liquidity;
 mod protocol_top_pairs;
 mod protocol_volume;
+pub mod rolling_readiness;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
 #[allow(unused_imports)] // re-exported for integration tests
@@ -422,6 +423,8 @@ pub async fn find_pair_by_ticker(
         cmc::cmc_trades,
         health,
         ready,
+        rolling_readiness::ready_api,
+        rolling_readiness::serving_health,
         fee_discount_health::get_fee_discount_health,
         compliance::blacklist_check,
     ),
@@ -523,6 +526,9 @@ pub async fn find_pair_by_ticker(
         oracle::OracleHistoryEntry,
         oracle::OracleHistoryResponse,
         HealthResponse,
+        rolling_readiness::ApiReadinessResponse,
+        rolling_readiness::ApiServingHealthResponse,
+        rolling_readiness::ReadinessReason,
         crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealthSnapshot,
         compliance::BlacklistCheckApiResponse,
         compliance::BlacklistCheckParams,
@@ -621,6 +627,19 @@ async fn health(
 }
 
 pub fn build_router(state: AppState, config: &Config) -> Router {
+    build_router_with_api_readiness(
+        state,
+        config,
+        rolling_readiness::ApiReadinessProfile::from_env(),
+    )
+}
+
+/// Explicit-profile constructor for owned rehearsals without process-global env mutation.
+pub fn build_router_with_api_readiness(
+    state: AppState,
+    config: &Config,
+    readiness: rolling_readiness::ApiReadinessProfile,
+) -> Router {
     let mut origins = Vec::new();
     for o in &config.cors_origins {
         match o.parse::<HeaderValue>() {
@@ -705,6 +724,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let api_router = Router::new()
         .route("/health", get(health))
         .route("/ready", get(ready))
+        .route(
+            "/ready-api",
+            get(rolling_readiness::ready_api).layer(axum::Extension(readiness.clone())),
+        )
+        .route(
+            "/health/serving",
+            get(rolling_readiness::serving_health).layer(axum::Extension(readiness)),
+        )
         .route(
             "/api/v1/health/fee-discount",
             get(fee_discount_health::get_fee_discount_health),

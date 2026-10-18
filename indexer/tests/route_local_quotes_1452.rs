@@ -1476,3 +1476,6 @@ mod route_cost_attribution;
 
 #[path = "scenarios/route_discovery_1489.rs"]
 mod route_discovery_1489;
+
+#[path = "scenarios/api_rolling_readiness.rs"]
+mod api_rolling_readiness;

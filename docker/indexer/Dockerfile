@@ -51,7 +51,11 @@ EXPOSE 3001
 # credentials into the server; startup verifies the runtime ACL and schema.
 # Required at runtime (Coolify env): runtime DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
 # RUN_MODE=prod, EXPECTED_CHAIN_ID, LCD_URLS (non-default). See docs/runbooks/mainnet-soft-launch.md
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -fsS "http://127.0.0.1:${API_PORT}/health" >/dev/null || exit 1
+# Require explicit API_READY_SCENARIOS and original cached native execution before
+# a rolling deployment can retire the old process. Admission then latches only
+# process liveness, so transient quote loss cannot unroute the sole API. /ready
+# remains leader readiness and /ready-api remains dynamic quote readiness.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=180s --retries=12 \
+  CMD curl -fsS "http://127.0.0.1:${API_PORT}/health/serving" >/dev/null || exit 1
 
 CMD ["cl8y-dex-indexer"]

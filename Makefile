@@ -2093,3 +2093,7 @@ verify-issue-1211:
 .PHONY: verify-issue-1330
 verify-issue-1330:
 	bash scripts/qa/verify-issue-1330.sh
+
+.PHONY: verify-api-rolling-readiness
+verify-api-rolling-readiness:
+	bash scripts/verify-api-rolling-readiness.sh
