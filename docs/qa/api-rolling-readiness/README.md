@@ -121,3 +121,34 @@ each exact key in `PROOF_CONTROLS` with boolean true. `measurements` contains in
 These observations do not claim an actual Coolify rollout or continuous future
 native availability. Nine focused offline controls pass; no production mutation
 or extra application test run is involved in this eligibility implementation.
+
+The [release helper](../../../scripts/ops/api-rolling-release.py) separates
+`plan`, `profile`, `pin`, `deploy` and `status`. Each phase takes the exact revision,
+reviewed public profile, private owned proof and one private journal. It has no
+stop, restart, cancellation, rollback or database operation. A phase permits at
+most one whitelisted mutation: the runtime-only public `API_READY_SCENARIOS`
+value, the exact source pin, or one scoped rolling deployment. The profile and
+pin phases do not restart the application. Build concurrency is capped at two
+jobs so replacement compilation does not use every host CPU.
+
+```sh
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
+  python3 scripts/ops/api-rolling-release.py plan \
+  --revision "$release_revision" --profile /tmp/api-ready-scenarios.json \
+  --proof /tmp/api-owned-proof.json --journal /tmp/api-rolling-release.json
+```
+
+Use the same arguments with each later phase. An unresolved deployment cannot be
+requested twice. The journal is written before dispatch; a lost acknowledgement
+is reconciled through bounded application history, never cancellation or another
+deploy. Status binds deployment/application identities, exact served revision,
+useful dynamic readiness and available sanitized deployment logs. Missing or
+malformed logs remain unverified; failure patterns require review. Failed
+replacement status checks whether the old public API still serves, and makes no
+automatic recovery mutation. Preserve the exact source pin after success;
+never roll back to a schema-incompatible older image. All mutating phases require
+exact current main; read-only status remains available if main advances.
+
+Eighteen focused transport controls pass in 0.013s. They include the original
+false-PASS for missing/malformed logs and its corrected failures. They do not
+establish an actual production deployment.

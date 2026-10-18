@@ -27,3 +27,11 @@ receipt is never deployment permission. Exact remote-main/source proof is requir
 before mutations; historical source verification is allowed only for read-only
 status of an already dispatched release. Never include credentials, raw env values,
 logs or actor identifiers in the public inventory receipt.
+
+AR7: Use the [scoped release helper](../scripts/ops/api-rolling-release.py) for
+reviewable profile/pin/deploy phases. One allowlisted mutation per invocation;
+no API stop/restart/cancel/rollback. Bind every mutation to exact main and the
+final owned source proof. Persist deployment intent before dispatch; reconcile
+ambiguous acknowledgements through owned history without retrying the deployment.
+Unavailable deployment logs cannot certify success. Keep status read-only and
+usable for its exact dispatched revision when main moves.

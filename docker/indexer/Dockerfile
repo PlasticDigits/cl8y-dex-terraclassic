@@ -8,7 +8,7 @@ FROM rust:1.99-bookworm@sha256:e12566d5abc17a0da741628782cdb504b68b8961f5bfcf677
 
 WORKDIR /build
 # Normalize vendored Swagger asset timestamps for repeatable native bytecode.
-ENV SOURCE_DATE_EPOCH=0
+ENV SOURCE_DATE_EPOCH=0 CARGO_BUILD_JOBS=2
 RUN apt-get update \
   && apt-get install -y --no-install-recommends pkg-config libssl-dev \
   && rm -rf /var/lib/apt/lists/*
@@ -46,9 +46,10 @@ ENV GIT_SHA=${GIT_SHA} \
 
 EXPOSE 3001
 
-# Run `cl8y-dex-indexer migrate` in a separate one-shot job with the migrator's
-# DATABASE_URL before starting this server. Never inject migrator/bootstrap/QA
-# credentials into the server; startup verifies the runtime ACL and schema.
+# Run `cl8y-dex-indexer migrate` in a separate job with the migrator's DATABASE_URL.
+# The reviewed 67/68 transition may start the compatible server first; cohort
+# ingestion waits for 68. Never inject migrator/bootstrap/QA credentials into the
+# server; startup verifies the runtime ACL and supported schema.
 # Required at runtime (Coolify env): runtime DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
 # RUN_MODE=prod, EXPECTED_CHAIN_ID, LCD_URLS (non-default). See docs/runbooks/mainnet-soft-launch.md
 # Require explicit API_READY_SCENARIOS and original cached native execution before

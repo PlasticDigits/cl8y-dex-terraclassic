@@ -109,3 +109,11 @@ receipt may authorize verification and cleanup of the owned maintenance job.
 
 Real online API continuity, a released compatible image, live migration and live
 schema/API acceptance remain pending in [the current checklist](online-migration.md).
+
+The [subsequent read-only inspection and API recovery](production-api-recovery-20261018.json)
+confirmed 67 historical migrations with only the cohort migration pending. The
+prior backend `0a3c251755a88ee9cbbbbc222fc747811c9da08c` was restored through Coolify,
+finished healthy at 06:41:38Z, and returned public HTTP200 at 06:42:00Z. Its
+source pin was retained. The earlier unknown worker outcome describes the
+interruption time; it does not override this later database inspection. This
+recovery receipt does not claim schema68 or a compatibility rollforward.
