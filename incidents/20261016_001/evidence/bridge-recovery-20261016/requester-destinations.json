@@ -1,0 +1,7 @@
+{
+  "case_id": "20261016_001",
+  "statement_source": "Requester instructions during this bridge recovery response",
+  "bsc_recovery": "0x21ddb4bcb5f00430cb39d5fea2d382bbeaa076ba",
+  "terra_recovery_requested": "terra1gjd5r45mv334d0qm5mkqhhj64q8fafw3kg62du",
+  "limits": "These are requester-designated destinations. This record does not independently establish custody. Only the BSC vFDUSD recovery is established by a response receipt; no Terra asset recovery is asserted."
+}

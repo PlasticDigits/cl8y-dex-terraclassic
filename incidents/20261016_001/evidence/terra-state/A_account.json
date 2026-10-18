@@ -1,0 +1,12 @@
+{
+  "account": {
+    "@type": "/cosmos.auth.v1beta1.BaseAccount",
+    "address": "terra13w2zl4cetngp5cssw0uhkkxryrxn5wqfdgrp2h",
+    "pub_key": {
+      "@type": "/cosmos.crypto.secp256k1.PubKey",
+      "key": "AsFgOgzKfcTS78bVapTKv2ABSLoD7Rn21BB9ZtPYmpDj"
+    },
+    "account_number": "5524860",
+    "sequence": "144"
+  }
+}

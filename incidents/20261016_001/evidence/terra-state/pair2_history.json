@@ -1,0 +1,127 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "11572",
+      "updated": {
+        "block_height": "29958496",
+        "tx_index": "9995119"
+      },
+      "msg": {
+        "asset_infos": [
+          {
+            "token": {
+              "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+            }
+          },
+          {
+            "token": {
+              "contract_addr": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
+            }
+          }
+        ],
+        "fee_bps": 180,
+        "treasury": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+        "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+        "lp_token_code_id": 10184,
+        "token_symbols": ["UST1", "USTR"],
+        "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+        "max_batch_rungs": 20
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11577",
+      "updated": {
+        "block_height": "29959818",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11580",
+      "updated": {
+        "block_height": "29965137",
+        "tx_index": "555558"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11582",
+      "updated": {
+        "block_height": "29974128",
+        "tx_index": "334761"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11586",
+      "updated": {
+        "block_height": "29986402",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11601",
+      "updated": {
+        "block_height": "30039735",
+        "tx_index": "113509"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11639",
+      "updated": {
+        "block_height": "30205238",
+        "tx_index": "123607"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11664",
+      "updated": {
+        "block_height": "30364495",
+        "tx_index": "226570"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11672",
+      "updated": {
+        "block_height": "30495647",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11676",
+      "updated": {
+        "block_height": "30526079",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11715",
+      "updated": {
+        "block_height": "30727742",
+        "tx_index": "0"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

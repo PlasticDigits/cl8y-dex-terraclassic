@@ -1,0 +1,29 @@
+{
+  "collected_at_utc": "2026-10-16T02:44:24.450841+00:00",
+  "url": "https://ff.io/support",
+  "http_status": 200,
+  "download_sha256": "b3170503ba45a8cff242d1d3e84ed5be280d3692db67478842207065b5a2eb3c",
+  "contacts": {
+    "crime_victim_support": "help@fixedfloat.com",
+    "suspended_orders": "compliance@fixedfloat.com",
+    "general_support": "support@fixedfloat.com",
+    "law_enforcement_requests": "legal@fixedfloat.com",
+    "official_support_chat": "https://ff.io/support",
+    "telegram_linked_from_official_support": "https://t.me/fixedfloat_chat_bot"
+  },
+  "external_messages_sent_by_this_update": false,
+  "attribution_sources": [
+    {
+      "address": "0x4727250679294802377dd6ca6541b8e459077c95",
+      "role": "Requester-reported FixedFloat hot wallet; Etherscan public label FixedFloat: Hot Wallet",
+      "source_url": "https://etherscan.io/address/0x4727250679294802377dd6ca6541b8e459077c95",
+      "scope": "Third-party attribution, not a FixedFloat ownership admission or a BSC customer-order identification"
+    },
+    {
+      "address": "0x635308e731a878741bfec299e67f5fd28c7553d9",
+      "role": "KuCoin 28 public explorer label",
+      "source_url": "https://bscscan.com/address/0x635308e731a878741bfec299e67f5fd28c7553d9",
+      "scope": "The receipt proves the address sent BNB; no underlying exchange customer or common ownership is identified"
+    }
+  ]
+}

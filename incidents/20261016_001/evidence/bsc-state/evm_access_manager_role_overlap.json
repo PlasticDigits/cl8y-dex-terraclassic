@@ -1,0 +1,31 @@
+[
+  {
+    "manager_label": "cl8y_token_manager",
+    "error": "RuntimeError"
+  },
+  {
+    "manager_label": "bridge_guard_manager",
+    "manager": "0xa958d75c61227606df21e3261ba80dc399d19676",
+    "role_id": 0,
+    "members": ["0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"],
+    "matched_affected_or_reported_destination_addresses": []
+  },
+  {
+    "manager_label": "bridge_guard_manager",
+    "manager": "0xa958d75c61227606df21e3261ba80dc399d19676",
+    "role_id": 1,
+    "members": [
+      "0x0a1a4bd354983dbc7f487237cd1b408cd0003ebc",
+      "0x8446a9423adb131bdc124e84bf3d35ce53e4f482",
+      "0x1cb74534bc03facb2725eb47bd1652c22b5f0663"
+    ],
+    "matched_affected_or_reported_destination_addresses": []
+  },
+  {
+    "manager_label": "bridge_guard_manager",
+    "manager": "0xa958d75c61227606df21e3261ba80dc399d19676",
+    "role_id": 2,
+    "members": ["0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"],
+    "matched_affected_or_reported_destination_addresses": []
+  }
+]

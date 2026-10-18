@@ -1,0 +1,47 @@
+{
+  "collected_at_utc": "2026-10-15T08:49:14.939708+00:00",
+  "bridge": "0xb2a22c74da8e3642e0effc107d3ac362ce885369",
+  "guard": "0x12fedd29e71f66157e985aa1aaae434253e39a22",
+  "results": [
+    {
+      "destination_label": "X",
+      "token": "vfdusd",
+      "http_status": 200,
+      "result": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x"
+      }
+    },
+    {
+      "destination_label": "X",
+      "token": "usdt",
+      "http_status": 200,
+      "result": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x"
+      }
+    },
+    {
+      "destination_label": "Y",
+      "token": "vfdusd",
+      "http_status": 200,
+      "result": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x"
+      }
+    },
+    {
+      "destination_label": "Y",
+      "token": "usdt",
+      "http_status": 200,
+      "result": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x"
+      }
+    }
+  ]
+}

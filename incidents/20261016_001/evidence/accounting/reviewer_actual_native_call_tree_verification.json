@@ -1,0 +1,295 @@
+{
+  "parsed_trees": 20,
+  "all_match_parent_summaries": true,
+  "received_total_wei": 3943439176513535698,
+  "sent_total_wei": 0,
+  "reverted_branches_excluded": 1,
+  "call_types_seen": {
+    "CALL": 2222,
+    "STATICCALL": 1632,
+    "DELEGATECALL": 91
+  },
+  "policy": "Exclude any failed frame and descendants; count real CALL/CREATE/CREATE2/SELFDESTRUCT positive value to/fromwallet; do not count DELEGATECALL/CALLCODE apparent value. All root gasUsed match actual receipts.",
+  "rows": [
+    {
+      "tx_hash": "0xfe478847369d9297d9c74a7dac969d1718288cea07bc942dd9604a6140d1a11d",
+      "received_wei": 120751298548562176,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0xc10ee9031f2a0b84766a86b55a8d90f357910fb4",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 120751298548562176
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x9952d0c7a5008e2eeafbce5ee034dba5655d646d46fdafecacb30dbaa7973d10",
+      "received_wei": 387953431482512255,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 387953431482512255
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c",
+      "received_wei": 72951297648473983,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 72951297648473983
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xcff26cfadfcc923fd743ebac33a914ad353648e20879a40b3e1ffb1d70cef191",
+      "received_wei": 90818928799916949,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 90818928799916949
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xa25a983d076c1f6e9e64d564114322ce95ea0cd6782b936e43b73450aacd3915",
+      "received_wei": 56520693434057547,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 56520693434057547
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8",
+      "received_wei": 81841279703150911,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 81841279703150911
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x72587c94cacab93c19bf6c523a8a9b5e630539c53c6670d07af3273badada8e1",
+      "received_wei": 183394378301260006,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 183394378301260006
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x8ab302c41325b48bd920e368b154e9bf67d78410a2c87432b0417eca909b31be",
+      "received_wei": 382575600440050872,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 382575600440050872
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xeb0c665f03485cc12f3d5213dabebb57b5dabd2547a44c8dbbec6bfac574a962",
+      "received_wei": 152720513496877755,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 152720513496877755
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x875bc1607206665379f746f01c4cc8571f8c9b6db52ab3b809f226a258d8acab",
+      "received_wei": 345490377369393633,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 345490377369393633
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x76a295ca2eeef1969199f0248926a8a4b4efb0024f90da74ca8228eada86e503",
+      "received_wei": 55524631933801524,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 55524631933801524
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x6ead31f984cddaed375ce1793e884a292f0b579690c12365f52d6892f278c0f9",
+      "received_wei": 250797999317700429,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 250797999317700429
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xfb85709c2bb4a211259cccb55b4bc4318bec897d9377aee317907a79b1fe4166",
+      "received_wei": 278145258824276987,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 278145258824276987
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xd1c8870561f29e29e730b2d91cf471d7634a9b29c405132f59fcdc6cf3a04824",
+      "received_wei": 139777970107439185,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 139777970107439185
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x867120ba093c958ddee63fd56246059734db3f5a3c09b8ee04e55c205b3546ed",
+      "received_wei": 393303312709113685,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 393303312709113685
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xb1e1cb550c32576717ef6acd606c8f55ca096e557dc8dd557a85f9d9a46d8621",
+      "received_wei": 310188225892298639,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 310188225892298639
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x406e037d96112c79618f5ebec5c0664f2b1ce99a75c2187d97ef2d26d4af4947",
+      "received_wei": 181497617738808626,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 181497617738808626
+        }
+      ]
+    },
+    {
+      "tx_hash": "0xe2756eccc11f3701253c8af260e279b089f1d338defdcd42724dfda6288d589a",
+      "received_wei": 100032645518428848,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 100032645518428848
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x179e27a82b15325e4da67d165f52df3c2a5cc349fb352a2fa058dc0a7e190489",
+      "received_wei": 174295384509284012,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x8f10b468b06c6fd214b65f87778827f7d113f996",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 174295384509284012
+        }
+      ]
+    },
+    {
+      "tx_hash": "0x7286454192a17907476f049e34f350da9c25deeca55cb449277c88f5d70f4b67",
+      "received_wei": 184858330738127676,
+      "sent_wei": 0,
+      "root_gas_used_matches_receipt": true,
+      "positive_native_calls_touching_hacker_a": [
+        {
+          "type": "CALL",
+          "from": "0x111111125421ca6dc452d289314280a0f8842a65",
+          "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+          "raw_wei": 184858330738127676
+        }
+      ]
+    }
+  ]
+}

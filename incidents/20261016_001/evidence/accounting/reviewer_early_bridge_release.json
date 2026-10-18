@@ -1,0 +1,27 @@
+{
+  "bsc_tx_hash": "0x353999056fd1526c48b1c16ea659ac03b001647161d1873ec08c08df1d546795",
+  "xchain_hash_id": "0xfca7594894738a2edc341b72c0832177e448afe762a7fa3d1f693dfe180666b3",
+  "withdraw": {
+    "srcChain": "0x00000001",
+    "srcAccount": "0x0000000000000000000000007c86575d2c1c236417557946762331dc9c06f732",
+    "destAccount": "0x00000000000000000000000046b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "token": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+    "recipient": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "amount": 8246257444506482572970,
+    "nonce": 150,
+    "srcDecimals": 18,
+    "destDecimals": 18,
+    "operatorGas": 0,
+    "submittedAt": 1792030389,
+    "approvedAt": 1792030395,
+    "approved": true,
+    "cancelled": false,
+    "executed": true
+  },
+  "source_terra_address": "terra10jr9whfvrs3kg96409r8vge3mjwqdaejl7jv9d",
+  "source_label": "VICTIM_RECOVERY",
+  "source_signer_evm_address": "0x42f66bc42766710309e03be15de2147732b71441",
+  "source_signer_evm_matches_hacker_a": false,
+  "source_pubkey_matches_srcaccount": true,
+  "source_signer_role_matches": []
+}

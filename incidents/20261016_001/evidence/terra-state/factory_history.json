@@ -1,0 +1,88 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "11505",
+      "updated": {
+        "block_height": "29458429",
+        "tx_index": "0"
+      },
+      "msg": {
+        "governance": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "treasury": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+        "default_fee_bps": 180,
+        "pair_code_id": 11506,
+        "lp_token_code_id": 6036,
+        "whitelisted_code_ids": [6036, 10184],
+        "pair_creation_fee_uluna": "100000000"
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11573",
+      "updated": {
+        "block_height": "29957761",
+        "tx_index": "9997579"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11578",
+      "updated": {
+        "block_height": "29959791",
+        "tx_index": "9996819"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11585",
+      "updated": {
+        "block_height": "29986327",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11602",
+      "updated": {
+        "block_height": "30039711",
+        "tx_index": "10390261"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11628",
+      "updated": {
+        "block_height": "30100754",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11629",
+      "updated": {
+        "block_height": "30100767",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11711",
+      "updated": {
+        "block_height": "30726841",
+        "tx_index": "9543567"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

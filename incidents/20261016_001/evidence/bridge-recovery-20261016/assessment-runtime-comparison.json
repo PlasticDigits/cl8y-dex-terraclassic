@@ -1,0 +1,18 @@
+{
+  "bridge_impl_slot": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": "0x000000000000000000000000102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6"
+  },
+  "bridge_impl_address": "0x102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6",
+  "0x8f452a1fdd388a45e1080992eff051b4dd9048d2": {
+    "live_sha256": "0531b53bd1e8be383c11221562d979d5ad9d41d68d5c6e9104ed72f58a04659e",
+    "archive_sha256": "0531b53bd1e8be383c11221562d979d5ad9d41d68d5c6e9104ed72f58a04659e"
+  },
+  "0x102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6": {
+    "live_sha256": "64c2e5de632d24b42c7747d7ba311afb0ae267311c98c6d660799f85750213ea",
+    "archive_sha256": "64c2e5de632d24b42c7747d7ba311afb0ae267311c98c6d660799f85750213ea"
+  },
+  "ERC20InsufficientAllowance(address,uint256,uint256)": "0xfb8f41b2",
+  "Blacklisted(address)": "0xffa4e618"
+}

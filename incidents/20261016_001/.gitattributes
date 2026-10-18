@@ -1,0 +1,2 @@
+# Preserve captured CSV bytes across clones; CRLF is part of these source ledgers.
+*.csv -text whitespace=trailing-space,space-before-tab,cr-at-eol

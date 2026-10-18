@@ -1,0 +1,20 @@
+{
+  "data": {
+    "allowances": [
+      {
+        "spender": "terra1q5karg99p5hc0jvplgn2fd8akg39r4ss00cu5rwkm600yqvmssgqhwqvq0",
+        "allowance": "0",
+        "expires": {
+          "never": {}
+        }
+      },
+      {
+        "spender": "terra1su5363453fj326u4t0kqar30f35cm3n0dc9yksg379u6875z350s4mm7h4",
+        "allowance": "0",
+        "expires": {
+          "never": {}
+        }
+      }
+    ]
+  }
+}

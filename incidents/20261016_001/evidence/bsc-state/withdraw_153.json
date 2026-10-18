@@ -1,0 +1,35 @@
+{
+  "deposit": {
+    "_contract_address": "terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la",
+    "action": "deposit_cw20_mintable_burn",
+    "amount": "10154338",
+    "dest_account": "0x000000000000000000000000377a56e0fea12d5e0632429326b5cd9e47e10e5b",
+    "dest_chain": "0x00000038",
+    "dest_token_address": "0x000000000000000000000000c4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+    "fee": "30554",
+    "fee_type": "standard",
+    "nonce": "153",
+    "sender": "terra12z8vz3vgnalt8trykd6nntdyp54e95yqsdtjj3",
+    "token": "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+    "xchain_hash_id": "0x23cd22140cfceb68fc103a047920aa43837261959f4106e2d1a0981760f76a28",
+    "msg_index": "0"
+  },
+  "withdraw": {
+    "srcChain": "0x00000000",
+    "srcAccount": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "destAccount": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "token": "0x0000000000000000000000000000000000000000",
+    "recipient": "0x0000000000000000000000000000000000000000",
+    "amount": 0,
+    "nonce": 0,
+    "srcDecimals": 0,
+    "destDecimals": 0,
+    "operatorGas": 0,
+    "submittedAt": 0,
+    "approvedAt": 0,
+    "approved": false,
+    "cancelled": false,
+    "executed": false
+  },
+  "bsc_block": "0x79d67f8"
+}
