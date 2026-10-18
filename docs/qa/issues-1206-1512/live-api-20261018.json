@@ -1,0 +1,151 @@
+{
+  "schema": "dex_public_evidence_live_v1",
+  "expected_revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+  "utc": "2026-10-18T09:18:26.076711+00:00",
+  "read_only": true,
+  "requests": 14,
+  "checks": {
+    "serving_revision": true,
+    "anonymous_digest": true,
+    "utc_complete_day": true,
+    "fee_schema": true,
+    "fee_headline_plain": true,
+    "canonical_sources": true,
+    "token_shape": true,
+    "token_count_reconciliation": true,
+    "bounded_token_mix": true,
+    "count_surfaces": true,
+    "counts_swap": true,
+    "counts_lp": true,
+    "counts_limit": true,
+    "counts_wrap": true,
+    "counts_window": true,
+    "today_incomplete": true,
+    "invalid_queries": true,
+    "get_only": true,
+    "openapi_digest": true,
+    "cohorts_24h": true,
+    "cohorts_7d": true,
+    "cohorts_30d": true,
+    "serving_revision_after": true
+  },
+  "overall": "PASS",
+  "elapsed_seconds": 13.347,
+  "request_timings": [
+    {
+      "surface": "health",
+      "http_status": 200,
+      "elapsed_ms": 882.455
+    },
+    {
+      "surface": "digest",
+      "http_status": 200,
+      "elapsed_ms": 899.36
+    },
+    {
+      "surface": "digest",
+      "http_status": 200,
+      "elapsed_ms": 884.046
+    },
+    {
+      "surface": "digest",
+      "http_status": 400,
+      "elapsed_ms": 879.187
+    },
+    {
+      "surface": "digest",
+      "http_status": 400,
+      "elapsed_ms": 918.024
+    },
+    {
+      "surface": "digest",
+      "http_status": 400,
+      "elapsed_ms": 885.512
+    },
+    {
+      "surface": "digest",
+      "http_status": 400,
+      "elapsed_ms": 891.222
+    },
+    {
+      "surface": "digest",
+      "http_status": 400,
+      "elapsed_ms": 915.28
+    },
+    {
+      "surface": "digest",
+      "http_status": 405,
+      "elapsed_ms": 873.51
+    },
+    {
+      "surface": "openapi",
+      "http_status": 200,
+      "elapsed_ms": 1748.368
+    },
+    {
+      "surface": "protocol_24h",
+      "http_status": 200,
+      "elapsed_ms": 877.444
+    },
+    {
+      "surface": "protocol_7d",
+      "http_status": 200,
+      "elapsed_ms": 900.896
+    },
+    {
+      "surface": "protocol_30d",
+      "http_status": 200,
+      "elapsed_ms": 888.281
+    },
+    {
+      "surface": "health",
+      "http_status": 200,
+      "elapsed_ms": 876.254
+    }
+  ],
+  "joint_reconciliation": {
+    "24h": {
+      "publication_status": "available",
+      "cohort_source_event_count_equal": true,
+      "cohort_source_priced_usd_equal": true,
+      "cohort_fields_aggregate_only": true,
+      "source_event_count": 208,
+      "cohort_priced_usd": "64.780046061923679661",
+      "cohort_share_sum": "100",
+      "cohorts": {
+        "retail": 0,
+        "mm": 0,
+        "unknown": 208
+      }
+    },
+    "7d": {
+      "publication_status": "available",
+      "cohort_source_event_count_equal": true,
+      "cohort_source_priced_usd_equal": true,
+      "cohort_fields_aggregate_only": true,
+      "source_event_count": 1257,
+      "cohort_priced_usd": "248.147827813989343757",
+      "cohort_share_sum": "100",
+      "cohorts": {
+        "retail": 0,
+        "mm": 0,
+        "unknown": 1257
+      }
+    },
+    "30d": {
+      "publication_status": "available",
+      "cohort_source_event_count_equal": true,
+      "cohort_source_priced_usd_equal": true,
+      "cohort_fields_aggregate_only": true,
+      "source_event_count": 3837,
+      "cohort_priced_usd": "917.176155927450418251",
+      "cohort_share_sum": "100",
+      "cohorts": {
+        "retail": 0,
+        "mm": 0,
+        "unknown": 3837
+      }
+    }
+  },
+  "extra_scope": "Same 14 reviewed public requests; no additional requests, writes or response-body/actor export"
+}

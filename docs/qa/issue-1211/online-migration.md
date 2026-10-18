@@ -46,6 +46,16 @@ the new owned deployment. A transport exception after dispatch does not abort th
 worker or remove its current credential. The shown-once runtime credential is
 removed with readback after the owned job reaches its bound terminal state.
 
+Before a snapshot, obtain a fresh read-only capacity receipt on the exact
+private `/state` mount and database resource. The release recorded database size
+via `pg_database_size(current_database())`, free filesystem bytes and free inodes;
+no directory scan or snapshot-file read is needed. Its conservative threshold was
+`max(2 × database bytes + 8GiB, 20% filesystem bytes)` and 10,000 free inodes.
+This is an operator check, not an automatic guard in the migration coordinator,
+and cannot guarantee against concurrent host growth. Stop only the capacity job
+and remove its credential afterward; never delete its shared snapshot volume.
+The [live receipt](../issues-1206-1512/live-release-20261018.md) records the result.
+
 The migrator DSN establishes the effective existing owner, with `lock_timeout`
 250ms and `statement_timeout` 5s. A busy lock fails the transaction rather than
 waiting indefinitely. Preserve the original snapshot and inspect the exact
@@ -94,10 +104,18 @@ timeout 59s python3 scripts/tests/test_cohort_online_local.py
   complete online proof flags and finite terminal receipts.
 - [x] Real owned PostgreSQL online 67→68, runtime SQL progress, lock refusal,
   unchanged full history/roles/ACLs and idempotent snapshot reuse.
-- [ ] Released exact-revision compatible server and actual rolling deployment.
-- [ ] Real serving API continuity/readiness before, during and after live DDL.
-- [ ] Production online migration with complete current-run receipt and cleanup.
-- [ ] Final schema/readiness plus digest and all three cohort API windows against
-  the deployed final backend revision.
+- [x] Exact compatible backend `5b623a04f35bb6b44d3e64df0014e458cad653fc` rolled out and served schema 67 before migration, then schema 68.
+- [x] Bounded sampled useful serving/readiness checks passed around the online operation; 55 new-revision HTTP 200 samples/zero failures cover 09:15:46–09:16:40 UTC, including snapshot completion 09:16:26. The worker checked exact useful serving immediately before DDL and after migration. This is not a full continuous-time or exact DDL-interval attestation.
+- [x] Production additive 67→68 migration and separate verification passed: complete original 67 history, semantic ACLs and roles/credentials/memberships unchanged; new runtime grants and four actual denials. Concurrent 68,458,132-byte MVCC snapshot retained; shown-once job credentials removed with cleanup PASS. No database restore.
+- [x] Final schema/readiness plus the anonymous digest and all three cohort windows passed against the exact final backend; counts/priced USD reconcile and shares total 100%.
 
-Keep #1211 open until its remaining production and live criteria pass.
+See [the published live release evidence](../issues-1206-1512/live-release-20261018.md)
+and [public API receipt](../issues-1206-1512/live-api-20261018.json).
+The privileged job did not perform a fresh runtime-password login
+(`runtime_login_tested=false`); the existing actual API runtime remained serving
+and role/password/membership state did not change. After cleanup the owned job's
+logs returned 400, so its exact terminal timestamp is unavailable. These limits
+do not replace the separately passed migration/verification receipts or create
+an additional funded-mainnet acceptance requirement.
+
+The issue body/comment acceptance is complete; #1211 is ready to close.

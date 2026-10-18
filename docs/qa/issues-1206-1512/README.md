@@ -82,3 +82,7 @@ retains complete once-only accounting/checkpoint checks. The focused corrected
 case passes in 0.78s on a freshly process-owned database. No runtime guard was
 changed. The QA observer follow-up is consolidated into the same release so the
 required hosted matrix need only repeat once for these corrections.
+
+[Final live release observations](live-release-20261018.md) distinguish the
+actual rolling deployment and bounded probes from retained failures and
+unverified issue criteria.

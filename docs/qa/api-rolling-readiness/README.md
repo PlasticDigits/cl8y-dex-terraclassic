@@ -186,3 +186,7 @@ keeps private raw logs and emits a FAIL proof. Only the complete passing suite
 can produce `api-owned-proof.json`; source changes invalidate it. This proof
 covers owned HTTP/state, block processing and proxy forwarding. Actual platform
 promotion, live DDL, served artifacts and native outcomes remain separate.
+
+Dated production follow-up: [exact release, online migration and bounded live API evidence](../issues-1206-1512/live-release-20261018.md).
+Historical local scope/failed receipts above are retained. The dated follow-up
+records actual deployment separately and keeps remaining issue acceptance explicit.

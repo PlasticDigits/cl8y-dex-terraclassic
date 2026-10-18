@@ -1,0 +1,280 @@
+{
+  "schema": "issues_1206_1512_live_release_v1",
+  "backend_revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+  "frontend_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "pull_request": 1542,
+  "hosted_ci": {
+    "pipeline": 526,
+    "overall": "PASS",
+    "scope": "genuine complete source pipeline",
+    "main_pipeline": 527,
+    "main_commit": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "main_status": "PASS"
+  },
+  "rolling": {
+    "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "overall": "PASS",
+    "deployment_uuid": "pf5itditekrjwp8kkkrxyfv6",
+    "deployment_status": "finished",
+    "deployment_logs_available": true,
+    "log_failure_pattern_count": 0
+  },
+  "health_sampling": {
+    "schema": "bounded_api_handoff_health_v1",
+    "scope": "Sampled public health only; not continuous-time uptime or useful quote acceptance",
+    "old_revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "new_revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "duration_seconds": 55.0,
+    "requests": 55,
+    "failed_requests": 0,
+    "old_samples": 28,
+    "new_samples": 27,
+    "transition_observed": true,
+    "overall": "PASS"
+  },
+  "native_short_probe": {
+    "utc_start": "2026-10-18T09:01:06.224598+00:00",
+    "utc_end": "2026-10-18T09:01:28.133950+00:00",
+    "overall": "PASS",
+    "duration_seconds": 21.0,
+    "requests": 10,
+    "counts": {
+      "executable": 8
+    },
+    "initialized_useful_timing": {
+      "samples": 7,
+      "p50_ms": 292.956,
+      "p95_ms": 300.023,
+      "p99_ms": 300.023,
+      "max_ms": 300.023
+    },
+    "limits": [
+      "two affected anonymous native directions at fixed original exact input; no broad matrix or signing",
+      "sampling recovery intervals are polling observations, not original browser-input latency",
+      "response validation rejects expired original observations; display expiry and browser budget require the independent browser observer",
+      "request IDs correlate server logs only; provider cause requires separate bounded scheduled diagnostics"
+    ]
+  },
+  "monitoring": {
+    "utc": "2026-10-18T09:07:11.049400+00:00",
+    "overall": "PASS WITH SKIPS",
+    "loki_status": "PASS",
+    "window_seconds": 900,
+    "pattern_counts": {
+      "wrapper_completed": 107.0,
+      "wrapper_unavailable": 0.0,
+      "wrapper_read_unavailable": 5.0,
+      "stale_prerequisite": 0.0,
+      "reference_committed": 219.0,
+      "reference_woken": 88.0,
+      "provider_pressure": 6.0,
+      "historical_height": 3.0,
+      "http_429": 7.0,
+      "deadline": 38.0,
+      "admission_budget": 8.0,
+      "errors": 21.0
+    },
+    "prometheus": {
+      "status": "SKIP",
+      "reason": "no_prometheus_datasource_provisioned"
+    },
+    "scope": "15-minute service window spans old/new deployments; pattern counts are not success or causality proof; no raw logs or actor data exported"
+  },
+  "limits": [
+    "55-second sampled health does not prove continuous-time uptime",
+    "21-second native probe does not replace sustained FIRST/RETEST, original expiry callbacks or browser acceptance",
+    "Earlier executed failures remain failures; independent passing evidence does not erase them",
+    "Frontend browser receipts use the separately attested historical frontend/backend identities in their original files"
+  ],
+  "online_migration_apply": {
+    "schema": "cohort_migration_job_v1",
+    "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "mode": "online_additive_cohorts_v1",
+    "action": "apply",
+    "overall": "PASS",
+    "history_count": 68,
+    "schema_marker": 20261018110000,
+    "complete_history_preserved": true,
+    "existing_acl_unchanged": true,
+    "runtime_table_grants": true,
+    "actual_permission_denials": 4,
+    "roles_credentials_memberships_unchanged": true,
+    "serving_compatibility_verified": true,
+    "runtime_login_tested": false,
+    "backup": {
+      "bytes": 68458132,
+      "observed_at_utc": "2026-10-18T09:16:26.853904+00:00",
+      "structurally_valid": true,
+      "mode": "concurrent_mvcc",
+      "automatic_database_restore_allowed": false
+    },
+    "cleanup_overall": "PASS",
+    "credential_removed": true
+  },
+  "online_operation_health": {
+    "schema": "bounded_api_handoff_health_v1",
+    "scope": "Sampled public health only; not continuous-time uptime or useful quote acceptance",
+    "old_revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "new_revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "duration_seconds": 55.0,
+    "requests": 55,
+    "failed_requests": 0,
+    "old_samples": 0,
+    "new_samples": 55,
+    "overall": "PASS",
+    "first_sample_utc": "2026-10-18T09:15:46.745987+00:00",
+    "last_sample_utc": "2026-10-18T09:16:40.751611+00:00",
+    "exact_terminal_log_timestamp": "UNAVAILABLE: owned job logs HTTP400 after terminal cleanup; no retry; do not infer full DDL interval from samples"
+  },
+  "capacity_preflight": {
+    "overall": "PASS",
+    "same_actual_snapshot_mount": true,
+    "database_read_only_enforced": true,
+    "policy": "max(2x current database +8GiB,20% filesystem) and10000 free inodes",
+    "cleanup_overall": "PASS",
+    "credential_removed": true,
+    "scope": "Fresh metadata observation, not guarantee against concurrent host growth; probe never writes /state or modifies DB"
+  },
+  "public_api": {
+    "overall": "PASS",
+    "requests": 14,
+    "elapsed_seconds": 13.347,
+    "evidence": "live-api-20261018.json",
+    "joint_reconciliation": {
+      "24h": {
+        "publication_status": "available",
+        "cohort_source_event_count_equal": true,
+        "cohort_source_priced_usd_equal": true,
+        "cohort_fields_aggregate_only": true,
+        "source_event_count": 208,
+        "cohort_priced_usd": "64.780046061923679661",
+        "cohort_share_sum": "100",
+        "cohorts": {
+          "retail": 0,
+          "mm": 0,
+          "unknown": 208
+        }
+      },
+      "7d": {
+        "publication_status": "available",
+        "cohort_source_event_count_equal": true,
+        "cohort_source_priced_usd_equal": true,
+        "cohort_fields_aggregate_only": true,
+        "source_event_count": 1257,
+        "cohort_priced_usd": "248.147827813989343757",
+        "cohort_share_sum": "100",
+        "cohorts": {
+          "retail": 0,
+          "mm": 0,
+          "unknown": 1257
+        }
+      },
+      "30d": {
+        "publication_status": "available",
+        "cohort_source_event_count_equal": true,
+        "cohort_source_priced_usd_equal": true,
+        "cohort_fields_aggregate_only": true,
+        "source_event_count": 3837,
+        "cohort_priced_usd": "917.176155927450418251",
+        "cohort_share_sum": "100",
+        "cohorts": {
+          "retail": 0,
+          "mm": 0,
+          "unknown": 3837
+        }
+      }
+    }
+  },
+  "online_migration_verify": {
+    "schema": "cohort_migration_job_v1",
+    "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "mode": "online_additive_cohorts_v1",
+    "action": "verify",
+    "overall": "PASS",
+    "history_count": 68,
+    "schema_marker": 20261018110000,
+    "complete_history_preserved": true,
+    "existing_acl_unchanged": true,
+    "runtime_table_grants": true,
+    "actual_permission_denials": 4,
+    "roles_credentials_memberships_unchanged": true,
+    "serving_compatibility_verified": true,
+    "runtime_login_tested": false,
+    "original_snapshot_reused": true,
+    "cleanup_overall": "PASS",
+    "credential_removed": true
+  },
+  "runtime_error_triage": {
+    "schema": "runtime_exact_request_role_v1",
+    "read_only": true,
+    "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "window_start_utc": "2026-10-18T09:07:29Z",
+    "window_end_utc": "2026-10-18T09:12:29Z",
+    "query_limit": 6,
+    "scope": "Single exact-window six-line error query; source/dependency static message labels, allowlisted field names, status categories and fixed request roles only. No raw lines, identifiers, URLs or provider text retained.",
+    "overall": "OBSERVED",
+    "sample_count": 6,
+    "status_counts": {
+      "unknown": 1,
+      "503": 5
+    },
+    "classes": [
+      {
+        "field_names": [
+          "consecutive_failures"
+        ],
+        "lcd_path_present": false,
+        "quote_correlation_context_present": false,
+        "request_kind": "background_registry_config_probe",
+        "request_role": "lcd",
+        "source_module": "cl8y_dex_indexer::indexer::fee_discount_registry_health",
+        "static_prefix": "Fee-discount registry LCD config probe failing",
+        "status_category": "unknown",
+        "uri_field_present": false,
+        "count": 1
+      },
+      {
+        "field_names": [
+          "classification",
+          "latency"
+        ],
+        "lcd_path_present": false,
+        "quote_correlation_context_present": false,
+        "request_kind": "unknown",
+        "request_role": "public_api",
+        "source_module": "tower_http::trace::on_failure",
+        "static_prefix": "response failed",
+        "status_category": "503",
+        "uri_field_present": false,
+        "count": 5
+      }
+    ],
+    "grafana_datasource_reads": 1,
+    "grafana_error_queries": 1,
+    "prior_twenty_line_query_count": 6,
+    "classification_refinement": "The fee-registry source message mentions a health endpoint as operator advice; that is not request URI metadata. Its known source is a background LCD config probe. Tower on_failure events are incoming API responses; their missing URI/context cannot distinguish health/readiness probes from user traffic."
+  },
+  "final_cached_health": {
+    "schema": "read_only_cached_health_diagnostics_v1",
+    "utc": "2026-10-18T09:20:31.691735+00:00",
+    "requests": 2,
+    "scope": "Two cached public health GETs; no provider/chain requests, actors or raw logs; current state cannot attribute earlier503 log lines",
+    "indexer": {
+      "http_status": 200,
+      "elapsed_ms": 923.333,
+      "status": "running",
+      "ready": true,
+      "checkpoint_height": 30890461,
+      "latest_height": 30890461,
+      "pending_height": null,
+      "reason": null
+    },
+    "fee_discount": {
+      "http_status": 200,
+      "elapsed_ms": 892.751,
+      "configured": true,
+      "fee_discount_registry_ok": true,
+      "consecutive_lcd_failures": 0
+    }
+  }
+}

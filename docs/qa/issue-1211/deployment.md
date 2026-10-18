@@ -107,8 +107,12 @@ use finite 70-second waiting/inspect and 915-second apply/verify allowances;
 polling never renews those deadlines. Only the current revision/action/run/mode
 receipt may authorize verification and cleanup of the owned maintenance job.
 
-Real online API continuity, a released compatible image, live migration and live
-schema/API acceptance remain pending in [the current checklist](online-migration.md).
+At that historical checkpoint, the compatible release and live migration/API
+acceptance remained pending. The [later dated release](../issues-1206-1512/live-release-20261018.md)
+now records the actual compatible rollout, online migration/verification and
+public API PASS, with bounded sampled health and its explicit timing limits.
+[The current checklist](online-migration.md) distinguishes those completed checks
+from a full continuous-time or exact DDL-interval claim.
 
 The [subsequent read-only inspection and API recovery](production-api-recovery-20261018.json)
 confirmed 67 historical migrations with only the cohort migration pending. The

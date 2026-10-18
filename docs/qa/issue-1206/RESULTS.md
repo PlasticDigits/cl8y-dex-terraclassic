@@ -9,7 +9,7 @@
 - [x] Mixed priced/unpriced source and token nulls preserve priced headline. Ten assets return eight rows plus other; a 10,000-swap day stays below 8KB with no event array.
 - [x] Three library checks: strict day grammar, canonical idle/unpriced output, no SQL actor/tape dependencies.
 - [x] Independent agent review found no blocking privacy/grain/query defect.
-- [ ] Deployed exact-revision digest/OpenAPI, production timing and live completeness. Local results do not establish those criteria.
+- [x] Deployed exact-revision digest/OpenAPI and UTC/privacy/error semantics pass in the [14-request live API receipt](../issues-1206-1512/live-api-20261018.json); request timings are recorded without an additional latency threshold. SQL fixture completeness remains separately established above.
 
 The first three-test integration run passed in 2.04s. Adding stronger fixtures
 exposed a test-only overlong symbol (the assets schema caps symbols at 20 chars)
@@ -31,3 +31,7 @@ The closure audit added the required digest-specific socket-peer governor check.
 loopback PostgreSQL fixture, including actual HTTP200→429 with integer
 `Retry-After`. Only that container/volume was removed; no production request ran.
 The required hosted security matrix remains a separate CI receipt.
+
+Dated production follow-up: [exact release, online migration and bounded live API evidence](../issues-1206-1512/live-release-20261018.md).
+Historical local scope/failed receipts above are retained. The dated follow-up
+records actual deployment separately and keeps remaining issue acceptance explicit.
