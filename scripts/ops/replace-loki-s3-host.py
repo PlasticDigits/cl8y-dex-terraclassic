@@ -372,9 +372,14 @@ def loki_http(container, path, *, method="GET", body=None, deadline=None, bound=
         require(bool(re.fullmatch(r"[0-9.]+", address)), "readiness_address")
         remaining = min(deadline or float("inf"), _deadline or float("inf")) - time.monotonic()
         require(remaining > 0, "deadline_exhausted")
+        headers = {"Content-Type": "application/json"}
+        if path.startswith("/loki/api/v1/query_range?"):
+            # Loki 3.4.2 otherwise flattens structured metadata (including
+            # detected_level) into stream labels. Keep selectors indexed-only.
+            headers["X-Loki-Response-Encoding-Flags"] = "categorize-labels"
         request = urllib.request.Request("http://" + address + ":3100" + path, method=method,
                     data=json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None),
-                    headers={"Content-Type": "application/json"})
+                    headers=headers)
         try:
             with opener.open(request, timeout=min(2, remaining)) as response:
                 raw = response.read(bound + 1)
@@ -385,29 +390,45 @@ def loki_http(container, path, *, method="GET", body=None, deadline=None, bound=
     raise ValueError("loki_http_failed")
 
 
-def query_sample(container, selector, start, end, *, deadline=None):
+def query_samples(container, selector, start, end, *, deadline=None, limit=64):
+    require(type(limit) is int and 1 <= limit <= 64 and 0 <= start < end, "loki_response_shape")
     query = urllib.parse.urlencode({"query": selector, "start": str(start), "end": str(end),
-                                   "limit": "1", "direction": "forward"})
-    status, raw = loki_http(container, "/loki/api/v1/query_range?" + query, deadline=deadline, bound=65536)
+                                   "limit": str(limit), "direction": "forward"})
+    status, raw = loki_http(container, "/loki/api/v1/query_range?" + query, deadline=deadline, bound=262144)
     require(status == 200, "loki_http_failed")
     result = json.loads(raw)
     require(isinstance(result, dict) and result.get("status") == "success" and isinstance(result.get("data"), dict), "loki_response_shape")
     data = result["data"]
-    require(data.get("resultType") == "streams" and isinstance(data.get("result"), list) and len(data["result"]) <= 1, "loki_response_shape")
-    if not data["result"]:
-        return None
-    row = data["result"][0]
-    stream = row.get("stream")
-    values = row.get("values")
-    require(isinstance(stream, dict) and 0 < len(stream) <= 16 and isinstance(values, list) and len(values) == 1, "loki_response_shape")
-    require(all(re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", key) and isinstance(value, str) and len(value) <= 256
-                for key, value in stream.items()), "loki_response_shape")
-    value = values[0]
-    require(isinstance(value, list) and len(value) >= 2 and isinstance(value[0], str) and value[0].isdigit()
-            and start <= int(value[0]) < end and isinstance(value[1], str) and len(value[1]) <= 4096, "loki_response_shape")
-    # Exact timestamp/stream lookup avoids copying a possibly sensitive existing
-    # log line into a query URL or Loki's query logs.
-    return {"stream": stream, "timestamp": int(value[0]), "line": value[1], "stats": data.get("stats", {})}
+    require(data.get("resultType") == "streams" and isinstance(data.get("result"), list) and len(data["result"]) <= limit, "loki_response_shape")
+    output = []
+    for row in data["result"]:
+        require(isinstance(row, dict), "loki_response_shape")
+        stream, values = row.get("stream"), row.get("values")
+        require(isinstance(stream, dict) and 0 < len(stream) <= 16 and isinstance(values, list)
+                and 0 < len(values) <= limit and len(output) + len(values) <= limit, "loki_response_shape")
+        require(all(re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", key) and isinstance(value, str) and len(value) <= 256
+                    for key, value in stream.items()), "loki_response_shape")
+        for value in values:
+            require(isinstance(value, list) and len(value) >= 2 and isinstance(value[0], str) and value[0].isdigit()
+                    and start <= int(value[0]) < end and isinstance(value[1], str) and len(value[1]) <= 4096, "loki_response_shape")
+            output.append({"stream": stream, "timestamp": int(value[0]), "line": value[1], "stats": data.get("stats", {})})
+    return output
+
+
+def query_sample(container, selector, start, end, *, deadline=None):
+    samples = query_samples(container, selector, start, end, deadline=deadline, limit=1)
+    return samples[0] if samples else None
+
+
+def find_sample(container, expected, *, deadline=None):
+    # Preserve the exact original timestamp and indexed labels. Categorized
+    # query responses keep non-indexed metadata out of this selector. Never
+    # copy an existing line into a query URL or Loki query logs.
+    stamp = expected["timestamp"]
+    samples = query_samples(container, selector_for(expected["stream"]), stamp, stamp + 1,
+                            deadline=deadline, limit=64)
+    return any(sample["timestamp"] == stamp and sample["line"] == expected["line"]
+               and sample["stream"] == expected["stream"] for sample in samples)
 
 
 def selector_for(stream):
@@ -466,7 +487,7 @@ def storage_proof(container, canary):
     baseline = flush_counters(container, deadline)
     stamp = time.time_ns()
     marker = "cl8y S3 credential adoption proof " + uuid.uuid4().hex
-    stream = {"job": "cl8y-s3-rotation-proof"}
+    stream = {"job": "cl8y-s3-rotation-proof", "service_name": "cl8y-s3-rotation-proof"}
     status, _ = loki_http(container, "/loki/api/v1/push", method="POST", deadline=deadline,
                          body={"streams": [{"stream": stream, "values": [[str(stamp), marker]]}]})
     require(status == 204, "loki_http_failed")
@@ -483,13 +504,9 @@ def storage_proof(container, canary):
             break
         require(attempt < 5, "loki_flush_unconfirmed")
         time.sleep(max(0, min(2, deadline - time.monotonic())))
-    found = query_sample(container, selector_for(stream), stamp, stamp + 1, deadline=deadline)
-    require(found is not None and found["timestamp"] == stamp and found["line"] == marker and found["stream"] == stream,
+    require(find_sample(container, {"stream": stream, "timestamp": stamp, "line": marker}, deadline=deadline),
             "loki_marker_missing")
-    historical = query_sample(container, selector_for(canary["stream"]), canary["timestamp"], canary["timestamp"] + 1,
-                              deadline=deadline)
-    require(historical is not None and historical["timestamp"] == canary["timestamp"]
-            and historical["line"] == canary["line"] and historical["stream"] == canary["stream"], "loki_history_missing")
+    require(find_sample(container, canary, deadline=deadline), "loki_history_missing")
     # A final sample rejects errors that occurred while validating the reads.
     final = flush_counters(container, deadline)
     require(final[failures] == baseline[failures], "loki_flush_failed")

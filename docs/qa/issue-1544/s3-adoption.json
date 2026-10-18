@@ -1,6 +1,6 @@
 {
   "issue": 1544,
-  "recorded_at_utc": "2026-10-18T13:41:13.585212+00:00",
+  "recorded_at_utc": "2026-10-18T13:57:13.059246+00:00",
   "source_revision": "809df57b958fd076cb4395735159feb39459f0f1",
   "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1551",
   "worker_recipe_sha256": "e8056ad27615a956dc7fe770cd3b4708d85f7a979e8b196038f28765b627dfc0",
@@ -65,6 +65,40 @@
       "loki_query": "PASS",
       "fresh_window_seconds": 300,
       "fresh_window_line_count": 31873
+    },
+    {
+      "phase": "engine_adoption_marker_verification",
+      "overall": "FAIL",
+      "revision": "7a6135930188c91d62cc6167018d398eedf02572",
+      "failure_reason": "loki_marker_missing",
+      "immutable_projection_match": true,
+      "ready": true,
+      "rollback_attempted": true,
+      "rollback_identity_verified": true,
+      "rollback_old_pair_verified": true,
+      "rollback_ready": true,
+      "rollback_verified": true,
+      "network_detached": true,
+      "note": "Successful storage counters preceded marker verification, but no full adoption PASS was emitted. Exact original-container rollback passed."
+    },
+    {
+      "phase": "owned_marker_query_diagnostic",
+      "overall": "PASS",
+      "default_stream_label_count": 3,
+      "service_name_auto_present": true,
+      "detected_level_in_default_stream": true,
+      "categorized_stream_label_count": 2,
+      "metadata_separate_in_third_tuple": true,
+      "one_nanosecond_query_has_result": true
+    },
+    {
+      "phase": "corrected_query_live_rehearsal",
+      "overall": "PASS",
+      "runtime_changed": false,
+      "query_count": 4,
+      "categorized_header_forwarded": true,
+      "historical_exact_roundtrip": true,
+      "owned_marker_exact_roundtrip": true
     }
   ],
   "runtime_adoption": "PENDING",

@@ -274,6 +274,13 @@ on platforms that rename volumes. Only a receipt matching the active nonce may
 authorize adoption. The fixed canonical source override is journaled privately;
 stdin Compose metadata such as `config_files="-"` cannot select a new file.
 
+Loki query requests must set `X-Loki-Response-Encoding-Flags: categorize-labels`.
+Otherwise structured metadata such as `detected_level` is flattened into query
+stream labels and can produce an invalid indexed selector during exact historical
+readback. Markers explicitly set the fixed `job` and `service_name`; compare exact
+indexed labels, original timestamp and content privately, ignoring third-tuple
+metadata. Never insert historical log content into a query URL or evidence.
+
 Live proof requires exact runtime credential matching, readiness, the same
 historical sample before/after replacement, and successful backing-storage
 writes. A push HTTP204 or asynchronous `/flush` HTTP204 alone is insufficient:

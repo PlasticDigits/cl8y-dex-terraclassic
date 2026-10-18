@@ -411,14 +411,14 @@ class StorageProofTests(unittest.TestCase):
 
         def query(_container, selector, start, end, **_kwargs):
             if start == canary["timestamp"]:
-                return None if missing_history else canary
+                return [] if missing_history else [canary]
             stream = pushes[0]["streams"][0]
             self.assertEqual(end - start, 1)
-            self.assertEqual(set(stream["stream"]), {"job"})
-            return None if missing_marker else {"stream": stream["stream"], "timestamp": int(stream["values"][0][0]),
-                                                "line": stream["values"][0][1]}
+            self.assertEqual(stream["stream"], {"job": "cl8y-s3-rotation-proof", "service_name": "cl8y-s3-rotation-proof"})
+            return [] if missing_marker else [{"stream": stream["stream"], "timestamp": int(stream["values"][0][0]),
+                                                "line": stream["values"][0][1]}]
 
-        with patch.object(m, "loki_http", side_effect=http), patch.object(m, "query_sample", side_effect=query), \
+        with patch.object(m, "loki_http", side_effect=http), patch.object(m, "query_samples", side_effect=query), \
              patch.object(m.time, "sleep"):
             return m.storage_proof(container, canary)
 
@@ -481,6 +481,70 @@ class StorageProofTests(unittest.TestCase):
             sample = m.query_sample(container, '{job="docker"}', 111, 112)
         self.assertEqual(sample["line"], "synthetic sensitive historical line")
         self.assertNotIn("historical", call.call_args.args[1])
+
+    def test_categorized_queries_keep_metadata_out_of_marker_and_history_selectors(self):
+        _, container, _ = fixture()
+        stamp = 1760000000123456789
+        stream = {"job": "cl8y-s3-rotation-proof", "service_name": "cl8y-s3-rotation-proof"}
+        expected = {"timestamp": stamp, "stream": stream, "line": "synthetic owned proof exact content"}
+        paths = []
+
+        class Response:
+            status = 200
+
+            def __init__(self, categorized):
+                self.categorized = categorized
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _bound):
+                result_stream = dict(stream) if self.categorized else {**stream, "detected_level": "unknown"}
+                value = [str(stamp), expected["line"]]
+                if self.categorized:
+                    value.append({"structuredMetadata": {"detected_level": "unknown"}})
+                return json.dumps({"status": "success", "data": {"resultType": "streams", "result": [
+                    {"stream": result_stream, "values": [value]}]}}).encode()
+
+        class Opener:
+            def open(self, request, **_kwargs):
+                paths.append(request.full_url)
+                headers = {key.lower(): value for key, value in request.header_items()}
+                return Response(headers.get("x-loki-response-encoding-flags") == "categorize-labels")
+
+        with patch.object(m.urllib.request, "build_opener", return_value=Opener()):
+            sample = m.query_sample(container, m.selector_for(stream), stamp, stamp + 1)
+            self.assertEqual(sample["stream"], stream)
+            self.assertNotIn("detected_level", sample["stream"])
+            self.assertTrue(m.find_sample(container, expected))
+            # A retained historical sample uses the same indexed-label-only
+            # selector and exact nanosecond lookup, independent of metadata.
+            self.assertTrue(m.find_sample(container, sample))
+        parameters = m.urllib.parse.parse_qs(m.urllib.parse.urlsplit(paths[-1]).query)
+        self.assertEqual(int(parameters["start"][0]), stamp)
+        self.assertEqual(int(parameters["end"][0]), stamp + 1)
+        self.assertEqual(parameters["limit"], ["64"])
+        self.assertTrue(all("detected_level" not in path and expected["line"] not in path for path in paths))
+
+    def test_private_lookup_never_accepts_a_nearby_or_different_line(self):
+        _, container, _ = fixture()
+        expected = {"timestamp": 1760000000123456789, "stream": {"job": "docker"}, "line": "exact historical content"}
+        alternatives = [{**expected, "timestamp": expected["timestamp"] + 1},
+                        {**expected, "line": "different content"},
+                        {**expected, "stream": {"job": "different"}}]
+        with patch.object(m, "query_samples", return_value=alternatives):
+            self.assertFalse(m.find_sample(container, expected))
+
+    def test_private_query_enforces_one_global_result_count_bound(self):
+        _, container, _ = fixture()
+        response = {"status": "success", "data": {"resultType": "streams", "result": [
+            {"stream": {"job": "docker"}, "values": [["111", "synthetic"]] * 65}]}}
+        with patch.object(m, "loki_http", return_value=(200, json.dumps(response).encode())), \
+                self.assertRaisesRegex(ValueError, "loki_response_shape"):
+            m.query_samples(container, '{job="docker"}', 111, 112)
 
     def test_history_requires_old_bounded_range_and_store_involvement(self):
         _, container, _ = fixture()
