@@ -1,8 +1,9 @@
-# Separate Coolify application. No DEX or logging containers are replaced.
+# Separate Coolify application. Paths use repository root, matching Coolify.
+# Locally: docker compose --project-directory . -f monitoring/dex/compose.yaml ...
 services:
   dex-exporter:
     build:
-      context: ../..
+      context: .
       dockerfile: monitoring/dex/Dockerfile
     volumes:
       - alert-receipts:/state
@@ -27,8 +28,8 @@ services:
       - --query.max-concurrency=4
       - --query.timeout=10s
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./monitoring/dex/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/dex/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     expose: ["9090"]
     mem_limit: 512m
@@ -47,7 +48,7 @@ services:
     image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
     command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager", "--cluster.listen-address="]
     volumes:
-      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./monitoring/dex/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager-data:/alertmanager
     expose: ["9093"]
     mem_limit: 128m
@@ -56,7 +57,7 @@ services:
     networks: [default]
   dex-drill:
     build:
-      context: ../..
+      context: .
       dockerfile: monitoring/dex/Dockerfile
     command: ["/bin/sh", "-c", "while true; do python3 -I /app/drill.py --step; sleep 5; done"]
     volumes:

@@ -19,7 +19,7 @@ run 'Native monitoring fixed queries and hard 19-read budget' python3 scripts/qa
   Tests.test_native_monitoring_optional_branches_use_the_real_reader_budget \
   Tests.test_native_monitoring_cli_retains_old_cap_failure_and_uses_explicit_profile \
   Tests.test_monitoring_budget_profile_is_closed_before_credentials_or_transport
-run 'Monitoring Compose configuration (no lifecycle operation)' docker compose -f monitoring/dex/compose.yaml config --quiet
+run 'Monitoring Compose configuration (no lifecycle operation)' docker compose --project-directory "$ROOT_DIR" -f monitoring/dex/compose.yaml config --quiet
 PROM_IMAGE='prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996'
 ALERT_IMAGE='prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba'
 run 'Prometheus config/rule parser in isolated disposable container' docker run --rm --network none --memory 128m --cpus 0.25 \

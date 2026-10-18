@@ -1,0 +1,51 @@
+{
+  "issue": 1544,
+  "utc": "2026-10-18T10:36:48Z",
+  "scope": "Remediation of credential values accidentally included in a private tool response while inventorying the existing monitoring deployment. No credential values, digests, raw environment responses or raw deployment objects are retained here.",
+  "overall": "INCOMPLETE",
+  "grafana_admin": {
+    "status": "PASS",
+    "rotated_at_utc": "2026-10-18T10:28:21.938236+00:00",
+    "method": "Authenticated Grafana PUT /api/user/password; generated replacement stayed in process memory; OpenBao canonical record and Coolify replacement environment updated and read back.",
+    "new_authentication": "PASS",
+    "old_authentication_rejected": "PASS",
+    "openbao_matches_coolify": true,
+    "containers_restarted": false,
+    "note": "The running container's historical process environment is unchanged; the Grafana database rejects its previous password and future container configuration contains the replacement."
+  },
+  "loki_storage": {
+    "status": "PENDING_OPERATOR_CUSTODY",
+    "reason": "Hetzner documents no dedicated public API to generate S3 credentials; an authenticated Console session is unavailable to this agent.",
+    "source": "https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/",
+    "pm_task_id": "c1c74912-795a-4108-bd86-4493c0b0b133",
+    "pm_task_status_at_creation": "queued",
+    "helper": "scripts/ops/stage-logs-s3-credentials.py",
+    "prepared_check": "PASS: helper --check and two focused signing/input-bound tests; test process 0.001 seconds.",
+    "helper_contract": "Hidden local TTY prompts; verify replacement key with a signed read-only bucket HEAD; store it under OpenBao secret/data/groups/cl8y-logs/s3_rotation_pending with CAS and readback. This stages credentials only and never switches Loki or revokes the current key.",
+    "remaining_agent_work": "After staging, adopt the replacement in Loki through verified monitoring-only replacement/reload, verify historical reads and fresh ingestion, then notify the operator that revoking the previous Console key is safe.",
+    "current_key_revoked": false
+  },
+  "loki_ingestion": {
+    "status": "PENDING_OPERATOR_SUDO",
+    "reason": "Normal power-man SSH to the existing WireGuard host on port 2223 works; sudo -n explicitly reports interactive authentication required. The separately authenticated cl8y-ops SSH identity is restricted to the existing hub command and cannot inventory or change collector configuration.",
+    "pm_task_id": "807d41d0-41a4-4e06-a690-344325ccb40e",
+    "pm_task_status_at_creation": "queued",
+    "helper": "scripts/ops/logs-collector-inventory.py",
+    "prepared_remote_script": "/tmp/dex1544-logs-collector-inventory.py",
+    "prepared_check": "PASS: uploaded over existing operator SSH, remote Python syntax check passed; local synthetic container fixture confirms environment values are omitted.",
+    "inventory": "All 64 Coolify applications inspected; only cl8y-logs contains the ingestion environment names. The managed logs records, worker logs-ingest group and current logging application agree. HCloud contains the Coolify, mail and OpenBao hosts and no active transient workers.",
+    "helper_contract": "Read-only local host systemd, known environment-file key names and container consumer metadata; no environment values or logs exported. Output is a private JSON file owned by the invoking sudo user.",
+    "remaining_agent_work": "Use the sanitized host inventory to prepare coordinated collector credential adoption, include external mail/OpenBao collectors and persisted future-worker templates, verify fresh Loki ingestion and only then remove the previous proxy credential. No generic root or broader SSH permission has been granted.",
+    "current_password_revoked": false
+  },
+  "coolify_sentinel_storage_field": {
+    "status": "NO_PLAINTEXT_CREDENTIAL_PROVEN",
+    "field": "destination.server.settings.sentinel_token",
+    "assessment": "The inventory also included Coolify's stored Laravel encrypted sentinel field. This is distinguished from the usable plaintext Grafana, ingestion and S3 credentials. No usable sentinel plaintext was established or claimed rotated."
+  },
+  "continuity": {
+    "dex_containers_restarted": false,
+    "logging_containers_restarted_for_remediation": false,
+    "existing_ingest_and_storage_credentials_preserved_until_adoption": true
+  }
+}

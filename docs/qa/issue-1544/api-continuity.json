@@ -1,0 +1,106 @@
+{
+  "issue": 1544,
+  "scope": "Bounded sampled public serving continuity; four samples per window, two cached GETs per sample. Sampling does not prove uninterrupted availability between observations.",
+  "windows": [
+    {
+      "started_utc": "2026-10-18T10:33:50.331565+00:00",
+      "samples": [
+        {
+          "utc": "2026-10-18T10:33:50.331590+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:34:00.331677+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:34:10.331672+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:34:20.331667+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        }
+      ],
+      "finished_utc": "2026-10-18T10:34:22.084107+00:00"
+    },
+    {
+      "started_utc": "2026-10-18T10:36:36.862388+00:00",
+      "samples": [
+        {
+          "utc": "2026-10-18T10:36:36.862407+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:36:46.862492+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:36:56.862491+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        },
+        {
+          "utc": "2026-10-18T10:37:06.862492+00:00",
+          "liveness": {
+            "http_status": 200,
+            "git_sha": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+          },
+          "serving": {
+            "http_status": 200,
+            "admitted": true
+          }
+        }
+      ],
+      "finished_utc": "2026-10-18T10:37:08.688268+00:00"
+    }
+  ]
+}
