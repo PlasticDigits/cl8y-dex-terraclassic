@@ -9,6 +9,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.error import HTTPError
 
@@ -150,6 +151,21 @@ class GuardTests(unittest.TestCase):
             api.detail = {'deployment_uuid': 'deployment1544', 'application_id': 1544, 'commit': REVISION, 'logs': logs}
             with self.subTest(shape=type(logs).__name__), self.assertRaisesRegex(ValueError, 'deployment_logs_unavailable'):
                 OPS.status(api, APP)
+
+    def test_provision_rejects_duplicate_or_wrong_datasource_before_mutation(self):
+        for sources in ([{'uid': OPS.UID}, {'uid': OPS.UID}],
+                        [{'uid': OPS.UID, 'type': 'loki', 'url': 'http://dex-prometheus:9090'}],
+                        [{'uid': OPS.UID, 'type': 'prometheus', 'url': 'https://wrong.invalid'}]):
+            calls = []
+            def exchange(opener, url, authorization, method='GET', payload=None):
+                calls.append((url, method))
+                self.assertEqual(method, 'GET', 'must reject inventory before any Grafana writes')
+                return sources
+            fake = SimpleNamespace(reader=SimpleNamespace(opener=object()), authorization='fixture-private')
+            with self.subTest(sources=sources), patch.object(OPS.MONITOR, 'Monitor', return_value=fake), patch.object(OPS, 'exchange', side_effect=exchange):
+                with self.assertRaises(ValueError):
+                    OPS.provision()
+            self.assertEqual(len(calls), 1)
 
     def test_http_error_never_reads_or_prints_sensitive_body(self):
         body = io.BytesIO(b'credential-private-body')
