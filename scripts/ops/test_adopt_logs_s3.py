@@ -154,7 +154,8 @@ class Tests(unittest.TestCase):
     def test_cleanup_erases_saved_secret_and_protects_shared_networks_volumes(self):
         s = state("config_persisted")
         api = Mock()
-        api.call.side_effect = [job(s), [{"key": "LOKI_S3_PAYLOAD_JSON", "uuid": "f" * 24}], {}, [], {}, {}]
+        api.call.side_effect = [job(s), [{"key": "LOKI_S3_PAYLOAD_JSON", "uuid": "f" * 24}], {}, [], {},
+                                job(s), m.GuardError("api_http_404"), {}]
         with patch.object(m, "save"):
             result = m.cleanup(api, {"data": s})
         calls = api.call.call_args_list
@@ -289,7 +290,7 @@ class Tests(unittest.TestCase):
         s = state("adoption_failed")
         s["adoption_receipt"] = {"mode": "adopt", "status": "FAIL", "runtime_changed": True, "rollback_verified": True}
         api = Mock()
-        api.call.side_effect = [job(s), [], [], {}, {}]
+        api.call.side_effect = [job(s), [], [], {}, job(s), m.GuardError("api_http_404"), {}]
         with patch.object(m, "save"):
             self.assertTrue(m.cleanup(api, {"data": s})["saved_payload_removed"])
         s["phase"] = "adoption_failed"
@@ -310,6 +311,109 @@ class Tests(unittest.TestCase):
         api.call.side_effect = m.GuardError("api_http_403")
         with self.assertRaisesRegex(m.GuardError, "cleanup_status_failed"):
             m.cleanup_status(api, {"data": s})
+
+
+class CleanupProofTests(unittest.TestCase):
+    def test_only_container_route_404_with_bound_parent_establishes_physical_absence(self):
+        s = state("config_persisted")
+        api = Mock()
+        api.call.side_effect = [job(s), m.GuardError("api_http_404")]
+        self.assertTrue(m.container_removed(api, s))
+        self.assertEqual([call.args[0] for call in api.call.call_args_list], [
+            "services/" + s["job_uuid"],
+            "services/" + s["job_uuid"] + "/logs?sub_service_name=maintenance&lines=1"])
+        for responses in ([m.GuardError("api_http_404")],
+                          [job(s), m.GuardError("api_http_403")],
+                          [job(s), RuntimeError("FOREIGN_SYNTHETIC_SECRET")]):
+            api.call.reset_mock()
+            api.call.side_effect = responses
+            self.assertFalse(m.container_removed(api, s))
+
+    def test_existing_container_logs_are_discarded_and_polling_is_bounded(self):
+        s = state("config_persisted")
+        api = Mock()
+        api.call.side_effect = [job(s), {"logs": "FOREIGN_SYNTHETIC_SECRET"}] * 3
+        output = io.StringIO()
+        with patch.object(m.time, "sleep") as sleep, contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            self.assertFalse(m.container_removed(api, s))
+        self.assertEqual(api.call.call_count, 6)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(output.getvalue(), "")
+
+    def test_stopped_container_must_disappear_before_physical_proof(self):
+        s = state("config_persisted")
+        api = Mock()
+        api.call.side_effect = [job(s), m.GuardError("api_http_400"), job(s), m.GuardError("api_http_404")]
+        with patch.object(m.time, "sleep"):
+            self.assertTrue(m.container_removed(api, s))
+        api.call.side_effect = [job(s), m.GuardError("api_http_400")] * 3
+        with patch.object(m.time, "sleep"):
+            self.assertFalse(m.container_removed(api, s))
+
+    def test_deadline_and_scope_drift_prevent_more_container_reads(self):
+        s = state("config_persisted")
+        api = Mock()
+        api.call.return_value = job(s)
+        with patch.object(m.time, "monotonic", side_effect=[0, 0, 16]):
+            self.assertFalse(m.container_removed(api, s))
+        self.assertEqual(api.call.call_count, 1)
+        api.call.return_value = {**job(s), "docker_compose_raw": "foreign"}
+        with self.assertRaisesRegex(m.GuardError, "owned_job_recipe"):
+            m.container_removed(api, s)
+
+    def cleanup(self, removed, stop_error=None):
+        s = state("config_persisted")
+        calls = []
+
+        def call(path, method="GET", body=None):
+            calls.append((path, method, body))
+            if path == "services/" + s["job_uuid"] and method == "GET":
+                return job(s)
+            if path.endswith("/envs"):
+                return []
+            if "/stop?" in path and stop_error is not None:
+                raise m.GuardError(stop_error)
+            return {}
+
+        api = Mock()
+        api.call.side_effect = call
+        with patch.object(m, "container_removed", return_value=removed), patch.object(m, "save") as save:
+            result = m.cleanup(api, {"data": s})
+        self.assertEqual(save.call_args.args[0]["runtime_container_removal_verified"], removed)
+        self.assertEqual(result["runtime_container_removal_verified"], removed)
+        self.assertEqual(calls[-1][1], "DELETE")
+        self.assertIn("delete_volumes=false", calls[-1][0])
+        self.assertIn("delete_connected_networks=false", calls[-1][0])
+        self.assertIn("docker_cleanup=false", calls[-1][0])
+        self.assertTrue(all(path.startswith("services/" + s["job_uuid"]) for path, _, _ in calls))
+        return calls
+
+    def test_acknowledged_stop_deletes_owned_job_and_records_available_or_unavailable_proof(self):
+        for removed in (False, True):
+            with self.subTest(removed=removed):
+                self.cleanup(removed)
+
+    def test_stop_400_only_recovers_after_confirmed_physical_absence(self):
+        self.cleanup(True, "api_http_400")
+        s = state("config_persisted")
+        for error in ("api_http_400", "api_http_403"):
+            api = Mock()
+            api.call.side_effect = [job(s), [], [], m.GuardError(error)]
+            with patch.object(m, "container_removed", return_value=False), patch.object(m, "save") as save, \
+                    self.assertRaises(m.GuardError):
+                m.cleanup(api, {"data": s})
+            self.assertFalse(any(len(call.args) > 1 and call.args[1] == "DELETE" for call in api.call.call_args_list))
+            save.assert_not_called()
+
+    def test_cleanup_status_preserves_prior_physical_proof_but_404_alone_cannot_create_it(self):
+        for verified in (False, True):
+            s = {**state("cleaned"), "runtime_container_removal_verified": verified}
+            api = Mock()
+            api.call.side_effect = m.GuardError("api_http_404")
+            result = m.cleanup_status(api, {"data": s})
+            self.assertTrue(result["job_record_removed"])
+            self.assertEqual(result["runtime_container_removal_verified"], verified)
+            self.assertEqual(api.call.call_count, 1)
 
 
 class ResetPreflightTests(unittest.TestCase):
