@@ -622,7 +622,9 @@ export interface ProtocolFeesResponse {
   community_invoices_configured?: boolean
   by_source: ProtocolFeeSourceRow[]
   by_token: ProtocolFeeTokenRow[]
-  /** Additive #1211, absent on older deployments. Aggregate payer cohorts only. */
+  /** Present on new backends; optional only for older backend compatibility. */
+  cohort_status?: 'pending_schema' | 'pending_publication' | 'available'
+  /** Aggregate cohorts are omitted until schema68 and a coherent joint publication. */
   by_cohort?: {
     cohort: 'retail' | 'mm' | 'unknown'
     amount_usd: string | null

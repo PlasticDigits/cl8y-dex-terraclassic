@@ -480,6 +480,7 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
         protocol_fees::ProtocolFeeCohortRow,
+        protocol_fees::ProtocolFeeCohortStatus,
         protocol_fee_series::ProtocolFeeSeriesResponse,
         protocol_fee_series::ProtocolFeeSeriesPoint,
         protocol_liquidity::ProtocolLiquidityDailyResponse,

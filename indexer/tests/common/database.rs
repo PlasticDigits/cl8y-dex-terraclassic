@@ -102,6 +102,21 @@ pub async fn setup_pool() -> PgPool {
         .run(&pool)
         .await
         .expect("strict migrations on fresh disposable integration database");
+    // The SQLx-only fixture also needs the runtime marker normally established
+    // by the standalone migrator; never rewrite an existing fixture marker.
+    sqlx::query("CREATE TABLE IF NOT EXISTS indexer_schema_version(singleton BOOLEAN PRIMARY KEY CHECK(singleton), version BIGINT NOT NULL)")
+        .execute(&pool).await.expect("create owned fixture schema marker");
+    sqlx::query("INSERT INTO indexer_schema_version VALUES(true,$1) ON CONFLICT DO NOTHING")
+        .bind(
+            cl8y_dex_indexer::database_security::MIGRATOR
+                .iter()
+                .map(|m| m.version)
+                .max()
+                .unwrap(),
+        )
+        .execute(&pool)
+        .await
+        .expect("initialize owned fixture schema marker");
     pool
 }
 

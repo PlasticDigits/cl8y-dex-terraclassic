@@ -50,6 +50,14 @@ pub struct ProtocolFeeCohortRow {
 }
 
 #[derive(Serialize, ToSchema, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ProtocolFeeCohortStatus {
+    PendingSchema,
+    PendingPublication,
+    Available,
+}
+
+#[derive(Serialize, ToSchema, Clone)]
 pub struct ProtocolFeeTokenRow {
     pub asset_id: Option<i32>,
     pub symbol: String,
@@ -70,7 +78,10 @@ pub struct ProtocolFeesResponse {
     pub community_invoices_configured: bool,
     pub by_source: Vec<ProtocolFeeSourceRow>,
     pub by_token: Vec<ProtocolFeeTokenRow>,
+    /// Pending cohorts are absent, never fabricated as three idle zero rows.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub by_cohort: Vec<ProtocolFeeCohortRow>,
+    pub cohort_status: ProtocolFeeCohortStatus,
 }
 
 /// Drop the 60s `/protocol/fees` response cache (tests).
@@ -120,6 +131,9 @@ pub async fn get_protocol_fees(
         .execute(&mut *read_snapshot)
         .await
         .map_err(internal_err)?;
+    let cohorts_ready = crate::database_security::cohorts_ready(&mut *read_snapshot)
+        .await
+        .map_err(internal_err)?;
     let rollup = fee_q::get_fee_rollup(&mut *read_snapshot)
         .await
         .map_err(internal_err)?;
@@ -129,6 +143,12 @@ pub async fn get_protocol_fees(
     let tokens = fee_q::get_fees_by_token(&mut *read_snapshot, window)
         .await
         .map_err(internal_err)?;
+    let child_clocks_match = sources
+        .iter()
+        .all(|r| Some(r.updated_at) == rollup.updated_at)
+        && tokens
+            .iter()
+            .all(|r| Some(r.updated_at) == rollup.updated_at);
 
     let by_source = sources
         .into_iter()
@@ -172,9 +192,27 @@ pub async fn get_protocol_fees(
         })
         .collect();
 
-    let by_cohort = crate::db::queries::fee_cohorts::get(&mut *read_snapshot, window)
-        .await
-        .map_err(internal_err)?
+    let (cohort_status, cohorts) = if cohorts_ready {
+        let rows = crate::db::queries::fee_cohorts::get(&mut *read_snapshot, window)
+            .await
+            .map_err(internal_err)?;
+        // Bootstrap or an older publisher may leave individually valid rows
+        // from different generations. Only an actual joint68 transaction stamps
+        // this existing-state key and all three row clocks with the global clock.
+        if child_clocks_match
+            && rollup.updated_at.is_some()
+            && rollup.updated_at == rollup.cohort_publication_at
+            && rows.len() == 3
+            && rows.iter().all(|r| r.updated_at == rollup.updated_at)
+        {
+            (ProtocolFeeCohortStatus::Available, rows)
+        } else {
+            (ProtocolFeeCohortStatus::PendingPublication, Vec::new())
+        }
+    } else {
+        (ProtocolFeeCohortStatus::PendingSchema, Vec::new())
+    };
+    let by_cohort = cohorts
         .into_iter()
         .map(|r| ProtocolFeeCohortRow {
             cohort: r.cohort,
@@ -195,6 +233,7 @@ pub async fn get_protocol_fees(
         by_source,
         by_token,
         by_cohort,
+        cohort_status,
     };
 
     if let Ok(mut guard) = fees_cache().lock() {

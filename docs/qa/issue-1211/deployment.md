@@ -1,3 +1,8 @@
+> The API must remain serving. The stopped-runtime workflow below is retained as
+> historical evidence and must not be used for the online transition. Start with
+> the [compatibility-first checklist](compatibility.md); an online migration and
+> traffic switch require separate proved continuity and exact-release evidence.
+
 # Cohort schema rollout
 
 The additive [cohort migration](../../../indexer/migrations/20261018110000_protocol_fee_cohorts.sql)

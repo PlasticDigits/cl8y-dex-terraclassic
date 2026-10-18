@@ -5,6 +5,7 @@ use sqlx::FromRow;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct FeeCohortStat {
+    pub updated_at: Option<DateTime<Utc>>,
     pub cohort: String,
     pub amount_usd: Option<BigDecimal>,
     pub share_pct: Option<BigDecimal>,
@@ -45,7 +46,7 @@ pub async fn get<'e>(
     window: &str,
 ) -> Result<Vec<FeeCohortStat>, sqlx::Error> {
     // Exactly three rows, including configured idle; no fee-event scan on GET.
-    sqlx::query_as(r#"SELECT c.cohort,COALESCE(s.event_count,0) AS event_count,
+    sqlx::query_as(r#"SELECT c.cohort,s.updated_at,COALESCE(s.event_count,0) AS event_count,
         CASE WHEN s.cohort IS NULL THEN 0 ELSE s.amount_usd END AS amount_usd,s.share_pct
         FROM (VALUES ('retail',0),('mm',1),('unknown',2)) AS c(cohort,rank)
         LEFT JOIN protocol_fee_stats_by_cohort s ON s.cohort=c.cohort AND s."window"=$1 ORDER BY c.rank"#)

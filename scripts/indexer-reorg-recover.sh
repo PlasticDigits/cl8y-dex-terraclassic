@@ -121,6 +121,12 @@ echo "  last_indexed_height: ${CURRENT_HEIGHT}"
 echo "  last_indexed_block_hash: ${CURRENT_HASH:-<empty>}"
 echo ""
 
+SCHEMA_VERSION="$(psql_query "SELECT version FROM indexer_schema_version WHERE singleton = true;")"
+case "$SCHEMA_VERSION" in
+  20261016120000|20261018110000) ;;
+  *) echo "Unsupported recovery schema version" >&2; exit 1 ;;
+esac
+
 # Row-impact preview (read-only)
 echo "--- Row impact preview (block_height >= ${HEIGHT}) ---"
 for label_table in \
@@ -137,6 +143,10 @@ for label_table in \
   "hook_events:hook_events"; do
   label="${label_table%%:*}"
   table="${label_table##*:}"
+  if [[ "$SCHEMA_VERSION" == 20261016120000 && "$table" == fee_registry_* ]]; then
+    echo "  ${label}: pending schema (not queried)"
+    continue
+  fi
   count="$(psql_query "SELECT COUNT(*) FROM ${table} WHERE block_height >= ${HEIGHT};" 2>/dev/null || echo 'ERR')"
   echo "  ${label}: ${count} rows"
 done
@@ -168,8 +178,14 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
-DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
-DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
+DO \$cohort\$
+BEGIN
+  IF (SELECT version FROM indexer_schema_version WHERE singleton = true) = 20261018110000 THEN
+    DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
+    DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
+  END IF;
+END;
+\$cohort\$;
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};
@@ -212,8 +228,14 @@ CREATE TEMP TABLE _reorg_affected_pairs ON COMMIT DROP AS
   SELECT DISTINCT pair_id FROM swap_events WHERE block_height >= ${HEIGHT};
 DELETE FROM candles WHERE pair_id IN (SELECT pair_id FROM _reorg_affected_pairs);
 DELETE FROM hook_events WHERE block_height >= ${HEIGHT};
-DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
-DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
+DO \$cohort\$
+BEGIN
+  IF (SELECT version FROM indexer_schema_version WHERE singleton = true) = 20261018110000 THEN
+    DELETE FROM fee_registry_events WHERE block_height >= ${HEIGHT};
+    DELETE FROM fee_registry_snapshots WHERE block_height >= ${HEIGHT};
+  END IF;
+END;
+\$cohort\$;
 DELETE FROM protocol_fee_events WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_wrap_principal WHERE block_height >= ${HEIGHT};
 DELETE FROM listing_mapper_custody WHERE block_height >= ${HEIGHT};

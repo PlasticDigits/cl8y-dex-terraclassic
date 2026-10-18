@@ -32,3 +32,12 @@ Production role transition receipt:
 (61 migrations, schema marker `20261006133000`, four permission denials).
 That receipt is deployment evidence for [#1396](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1396);
 release coordination is [REL1421-4](AGENTS_RELEASE_OPS_1421.md).
+
+Serving-only cohort compatibility is the explicit [FC1211-11](AGENTS_FEE_COHORTS.md)
+exception: the current 68 binary may start on reviewed 67 while all cohort table
+access stays disabled. `verify_serving_runtime` performs the complete unchanged
+runtime privilege checks; `verify_runtime`, `verify_schema_ready` and QA remain
+strict. No generic forward-version or `>=` startup acceptance is permitted.
+A future compiled migration removes the 67 exception until separately reviewed.
+See [the checklist](../docs/qa/issue-1211/compatibility.md); source/local passes
+never establish a production migration, useful API continuity or traffic switch.

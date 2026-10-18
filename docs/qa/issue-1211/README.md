@@ -1,7 +1,7 @@
 # Fee actor and registry cohort verification (#1211)
 
 Issue: [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211).
-Contract: [FC1211-1–FC1211-10](../../../skills/AGENTS_FEE_COHORTS.md).
+Contract: [FC1211-1–FC1211-11](../../../skills/AGENTS_FEE_COHORTS.md).
 Related: [fee-ledger home](../../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md),
 [source provenance](../issue-1210/README.md),
 [database isolation](../../../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md),
@@ -18,7 +18,9 @@ back to prior membership; missing wallet identity creates a conservative unknown
 Four reads and a shared two-second deadline bound additional provider work per
 block; failures remain unknown. Ledger amounts are independent of these reads.
 
-Three materialized aggregate rows per window supply `by_cohort`. All fee
+Three materialized aggregate rows per window supply `by_cohort` after a joint
+published generation. [Compatibility serving](compatibility.md) keeps the API
+active on 67 with cohorts explicitly pending and gates all new table access. All fee
 breakdowns publish atomically from a consistent repeatable-read snapshot; GET
 reads only these rollups in a single read snapshot and retains the 60-second
 cache. Existing source/token payloads remain additive.

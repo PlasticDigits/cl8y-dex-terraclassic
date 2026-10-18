@@ -1,0 +1,69 @@
+{
+  "scope": "owned_local_only; no production mutation or serving interruption",
+  "base_revision": "935bf90e",
+  "worktree_dirty": true,
+  "serving_schema_versions": [
+    20261016120000,
+    20261018110000
+  ],
+  "strict_other_entrypoints_unchanged": true,
+  "migration_inputs": [
+    {
+      "path": "indexer/migrations/20261018110000_protocol_fee_cohorts.sql",
+      "sha384": "d84cc3cf7431d3bc58400d4c7639e632736aab1b2ae0abc321ddd25345f6a357bc4d6ad619ccf9a5126b25ee60dc8cc0",
+      "bytes_unchanged": true
+    }
+  ],
+  "checks": {
+    "genuine_sqlx_prefix_67_to_68": true,
+    "all_original_history_rows_preserved": true,
+    "continuing_actual_http_responses": 30,
+    "continuing_production_parsed_blocks": 7,
+    "actual_67_publisher_held_across_migration": true,
+    "bootstrap_pending_until_joint_68_publication": true,
+    "source_token_global_cohort_clock_mismatches_pending": true,
+    "runtime_authenticated_restart_on_67_and_68": true,
+    "unknown_older_and_future_markers_refused": true,
+    "runtime_permission_denials": 4,
+    "role_attributes_unchanged": true,
+    "digest_available_on_67": true,
+    "reorg_registry_sql_gated_on_67_and_68": true,
+    "openapi_cohort_optional_status_required": true,
+    "owned_container_and_volume_removed": true
+  },
+  "test_invocations": [
+    {
+      "target": "cohort_online_compat via scripts/qa/test-cohort-online-compat-1211.py",
+      "tests_passed": 1,
+      "rust_seconds": 1.92,
+      "provision_test_cleanup_seconds": 3.67,
+      "process_limit_seconds": 59
+    },
+    {
+      "target": "indexer_fee_cohorts",
+      "tests_passed": 10,
+      "seconds": 2.83,
+      "process_limit_seconds": 59
+    },
+    {
+      "target": "indexer_protocol_fees",
+      "tests_passed": 31,
+      "seconds": 9.1,
+      "process_limit_seconds": 59
+    }
+  ],
+  "retained_setup_failure": {
+    "phase": "owned_fixture_prefix_count",
+    "actual_items": 68,
+    "expected_forward_migrations": 67,
+    "cause": "Fixture initially counted a down migration; corrected filter to exclude down migrations.",
+    "migrations_executed_before_failure": false,
+    "owned_fixture_removed": true,
+    "fresh_final_run_passed": true
+  },
+  "limits": [
+    "Compilation was separate from all actual bounded test invocations.",
+    "Actual HTTP fixture exercises fee and anonymous digest endpoints, not production/native-quote readiness or provider acceptance.",
+    "No live migration, backup, rolling traffic switch, full process restart or issue acceptance is established by this local handler/startup-guard rehearsal."
+  ]
+}

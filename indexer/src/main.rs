@@ -277,8 +277,8 @@ async fn run_server() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await?;
 
-    database_security::verify_runtime(&pool).await?;
-    tracing::info!("Database runtime privileges and schema readiness verified");
+    database_security::verify_serving_runtime(&pool).await?;
+    tracing::info!("Database runtime privileges and serving schema readiness verified");
 
     match crate::db::queries::usdt_quote_usd::backfill_null_usdt_quote_usd(
         &pool,

@@ -13,12 +13,14 @@ use std::{collections::HashMap, time::Duration};
 pub struct AttributionBudget {
     deadline: Option<tokio::time::Instant>,
     remaining_reads: usize,
+    schema_ready: Option<bool>,
 }
 impl Default for AttributionBudget {
     fn default() -> Self {
         Self {
             deadline: None,
             remaining_reads: 4,
+            schema_ready: None,
         }
     }
 }
@@ -350,6 +352,19 @@ pub async fn attribute_transaction(
     budget: &mut AttributionBudget,
 ) -> Result<(), sqlx::Error> {
     if tx.code != 0 {
+        return Ok(());
+    }
+    // One marker decision per block owner. A 67 block cannot start touching
+    // cohort tables midway through an online migration; its fees remain unknown.
+    let enabled = match budget.schema_ready {
+        Some(enabled) => enabled,
+        None => {
+            let enabled = crate::database_security::cohorts_ready(pool).await?;
+            budget.schema_ready = Some(enabled);
+            enabled
+        }
+    };
+    if !enabled {
         return Ok(());
     }
     let all = actions(tx);

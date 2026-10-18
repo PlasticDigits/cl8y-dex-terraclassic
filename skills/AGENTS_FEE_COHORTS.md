@@ -16,7 +16,9 @@ Fee source/provenance home: [L1213](AGENTS_INDEXER_FEE_LEDGER_HOME.md).
 | FC1211-7 | Public `by_cohort` is three static aggregate rows (`retail`, `mm`, `unknown`); no actors, registry events, tier dump, wallet roster, or campaign fields. Shares use stamped priced USD only. Unpriced activity increments event count, with null USD/share; configured idle is `"0"`. Cohort USD and percent strings use the existing #557 `bd_plain_string` helper, including dust values; never emit scientific notation. |
 | FC1211-8 | Scheduled global/source/token/cohort publication uses one repeatable-read transaction. GET reads one read-only repeatable-read snapshot and caches the aggregate response for 60 seconds. GET never scans fee events or joins actors. |
 | FC1211-9 | Reorg recovery deletes registry events/snapshots at and after the rewind and cascades fee attribution. Historical snapshots below the rewind stay valid. No automatic rewrites of historical cohorts from reconciled/live tiers. |
-| FC1211-10 | Local synthetic receipts prove implementation behavior, not deployed payer emission or completed live evidence. Current pair/factory/token invoice contracts omit some required payer fields; keep those paths unknown and report that limitation. Runtime never migrates: the separate migrator must prepare this additive schema before deploying the new indexer. |
+| FC1211-10 | Local synthetic receipts prove implementation behavior, not deployed payer emission or completed live evidence. Current pair/factory/token invoice contracts omit some required payer fields; keep those paths unknown and report that limitation. Runtime never migrates: the separate migrator prepares this additive schema. The compatibility server may serve 67 first with cohort features explicitly pending; it never migrates itself. |
+
+| FC1211-11 | Compatibility startup alone accepts reviewed markers 67 (`20261016120000`) and 68 (`20261018110000`) with every runtime privilege check unchanged. Maintenance/QA stay strict; future compiled migrations remove this older-schema exception. Cache one marker per block and decide rollup/GET access inside their RR snapshot. On 67, never query cohort tables; omit `by_cohort` with `cohort_status=pending_schema`. On 68, publish cohorts only after an actual atomic joint refresh stamps the existing `indexer_state` publication key and global/source/token/cohort clocks agree. Bootstrap, missing or mixed generations remain `pending_publication`, never three fabricated zeros. Preserve migration bytes and rollback compatibility; never stop the serving API for this transition. |
 
 Run `make verify-issue-1211`. Build commands may exceed a minute; each actual test
 process is bounded to 59 seconds. Keep missing live/LocalTerra evidence explicit.
@@ -28,3 +30,7 @@ Keep complete SQLx history, effective migrator DSN options, private snapshot,
 new-schema runtime grants/denials, current run-ID receipts and credential cleanup.
 Never infer deployed migration from the [owned-local rehearsal](../docs/qa/issue-1211/local-migration-rehearsal.json)
 or initialize source cohorts as idle when historical published fees exist.
+
+The [compatibility transition checklist](../docs/qa/issue-1211/compatibility.md)
+records owned-local67→68 serving/ingestion verification separately from any
+production migration or traffic switch.
