@@ -178,10 +178,14 @@ def build(api, revision, journal):
         and len(volumes) == 1 and volumes[0].get('uuid') == storage['uuid']
         and volumes[0].get('mount_path') == '/state'
         and volumes[0].get('name') == job + '-' + requested_name
+        and volumes[0].get('resource_type') == 'App\\Models\\Application'
+        and re.fullmatch(r'[1-9][0-9]{0,18}', str(volumes[0].get('resource_id', '')))
         and not volumes[0].get('host_path') and files == [], 'private_snapshot_storage_readback')
     state['snapshot_storage_configured'] = True
     state['snapshot_storage_uuid'] = volumes[0]['uuid']
-    api.call('applications/' + job + '/start', 'POST')
+    state['job_resource_id'] = str(volumes[0]['resource_id'])
+    started = api.call('applications/' + job + '/start', 'POST')
+    remember_start(state, started, [])
     state['build_started'] = True
     pre.write_state(journal, state)
     return state
@@ -197,6 +201,7 @@ def start_action(api, state, action):
     _, credential, _ = pre.prepare(api, state['revision'])
     cleanup = pre.cleanup_owned(api, job)
     pre.require(cleanup['cleanup_overall'] == 'PASS', 'prior_job_cleanup')
+    previous = deployment_rows(api, state)
     try:
         set_env(api, job, 'DB_ADMIN_URL', credential, True)
         set_env(api, job, 'OPS_ROUTINE_ACTION', action)
@@ -204,12 +209,69 @@ def start_action(api, state, action):
         state['active_run_id'] = secrets.token_hex(12)
         set_env(api, job, 'OPS_RUN_ID', state['active_run_id'])
         set_env(api, job, 'OPS_OLD_INDEXER_STOPPED', '1' if action in {'apply', 'verify'} else '0')
-        api.call('applications/' + job + '/start', 'POST')
+        started = api.call('applications/' + job + '/start', 'POST')
+        remember_start(state, started, [row['deployment_uuid'] for row in previous])
     except Exception:
         state.update(pre.cleanup_owned(api, job))
         raise
     state['active_action'] = action
     return {'job_uuid': job, 'action': action, 'started': True}
+
+
+def remember_start(state, response, previous):
+    state['previous_deployment_uuids'] = previous
+    state.pop('active_deployment_uuid', None)
+    value = response.get('deployment_uuid') if isinstance(response, dict) else None
+    if value is not None:
+        pre.require(isinstance(value, str) and pre.ID.fullmatch(value) and value not in previous, 'start_deployment_identity')
+        state['active_deployment_uuid'] = value
+
+
+def deployment_rows(api, state):
+    response = api.call('deployments/applications/' + state['job_uuid'] + '?skip=0&take=5')
+    rows = response.get('deployments', []) if isinstance(response, dict) else response
+    pre.require(isinstance(rows, list) and len(rows) <= 5, 'deployment_inventory_bound')
+    pre.require(all(isinstance(row, dict) and pre.ID.fullmatch(str(row.get('deployment_uuid', '')))
+        and row.get('application_name') == state['job_name'] for row in rows), 'deployment_inventory_binding')
+    return rows
+
+
+def current_deployment(api, state):
+    rows = deployment_rows(api, state)
+    identity = state.get('active_deployment_uuid')
+    if not identity and 'previous_deployment_uuids' not in state:
+        # One legacy credential-free build was already running when deployment
+        # identity tracking was introduced. It has never run a DB action.
+        pre.require(state.get('active_action') == 'waiting' and state.get('active_run_id') == 'build'
+            and state.get('build_started') is True and len(rows) == 1, 'legacy_build_adoption')
+    previous = state.get('previous_deployment_uuids', [])
+    matches = [row for row in rows if row['deployment_uuid'] == identity] if identity else [
+        row for row in rows if row['deployment_uuid'] not in previous]
+    pre.require(len(matches) <= 1, 'ambiguous_current_deployment')
+    if not matches:
+        return None
+    row = matches[0]
+    if 'job_resource_id' not in state:
+        storages = api.call('applications/' + state['job_uuid'] + '/storages')
+        volumes = storages.get('persistent_storages', [])
+        pre.require(len(volumes) == 1 and storages.get('file_storages') == []
+            and volumes[0].get('uuid') == state.get('snapshot_storage_uuid')
+            and volumes[0].get('name') == state['job_uuid'] + '-cohort-' + state['job_uuid']
+            and volumes[0].get('mount_path') == '/state' and not volumes[0].get('host_path')
+            and volumes[0].get('resource_type') == 'App\\Models\\Application'
+            and re.fullmatch(r'[1-9][0-9]{0,18}', str(volumes[0].get('resource_id', ''))), 'legacy_storage_binding')
+        state['job_resource_id'] = str(volumes[0]['resource_id'])
+    detail = api.call('deployments/' + row['deployment_uuid'])
+    application = detail.get('application') if isinstance(detail, dict) else None
+    pre.require(isinstance(application, dict) and application.get('uuid') == state['job_uuid']
+        and application.get('name') == state['job_name']
+        and detail.get('deployment_uuid') == row['deployment_uuid']
+        and str(detail.get('application_id')) == state['job_resource_id']
+        and str(detail['application_id']) == str(row.get('application_id')), 'current_deployment_binding')
+    phase = detail.get('status')
+    pre.require(phase in {'queued', 'in_progress', 'finished', 'failed', 'cancelled', 'cancelled-by-user'}, 'deployment_status')
+    state['active_deployment_uuid'] = row['deployment_uuid']
+    return {'deployment_uuid': row['deployment_uuid'], 'deployment_status': phase}
 
 
 def receipts(logs):
@@ -249,19 +311,45 @@ def receipts(logs):
 
 def status(api, state, cleanup=False):
     app = owned(api, state)
+    try:
+        deployment = current_deployment(api, state)
+    except Exception:
+        if cleanup:
+            # The application itself is already owned; an untrusted deployment
+            # must never prevent removal of its shown-once runtime credential.
+            state.update(pre.cleanup_owned(api, state['job_uuid']))
+            state['cleanup_overall'] = 'FAIL'
+        raise
+    pending = deployment is None or deployment['deployment_status'] in {'queued', 'in_progress'}
+    if pending and not cleanup:
+        return {'job_uuid': state['job_uuid'], 'job_status': app.get('status'),
+            'overall': 'PENDING', 'receipts': [], **(deployment or {})}
+    if cleanup and pending:
+        try:
+            pre.require(deployment is not None, 'pending_deployment_identity_unavailable')
+            api.call('deployments/' + deployment['deployment_uuid'] + '/cancel', 'POST')
+            cancelled = current_deployment(api, state)
+            pre.require(cancelled and cancelled['deployment_status'] not in {'queued', 'in_progress'}, 'deployment_cancel_readback')
+            deployment = cancelled
+        except Exception:
+            state.update(pre.cleanup_owned(api, state['job_uuid']))
+            state['cleanup_overall'] = 'FAIL'
+            raise
     found, log_status = [], None
     if not cleanup:
         try: found = receipts(api.call('applications/' + state['job_uuid'] + '/logs?lines=60'))
         except pre.TransportError as error: log_status = error.args[0]
-    result = {'job_uuid': state['job_uuid'], 'job_status': app.get('status'), 'receipts': found, 'logs_http_status': log_status}
+    result = {'job_uuid': state['job_uuid'], 'job_status': app.get('status'), 'receipts': found, 'logs_http_status': log_status, **(deployment or {})}
+    if not cleanup and deployment and deployment['deployment_status'] in {'failed', 'cancelled', 'cancelled-by-user'}:
+        result['overall'] = 'FAIL'
     found = [row for row in found if row.get('action') == state.get('active_action') and row.get('run_id') == state.get('active_run_id') and row.get('revision') == state['revision']]
     pre.require(len({json.dumps(row,sort_keys=True) for row in found}) <= 1, 'conflicting_terminal_receipts')
     found = found[-1:]
     result['receipts'] = found
-    if found or cleanup or any(word in str(app.get('status','')) for word in ['stopped','exited']):
+    if found or cleanup or result.get('overall') == 'FAIL' or any(word in str(app.get('status','')) for word in ['stopped','exited']):
         result.update(pre.cleanup_owned(api, state['job_uuid']))
         state.update({key: result[key] for key in ['credential_removed', 'stop_acknowledged', 'cleanup_overall']})
-    if found and found[0].get('overall') == 'PASS':
+    if result.get('overall') != 'FAIL' and found and found[0].get('overall') == 'PASS':
         row = found[0]
         pre.require(row.get('revision') == state['revision'], 'receipt_revision')
         if row.get('action') == 'inspect':
@@ -299,7 +387,7 @@ def main():
             else: result = status(api, state, args.phase == 'cleanup')
             pre.write_state(args.journal, state)
         print(json.dumps(result))
-        return int(result.get('cleanup_overall') == 'FAIL' or any(row.get('overall') == 'FAIL' for row in result.get('receipts', [])))
+        return int(result.get('overall') == 'FAIL' or result.get('cleanup_overall') == 'FAIL' or any(row.get('overall') == 'FAIL' for row in result.get('receipts', [])))
     except Exception as error:
         if state is not None: pre.write_state(args.journal, state)
         print(json.dumps({'overall': 'FAIL', 'phase': args.phase, 'failure_class': type(error).__name__,

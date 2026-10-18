@@ -91,6 +91,18 @@ The focused transport suite models the actual prefixed API response and tests
 wrong application prefix/UUID/path, host mount, duplicate/extra mounts and direct/nested file shadows.
 This coordinator correction changes no application or database migration bytes.
 
+Each start records the returned deployment UUID. If Coolify omits it, bounded
+owned-app history excludes every pre-start deployment before selecting a new
+identity. Status binds the deployment UUID, numeric application ID and embedded
+application UUID/name; queued/in-progress deployments return PENDING without
+stopping an old exited container or accepting its receipts. This applies to
+build, inspect, apply and verify. A single already-running credential-free legacy
+build can be adopted read-only only with its original WAITING/build journal,
+one owned deployment and the exact stored singleton storage binding. Explicit
+cleanup cancels only that bound pending deployment, then stops the owned job and
+removes credentials. Cancel/identity failures still attempt credential removal
+and remain failed. Finished previous runs cannot authorize a new action.
+
 After exact-main hosted checks and operator authorization, `stop-serving`
 requests the existing indexer's stop. `apply` requires stopped application status;
 the worker additionally checks real database sessions before taking its private

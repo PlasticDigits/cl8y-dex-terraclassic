@@ -39,7 +39,8 @@ class FakeApi:
         self.backend = {**scope, 'fqdn':'https://indexer.dex.cl8y.com', 'status':'running:healthy'}
         self.database = {**scope, 'postgres_user':'postgres', 'postgres_db':'postgres',
             'postgres_password':'SYNTHETIC_PASSWORD', 'internal_db_url':'postgresql://postgres:SYNTHETIC_PASSWORD@' + ops.pre.DATABASE + ':5432/postgres'}
-        self.calls, self.env, self.volumes, self.logs = [], [], [], []
+        self.calls, self.env, self.volumes, self.logs, self.deployments = [], [], [], [], []
+        self.start_returns_uuid = True
         self.job = {}
 
     def call(self, path, method='GET', payload=None):
@@ -63,10 +64,23 @@ class FakeApi:
             self.env=[row for row in self.env if row['uuid']!=path.rsplit('/',1)[-1]]; return {}
         if path=='applications/new-job/storages':
             if method=='POST':
-                storage={**payload,'name':'new-job-'+payload['name'],'uuid':'volume','host_path':None}
+                storage={**payload,'name':'new-job-'+payload['name'],'uuid':'volume','host_path':None,
+                    'resource_id':71,'resource_type':'App\\Models\\Application'}
                 self.volumes.append(storage); return dict(storage)
             return {'persistent_storages':self.volumes,'file_storages':[]}
         if path=='applications/new-job/logs?lines=60': return {'logs':[{'output':json.dumps(row)} for row in self.logs]}
+        if path=='applications/new-job/start' and method=='POST':
+            identity='deployment-'+str(len(self.deployments)+1)
+            self.deployments.append({'deployment_uuid':identity,'application_id':'71',
+                'application_name':self.job['name'],'application':{'uuid':'new-job','name':self.job['name']},'status':'finished'})
+            return {'deployment_uuid':identity} if self.start_returns_uuid else {}
+        if path=='deployments/applications/new-job?skip=0&take=5':
+            return {'deployments':list(reversed(self.deployments))[:5]}
+        if path.startswith('deployments/'):
+            identity=path.split('/')[1]
+            row=next(row for row in self.deployments if row['deployment_uuid']==identity)
+            if path.endswith('/cancel') and method=='POST': row['status']='cancelled-by-user'; return {}
+            return row
         if method=='POST' and path.endswith(('/start','/stop')): return {}
         raise AssertionError('unexpected route')
 
@@ -198,6 +212,117 @@ class MigrationOpsTests(unittest.TestCase):
         calls=len(api.calls)
         with self.assertRaises(ValueError): ops.start_action(api,state,'inspect')
         self.assertTrue(all(method=='GET' for _,method,_ in api.calls[calls:]))
+
+    def test_queued_or_building_current_action_never_stops_exited_old_container(self):
+        for action in ['waiting','inspect','apply','verify']:
+            for phase in ['queued','in_progress']:
+                with self.subTest(action=action,phase=phase):
+                    api,state=self.built()
+                    if action!='waiting':
+                        api.backend['status']='stopped:unhealthy';state['inspection_passed']=True
+                        ops.start_action(api,state,action)
+                    api.job['status']='exited:unhealthy';api.deployments[-1]['status']=phase
+                    api.logs=[{'schema':'cohort_migration_job_v1','action':action,'run_id':'old','revision':SHA,'overall':'PASS'}]
+                    start=len(api.calls); result=ops.status(api,state)
+                    self.assertEqual(result['overall'],'PENDING')
+                    self.assertEqual(result['receipts'],[])
+                    self.assertTrue(all(method=='GET' for _,method,_ in api.calls[start:]))
+                    self.assertFalse(state.get('migration_verified',False))
+                    self.journal.unlink()
+
+    def test_missing_start_uuid_discovers_only_new_owned_deployment(self):
+        api,state=self.built(); old=state['active_deployment_uuid']
+        api.start_returns_uuid=False
+        ops.start_action(api,state,'inspect')
+        self.assertNotIn('active_deployment_uuid',state)
+        api.deployments[-1]['status']='in_progress'
+        result=ops.status(api,state)
+        self.assertEqual(result['overall'],'PENDING')
+        self.assertNotEqual(state['active_deployment_uuid'],old)
+        # An eventually consistent inventory showing only the previous finished
+        # deployment cannot expose a stale receipt or clean up the queued action.
+        state.pop('active_deployment_uuid');api.deployments.pop()
+        start=len(api.calls);self.assertEqual(ops.status(api,state)['overall'],'PENDING')
+        self.assertTrue(all(method=='GET' for _,method,_ in api.calls[start:]))
+
+    def test_deployment_binding_refuses_foreign_application_or_id_before_mutations(self):
+        for field in ['uuid','id']:
+            api,state=self.built()
+            original=api.call
+            def call(path,method='GET',payload=None):
+                result=original(path,method,payload)
+                if path=='deployments/'+state['active_deployment_uuid']:
+                    result={**result,'application':dict(result['application'])}
+                    if field=='uuid': result['application']['uuid']='other-app'
+                    else: result['application_id']='other-id'
+                return result
+            api.call=call;start=len(api.calls)
+            with self.assertRaisesRegex(ops.pre.GuardError,'current_deployment_binding'):
+                ops.status(api,state)
+            self.assertTrue(all(method=='GET' for _,method,_ in api.calls[start:]))
+            self.journal.unlink()
+
+    def test_failed_build_is_terminal_and_cleans_owned_job(self):
+        api,state=self.built();api.deployments[-1]['status']='failed'
+        result=ops.status(api,state)
+        self.assertEqual(result['overall'],'FAIL')
+        self.assertEqual(result['cleanup_overall'],'PASS')
+
+    def test_legacy_waiting_build_adoption_is_read_only_and_storage_bound(self):
+        for valid in [True,False]:
+            api,state=self.built()
+            for key in ['active_deployment_uuid','previous_deployment_uuids','job_resource_id']: state.pop(key)
+            api.deployments[-1]['status']='in_progress'
+            if not valid: api.volumes[0]['resource_id']=72
+            start=len(api.calls)
+            if valid:
+                self.assertEqual(ops.status(api,state)['overall'],'PENDING')
+                self.assertEqual(state['active_deployment_uuid'],api.deployments[-1]['deployment_uuid'])
+                self.assertEqual(state['job_resource_id'],'71')
+            else:
+                with self.assertRaisesRegex(ops.pre.GuardError,'current_deployment_binding'):
+                    ops.status(api,state)
+            self.assertTrue(all(method=='GET' for _,method,_ in api.calls[start:]))
+            self.journal.unlink()
+
+    def test_explicit_cleanup_cancels_only_current_owned_pending_deployment(self):
+        api,state=self.built();ops.start_action(api,state,'inspect')
+        current=state['active_deployment_uuid'];api.deployments[-1]['status']='in_progress'
+        result=ops.status(api,state,cleanup=True)
+        self.assertEqual(result['cleanup_overall'],'PASS')
+        cancelled=[path for path,method,_ in api.calls if method=='POST' and path.endswith('/cancel')]
+        self.assertEqual(cancelled,['deployments/'+current+'/cancel'])
+        self.assertFalse(any(row['key']=='DB_ADMIN_URL' for row in api.env))
+
+    def test_pending_cleanup_with_missing_identity_or_cancel_failure_still_removes_credential(self):
+        for failure in ['missing','cancel']:
+            api,state=self.built();ops.start_action(api,state,'inspect')
+            api.deployments[-1]['status']='in_progress'
+            original=api.call
+            def call(path,method='GET',payload=None):
+                if path.endswith('/cancel'): raise OSError('synthetic transport failure')
+                return original(path,method,payload)
+            api.call=call
+            if failure=='missing': api.deployments.pop()
+            with self.assertRaises((ops.pre.GuardError,OSError)):
+                ops.status(api,state,cleanup=True)
+            self.assertEqual(state['cleanup_overall'],'FAIL')
+            self.assertFalse(any(row['key']=='DB_ADMIN_URL' for row in api.env))
+            self.journal.unlink()
+
+    def test_explicit_cleanup_binding_failure_still_cleans_owned_application(self):
+        for failure in ['inventory','foreign_app','application_id']:
+            api,state=self.built();ops.start_action(api,state,'inspect')
+            if failure=='inventory': api.deployments[-1]['application_name']='other-app'
+            elif failure=='foreign_app': api.deployments[-1]['application']['uuid']='other-app'
+            else: api.deployments[-1]['application_id']='72'
+            start=len(api.calls)
+            with self.assertRaises(ops.pre.GuardError): ops.status(api,state,cleanup=True)
+            self.assertEqual(state['cleanup_overall'],'FAIL')
+            self.assertFalse(any(row['key']=='DB_ADMIN_URL' for row in api.env))
+            self.assertIn(('applications/new-job/stop','POST',None),api.calls[start:])
+            self.assertFalse(any(path.endswith('/cancel') for path,_,_ in api.calls[start:]))
+            self.journal.unlink()
 
 
 if __name__=='__main__': unittest.main()
