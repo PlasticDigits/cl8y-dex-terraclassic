@@ -52,13 +52,16 @@ or the application's quote/signing rules. Only the price rendering fixture
 requests are substituted. Default receipts stay under `/tmp/deployed-*-1512.json`.
 
 The [old deployment desktop Trade receipt](deployed-before-trade-desktop.json)
-reproduced the bug in **10.00 seconds** at `missing-current-usd`. The initial
-indexed-USD headline and two historical candles passed before that stage. The
-owned missing-USD response then failed the required `—` assertion. The receipt
-records all observed frontend script paths and SHA-256 digests, the QA helper
-digest, zero writes and zero actor-shaped requests. It contains no trade rows,
-actors or screenshots. This is deployed frontend rendering with controlled
-HTTP price fixtures; it makes no native quote latency or live market-price claim.
+is retained as **inconclusive harness evidence**. It passed initial indexed USD
+and two historical candles, then stopped at the coarse missing-USD stage in
+10.00 seconds. The first helper installed virtual time after React Query had
+registered native intervals, so that stage could not distinguish a missing
+refetch from an incorrect headline. It does not establish a deployed product
+regression. The corrected helper owns timers before navigation and records
+per-phase refetch counts and separate refresh/headline failure stages. Served
+script paths/digests and the original helper digest remain in the receipt;
+no actors, trade rows or screenshots are exported. Neither helper scope makes
+native quote latency claims.
 
 ## One actual unmocked market comparison
 
@@ -77,3 +80,60 @@ USD requires `—`; available historical candles must remain plotted. Missing
 plottable history is recorded as an explicit historical-check skip, with overall
 `PASS_WITH_SKIPS`. Receipts contain booleans, price/count scalars and served-script
 digests only; no actor, transaction rows, screenshots or wallet connection.
+
+## Deployed frontend controlled rendering (2026-10-18)
+
+The [four-cell matrix](deployed-price-matrix.json) passed against frontend
+`2df4a471a9ca98a8672d911b67d4bd8134f411fd`, Coolify deployment
+`me0y48gdxmjv3ibut9yz9grv`, independently attested finished at 06:18:14Z.
+Each browser receipt records the actually served JS paths and SHA-256 digests.
+
+| Entry / viewport | Result | Actual process time |
+| --- | --- | --- |
+| [Trade desktop](deployed-price-trade-desktop.json) | PASS | 7.826s |
+| [Trade phone](deployed-price-trade-phone.json) | PASS | 13.202s |
+| [Charts desktop](deployed-price-charts-desktop.json) | PASS | 5.544s |
+| [Charts phone](deployed-price-charts-phone.json) | PASS | 5.239s |
+
+All cells verify the valid indexed USD, missing-USD dash, retained historical
+candles, unavailable inversion, indexed recovery and foreign-pair rejection.
+Observed trade refetch counts advance 1→2→3→4. Each process had a 59-second outer
+ceiling and 52-second browser budget, with at most two browser processes running
+concurrently. Every cell recorded zero writes and actor-shaped requests.
+
+The [first desktop](deployed-first-trade-desktop-harness-fail.json) and
+[first phone](deployed-first-trade-phone-harness-fail.json) attempts are retained
+as **inconclusive harness failures**. Their clock was installed after native
+refetch intervals had already been registered. Moving clock installation before
+navigation and recording separate refetch/headline stages fixed the harness;
+no application code changed during this browser verification loop. The original
+raw receipts remain preserved in `/tmp/dex-issues-1206-1512/`.
+
+This acceptance covers the served frontend with owned anonymous HTTP price
+fixtures and virtual refetch time. The backend was deliberately still on its
+prior revision. Campaign retry, actual unmocked market behavior, exact backend
+revision and native quote useful-result latency are separate checks; this matrix
+does not claim they passed.
+
+## Actual mixed-deployment market acceptance (2026-10-18)
+
+The [mixed-deployment manifest](deployed-mixed-acceptance.json) records frontend
+`2df4a471a9ca98a8672d911b67d4bd8134f411fd` with the restored, prior backend
+`0a3c251755a88ee9cbbbbc222fc747811c9da08c`. The
+[post-case backend identity](deployed-mixed-backend-identity.json) confirms that
+prior backend at 06:50:44Z. These receipts do not establish backend M deployment.
+
+The [one unmocked Trade/Charts process](deployed-unmocked-trade-charts.json)
+passed in **13.435s** with ordinary browser time and unchanged HTTP responses.
+Actual indexed factory USD was `0.9210291980528618`; the human ratio was
+`142.63466865686598`. Trade's inverted headline matched
+`0.006457260403279426`, and Charts matched factory USD. Both retained all
+**200** plottable historical candles. Pair/timestamp checks passed. The receipt
+contains only the required scalar/boolean projections and served-script digests;
+zero writes and actor-shaped requests occurred.
+
+Together with the four controlled missing-USD rendering cases above, this covers
+the deployed frontend's current indexed price, unavailable price, inversion,
+recovery, foreign-pair rejection and historical-candle behavior. The actual
+unmocked run used available indexed USD; controlled fixtures cover absence.
+Native quote latency, signing and backend M migration remain separate work.

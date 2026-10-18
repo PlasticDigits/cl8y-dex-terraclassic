@@ -1,0 +1,271 @@
+{
+  "schema": 1,
+  "issues": [
+    1512
+  ],
+  "case": "trade",
+  "viewport": "phone",
+  "started_at_utc": "2026-10-18T06:21:45.212Z",
+  "verdict": "PASS",
+  "checks": {
+    "initial_indexed_usd_matches": true,
+    "initial_historical_candles": true,
+    "missing_current_usd_is_dash": true,
+    "historical_candles_retained": true,
+    "inversion_keeps_dash": true,
+    "indexed_usd_recovers_inverted": true,
+    "foreign_pair_usd_rejected": true
+  },
+  "served_scripts": [
+    {
+      "path": "/assets/crypto-DTQ8O1tF.js",
+      "sha256": "b22b41c782eeb64de40f5599903d38d619efe1ca140511fdc3967185f18522f1",
+      "bytes": 20572
+    },
+    {
+      "path": "/assets/index-sqqx_pua.js",
+      "sha256": "d29e10c1f8ee0fd81d2fb888d9c8db19e373be0853e644d2d4524a5d7edc80bc",
+      "bytes": 181966
+    },
+    {
+      "path": "/assets/vendor-state-DbRNHhEP.js",
+      "sha256": "4d5c92a590790327532deb70c93b49c8acecf3b5f088070c35c85ece4fbb1675",
+      "bytes": 40496
+    },
+    {
+      "path": "/assets/vendor-react-_peu2KPp.js",
+      "sha256": "cdc3f95b11e668f7a4c84a3dab54dee9af84ab8aafc9831f080e4b3eefa563de",
+      "bytes": 235586
+    },
+    {
+      "path": "/assets/wallet-terra-BIAY_q8C.js",
+      "sha256": "d87d526710c5da9200ebedcd070b4d687f85708a47f63a19194a964c290da834",
+      "bytes": 4522139
+    },
+    {
+      "path": "/assets/pairPriceUsd-Y2BUxm-U.js",
+      "sha256": "57e8b21a66f97e5c884cb14c9eec992baafe3ee9459f60b46fae0dda468c33f6",
+      "bytes": 7605
+    },
+    {
+      "path": "/assets/usePairDisplayOrientation-CLidapSy.js",
+      "sha256": "cb588f08699b37398384a640f9acd2c90069bff499649d2b22b6a5cc22311f8f",
+      "bytes": 24436
+    },
+    {
+      "path": "/assets/indexerErrors-ChyfMT8p.js",
+      "sha256": "c11673006b5ec9671f8d3da0f6f5a54db8703f0242e6d18a83c7c3da981290a0",
+      "bytes": 844
+    },
+    {
+      "path": "/assets/TradeMarketDataUnavailableNotice-CV0nVyWC.js",
+      "sha256": "84f8a99eacd6f895a5f03ab55e4d8197cf580ad80c83dc835dcc2dfcc42690b1",
+      "bytes": 602
+    },
+    {
+      "path": "/assets/LcdQueryGate-HzDPl7ZT.js",
+      "sha256": "5a89e031aee75584dfd3ce9651fb54dfb5f330ad31bccb252d0100a577158e11",
+      "bytes": 490
+    },
+    {
+      "path": "/assets/MarketDataServiceOutageBanner-ByIYVzZP.js",
+      "sha256": "1248704fe28360caa57eac83bb18d66b8032ab3280982b217bf0b29dc9094a19",
+      "bytes": 761
+    },
+    {
+      "path": "/assets/portalListboxKeyboard-D9rHNMfS.js",
+      "sha256": "a39a3c84d8131f8505c32e1fe08e8bde0ebc81d68ffe81bbbc5de366a61ab4dc",
+      "bytes": 3565
+    },
+    {
+      "path": "/assets/optionTapStability-CqODtEWe.js",
+      "sha256": "14aecfb8b93dfac8a099c1ae3b1390302a951fc524a85cd4180ee2e31dbeee32",
+      "bytes": 1689
+    },
+    {
+      "path": "/assets/usePairCodeIdFreeze-CaCFBa2r.js",
+      "sha256": "d0ced37c13d38bc622ab260d0b26af112aeff52fa0761363dbedee757f544758",
+      "bytes": 1165
+    },
+    {
+      "path": "/assets/assetCodeIdFreeze-CLBGo8cV.js",
+      "sha256": "c36079f7cbcfc9f8c8bd6fdda080d02153de94e5e0fa5209f9c3726c7709177a",
+      "bytes": 1109
+    },
+    {
+      "path": "/assets/TradePage-D6XekS2G.js",
+      "sha256": "e18ad930583fc5c0d04690be8b65f2540e280e89b3546cc04a602c89f79a3b26",
+      "bytes": 59818
+    },
+    {
+      "path": "/assets/factory-BxeFUElm.js",
+      "sha256": "99f24d248f92fe06228e009cb9c079f292c753a545f6fb9ed2933f7b0f0f1b3d",
+      "bytes": 9101
+    },
+    {
+      "path": "/assets/limitOrderPriceEdit-DV5zoyY1.js",
+      "sha256": "7242408a21c5f3b3520948f4ae06b4d15748535fa0d881c83bb42d3c3157aa0f",
+      "bytes": 64876
+    },
+    {
+      "path": "/assets/rawAmountMath-Dl0J1SVH.js",
+      "sha256": "2d2278b521625cffa3ec9a2f21c2ca857ee4ddefc5a18f49538ffca00ef50655",
+      "bytes": 1155
+    },
+    {
+      "path": "/assets/settings-CAdMs68m.js",
+      "sha256": "3012ab1a4bc5b6539ef81a9a15421db67dabc25b67c17dc6ef123f98774f37ce",
+      "bytes": 185
+    },
+    {
+      "path": "/assets/formatDate-tzKCJTvt.js",
+      "sha256": "75eee8b16b533c04bf557d53b302f7c3124576d4d593c56d9345186c24c4943d",
+      "bytes": 1572
+    },
+    {
+      "path": "/assets/limitPlacementLifecycle-CcUxqazK.js",
+      "sha256": "d656eb6134c78fb7bf4485f3781bae9f87bdb699054b151d28234672a72cc487",
+      "bytes": 1184
+    },
+    {
+      "path": "/assets/maxSpendableAmount-CK5DU5KH.js",
+      "sha256": "6caf5d25cc248e846736f557325790abd114367f0648ec095e99f4b5feb0a4d4",
+      "bytes": 1386
+    },
+    {
+      "path": "/assets/useTradingBlacklist-CkWLY-Pi.js",
+      "sha256": "17a754de01e0cf9e27f00cde15daf4cb25a456676bac6f4b5d5cadeec4dc1d90",
+      "bytes": 4563
+    },
+    {
+      "path": "/assets/TxResultAlert-DW2dKieX.js",
+      "sha256": "bc68773c20b0725e7a44a46c4b01e3bf9758d7124e071b69ed6353e8cc863c52",
+      "bytes": 638
+    },
+    {
+      "path": "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+      "sha256": "2d9ca9c48df951e0de226eb2822f2638816a6218e4eab654b48eeac467638039",
+      "bytes": 738
+    },
+    {
+      "path": "/assets/feeDiscount-CQ9vaYkN.js",
+      "sha256": "dbf75ca975b947de0120c14922dd768cace0cc3fbf8b67f41108758fcd90957d",
+      "bytes": 434
+    },
+    {
+      "path": "/assets/useTerraBroadcastMutation-CVZX_FU4.js",
+      "sha256": "12b4e6650387be71295653b45cc99b8f3d3e57dd4610daa9efff1b0f852bac91",
+      "bytes": 1639
+    },
+    {
+      "path": "/assets/TokenLogo-D04S6e6k.js",
+      "sha256": "e3cf38446157d4a561d9df449196dd55e5c32fd67155f50ef74e75f302e19595",
+      "bytes": 634
+    },
+    {
+      "path": "/assets/transactions-B-hmaBJK.js",
+      "sha256": "2ba56ad7ad9c0abadcad39a906059863ded025dff737d6eca7489da8dcc6e710",
+      "bytes": 31052
+    },
+    {
+      "path": "/assets/terraClassicFeeEstimate-360fXWtN.js",
+      "sha256": "a0e8c48c6a6d6064f323b1295a2fed66b6b8254b2e45292848d0ad9ec84d3db6",
+      "bytes": 1166
+    },
+    {
+      "path": "/assets/dex-CJmlAoIX.js",
+      "sha256": "5492d6fbdaf3ffe6f0956072093db7d9eabe362af2d6243ad4736580e2513d4a",
+      "bytes": 5808
+    },
+    {
+      "path": "/assets/swapQuoteAmountScale-onDqC9z0.js",
+      "sha256": "a9a72d735f44587fa50788311724ce2dc689f3819e02e89932c5c6312b882057",
+      "bytes": 27305
+    },
+    {
+      "path": "/assets/router-CYq21e4q.js",
+      "sha256": "0aff90fa25faf23fc7eba665d6186031e8f30b524807dcb8c245249a37f893cb",
+      "bytes": 26959
+    },
+    {
+      "path": "/assets/communityTaxToken-ByyE9VWq.js",
+      "sha256": "465cbe4cb07b08720a74bb5e893e798960af7db226b31183ea976911ced160df",
+      "bytes": 2656
+    },
+    {
+      "path": "/assets/TerraBroadcastPendingLink-BjvbEBQl.js",
+      "sha256": "abd7379fb4711172ae17a1fe2cace31ef9e0dc5c27948e194f9bbec856930bf0",
+      "bytes": 1150
+    },
+    {
+      "path": "/assets/tradeMoneyCta-BqYfEz33.js",
+      "sha256": "9bef3c2f6b3b308d8068327fe5cd8339ac2ea978f6b02cead4c5172fa71fd93a",
+      "bytes": 128
+    },
+    {
+      "path": "/assets/useDebouncedValue-COobZORi.js",
+      "sha256": "2d981cf9b3891b894490c943ba4838e222fc5a119c2ca473ce8caf3a73cf854d",
+      "bytes": 209
+    },
+    {
+      "path": "/assets/TradesTable-DVEjC6DQ.js",
+      "sha256": "401a9c520a3aa9e33b17aace2dc88f2c569f4ad92a22c0747094329544d710fc",
+      "bytes": 3058
+    },
+    {
+      "path": "/assets/cw20RouteSolveQuote-DiC8EzgH.js",
+      "sha256": "2e7a13f6bbb6261519cd58949cb015728db0605469b9be108abea1d15d766924",
+      "bytes": 18600
+    },
+    {
+      "path": "/assets/ust1Window-Bj1w6d_Z.js",
+      "sha256": "064e181d17d570147d1217f221dc38553c4889632153edea1961dc92ec5c7291",
+      "bytes": 4725
+    },
+    {
+      "path": "/assets/swapQueryParams-D4_Dq8Re.js",
+      "sha256": "bde3d8f47c83ac03472f1c5103bdbe1aab925992cd922b27049ddbcbab78a437",
+      "bytes": 7407
+    },
+    {
+      "path": "/assets/PairTokenLinks-DZb9cR9V.js",
+      "sha256": "9b79821620b3d5d5d55c58f1b2b6928f105d8823f6bd00af34690ff29481cbf1",
+      "bytes": 3102
+    },
+    {
+      "path": "/assets/marketDataOutage-CptTURSI.js",
+      "sha256": "87070226ba0ec2af3ef1b2f45eaa54e857ad383265fefe652eb42e1a004e85fc",
+      "bytes": 121
+    },
+    {
+      "path": "/assets/lightweight-charts.production-B8Uekivy.js",
+      "sha256": "22ec05473f3b09b65c5c8a9bc5fb7241a5ec34743c944c0f41346570243bf60f",
+      "bytes": 189023
+    }
+  ],
+  "scope": "Deployed frontend rendering with owned anonymous canonical-pair HTTP fixtures; not live market-price or execution acceptance.",
+  "browser_budget_ms": 52000,
+  "refetches": [
+    {
+      "phase": "missing",
+      "before": 1,
+      "after": 2
+    },
+    {
+      "phase": "valid",
+      "before": 2,
+      "after": 3
+    },
+    {
+      "phase": "foreign",
+      "before": 3,
+      "after": 4
+    }
+  ],
+  "requests": 95,
+  "blocked_writes": 0,
+  "blocked_actor_requests": 0,
+  "tool_digest": "997c38659d6211edf9ef7b21c23488fb3d1091d593320b064565aef1d92ebffd",
+  "deployment_attestation": "Served script paths/hashes identify observed frontend; source revision must be independently attested.",
+  "elapsed_ms": 13202
+}
