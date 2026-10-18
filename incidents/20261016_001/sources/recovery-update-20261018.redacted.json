@@ -1,0 +1,42 @@
+{
+  "case_id": "20261016_001",
+  "source_class": "Requester-supplied private conversation excerpt; anonymized paraphrase, not an authenticated interview or original message export",
+  "supplied_message_dates": [
+    "2026-10-17",
+    "2026-10-18"
+  ],
+  "message_timezone": null,
+  "roles": {
+    "[VICTIM_REPORTER]": "Participant reporting affected-wallet recovery",
+    "[RECOVERY_CUSTODIAN]": "Participant reporting recovery-address custody and compensation"
+  },
+  "redaction": "Personal names, handles, medical and unrelated personal narrative, identifying attachment filename, exact chat clock times and verbatim messages omitted. Relevant public-chain identifiers retained under the existing case policy; these do not provide anonymity from chain correlation.",
+  "statements": [
+    {
+      "role": "[VICTIM_REPORTER]",
+      "supplied_date": "2026-10-17",
+      "claim": "Penguin 1509 had been transferred to the designated recovery recipient.",
+      "independent_verification": "Included transfer and later recipient ownership independently verified."
+    },
+    {
+      "role": "[VICTIM_REPORTER]",
+      "supplied_date": "2026-10-18",
+      "claim": "A draft public update described the cyberattack, police reporting and reduced public activity while recovery continued. Later discussion also referred to police reporting that day.",
+      "independent_verification": "Participant-reported only. No police reference, acknowledgement, report copy or public-post URL supplied; neither publication nor a completed police investigation is established."
+    },
+    {
+      "role": "[VICTIM_REPORTER]",
+      "supplied_date": "2026-10-18",
+      "claim": "A recovery-update document was mentioned as an attachment.",
+      "independent_verification": "Attachment contents were not supplied or reviewed. No host-forensic or recovery conclusions are attributed to that document."
+    },
+    {
+      "role": "[RECOVERY_CUSTODIAN]",
+      "supplied_date": "2026-10-18",
+      "claim": "Replacement CL8Y matching approximately 25.4k locked CL8Y had been issued to the recovery EVM address; it was held there with the recovered vFDUSD pending a final recipient address.",
+      "transaction": "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f",
+      "independent_verification": "Successful reserve-funded transfer of exactly 25452.503948354102807429 existing CL8Y v2 verified, not minting or seizure. BSC block 128324235 shows that CL8Y amount and 10.154338 vFDUSD in the designated recovery wallet. Final delivery to the victim is not established."
+    }
+  ],
+  "limitations": "The excerpt is not an independently authenticated original conversation. No timezone is assigned to its dates or clock times. Police action, attachment findings, signing-compromise mechanism and secure custody are not independently established. Operational recovery details are excluded. No source-chat digest is asserted for this paraphrase."
+}

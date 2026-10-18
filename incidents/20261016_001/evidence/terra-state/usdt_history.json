@@ -1,0 +1,25 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10184",
+      "updated": {
+        "block_height": "30364854",
+        "tx_index": "0"
+      },
+      "msg": {
+        "name": "Tether USD",
+        "symbol": "USDT",
+        "decimals": 18,
+        "initial_balances": [],
+        "mint": {
+          "minter": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l"
+        }
+      }
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

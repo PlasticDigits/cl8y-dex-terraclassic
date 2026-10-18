@@ -1,0 +1,22 @@
+[
+  {
+    "address": "terra1mp72n97rzwmqwudzycjj0e4jveetjnp622gnprv6ugqt3hfxg60sr5gkjm",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "EMBER-QUARTZ cl8ydex lp",
+      "created": {
+        "block_height": "29458631",
+        "tx_index": "10896693"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm21mp72n97rzwmqwudzycjj0e4jveetjnp622gnprv6ugqt3hfxg60sr5gkjm"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:24 GMT",
+    "Content-Type": "application/json"
+  }
+]

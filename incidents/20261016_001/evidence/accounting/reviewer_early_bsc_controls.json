@@ -1,0 +1,142 @@
+{
+  "baseline_block": 127702869,
+  "collected_at_utc": "2026-10-15T09:21:19.257254+00:00",
+  "rows": [
+    {
+      "contract_label": "registry",
+      "contract_address": "0x2e5d36c46680a38e7ae156fc9d109084c58c688e",
+      "method": "owner",
+      "values": {
+        "before": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c",
+        "after": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "registry",
+      "contract_address": "0x2e5d36c46680a38e7ae156fc9d109084c58c688e",
+      "method": "implementation",
+      "values": {
+        "before": "0x0000000000000000000000006b1aa0653d99d5dec84db4a0283efb41be826993",
+        "after": "0x0000000000000000000000006b1aa0653d99d5dec84db4a0283efb41be826993"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "tokens",
+      "contract_address": "0x3d8820ec93748fd4df8eee6b763834a23938b207",
+      "method": "owner",
+      "values": {
+        "before": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c",
+        "after": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "tokens",
+      "contract_address": "0x3d8820ec93748fd4df8eee6b763834a23938b207",
+      "method": "implementation",
+      "values": {
+        "before": "0x000000000000000000000000734d6d554a3f7762d0dbc5538cba8ae9e01338f7",
+        "after": "0x000000000000000000000000734d6d554a3f7762d0dbc5538cba8ae9e01338f7"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "lockunlock",
+      "contract_address": "0xd7b3bf05987052009c350874e810df98da95d258",
+      "method": "owner",
+      "values": {
+        "before": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c",
+        "after": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "lockunlock",
+      "contract_address": "0xd7b3bf05987052009c350874e810df98da95d258",
+      "method": "implementation",
+      "values": {
+        "before": "0x000000000000000000000000b43c56d9920ea8ff1f7ea4b86261f6d59df04f66",
+        "after": "0x000000000000000000000000b43c56d9920ea8ff1f7ea4b86261f6d59df04f66"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "mintburn",
+      "contract_address": "0x0a1a4bd354983dbc7f487237cd1b408cd0003ebc",
+      "method": "owner",
+      "values": {
+        "before": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c",
+        "after": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "mintburn",
+      "contract_address": "0x0a1a4bd354983dbc7f487237cd1b408cd0003ebc",
+      "method": "implementation",
+      "values": {
+        "before": "0x00000000000000000000000054d67c0ec4cfe1d9eb945b35d1ebcc25c6abd2c9",
+        "after": "0x00000000000000000000000054d67c0ec4cfe1d9eb945b35d1ebcc25c6abd2c9"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "contract_address": "0xb2a22c74da8e3642e0effc107d3ac362ce885369",
+      "method": "owner",
+      "values": {
+        "before": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c",
+        "after": "0xcd4eb82cfc16d5785b4f7e3bfc255e735e79f39c"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "contract_address": "0xb2a22c74da8e3642e0effc107d3ac362ce885369",
+      "method": "implementation",
+      "values": {
+        "before": "0x000000000000000000000000102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6",
+        "after": "0x000000000000000000000000102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "method": "getOperators()",
+      "values": {
+        "before": ["0x1d9e02e0e8c000fe4575c4aaea96b19de00404cd"],
+        "after": ["0x1d9e02e0e8c000fe4575c4aaea96b19de00404cd"]
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "method": "getCancelers()",
+      "values": {
+        "before": ["0x732a65b80f4625658ebd2b4214e4f8cf3a67aeeb"],
+        "after": ["0x732a65b80f4625658ebd2b4214e4f8cf3a67aeeb"]
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "method": "guardBridge()",
+      "values": {
+        "before": "0x12fedd29e71f66157e985aa1aaae434253e39a22",
+        "after": "0x12fedd29e71f66157e985aa1aaae434253e39a22"
+      },
+      "matches": true
+    },
+    {
+      "contract_label": "bridge",
+      "method": "cancelWindow()",
+      "values": {
+        "before": 300,
+        "after": 300
+      },
+      "matches": true
+    }
+  ]
+}

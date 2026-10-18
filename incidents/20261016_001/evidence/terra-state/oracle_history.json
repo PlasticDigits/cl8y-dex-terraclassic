@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "11549",
+      "updated": {
+        "block_height": "29722964",
+        "tx_index": "0"
+      },
+      "msg": {
+        "governance": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "oracle_operator": "terra1hm3ph0jevtkuc9efj9q3ld3ktk3g6la3ruhqna",
+        "initial_rate": "1000000000000000000"
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11567",
+      "updated": {
+        "block_height": "29855709",
+        "tx_index": "0"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11568",
+      "updated": {
+        "block_height": "29855848",
+        "tx_index": "347277"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

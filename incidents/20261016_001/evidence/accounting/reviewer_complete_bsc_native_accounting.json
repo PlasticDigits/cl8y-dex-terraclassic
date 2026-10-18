@@ -1,0 +1,454 @@
+{
+  "reviewed_at_utc": "2026-10-15T09:36:44.224017+00:00",
+  "account_label": "HACKER_A",
+  "account_address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+  "opening_balance_wei": 0,
+  "opening_block": 127686874,
+  "funding_incoming_wei": 62918448329107,
+  "actual_twenty_swap_native_proceeds_wei": 3943439176513535698,
+  "all56_outer_transactions_gas_paid_wei": 6202503618620000,
+  "positive_native_outgoing_wei": 0,
+  "ending_balance_wei": 3937299591343244805,
+  "ending_block": 127735781,
+  "balance_equation_verified": true,
+  "all55_unique_own_block_residuals_zero": true,
+  "all_outer_nonces_complete": [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55
+  ],
+  "outer_successes": 50,
+  "outer_failures": 6,
+  "classification": {
+    "bridge_withdraw_submissions": 8,
+    "erc20_approval_transactions": 22,
+    "successful_sale_transactions": 20,
+    "failed_swap_attempts": 6
+  },
+  "native_funding_transactions": [
+    {
+      "from_label": "UNATTRIBUTED_FUNDING_SOURCE_1",
+      "from_address": "0x91604f590d66ace8975eed6bd16cf55647d1c499",
+      "to_label": "HACKER_A",
+      "to_address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "timestamp_utc": "2026-10-15T02:13:08+00:00",
+      "bsc_tx_hash": "0x2f6cfa2d665d8f55745c7b0a70e1ccdbfa215c74a4e875ce9461e81544825cd9",
+      "bsc_block": 127704621,
+      "value_wei": 27340988674999,
+      "status": 1,
+      "calldata": "0x"
+    },
+    {
+      "from_label": "UNATTRIBUTED_FUNDING_SOURCE_2",
+      "from_address": "0x76dd65529dc6c073c1e0af2a5ecc78434bdbf7d9",
+      "to_label": "HACKER_A",
+      "to_address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "timestamp_utc": "2026-10-15T02:28:43+00:00",
+      "bsc_tx_hash": "0xab064a224dca4def316aa0f4215c8d5c1c2e6051b5b73a4f23794f6df25f4317",
+      "bsc_block": 127706697,
+      "value_wei": 27181594577501,
+      "status": 1,
+      "calldata": "0x"
+    },
+    {
+      "from_label": "UNATTRIBUTED_FUNDING_SOURCE_3",
+      "from_address": "0x3b2d4046a86b493d213b847548d8bd42a13a7bf9",
+      "to_label": "HACKER_A",
+      "to_address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "timestamp_utc": "2026-10-15T02:41:20+00:00",
+      "bsc_tx_hash": "0x0944bfa82cb04a39bc325cca5b1ee513885aba07678591c502a103c7f6a6a7bc",
+      "bsc_block": 127708380,
+      "value_wei": 8395865076607,
+      "status": 1,
+      "calldata": "0x"
+    }
+  ],
+  "residual_checks": [
+    {
+      "own_block": 127704625,
+      "nonces": [0],
+      "external_credit_gap_wei": 27340988674999,
+      "direct_funding_wei": 27340988674999,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706686,
+      "nonces": [1],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706701,
+      "nonces": [2],
+      "external_credit_gap_wei": 27181594577501,
+      "direct_funding_wei": 27181594577501,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706739,
+      "nonces": [3, 4],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706770,
+      "nonces": [5],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706773,
+      "nonces": [6],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706802,
+      "nonces": [7],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706805,
+      "nonces": [8],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706918,
+      "nonces": [9],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706923,
+      "nonces": [10],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706980,
+      "nonces": [11],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127706985,
+      "nonces": [12],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707055,
+      "nonces": [13],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707063,
+      "nonces": [14],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707118,
+      "nonces": [15],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707121,
+      "nonces": [16],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707220,
+      "nonces": [17],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707224,
+      "nonces": [18],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707251,
+      "nonces": [19],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707256,
+      "nonces": [20],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707290,
+      "nonces": [21],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707294,
+      "nonces": [22],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707451,
+      "nonces": [23],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707454,
+      "nonces": [24],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707474,
+      "nonces": [25],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707478,
+      "nonces": [26],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707828,
+      "nonces": [27],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707833,
+      "nonces": [28],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707880,
+      "nonces": [29],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707907,
+      "nonces": [30],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707932,
+      "nonces": [31],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127707959,
+      "nonces": [32],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708034,
+      "nonces": [33],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708299,
+      "nonces": [34],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708303,
+      "nonces": [35],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708338,
+      "nonces": [36],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708341,
+      "nonces": [37],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708364,
+      "nonces": [38],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708367,
+      "nonces": [39],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708558,
+      "nonces": [40],
+      "external_credit_gap_wei": 8395865076607,
+      "direct_funding_wei": 8395865076607,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708561,
+      "nonces": [41],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708582,
+      "nonces": [42],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708585,
+      "nonces": [43],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708628,
+      "nonces": [44],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127708631,
+      "nonces": [45],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127709523,
+      "nonces": [46],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127709526,
+      "nonces": [47],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127721503,
+      "nonces": [48],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127724652,
+      "nonces": [49],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127733251,
+      "nonces": [50],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127734045,
+      "nonces": [51],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127734183,
+      "nonces": [52],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127735073,
+      "nonces": [53],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127735139,
+      "nonces": [54],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    },
+    {
+      "own_block": 127735781,
+      "nonces": [55],
+      "external_credit_gap_wei": 0,
+      "direct_funding_wei": 0,
+      "unexplained_residual_wei": 0
+    }
+  ],
+  "caveat": "Native funding counterparties are unattributed; transfers alone do not establish ownership, affiliation or intent. Gross native sale proceeds are proved by successful call trees, not merely WBNB unwrap events. All native outgoing outer values are zero. Evidence does not cover transactions after the stated ending snapshot."
+}

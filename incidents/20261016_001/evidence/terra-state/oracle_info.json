@@ -1,0 +1,16 @@
+{
+  "address": "terra1fmht0t6svq3n24zx03nkfja0m40zhfyyxkdcvlrkl6u7gfe6aagq4gch8n",
+  "contract_info": {
+    "code_id": "11568",
+    "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+    "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+    "label": "ust1-oracle",
+    "created": {
+      "block_height": "29722964",
+      "tx_index": "0"
+    },
+    "ibc_port_id": "",
+    "extension": null,
+    "ibc2_port_id": "wasm21fmht0t6svq3n24zx03nkfja0m40zhfyyxkdcvlrkl6u7gfe6aagq4gch8n"
+  }
+}

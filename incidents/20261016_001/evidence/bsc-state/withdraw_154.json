@@ -1,0 +1,35 @@
+{
+  "deposit": {
+    "_contract_address": "terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la",
+    "action": "deposit_cw20_mintable_burn",
+    "amount": "341682420857001980921",
+    "dest_account": "0x00000000000000000000000046b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "dest_chain": "0x00000038",
+    "dest_token_address": "0x00000000000000000000000055d398326f99059ff775485246999027b3197955",
+    "fee": "1028131657543636853",
+    "fee_type": "standard",
+    "nonce": "154",
+    "sender": "terra12z8vz3vgnalt8trykd6nntdyp54e95yqsdtjj3",
+    "token": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4",
+    "xchain_hash_id": "0x0ffcd888032cf36ac9fcfcd127435fafa122cc70d87fc47a2b9b9062343ce9ca",
+    "msg_index": "0"
+  },
+  "withdraw": {
+    "srcChain": "0x00000001",
+    "srcAccount": "0x000000000000000000000000508ec145889f7eb3ac64b37539ada40d2b92d080",
+    "destAccount": "0x00000000000000000000000046b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "token": "0x55d398326f99059ff775485246999027b3197955",
+    "recipient": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "amount": 341682420857001980921,
+    "nonce": 154,
+    "srcDecimals": 18,
+    "destDecimals": 18,
+    "operatorGas": 0,
+    "submittedAt": 1792039407,
+    "approvedAt": 1792039411,
+    "approved": true,
+    "cancelled": false,
+    "executed": true
+  },
+  "bsc_block": "0x79d67f8"
+}

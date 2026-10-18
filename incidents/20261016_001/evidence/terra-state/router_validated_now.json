@@ -1,0 +1,15 @@
+[
+  {
+    "data": {
+      "funding_version": 1,
+      "settlement_version": 1,
+      "last_route_id": 647,
+      "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "wrap_mapper": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:46:17 GMT",
+    "Content-Type": "application/json"
+  }
+]

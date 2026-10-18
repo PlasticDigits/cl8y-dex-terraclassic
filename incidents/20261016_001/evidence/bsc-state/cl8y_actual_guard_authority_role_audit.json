@@ -1,0 +1,98 @@
+[
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "A",
+    "address": "0xdb740a2f52aac4ab14e7b5d0743bf3fe3e0326f9",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "A",
+    "address": "0xdb740a2f52aac4ab14e7b5d0743bf3fe3e0326f9",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "B",
+    "address": "0x065032dd30ea89bca96778f8517e40eff04a6c4c",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "B",
+    "address": "0x065032dd30ea89bca96778f8517e40eff04a6c4c",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "relay",
+    "address": "0xd10925966cf3dee64955fa4a357403497acab824",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "relay",
+    "address": "0xd10925966cf3dee64955fa4a357403497acab824",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "recovery",
+    "address": "0x42f66bc42766710309e03be15de2147732b71441",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "recovery",
+    "address": "0x42f66bc42766710309e03be15de2147732b71441",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "HACKER_A",
+    "address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "HACKER_A",
+    "address": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "HACKER_B",
+    "address": "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b",
+    "role": 0,
+    "has_role": false,
+    "execution_delay": 0
+  },
+  {
+    "manager": "0x745120275a70693cc1d55cd5c81e99b0d2c1df57",
+    "label": "HACKER_B",
+    "address": "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b",
+    "role": 1,
+    "has_role": false,
+    "execution_delay": 0
+  }
+]

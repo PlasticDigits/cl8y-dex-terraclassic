@@ -1,0 +1,984 @@
+{
+  "method": "55 unique-own-tx-block after balances + exact block gas - actual successful CALL/CREATE native net credits from20swap call trees",
+  "rows": [
+    {
+      "block": 127704625,
+      "nonces": [0],
+      "gas_wei": 16161955200000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x871b910906b6f94cd5d83c439feb2af4493a0077f1968b8dafdc878ea1b6b8db"
+      ],
+      "after_balance_wei": 11179033474999,
+      "previous_own_block": 127686874,
+      "previous_after_balance_wei": 0,
+      "implicit_external_native_incoming_wei": 27340988674999,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 27340988674999
+    },
+    {
+      "block": 127706686,
+      "nonces": [1],
+      "gas_wei": 2481978100000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x67aaa2908fecddd8aba72520770fc8a76c3e50611d61632048c67f754d5f8ace"
+      ],
+      "after_balance_wei": 8697055374999,
+      "previous_own_block": 127704625,
+      "previous_after_balance_wei": 11179033474999,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706701,
+      "nonces": [2],
+      "gas_wei": 19767830600000,
+      "swap_wrapped_withdrawal_wei": 393303312709113685,
+      "swap_tx_hashes": [
+        "0x867120ba093c958ddee63fd56246059734db3f5a3c09b8ee04e55c205b3546ed"
+      ],
+      "tx_hashes": [
+        "0x867120ba093c958ddee63fd56246059734db3f5a3c09b8ee04e55c205b3546ed"
+      ],
+      "after_balance_wei": 393319423528466185,
+      "previous_own_block": 127706686,
+      "previous_after_balance_wei": 8697055374999,
+      "implicit_external_native_incoming_wei": 27181594577501,
+      "actual_swap_net_native_credit_wei": 393303312709113685,
+      "actual_external_native_incoming_wei": 27181594577501
+    },
+    {
+      "block": 127706739,
+      "nonces": [3, 4],
+      "gas_wei": 22593688120000,
+      "swap_wrapped_withdrawal_wei": 387953431482512255,
+      "swap_tx_hashes": [
+        "0x9952d0c7a5008e2eeafbce5ee034dba5655d646d46fdafecacb30dbaa7973d10"
+      ],
+      "tx_hashes": [
+        "0x6f20b4e87ae70888e0011f63da7e9e3aafa53dfd2a98e1c2a8d655781adf344c",
+        "0x9952d0c7a5008e2eeafbce5ee034dba5655d646d46fdafecacb30dbaa7973d10"
+      ],
+      "after_balance_wei": 781250261322858440,
+      "previous_own_block": 127706701,
+      "previous_after_balance_wei": 393319423528466185,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 387953431482512255,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706770,
+      "nonces": [5],
+      "gas_wei": 2525692000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x8effa5357450cefbb04554f284da7e5c35e20405ee61c36a00d7a6aeaab0767b"
+      ],
+      "after_balance_wei": 781247735630858440,
+      "previous_own_block": 127706739,
+      "previous_after_balance_wei": 781250261322858440,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706773,
+      "nonces": [6],
+      "gas_wei": 20135492000000,
+      "swap_wrapped_withdrawal_wei": 382575600440050872,
+      "swap_tx_hashes": [
+        "0x8ab302c41325b48bd920e368b154e9bf67d78410a2c87432b0417eca909b31be"
+      ],
+      "tx_hashes": [
+        "0x8ab302c41325b48bd920e368b154e9bf67d78410a2c87432b0417eca909b31be"
+      ],
+      "after_balance_wei": 1163803200578909312,
+      "previous_own_block": 127706770,
+      "previous_after_balance_wei": 781247735630858440,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 382575600440050872,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706802,
+      "nonces": [7],
+      "gas_wei": 2525692000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xc57cde6b49dfd8bd9cb3b08dcfee0adf98b45597769377dbb0c4c3797eb69b3e"
+      ],
+      "after_balance_wei": 1163800674886909312,
+      "previous_own_block": 127706773,
+      "previous_after_balance_wei": 1163803200578909312,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706805,
+      "nonces": [8],
+      "gas_wei": 62032464000000,
+      "swap_wrapped_withdrawal_wei": 345490377369393633,
+      "swap_tx_hashes": [
+        "0x875bc1607206665379f746f01c4cc8571f8c9b6db52ab3b809f226a258d8acab"
+      ],
+      "tx_hashes": [
+        "0x875bc1607206665379f746f01c4cc8571f8c9b6db52ab3b809f226a258d8acab"
+      ],
+      "after_balance_wei": 1509229019792302945,
+      "previous_own_block": 127706802,
+      "previous_after_balance_wei": 1163800674886909312,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 345490377369393633,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706918,
+      "nonces": [9],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xd21f0c4931a924d47d0dcbb866b5decdea72f51afa3cfc1d50bee015f3578336"
+      ],
+      "after_balance_wei": 1509226542671302945,
+      "previous_own_block": 127706805,
+      "previous_after_balance_wei": 1509229019792302945,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706923,
+      "nonces": [10],
+      "gas_wei": 37702158000000,
+      "swap_wrapped_withdrawal_wei": 310188225892298639,
+      "swap_tx_hashes": [
+        "0xb1e1cb550c32576717ef6acd606c8f55ca096e557dc8dd557a85f9d9a46d8621"
+      ],
+      "tx_hashes": [
+        "0xb1e1cb550c32576717ef6acd606c8f55ca096e557dc8dd557a85f9d9a46d8621"
+      ],
+      "after_balance_wei": 1819377066405601584,
+      "previous_own_block": 127706918,
+      "previous_after_balance_wei": 1509226542671302945,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 310188225892298639,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706980,
+      "nonces": [11],
+      "gas_wei": 2481978100000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x7e1070eb848fc0f643eda2e3a2b419a142e7ca213438a2ba3f1f2c0031051aa1"
+      ],
+      "after_balance_wei": 1819374584427501584,
+      "previous_own_block": 127706923,
+      "previous_after_balance_wei": 1819377066405601584,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127706985,
+      "nonces": [12],
+      "gas_wei": 34625564400000,
+      "swap_wrapped_withdrawal_wei": 278145258824276987,
+      "swap_tx_hashes": [
+        "0xfb85709c2bb4a211259cccb55b4bc4318bec897d9377aee317907a79b1fe4166"
+      ],
+      "tx_hashes": [
+        "0xfb85709c2bb4a211259cccb55b4bc4318bec897d9377aee317907a79b1fe4166"
+      ],
+      "after_balance_wei": 2097485217687378571,
+      "previous_own_block": 127706980,
+      "previous_after_balance_wei": 1819374584427501584,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 278145258824276987,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707055,
+      "nonces": [13],
+      "gas_wei": 2491692300000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x6b34b43c9247213a338fc83477681159083cef540595a64018ff6aee5fea2131"
+      ],
+      "after_balance_wei": 2097482725995078571,
+      "previous_own_block": 127706985,
+      "previous_after_balance_wei": 2097485217687378571,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707063,
+      "nonces": [14],
+      "gas_wei": 39153955500000,
+      "swap_wrapped_withdrawal_wei": 250797999317700429,
+      "swap_tx_hashes": [
+        "0x6ead31f984cddaed375ce1793e884a292f0b579690c12365f52d6892f278c0f9"
+      ],
+      "tx_hashes": [
+        "0x6ead31f984cddaed375ce1793e884a292f0b579690c12365f52d6892f278c0f9"
+      ],
+      "after_balance_wei": 2348241571357279000,
+      "previous_own_block": 127707055,
+      "previous_after_balance_wei": 2097482725995078571,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 250797999317700429,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707118,
+      "nonces": [15],
+      "gas_wei": 2481978100000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xd9c6e8aa057b07e07520036e10b1ff038eea96fad3b77cdb743ef0f5856e4ebc"
+      ],
+      "after_balance_wei": 2348239089379179000,
+      "previous_own_block": 127707063,
+      "previous_after_balance_wei": 2348241571357279000,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707121,
+      "nonces": [16],
+      "gas_wei": 18231355800000,
+      "swap_wrapped_withdrawal_wei": 184858330738127676,
+      "swap_tx_hashes": [
+        "0x7286454192a17907476f049e34f350da9c25deeca55cb449277c88f5d70f4b67"
+      ],
+      "tx_hashes": [
+        "0x7286454192a17907476f049e34f350da9c25deeca55cb449277c88f5d70f4b67"
+      ],
+      "after_balance_wei": 2533079188761506676,
+      "previous_own_block": 127707118,
+      "previous_after_balance_wei": 2348239089379179000,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 184858330738127676,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707220,
+      "nonces": [17],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xa446931749ede656b8565da39c40638dcf3e9c0a3081d1098d45f58b17442343"
+      ],
+      "after_balance_wei": 2533076711640506676,
+      "previous_own_block": 127707121,
+      "previous_after_balance_wei": 2533079188761506676,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707224,
+      "nonces": [18],
+      "gas_wei": 18195882000000,
+      "swap_wrapped_withdrawal_wei": 183394378301260006,
+      "swap_tx_hashes": [
+        "0x72587c94cacab93c19bf6c523a8a9b5e630539c53c6670d07af3273badada8e1"
+      ],
+      "tx_hashes": [
+        "0x72587c94cacab93c19bf6c523a8a9b5e630539c53c6670d07af3273badada8e1"
+      ],
+      "after_balance_wei": 2716452894059766682,
+      "previous_own_block": 127707220,
+      "previous_after_balance_wei": 2533076711640506676,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 183394378301260006,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707251,
+      "nonces": [19],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x150ad319f7c4a4d8f596678795d4fdcb7b121ff48038b4e93bfffb25e660b7ef"
+      ],
+      "after_balance_wei": 2716450416938766682,
+      "previous_own_block": 127707224,
+      "previous_after_balance_wei": 2716452894059766682,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707256,
+      "nonces": [20],
+      "gas_wei": 18216945000000,
+      "swap_wrapped_withdrawal_wei": 181497617738808626,
+      "swap_tx_hashes": [
+        "0x406e037d96112c79618f5ebec5c0664f2b1ce99a75c2187d97ef2d26d4af4947"
+      ],
+      "tx_hashes": [
+        "0x406e037d96112c79618f5ebec5c0664f2b1ce99a75c2187d97ef2d26d4af4947"
+      ],
+      "after_balance_wei": 2897929817732575308,
+      "previous_own_block": 127707251,
+      "previous_after_balance_wei": 2716450416938766682,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 181497617738808626,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707290,
+      "nonces": [21],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x4f0d852a2d5170f59f0d9805a598a4ad3ff994ae8c18e2ed5eec32e6ede9f819"
+      ],
+      "after_balance_wei": 2897927340611575308,
+      "previous_own_block": 127707256,
+      "previous_after_balance_wei": 2897929817732575308,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707294,
+      "nonces": [22],
+      "gas_wei": 36543234000000,
+      "swap_wrapped_withdrawal_wei": 174295384509284012,
+      "swap_tx_hashes": [
+        "0x179e27a82b15325e4da67d165f52df3c2a5cc349fb352a2fa058dc0a7e190489"
+      ],
+      "tx_hashes": [
+        "0x179e27a82b15325e4da67d165f52df3c2a5cc349fb352a2fa058dc0a7e190489"
+      ],
+      "after_balance_wei": 3072186181886859320,
+      "previous_own_block": 127707290,
+      "previous_after_balance_wei": 2897927340611575308,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 174295384509284012,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707451,
+      "nonces": [23],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x664871bfe61427464dcf8d0f042a718cf903b8f958303b8ad293f05bbc85edc1"
+      ],
+      "after_balance_wei": 3072183704765859320,
+      "previous_own_block": 127707294,
+      "previous_after_balance_wei": 3072186181886859320,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707454,
+      "nonces": [24],
+      "gas_wei": 38149581000000,
+      "swap_wrapped_withdrawal_wei": 152720513496877755,
+      "swap_tx_hashes": [
+        "0xeb0c665f03485cc12f3d5213dabebb57b5dabd2547a44c8dbbec6bfac574a962"
+      ],
+      "tx_hashes": [
+        "0xeb0c665f03485cc12f3d5213dabebb57b5dabd2547a44c8dbbec6bfac574a962"
+      ],
+      "after_balance_wei": 3224866068681737075,
+      "previous_own_block": 127707451,
+      "previous_after_balance_wei": 3072183704765859320,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 152720513496877755,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707474,
+      "nonces": [25],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xc9a4243dd90d1374002de3afd01a638ac4f80c813a55dcdc805c5c28ee86d6e0"
+      ],
+      "after_balance_wei": 3224863591560737075,
+      "previous_own_block": 127707454,
+      "previous_after_balance_wei": 3224866068681737075,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707478,
+      "nonces": [26],
+      "gas_wei": 39948606000000,
+      "swap_wrapped_withdrawal_wei": 138266132032051651,
+      "swap_tx_hashes": [
+        "0xd1c8870561f29e29e730b2d91cf471d7634a9b29c405132f59fcdc6cf3a04824"
+      ],
+      "tx_hashes": [
+        "0xd1c8870561f29e29e730b2d91cf471d7634a9b29c405132f59fcdc6cf3a04824"
+      ],
+      "after_balance_wei": 3364601613062176260,
+      "previous_own_block": 127707474,
+      "previous_after_balance_wei": 3224863591560737075,
+      "implicit_external_native_incoming_wei": 1511838075387534,
+      "actual_swap_net_native_credit_wei": 139777970107439185,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707828,
+      "nonces": [27],
+      "gas_wei": 2477121000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x9b699433530275bff447268facc357848df124ebcd8ca128553979f4808cf40f"
+      ],
+      "after_balance_wei": 3364599135941176260,
+      "previous_own_block": 127707478,
+      "previous_after_balance_wei": 3364601613062176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707833,
+      "nonces": [28],
+      "gas_wei": 791735883000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x256587ce727b98e6b68caee4f8ebf1ce57921d82ac06c9eba6beaf18477c9501"
+      ],
+      "after_balance_wei": 3363807400058176260,
+      "previous_own_block": 127707828,
+      "previous_after_balance_wei": 3364599135941176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707880,
+      "nonces": [29],
+      "gas_wei": 791736750000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x06269ab8aebd601d3088f2a9c6c970bf672abd8c4e13b92d8098903e8f715632"
+      ],
+      "after_balance_wei": 3363015663308176260,
+      "previous_own_block": 127707833,
+      "previous_after_balance_wei": 3363807400058176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707907,
+      "nonces": [30],
+      "gas_wei": 791735883000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xe191abd8dd1e5438885d1d201038542eb819996bd0b9fb6e20a642c3685d2b47"
+      ],
+      "after_balance_wei": 3362223927425176260,
+      "previous_own_block": 127707880,
+      "previous_after_balance_wei": 3363015663308176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707932,
+      "nonces": [31],
+      "gas_wei": 791735781000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xf224453ac1bf098df08eae9305299bc70a82bbe217567bc50ac10fa57741d711"
+      ],
+      "after_balance_wei": 3361432191644176260,
+      "previous_own_block": 127707907,
+      "previous_after_balance_wei": 3362223927425176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127707959,
+      "nonces": [32],
+      "gas_wei": 791735883000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xa370b2e4d692f7da5b8218f49c3ae012d7acf901876dc2860ba2cf4cef1c5baf"
+      ],
+      "after_balance_wei": 3360640455761176260,
+      "previous_own_block": 127707932,
+      "previous_after_balance_wei": 3361432191644176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708034,
+      "nonces": [33],
+      "gas_wei": 791788464000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x0f904880dec40de9b825da33614f8001c494de0482a0f74690360a6d75af30da"
+      ],
+      "after_balance_wei": 3359848667297176260,
+      "previous_own_block": 127707959,
+      "previous_after_balance_wei": 3360640455761176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708299,
+      "nonces": [34],
+      "gas_wei": 2491692300000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xa81fa6417dd5e7dbc122706ab6a52a61034a9a0d5e7994c763b1294ff6746a5a"
+      ],
+      "after_balance_wei": 3359846175604876260,
+      "previous_own_block": 127708034,
+      "previous_after_balance_wei": 3359848667297176260,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708303,
+      "nonces": [35],
+      "gas_wei": 29489753700000,
+      "swap_wrapped_withdrawal_wei": 118774184618103693,
+      "swap_tx_hashes": [
+        "0xfe478847369d9297d9c74a7dac969d1718288cea07bc942dd9604a6140d1a11d"
+      ],
+      "tx_hashes": [
+        "0xfe478847369d9297d9c74a7dac969d1718288cea07bc942dd9604a6140d1a11d"
+      ],
+      "after_balance_wei": 3480567984399738436,
+      "previous_own_block": 127708299,
+      "previous_after_balance_wei": 3359846175604876260,
+      "implicit_external_native_incoming_wei": 1977113930458483,
+      "actual_swap_net_native_credit_wei": 120751298548562176,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708338,
+      "nonces": [36],
+      "gas_wei": 2491692300000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xe7611fd829fc82f5dc7996f27e315142b352c4fe1997d86a624ebd19d5c6cfc5"
+      ],
+      "after_balance_wei": 3480565492707438436,
+      "previous_own_block": 127708303,
+      "previous_after_balance_wei": 3480567984399738436,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708341,
+      "nonces": [37],
+      "gas_wei": 161342091000000,
+      "swap_wrapped_withdrawal_wei": 100032645518428848,
+      "swap_tx_hashes": [
+        "0xe2756eccc11f3701253c8af260e279b089f1d338defdcd42724dfda6288d589a"
+      ],
+      "tx_hashes": [
+        "0xe2756eccc11f3701253c8af260e279b089f1d338defdcd42724dfda6288d589a"
+      ],
+      "after_balance_wei": 3580436796134867284,
+      "previous_own_block": 127708338,
+      "previous_after_balance_wei": 3480565492707438436,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 100032645518428848,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708364,
+      "nonces": [38],
+      "gas_wei": 2516463510000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x69df3051dd627ff5df1b9af9dbc511f4fd49269e7338dd02a5de5d2d6fad2dea"
+      ],
+      "after_balance_wei": 3580434279671357284,
+      "previous_own_block": 127708341,
+      "previous_after_balance_wei": 3580436796134867284,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708367,
+      "nonces": [39],
+      "gas_wei": 103344370800000,
+      "swap_wrapped_withdrawal_wei": 88725266022670655,
+      "swap_tx_hashes": [
+        "0xcff26cfadfcc923fd743ebac33a914ad353648e20879a40b3e1ffb1d70cef191"
+      ],
+      "tx_hashes": [
+        "0xcff26cfadfcc923fd743ebac33a914ad353648e20879a40b3e1ffb1d70cef191"
+      ],
+      "after_balance_wei": 3671149864100474233,
+      "previous_own_block": 127708364,
+      "previous_after_balance_wei": 3580434279671357284,
+      "implicit_external_native_incoming_wei": 2093662777246294,
+      "actual_swap_net_native_credit_wei": 90818928799916949,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708558,
+      "nonces": [40],
+      "gas_wei": 2525692000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xb9442f48dd11e8e1065a7918e54690937d280f7364aa1aa9081c5cd698fda7ab"
+      ],
+      "after_balance_wei": 3671155734273550840,
+      "previous_own_block": 127708367,
+      "previous_after_balance_wei": 3671149864100474233,
+      "implicit_external_native_incoming_wei": 8395865076607,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 8395865076607
+    },
+    {
+      "block": 127708561,
+      "nonces": [41],
+      "gas_wei": 164789560000000,
+      "swap_wrapped_withdrawal_wei": 81841279703150911,
+      "swap_tx_hashes": [
+        "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8"
+      ],
+      "tx_hashes": [
+        "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8"
+      ],
+      "after_balance_wei": 3752832224416701751,
+      "previous_own_block": 127708558,
+      "previous_after_balance_wei": 3671155734273550840,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 81841279703150911,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708582,
+      "nonces": [42],
+      "gas_wei": 2525692000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x0634a357395836e6391b74ec4ad5e701c6905e48d07632c1700f5ba670914763"
+      ],
+      "after_balance_wei": 3752829698724701751,
+      "previous_own_block": 127708561,
+      "previous_after_balance_wei": 3752832224416701751,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708585,
+      "nonces": [43],
+      "gas_wei": 147423016000000,
+      "swap_wrapped_withdrawal_wei": 72926684585294894,
+      "swap_tx_hashes": [
+        "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c"
+      ],
+      "tx_hashes": [
+        "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c"
+      ],
+      "after_balance_wei": 3825633573357175734,
+      "previous_own_block": 127708582,
+      "previous_after_balance_wei": 3752829698724701751,
+      "implicit_external_native_incoming_wei": 24613063179089,
+      "actual_swap_net_native_credit_wei": 72951297648473983,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708628,
+      "nonces": [44],
+      "gas_wei": 2525692000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x16644842cbb9e90af4bf1a3835c9c7ebf57873ffeae41e1481e9e8f569aea526"
+      ],
+      "after_balance_wei": 3825631047665175734,
+      "previous_own_block": 127708585,
+      "previous_after_balance_wei": 3825633573357175734,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127708631,
+      "nonces": [45],
+      "gas_wei": 203444488000000,
+      "swap_wrapped_withdrawal_wei": 55501935156914741,
+      "swap_tx_hashes": [
+        "0x76a295ca2eeef1969199f0248926a8a4b4efb0024f90da74ca8228eada86e503"
+      ],
+      "tx_hashes": [
+        "0x76a295ca2eeef1969199f0248926a8a4b4efb0024f90da74ca8228eada86e503"
+      ],
+      "after_balance_wei": 3880952235110977258,
+      "previous_own_block": 127708628,
+      "previous_after_balance_wei": 3825631047665175734,
+      "implicit_external_native_incoming_wei": 22696776886783,
+      "actual_swap_net_native_credit_wei": 55524631933801524,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127709523,
+      "nonces": [46],
+      "gas_wei": 2571348740000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xedbd63edaf07f3a950b195c51950750680f886b19616d956e29df0cc6a1c2612"
+      ],
+      "after_balance_wei": 3880949663762237258,
+      "previous_own_block": 127708631,
+      "previous_after_balance_wei": 3880952235110977258,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127709526,
+      "nonces": [47],
+      "gas_wei": 51379911140000,
+      "swap_wrapped_withdrawal_wei": 56264062964392945,
+      "swap_tx_hashes": [
+        "0xa25a983d076c1f6e9e64d564114322ce95ea0cd6782b936e43b73450aacd3915"
+      ],
+      "tx_hashes": [
+        "0xa25a983d076c1f6e9e64d564114322ce95ea0cd6782b936e43b73450aacd3915"
+      ],
+      "after_balance_wei": 3937418977285154805,
+      "previous_own_block": 127709523,
+      "previous_after_balance_wei": 3880949663762237258,
+      "implicit_external_native_incoming_wei": 256630469664602,
+      "actual_swap_net_native_credit_wei": 56520693434057547,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127721503,
+      "nonces": [48],
+      "gas_wei": 16472983000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x8c33f59ce6527fc4a510ee73fa5eb653e9f666ca7d09a70e204e6506c3514b27"
+      ],
+      "after_balance_wei": 3937402504302154805,
+      "previous_own_block": 127709526,
+      "previous_after_balance_wei": 3937418977285154805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127724652,
+      "nonces": [49],
+      "gas_wei": 17094605000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x18cbfe4359c8ed9e7c365f93985fc383252b01cb13d1d7c0f14b4e59105e4429"
+      ],
+      "after_balance_wei": 3937385409697154805,
+      "previous_own_block": 127721503,
+      "previous_after_balance_wei": 3937402504302154805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127733251,
+      "nonces": [50],
+      "gas_wei": 16224268320000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x0bf283f186fe5ceaff3cd1014369c99070eff479617807ad810f68174e972198"
+      ],
+      "after_balance_wei": 3937369185428834805,
+      "previous_own_block": 127724652,
+      "previous_after_balance_wei": 3937385409697154805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127734045,
+      "nonces": [51],
+      "gas_wei": 16068000000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x5c9f89f020a6c24d46a0f4bea97eed7d11d4463d9600c5564009dc7514251a74"
+      ],
+      "after_balance_wei": 3937353117428834805,
+      "previous_own_block": 127733251,
+      "previous_after_balance_wei": 3937369185428834805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127734183,
+      "nonces": [52],
+      "gas_wei": 16068624000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x3c38202f74a09dec0f616855f9cb4769bd9ff35831f44c960635ecfb913e53f8"
+      ],
+      "after_balance_wei": 3937337048804834805,
+      "previous_own_block": 127734045,
+      "previous_after_balance_wei": 3937353117428834805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127735073,
+      "nonces": [53],
+      "gas_wei": 17304000000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0x1443281ed6cea8778f2563539212d817adad48e01eb0c252c10ca3fe23a622d4"
+      ],
+      "after_balance_wei": 3937319744804834805,
+      "previous_own_block": 127734183,
+      "previous_after_balance_wei": 3937337048804834805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127735139,
+      "nonces": [54],
+      "gas_wei": 17613684000000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xa3e94c54ddc6f49124f54099061a2bc18ae53ee101d1ae685652f1e12a4d9200"
+      ],
+      "after_balance_wei": 3937302131120834805,
+      "previous_own_block": 127735073,
+      "previous_after_balance_wei": 3937319744804834805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    },
+    {
+      "block": 127735781,
+      "nonces": [55],
+      "gas_wei": 2539777590000,
+      "swap_wrapped_withdrawal_wei": 0,
+      "swap_tx_hashes": [],
+      "tx_hashes": [
+        "0xb9086ae2acaf5ce4ac47cece5dae1594d0c99a63cc2f6064774cbf4d9519245f"
+      ],
+      "after_balance_wei": 3937299591343244805,
+      "previous_own_block": 127735139,
+      "previous_after_balance_wei": 3937302131120834805,
+      "implicit_external_native_incoming_wei": 0,
+      "actual_swap_net_native_credit_wei": 0,
+      "actual_external_native_incoming_wei": 0
+    }
+  ],
+  "cache": {
+    "127704625": 11179033474999,
+    "127706685": 11179033474999,
+    "127706686": 8697055374999,
+    "127706701": 393319423528466185,
+    "127706739": 781250261322858440,
+    "127706770": 781247735630858440,
+    "127706773": 1163803200578909312,
+    "127706802": 1163800674886909312,
+    "127706805": 1509229019792302945,
+    "127706918": 1509226542671302945,
+    "127706923": 1819377066405601584,
+    "127706980": 1819374584427501584,
+    "127706985": 2097485217687378571,
+    "127707055": 2097482725995078571,
+    "127707063": 2348241571357279000,
+    "127707118": 2348239089379179000,
+    "127707121": 2533079188761506676,
+    "127707220": 2533076711640506676,
+    "127707224": 2716452894059766682,
+    "127707251": 2716450416938766682,
+    "127707256": 2897929817732575308,
+    "127707290": 2897927340611575308,
+    "127707294": 3072186181886859320,
+    "127707451": 3072183704765859320,
+    "127707454": 3224866068681737075,
+    "127707474": 3224863591560737075,
+    "127707478": 3364601613062176260,
+    "127707828": 3364599135941176260,
+    "127707833": 3363807400058176260,
+    "127707880": 3363015663308176260,
+    "127707907": 3362223927425176260,
+    "127707932": 3361432191644176260,
+    "127707959": 3360640455761176260,
+    "127708034": 3359848667297176260,
+    "127708299": 3359846175604876260,
+    "127708303": 3480567984399738436,
+    "127708338": 3480565492707438436,
+    "127708341": 3580436796134867284,
+    "127708364": 3580434279671357284,
+    "127708367": 3671149864100474233,
+    "127708558": 3671155734273550840,
+    "127708561": 3752832224416701751,
+    "127708582": 3752829698724701751,
+    "127708585": 3825633573357175734,
+    "127708628": 3825631047665175734,
+    "127708631": 3880952235110977258,
+    "127709523": 3880949663762237258,
+    "127709526": 3937418977285154805,
+    "127721503": 3937402504302154805,
+    "127724652": 3937385409697154805,
+    "127733251": 3937369185428834805,
+    "127734045": 3937353117428834805,
+    "127734183": 3937337048804834805,
+    "127735073": 3937319744804834805,
+    "127735139": 3937302131120834805,
+    "127735781": 3937299591343244805
+  }
+}

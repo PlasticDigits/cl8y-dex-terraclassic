@@ -1,0 +1,1341 @@
+{
+  "purpose": "Exact public-data false positives for the repository credential scanner; no credentials or private keys are excepted",
+  "values": [
+    {
+      "classification": "public IBC client identifier",
+      "value": "07-tendermint-1549",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 8
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 2099
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 8
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 2099
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 8
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 2099
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x20c687f48354e7d8e8f7e2ff299fbcd44344036d",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 34
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x3557bfd147b35c2647eafc05c8be757ce84d5b1c",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_0.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_10.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_1.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_2.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_4.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_6.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_3.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_5.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_7.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_8.json",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x3db6f82cd25782a34d75dc46f8d35902c982fcfe",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 86
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 210
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 219
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 228
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 237
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 282
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 291
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x54a6f2d138003f02f99b280314ab0a6b59be009f",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 112
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x6da7c8666c88e7f07f188d9ba9934f6add6a3d96",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 151
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x766722bf56b6b01f19341a5b81961a52a86b3048",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 73
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 246
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 255
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_bridge_release.json",
+          "line": 8
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_157.json",
+          "line": 21
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_155.json",
+          "line": 21
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_156.json",
+          "line": 21
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_158.json",
+          "line": 21
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_159.json",
+          "line": 21
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/withdraw_150.json",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0x9d6639c5534d10ae20108d1d688fabca7998e0b4",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xadde63bed0d733989feb10cdeb772e686ca37a01",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xba637a9044c5aa8dd19a133abd03aee9296ea126",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 138
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xc09bf74eec81900431e5885fd62feff293c09443",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 47
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xccb205faf0b9dd081e2805529312ff654f589d54",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xd3900b207418b017004b172576e996c8ecdc2d0d",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 177
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xe159c7a58d694fafba82221905d5a49e7f314330",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_11.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/bsc-state/bsc_pending_9.json",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xe5983bca68a45a60df76bbf4132c0375a3390527",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 99
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 192
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 201
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 264
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 273
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 300
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 309
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 318
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 327
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xefd9f8af9f030bd07446a701bd9208b9cde6289b",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 164
+        }
+      ]
+    },
+    {
+      "classification": "public EVM asset contract address",
+      "value": "0xff5cbe36af620762b421d982dba9e1a97f607bff",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_unverified_and_route_token_review.json",
+          "line": 125
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "AhbRF8yBKYSGCgba5oOOfyCY4i0zhDLlqJ1foDhmDTjs",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 2053
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 4144
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 2053
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 4144
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 2053
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 4144
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "AmS14yFlZT8Z68M3IkeQyfBk0KoI1dm9pLR6KIin8tEq",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/dex_multisig_member_audit.json",
+          "line": 19
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "AsFgOgzKfcTS78bVapTKv2ABSLoD7Rn21BB9ZtPYmpDj",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/A_account.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5765F824EDFD1796CFF7B6A4DF9D8159475D27C1ABCCF34585DD4D7DB1DA6DE7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5765F824EDFD1796CFF7B6A4DF9D8159475D27C1ABCCF34585DD4D7DB1DA6DE7.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/16B4C16E1417B180C1389459BC9D9C86E5E63CE98AC5DCCA946CF5282C8110B7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/16B4C16E1417B180C1389459BC9D9C86E5E63CE98AC5DCCA946CF5282C8110B7.json",
+          "line": 1357
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5AAF95217E21E94BC7089750EA00EE5AC32E0E39D1F22AC95E61EB5A39C18824.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5AAF95217E21E94BC7089750EA00EE5AC32E0E39D1F22AC95E61EB5A39C18824.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B350B9AE464FA22EED2E17A743C177E72B0BF658F859DE5654D0BA9CFE3472F6.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B350B9AE464FA22EED2E17A743C177E72B0BF658F859DE5654D0BA9CFE3472F6.json",
+          "line": 655
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/88D1A861F775079ED7DEACD31028EB5B2B25E2FF6DCD9E8EE7E9554D70C4D9DB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/88D1A861F775079ED7DEACD31028EB5B2B25E2FF6DCD9E8EE7E9554D70C4D9DB.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B2AF113F931203D431E755ED53CE8095F9FB92B021F5E91BF9185D55F0BB3381.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B2AF113F931203D431E755ED53CE8095F9FB92B021F5E91BF9185D55F0BB3381.json",
+          "line": 1357
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D9BE15AE716C1977F822CBA2C5947C181AFAFF25FEE2DE4A586D96453E475FE2.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D9BE15AE716C1977F822CBA2C5947C181AFAFF25FEE2DE4A586D96453E475FE2.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E004EEE6DBEA8DFEB0E45C9766E002F6E836F3FBA47B66086B4CC21E52E31132.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E004EEE6DBEA8DFEB0E45C9766E002F6E836F3FBA47B66086B4CC21E52E31132.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E76AF7A330D76A60EC0557347724E2405B07CF1B4878140EAA722AD400A093E7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E76AF7A330D76A60EC0557347724E2405B07CF1B4878140EAA722AD400A093E7.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/27799A1B220324ACA0750818CA144E9E0203E907690799A3835B01E908F18618.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/27799A1B220324ACA0750818CA144E9E0203E907690799A3835B01E908F18618.json",
+          "line": 2821
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/EB4AC745CA70A588FCF193F0FD7571442BF7D453AAD84E8E0D0323ECD4DE5868.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/EB4AC745CA70A588FCF193F0FD7571442BF7D453AAD84E8E0D0323ECD4DE5868.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/F95FBF14AE3063EBFACC0FA58F43685C94E1A724F3DA3E084891BFBC39844438.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/F95FBF14AE3063EBFACC0FA58F43685C94E1A724F3DA3E084891BFBC39844438.json",
+          "line": 2821
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 17784
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 18180
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "AshEJThXz4alNmSu4uQTbgkCBMFnD7med4TSUrxLzQqU",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3C04FDDC18D59E52047AD8AAE3BE5C63D4D1F1DCD1C6F4BD7EF58A07EEAA2C0A.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3C04FDDC18D59E52047AD8AAE3BE5C63D4D1F1DCD1C6F4BD7EF58A07EEAA2C0A.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 47617
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 48402
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "AwBUOxtpVdt52sk0wYkIMUxwNd4DMF11nLjWQ92MmDLV",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/B_account.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/0743E0916A4D207274495CD21758C46276BB0768445349F6EA798536FB16171D.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/0743E0916A4D207274495CD21758C46276BB0768445349F6EA798536FB16171D.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/12EFD5E4C3C4F21A05CE7E1B85F35AEC86580C304BB5567B8C0F8FB4EF8F2138.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/12EFD5E4C3C4F21A05CE7E1B85F35AEC86580C304BB5567B8C0F8FB4EF8F2138.json",
+          "line": 570
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/23A8A6A1BF7FDE0FCEE56BF1A34278055D61F14ED27AE8AE11E67B9E8AE8459A.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/23A8A6A1BF7FDE0FCEE56BF1A34278055D61F14ED27AE8AE11E67B9E8AE8459A.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/170F6170817B31035E84FE27C215030C88F900E6F690FBB2F0562CDFD492E895.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/170F6170817B31035E84FE27C215030C88F900E6F690FBB2F0562CDFD492E895.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/243E8E484651155D0DE7897A281E2F6656E8B0961FDDE530C95278A1C54EFFD7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/243E8E484651155D0DE7897A281E2F6656E8B0961FDDE530C95278A1C54EFFD7.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/05F9D6E7218270F0E911C926CF97C6180589D73E0480B79AC7158089246D1AFA.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/05F9D6E7218270F0E911C926CF97C6180589D73E0480B79AC7158089246D1AFA.json",
+          "line": 680
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2B24384A45BCB341A88C6C6009665EB71DE833C077234508D7E4E4663EA13657.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2B24384A45BCB341A88C6C6009665EB71DE833C077234508D7E4E4663EA13657.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4C82F6B796B7332BA98FA8912A9DC1A56641A1A762942EF7E906CCC0D2873319.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4C82F6B796B7332BA98FA8912A9DC1A56641A1A762942EF7E906CCC0D2873319.json",
+          "line": 277
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/59D3A44B098A329B33E7C406446B5D2B1AA3D1FB1B778C1A3851ABEE7CA27ADB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/59D3A44B098A329B33E7C406446B5D2B1AA3D1FB1B778C1A3851ABEE7CA27ADB.json",
+          "line": 277
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3F2715423A2551AD48DF4F537AE83FD082554784204946170DE2AB0A5C03A98F.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3F2715423A2551AD48DF4F537AE83FD082554784204946170DE2AB0A5C03A98F.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3BF6C0D2A75146AA884D5ADC70CB512A205E3EB74599DD03231AC7F7728FF5BF.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3BF6C0D2A75146AA884D5ADC70CB512A205E3EB74599DD03231AC7F7728FF5BF.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/47B3787A9A53012BC206A40F8AE6349F5AA49FD94E935365C57552326F0D2643.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/47B3787A9A53012BC206A40F8AE6349F5AA49FD94E935365C57552326F0D2643.json",
+          "line": 543
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/41EBCF28FC325C818D3CCBAE2CD78D6608BFB6D54DFDFBC821ED5A028384EB92.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/41EBCF28FC325C818D3CCBAE2CD78D6608BFB6D54DFDFBC821ED5A028384EB92.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/158977DD6FAC26DAE6C127A26294A472959708405A19083224808AE2D513B9BB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/158977DD6FAC26DAE6C127A26294A472959708405A19083224808AE2D513B9BB.json",
+          "line": 680
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2C5F233DA80C42B0A1614F3B9A6BBE1E3083E4EE73452F955DDCEB109BAF4BC4.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2C5F233DA80C42B0A1614F3B9A6BBE1E3083E4EE73452F955DDCEB109BAF4BC4.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/33AC44115B90C31273FA391A35E15CD82B4B7F8C64BEF6615896E0858DEB90C0.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/33AC44115B90C31273FA391A35E15CD82B4B7F8C64BEF6615896E0858DEB90C0.json",
+          "line": 752
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/09B20D0F67971EC264F61D8CDBA4A5949479B81C9691AC71CA223C2B6C2B3C13.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/09B20D0F67971EC264F61D8CDBA4A5949479B81C9691AC71CA223C2B6C2B3C13.json",
+          "line": 1100
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2D3E38811B64DFA3C3ADE963EA39E4E425DF93761B5504EA30EE6F2224D78323.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/2D3E38811B64DFA3C3ADE963EA39E4E425DF93761B5504EA30EE6F2224D78323.json",
+          "line": 752
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4334416A150C402ED31DC435A58F8DDB2E227372FA8CE54BD7138A0444B608B9.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4334416A150C402ED31DC435A58F8DDB2E227372FA8CE54BD7138A0444B608B9.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4C6D73697D7137344B705DBB91464E6ADFC7C7BB1A960127C89138F0DF4B255E.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4C6D73697D7137344B705DBB91464E6ADFC7C7BB1A960127C89138F0DF4B255E.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3A5D25F06E769EE61E2E8AC271646A8E0F9F57828102B054F2FB49F635286BAA.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/3A5D25F06E769EE61E2E8AC271646A8E0F9F57828102B054F2FB49F635286BAA.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5C93B1DC34984575151EBAFF6903F737EFC23ED1DF1C2FA1FFBE39C91E8513AD.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5C93B1DC34984575151EBAFF6903F737EFC23ED1DF1C2FA1FFBE39C91E8513AD.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5122FE9DEAD17C46C70647288A0231B8985E606D69CB32496D228DB86B4D0A0D.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/5122FE9DEAD17C46C70647288A0231B8985E606D69CB32496D228DB86B4D0A0D.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/86F9B0766D3B354E5462B5474FE1E051628FFC7DE1920BA5E80AEA230A35DED5.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/86F9B0766D3B354E5462B5474FE1E051628FFC7DE1920BA5E80AEA230A35DED5.json",
+          "line": 277
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/82CCD84B1E220A9955AB388B4A83714936A09F253736B47BDFDB862B2D8D5F86.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/82CCD84B1E220A9955AB388B4A83714936A09F253736B47BDFDB862B2D8D5F86.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/86B2EACEF9021838DF3E8D63C9F038398FFD9E45EFFF6F8FBBD0745B99F042A1.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/86B2EACEF9021838DF3E8D63C9F038398FFD9E45EFFF6F8FBBD0745B99F042A1.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/66A95611C6D95AF0DF8D44159ED180B35038B12AE9B2B83D996C88DB8E1BC933.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/66A95611C6D95AF0DF8D44159ED180B35038B12AE9B2B83D996C88DB8E1BC933.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/678728D0E2B98709BA8ABC08B299118134982F4E9A751092B2577353671B9059.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/678728D0E2B98709BA8ABC08B299118134982F4E9A751092B2577353671B9059.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/6E3F4BA88D09F89A09D0C09D0C15C8AEA9D34AD5C81854B0CE2040776DAE0BAF.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/6E3F4BA88D09F89A09D0C09D0C15C8AEA9D34AD5C81854B0CE2040776DAE0BAF.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/73968668A080DAA38693A2BF094E3E45BB5E5A7513A4074D94670339F734B7FA.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/73968668A080DAA38693A2BF094E3E45BB5E5A7513A4074D94670339F734B7FA.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/871D937F6A37B8D43C7FC5628BED6CDFA2AB6454085B900C9060C36DCADC3C22.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/871D937F6A37B8D43C7FC5628BED6CDFA2AB6454085B900C9060C36DCADC3C22.json",
+          "line": 543
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/940677ED915DE4306552D26761E3DCC0F8A13FFC1E8ED9D7B29E646B0C7C191E.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/940677ED915DE4306552D26761E3DCC0F8A13FFC1E8ED9D7B29E646B0C7C191E.json",
+          "line": 635
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9151D132145AF854941657BC2997DB954AC019CD84C787CC2DA485EF214E8F46.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9151D132145AF854941657BC2997DB954AC019CD84C787CC2DA485EF214E8F46.json",
+          "line": 776
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A44434F2BA557C8940EA44FA6EB29C02851AD492A2E0B2FECA8CBE41EBCDF529.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A44434F2BA557C8940EA44FA6EB29C02851AD492A2E0B2FECA8CBE41EBCDF529.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9B368357C8772CFC42C05A27FE566424E6F0FBD7163D3F9A4DFE2FA317E4D98A.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9B368357C8772CFC42C05A27FE566424E6F0FBD7163D3F9A4DFE2FA317E4D98A.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C48A176E9E5BF331A47913A202DFD298BE0EA708920A8A08DF31B9FDDAEB0BE0.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C48A176E9E5BF331A47913A202DFD298BE0EA708920A8A08DF31B9FDDAEB0BE0.json",
+          "line": 277
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/8A2AF615AA8C9324A291C99EF923B84EDE717D74D4EE31C503B39CC776573924.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/8A2AF615AA8C9324A291C99EF923B84EDE717D74D4EE31C503B39CC776573924.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A418EABA2E5C50A19938791F37FD414F1416EA204C535B46B157E63DED9637E4.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A418EABA2E5C50A19938791F37FD414F1416EA204C535B46B157E63DED9637E4.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9EA2FB53F31F0AF70C597A15253B6ECEABFB9EBC6DA7BA2422F2CD7341D011CB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9EA2FB53F31F0AF70C597A15253B6ECEABFB9EBC6DA7BA2422F2CD7341D011CB.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C8DA0DF1894E7436EA8F708EE25492E56413BE585115840FCAE55057E3E68A17.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C8DA0DF1894E7436EA8F708EE25492E56413BE585115840FCAE55057E3E68A17.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C9E8F2C39B07FAAA39436E996D40E225BD69BE3214D4ED6596D8585E440F7755.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/C9E8F2C39B07FAAA39436E996D40E225BD69BE3214D4ED6596D8585E440F7755.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D6D20CDDA4F7E175375AAAC60C1C70B3227FB4F7F2D67A63B54829B208AD82E7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D6D20CDDA4F7E175375AAAC60C1C70B3227FB4F7F2D67A63B54829B208AD82E7.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9BAB7E8323A12DDB6F59274C54D05E3FA08926CCA7D2F7481CE90D55826E87DB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/9BAB7E8323A12DDB6F59274C54D05E3FA08926CCA7D2F7481CE90D55826E87DB.json",
+          "line": 1357
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A79920E3A17A8EAF78F9B5959BE8CCD57832E23AAE86BC6CA7C6E58C7CED062B.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/A79920E3A17A8EAF78F9B5959BE8CCD57832E23AAE86BC6CA7C6E58C7CED062B.json",
+          "line": 1357
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4898566E7A3D6CC3245A49E3D0040BC7D3979E149F58BDFC9D8596438407D578.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/4898566E7A3D6CC3245A49E3D0040BC7D3979E149F58BDFC9D8596438407D578.json",
+          "line": 1739
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B5CB3E6FF658FA221C07A11087A051C2E552BF21D6F383064027123E2F5A66A3.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/B5CB3E6FF658FA221C07A11087A051C2E552BF21D6F383064027123E2F5A66A3.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E7F3248FF520912BA1A47645E16A78549711A20ED26249F0618C32F7D5A3AA5D.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E7F3248FF520912BA1A47645E16A78549711A20ED26249F0618C32F7D5A3AA5D.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E4BDE4DF84738015ADE0ED87AA983D7E04BF8E0F5B4D9A5E19FCB5B17D6F0D81.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E4BDE4DF84738015ADE0ED87AA983D7E04BF8E0F5B4D9A5E19FCB5B17D6F0D81.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E0C7D739846CDC1A2482C40227242D111BAD7177E9D7E63C500213266D9BA640.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E0C7D739846CDC1A2482C40227242D111BAD7177E9D7E63C500213266D9BA640.json",
+          "line": 776
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/DFF6A9A29132C310E21E951C6753AE65DC1057AD69551D68C07BF627787BC028.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/DFF6A9A29132C310E21E951C6753AE65DC1057AD69551D68C07BF627787BC028.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E588234161F66BF760951B8E6F34960822A4388C530E82FDDAC256E77761EBFB.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/E588234161F66BF760951B8E6F34960822A4388C530E82FDDAC256E77761EBFB.json",
+          "line": 498
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/FFFED7F62934660AB5B0E6C93CA641EF8D4B6633D896CE6D4DBDBBE26D83805A.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/FFFED7F62934660AB5B0E6C93CA641EF8D4B6633D896CE6D4DBDBBE26D83805A.json",
+          "line": 516
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/F68A646670219A9549CD759FB5FE3BD32A77A7C87B03D73BE744707D9C7B7148.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/F68A646670219A9549CD759FB5FE3BD32A77A7C87B03D73BE744707D9C7B7148.json",
+          "line": 608
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/CEDC3D29AAB84E9FBE6FA98587FAC54A93E677650956AEEBB2884DFB45D875C9.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/CEDC3D29AAB84E9FBE6FA98587FAC54A93E677650956AEEBB2884DFB45D875C9.json",
+          "line": 1198
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/FDDED73075377ADA5C102C76E53C08FBAB331EA934699CC2D2C3B42C852BF1D7.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/FDDED73075377ADA5C102C76E53C08FBAB331EA934699CC2D2C3B42C852BF1D7.json",
+          "line": 747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D2BE2D3C1BC5FF82C229FF8E266AA8DE5F82D2F124AAF56126A216AB8D171435.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/D2BE2D3C1BC5FF82C229FF8E266AA8DE5F82D2F124AAF56126A216AB8D171435.json",
+          "line": 2280
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key from chain account/transaction",
+      "value": "Ax1aU36vIquaPWKaWCh14oUaS8e9gKDWiFGWFBZusjuG",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 48853
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 48911
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-1_max_in",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5747
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5747
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-1_max_out",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5752
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5752
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5752
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-1_period_end",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5757
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5757
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5757
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-2_max_in",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5772
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5772
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5772
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-2_max_out",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5777
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5777
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5777
+        }
+      ]
+    },
+    {
+      "classification": "public IBC rate-limit event attribute name",
+      "value": "LUNC-WEEK-2_period_end",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-api.polkachu.com.json",
+          "line": 5782
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_osmosis-rest.publicnode.com.json",
+          "line": 5782
+        },
+        {
+          "path": "incidents/20261016_001/evidence/osmosis/osmosis_search_lcd.osmosis.zone.json",
+          "line": 5782
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "A+7iz2WaOj/1BQb1H71NddOiPjYygfHVImHz4nOEFWmk",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/dex_multisig_member_audit.json",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "A5pqXNFV1AysrJ6rdJHjRg7EYop0k8/GR4bmBQCyPwNT",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/relay_account.json",
+          "line": 7
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/58EBD8FD50CB9906DE6C90F05C08FCF72B6175316D4A9DCEC8AC22E1740488DA.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/58EBD8FD50CB9906DE6C90F05C08FCF72B6175316D4A9DCEC8AC22E1740488DA.json",
+          "line": 707
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "A5t0Gb/AFGhoj0hIBTZVHbd54h2naFkSYfkAclT3QiqV",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 1700
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 17844
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 18905
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32251
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 33257
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46603
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 48342
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 48458
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "A8N0YUu0ewtdWHE0oQAlvM1LbZ42/ESWFTwxjrUTp49c",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 4357
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 7014
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 9671
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 12328
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 14985
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 17900
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 17956
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 18012
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 18068
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 18124
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 21563
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 24220
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 26877
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 29534
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32191
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32308
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32364
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32420
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32476
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 32532
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 35915
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 38572
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 41229
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 43886
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46543
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46660
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46716
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46772
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46828
+        },
+        {
+          "path": "incidents/20261016_001/evidence/accounting/reviewer_early_terra_core_events.json",
+          "line": 46884
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "AhAphMcfWbFYOUle4LkKwcnjAeWT9/aozv+Co6j64ngz",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/339289860E63E23D93F7C89E7A3D8B2DE37DCBE9DC2C8DF01EB3620428B497E4.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/terra-transactions/339289860E63E23D93F7C89E7A3D8B2DE37DCBE9DC2C8DF01EB3620428B497E4.json",
+          "line": 2071
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "AiTnHQ19SF+H1Lp8fqzNerQuJF1NteqjXQ0cVYW13P3g",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/communications/terra-notice-included.json",
+          "line": 24
+        },
+        {
+          "path": "incidents/20261016_001/evidence/communications/terra-notice-included.json",
+          "line": 499
+        }
+      ]
+    },
+    {
+      "classification": "public compressed secp256k1 key (base64; 33 bytes, prefix 02 or 03)",
+      "value": "AnoHI0WAvhg4mx3B4hVIdeiRjRVZvTLbRXk8SiEIPLx/",
+      "occurrences": [
+        {
+          "path": "incidents/20261016_001/evidence/terra-state/dex_multisig_member_audit.json",
+          "line": 15
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "scanner_versions": ["8.18.4", "8.30.0"],
+    "note": "Version 8.30.0 also recognizes base64 public-key strings containing plus or slash. Each additional exact value is present in public transaction/auth_info or account public_key response fields. Entries preserve observed scanner occurrences; no broad path or key-format exception is used."
+  }
+}

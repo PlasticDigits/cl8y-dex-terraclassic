@@ -1,0 +1,171 @@
+{
+  "eth_getTransactionByHash": {
+    "collected_at_utc": "2026-10-18T07:41:52.774445+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionByHash",
+      "params": [
+        "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:52 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "blockHash": "0x5eedf47f1fcf37d3690aea5ca6de7e5190e9f9a38e6ce06ea962f1b4d471b58d",
+        "blockNumber": "0x7a61060",
+        "from": "0xfac4c56258941d445afda6bb2fa87b493a65b8a1",
+        "gas": "0x2c5d7",
+        "gasPrice": "0x3938700",
+        "hash": "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f",
+        "input": "0xa9059cbb00000000000000000000000021ddb4bcb5f00430cb39d5fea2d382bbeaa076ba000000000000000000000000000000000000000000000563c872efe1f1a0cb85",
+        "nonce": "0x1b0",
+        "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+        "transactionIndex": "0x3f",
+        "value": "0x0",
+        "type": "0x0",
+        "chainId": "0x38",
+        "v": "0x94",
+        "r": "0x67299745d62345a236e7a53e113241396778fa8baade63d0d7facd4a4880c2e",
+        "s": "0x626cdca407a9a7e7d8aa49dad7e2f8dc678ad3e6c54dc7399f18f061cc350c5b"
+      }
+    }
+  },
+  "eth_getTransactionReceipt": {
+    "collected_at_utc": "2026-10-18T07:41:52.963473+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionReceipt",
+      "params": [
+        "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:53 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x0",
+        "from": "0xfac4c56258941d445afda6bb2fa87b493a65b8a1",
+        "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+        "status": "0x1",
+        "cumulativeGasUsed": "0xcbcb31",
+        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000040000000000000000000000000000000000000000000000040008000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000010000000000000000000000000000000000000000000000000000000000004000000000000040000000000000000000080000000000000000000000000000000000000000000000002000020000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000",
+        "logs": [
+          {
+            "address": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+            "topics": [
+              "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+              "0x000000000000000000000000fac4c56258941d445afda6bb2fa87b493a65b8a1",
+              "0x00000000000000000000000021ddb4bcb5f00430cb39d5fea2d382bbeaa076ba"
+            ],
+            "data": "0x000000000000000000000000000000000000000000000563c872efe1f1a0cb85",
+            "blockNumber": "0x7a61060",
+            "transactionHash": "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f",
+            "transactionIndex": "0x3f",
+            "blockHash": "0x5eedf47f1fcf37d3690aea5ca6de7e5190e9f9a38e6ce06ea962f1b4d471b58d",
+            "blockTimestamp": "0x6ad4777c",
+            "logIndex": "0x146",
+            "removed": false
+          }
+        ],
+        "transactionHash": "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f",
+        "contractAddress": null,
+        "gasUsed": "0x1d517",
+        "blockHash": "0x5eedf47f1fcf37d3690aea5ca6de7e5190e9f9a38e6ce06ea962f1b4d471b58d",
+        "blockNumber": "0x7a61060",
+        "transactionIndex": "0x3f",
+        "effectiveGasPrice": "0x3938700"
+      }
+    }
+  },
+  "block": {
+    "collected_at_utc": "2026-10-18T07:41:53.110449+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getBlockByNumber",
+      "params": [
+        "0x7a61060",
+        false
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:53 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "withdrawalsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+        "withdrawals": [],
+        "hash": "0x5eedf47f1fcf37d3690aea5ca6de7e5190e9f9a38e6ce06ea962f1b4d471b58d",
+        "parentHash": "0xd4ccc002d716ed2645f940eea38775628e79adbce73c27aa479e1d922e951a17",
+        "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+        "miner": "0x75b851a27d7101438f45fce31816501193239a83",
+        "stateRoot": "0x862466f795f224490df2257f859c229eec83e806bd4b8ff04db6a8471603ad8d",
+        "transactionsRoot": "0x0517bb69411feeae47d2bd54231b71fdf07e843275fd25c74a05d4f7a23b8108",
+        "receiptsRoot": "0x28a71e30e8edefe55bc7449bc01689a7cbe649629ae8a166ca4b97bacc1d3dd4",
+        "logsBloom": "0x75bdeeeab7d2266770bd4666bbdd7a1c327deaaf5230591e2b9ed7ddea87a1db0504b35c9cad92bdffc8ef89edeb4b8427efd4d2f6dfbf4665ffaafe1e6d77dae5f0d617e7c2d9e9f5cf1a7def3e9cafb65e58a0bcecb4e93a652e52eea91ac1d4385fb2de8fe524b6cb392bacaabe5be83481c32c559ffb24916e77c47ee3b27bdbd92ad9792dedd3c9953565ee73a7d537edf3e9a9be4dd6b761f9edf29e789ff76f2fa0c13ef5abed15c1fa20b78c60bedfdb5ffa5d9974ccd13ba6019773409e152ec1ed6d7db3e7372571fd5cebefdcaa965749cfd9f9bfdbceb9ccee5b4dd0693b264b6d026dd54ef7a457d34255f5f207f9c65e6ff174be78cea9c65a",
+        "difficulty": "0x2",
+        "number": "0x7a61060",
+        "gasLimit": "0x42c1d80",
+        "gasUsed": "0x13e486a",
+        "timestamp": "0x6ad4777c",
+        "extraData": "0xdb8301070888636462373534386289676f312e32352e3132836c696ed38cc282f8b5831dffffb860b12c8cf7330b418a84afac7214d05bbf3d651253279884ca9e91bc3a1d8e82894aa70028603b7c99085d459a6b22e48a113884c8a3c192161022336509ae2e8f1d4edcce15cdc9ff15b403b9184962e3b6ac9b24096985fe6c92dbfbe46b9767f84c8407a6105ea052d33b1ba2f402b2fc1650e82bc136b5de92a556073c900ecfc328d376b5f54b8407a6105fa0d4ccc002d716ed2645f940eea38775628e79adbce73c27aa479e1d922e951a17809022706d99a1367f003360dfdd12bffd3c1426b49e6e411d7a76f2dbc38958775619820dc1e5b4f942a7602392ef939a350e703a3f271c06c537c61eef3b62a200",
+        "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000352",
+        "nonce": "0x0000000000000000",
+        "size": "0x385",
+        "totalDifficulty": "0xf4330b9",
+        "baseFeePerGas": "0x0",
+        "uncles": [],
+        "blobGasUsed": "0x0",
+        "excessBlobGas": "0x0",
+        "parentBeaconBlockRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "requestsHash": "0x00000000000000000000000248b2665e5e9a343409199d70f7495c8ab660bb48",
+        "milliTimestamp": "0x1a14df2bfb2"
+      }
+    },
+    "transformation": "Unrelated block transaction hashes omitted; other header fields retained."
+  },
+  "chain_id": {
+    "collected_at_utc": "2026-10-18T07:41:53.259116+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_chainId",
+      "params": []
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:53 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x38"
+    }
+  }
+}

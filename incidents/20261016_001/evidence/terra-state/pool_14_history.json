@@ -1,0 +1,89 @@
+[
+  {
+    "entries": [
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+        "code_id": "11601",
+        "updated": {
+          "block_height": "30070150",
+          "tx_index": "113489"
+        },
+        "msg": {
+          "asset_infos": [
+            {
+              "token": {
+                "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+              }
+            },
+            {
+              "token": {
+                "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+              }
+            }
+          ],
+          "fee_bps": 180,
+          "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+          "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+          "lp_token_code_id": 10184,
+          "token_symbols": ["CLUNC", "CUSTC"],
+          "governance": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+          "max_batch_rungs": 20,
+          "discount_registry": "terra1wcczsdk7jwj99n3my6wx8wr4ee0hn6yaapgd792lgx5elrdtrn2scfnecz"
+        }
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11639",
+        "updated": {
+          "block_height": "30205243",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11664",
+        "updated": {
+          "block_height": "30364500",
+          "tx_index": "226550"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11672",
+        "updated": {
+          "block_height": "30495653",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11676",
+        "updated": {
+          "block_height": "30526107",
+          "tx_index": "0"
+        },
+        "msg": {}
+      },
+      {
+        "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+        "code_id": "11715",
+        "updated": {
+          "block_height": "30727793",
+          "tx_index": "0"
+        },
+        "msg": {}
+      }
+    ],
+    "pagination": {
+      "next_key": null,
+      "total": "0"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:32 GMT",
+    "Content-Type": "application/json"
+  }
+]

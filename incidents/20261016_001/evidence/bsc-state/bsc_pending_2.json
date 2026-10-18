@@ -1,0 +1,20 @@
+{
+  "hash": "0x42974caa43f61808eeb3705b3b5e6d6007c2ae568f779d9fa487a654e3e13b70",
+  "withdraw": {
+    "srcChain": "0x00000001",
+    "srcAccount": "0x000000000000000000000000ebd3b5762844e674c0eaaa96c7eb29fea3a0fbee",
+    "destAccount": "0x0000000000000000000000001dc41529be1bee188f26c84b67556486f1dbfe52",
+    "token": "0x3557bfd147b35c2647eafc05c8be757ce84d5b1c",
+    "recipient": "0x1dc41529be1bee188f26c84b67556486f1dbfe52",
+    "amount": 12000000000000000,
+    "nonce": 10,
+    "srcDecimals": 18,
+    "destDecimals": 18,
+    "operatorGas": 0,
+    "submittedAt": 1772055923,
+    "approvedAt": 0,
+    "approved": false,
+    "cancelled": false,
+    "executed": false
+  }
+}
