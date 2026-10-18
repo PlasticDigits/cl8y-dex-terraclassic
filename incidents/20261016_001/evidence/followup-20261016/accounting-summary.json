@@ -1,0 +1,45 @@
+{
+  "case_id": "20261016_001",
+  "prepared_utc": "2026-10-16T02:44:24.450841+00:00",
+  "historical_valuation_preserved_usd": "3907.189701326823390163267437",
+  "bsc": {
+    "opening_balance_wei": "3937299591343244805",
+    "external_kucoin_attributed_funding_wei": "613347000000000000",
+    "usdt_debit_raw": "578336355470164688681",
+    "usdt_routing_fee_raw": "1445840888675411721",
+    "usdt_pool_input_raw": "576890514581489276960",
+    "native_swap_credit_wei": "802777871826063680",
+    "additional_gas_nonces_56_61_wei": "26590207090000",
+    "relay_deposit_wei": "2810000000000000000",
+    "payment_to_forwarder_wei": "2540000000000000000",
+    "closing_balance_wei": "3397872962218485",
+    "fixedfloat_attributed_receipt_wei": "2539998530000000000",
+    "forwarder_gas_wei": "1470000000000",
+    "forwarder_closing_wei": "0"
+  },
+  "ethereum": {
+    "relay_fill_wei": "853034552479184202",
+    "payment_to_forwarder_wei": "852000000000000000",
+    "source_gas_wei": "22089702978000",
+    "source_closing_wei": "1012462776206202",
+    "forwarder_postdeposit_outgoing_count": 7,
+    "forwarder_transfer_total_wei": "851804447394906001",
+    "forwarder_outgoing_gas_wei": "195552605094000",
+    "forwarder_followup_balance_wei": "1000000000",
+    "forwarder_additional_net_credit_or_unresolved_residual_wei": "1000000001",
+    "limitation": "The 1000000001-wei residual is not assigned to a funding sender. Later recipient payments are traced transfers, not proof of independent attacker control or finalized exchange proceeds."
+  },
+  "address_labels": {
+    "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d": "[HACKER_A]",
+    "0x516b518cea9005225102f715e23ecca9e5ca7d16": "[BNB_FORWARDER_A]",
+    "0x4727250679294802377dd6ca6541b8e459077c95": "[EXCHANGE_FIXEDFLOAT]",
+    "0x635308e731a878741bfec299e67f5fd28c7553d9": "[FUNDING_KUCOIN_28]",
+    "0xcb49c4125db32522ba508362fdfba693e63dfc4b": "[ETH_FORWARDER_A]",
+    "0x038b0ff3c37dd02bdd6823b31a368a8c06b95b3e": "[ETH_RECIPIENT_1]",
+    "0x1bbf9f501f715a8000d55842685836dac72f5b36": "[ETH_RECIPIENT_2]",
+    "0x40b0869f2725b94058e939ec84d343c214a9c051": "[ETH_RECIPIENT_3]",
+    "0x6a9811d000ca91d6a95a673604778677cdee8b00": "[ETH_RECIPIENT_4]",
+    "0x96a81ec9e1dfd0ce7833da54ebdcd842ca6aa1f9": "[ETH_RECIPIENT_5]",
+    "0x9dcb9783532e34f16c630036309cc90db06dbbd0": "[ETH_RECIPIENT_6]"
+  }
+}

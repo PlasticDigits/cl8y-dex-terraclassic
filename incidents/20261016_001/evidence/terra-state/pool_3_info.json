@@ -1,0 +1,22 @@
+[
+  {
+    "address": "terra1ra7cugjhchr45kdupxe2al5fna0zxu6syl8xhpanfk8dsvkq9lksf6fm9l",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "CORAL-RUBY cl8ydex lp",
+      "created": {
+        "block_height": "29458555",
+        "tx_index": "226506"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm21ra7cugjhchr45kdupxe2al5fna0zxu6syl8xhpanfk8dsvkq9lksf6fm9l"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:20 GMT",
+    "Content-Type": "application/json"
+  }
+]

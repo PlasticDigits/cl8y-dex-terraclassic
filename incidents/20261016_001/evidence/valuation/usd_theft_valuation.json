@@ -1,0 +1,46 @@
+{
+  "valuation_basis": "Latest retrieved CoinGecko USD spot quotes, not historical execution-time prices",
+  "quotes": {
+    "binancecoin": {
+      "usd": 719.04,
+      "last_updated_at": 1792059857
+    },
+    "terra-luna": {
+      "usd": 4.676e-5,
+      "last_updated_at": 1792059875
+    },
+    "tether": {
+      "usd": 0.999077,
+      "last_updated_at": 1792059875
+    }
+  },
+  "positions": [
+    {
+      "asset": "USDT",
+      "amount": "578.336355470164688681",
+      "price_usd": "0.999077",
+      "value_usd": "577.802551014065726673347437"
+    },
+    {
+      "asset": "BNB, after all traced gas; external funding excluded",
+      "amount": "3.937236672894915698",
+      "price_usd": "719.04",
+      "value_usd": "2831.03065727836018348992"
+    },
+    {
+      "asset": "LUNC, including returned USTC swap proceeds",
+      "amount": "10657752.203473",
+      "price_usd": "4.676e-05",
+      "value_usd": "498.35649303439748"
+    }
+  ],
+  "net_usd_total": "3907.189701326823390163267437",
+  "excluded": [
+    "Locked 25452.503948354102807429 CL8Y",
+    "Unreleased10.154338vFDUSDclaim",
+    "Victim balances and escrow",
+    "External gas funding62918448329107wei"
+  ],
+  "BNB_gas_already_deducted": "0.00620250361862",
+  "LUNC_USTC_double_count_avoided": true
+}

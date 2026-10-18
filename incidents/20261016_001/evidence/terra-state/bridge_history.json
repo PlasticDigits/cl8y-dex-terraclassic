@@ -1,0 +1,59 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10971",
+      "updated": {
+        "block_height": "27401342",
+        "tx_index": "0"
+      },
+      "msg": {
+        "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "operators": ["terra1q7txczaxuvy923k4km9ya062dryk6mjwd6tmzm"],
+        "min_signatures": 1,
+        "min_bridge_amount": "1000000",
+        "max_bridge_amount": "1000000000000",
+        "fee_bps": 30,
+        "fee_collector": "terra1q7txczaxuvy923k4km9ya062dryk6mjwd6tmzm",
+        "this_chain_id": "AAAAAQ=="
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11648",
+      "updated": {
+        "block_height": "30298039",
+        "tx_index": "0"
+      },
+      "msg": {
+        "active_index_batch_limit": 50
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11648",
+      "updated": {
+        "block_height": "30298042",
+        "tx_index": "0"
+      },
+      "msg": {
+        "active_index_batch_limit": 50
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11648",
+      "updated": {
+        "block_height": "30298045",
+        "tx_index": "350071"
+      },
+      "msg": {
+        "active_index_batch_limit": 50
+      }
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

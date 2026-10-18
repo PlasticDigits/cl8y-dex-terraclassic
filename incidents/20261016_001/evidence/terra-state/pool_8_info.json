@@ -1,0 +1,22 @@
+[
+  {
+    "address": "terra16k6huf87gzvnlgpvf85f8xfgawl6y2l5d4d5qdpyhknqaran9s5qx63c3r",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "CORAL-PEARL cl8ydex lp",
+      "created": {
+        "block_height": "29458641",
+        "tx_index": "10895823"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm216k6huf87gzvnlgpvf85f8xfgawl6y2l5d4d5qdpyhknqaran9s5qx63c3r"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:25 GMT",
+    "Content-Type": "application/json"
+  }
+]

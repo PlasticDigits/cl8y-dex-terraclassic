@@ -1,0 +1,16 @@
+{
+  "address": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2",
+  "contract_info": {
+    "code_id": "11574",
+    "creator": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+    "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "label": "cmm-wrap-mapper",
+    "created": {
+      "block_height": "29849144",
+      "tx_index": "2798765"
+    },
+    "ibc_port_id": "",
+    "extension": null,
+    "ibc2_port_id": "wasm21xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+  }
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "data": {
+      "withdrawals": [
+        {
+          "withdrawal_id": "bb2be6e91c4c35921b51c6381a0b1c55",
+          "destination": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+          "asset": {
+            "cw20": {
+              "contract_addr": "terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl"
+            }
+          },
+          "amount": "200032180",
+          "execute_after": "1788059385052468817"
+        }
+      ]
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:47:23 GMT",
+    "Content-Type": "application/json"
+  }
+]

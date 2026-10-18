@@ -1,0 +1,18 @@
+[
+  {
+    "address": "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
+    "name()": "TRON",
+    "symbol()": "TRX",
+    "decimals()": 18,
+    "runtime_code_bytes": 1596,
+    "runtime_code_keccak": "0x83286e6603e5438137daf601561c2013e66fa84a967364f53ab02dacee83dfe8"
+  },
+  {
+    "address": "0xeccbb861c0dda7efd964010085488b69317e4444",
+    "name()": "龙虾",
+    "symbol()": "龙虾",
+    "decimals()": 18,
+    "runtime_code_bytes": 3822,
+    "runtime_code_keccak": "0x1210dbadb4a9a84de0a99de0b17d70f917aa61bfc53711787d0ac0bf12d716ea"
+  }
+]

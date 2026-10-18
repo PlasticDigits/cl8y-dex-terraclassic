@@ -1,0 +1,11 @@
+{
+  "recorded_utc": "2026-10-15T09:32:04.294480+00:00",
+  "source": "User relaying victim statement in this thread",
+  "wallets": {
+    "VICTIM_RECOVERY": "Ledger hardware wallet, victim-reported",
+    "VICTIM_A": "software wallet, victim-reported",
+    "VICTIM_B": "software wallet, victim-reported"
+  },
+  "earlier_0210_ledger_deposit_and_0228_0249_sales_authorized": false,
+  "signing_mechanism": "Unresolved; device compromise not established"
+}

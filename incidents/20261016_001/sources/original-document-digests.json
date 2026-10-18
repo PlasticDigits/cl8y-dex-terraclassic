@@ -1,0 +1,44 @@
+{
+  "originals": [
+    {
+      "original_basename": "CL8Y_Security_Incident_Report_2026-10-15.pdf",
+      "original_sha256": "a12778af5a2533c2ffaf196dd8ba168c18d72820fc6a221f35ab6779b30a0386",
+      "original_bytes": 161051,
+      "published_derivative": "sources/original-pdf.redacted.txt",
+      "derivative_sha256": "3feeca6221fc4f22a39dd5182b25d8ac7e40d450c9466eadc008d80d8862ced7",
+      "transformations": [
+        "Victim personal names/handles replaced with [VICTIM_REPORTER]",
+        "Original binary/private document not published",
+        "Contact/response-request line omitted",
+        "Operator response requests omitted",
+        "Proposed next steps omitted",
+        "Operational recovery details excluded from public derivative"
+      ]
+    },
+    {
+      "original_basename": "cl8y_incident_report_2026-10-15.md",
+      "original_sha256": "20a0979a77b96d2e3ea061b5a07986508b8c3bef0da48cac8cc17a53b95ec17b",
+      "original_bytes": 7888,
+      "published_derivative": "sources/original-markdown.redacted.md",
+      "derivative_sha256": "500c495b4dbb7058be30b8eeae8c9b09ad1a31302d9283ef65aa86062bf04a4f",
+      "transformations": [
+        "Victim personal names/handles replaced with [VICTIM_REPORTER]",
+        "Original binary/private document not published",
+        "Contact/response-request line omitted",
+        "Operator response requests omitted",
+        "Proposed next steps omitted",
+        "Operational recovery details excluded from public derivative"
+      ]
+    },
+    {
+      "original_basename": "export-token-0x8f452a1fdd388a45e1080992eff051b4dd9048d2.csv",
+      "original_sha256": "dec04b887d413da68c2605a2c241fd2a9331f8bc4a0ce969231cfa3272c6a738",
+      "original_bytes": 10133,
+      "published_derivative": "sources/cl8y-transfer-export.redacted.csv",
+      "derivative_sha256": "575932051c9342202d39976da540991b648b30d0f7bbd2bf9c116f2d74169b1a",
+      "transformations": [
+        "Removed nametag and unnamed columns; exact transfer rows retained"
+      ]
+    }
+  ]
+}

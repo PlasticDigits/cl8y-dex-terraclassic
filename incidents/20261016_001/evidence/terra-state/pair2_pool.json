@@ -1,0 +1,23 @@
+{
+  "data": {
+    "assets": [
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        "amount": "19715654097"
+      },
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
+          }
+        },
+        "amount": "3327331582121043157447283"
+      }
+    ],
+    "total_share": "256086414142351466"
+  }
+}

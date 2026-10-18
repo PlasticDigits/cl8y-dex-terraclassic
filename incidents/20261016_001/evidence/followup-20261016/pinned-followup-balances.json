@@ -1,0 +1,23 @@
+{
+  "collected_at_utc": "2026-10-16T02:36:01.559296+00:00",
+  "block": {
+    "number": "0x79f9786",
+    "hash": "0xe578017bd69c588e38b346baa091e7c0efb04f9ca4930a2fe02baecdd9aff23d",
+    "timestamp": "0x6ad18d90"
+  },
+  "accounts": {
+    "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d": {
+      "balance_wei": "3397872962218485",
+      "nonce": 62,
+      "tokens": {
+        "0x8f452a1fdd388a45e1080992eff051b4dd9048d2": "25452503948354102807429",
+        "0x55d398326f99059ff775485246999027b3197955": "0",
+        "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": "0"
+      }
+    },
+    "0x516b518cea9005225102f715e23ecca9e5ca7d16": {
+      "balance_wei": "0",
+      "nonce": 1
+    }
+  }
+}

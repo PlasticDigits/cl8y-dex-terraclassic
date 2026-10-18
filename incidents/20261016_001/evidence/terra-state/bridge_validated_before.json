@@ -1,0 +1,17 @@
+[
+  {
+    "data": {
+      "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+      "paused": false,
+      "min_signatures": 1,
+      "min_bridge_amount": "1000000",
+      "max_bridge_amount": "1000000000000",
+      "fee_bps": 30,
+      "fee_collector": "terra1q7txczaxuvy923k4km9ya062dryk6mjwd6tmzm"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:46:18 GMT",
+    "Content-Type": "application/json"
+  }
+]

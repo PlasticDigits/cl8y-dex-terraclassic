@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10673",
+      "updated": {
+        "block_height": "26546257",
+        "tx_index": "0"
+      },
+      "msg": {
+        "governance": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l"
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11564",
+      "updated": {
+        "block_height": "29849141",
+        "tx_index": "9660568"
+      },
+      "msg": {}
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11667",
+      "updated": {
+        "block_height": "30366970",
+        "tx_index": "226540"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

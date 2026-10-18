@@ -1,0 +1,53 @@
+{
+  "collected_at_utc": "2026-10-16T02:39:38.389999+00:00",
+  "chain_id": 1,
+  "pre_bridge_state": {
+    "balance_wei": "0",
+    "nonce": 0
+  },
+  "transaction": {
+    "type": "0x2",
+    "chainId": "0x1",
+    "nonce": "0x0",
+    "gas": "0x5208",
+    "maxFeePerGas": "0x4afb8e80",
+    "maxPriorityFeePerGas": "0x23c34600",
+    "to": "0xcb49c4125db32522ba508362fdfba693e63dfc4b",
+    "value": "0xbd2e97c64a20000",
+    "accessList": [],
+    "input": "0x",
+    "r": "0xdc95e6142d1043ff101e16ea8ffb9871b476f1a79fc095880c5e81dff063a8c",
+    "s": "0x3317cf0fca22d826cca570a64682ad17c883423a3dd2500abce765967e069465",
+    "yParity": "0x1",
+    "v": "0x1",
+    "hash": "0xd7340ff0c82a79d29b6fbea7b7dabaec4cbd49eeea367b8bc33245945540a4dc",
+    "blockHash": "0xd824b2710af47388c36ae6ef4620b79dac799b86fe77a2f94ad6285fbd6b1f0e",
+    "blockNumber": "0x18fc120",
+    "transactionIndex": "0x81",
+    "from": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "gasPrice": "0x3eb293ba",
+    "blockTimestamp": "0x6ad0d93b"
+  },
+  "receipt": {
+    "type": "0x2",
+    "status": "0x1",
+    "cumulativeGasUsed": "0x87cbf0",
+    "logs": [],
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "transactionHash": "0xd7340ff0c82a79d29b6fbea7b7dabaec4cbd49eeea367b8bc33245945540a4dc",
+    "transactionIndex": "0x81",
+    "blockHash": "0xd824b2710af47388c36ae6ef4620b79dac799b86fe77a2f94ad6285fbd6b1f0e",
+    "blockNumber": "0x18fc120",
+    "gasUsed": "0x5208",
+    "effectiveGasPrice": "0x3eb293ba",
+    "from": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+    "to": "0xcb49c4125db32522ba508362fdfba693e63dfc4b",
+    "contractAddress": null
+  },
+  "block": {
+    "number": "0x18fc120",
+    "hash": "0xd824b2710af47388c36ae6ef4620b79dac799b86fe77a2f94ad6285fbd6b1f0e",
+    "timestamp": "0x6ad0d93b",
+    "parentHash": "0xa2575ae985d953a897957f8ed840d3cb2ac1c3e9b68910ee968da6a2d8877ce2"
+  }
+}

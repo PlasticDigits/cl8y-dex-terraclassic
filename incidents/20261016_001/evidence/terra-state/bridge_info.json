@@ -1,0 +1,16 @@
+{
+  "address": "terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la",
+  "contract_info": {
+    "code_id": "11648",
+    "creator": "terra1njpnexcdnqm8cnl7g3fs5y60zm9l6xsflzpqv3",
+    "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+    "label": "cl8y-bridge-v2",
+    "created": {
+      "block_height": "27401342",
+      "tx_index": "0"
+    },
+    "ibc_port_id": "",
+    "extension": null,
+    "ibc2_port_id": "wasm218m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la"
+  }
+}

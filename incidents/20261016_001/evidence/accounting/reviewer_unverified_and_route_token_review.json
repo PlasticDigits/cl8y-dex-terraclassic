@@ -1,0 +1,359 @@
+{
+  "reviewed_at_utc": "2026-10-15T09:26:04.694808+00:00",
+  "incoming_unverified_credits_count": 14,
+  "captured_outer_transactions_count": 6,
+  "captured_outer_senders_all_third_party": true,
+  "incoming_unverified_tokens": [
+    {
+      "token_contract": "0xadde63bed0d733989feb10cdeb772e686ca37a01",
+      "tx_hash": "0x35d129eb00304dac55bfaee4418b38a99f7e6587c5d21e519e7fba602888b43f",
+      "raw_amount": "18442320000000000000000",
+      "from": "0xcb2b81b68fc200eded5ddcb8de0873ad1adfe0cf",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0x49aa4b09f184c43404bd1bbee42b1a2cd60b0219",
+      "outer_to": "0xadde63bed0d733989feb10cdeb772e686ca37a01",
+      "outer_selector": "0x3ec86457",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x9d6639c5534d10ae20108d1d688fabca7998e0b4",
+      "tx_hash": "0xc0a256799b2f0bd7c8fa3a178d22878329f2ff3bba44a2e908752d3872466b97",
+      "raw_amount": "14232540000000000000000",
+      "from": "0x06957a1ff7eb4b483d2dcbf7d9fad901297b425c",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x20c687f48354e7d8e8f7e2ff299fbcd44344036d",
+      "tx_hash": "0xec16565e98ca0197f1ab689cc9ee3fb7cab4b67b1d3de81ad3b16b2054d7fcb8",
+      "raw_amount": "9000000000",
+      "from": "0x20c687f48354e7d8e8f7e2ff299fbcd44344036d",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xc09bf74eec81900431e5885fd62feff293c09443",
+      "tx_hash": "0xbe177fe6b8431b17ff5a4ef5d78892ac863ed0a4af95f0f8a9d3a907902f46c6",
+      "raw_amount": "6000000000000000000",
+      "from": "0xc09bf74eec81900431e5885fd62feff293c09443",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xccb205faf0b9dd081e2805529312ff654f589d54",
+      "tx_hash": "0x374deb0454eef6a0eaf34321cbfc7d559a900d38ae4a5db510995c4fd55da3bf",
+      "raw_amount": "2000000000000000000",
+      "from": "0xccb205faf0b9dd081e2805529312ff654f589d54",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0x04b285517e77dc65598933767f66a10e5c7d7c5b",
+      "outer_to": "0xccb205faf0b9dd081e2805529312ff654f589d54",
+      "outer_selector": "0x729ad39e",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x766722bf56b6b01f19341a5b81961a52a86b3048",
+      "tx_hash": "0x0785023db6b4922c924d6354dc864846a1f07b0574098dae47138425440e0b56",
+      "raw_amount": "8000000000000000000",
+      "from": "0x766722bf56b6b01f19341a5b81961a52a86b3048",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0x09fa95c92600c13d179b546d6e48646b9ad2c02b",
+      "outer_to": "0x766722bf56b6b01f19341a5b81961a52a86b3048",
+      "outer_selector": "0x729ad39e",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x3db6f82cd25782a34d75dc46f8d35902c982fcfe",
+      "tx_hash": "0x65474701a6ba8525afe8bcd83d643e47a4d9776f39f8a8c4fc3c93a21bfe4038",
+      "raw_amount": "5000000000000000000",
+      "from": "0x3db6f82cd25782a34d75dc46f8d35902c982fcfe",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0x2712a8ea32ee643a76ab817a3c0f6136c99a4244",
+      "outer_to": "0x3db6f82cd25782a34d75dc46f8d35902c982fcfe",
+      "outer_selector": "0x729ad39e",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xe5983bca68a45a60df76bbf4132c0375a3390527",
+      "tx_hash": "0x9f67410759bb436096a77ae2b956542a671837f52787566122d96605aacf8bbe",
+      "raw_amount": "21835780000000000000000",
+      "from": "0x9fd8753a818ff23e2aa1744e85019b7f7dcb91e7",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x54a6f2d138003f02f99b280314ab0a6b59be009f",
+      "tx_hash": "0xae34627f8e05ba574c2414ded5a9cb11e90ca8ec4da264e288a3e87596ab2794",
+      "raw_amount": "3000000000000000000",
+      "from": "0x54a6f2d138003f02f99b280314ab0a6b59be009f",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xff5cbe36af620762b421d982dba9e1a97f607bff",
+      "tx_hash": "0x045e05e476b83dd8a111a67a584a514a773757dfc7757761ed970226410e3e57",
+      "raw_amount": "5000000000000000000",
+      "from": "0xff5cbe36af620762b421d982dba9e1a97f607bff",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0xe6fa53577b333b196df4fe4cab20d9ab7517d57b",
+      "outer_to": "0xff5cbe36af620762b421d982dba9e1a97f607bff",
+      "outer_selector": "0x729ad39e",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xba637a9044c5aa8dd19a133abd03aee9296ea126",
+      "tx_hash": "0xe2077db61d69993e318842811f7adf7d514981ebd3888c2c5f92a9fd0dacbf2a",
+      "raw_amount": "7000000000000000000",
+      "from": "0xba637a9044c5aa8dd19a133abd03aee9296ea126",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0x6da7c8666c88e7f07f188d9ba9934f6add6a3d96",
+      "tx_hash": "0xa19ea784c64780eeaef0281502d3ca1ae0c9da900891b804aeb73acdafea3ab9",
+      "raw_amount": "5000000000",
+      "from": "0x6da7c8666c88e7f07f188d9ba9934f6add6a3d96",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xefd9f8af9f030bd07446a701bd9208b9cde6289b",
+      "tx_hash": "0x1211bd460621635186382eac658a677e3e8fdaaa11fa1f599edb5562a1184f77",
+      "raw_amount": "6000000000000000000",
+      "from": "0xefd9f8af9f030bd07446a701bd9208b9cde6289b",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": true,
+      "outer_sender": "0x7ffa8febc0933fd14c87cfb740bbc21879b562ff",
+      "outer_to": "0xefd9f8af9f030bd07446a701bd9208b9cde6289b",
+      "outer_selector": "0x729ad39e",
+      "outer_value": 0,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    },
+    {
+      "token_contract": "0xd3900b207418b017004b172576e996c8ecdc2d0d",
+      "tx_hash": "0xff4f19267d0760a8f6d29f7a24cdc69038ade83f295bcb7b2927167ba176b155",
+      "raw_amount": "251868550000000000000",
+      "from": "0x3aa1db211c86aedf6d7561dacc3a73d293064482",
+      "to": "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d",
+      "outer_receipt_captured": false,
+      "outer_sender": null,
+      "outer_to": null,
+      "outer_selector": "",
+      "outer_value": null,
+      "finding": "Incoming unverified token/log credit. No proven economic value or ownership link to stolen asset; excluded from cashout totals."
+    }
+  ],
+  "unknown_route_transfer_logs": [
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8",
+      "log_index": 554,
+      "from": "0xa6ba19044aae340758d63a714840aa811ea8f955",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "5251579795155248401",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8",
+      "log_index": 557,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0x22af7297243c4eef12e2d5a4f888b92e56bf127c",
+      "raw_amount": "5251579795155248401",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8",
+      "log_index": 578,
+      "from": "0x412b607f4cbe9cae77c6f720a701cd60fa0ebd3f",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "2192340665365413",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0x93c143c7ac643084d2901beaafc04d0a6fc1e14691eead85f11d79f1f9e063e8",
+      "log_index": 582,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0xce09e903442eabb48c525aa29c9c4238f146a6df",
+      "raw_amount": "2192340665365413",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c",
+      "log_index": 12,
+      "from": "0x412b607f4cbe9cae77c6f720a701cd60fa0ebd3f",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "22095489802458925",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c",
+      "log_index": 16,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0xce09e903442eabb48c525aa29c9c4238f146a6df",
+      "raw_amount": "22095489802458925",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
+      "tx_hash": "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c",
+      "log_index": 95,
+      "from": "0x600479d365f1e66a2ac6aa712d9917bb5a85b91f",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "55179955200599635",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
+      "tx_hash": "0xef15471c78b91193c90891edb9447420a19d5ae4b953615ce51af805e06c7f7c",
+      "log_index": 98,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0x16da0c473214717383b7ef5cde71c723584f8ac4",
+      "raw_amount": "55179955200599635",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xa25a983d076c1f6e9e64d564114322ce95ea0cd6782b936e43b73450aacd3915",
+      "log_index": 132,
+      "from": "0x791f662371a06a30d69d46b5cfef0fb89ad5c6b3",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "8290683874661486124",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xa25a983d076c1f6e9e64d564114322ce95ea0cd6782b936e43b73450aacd3915",
+      "log_index": 135,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0x22af7297243c4eef12e2d5a4f888b92e56bf127c",
+      "raw_amount": "8290683874661486124",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0x76a295ca2eeef1969199f0248926a8a4b4efb0024f90da74ca8228eada86e503",
+      "log_index": 12,
+      "from": "0x412b607f4cbe9cae77c6f720a701cd60fa0ebd3f",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "9154986015377132",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0x4338665cbb7b2485a8855a139b75d5e34ab0db94",
+      "tx_hash": "0x76a295ca2eeef1969199f0248926a8a4b4efb0024f90da74ca8228eada86e503",
+      "log_index": 16,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0xce09e903442eabb48c525aa29c9c4238f146a6df",
+      "raw_amount": "9154986015377132",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xcff26cfadfcc923fd743ebac33a914ad353648e20879a40b3e1ffb1d70cef191",
+      "log_index": 21,
+      "from": "0x9b48a2b334205906d94412a5e153b716342a2521",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "5657390157211518693",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xcff26cfadfcc923fd743ebac33a914ad353648e20879a40b3e1ffb1d70cef191",
+      "log_index": 24,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0x22af7297243c4eef12e2d5a4f888b92e56bf127c",
+      "raw_amount": "5657390157211518693",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xe2756eccc11f3701253c8af260e279b089f1d338defdcd42724dfda6288d589a",
+      "log_index": 31,
+      "from": "0x9b48a2b334205906d94412a5e153b716342a2521",
+      "to": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "raw_amount": "6628606330092182197",
+      "direct_affected_evm_account_exposure": false
+    },
+    {
+      "token_contract": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "tx_hash": "0xe2756eccc11f3701253c8af260e279b089f1d338defdcd42724dfda6288d589a",
+      "log_index": 34,
+      "from": "0x09ad820aac5779683b481c4674208a4e1b024afa",
+      "to": "0x22af7297243c4eef12e2d5a4f888b92e56bf127c",
+      "raw_amount": "6628606330092182197",
+      "direct_affected_evm_account_exposure": false
+    }
+  ],
+  "metadata": [
+    {
+      "address": "0x85eac5ac2f758618dfa09bdbe0cf174e7d574d5b",
+      "name()": "TRON",
+      "symbol()": "TRX",
+      "decimals()": 18,
+      "runtime_code_bytes": 1596,
+      "runtime_code_keccak": "0x83286e6603e5438137daf601561c2013e66fa84a967364f53ab02dacee83dfe8"
+    },
+    {
+      "address": "0xeccbb861c0dda7efd964010085488b69317e4444",
+      "name()": "龙虾",
+      "symbol()": "龙虾",
+      "decimals()": 18,
+      "runtime_code_bytes": 3822,
+      "runtime_code_keccak": "0x1210dbadb4a9a84de0a99de0b17d70f917aa61bfc53711787d0ac0bf12d716ea"
+    }
+  ],
+  "findings": [
+    "Unverified unsolicited credits must not be priced from their token names/raw quantities or counted as attacker proceeds. Some may be spam or log-poisoning; underlying token validity/economic value is not established.",
+    "TRX andChinese-symbol token metadata was read from actual contracts; metadata alone is self-reported. Their Transfer logs, plus LTC logs, occur within HACKER_A swap receipts among pools/aggregators, with no direct transfer to/from HACKER_A/B. They are intermediary logs, not additional net wallet receipts.",
+    "Do not classify all unknown receipt tokens as spam; do not add every swap receipt leg to profit. Use verified wallet balance deltas and native call traces."
+  ]
+}

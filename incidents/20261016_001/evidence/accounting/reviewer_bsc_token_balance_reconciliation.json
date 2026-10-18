@@ -1,0 +1,114 @@
+[
+  {
+    "label": "HACKER_A",
+    "token": "usdt",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_A",
+    "token": "usdt",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 578336355470164688681
+  },
+  {
+    "label": "HACKER_A",
+    "token": "wbnb",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_A",
+    "token": "wbnb",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_A",
+    "token": "cl8y",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 1646257444506482572970
+  },
+  {
+    "label": "HACKER_A",
+    "token": "cl8y",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 25452503948354102807429
+  },
+  {
+    "label": "HACKER_A",
+    "token": "vfdusd",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_A",
+    "token": "vfdusd",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "usdt",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "usdt",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "wbnb",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "wbnb",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "cl8y",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "cl8y",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "vfdusd",
+    "tag": "before",
+    "block": "0x79cd5cb",
+    "raw_balance": 0
+  },
+  {
+    "label": "HACKER_B",
+    "token": "vfdusd",
+    "tag": "after",
+    "block": "0x79d7244",
+    "raw_balance": 0
+  }
+]

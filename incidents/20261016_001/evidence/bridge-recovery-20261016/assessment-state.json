@@ -1,0 +1,241 @@
+{
+  "terra_config": {
+    "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+    "paused": false,
+    "min_signatures": 1,
+    "min_bridge_amount": "1000000",
+    "max_bridge_amount": "1000000000000",
+    "fee_bps": 30,
+    "fee_collector": "terra1q7txczaxuvy923k4km9ya062dryk6mjwd6tmzm"
+  },
+  "terra_nonce": {
+    "nonce": 162
+  },
+  "terra_chains": {
+    "chains": [
+      {
+        "chain_id": "AAAABQ==",
+        "identifier": "solana_mainnet-beta",
+        "identifier_hash": "NkUmDkP9HuKrjiCXGk1yGTJSDMMM33XhVrWbdaOFSpw=",
+        "enabled": true
+      },
+      {
+        "chain_id": "AAAAOA==",
+        "identifier": "evm_56",
+        "identifier_hash": "mYGG93E7p9gn8r4YWR+XPs+O0kHQM4dYNS3d0+Y8I2I=",
+        "enabled": true
+      },
+      {
+        "chain_id": "AAAAzA==",
+        "identifier": "evm_204",
+        "identifier_hash": "8vyVJ2dZoYWtMOefVMg3GEVUzB1DK9xEvr/s1WlApdc=",
+        "enabled": true
+      },
+      {
+        "chain_id": "AAAQ5g==",
+        "identifier": "evm_4326",
+        "identifier_hash": "Z1dtWH5ou7jX+ktSGTjMpghNMuvzL0inTCOfBviUIGo=",
+        "enabled": true
+      }
+    ]
+  },
+  "terra_tokens": {
+    "tokens": [
+      {
+        "token": "terra16ahm9hn5teayt2as384zf3uudgqvmmwahqfh0v9e3kaslhu30l8q38ftvh",
+        "is_native": false,
+        "terra_decimals": 18,
+        "enabled": true,
+        "min_bridge_amount": "1000000000000000000",
+        "max_bridge_amount": "1000000000000000000000"
+      },
+      {
+        "token": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+        "is_native": false,
+        "terra_decimals": 18,
+        "enabled": true,
+        "min_bridge_amount": "100000000000000000",
+        "max_bridge_amount": "10000000000000000000000"
+      },
+      {
+        "token": "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+        "is_native": false,
+        "terra_decimals": 6,
+        "enabled": true,
+        "min_bridge_amount": null,
+        "max_bridge_amount": null
+      },
+      {
+        "token": "terra1pa7jxtjcu3clmv0v8n2tfrtlfepneyv8pxa7zmhz50kj8unuv0zq37apvv",
+        "is_native": false,
+        "terra_decimals": 6,
+        "enabled": true,
+        "min_bridge_amount": "1",
+        "max_bridge_amount": "1000"
+      },
+      {
+        "token": "terra1vqfe2ake427depchntwwl6dvyfgxpu5qdlqzfjuznxvw6pqza0hqalc9g3",
+        "is_native": false,
+        "terra_decimals": 18,
+        "enabled": true,
+        "min_bridge_amount": "1000000000000000000",
+        "max_bridge_amount": "1000000000000000000000"
+      },
+      {
+        "token": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4",
+        "is_native": false,
+        "terra_decimals": 18,
+        "enabled": true,
+        "min_bridge_amount": "1000000000000000000",
+        "max_bridge_amount": "2000000000000000000000"
+      },
+      {
+        "token": "uluna",
+        "is_native": true,
+        "terra_decimals": 6,
+        "enabled": true,
+        "min_bridge_amount": "6467812761750",
+        "max_bridge_amount": "646781276175022"
+      }
+    ]
+  },
+  "terra_info": {
+    "address": "terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la",
+    "contract_info": {
+      "code_id": "11648",
+      "creator": "terra1njpnexcdnqm8cnl7g3fs5y60zm9l6xsflzpqv3",
+      "admin": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+      "label": "cl8y-bridge-v2",
+      "created": {
+        "block_height": "27401342",
+        "tx_index": "0"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm218m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la"
+    }
+  },
+  "terra_deposit_153": {
+    "xchain_hash_id": "I80iFAz862j8EDoEeSCqQ4NyYZWfQQbi0aCYF2D3aig=",
+    "src_chain": "AAAAAQ==",
+    "dest_chain": "AAAAOA==",
+    "src_account": "AAAAAAAAAAAAAAAAUI7BRYiffrOsZLN1Oa2kDSuS0IA=",
+    "dest_token_address": "AAAAAAAAAAAAAAAAxO9CKf7HTM/heyve93FfrHQLoLo=",
+    "dest_account": "AAAAAAAAAAAAAAAAN3pW4P6hLV4GMkKTJrXNnkfhDls=",
+    "amount": "10154338",
+    "nonce": 153,
+    "deposited_at": "1792039391365818919"
+  },
+  "bsc_paused": [
+    true
+  ],
+  "bsc_owner": [
+    "0xCd4Eb82CFC16d5785b4f7E3bFC255E735e79F39c"
+  ],
+  "bsc_lockUnlock": [
+    "0xD7b3Bf05987052009c350874E810Df98dA95D258"
+  ],
+  "bsc_thisChainId": [
+    "0x00000038"
+  ],
+  "bsc_tokenRegistry": [
+    "0x3d8820EC93748fd4df8eee6B763834a23938B207"
+  ],
+  "bsc_guardBridge": [
+    "0x12FEDD29E71F66157E985AA1aAAE434253E39A22"
+  ],
+  "bsc_depositNonce": [
+    321
+  ],
+  "bsc_pending_hashes": [
+    [
+      "0x47d7b22beaa1294ec00d1542c5a8a8fed1085e981c895159ff50d04661093f37",
+      "0x12d976467e48243a1dbaa2d81756e2adb5860a2df2ea98b882a08e72ec0ea6c5",
+      "0x42974caa43f61808eeb3705b3b5e6d6007c2ae568f779d9fa487a654e3e13b70",
+      "0xcad36b512cb81caea8b50a09e7bf58f9f8ab0c893582aa7cfb0f5cd6c4549172",
+      "0x5f9bce25d64c90dcc9aa8483fd6b45f9b53ddd8b6f215d3b55d46c185d98374f",
+      "0x0f1988afa96159e55d59833dab6b07573c68091e0345c9a8317d2d3b2b582b94",
+      "0xb13ab2054ff503862c1dcb5aabfd4a752967a1638e547c84eea0bf7cf7fe1ef3",
+      "0xa079996b8bc33bce0374f45a856342808e4f939b4a36fe8b6c94d1dda5e5dd5d",
+      "0x60b58f2b868f0e0313ef7a3b12e774e564594a9c0c04e708a8b8929b34305cf8",
+      "0xb1ced050ec545d107ce49b37140e9509e02033bc90086da819e84923738efe0b",
+      "0x0ce3c0034257e90811f655513cbb0e680b8d0e76364f986816190a5d2c08c5df",
+      "0x42147427228e16d683f379ee0d3e197b8863fb969ef121bcc0cb06afa16bc71c"
+    ]
+  ],
+  "bsc_153": [
+    [
+      "0x00000000",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      false,
+      false,
+      false
+    ]
+  ],
+  "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d_bnb": "0xc1258f2e7a9f5",
+  "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d_nonce": "0x3e",
+  "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d_cl8y": [
+    "25452503948354102807429"
+  ],
+  "0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d_usdt": [
+    0
+  ],
+  "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b_bnb": "0x0",
+  "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b_nonce": "0x0",
+  "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b_cl8y": [
+    0
+  ],
+  "0x377a56e0fea12d5e0632429326b5cd9e47e10e5b_usdt": [
+    0
+  ],
+  "terra_hacker_bank": {
+    "balances": [
+      {
+        "denom": "uluna",
+        "amount": "7038516816"
+      }
+    ],
+    "pagination": {
+      "next_key": null,
+      "total": "1"
+    }
+  },
+  "observed_utc": "2026-10-16T02:28:05.036042+00:00",
+  "bsc_block": 127898453,
+  "bsc_block_utc": "2026-10-16T02:27:57+00:00",
+  "terra_header": {
+    "version": {
+      "block": "11",
+      "app": "0"
+    },
+    "chain_id": "columbus-5",
+    "height": "30857182",
+    "time": "2026-10-16T02:27:50.822683297Z",
+    "last_block_id": {
+      "hash": "iuPfW/Ogdto8uyEk3Nobl74yiBAEBR90zccNIaq5WOc=",
+      "part_set_header": {
+        "total": 2,
+        "hash": "/F9nqo/sELLyUjo6SV/+2YYzaxfCb9gWZz7GVrsPSPE="
+      }
+    },
+    "last_commit_hash": "j5A0eOiqlsbWfZXKIiRjpeQzIrFjpDoKrhdBB7PnZ2w=",
+    "data_hash": "4FVPnbLX3KRxmNKuhV9cgMxF604tW382LC+f1Z7//i8=",
+    "validators_hash": "YPSu7IUbX5encQnnGBT1lQe3P/L0jbkY22oJHJHvhpY=",
+    "next_validators_hash": "YPSu7IUbX5encQnnGBT1lQe3P/L0jbkY22oJHJHvhpY=",
+    "consensus_hash": "DHGkgcYVHl/p32F/XoN09hpJ6geIV5TuqUCt/SmT2f4=",
+    "app_hash": "tJLzISNzJoHsbjzVgQiBbd+My8JP7Ajs97mbH1kOqDY=",
+    "last_results_hash": "vybWEBbGi/c0hITVGreCNMZ8rKCwshMkX9kPjbZUmiE=",
+    "evidence_hash": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+    "proposer_address": "X+FgchTfM8Li9apEQRcqCu2Vc9s="
+  }
+}

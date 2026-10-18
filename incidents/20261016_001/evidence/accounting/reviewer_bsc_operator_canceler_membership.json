@@ -1,0 +1,7 @@
+{
+  "block": "latest",
+  "results": {
+    "getOperators()": ["0x1d9e02e0e8c000fe4575c4aaea96b19de00404cd"],
+    "getCancelers()": ["0x732a65b80f4625658ebd2b4214e4f8cf3a67aeeb"]
+  }
+}
