@@ -78,13 +78,15 @@ shared or production database is reset. Use `indexer/.env.qa`, never runtime DB
 credentials. If compiling manually, retain the same `CARGO_TARGET_DIR` across
 build/run steps and run the named executables emitted by Cargo.
 
-For deployment: run the separate migrator with its private migration environment
-first; do not start a new runtime against an unprepared schema. Use the existing
-Coolify rollout for the reviewed commit. Check `/health` SHA and fees windows,
-then inspect a bounded logs.cl8y.com interval for that deployment. Compare new
-cohort totals with source totals and classify remaining unjoined receipts without
-exposing actors. This is read-only after migration/deployment; it requires no
-wallet signing.
+For deployment, follow the [compatibility-first online sequence](online-migration.md):
+first deploy and verify the exact released server supporting schema 67/68 while
+the API remains serving. Then run the separate additive online migrator with its
+private owner credential; the runtime never receives it. Require useful serving
+health before and after the concurrent snapshot, preserved history/roles/ACLs,
+and verified cleanup. After joint schema-68 publication, check the exact `/health`
+SHA, all three cohort windows and a bounded logs.cl8y.com deployment interval.
+Compare cohort totals with source totals without exposing actors. Do not repeat
+the superseded stop-serving/migrate-first procedure. No wallet signing is needed.
 
 Production schema preparation and isolated SELECT-only evidence are documented in
 [deployment.md](deployment.md). This preflight does not apply the migration or
