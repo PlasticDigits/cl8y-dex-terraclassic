@@ -354,7 +354,8 @@ pub async fn process_block_txs(
 ) -> Result<(), BoxError> {
     let mut reserve_cache: std::collections::HashMap<i32, (BigDecimal, BigDecimal)> =
         std::collections::HashMap::new();
-    for tx in txs {
+    let mut cohort_budget = super::fee_cohorts::AttributionBudget::default();
+    for (tx_index, tx) in txs.iter().enumerate() {
         if let Some(ref fee_addr) = config.fee_discount_address {
             if !fee_addr.is_empty() {
                 let tier_events = trader_tracker::parse_fee_discount_registry_events(tx, fee_addr);
@@ -543,6 +544,16 @@ pub async fn process_block_txs(
                 .await?;
             }
         }
+        super::fee_cohorts::attribute_transaction(
+            pool,
+            lcd,
+            config,
+            tx,
+            height,
+            tx_index as i64,
+            &mut cohort_budget,
+        )
+        .await?;
     }
     Ok(())
 }

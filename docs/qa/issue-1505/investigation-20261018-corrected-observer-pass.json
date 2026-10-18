@@ -1,0 +1,240 @@
+{
+  "issue": 1505,
+  "revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "backend_revisions": [
+    "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+    "0a3c251755a88ee9cbbbbc222fc747811c9da08c"
+  ],
+  "utc_start": "2026-10-18T05:32:16.651528+00:00",
+  "utc_end": "2026-10-18T05:32:38.601464+00:00",
+  "read_only": true,
+  "signing": false,
+  "duration_seconds": 21.0,
+  "interval_seconds": 5.0,
+  "requests": 10,
+  "socket_budget_ms": 500,
+  "require_correlation": true,
+  "measurement_clock": "original_request_start_through_body_parse_and_useful_validation; failed attempts retained; no retries",
+  "initialized_useful_timing": {
+    "samples": 7,
+    "p50_ms": 287.137,
+    "p95_ms": 287.797,
+    "p99_ms": 287.797,
+    "max_ms": 287.797
+  },
+  "initialized_useful_timing_by_direction": {
+    "USTC->CL8Y": {
+      "samples": 3,
+      "p50_ms": 286.969,
+      "p95_ms": 287.137,
+      "p99_ms": 287.137,
+      "max_ms": 287.137
+    },
+    "CL8Y->USTC": {
+      "samples": 4,
+      "p50_ms": 287.335,
+      "p95_ms": 287.797,
+      "p99_ms": 287.797,
+      "max_ms": 287.797
+    }
+  },
+  "counts": {
+    "executable": 8
+  },
+  "sampled_recoveries": [],
+  "unrecovered_directions": [],
+  "samples": [
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 0,
+      "utc_start": "2026-10-18T05:32:17.636718+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af6a",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301523580,
+        "expires_at_ms": 1792303155837,
+        "age_at_validation_ms": 14926
+      },
+      "transport": "new",
+      "elapsed_ms": 869.765,
+      "elapsed_from_run_start_ms": 1854.974,
+      "socket_budget_pass": false
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 1,
+      "utc_start": "2026-10-18T05:32:18.506520+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af6c",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301523580,
+        "expires_at_ms": 1792303155837,
+        "age_at_validation_ms": 15212
+      },
+      "transport": "reused",
+      "elapsed_ms": 286.186,
+      "elapsed_from_run_start_ms": 2141.193,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 2,
+      "utc_start": "2026-10-18T05:32:23.792836+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af79",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301533580,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 10499
+      },
+      "transport": "reused",
+      "elapsed_ms": 286.969,
+      "elapsed_from_run_start_ms": 7428.309,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 3,
+      "utc_start": "2026-10-18T05:32:24.079855+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af7a",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301533580,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 10787
+      },
+      "transport": "reused",
+      "elapsed_ms": 287.335,
+      "elapsed_from_run_start_ms": 7715.679,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 4,
+      "utc_start": "2026-10-18T05:32:29.367316+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af7f",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301538149,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 11505
+      },
+      "transport": "reused",
+      "elapsed_ms": 287.137,
+      "elapsed_from_run_start_ms": 13002.957,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 5,
+      "utc_start": "2026-10-18T05:32:29.654501+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af82",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301538149,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 11793
+      },
+      "transport": "reused",
+      "elapsed_ms": 287.797,
+      "elapsed_from_run_start_ms": 13290.785,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "USTC->CL8Y",
+      "sample": 6,
+      "utc_start": "2026-10-18T05:32:34.942416+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af97",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301543580,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 11649
+      },
+      "transport": "reused",
+      "elapsed_ms": 286.751,
+      "elapsed_from_run_start_ms": 18577.67,
+      "socket_budget_pass": true
+    },
+    {
+      "pair": "CL8Y->USTC",
+      "sample": 7,
+      "utc_start": "2026-10-18T05:32:35.229214+00:00",
+      "status": 200,
+      "outcome": "executable",
+      "classified": true,
+      "useful": true,
+      "request_id_present": true,
+      "request_id_valid": true,
+      "request_id_repeated": false,
+      "request_id": "b438c00824c2af9a",
+      "correlation_pass": true,
+      "observation": {
+        "observed_at_ms": 1792301543580,
+        "expires_at_ms": 1792303284171,
+        "age_at_validation_ms": 11936
+      },
+      "transport": "reused",
+      "elapsed_ms": 287.409,
+      "elapsed_from_run_start_ms": 18865.106,
+      "socket_budget_pass": true
+    }
+  ],
+  "failures": [],
+  "overall": "PASS",
+  "limits": [
+    "two affected anonymous native directions at fixed original exact input; no broad matrix or signing",
+    "sampling recovery intervals are polling observations, not original browser-input latency",
+    "response validation rejects expired original observations; display expiry and browser budget require the independent browser observer",
+    "request IDs correlate server logs only; provider cause requires separate bounded scheduled diagnostics"
+  ]
+}

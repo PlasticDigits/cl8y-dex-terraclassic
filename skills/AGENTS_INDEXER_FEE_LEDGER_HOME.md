@@ -30,7 +30,7 @@ Stack order: **#1209 → #1210 → #1211**. Copy wrap/window pin + explicit-amou
 Related, **not this epic:**
 
 - [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204) — OpenAPI/curl pack (no ingest). Playbook [`AGENTS_INDEXER_HTTP_PACK.md`](./AGENTS_INDEXER_HTTP_PACK.md).
-- [#1202](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1202) — source-to-fee client events (privacy hold; not fee truth). #1211 depends on that hold remaining; do not expand #1202.
+- [#1202](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1202) — source-to-fee client events (privacy hold; not fee truth). #1211 is separate and is not blocked by that hold; do not expand #1202.
 - [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) — community-token **catalog**.
 - [#597](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/597) — MM subscription invoices (not SKU/settings).
 
@@ -96,3 +96,12 @@ Docs-only. Child ingest tickets keep `make verify-issue-586` / `make verify-issu
 - [`docs/qa/issue-1210/README.md`](../docs/qa/issue-1210/README.md) — current verification; #1210 remains open
 - [`docs/qa/issue-1209/README.md`](../docs/qa/issue-1209/README.md) — pending parser/API/UI behavior and required verification
 - Marketing `strategy/fee-ledger-home.md` — pointer table only; do **not** implement wasm parsers there
+
+## Cohort implementation (#1211)
+
+Private immutable payer attribution, exact-height registry snapshots and ordered
+registry receipts now supply aggregate `by_cohort` on the existing fee endpoint.
+Follow [FC1211-1–FC1211-10](AGENTS_FEE_COHORTS.md) and the
+[focused checklist](../docs/qa/issue-1211/README.md); local fixtures do not establish
+production payer emission, deployed migration or live/LocalTerra acceptance.
+`make verify-issue-1211` builds separately and bounds each test process to 59 seconds.

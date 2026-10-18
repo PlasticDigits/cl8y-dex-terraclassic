@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "scope": "local artifacts only; no chain reads or custody",
+  "artifacts": {
+    "factory": {
+      "version": "1.12.0",
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    "pair": {
+      "version": "1.21.0",
+      "sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881"
+    },
+    "router": {
+      "version": "1.5.0",
+      "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+    },
+    "token": {
+      "version": "1.5.0",
+      "sha256": "81161a25d87a76a7527d2bd37dd4ec50484cee1a2506bf5a35166775cd0fbcc2"
+    },
+    "launcher": {
+      "version": "1.1.0",
+      "sha256": "743e09cf42674b116247a0e0208619088d6f1e30c1a95e273448ab6687b1b25c"
+    }
+  }
+}

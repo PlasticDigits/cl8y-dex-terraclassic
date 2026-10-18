@@ -20,7 +20,7 @@ import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useWalletStore } from '@/hooks/useWallet'
 import { sounds } from '@/lib/sounds'
-import { getAllPairsPaged, getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
+import { getAllPairsPaged, getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { assetInfoLabel, indexerPairToPairInfo, type IndexerPair } from '@/types'
@@ -41,7 +41,7 @@ import {
   retailExposeTestTokens,
 } from '@/utils/pairCatalogRank'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { resolveDisplayTapePriceUsd } from '@/utils/pairPriceUsd'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
@@ -309,13 +309,6 @@ export default function TradePage() {
     retry: false,
   })
 
-  const ustcOracleQuery = useQuery({
-    queryKey: ['indexer-oracle-price', 'ustc'],
-    queryFn: () => getOraclePrice('ustc'),
-    staleTime: 60_000,
-    retry: false,
-  })
-
   const activePair: IndexerPair | undefined = indexerPairQuery.data
   const indexerDown = detectTradeIndexerOutage(indexerPairQuery, tradesQuery)
 
@@ -416,40 +409,24 @@ export default function TradePage() {
 
   const factoryTapeLastPriceUsd = useMemo(
     () =>
-      resolveDisplayTapeLastPriceUsd({
+      resolveDisplayTapePriceUsd({
         inverted: false,
-        priceUsd: tradesQuery.data?.[0]?.price_usd,
-        price: tradesQuery.data?.[0]?.price,
-        decimalsBase: activePair?.asset_0.decimals,
-        decimalsQuote: activePair?.asset_1.decimals,
-        quoteSymbol: activePair?.asset_1.symbol,
-        quoteDenom: activePair?.asset_1.denom,
-        ustcUsd: ustcOracleQuery.data?.price_usd,
+        trade: tradesQuery.data?.[0],
+        pair: activePair,
+        pairAddress: pairAddr,
       }),
-    [tradesQuery.data, activePair, ustcOracleQuery.data?.price_usd]
+    [tradesQuery.data, activePair, pairAddr]
   )
 
   const tapeLastPriceUsd = useMemo(
     () =>
-      resolveDisplayTapeLastPriceUsd({
+      resolveDisplayTapePriceUsd({
         inverted: pairOrientation.inverted,
-        priceUsd: tradesQuery.data?.[0]?.price_usd,
-        price: tradesQuery.data?.[0]?.price,
-        decimalsBase: activePair?.asset_0.decimals,
-        decimalsQuote: activePair?.asset_1.decimals,
-        quoteSymbol: activePair?.asset_1.symbol,
-        quoteDenom: activePair?.asset_1.denom,
-        ustcUsd: ustcOracleQuery.data?.price_usd,
-        displayBaseSymbol: pairOrientation.displayBase,
-        displayBaseDenom: pairOrientation.inverted ? activePair?.asset_1.denom : activePair?.asset_0.denom,
+        trade: tradesQuery.data?.[0],
+        pair: activePair,
+        pairAddress: pairAddr,
       }),
-    [
-      tradesQuery.data,
-      activePair,
-      ustcOracleQuery.data?.price_usd,
-      pairOrientation.inverted,
-      pairOrientation.displayBase,
-    ]
+    [tradesQuery.data, activePair, pairOrientation.inverted, pairAddr]
   )
 
   const chartSlotProps = {

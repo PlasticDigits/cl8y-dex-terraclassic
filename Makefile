@@ -2071,3 +2071,25 @@ verify-issue-1500:
 .PHONY: verify-issue-1505
 verify-issue-1505:
 	bash scripts/verify-issue-1505.sh
+
+.PHONY: verify-issue-1229
+verify-issue-1229:
+	bash scripts/qa/verify-issue-1229.sh
+
+.PHONY: verify-issue-1512
+verify-issue-1512:
+	bash scripts/verify-issue-1512.sh
+
+.PHONY: verify-issue-1206
+verify-issue-1206:
+	bash scripts/qa/verify-issue-1206.sh
+
+# #1211 immutable private fee-payer cohorts and public materialized aggregates.
+.PHONY: verify-issue-1211
+verify-issue-1211:
+	bash scripts/qa/verify-issue-1211.sh
+
+# #1330 supported route presentation and campaign retry (external adapters separate).
+.PHONY: verify-issue-1330
+verify-issue-1330:
+	bash scripts/qa/verify-issue-1330.sh

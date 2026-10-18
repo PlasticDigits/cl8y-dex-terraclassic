@@ -1784,3 +1784,31 @@ finds no incoming commits beyond baseline `4c21b490…`; both local main and
 origin/main remain that revision. Genuine hosted CI, normal merge, exact
 deployment and all new mandatory live criteria remain pending. The ninth
 deployment's actual RETEST remains FAIL and #1505 stays open.
+
+## Observer signing-window correction (2026-10-18)
+
+The QA observers incorrectly bounded executable metadata to twenty seconds even
+though the accessibility signing contract permits thirty minutes. This is a QA-only
+correction; runtime producer, reference, wrapper and signing guards are unchanged.
+The [original old-deployment receipt](investigation-20261018-original-observer-fail.json)
+remains FAIL: eight HTTP200 responses failed `observation_lifetime`. New Python and
+shared JavaScript regressions first reproduced that rejection for a valid
+thirty-minute quote. The fix accepts the original signing window while separately
+checking published snapshot age at quote construction (0–20,000ms). It still
+rejects original expiry, overlong windows, malformed/stale ages and invalid
+execution/economics. Actual in-browser validation and retained input clocks are
+covered. Indicative 422 protection responses use the same actual original expiry
+from `final_response`/the public error sanitizer, and remain non-signable.
+
+The [new corrected baseline](investigation-20261018-corrected-observer-pass.json)
+against unchanged deployment `0a3c251755a88ee9cbbbbc222fc747811c9da08c`
+passes its bounded 21-second scope: eight executable responses, seven initialized
+reused-connection samples, maximum 287.797ms, valid unique correlation IDs and no
+503s. It does not establish the four 190-second browser windows, unchanged RETEST,
+or new release deployment acceptance. Earlier deployed 503 failures remain FAIL.
+
+[Regression commands, timings and observer hashes](investigation-20261018-observer-correction.json)
+record 17 Python outcome tests, 39 JavaScript economics/browser/input-clock tests,
+and 20 native-probe tests passing. All locally invoked focused test processes were
+below 60s; compilation/provisioning is separate. Repository-mandated hosted full
+matrix execution is separate. No production mutation or wallet signing was used.

@@ -19,7 +19,7 @@ test("original-window failures report fixed reasons and safe clocks without gene
     [{ expires_at_ms: 1000 }, 2000, "nonpositive_window"],
     [{ observed_at_ms: 2001 }, 2000, "future_observation"],
     [{}, 21000, "expired_at_response"],
-    [{ expires_at_ms: 21001 }, 2000, "overlong_window"],
+    [{ expires_at_ms: 1801001 }, 2000, "overlong_window"],
     [{ generation: "private value" }, 2000, "invalid_generation"],
   ]) {
     const diagnostic = originalWindowDiagnostics({ ...valid, ...patch }, now);
@@ -135,6 +135,7 @@ function fixture() {
   };
   return {
     body: {
+      snapshot_age_ms: 1000,
       token_in: "in",
       token_out: "out",
       estimated_amount_out: "98",
@@ -153,6 +154,17 @@ function fixture() {
     },
   };
 }
+test("30-minute original signing window stays usable without renewing producer admission", () => {
+  const f = fixture();
+  for (const field of ["execution_metadata", "economic_attribution", "order_economics"])
+    f.body[field].expires_at_ms = 1801000;
+  assert.equal(validate(f.body, f.params, 60000).useful, true);
+  assert.throws(() => validate(f.body, f.params, 1801000), /original_window/);
+  for (const age of [20001, -1, true, "1000", undefined]) {
+    f.body.snapshot_age_ms = age;
+    assert.throws(() => validate(f.body, f.params, 60000), /producer_freshness/);
+  }
+});
 test("independent finite-size CP fixture separates1% movement and1% fee from20raw reference divergence", () => {
   const f = fixture(),
     r = validate(f.body, f.params, 2000);

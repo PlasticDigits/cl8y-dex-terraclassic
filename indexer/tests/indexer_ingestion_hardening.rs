@@ -1237,9 +1237,26 @@ async fn recovery1464_new_trader_registry_outage_preserves_complete_once_account
                 .unwrap();
         }
     }
-    assert_eq!(server.received_requests().await.unwrap().iter()
-        .filter(|request|request.url.path().contains(&registry)).count(),0,
-        "optional registry hydration belongs to independent reconciliation, never between economic writes");
+    let requests = server.received_requests().await.unwrap();
+    let registry_requests: Vec<_> = requests
+        .iter()
+        .filter(|request| request.url.path().contains(&registry))
+        .collect();
+    assert_eq!(registry_requests.len(), 1,
+        "only the bounded historical cohort lookup may query the registry; replay must not retry immutable unknown attribution");
+    assert_eq!(
+        registry_requests[0].headers.get("x-cosmos-block-height").unwrap(),
+        (height - 1).to_string().as_str(),
+        "fee evidence is pinned to H-1; optional current-registry hydration stays in independent reconciliation"
+    );
+    let (actor, cohort): (Option<String>, String) = sqlx::query_as(
+        "SELECT a.actor,a.cohort FROM protocol_fee_attributions a JOIN protocol_fee_events e ON e.id=a.fee_event_id WHERE e.tx_hash=$1")
+        .bind("new-trader-recovery-1464").fetch_one(&pool).await.unwrap();
+    assert_eq!(actor.as_deref(), Some(trader.as_str()));
+    assert_eq!(
+        cohort, "unknown",
+        "provider outage must never guess retail/MM"
+    );
 }
 
 /// A failed projection after a persisted swap must not be hidden by the replay guard.

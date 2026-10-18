@@ -215,7 +215,7 @@ dependencies = [
 
 [[package]]
 name = "cl8y-community-tax-token"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "cl8y-community-tax-autolp",
  "cosmwasm-schema",
@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "cl8y-community-token-launcher"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "cl8y-community-tax-autolp",
  "cl8y-community-tax-token",

@@ -11,13 +11,15 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [GitLab **#606**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) | Official Enable Feature path + unique SKUs |
 | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | **T606-1–T606-8** matrix row |
 | [`community-tax-token/src/invoice.rs`](../smartcontracts/contracts/community-tax-token/src/invoice.rs) | `origin.launcher` payer for EnableFeature only |
-| [`community-token-launcher/src/contract.rs`](../smartcontracts/contracts/community-token-launcher/src/contract.rs) | Manager + origin gate; unique SKUs |
+| [`community-token-launcher/src/contract.rs`](../smartcontracts/contracts/community-token-launcher/src/contract.rs) | Created-token membership + manager + origin gates; unique SKUs |
 | [`communityTaxInvoice.ts`](../frontend-dapp/src/utils/communityTaxInvoice.ts) | Enable Feature payee = env launcher |
 | [`localterra-community-tax-smoke.sh`](../scripts/qa/localterra-community-tax-smoke.sh) | Must Send to the **launcher**, not the token |
 
 ## Official path (pick one — this is it)
 
 Manager UST1 `Send` → **env launcher** hook `{"enable_feature":{"token":"terra1…","sku":"transfer_tax"}}` → launcher re-Sends the same 50 UST1 to the token → token treats `cw20.sender == origin.launcher` as authorized for **EnableFeature only** → token forwards UST1 to **CMM**.
+
+Origin is ratified by the token instantiate sender, and launcher privileges also require its authenticated created-token set ([#1229](./AGENTS_LAUNCHER_ORIGIN.md)). Self-reported origin never grants launcher access. Pre-upgrade and adopted tokens are not automatically added.
 
 Direct manager `Send` to the token (`{"enable_feature":{"sku":"…"}}`) still works (CLI). It is **not** the official dApp / QA path. Do not document both as supported retail flows.
 
@@ -26,7 +28,7 @@ Settings Save stays manager `Send` to the **token**. Do not mix Enable Feature i
 ## Invariants **T606-1–T606-8**
 
 1. **T606-1 — official Enable Feature.** Manage Token + smoke pay 50 UST1 to the **launcher**. Token accepts `payer == manager` **or** `payer == origin.launcher` for `EnableFeature` only.
-2. **T606-2 — manager gate on the launcher.** Launcher queries token `GetConfig.manager` and `GetLauncherOrigin`. `cw20.sender` must be that manager; `origin.launcher` must be **this** launcher. Non-manager → `Unauthorized`; no SKU; victim UST1 untouched.
+2. **T606-2 — manager gate on the launcher.** Launcher first requires membership written by its own token instantiate reply ([#1229](./AGENTS_LAUNCHER_ORIGIN.md)), then queries token `GetConfig.manager` and `GetLauncherOrigin`. `cw20.sender` must be that manager; `origin.launcher` must be **this** launcher. Non-manager → `Unauthorized`; no SKU; victim UST1 untouched.
 3. **T606-3 — settings stay manager-only.** `UpdateSettings` still requires `payer == manager`. Origin launcher cannot apply a settings batch.
 4. **T606-4 — no arbitrary payer.** Do not loosen invoice auth to random addresses. Only manager or **that token's** `origin.launcher`. A different contract is `Unauthorized`.
 5. **T606-5 — unique SKUs.** Create rejects duplicate SKU names **before** multiplying `50 UST1 × len`. Two distinct SKUs = 100 UST1 and both flags on. `Features::from_skus` stays idempotent. dApp `uniqueCommunityTaxSkus` unique-sets before quoting.

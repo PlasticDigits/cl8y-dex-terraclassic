@@ -11,6 +11,12 @@ never sound-only. Full policy: [docs/design-system.md § Accessibility policy](d
 checklists: [A11Y CI](skills/AGENTS_FRONTEND_A11Y_CI.md) and
 [A11Y focus](skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
 
+## Trade USD display
+
+For missing trade USD, human ratio units, headline fallback or inversion, follow
+[TP1512](skills/AGENTS_TRADE_PRICE_USD.md) and run `make verify-issue-1512`.
+Missing `price_usd` never selects legacy raw units, symbol pegs or candle substitution.
+
 ## Native quote recovery
 
 For native observations, reference publication, quote rejection/request correlation or original
@@ -907,3 +913,18 @@ Run `make verify-issue-1452` and the applicable `1398`, `1381` and `1390` verifi
 use the [agent checklist and explicit skip policy](docs/qa/issue-1459/README.md).
 Compatible external protected message variants are required before direct signing.
 Unknown cooldown/AutoLP state stays unsupported; source support is separate from #1456 rollout.
+
+## Launcher origin and invoice authority
+
+For community-token launcher origin, invoice forwarding or AutoLP bind changes,
+follow [LO1229-1–LO1229-6](skills/AGENTS_LAUNCHER_ORIGIN.md) and run
+`make verify-issue-1229`. Origin is instantiate-sender ratification; launcher
+privileges require its own authenticated creation reply. Historical/adopted
+instances are never automatically enrolled from self-report.
+
+## Anonymous daily activity digest
+
+For protocol UTC-day count/fee aggregates use [AD1206](skills/AGENTS_ACTIVITY_DIGEST.md)
+and `make verify-issue-1206`; [checklist](docs/qa/issue-1206/README.md).
+The anonymous digest has no actor/transaction linkage. Its fee enum follows the
+current ten canonical sources after #1209/#1210, preserving the original seven prefix.

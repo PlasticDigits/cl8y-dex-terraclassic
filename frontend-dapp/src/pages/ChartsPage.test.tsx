@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Route, Routes, createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -115,6 +115,51 @@ describe('ChartsPage (component)', () => {
       ...mockPair,
       pair_address: addr,
     }))
+  })
+
+  it('#1512 missing latest USD stays unavailable through orientation, recovery and foreign-pair responses', async () => {
+    const pair: IndexerPair = {
+      ...mockPair,
+      asset_0: { ...mockPair.asset_0, symbol: 'UST1' },
+      asset_1: { ...mockPair.asset_1, symbol: 'USTR', decimals: 18 },
+    }
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({ items: [pair], total: 1, limit: 50, offset: 0 })
+    vi.mocked(indexerClient.getPair).mockResolvedValue(pair)
+    const trade = {
+      id: 1,
+      pair_address: pair.pair_address,
+      block_height: 1,
+      block_timestamp: '2026-08-15T00:00:00Z',
+      tx_hash: 'AA',
+      sender: 'terra1fixture',
+      offer_asset: 'UST1',
+      ask_asset: 'USTR',
+      offer_amount: '1000000',
+      return_amount: '160756280899197382191',
+      price: '160.756280899197382191',
+      price_usd: '0.849756570385773539',
+    }
+    vi.mocked(indexerClient.getTrades).mockResolvedValue([trade])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const router = createMemoryRouter([{ path: '/charts/:pairAddr', element: <ChartsPage /> }], {
+      initialEntries: [`/charts/${pair.pair_address}`],
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    )
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('0.849757'))
+    await act(async () => client.setQueryData(['pair-trades', pair.pair_address], [{ ...trade, price_usd: null }]))
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—'))
+    await userEvent.setup().click(screen.getByTestId('trade-pair-invert-pill'))
+    expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—')
+    await act(async () => client.setQueryData(['pair-trades', pair.pair_address], [trade]))
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('0.00528599'))
+    await act(async () =>
+      client.setQueryData(['pair-trades', pair.pair_address], [{ ...trade, pair_address: 'terra1foreignpair' }])
+    )
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent('—'))
   })
 
   it('shows retail market-data banner when pairs fail with transport errors (GitLab #215 / #666 CS-12)', async () => {

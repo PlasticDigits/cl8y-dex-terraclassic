@@ -1,11 +1,7 @@
 import type { IndexerPair, IndexerTrade } from '@/types'
 import { tradeToToken1PerToken0Human } from './limitOrderPriceReference'
-import { invertUsd, parseFinitePositive } from './tradePairDisplayOrientation'
+import { invertUsd } from './tradePairDisplayOrientation'
 import { REGISTRY_USDT_CW20_ADDRESS } from './tokenRegistry'
-
-/** USTR/UST1 client fallback for **pre-#556** indexers only (legacy 2.5× USTC seed).
- * New indexer sends `price_usd` from DEX hub marks — prefer that field. */
-export const USTR_PER_USTC = 2.5
 
 export type QuoteUsdKind = 'ustc' | 'lunc' | 'peg1' | 'ustr' | 'usdt' | 'unknown'
 
@@ -21,12 +17,15 @@ export function isPinnedUsdtCw20(contract?: string | null): boolean {
  * UST1 / USTC / cUSTC / LUNC / cLUNC / USTR. A native that only spoofs `USTR` is not catalog.
  */
 export function isIndexerCatalogLeg(
-  leg: {
-    symbol?: string | null
-    denom?: string | null
-    contract_addr?: string | null
-    contractAddr?: string | null
-  } | null | undefined
+  leg:
+    | {
+        symbol?: string | null
+        denom?: string | null
+        contract_addr?: string | null
+        contractAddr?: string | null
+      }
+    | null
+    | undefined
 ): boolean {
   if (!leg) return false
   const denom = (leg.denom ?? '').trim()
@@ -67,129 +66,99 @@ export function classifyQuoteSymbol(symbol: string, denom?: string | null, contr
   }
 }
 
-export function quoteTokenUsd(
-  kind: QuoteUsdKind,
-  ustcUsd: number | null | undefined,
-  luncUsd?: number | null
-): number | null {
-  if (kind === 'usdt') return 1
-  if (kind === 'peg1') return 1
-  if (kind === 'ustc') return finitePositive(ustcUsd)
-  if (kind === 'lunc') return finitePositive(luncUsd)
-  if (kind === 'ustr') {
-    const u = finitePositive(ustcUsd)
-    return u == null ? null : u * USTR_PER_USTC
-  }
-  return null
-}
-
-function finitePositive(n: number | null | undefined): number | null {
-  if (n == null || !Number.isFinite(n) || n <= 0) return null
-  return n
-}
-
+/** Strict bounded decimal input: never accept a numeric prefix of hostile text. */
 function parsePositiveDecimal(raw: string | number | null | undefined): number | null {
   if (raw == null) return null
-  const n = typeof raw === 'number' ? raw : parseFloat(String(raw).trim())
-  return finitePositive(n)
+  if (typeof raw === 'string' && (raw.length > 128 || !/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw.trim())))
+    return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** Pair-stats USD field: never fall back to human quote-per-base (GitLab #522). */
+/** Pair-stats USD of one human factory asset_0; human ratios are never dollars. */
 export function pairStatsUsdField(raw: string | null | undefined): string | null {
   const n = parsePositiveDecimal(raw)
   return n == null ? null : String(n)
 }
 
 export type TapeUsdInput = {
+  /** Indexed historical USD of one human factory asset_0, or unavailable. */
   priceUsd?: string | null
-  /** Indexer `price` — treated as **raw** quote-per-base only when `priceUsd` is missing (pre-#522). */
+  /** Modern indexer human asset_1 per asset_0, independent of priceUsd presence. */
   price?: string | null
-  decimalsBase?: number
-  decimalsQuote?: number
-  quoteSymbol?: string
-  quoteDenom?: string | null
-  /** CW20 contract for A1 (registry USDT pin). Ticker `USDT` without this stays unpriced. */
-  quoteContract?: string | null
-  ustcUsd?: string | number | null
-  luncUsd?: string | number | null
 }
 
-/**
- * USD of 1 human unit of pair base (`asset_0`).
- *
- * Prefers indexer `price_usd`. Never returns unscaled `price` as dollars.
- * Fallback (old indexer): `price × 10^(d0 − d1) × quote_usd`.
- */
+/** Modern USD contract (#1512): missing USD never selects legacy raw units or a symbol-derived mark. */
 export function resolveTapeLastPriceUsd(opts: TapeUsdInput): string | null {
-  const indexed = parsePositiveDecimal(opts.priceUsd)
-  if (indexed != null) return String(indexed)
-
-  const raw = parsePositiveDecimal(opts.price)
-  if (raw == null) return null
-  const d0 = opts.decimalsBase ?? 6
-  const d1 = opts.decimalsQuote ?? 6
-  const human = raw * 10 ** (d0 - d1)
-  if (!Number.isFinite(human) || human <= 0) return null
-
-  const kind = classifyQuoteSymbol(opts.quoteSymbol ?? '', opts.quoteDenom, opts.quoteContract)
-  const ustc = parsePositiveDecimal(opts.ustcUsd)
-  const lunc = parsePositiveDecimal(opts.luncUsd)
-  const quoteUsd = quoteTokenUsd(kind, ustc, lunc)
-  if (quoteUsd == null) return null
-  return String(human * quoteUsd)
+  return pairStatsUsdField(opts.priceUsd)
 }
 
-/**
- * Same USD as {@link resolveTapeLastPriceUsd}, preferring `trade.price_usd`,
- * else human ratio from raw amounts × quote USD (never raw `trade.price`).
- */
-export function resolveTapePriceUsd(opts: {
-  trade?: IndexerTrade | null
-  pair?: Pick<IndexerPair, 'asset_0' | 'asset_1'> | null
-  ustcUsd?: string | number | null
-  luncUsd?: string | number | null
-}): string | null {
-  const fromField = resolveTapeLastPriceUsd({
-    priceUsd: opts.trade?.price_usd,
-    price: undefined,
-    quoteSymbol: opts.pair?.asset_1.symbol,
-    quoteDenom: opts.pair?.asset_1.denom,
-    quoteContract: opts.pair?.asset_1.contract_addr,
-    ustcUsd: opts.ustcUsd,
-    luncUsd: opts.luncUsd,
-  })
-  if (fromField) return fromField
-
-  const trade = opts.trade
-  const pair = opts.pair
-  if (!trade || !pair) return null
-  const human = tradeToToken1PerToken0Human(trade, pair)
-  if (human == null || !Number.isFinite(human) || human <= 0) return null
-  const kind = classifyQuoteSymbol(pair.asset_1.symbol, pair.asset_1.denom, pair.asset_1.contract_addr)
-  const quoteUsd = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
-  if (quoteUsd == null) return null
-  return String(human * quoteUsd)
-}
-
-/**
- * USD of 1 **displayed** base (GitLab #524). Factory `price_usd` is always USD of `asset_0`.
- * When inverted, prefer `price_usd / human_price`, else the quote catalog for the display leg.
- */
-export function resolveDisplayTapeLastPriceUsd(
-  opts: TapeUsdInput & {
-    inverted: boolean
-    displayBaseSymbol?: string
-    displayBaseDenom?: string | null
-    displayBaseContract?: string | null
-  }
-): string | null {
+/** Display USD = factory asset_0 USD / human asset_1-per-asset_0, exactly once. */
+export function resolveDisplayTapeLastPriceUsd(opts: TapeUsdInput & { inverted: boolean }): string | null {
   const factory = resolveTapeLastPriceUsd(opts)
   if (!opts.inverted) return factory
-  const viaRatio = invertUsd(factory, opts.price)
-  if (viaRatio) return viaRatio
-  const kind = classifyQuoteSymbol(opts.displayBaseSymbol ?? '', opts.displayBaseDenom, opts.displayBaseContract)
-  const catalog = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
-  return catalog == null ? null : String(catalog)
+  const human = parsePositiveDecimal(opts.price)
+  if (human == null) return null
+  const result = invertUsd(factory, String(human))
+  return pairStatsUsdField(result)
+}
+
+type TapePair = Pick<IndexerPair, 'pair_address' | 'asset_0' | 'asset_1'>
+
+/** Bind the historical USD and matching human ratio to the selected pair. No current oracle fallback. */
+export function resolveDisplayTapePriceUsd(opts: {
+  trade?: IndexerTrade | null
+  pair?: TapePair | null
+  pairAddress: string
+  inverted: boolean
+}): string | null {
+  const { trade, pair } = opts
+  if (
+    !trade ||
+    !pair ||
+    !pair.asset_0 ||
+    !pair.asset_1 ||
+    !opts.pairAddress ||
+    pair.pair_address !== opts.pairAddress ||
+    trade.pair_address !== opts.pairAddress
+  )
+    return null
+  if (![pair.asset_0.decimals, pair.asset_1.decimals].every((d) => Number.isInteger(d) && d >= 0 && d <= 18))
+    return null
+  const observed = trade.block_timestamp
+  if (
+    typeof observed !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(observed)
+  )
+    return null
+  const day = Date.parse(observed.slice(0, 10))
+  if (!Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== observed.slice(0, 10)) return null
+  const timestamp = Date.parse(observed)
+  if (!Number.isFinite(timestamp) || timestamp > Date.now()) return null
+  let human: string | undefined = trade.price
+  // An absent modern ratio may be reconstructed from exact raw amounts. Invalid
+  // present ratios stay invalid; missing USD still never authorizes a fallback.
+  if (human == null || human === '') {
+    if (
+      pair.asset_0.symbol === pair.asset_1.symbol ||
+      ![trade.offer_amount, trade.return_amount].every(
+        (raw) => /^\d{1,39}$/.test(raw) && BigInt(raw) <= (1n << 128n) - 1n
+      )
+    )
+      return null
+    const reconstructed = tradeToToken1PerToken0Human(trade, pair)
+    human = reconstructed == null ? undefined : String(reconstructed)
+  }
+  return resolveDisplayTapeLastPriceUsd({ inverted: opts.inverted, priceUsd: trade.price_usd, price: human })
+}
+
+/** Factory direction convenience wrapper; USD remains the indexed historical field. */
+export function resolveTapePriceUsd(opts: {
+  trade?: IndexerTrade | null
+  pair?: TapePair | null
+  pairAddress: string
+}): string | null {
+  return resolveDisplayTapePriceUsd({ ...opts, inverted: false })
 }
 
 export type DisplayPairStatsUsdOhlc = {
@@ -210,8 +179,8 @@ export function displayUsdPriceChangePct(
   openUsd: string | number | null | undefined,
   closeUsd: string | number | null | undefined
 ): number | null {
-  const open = parseFinitePositive(openUsd)
-  const close = parseFinitePositive(closeUsd)
+  const open = parsePositiveDecimal(openUsd)
+  const close = parsePositiveDecimal(closeUsd)
   if (open == null || close == null) return null
   const pct = ((close - open) / open) * 100
   if (!Number.isFinite(pct)) return null
@@ -241,17 +210,17 @@ export function resolveDisplayPairStatsUsdOhlc(args: {
       lowUsd: factoryLow,
       openUsd: factoryOpen,
       closeUsd: factoryClose,
-      priceChangePct: args.factoryPriceChangePct ?? null,
+      priceChangePct: Number.isFinite(args.factoryPriceChangePct) ? args.factoryPriceChangePct! : null,
     }
   }
 
-  const invHigh = invertUsd(factoryHigh, args.highHuman)
-  const invLow = invertUsd(factoryLow, args.lowHuman)
-  const invOpen = invertUsd(factoryOpen, args.openHuman)
-  const invClose = invertUsd(factoryClose, args.closeHuman)
+  const invHigh = resolveDisplayTapeLastPriceUsd({ inverted: true, priceUsd: factoryHigh, price: args.highHuman })
+  const invLow = resolveDisplayTapeLastPriceUsd({ inverted: true, priceUsd: factoryLow, price: args.lowHuman })
+  const invOpen = resolveDisplayTapeLastPriceUsd({ inverted: true, priceUsd: factoryOpen, price: args.openHuman })
+  const invClose = resolveDisplayTapeLastPriceUsd({ inverted: true, priceUsd: factoryClose, price: args.closeHuman })
 
-  const highN = parseFinitePositive(invHigh)
-  const lowN = parseFinitePositive(invLow)
+  const highN = parsePositiveDecimal(invHigh)
+  const lowN = parsePositiveDecimal(invLow)
   let highUsd = invHigh
   let lowUsd = invLow
   if (highN != null && lowN != null) {

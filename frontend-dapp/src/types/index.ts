@@ -260,8 +260,9 @@ export interface IndexerTrade {
   offer_decimals?: number | null
   /** Ask-asset decimals from indexed `assets` (GitLab #557). */
   ask_decimals?: number | null
+  /** Human factory asset_1 per asset_0, including when price_usd is absent (#522 / #1512). */
   price: string
-  /** USD of 1 human unit of pair base (`asset_0`). GitLab #522. */
+  /** Historical USD of 1 human factory asset_0; absence never selects legacy raw units (#1512). */
   price_usd?: string | null
   /** Hybrid / Pattern C when indexer has on-chain attrs */
   pool_return_amount?: string
@@ -621,6 +622,13 @@ export interface ProtocolFeesResponse {
   community_invoices_configured?: boolean
   by_source: ProtocolFeeSourceRow[]
   by_token: ProtocolFeeTokenRow[]
+  /** Additive #1211, absent on older deployments. Aggregate payer cohorts only. */
+  by_cohort?: {
+    cohort: 'retail' | 'mm' | 'unknown'
+    amount_usd: string | null
+    share_pct: string | null
+    event_count: number
+  }[]
 }
 
 /** `GET /api/v1/tokens` */

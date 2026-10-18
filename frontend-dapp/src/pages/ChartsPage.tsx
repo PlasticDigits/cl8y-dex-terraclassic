@@ -2,7 +2,7 @@ import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useState, useDeferredValue, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { getCandles, getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
+import { getCandles, getPairs, getPair, getPairStats, getTrades } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
@@ -29,7 +29,7 @@ import {
   TRAILING_24H_VOLUME_TITLE,
   TRAILING_PAIR_VOL_USD_LABEL,
 } from '@/utils/trailingWindowCopy'
-import { resolveDisplayPairStatsUsdOhlc, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { resolveDisplayPairStatsUsdOhlc, resolveDisplayTapePriceUsd } from '@/utils/pairPriceUsd'
 import { useChartsPairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { chartsUsdLegFromCandles } from '@/utils/tradePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -284,13 +284,6 @@ export default function ChartsPage() {
     refetchInterval: 15_000,
   })
 
-  const ustcOracleQuery = useQuery({
-    queryKey: ['indexer-oracle-price', 'ustc'],
-    queryFn: () => getOraclePrice('ustc'),
-    staleTime: 60_000,
-    retry: false,
-  })
-
   const chartsPriceMatch = useMemo(
     () => matchChartsPriceParam(priceParam, activePair?.asset_0, activePair?.asset_1, activePair?.pair_address),
     [priceParam, activePair]
@@ -332,25 +325,13 @@ export default function ChartsPage() {
 
   const tapeLastPriceUsd = useMemo(
     () =>
-      resolveDisplayTapeLastPriceUsd({
+      resolveDisplayTapePriceUsd({
         inverted: pairOrientation.inverted,
-        priceUsd: tradesQuery.data?.[0]?.price_usd,
-        price: tradesQuery.data?.[0]?.price,
-        decimalsBase: activePair?.asset_0.decimals,
-        decimalsQuote: activePair?.asset_1.decimals,
-        quoteSymbol: activePair?.asset_1.symbol,
-        quoteDenom: activePair?.asset_1.denom,
-        ustcUsd: ustcOracleQuery.data?.price_usd,
-        displayBaseSymbol: pairOrientation.displayBase,
-        displayBaseDenom: pairOrientation.inverted ? activePair?.asset_1.denom : activePair?.asset_0.denom,
+        trade: tradesQuery.data?.[0],
+        pair: activePair,
+        pairAddress: activePairAddr,
       }),
-    [
-      tradesQuery.data,
-      activePair,
-      ustcOracleQuery.data?.price_usd,
-      pairOrientation.inverted,
-      pairOrientation.displayBase,
-    ]
+    [tradesQuery.data, activePair, pairOrientation.inverted, activePairAddr]
   )
 
   const leaderboardQuery = useTraderLeaderboardQuery(

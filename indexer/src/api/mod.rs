@@ -12,6 +12,7 @@ mod community_tokens;
 mod compliance;
 mod defillama;
 mod evidence;
+mod evidence_digest;
 mod gt;
 mod trading_tax_discovery;
 #[allow(unused_imports)] // re-exported for integration tests
@@ -398,6 +399,7 @@ pub async fn find_pair_by_ticker(
         protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
         evidence::get_evidence_daily,
+        evidence_digest::get_evidence_digest,
         hub_prices::get_hub_prices,
         hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
@@ -477,6 +479,7 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeesResponse,
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
+        protocol_fees::ProtocolFeeCohortRow,
         protocol_fee_series::ProtocolFeeSeriesResponse,
         protocol_fee_series::ProtocolFeeSeriesPoint,
         protocol_liquidity::ProtocolLiquidityDailyResponse,
@@ -488,6 +491,10 @@ pub async fn find_pair_by_ticker(
         defillama::DefillamaDailyResponse,
         defillama::DefillamaFeeBreakdown,
         defillama::DefillamaMethodology,
+        evidence_digest::EvidenceDigest,
+        evidence_digest::DigestFees,
+        evidence_digest::DigestFeeSource,
+        evidence_digest::DigestFeeToken,
         evidence::EvidenceDailyQuery,
         evidence::EvidenceDailyResponse,
         evidence::EvidenceDailyEvent,
@@ -683,6 +690,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
 
     let evidence_router = Router::new()
         .route("/api/v1/evidence/daily", get(evidence::get_evidence_daily))
+        .route(
+            "/api/v1/evidence/digest",
+            get(evidence_digest::get_evidence_digest),
+        )
         .route_layer(axum::middleware::from_fn_with_state(
             std::sync::Arc::new(tokio::sync::Semaphore::new(
                 evidence::MAX_CONCURRENT_EXPORTS,

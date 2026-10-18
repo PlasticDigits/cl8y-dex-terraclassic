@@ -211,3 +211,12 @@ current amount/pair/original-trader previews, fresh forward sufficiency, bounded
 work and funding/launch/signing guards remain mandatory. Work counts are not
 provider gas limits; receipts establish only their documented fixture/overhead
 scope, and production acceptance requires independently observed live behavior.
+
+## Launcher origin (#1229)
+
+[LO1229-1–LO1229-6](../skills/AGENTS_LAUNCHER_ORIGIN.md) bind a new token
+origin to its instantiate sender and restrict launcher invoice forwarding /
+AutoLP binding to its authenticated token replies. A legacy token self-report
+is insufficient. [Verification and migration checklist](qa/issue-1229/README.md)
+records source checks separately from the required columbus-5 token + launcher
+2-of-3 migrations; Coolify deployment does not update these contracts.

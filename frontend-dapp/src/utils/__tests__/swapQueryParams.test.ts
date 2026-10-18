@@ -264,6 +264,16 @@ describe('canonicalSwapSearch / exactField (#713 / #715)', () => {
     )
   })
 
+  it('preserves repeated campaign fields without retaining stale Swap aliases (#1330)', () => {
+    const existing = new URLSearchParams(
+      'InputCurrency=old&TO=old&amountIn=8&independentField=output&utm_source=a&utm_source=b&ref=agent'
+    )
+    const next = canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '2' }, existing)
+    expect(next.toString()).toBe('from=LUNC&to=USTC&exactAmount=2&utm_source=a&utm_source=b&ref=agent')
+    expect(existing.get('InputCurrency')).toBe('old')
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd' }).has('utm_source')).toBe(false)
+  })
+
   it('parses exactField=output and independentField=output; ignores input / junk', () => {
     expect(parseSwapExactField('exactField=output')).toBe('output')
     expect(parseSwapExactField('independentField=output')).toBe('output')

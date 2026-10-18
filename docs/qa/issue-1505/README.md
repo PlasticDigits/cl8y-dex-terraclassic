@@ -20,6 +20,18 @@ remain FAIL. Skipping a criterion does not establish issue closure.
 | AC5 | Offline requests, original expiry, provider/work limits, actual economics and fail-closed signing remain enforced. |
 | AC6 | Attest exact deployed frontend/backend revision, inspect deployment logs and Grafana/Loki; query Prometheus if provisioned. Repeat focused live checks after deployment. |
 
+Observer validators must distinguish the **30-minute original signing window**
+from **20-second producer freshness**. Check published `snapshot_age_ms` at quote
+construction independently; never shorten retained reviewed quotes with
+`now - observed <= 20s`. Reject original expiry, overlong windows, malformed or
+stale published ages, and all existing economic/identity failures. Indicative
+protection estimates keep their original expiry and remain non-signable. Run
+`test-probe-issue-1473.py`, `test-native-recovery-1505.py` and the focused
+`test-live-quote-economics-1500.cjs`,
+`test-browser-live-trading-quotes-1473.cjs`, `test-live-input-clock-1499.cjs`
+controls before live use. [Retained old FAIL and corrected bounded baseline](RESULTS.md#observer-signing-window-correction-2026-10-18)
+do not replace the sustained acceptance windows below.
+
 No broad verification-only sweep, physical device or wallet signing is required
 by #1505. Historical failures remain evidence and are not relabeled by new runs.
 The issue closes only when its body and comments' actual required checks pass.

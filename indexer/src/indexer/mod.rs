@@ -10,6 +10,7 @@ pub mod defillama;
 pub mod defillama_history;
 pub mod economic_usd;
 pub mod event_amount;
+pub mod fee_cohorts;
 pub mod fee_discount_registry_health;
 pub mod fee_phase;
 pub mod gt_event_reserves;

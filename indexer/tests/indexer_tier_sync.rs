@@ -169,7 +169,7 @@ async fn reconcile_corrects_missed_registration_event() {
 }
 
 #[tokio::test]
-async fn route_solve_uses_tier_after_registration_event() {
+async fn registration_event_does_not_authorize_unobserved_quote_or_trigger_rpc() {
     let pool = setup_pool().await;
     clean_db(&pool).await;
 
@@ -197,6 +197,12 @@ async fn route_solve_uses_tier_after_registration_event() {
         "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000&sender={TRADER_ADDR}",
         seed.token_a, seed.token_b
     );
-    let body: serde_json::Value = server.get(&url).await.json();
-    assert_eq!(body["estimated_amount_out"], "9777776");
+    // #1452: live tier synchronization is not an independently certified local
+    // quote context. A quote request must neither hydrate observations nor use
+    // the old remote optimizer, even after registration is indexed.
+    let response = server.get(&url).await;
+    response.assert_status_service_unavailable();
+    let body: serde_json::Value = response.json();
+    assert_eq!(body["error"], "missing_observations");
+    assert!(mock.received_requests().await.unwrap().is_empty());
 }

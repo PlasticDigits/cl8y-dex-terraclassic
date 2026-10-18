@@ -1,24 +1,8 @@
 import { formatPairPrice } from '@/utils/formatAmount'
-import type { ChartCandlePoint } from './priceChartCandles'
+import { pairStatsUsdField } from '@/utils/pairPriceUsd'
 
-/**
- * Prominent USD headline for the trade/charts candle panel: prefer latest tape USD
- * (`tapeLastPriceUsd` from `resolveTapeLastPriceUsd` / indexer `price_usd` — GitLab #522),
- * else the last candle close for the selected interval (GitLab #149).
- * Do not pass raw `trades[].price` (human quote-per-base or unscaled integers).
- */
-export function resolveTradeChartHeadlineUsd(
-  tapeLastPriceUsd: string | null | undefined,
-  chartPoints: ChartCandlePoint[]
-): string | null {
-  const raw = tapeLastPriceUsd?.trim()
-  if (raw) {
-    const n = parseFloat(raw)
-    if (!Number.isNaN(n)) return formatPairPrice(raw, 6)
-  }
-  if (chartPoints.length > 0) {
-    const close = chartPoints[chartPoints.length - 1].close
-    return formatPairPrice(close, 6)
-  }
-  return null
+/** Latest indexed trade USD only (#1512). Historical candle closes remain on the chart. */
+export function resolveTradeChartHeadlineUsd(tapeLastPriceUsd: string | null | undefined): string | null {
+  const usd = pairStatsUsdField(tapeLastPriceUsd)
+  return usd == null ? null : formatPairPrice(usd, 6)
 }

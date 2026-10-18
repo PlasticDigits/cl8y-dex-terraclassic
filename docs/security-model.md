@@ -285,3 +285,15 @@ Contracts have not yet been formally audited. A third-party audit is recommended
 **User-facing summary:** [`security-posture.md`](./security-posture.md) (footer link from the dApp).
 
 For an **in-repo** invariant matrix, trust assumptions, and mapping to automated tests, see [contracts-security-audit.md](./contracts-security-audit.md). **Historical incident replay** (SEC-D02–D12): [exploit-replay-matrix.md](./exploit-replay-matrix.md). **Frontend / indexer off-chain trust** (remediation [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) / [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/378)): [security-model.md § Off-chain trust boundaries](./security-model.md#off-chain-trust-boundaries-frontend--indexer).
+
+### Private fee-payer cohorts (#1211)
+
+Fee-payer identities are internal-only attribution linked to authenticated ledger
+rows. Public `/protocol/fees` adds static retail/MM/unknown aggregates, with no
+payer, registry journal, tier membership list or campaign attribution. Exact
+historical registry snapshots and ordered pinned events determine membership;
+current trader reconciliation never changes stored historical cohorts. Missing
+payer attributes, invalid addresses, duplicate identity keys, mismatched source
+ordinals, or unavailable exact-height state fail to unknown. The source parsers'
+reserved emitter and provenance checks remain mandatory. Follow
+[FC1211](../skills/AGENTS_FEE_COHORTS.md) and its [QA checklist](qa/issue-1211/README.md).

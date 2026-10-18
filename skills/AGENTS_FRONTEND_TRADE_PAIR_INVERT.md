@@ -6,6 +6,8 @@ Audience: third-party agents touching `/trade` or `/charts` **Price (USD)**, pai
 **Invariants:** [`docs/frontend.md` § Trade pair display invert](../docs/frontend.md#trade-pair-display-invert) (**T524-1–T524-11**)  
 **Related:** [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522) factory USD of `asset_0`, [#466](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/466) quote-per-base, [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 secondary AMM (**U1**), [#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151) non-negative scale, [#226](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/226) finite candles.
 
+Current missing-USD behavior follows [TP1512](AGENTS_TRADE_PRICE_USD.md): indexed historical USD only, one human-ratio inversion, stable **—** without candle or symbol fallback.
+
 ## Problem class
 
 After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need the **other token’s** USD (cUSTC / USTR) by default, a pair-orientation pill, and ticket **Buy {displayBase}** — without changing indexer math or on-chain `token1/token0`.

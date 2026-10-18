@@ -1,0 +1,40 @@
+{
+  "job_uuid": "m2ytjd88ezvnfhsjfvlpxqxn",
+  "job_status": "running:unknown",
+  "receipts": [
+    {
+      "schema": "cohort_read_only_preflight_v1",
+      "overall": "PASS",
+      "history_count": 67,
+      "pending_versions": [
+        20261018110000
+      ],
+      "schema_marker": 20261016120000,
+      "runtime_session_seen": true,
+      "runtime_acl_safe": true,
+      "history_checksums_match": true,
+      "resource_schema_unique": true,
+      "database_read_only_enforced": true,
+      "complete_history_prefix": true
+    }
+  ],
+  "read_only": true,
+  "logs_http_status": null,
+  "stop_acknowledged": true,
+  "credential_removed": true,
+  "cleanup_overall": "PASS",
+  "observed_at_utc": "2026-10-18T04:46:11.578278+00:00",
+  "scope": "SELECT-only isolated production preflight; no schema/role/session/credential rotation or serving application mutation",
+  "migration_applied": false,
+  "runtime_login_tested": false,
+  "runtime_dsn_api_visible": false,
+  "identity_basis": "Pinned maintenance guard, same environment/server, unique indexer schema, complete original history/checksums, active runtime-role sessions and effective ACL queries",
+  "local_transport_tests": 10,
+  "historical_probe_failures_retained": [
+    "initial API422 Dockerfile encoding rejection before resource creation",
+    "Python3.12 AST rewrite incompatible with Python3.11 job runtime, before DB access",
+    "short exited-container receipt unavailable from logs API",
+    "omitted explicit production role envs caused guarded identity rejection"
+  ],
+  "cleanup": "Every created preflight job stopped and DB_ADMIN_URL removed; private values were never printed or written to local artifacts"
+}

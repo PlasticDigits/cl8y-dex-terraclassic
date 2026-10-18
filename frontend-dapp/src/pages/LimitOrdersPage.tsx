@@ -13,13 +13,7 @@ import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
-import {
-  getPairLimitPlacements,
-  getPair,
-  getTrades,
-  getTraderLimitPlacements,
-  getOraclePrice,
-} from '@/services/indexer/client'
+import { getPairLimitPlacements, getPair, getTrades, getTraderLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
 import { PairSearchSelect, TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -31,7 +25,7 @@ import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import { LIMITS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
 import { formatNum, formatTokenAmountGrouped, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { resolveTapePriceUsd } from '@/utils/pairPriceUsd'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
@@ -183,21 +177,7 @@ export default function LimitOrdersPage() {
     return resolveLimitInsertHintAfter(side, price, orders, { hasMore }, limitPriceScale)
   }, [limitBookQuery.data?.pages, side, price, limitPriceScale])
   const latestTrade = tradesForLimitQuery.data?.[0]
-  const ustcOracleQuery = useQuery({
-    queryKey: ['indexer-oracle-price', 'ustc'],
-    queryFn: () => getOraclePrice('ustc'),
-    staleTime: 60_000,
-    retry: false,
-  })
-  const tapeHeadlineUsd = resolveTapeLastPriceUsd({
-    priceUsd: latestTrade?.price_usd,
-    price: latestTrade?.price,
-    decimalsBase: indexerPair?.asset_0.decimals,
-    decimalsQuote: indexerPair?.asset_1.decimals,
-    quoteSymbol: indexerPair?.asset_1.symbol,
-    quoteDenom: indexerPair?.asset_1.denom,
-    ustcUsd: ustcOracleQuery.data?.price_usd,
-  })
+  const tapeHeadlineUsd = resolveTapePriceUsd({ trade: latestTrade, pair: indexerPair, pairAddress: pairAddr })
 
   const marketDataDown = detectMarketDataOutage(indexerPairQuery, tradesForLimitQuery)
 

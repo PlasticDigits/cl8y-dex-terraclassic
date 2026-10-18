@@ -1,17 +1,23 @@
 import type { IndexerPairStats } from '@/types'
+import { resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 
 const CHART_MIN_HEIGHT = 'min-h-[400px]'
 
 interface PriceChartEmptyStateProps {
   pairStats: IndexerPairStats | undefined
   statsLoading: boolean
+  displayInverted?: boolean
 }
 
 /**
  * Shown when the indexer returns no usable OHLC rows for the selected interval (successful response, empty or all invalid).
  */
-export function PriceChartEmptyState({ pairStats, statsLoading }: PriceChartEmptyStateProps) {
-  const closeUsd = pairStats?.close_price_usd
+export function PriceChartEmptyState({ pairStats, statsLoading, displayInverted = false }: PriceChartEmptyStateProps) {
+  const closeUsd = resolveDisplayTapeLastPriceUsd({
+    inverted: displayInverted,
+    priceUsd: pairStats?.close_price_usd,
+    price: pairStats?.close_price,
+  })
   const closeLine = closeUsd != null && closeUsd !== '' ? `24h close (USD): ${closeUsd}` : null
 
   const ariaLabel =

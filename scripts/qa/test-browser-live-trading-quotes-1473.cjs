@@ -24,6 +24,32 @@ function visit(node) {
 }
 visit(parse(source));
 const text = (node) => source.slice(node.start, node.end);
+const browserValidation = nodes.find((node) => node.type === "FunctionDeclaration" && node.id.name === "validate");
+assert.ok(browserValidation, "test must execute the actual browser quote validator");
+const integerDefinition = nodes.find((node) => node.type === "VariableDeclarator" && node.id.name === "integer");
+const decimalDefinition = nodes.find((node) => node.type === "VariableDeclarator" && node.id.name === "decimal");
+const validateQuote = new Function(`const S = 10n ** 18n, M = (1n << 128n) - 1n;
+  const ${text(integerDefinition)}, ${text(decimalDefinition)};
+  return (${text(browserValidation)});`)();
+// Reuse the independent finite-size economic example, not production arithmetic.
+const economicsSource = fs.readFileSync(path.join(__dirname, "test-live-quote-economics-1500.cjs"), "utf8");
+const economicsFixture = parse(economicsSource).program.body.find((node) => node.type === "FunctionDeclaration" && node.id.name === "fixture");
+const quoteFixture = new Function(`return (${economicsSource.slice(economicsFixture.start, economicsFixture.end)})`)();
+test("actual browser validator keeps 30-minute signing and 20-second producer admission separate", () => {
+  const f = quoteFixture();
+  f.body.execution_metadata.expires_at_ms = 1801000;
+  assert.equal(validateQuote(f.body, f.params, 60000), true);
+  assert.equal(validateQuote(f.body, f.params, 1801000), false);
+  f.body.snapshot_age_ms = 20000;
+  assert.equal(validateQuote(f.body, f.params, 60000), true);
+  for (const age of [20001, -1, true, "1000", undefined]) {
+    f.body.snapshot_age_ms = age;
+    assert.equal(validateQuote(f.body, f.params, 60000), false);
+  }
+  f.body.snapshot_age_ms = 1000;
+  f.body.execution_metadata.expires_at_ms = 1801001;
+  assert.equal(validateQuote(f.body, f.params, 60000), false);
+});
 const measurement = nodes.find((node) => node.type === "ArrowFunctionExpression" && node.params[0]?.name === "expected" && text(node).includes("window.__measurement1473"));
 assert.ok(measurement, "test must execute the production measurement closure");
 const viewportSetup = nodes.find((node) => node.type === "FunctionDeclaration" && node.id.name === "prepareMeasurementViewport");
