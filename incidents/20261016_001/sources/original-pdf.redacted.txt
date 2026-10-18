@@ -1,0 +1,187 @@
+SOURCE NARRATIVE — incomplete/superseded. This is a redacted reporter/model-supplied account, not the corrected investigation finding. Host-log and attribution assertions are unverified. REPORT.md records the later chain evidence and scope correction. Operator requests and proposed next steps are omitted.
+
+CL8Y Bot Wallets — Security Incident Report
+Oct 15, 2026 · [VICTIM_REPORTER]
+
+
+Summary
+
+Between 05:19 and 07:02 BST on 15 October 2026, transactions not sent by our trading bot were signed with the
+keys of our two CL8Y DEX bot wallets. Eight CL8Y bridge deposits moved about $13,400 (about 23,800 CL8Y plus
+$590 of stablecoins) from Terra Classic to BSC, to two EVM addresses we are treating as unauthorized.
+
+           Bridged out: about 23,800 CL8Y, 580.08 USDT and 10.18 vFDUSD (bridge nonces 152 to 159).
+           Sent elsewhere on Terra: 6.43M LUNC and 44,700 USTC went to
+           terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n, which moved them out over IBC.
+
+
+BSC, please cancel it, and flag the two destination addresses.
+
+
+[Operator response requests omitted from this factual archive.]
+Affected wallets
+
+Both wallets are bot-controlled hot wallets on Terra Classic (columbus-5). Every transaction below carries that wallet's
+own signature.
+
+ Wallet       Terra address                                      Signer public key (prefix)   Role
+
+ B (main)     terra12z8vz3vgnalt8trykd6nntdyp54e95yqsdtjj3       AwBUOxtp…                    Market making, window arb
+
+ A (arb)      terra13w2zl4cetngp5cssw0uhkkxryrxn5wqfdgrp2h       AsFgOgzK…                    Arbitrage
+
+
+Wallet B's signer key is the same one that signs the bot's normal trades, so these were signed with the real key, not a
+lookalike.
+
+
+Bridge transfers out
+
+All three went through the CL8Y bridge terra18m02l2f43c2dagqnz3kfccpgz9pzzz5hk9l5mh5wvr6dcvv47zfqdfs7la via deposit_c
+w20_mintable_burn, destination chain 0x00000038 (BSC, chain ID 56).
+
+ Nonce    Time (UTC)          From         Token    Sent                   Bridged (after fee)   BSC destination
+                              wallet
+
+ 154      2026-10-15 04:4     B            USDT     342.7105525145456      341.68242085700198    0x46b2ebf5ec9bbbca91fb826a6c13aa7c
+          3:17                                      17774                  0921                  cdb66f8d
+
+ 153      2026-10-15 04:4     B            vFDUS    10.184892              10.154338             0x377a56e0fea12d5e0632429326b5cd9e
+          3:11                             D                                                     47e10e5b
+
+ 152      2026-10-15 04:1     A            USDT     237.3660327112965      236.65393461316270    0x46b2ebf5ec9bbbca91fb826a6c13aa7c
+          9:38                                      97552                  7760                  cdb66f8d
+
+
+Terra transaction hashes
+
+         Nonce 154: FDDED73075377ADA5C102C76E53C08FBAB331EA934699CC2D2C3B42C852BF1D7
+         Nonce 153: 3A5D25F06E769EE61E2E8AC271646A8E0F9F57828102B054F2FB49F635286BAA
+         Nonce 152: E76AF7A330D76A60EC0557347724E2405B07CF1B4878140EAA722AD400A093E7
+
+Token contracts: USDT terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4 · vFDUSD terra1mnl9azefrqpm
+u888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3. The bridge fee was paid to terra1q7txczaxuvy923k4km9ya062dryk6mjwd6tm
+zm on each.
+
+
+Note: two different BSC addresses were used, and both USDT deposits went to the same one.
+
+
+Second wave (06:33 to 07:13 BST)
+
+After the first report was drafted, the same keys bridged out all the CL8Y, about 23,800 CL8Y (about $12,800),
+again to 0x46b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d. Nonce 155 was a 1-unit test transfer.
+
+ Nonce    Time (UTC)              From      Bridged CL8Y (after         Terra tx hash
+                                  wallet    fee)
+
+ 159      2026-10-15 06:01:       B         2,516.2720890365633563      4334416A150C402ED31DC435A58F8DDB2E227372FA8CE54BD7138A04
+          59                                09                          44B608B9
+
+ 158      2026-10-15 06:01:       B         8,973.0000000000000000      A418EABA2E5C50A19938791F37FD414F1416EA204C535B46B157E63D
+          29                                00                          ED9637E4
+
+ 157      2026-10-15 05:54:       A         2,446.6744148110568781      E004EEE6DBEA8DFEB0E45C9766E002F6E836F3FBA47B66086B4CC21E
+          47                                49                          52E31132
+
+ 156      2026-10-15 05:53:       A         9,870.3000000000000000      5AAF95217E21E94BC7089750EA00EE5AC32E0E39D1F22AC95E61EB5A
+          41                                00                          39C18824
+
+ 155      2026-10-15 05:47:       A         1 wei (test)                B350B9AE464FA22EED2E17A743C177E72B0BF658F859DE5654D0BA9C
+          46                                                            FE3472F6
+
+
+CL8Y token: terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3.
+
+Native LUNC and USTC sent to a third Terra address, terra1gvahgertm8d3ghjmw3ygw958ja99dlyvycm28n:
+
+         05:33:23 UTC, wallet B unwrapped its last 1,029,567.26 cLUNC (A79920E3A17A8EAF78F9B5959BE8CCD57832E23AAE86BC6
+         CA7C6E58C7CED062B).
+         05:35:27 UTC, wallet A sent 44,700 USTC (88D1A861F775079ED7DEACD31028EB5B2B25E2FF6DCD9E8EE7E9554D70C4D9DB).
+         05:35:45 UTC, wallet A sent 1,270,000 LUNC (D9BE15AE716C1977F822CBA2C5947C181AFAFF25FEE2DE4A586D96453E475FE2).
+         05:36:03 UTC, wallet B sent 5,160,000 LUNC (2C5F233DA80C42B0A1614F3B9A6BBE1E3083E4EE73452F955DDCEB109BAF4BC4).
+         06:02:46 UTC, terra1gvahg… moved the funds out with an IBC transfer carrying a wasm memo (58EBD8FD50CB9906D
+         E6C90F05C08FCF72B6175316D4A9DCEC8AC22E1740488DA).
+
+
+Timeline: first wave (05:19 to 06:32 BST)
+
+Ten transactions over 73 minutes, all successful (code 0). Times are UTC; add one hour for BST. Only the three bridge
+deposits sent value off our wallets; everything else returned its proceeds to the signing wallet.
+
+ Time       Wallet   Action      Detail                                                            Tx hash
+ (UTC)
+
+ 05:32:30   A        Unwrap      500,780.517182 cLUNC unwrapped; LUNC paid back to wallet A        16B4C16E1417B180C1389459BC9D9C8
+                                                                                                   6E5E63CE98AC5DCCA946CF5282C8110
+                                                                                                   B7
+
+ 05:00:58   B        Unwrap      1,460,082.990597 cLUNC unwrapped; 1,452,636.57 LUNC paid back t   9BAB7E8323A12DDB6F59274C54D05E3
+                                 o wallet B                                                        FA08926CCA7D2F7481CE90D55826E87
+                                                                                                   DB
+
+ 05:00:53   B        LP withdr   Pair terra1q5karg99p5hc0jvplgn2fd8akg39r4ss00cu5rwkm600y          E0C7D739846CDC1A2482C40227242D1
+                     awal        qvmssgqhwqvq0; 122.51 CL8Y + 1,460,082.99 cLUNC returned to wal   11BAD7177E9D7E63C500213266D9BA6
+                                 let B                                                             40
+
+ 04:57:14   B        Swap        20,147.874702 cUSTC → 116.11 UST1                                 CEDC3D29AAB84E9FBE6FA98587FAC54
+                                                                                                   A93E677650956AEEBB2884DFB45D875
+                                                                                                   C9
+
+ 04:53:47   B        Swap        160,768.83 USTR → UST1 → cUSTC → 382.66 CL8Y                      D2BE2D3C1BC5FF82C229FF8E266AA8D
+                                                                                                   E5F82D2F124AAF56126A216AB8D1714
+                                                                                                   35
+
+ 04:53:04   B        Swap        1,118.266797 UST1 → cUSTC → 1,018.67 CL8Y                         4898566E7A3D6CC3245A49E3D0040BC
+                                                                                                   7D3979E149F58BDFC9D8596438407D5
+                                                                                                   78
+
+ 04:48:39   B        LP withdr   UST1/USTR pair terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaf          9151D132145AF854941657BC2997DB9
+                     awal        f4s7hz4n0ea74006qf5hgqy; 3.07 UST1 + 469.27 USTR returned         54AC019CD84C787CC2DA485EF214E8F
+                                                                                                   46
+
+ 04:43:17   B        Bridge o    342.71 USDT → BSC 0x46b2…6f8d (nonce 154)                         FDDED73075377ADA5C102C76E53C08F
+                     ut                                                                            BAB331EA934699CC2D2C3B42C852BF1
+                                                                                                   D7
+
+ 04:43:11   B        Bridge o    10.18 vFDUSD → BSC 0x377a…0e5b (nonce 153)                        3A5D25F06E769EE61E2E8AC271646A8
+                     ut                                                                            E0F9F57828102B054F2FB49F635286B
+                                                                                                   AA
+
+ 04:19:38   A        Bridge o    237.37 USDT → BSC 0x46b2…6f8d (nonce 152)                         E76AF7A330D76A60EC0557347724E24
+                     ut                                                                            05B07CF1B4878140EAA722AD400A093
+                                                                                                   E7
+
+
+All swaps routed through router terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw. A further swap
+from wallet A at 05:04:02 UTC (36.53 UST1, tx 27799A1B220324ACA0750818CA144E9E0203E907690799A3835B01E908F18618) was
+logged by our arb bot as its own trade and is not counted here.
+
+
+What we found
+
+The transactions were signed with our keys but not by our bot, and not from any machine we run. We are treating
+the wallet seed as compromised.
+
+         Not the bot. None of the ten appear in the bot's own action log, and the bot's code has no bridge call at all.
+         Not our trading server. No SSH login reached it during the 04:19–05:01 UTC window. Only routine scheduled
+         jobs (monitoring and alerts) ran, and none of them signs transactions. No unknown process or recently
+         changed script was found.
+
+       Not our monitoring server. It holds no wallet key, and had no logins in the window.
+       Operator's PC: no sign of use so far. When checked after the incident, no bot or unknown process was
+       running and no suspicious startup entries were present. A full scan is still to do.
+       Pattern: illiquid positions (LP shares, USTR, UST1, cUSTC, cLUNC) were converted into CL8Y and LUNC inside
+       the wallets, while the stablecoins were bridged out first. The CL8Y was then bridged out too, in the second
+       wave.
+
+Open question: where the seed was exposed. We are auditing every place it has been stored.
+
+
+Reported actions
+
+Done (15 October, from 06:35 BST)
+
+       Stopped and disabled all trading bots on our server, so they cannot restart on reboot.
+       Paused every scheduled job that touches the wallets, and the automated review agents.
+       Traced all transactions from both wallets since 14 October 16:00 UTC (this report).

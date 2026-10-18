@@ -1,0 +1,22 @@
+[
+  {
+    "address": "terra1pc7dvcucrl9sr4r2nhr2rv3ywhthskqqtvtvaerx9cff7l8gesdskjgmn6",
+    "contract_info": {
+      "code_id": "11715",
+      "creator": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+      "label": "JADE-ONYX cl8ydex lp",
+      "created": {
+        "block_height": "29458649",
+        "tx_index": "123634"
+      },
+      "ibc_port_id": "",
+      "extension": null,
+      "ibc2_port_id": "wasm21pc7dvcucrl9sr4r2nhr2rv3ywhthskqqtvtvaerx9cff7l8gesdskjgmn6"
+    }
+  },
+  {
+    "Date": "Thu, 15 Oct 2026 08:45:27 GMT",
+    "Content-Type": "application/json"
+  }
+]

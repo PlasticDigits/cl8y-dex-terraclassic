@@ -1,0 +1,40 @@
+{
+  "reviewed_at_utc": "2026-10-15T09:08:17.545969+00:00",
+  "native": {
+    "outgoing_nonces": [48, 49, 50, 51, 52, 53, 54, 55],
+    "outer_value_sum_wei": 0,
+    "gas_paid_wei": 119385941910000,
+    "observed_balance_decrease_wei": 119385941910000,
+    "equality_verified": true,
+    "unexplained_net_native_flow_wei": 0
+  },
+  "approval": {
+    "account_label": "HACKER_A",
+    "token": "CL8Y",
+    "tx_hash": "0xb9086ae2acaf5ce4ac47cece5dae1594d0c99a63cc2f6064774cbf4d9519245f",
+    "amount_raw": "1000000000000000000000",
+    "amount_display": "1000",
+    "spender": "0x84d88856a62ce42165d3f196124d5bd50f17c2bb",
+    "status": 1,
+    "finding": "Successful allowance grant; not itself a transfer, swap, sale or proof of spender identity/intent."
+  },
+  "osmosis": {
+    "tx_hash": "3A389144932AA7104C1081E1ED30497EC2B5C027A8FBC0294C6108E94A1A0087",
+    "input_ustc_raw": 44029500000,
+    "routing_fee_ustc_raw": 44029500,
+    "pool562_input_ustc_raw": 43985470500,
+    "pool562_output_lunc_raw": 4353371354935,
+    "affiliate_fee_lunc_raw": [22165299087, 6999568133],
+    "returned_lunc_raw": 4324206487715,
+    "input_and_output_reconciliation_verified": true,
+    "affiliate_reference_minimum_lunc_raw": 3888648962795,
+    "affiliate_fee_calculation": "floor(source_memo_minimum_output*57/10000), floor(source_memo_minimum_output*18/10000)",
+    "unrelated_module_backrun": "Separate protorev_backrun 2000 OSMO input /2066.635398 OSMO output; exclude from hacker route proceeds.",
+    "caveat": "Fee recipient ownership is not established by transfers or memo affiliation; do not call protocol/affiliate payments additional attacker profits."
+  },
+  "sources": [
+    "trace_outer_transactions.json",
+    "reviewer_bsc_archive_balances_nonces.json",
+    "osmosis_search_osmosis-rest.publicnode.com.json"
+  ]
+}

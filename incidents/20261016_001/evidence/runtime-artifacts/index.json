@@ -1,0 +1,430 @@
+{
+  "retrieved_for_archive_utc": "2026-10-15T11:46:15.590218+00:00",
+  "temporal_limit": "Runtime capture occurred during archive preparation after the incident. Terra code IDs are immutable checksum references. EVM bytes describe the pinned archive-time block at previously recorded proxy/implementation addresses, not a newly proven incident-time code snapshot.",
+  "artifacts": [
+    {
+      "chain": "columbus-5",
+      "code_id": 10184,
+      "retrieved_utc": "2026-10-15T11:45:54.534731+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/10184",
+      "code_info": {
+        "code_id": "10184",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "C77FFCDB0039041FBD071C76EFB547232314CE8CCF219C3BF5B7FABD4CF7D4A4",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "uncompressed_bytes": 343866,
+      "artifact": "terra-code-10184.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11568,
+      "retrieved_utc": "2026-10-15T11:45:54.535464+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11568",
+      "code_info": {
+        "code_id": "11568",
+        "creator": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "data_hash": "C45A910E1CACD666BFB7B2AAC57B573B405D0C8B23BCAF83E66D971C90A6750E",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "c45a910e1cacd666bfb7b2aac57b573b405d0c8b23bcaf83e66d971c90a6750e",
+      "uncompressed_bytes": 166198,
+      "artifact": "terra-code-11568.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11574,
+      "retrieved_utc": "2026-10-15T11:45:54.535898+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11574",
+      "code_info": {
+        "code_id": "11574",
+        "creator": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "data_hash": "A9BF140F8502D4D44A487D859C76DA99749659F78AF17DAABDFAC814BB160234",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "a9bf140f8502d4d44a487d859c76da99749659f78af17daabdfac814bb160234",
+      "uncompressed_bytes": 273460,
+      "artifact": "terra-code-11574.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11581,
+      "retrieved_utc": "2026-10-15T11:45:55.723209+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11581",
+      "code_info": {
+        "code_id": "11581",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "5DBADE9266D9112F28B09F72D5A8A1377CE17CAAC1EA2470A407D15C66616C8E",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "5dbade9266d9112f28b09f72d5a8a1377ce17caac1ea2470a407d15c66616c8e",
+      "uncompressed_bytes": 258743,
+      "artifact": "terra-code-11581.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11618,
+      "retrieved_utc": "2026-10-15T11:45:55.870730+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11618",
+      "code_info": {
+        "code_id": "11618",
+        "creator": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "data_hash": "39D7DCCA85CF1DDB7C9B3CF4B1A68D5C5753564E920851610E2BFA1A460CE509",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "39d7dcca85cf1ddb7c9b3cf4b1a68d5c5753564e920851610e2bfa1a460ce509",
+      "uncompressed_bytes": 235588,
+      "artifact": "terra-code-11618.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11648,
+      "retrieved_utc": "2026-10-15T11:45:55.888124+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11648",
+      "code_info": {
+        "code_id": "11648",
+        "creator": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "data_hash": "D553D89A85FFB927AEC009FB862E12EBC3513D82F1869044489B1270B5D01005",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "d553d89a85ffb927aec009fb862e12ebc3513d82f1869044489b1270b5d01005",
+      "uncompressed_bytes": 732277,
+      "artifact": "terra-code-11648.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11667,
+      "retrieved_utc": "2026-10-15T11:45:56.890042+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11667",
+      "code_info": {
+        "code_id": "11667",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "C91720E640C0C4DE4A87CE48D85472B8DC421104D35DAE1DB1D020B8D37A9EA0",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "c91720e640c0c4de4a87ce48d85472b8dc421104d35dae1db1d020b8d37a9ea0",
+      "uncompressed_bytes": 354963,
+      "artifact": "terra-code-11667.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11711,
+      "retrieved_utc": "2026-10-15T11:45:56.894780+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11711",
+      "code_info": {
+        "code_id": "11711",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "849400A805D90976B93260AC23107887AE36B5A40127BC6B489BB2D12151EDE9",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9",
+      "uncompressed_bytes": 441400,
+      "artifact": "terra-code-11711.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11712,
+      "retrieved_utc": "2026-10-15T11:45:57.237857+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11712",
+      "code_info": {
+        "code_id": "11712",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "FCB38D8532C94F97905CF03A86E323F87A468BE365E627BE16E89335F5F739CB",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb",
+      "uncompressed_bytes": 409961,
+      "artifact": "terra-code-11712.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain": "columbus-5",
+      "code_id": 11715,
+      "retrieved_utc": "2026-10-15T11:45:57.971994+00:00",
+      "source_url": "https://lcd.terra-classic.hexxagon.io/cosmwasm/wasm/v1/code/11715",
+      "code_info": {
+        "code_id": "11715",
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "data_hash": "52A38C009561C180A11388799190CEA282DE0BB70B2FF1F03D6B5DC7C183C881",
+        "instantiate_permission": {
+          "permission": "Everybody",
+          "addresses": []
+        }
+      },
+      "uncompressed_sha256": "52a38c009561c180a11388799190cea282de0bb70b2ff1f03d6b5dc7c183c881",
+      "uncompressed_bytes": 648646,
+      "artifact": "terra-code-11715.wasm.gz",
+      "compression": "gzip, mtime0",
+      "capture_status": "checksum verified"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x0a1a4bd354983dbc7f487237cd1b408cd0003ebc",
+      "role": "mintburn_proxy",
+      "retrieved_utc": "2026-10-15T11:46:02.726361+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 76,
+      "runtime_sha256": "257725b3197c327ba0c61bc82c91d399b51be675971f186578c13e6b55cb0714",
+      "artifact": "bsc-0x0a1a4bd354983dbc7f487237cd1b408cd0003ebc.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6",
+      "role": "bridge_implementation",
+      "retrieved_utc": "2026-10-15T11:46:03.601914+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 18463,
+      "runtime_sha256": "64c2e5de632d24b42c7747d7ba311afb0ae267311c98c6d660799f85750213ea",
+      "artifact": "bsc-0x102a87e067aa4c6cc20d06207fb64e4a1a6cdbe6.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x12fedd29e71f66157e985aa1aaae434253e39a22",
+      "role": "bridge_guard",
+      "retrieved_utc": "2026-10-15T11:46:04.448564+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3844,
+      "runtime_sha256": "7bb2ee805846b1fb45440ec4d5bc8097f10f7078f0e4823ac292d53dcd320c2f",
+      "artifact": "bsc-0x12fedd29e71f66157e985aa1aaae434253e39a22.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x2e5d36c46680a38e7ae156fc9d109084c58c688e",
+      "role": "chain_registry_proxy",
+      "retrieved_utc": "2026-10-15T11:46:05.298398+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 76,
+      "runtime_sha256": "257725b3197c327ba0c61bc82c91d399b51be675971f186578c13e6b55cb0714",
+      "artifact": "bsc-0x2e5d36c46680a38e7ae156fc9d109084c58c688e.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x3009e9de998e62d75f8342109270c9f919f3a885",
+      "role": "cl8y_sender_blacklist",
+      "retrieved_utc": "2026-10-15T11:46:06.146817+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3495,
+      "runtime_sha256": "98d5d5d6e88cb13110e8cc17ce17871dcbcf85816ebe09b6c9c27a6c251ccfc9",
+      "artifact": "bsc-0x3009e9de998e62d75f8342109270c9f919f3a885.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x3d8820ec93748fd4df8eee6b763834a23938b207",
+      "role": "token_registry_proxy",
+      "retrieved_utc": "2026-10-15T11:46:07.002707+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 76,
+      "runtime_sha256": "257725b3197c327ba0c61bc82c91d399b51be675971f186578c13e6b55cb0714",
+      "artifact": "bsc-0x3d8820ec93748fd4df8eee6b763834a23938b207.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x417580df7ee35ffa6286255b55b456c992657fb9",
+      "role": "cl8y_guard",
+      "retrieved_utc": "2026-10-15T11:46:07.855397+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 9707,
+      "runtime_sha256": "152b8594d2d44708f24809c967de4fb1196abfbe92cd454b55714b5cef32844a",
+      "artifact": "bsc-0x417580df7ee35ffa6286255b55b456c992657fb9.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x513375eb5be203ad4ba442cc02c4f36d89932659",
+      "role": "cl8y_receiver_blacklist",
+      "retrieved_utc": "2026-10-15T11:46:08.704220+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3495,
+      "runtime_sha256": "879b4eb7cda6c392e92da5577fc791ba9a6e215bfe69daa104b3670833c35e32",
+      "artifact": "bsc-0x513375eb5be203ad4ba442cc02c4f36d89932659.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x54d67c0ec4cfe1d9eb945b35d1ebcc25c6abd2c9",
+      "role": "mintburn_implementation",
+      "retrieved_utc": "2026-10-15T11:46:09.556958+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3342,
+      "runtime_sha256": "417a97badcae7e4b88f7058ec2812180893b264ad05b5e7105ed8096fcec0523",
+      "artifact": "bsc-0x54d67c0ec4cfe1d9eb945b35d1ebcc25c6abd2c9.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x6b1aa0653d99d5dec84db4a0283efb41be826993",
+      "role": "registry_implementation",
+      "retrieved_utc": "2026-10-15T11:46:10.408224+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 4029,
+      "runtime_sha256": "509d1acdefc5b6247ad0315066f7503de4e157c683291e317994a8c4146a7c16",
+      "artifact": "bsc-0x6b1aa0653d99d5dec84db4a0283efb41be826993.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x734d6d554a3f7762d0dbc5538cba8ae9e01338f7",
+      "role": "tokens_implementation",
+      "retrieved_utc": "2026-10-15T11:46:11.260154+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 9262,
+      "runtime_sha256": "8042b306b62d181a617d859caf3f9c3173c3bb836cdffaa87d4115f35b66d56b",
+      "artifact": "bsc-0x734d6d554a3f7762d0dbc5538cba8ae9e01338f7.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+      "role": "cl8y_token",
+      "retrieved_utc": "2026-10-15T11:46:12.112852+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3938,
+      "runtime_sha256": "0531b53bd1e8be383c11221562d979d5ad9d41d68d5c6e9104ed72f58a04659e",
+      "artifact": "bsc-0x8f452a1fdd388a45e1080992eff051b4dd9048d2.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0xb2a22c74da8e3642e0effc107d3ac362ce885369",
+      "role": "bridge_proxy",
+      "retrieved_utc": "2026-10-15T11:46:12.987256+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 76,
+      "runtime_sha256": "257725b3197c327ba0c61bc82c91d399b51be675971f186578c13e6b55cb0714",
+      "artifact": "bsc-0xb2a22c74da8e3642e0effc107d3ac362ce885369.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0xb43c56d9920ea8ff1f7ea4b86261f6d59df04f66",
+      "role": "lockunlock_implementation",
+      "retrieved_utc": "2026-10-15T11:46:13.844407+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 3221,
+      "runtime_sha256": "84a53983971d5e72fdf4b36bfa5ffac7f26e6c27343eef9bc9795b20c29b8230",
+      "artifact": "bsc-0xb43c56d9920ea8ff1f7ea4b86261f6d59df04f66.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0xd72b2fe3012a2896aef7e3ca561ad11b1542a88c",
+      "role": "bridge_rate_limit",
+      "retrieved_utc": "2026-10-15T11:46:14.718782+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 2777,
+      "runtime_sha256": "5a35a0dc68ed856f157904846e368ed011cbe26bcbc0c782889976cfa8742286",
+      "artifact": "bsc-0xd72b2fe3012a2896aef7e3ca561ad11b1542a88c.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    },
+    {
+      "chain_id": 56,
+      "address": "0xd7b3bf05987052009c350874e810df98da95d258",
+      "role": "lockunlock_proxy",
+      "retrieved_utc": "2026-10-15T11:46:15.590162+00:00",
+      "source_rpc": "https://bsc.rpc.blxrbdn.com",
+      "queried_block": "0x79dc860",
+      "queried_block_hash": "0x7a5385ad2ed31f49bd2367a6d2fc89f04fe8e5b814e8029a776a2188c3768078",
+      "block_timestamp": 1792064760,
+      "runtime_bytes": 76,
+      "runtime_sha256": "257725b3197c327ba0c61bc82c91d399b51be675971f186578c13e6b55cb0714",
+      "artifact": "bsc-0xd7b3bf05987052009c350874e810df98da95d258.hex",
+      "capture_status": "runtime bytes captured; not an execution proof"
+    }
+  ]
+}

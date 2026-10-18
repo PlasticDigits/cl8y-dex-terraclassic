@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "10184",
+      "updated": {
+        "block_height": "29849146",
+        "tx_index": "9660938"
+      },
+      "msg": {
+        "name": "Wrapped LUNC",
+        "symbol": "cLUNC",
+        "decimals": 6,
+        "initial_balances": [],
+        "mint": {
+          "minter": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+          "cap": null
+        },
+        "marketing": null
+      }
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "collected_at_utc": "2026-10-18T07:41:54.559281+00:00",
+  "url": "https://terra-classic-lcd.publicnode.com/cosmos/tx/v1beta1/txs?query=wasm._contract_address%3D%27terra1sc8tz0delrw32f58nhaxqj4k2gar9thnhlwpzx%27+AND+wasm.token_id%3D%271509%27&order_by=ORDER_BY_DESC&pagination.limit=10",
+  "request": null,
+  "request_headers": {},
+  "http_status": 200,
+  "response_headers": {
+    "date": "Sun, 18 Oct 2026 07:41:54 GMT",
+    "content-type": "application/json",
+    "grpc-metadata-x-cosmos-block-height": "30889465",
+    "x-cosmos-block-height": "30889465"
+  },
+  "response": {
+    "total": "1",
+    "pagination": null,
+    "tx_responses": [
+      {
+        "height": "30870523",
+        "txhash": "8BAF1EBFEADE35117F21DD53610718A3BD8FB8B4B3D88E558D3F1BAE543C21C6",
+        "code": 0,
+        "timestamp": "2026-10-17T00:27:56Z"
+      }
+    ]
+  },
+  "source_response_canonical_json_sha256": "3966375f9f977666a21d0bd5eac544f8313299cf610d454f8b37febc43b011d4",
+  "transformation": "Selected count, pagination and transaction identity/result/timestamp extracted; full transactions and events omitted. Source digest hashes canonical JSON (sorted keys, compact separators), not HTTP bytes."
+}

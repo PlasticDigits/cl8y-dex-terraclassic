@@ -1,0 +1,190 @@
+{
+  "block": {
+    "collected_at_utc": "2026-10-18T07:42:46.928054+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getBlockByNumber",
+      "params": [
+        "latest",
+        false
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "withdrawalsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+        "withdrawals": [],
+        "hash": "0x79f40ae9df3b9bd758eefb85d4d18b46c726d6efadff3202956804e0ef87a00c",
+        "parentHash": "0x09385e9138d61b75a9f452c04cd45e2a9192bb5502e0a30d2b30f788152b23ef",
+        "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+        "miner": "0xb4647b856cb9c3856d559c885bed8b43e0846a47",
+        "stateRoot": "0x8cd7b4e688263b8acf5c05b6b6b20eb3228e73a9bb7dae990754d02ff8a913c3",
+        "transactionsRoot": "0x72242e525fcd844349c43901f91e510dd0e978f14bb4415d3e463478bc1d2db2",
+        "receiptsRoot": "0x165a353bdd346b140abcf1ea3aafe7184c8c11fd26ece8f2e4bdf0f0cfb71402",
+        "logsBloom": "0x08ad9288885b54313aa35144920600053848002a1034640001828216e42cd0a78446390718028004e38d5bc0ae132888c385d8f0267ba34a779e28904227ee90e630ae1556e003282f00857ba48144eaa6b76845534501e21b660175c11bdb380c985b2a921a01011609080306059f46ba2180412c06861410e1545c801c021483492bf74f5ea6d889ec0c10841333a641f7c5439022968a61264958e50616a8c33d070f8181347f4bb5d3f20ba4c11b2221d0c047c811c5e006f426160ad52500cc051b136ba62fc3e73c09205a9863281402e6ae78059d7851d98a4820ec03d9506a9506264206857a8a35840d414a844a82992272027bd1e40a0c82e9e196",
+        "difficulty": "0x2",
+        "number": "0x7a6128b",
+        "gasLimit": "0x42c1d80",
+        "gasUsed": "0x1383578",
+        "timestamp": "0x6ad47876",
+        "extraData": "0xdb8301070888636462373534386289676f312e32352e3132836c696ed38cc282f8b5831dffffb8608fafdca23d9f3eeb7e480145aaaaf6bee293a9d63f238c7c6835dc202845e49de3cdfaf5b70dcf70bdc23e4c92cbee3106d9583bf94e8f09397151dee03073e8aa5ffe05a0f4c4a4dc189dd1fd9d003a23827ecedc9e9500b764caa20a5c854ff84c8407a61289a07cdca0fae6e48dcde760263adacdf09905f6bb6b1a20922752d7291cdd3decc08407a6128aa009385e9138d61b75a9f452c04cd45e2a9192bb5502e0a30d2b30f788152b23ef803dbed6db28e2f1d06ee8b56ac1f1febd5e57ac044eb9393272b6129b4e38c44c2d0ddabd0e48ab530256d03aed1883d27260e09f13e0d639c30586c855e509fc01",
+        "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000258",
+        "nonce": "0x0000000000000000",
+        "size": "0x1451e",
+        "totalDifficulty": "0xf43350f",
+        "baseFeePerGas": "0x0",
+        "uncles": [],
+        "blobGasUsed": "0x0",
+        "excessBlobGas": "0x0",
+        "parentBeaconBlockRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "requestsHash": "0x00000000000000000000000248b4bbebf0655557a461e91b8905b85864b8bb48",
+        "milliTimestamp": "0x1a14df68f48"
+      }
+    },
+    "transformation": "Unrelated block transaction hashes omitted."
+  },
+  "recovery_cl8y": {
+    "collected_at_utc": "2026-10-18T07:42:47.094885+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_call",
+      "params": [
+        {
+          "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+          "data": "0x70a0823100000000000000000000000021ddb4bcb5f00430cb39d5fea2d382bbeaa076ba"
+        },
+        "0x7a6128b"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x000000000000000000000000000000000000000000000563c872efe1f1a0cb85"
+    }
+  },
+  "attacker_cl8y": {
+    "collected_at_utc": "2026-10-18T07:42:47.236869+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_call",
+      "params": [
+        {
+          "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+          "data": "0x70a0823100000000000000000000000046b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d"
+        },
+        "0x7a6128b"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x000000000000000000000000000000000000000000000563c872efe1f1a0cb85"
+    }
+  },
+  "reserve_cl8y": {
+    "collected_at_utc": "2026-10-18T07:42:47.381025+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_call",
+      "params": [
+        {
+          "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+          "data": "0x70a08231000000000000000000000000fac4c56258941d445afda6bb2fa87b493a65b8a1"
+        },
+        "0x7a6128b"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x000000000000000000000000000000000000000000000030d7a11671c4a3ceff"
+    }
+  },
+  "recovery_vfdusd": {
+    "collected_at_utc": "2026-10-18T07:42:47.531282+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_call",
+      "params": [
+        {
+          "to": "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+          "data": "0x70a0823100000000000000000000000021ddb4bcb5f00430cb39d5fea2d382bbeaa076ba"
+        },
+        "0x7a6128b"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x000000000000000000000000000000000000000000000000000000003c864a48"
+    }
+  },
+  "attacker_sender_blacklisted": {
+    "collected_at_utc": "2026-10-18T07:42:47.677030+00:00",
+    "url": "https://bsc-dataseed1.binance.org",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_call",
+      "params": [
+        {
+          "to": "0x3009e9de998e62d75f8342109270c9f919f3a885",
+          "data": "0xfe575a8700000000000000000000000046b2ebf5ec9bbbca91fb826a6c13aa7ccdb66f8d"
+        },
+        "0x7a6128b"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:42:47 GMT",
+      "content-type": "application/json; charset=utf-8"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x0000000000000000000000000000000000000000000000000000000000000001"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "eth_getTransactionByHash": {
+    "collected_at_utc": "2026-10-18T07:41:52.775004+00:00",
+    "url": "https://bsc-rpc.publicnode.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionByHash",
+      "params": [
+        "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f"
+      ]
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:52 GMT",
+      "content-type": "application/json"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "type": "0x0",
+        "chainId": "0x38",
+        "nonce": "0x1b0",
+        "gasPrice": "0x3938700",
+        "gas": "0x2c5d7",
+        "to": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+        "value": "0x0",
+        "input": "0xa9059cbb00000000000000000000000021ddb4bcb5f00430cb39d5fea2d382bbeaa076ba000000000000000000000000000000000000000000000563c872efe1f1a0cb85",
+        "r": "0x67299745d62345a236e7a53e113241396778fa8baade63d0d7facd4a4880c2e",
+        "s": "0x626cdca407a9a7e7d8aa49dad7e2f8dc678ad3e6c54dc7399f18f061cc350c5b",
+        "v": "0x94",
+        "hash": "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f",
+        "blockHash": "0x5eedf47f1fcf37d3690aea5ca6de7e5190e9f9a38e6ce06ea962f1b4d471b58d",
+        "blockNumber": "0x7a61060",
+        "transactionIndex": "0x3f",
+        "from": "0xfac4c56258941d445afda6bb2fa87b493a65b8a1",
+        "blockTimestamp": "0x6ad4777c"
+      }
+    }
+  },
+  "eth_getTransactionReceipt": {
+    "collected_at_utc": "2026-10-18T07:41:52.909519+00:00",
+    "url": "https://bsc-rpc.publicnode.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_getTransactionReceipt",
+      "params": [
+        "0xafc19e32c247c95f018f52b6379470a9592fbdf11290af2ec8d78676a62fbf3f"
+      ]
+    },
+    "request_headers": {},
+    "error": "HTTP Error 403: Forbidden"
+  },
+  "chain_id": {
+    "collected_at_utc": "2026-10-18T07:41:53.019883+00:00",
+    "url": "https://bsc-rpc.publicnode.com",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "eth_chainId",
+      "params": []
+    },
+    "request_headers": {},
+    "http_status": 200,
+    "response_headers": {
+      "date": "Sun, 18 Oct 2026 07:41:53 GMT",
+      "content-type": "application/json"
+    },
+    "response": {
+      "jsonrpc": "2.0",
+      "result": "0x38",
+      "id": 1
+    }
+  }
+}

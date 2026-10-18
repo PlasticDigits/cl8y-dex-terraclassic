@@ -1,0 +1,18 @@
+{
+  "data": {
+    "asset_infos": [
+      {
+        "token": {
+          "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+        }
+      },
+      {
+        "token": {
+          "contract_addr": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
+        }
+      }
+    ],
+    "contract_addr": "terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy",
+    "liquidity_token": "terra1ak8w9k34ex237h9pmquxqjevhzvflqaatuaj9pr8ym287n7atj6qw2ty4p"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "address": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+  "contract_info": {
+    "code_id": "11712",
+    "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+    "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "label": "cl8y-dex-router",
+    "created": {
+      "block_height": "29458431",
+      "tx_index": "10896423"
+    },
+    "ibc_port_id": "",
+    "extension": null,
+    "ibc2_port_id": "wasm21e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw"
+  }
+}

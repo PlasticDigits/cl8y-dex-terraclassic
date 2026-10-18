@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_INIT",
+      "code_id": "11565",
+      "updated": {
+        "block_height": "29849144",
+        "tx_index": "2798765"
+      },
+      "msg": {
+        "governance": "terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l",
+        "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+        "fee_bps": 100
+      }
+    },
+    {
+      "operation": "CONTRACT_CODE_HISTORY_OPERATION_TYPE_MIGRATE",
+      "code_id": "11574",
+      "updated": {
+        "block_height": "29958809",
+        "tx_index": "0"
+      },
+      "msg": {}
+    }
+  ],
+  "pagination": {
+    "next_key": null,
+    "total": "0"
+  }
+}
