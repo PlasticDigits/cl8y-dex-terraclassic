@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerRouteValidationError, isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { currentIndicativeAmount, parseRouteQuoteError, ROUTE_QUOTE_REASONS } from './routeQuoteErrors'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 
 const now = 1_800_000_000_000
 const priceOnly = {
@@ -60,10 +61,10 @@ describe('public quote reason boundary (#1473)', () => {
     { error: 'insufficient_liquidity' },
     { execution_supported: true },
     { expires_at_ms: now },
-    { expires_at_ms: now + 20_001 },
+    { expires_at_ms: now + LOCAL_QUOTE_SIGNING_WINDOW_MS + 1 },
     { observed_at_ms: now + 1 },
     { observed_at_ms: -1 },
-    { observed_at_ms: now - 20_000 },
+    { observed_at_ms: now - LOCAL_QUOTE_SIGNING_WINDOW_MS },
     { generation: undefined },
     { generation: 'private.example/actor' },
   ])('drops unsafe indicative provenance %j', (changes) => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { localQuote } from '@/test/localRouteFixtures'
 import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
 import { routeEconomicExplanation, UNAVAILABLE_ECONOMIC_EXPLANATION } from './routeEconomicExplanation'
+import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 
 function fixture() {
   const quote = localQuote()
@@ -60,7 +61,8 @@ describe('bounded advisory economic explanation #1483', () => {
     if (kind === 'net_mismatch') q.estimated_amount_out_net = '1'
     else if (kind === 'expired') a.expires_at_ms = metadata.expires_at_ms = Date.now() - 1
     else if (kind === 'future') a.observed_at_ms = metadata.observed_at_ms = Date.now() + 1000
-    else if (kind === 'extended') a.expires_at_ms = metadata.expires_at_ms = Date.now() + 20001
+    else if (kind === 'extended')
+      a.expires_at_ms = metadata.expires_at_ms = metadata.observed_at_ms + LOCAL_QUOTE_SIGNING_WINDOW_MS + 1
     else a.observed_at_ms = metadata.observed_at_ms = Number.MAX_SAFE_INTEGER + 1
     expect(routeEconomicExplanation(q)).toBe(UNAVAILABLE_ECONOMIC_EXPLANATION)
   })
