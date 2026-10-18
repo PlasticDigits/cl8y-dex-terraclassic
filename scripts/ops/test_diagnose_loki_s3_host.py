@@ -97,6 +97,18 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(result["status"], "FAIL")
         self.assertEqual(result["canonical_source_attestation"], "FAIL")
 
+    def test_known_canonical_source_overrides_stdin_recreation_metadata(self):
+        self.loki["Config"]["Labels"] = {"com.docker.compose.project.config_files": "-"}
+        result = self.invoke()
+        self.assertEqual(result["status"], "PASS")
+        current, data = self.helper.sources.call_args.args
+        self.assertIs(current, self.loki)
+        self.assertEqual(current["Config"]["Labels"]["com.docker.compose.project.config_files"], "-")
+        self.assertEqual(data["source_file"], "compose.yaml")
+        self.assertEqual(data["workdir"], "/data/coolify/applications/" + self.helper.APP)
+        self.assertEqual(result["canonical_source_file"], "compose.yaml")
+        self.assertIsNone(m.closed_report({**result, "canonical_source_file": "arbitrary.yaml"}))
+
     def test_wrong_worker_identity_blocks_all_loki_reads(self):
         self.own["Config"]["Labels"]["com.docker.compose.project"] = "another"
         result = self.invoke()

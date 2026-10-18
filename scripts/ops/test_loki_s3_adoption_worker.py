@@ -26,6 +26,7 @@ def values(mode="adopt"):
 def container():
     return {"Id": "a" * 64, "State": {"Running": True},
             "Config": {"Env": [k + "=" + v for k, v in values().items()],
+                       "Image": "cl8y-loki-s3-adoption:0123456789abcdef",
                        "Labels": {"coolify.managed": "true", "coolify.serviceUuid": values()["LOKI_S3_JOB_UUID"],
                                   "coolify.type": "service", "coolify.service.subName": "maintenance",
                                   "com.docker.compose.project": values()["LOKI_S3_JOB_UUID"],
@@ -33,7 +34,7 @@ def container():
             "HostConfig": {"RestartPolicy": {"Name": "no", "MaximumRetryCount": 0}, "CapDrop": ["ALL"]},
             "Mounts": [{"Type": "bind", "Source": "/var/run/docker.sock", "Destination": "/var/run/docker.sock", "RW": True},
                        {"Type": "bind", "Source": m.APPDIR, "Destination": m.APPDIR, "RW": False},
-                       {"Type": "volume", "Name": "private-worker-state", "Destination": "/state", "RW": True}],
+                       {"Type": "volume", "Name": "dex-loki-s3-0123456789abcdef", "Destination": "/state", "RW": True}],
             "NetworkSettings": {"Networks": {"platform": {}}}}
 
 
@@ -84,7 +85,7 @@ class BoundaryTests(unittest.TestCase):
             m.self_identity(own, values(), "a" * 12)
 
     def test_isolation_rejects_restart_privilege_ports_extra_mounts_and_writable_appdir(self):
-        self.assertEqual(m.isolation(container()), "private-worker-state")
+        self.assertEqual(m.isolation(container()), "dex-loki-s3-0123456789abcdef")
         for field, value in (("Privileged", True), ("CapAdd", ["SYS_ADMIN"]),
                              ("RestartPolicy", {"Name": "always"}), ("PortBindings", {"80/tcp": []}),
                              ("NetworkMode", "host"), ("PidMode", "host")):
@@ -119,7 +120,7 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(m.closed_report(report), report)
         for key, value in (("secret", "synthetic-secret"), ("phase", "synthetic-secret"),
                            ("failure_reason", "synthetic-secret"), ("mode", "other"),
-                           ("runtime_changed", 1), ("source_file", "/etc/shadow")):
+                           ("runtime_changed", 1), ("source_file", "/etc/shadow"), ("attempt_nonce", "wrong")):
             self.assertIsNone(m.closed_report({**report, key: value}))
 
     def test_private_terminal_receipt_survives_refused_replay(self):
@@ -187,12 +188,30 @@ class TransactionTests(unittest.TestCase):
         result = m.execute(self.helper, values(), state_dir=self.path)
         self.assertEqual(result["status"], "PASS")
         self.assertTrue(result["adoption_latched"])
+        self.assertEqual(result["attempt_nonce"], "0123456789abcdef")
         self.assertTrue(result["network_detached"])
         self.helper.run.assert_called_once()
         result = m.execute(self.helper, values(), state_dir=self.path)
         self.assertEqual(result["failure_reason"], "worker_latch_exists")
         self.helper.run.assert_called_once()
         self.assertNotIn("synthetic-secret", json.dumps(result))
+
+    def test_state_volume_requires_exact_actual_image_nonce_for_both_supported_names(self):
+        for name in ("dex-loki-s3-0123456789abcdef", values()["LOKI_S3_JOB_UUID"] + "_transaction-state-0123456789abcdef"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                self.own["Mounts"][2]["Name"] = name
+                result = m.execute(self.helper, values(), state_dir=Path(directory))
+                self.assertEqual(result["status"], "PASS")
+                self.assertEqual(result["attempt_nonce"], "0123456789abcdef")
+        for name in ("dex-loki-s3-fedcba9876543210", values()["LOKI_S3_JOB_UUID"] + "_transaction-state-fedcba9876543210",
+                     "anotherjob_transaction-state-0123456789abcdef", "prefix-dex-loki-s3-0123456789abcdef"):
+            with self.subTest(name=name):
+                self.own["Mounts"][2]["Name"] = name
+                self.helper.run.reset_mock()
+                result = m.execute(self.helper, values(), state_dir=self.path)
+                self.assertEqual(result["status"], "FAIL")
+                self.assertEqual(result["failure_reason"], "worker_identity")
+                self.helper.run.assert_not_called()
 
     def test_preflight_does_not_create_latch_or_mutate_through_helper(self):
         current = values("preflight")

@@ -8,12 +8,14 @@ import argparse
 import copy
 from decimal import Decimal
 import hashlib
+import http.client
 import json
 import math
 import os
 from pathlib import Path
 import re
 import resource
+import socket
 import subprocess
 import sys
 import time
@@ -37,7 +39,9 @@ FAILURE_REASONS = frozenset(("root_required", "input_bound", "input_shape", "rep
     "storage_identity", "old_credential_mismatch", "configuration_changed", "image_identity",
     "runtime_binding_changed", "adoption_mismatch", "deadline_exhausted", "loki_http_failed",
     "loki_response_bound", "loki_response_shape", "loki_metrics_missing", "loki_flush_failed",
-    "loki_flush_unconfirmed", "loki_marker_missing", "loki_history_missing"))
+    "loki_flush_unconfirmed", "loki_marker_missing", "loki_history_missing", "engine_failed",
+    "engine_response", "engine_identity", "engine_network_unsupported", "engine_mount_unsupported",
+    "engine_rollback_unsafe"))
 _deadline = None
 
 
@@ -214,22 +218,142 @@ def document(container, full, image):
     return result
 
 
-def escaped(value):
-    # Compose would interpolate dollar signs a second time when reading stdin.
-    if isinstance(value, str):
-        return value.replace("$", "$$")
-    if isinstance(value, list):
-        return [escaped(item) for item in value]
-    if isinstance(value, dict):
-        return {key: escaped(item) for key, item in value.items()}
-    return value
+class UnixConnection(http.client.HTTPConnection):
+    """Docker Engine HTTP over the sole authorized local Unix socket."""
+    def __init__(self, timeout):
+        super().__init__("localhost", timeout=timeout)
+
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.settimeout(self.timeout)
+        self.sock.connect("/var/run/docker.sock")
 
 
-def apply(compose, directory):
-    body = json.dumps(escaped(compose))
-    command(["docker", "compose", "--env-file", "/dev/null", "--project-name", APP,
-             "--project-directory", directory, "--file", "-", "up", "-d", "--no-deps",
-             "--force-recreate", "--pull", "never", "loki"], body, timeout=20)
+class Engine:
+    def __init__(self):
+        self.version = ""
+        version = self.call("GET", "/version")
+        value = version.get("ApiVersion", "")
+        require(bool(re.fullmatch(r"1\.[0-9]{2,3}", value)) and int(value.split(".")[1]) >= 44, "engine_response")
+        self.version = "/v" + value
+
+    def call(self, method, path, body=None, *, timeout=5, missing_ok=False):
+        require(method in ("GET", "POST", "DELETE") and path.startswith("/") and len(path) <= 512, "engine_response")
+        remaining = (_deadline or float("inf")) - time.monotonic()
+        require(remaining > 0, "deadline_exhausted")
+        connection = UnixConnection(min(timeout, remaining))
+        try:
+            encoded = json.dumps(body).encode() if body is not None else None
+            connection.request(method, self.version + path, body=encoded, headers={"Content-Type": "application/json"})
+            response = connection.getresponse()
+            raw = response.read(MAX_OUTPUT + 1)
+            require(len(raw) <= MAX_OUTPUT, "engine_response")
+            if response.status == 404 and missing_ok:
+                return None
+            require(response.status in (200, 201, 204, 304), "engine_failed")
+            return json.loads(raw) if raw else {}
+        finally:
+            connection.close()
+
+    def inspect(self, identity, *, missing_ok=False):
+        require(bool(re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,254}", identity)), "engine_identity")
+        return self.call("GET", "/containers/" + identity + "/json", missing_ok=missing_ok)
+
+    def stop(self, identity):
+        self.call("POST", "/containers/" + identity + "/stop?t=10", timeout=15)
+
+    def rename(self, identity, name):
+        require(bool(re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,254}", name)), "engine_identity")
+        self.call("POST", "/containers/" + identity + "/rename?name=" + name)
+
+    def create(self, name, spec):
+        result = self.call("POST", "/containers/create?name=" + name, spec, timeout=10)
+        require(bool(re.fullmatch(r"[a-f0-9]{64}", result.get("Id", ""))), "engine_identity")
+        return result["Id"]
+
+    def start(self, identity):
+        self.call("POST", "/containers/" + identity + "/start", timeout=10)
+
+    def remove(self, identity, *, force=False):
+        require(bool(re.fullmatch(r"[a-f0-9]{64}", identity)), "engine_identity")
+        # Never remove volumes, even when dropping the completed rollback copy.
+        self.call("DELETE", "/containers/" + identity + "?v=false&force=" + str(force).lower(), timeout=10)
+
+
+def clone_spec(container, data):
+    """Clone daemon-native runtime configuration, without Compose reserialization."""
+    require(owned(container) and container["State"].get("Running") is True, "engine_identity")
+    require(bool(re.fullmatch(r"[a-f0-9]{64}", container.get("Id", "")))
+            and bool(re.fullmatch(r"sha256:[a-f0-9]{64}", container.get("Image", ""))), "engine_identity")
+    config, host = copy.deepcopy(container["Config"]), copy.deepcopy(container["HostConfig"])
+    require(not host.get("AutoRemove") and not host.get("Links") and not host.get("VolumesFrom"), "engine_rollback_unsafe")
+    require(not config.get("MacAddress"), "engine_network_unsupported")
+    if config.get("Hostname") in (container["Id"][:12], container["Id"]):
+        config["Hostname"] = ""  # Let the daemon assign the new generated ID.
+    require(all(row.get("HostPort", "").isdigit() and 0 < int(row["HostPort"]) <= 65535
+                for bindings in (host.get("PortBindings") or {}).values() for row in bindings or []), "engine_rollback_unsafe")
+    env = envmap(container)
+    require((env.get(KEYS[0]), env.get(KEYS[1])) == (data["expected_old_access"], data["expected_old_secret"]), "old_credential_mismatch")
+    replacement = dict(zip(KEYS, (data["new_access"], data["new_secret"])))
+    # Preserve ordering and every byte of every other environment assignment.
+    config["Env"] = [key + "=" + replacement[key] if key in replacement else value
+                     for value in config["Env"] for key in (value.split("=", 1)[0],)]
+    config["Image"] = container["Image"]
+    for mount in container.get("Mounts", []):
+        if mount["Type"] == "volume":
+            name, target = mount.get("Name"), mount["Destination"]
+            referenced = any(row.startswith(str(name) + ":" + target + ":") or row == str(name) + ":" + target
+                             for row in host.get("Binds") or [])
+            referenced = referenced or any(row.get("Type") == "volume" and row.get("Source") == name
+                    and row.get("Target") == target for row in host.get("Mounts") or [])
+            require(name and referenced, "engine_mount_unsupported")
+    endpoints = {}
+    for name, endpoint in container["NetworkSettings"]["Networks"].items():
+        ipam = endpoint.get("IPAMConfig")
+        require(not ipam or not any(ipam.get(key) for key in ("IPv4Address", "IPv6Address", "LinkLocalIPs")), "engine_network_unsupported")
+        require(not endpoint.get("Links"), "engine_network_unsupported")
+        endpoints[name] = {key: copy.deepcopy(endpoint[key]) for key in ("IPAMConfig", "DriverOpts", "NetworkID") if key in endpoint}
+        endpoints[name]["Aliases"] = [alias for alias in endpoint.get("Aliases") or []
+                                      if alias not in (container["Id"], container["Id"][:12])]
+    require(endpoints, "network_identity")
+    return {**config, "HostConfig": host, "NetworkingConfig": {"EndpointsConfig": endpoints}}
+
+
+def restore_original(engine, before, new_id, data, immutable):
+    """Restore the original container itself, rather than recreating its config."""
+    name = before["Name"].removeprefix("/")
+    # Never delete a working replacement unless the retained original is still
+    # present and bound. In particular, deletion-response ambiguity must not
+    # turn successful retirement into loss of both containers.
+    original = engine.inspect(before["Id"], missing_ok=True)
+    require(original is not None and original["Id"] == before["Id"] and owned(original), "engine_rollback_unsafe")
+    if new_id is None:
+        possible = engine.inspect(name, missing_ok=True)
+        if possible is not None and possible["Id"] != before["Id"]:
+            require(owned(possible) and possible["Image"] == before["Image"]
+                    and (envmap(possible).get(KEYS[0]), envmap(possible).get(KEYS[1])) ==
+                    (data["new_access"], data["new_secret"]), "engine_rollback_unsafe")
+            new_id = possible["Id"]
+    if new_id is not None:
+        require(new_id != before["Id"], "engine_rollback_unsafe")
+        try:
+            engine.remove(new_id, force=True)
+        except Exception:
+            require(engine.inspect(new_id, missing_ok=True) is None, "engine_rollback_unsafe")
+    original = engine.inspect(before["Id"])
+    require(original["Id"] == before["Id"] and owned(original), "engine_rollback_unsafe")
+    if original["Name"] != before["Name"]:
+        engine.rename(before["Id"], name)
+    if not original["State"].get("Running"):
+        engine.start(before["Id"])
+    restored = engine.inspect(before["Id"])
+    identity_ok = restored["Id"] == before["Id"] and projection(restored) == immutable
+    pair_ok = (envmap(restored).get(KEYS[0]), envmap(restored).get(KEYS[1])) == (data["expected_old_access"], data["expected_old_secret"])
+    # These checks are independent: drift must not hide old-key/health evidence.
+    available = ready(restored)
+    return {"rollback_identity_verified": identity_ok, "rollback_old_pair_verified": pair_ok,
+            "rollback_ready": available, "ready": available,
+            "rollback_verified": identity_ok and pair_ok and available}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -398,14 +522,15 @@ def ready(container):
 
 def run(data, preflight=False):
     global _deadline
-    overall_deadline = time.monotonic() + 180
+    overall_deadline = time.monotonic() + 200
     previous_deadline = _deadline
     # Reserve the full bounded replacement/readiness rollback budget.
     _deadline = overall_deadline - 70
     report = {"status": "FAIL", "phase": "preflight", "runtime_changed": False,
               "rollback_attempted": False, "rollback_verified": False, "ready": False}
-    original = None
-    directory = None
+    before = None
+    engine = None
+    new_id = None
     immutable = None
     try:
         require(os.geteuid() == 0, "root_required")
@@ -413,8 +538,9 @@ def run(data, preflight=False):
         old = envmap(before)
         require((old.get("S3_ENDPOINT"), old.get("S3_BUCKET"), old.get("S3_REGION", "nbg1")) ==
                 (data["endpoint"], data["bucket"], data["region"]), "storage_identity")
+        require(ready(before), "readiness_failed")
+        report["ready"] = True
         if (old.get(KEYS[0]), old.get(KEYS[1])) == (data["new_access"], data["new_secret"]):
-            require(ready(before), "readiness_failed")
             report.update(phase="historical_preflight", ready=True)
             canary = historical_canary(before)
             if not preflight:
@@ -430,20 +556,30 @@ def run(data, preflight=False):
         require("expected_config_sha" not in data or data["expected_config_sha"] == digest, "configuration_changed")
         images = json.loads(command(["docker", "image", "inspect", before["Image"]]))
         require(len(images) == 1 and images[0]["Id"] == before["Image"], "image_identity")
-        original = document(before, json.loads(rendered), images[0]["Config"])
+        document(before, json.loads(rendered), images[0]["Config"])  # Source attestation only.
         immutable = projection(before)
-        replacement = copy.deepcopy(original)
-        replacement["services"]["loki"]["environment"].update(dict(zip(KEYS, (data["new_access"], data["new_secret"]))))
+        replacement = clone_spec(before, data)
+        engine = Engine()
         report["phase"] = "historical_preflight"
         canary = historical_canary(before)
         if preflight:
             report.update(status="PASS", phase="preflight", loki_count=1, source_file=Path(source).name)
             return report
-        require(time.monotonic() + 90 <= _deadline, "deadline_exhausted")
+        require(time.monotonic() + 105 <= _deadline, "deadline_exhausted")
+        current = engine.inspect(before["Id"])
+        require(current["Id"] == before["Id"] and current["State"].get("Running") is True
+                and projection(current) == immutable and envmap(current) == old, "runtime_binding_changed")
         report.update(phase="replacement", runtime_changed=True)
-        apply(replacement, directory)
+        name = before["Name"].removeprefix("/")
+        quarantine = name + "-s3-rollback-" + uuid.uuid4().hex[:12]
+        require(len(quarantine) <= 255, "engine_identity")
+        engine.stop(before["Id"])
+        engine.rename(before["Id"], quarantine)
+        new_id = engine.create(name, replacement)
+        engine.start(new_id)
         report["phase"] = "adoption_verification"
-        after = discover()
+        after = engine.inspect(new_id)
+        require(after["Id"] == new_id and owned(after) and after["State"].get("Running") is True, "engine_identity")
         actual_projection = projection(after)
         if actual_projection != immutable:
             report["immutable_drift"] = sorted(key for key in immutable if actual_projection[key] != immutable[key])
@@ -452,21 +588,27 @@ def run(data, preflight=False):
         require(ready(after), "readiness_failed")
         report.update(phase="storage_verification", ready=True)
         report.update(storage_proof(after, canary))
+        rollback_copy = engine.inspect(before["Id"])
+        require(rollback_copy["Id"] == before["Id"] and owned(rollback_copy)
+                and rollback_copy["State"].get("Running") is False and rollback_copy["Name"] == "/" + quarantine,
+                "engine_rollback_unsafe")
+        try:
+            engine.remove(before["Id"])
+        except Exception:
+            # A successful DELETE with a lost response has already committed
+            # the verified replacement. Confirm absence instead of rolling it
+            # back into a now-deleted original.
+            require(engine.inspect(before["Id"], missing_ok=True) is None, "engine_failed")
         report.update(status="PASS", phase="adopted", ready=True)
     except Exception as error:
         reason = str(error) if isinstance(error, ValueError) else "operation_failed"
         report["failure_reason"] = reason if reason in FAILURE_REASONS else "operation_failed"
-        if report["runtime_changed"] and original is not None:
+        if report["runtime_changed"] and before is not None and engine is not None:
             _deadline = overall_deadline
-            report["rollback_attempted"] = True
+            report.update(rollback_attempted=True, rollback_identity_verified=False,
+                          rollback_old_pair_verified=False, rollback_ready=False, ready=False)
             try:
-                apply(original, directory)
-                restored = discover()
-                require(projection(restored) == immutable, "rollback_binding_changed")
-                require((envmap(restored).get(KEYS[0]), envmap(restored).get(KEYS[1])) ==
-                        (data["expected_old_access"], data["expected_old_secret"]), "rollback_mismatch")
-                require(ready(restored), "rollback_unready")
-                report["rollback_verified"] = True
+                report.update(restore_original(engine, before, new_id, data, immutable))
             except Exception:
                 pass
     finally:

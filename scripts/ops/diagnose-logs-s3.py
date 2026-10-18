@@ -53,12 +53,19 @@ def begin(m, api, previous, revision):
     prefix = bind(m, api, state)
     if state.get("diagnostic"):
         prior = state["diagnostic"]
-        m.require(prior.get("stage") == "prepared" and not prior.get("task_uuid")
-                  and prior.get("source_revision") == revision, "diagnostic_already_prepared")
-        tasks = api.call(prefix)
-        m.require(isinstance(tasks, list) and len(tasks) <= 64
-                  and not any(row.get("name") == "loki-s3-read-only-recovery-1544" for row in tasks),
-                  "diagnostic_create_outcome_unknown")
+        if prior.get("stage") == "removed":
+            history = state.setdefault("diagnostic_history", [])
+            m.require(isinstance(history, list) and len(history) < 8, "diagnostic_history_bound")
+            history.append({"diagnostic": prior, "observation": state.pop("recovery_observation", None)})
+            state.pop("diagnostic")
+            prior = None
+        if prior is not None:
+            m.require(prior.get("stage") == "prepared" and not prior.get("task_uuid")
+                      and prior.get("source_revision") == revision, "diagnostic_already_prepared")
+            tasks = api.call(prefix)
+            m.require(isinstance(tasks, list) and len(tasks) <= 64
+                      and not any(row.get("name") == "loki-s3-read-only-recovery-1544" for row in tasks),
+                      "diagnostic_create_outcome_unknown")
     report = m.status(api, previous)
     m.require(any(row.get("mode") == "adopt" and row.get("status") == "FAIL" for row in report["receipts"]), "failed_attempt_required")
     command = source_command(m, revision)

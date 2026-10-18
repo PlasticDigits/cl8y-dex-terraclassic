@@ -248,11 +248,31 @@ completed. Shared networks and data volumes must survive cleanup.
 bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/adopt-logs-s3.py status
 ```
 
-The Loki replacement preserves its exact image, command, mounts, networks,
-security/resource settings and noncredential environment. Only the two S3
-credential values may change. Keep the original runtime projection for bounded
-rollback; failed readiness or storage proof requires restoration and verified
-readiness of the old configuration. Preserve WAL and historical data.
+The Loki replacement uses the local Docker Engine API to clone the inspected
+container configuration, preserving its exact image ID, command, mounts, networks,
+security/resources and noncredential environment. Compose rendering only attests
+the canonical source; never use Compose `up` for this transaction. Retain the
+stopped original container under a temporary name until the replacement passes
+all checks. Rollback removes only the failed replacement and restarts that same
+original container ID, checking identity, old credentials and readiness separately.
+Successful adoption removes the stopped original with volume deletion disabled.
+Preserve WAL and historical data. Engine-generated IDs/hostnames change with a
+new container; the image ID and effective runtime settings must remain equal.
+
+If an attempt fails, retain its terminal receipt and latch. The installed
+platform stores scheduled commands in a 255-character field: the disabled,
+manual read-only recovery task fetches public diagnostic source at a full Git
+SHA and verifies SHA256 before executing it. It exports only the closed
+`loki_s3_diagnostic_v1` report. Confirm current old-key matching, a fresh Docker
+readiness healthcheck and canonical `compose.yaml` attestation; this observation
+does not reconstruct a lost original projection. Remove the diagnostic task.
+Only then use `reset-preflight --revision <reviewed-sha>` to archive the failure
+and recovery observation, update only the owned maintenance recipe, and start a
+fresh preflight with a new image/state-volume nonce. Never delete a previous
+latch to permit retry. Both the volume key and name contain the nonce, including
+on platforms that rename volumes. Only a receipt matching the active nonce may
+authorize adoption. The fixed canonical source override is journaled privately;
+stdin Compose metadata such as `config_files="-"` cannot select a new file.
 
 Live proof requires exact runtime credential matching, readiness, the same
 historical sample before/after replacement, and successful backing-storage

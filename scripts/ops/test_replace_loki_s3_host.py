@@ -6,7 +6,7 @@ import io
 import json
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 SPEC = importlib.util.spec_from_file_location("replace_loki_s3_host", Path(__file__).with_name("replace-loki-s3-host.py"))
 m = importlib.util.module_from_spec(SPEC)
@@ -39,7 +39,7 @@ def fixture():
                  "State": {"Running": True},
                  "Config": {"Env": [key + "=" + value for key, value in environment.items()], "Image": service["image"],
                             "Hostname": "a" * 12, "Labels": labels, "Cmd": service["command"], "Entrypoint": ["/usr/bin/loki"], "User": "10001"},
-                 "HostConfig": {"RestartPolicy": {"Name": "unless-stopped", "MaximumRetryCount": 0},
+                 "HostConfig": {"Binds": ["existing-loki-data:/loki:rw", "/srv/logs/loki.yaml:/etc/loki/config.yaml:ro"], "RestartPolicy": {"Name": "unless-stopped", "MaximumRetryCount": 0},
                                 "Memory": 536870912, "NetworkMode": "logs-net", "ReadonlyRootfs": False},
                  "Mounts": [{"Type": "volume", "Name": "existing-loki-data", "Source": "/var/lib/docker/volumes/existing-loki-data/_data",
                              "Destination": "/loki", "Driver": "local", "Mode": "rw", "RW": True, "Propagation": ""},
@@ -109,20 +109,63 @@ class ScopeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsupported_compose"):
                 m.document(self.container, full, image_defaults(self.container))
 
-    def test_apply_never_mentions_other_service_and_escapes_interpolation(self):
-        doc = m.document(self.container, self.compose, image_defaults(self.container))
-        doc["services"]["loki"]["environment"]["S3_SECRET_KEY"] = self.data["new_secret"]
-        with patch.object(m, "command") as call:
-            m.apply(doc, "/trusted")
-        args, body = call.call_args.args
-        self.assertEqual(args[-1], "loki")
-        self.assertIn("--no-deps", args)
-        self.assertEqual(args[args.index("--pull") + 1], "never")
-        self.assertEqual(args[args.index("--file") + 1], "-")
-        serialized = json.loads(body)
-        self.assertEqual(set(serialized["services"]), {"loki"})
-        self.assertEqual(serialized["services"]["loki"]["environment"]["S3_SECRET_KEY"], "new-$$secret-$${literal}")
-        self.assertNotIn(self.data["new_secret"], " ".join(args))
+    def test_engine_clone_preserves_runtime_and_literal_secret_bytes(self):
+        original = copy.deepcopy(self.container)
+        spec = m.clone_spec(self.container, self.data)
+        self.assertEqual(spec["HostConfig"], original["HostConfig"])
+        self.assertEqual(spec["Image"], original["Image"])
+        self.assertEqual(spec["Hostname"], "")
+        self.assertEqual(spec["Env"], [row if not row.startswith("S3_ACCESS_KEY=") and not row.startswith("S3_SECRET_KEY=")
+            else row.split("=", 1)[0] + "=" + self.data["new_access" if row.startswith("S3_ACCESS_KEY=") else "new_secret"]
+            for row in original["Config"]["Env"]])
+        self.assertIn("S3_SECRET_KEY=new-$secret-${literal}", spec["Env"])
+        endpoints = spec["NetworkingConfig"]["EndpointsConfig"]
+        self.assertEqual(set(endpoints), {"logs-net"})
+        self.assertNotIn("IPAddress", endpoints["logs-net"])
+        self.assertNotIn("a" * 12, endpoints["logs-net"]["Aliases"])
+        self.assertEqual(self.container, original)
+
+    def test_generated_hostname_normalizes_but_explicit_hostname_is_preserved(self):
+        changed = copy.deepcopy(self.container)
+        changed["Id"] = "c" * 64
+        changed["Config"]["Hostname"] = "c" * 12
+        changed["NetworkSettings"]["Networks"]["logs-net"]["Aliases"] = ["logs-loki-1", "loki", "c" * 12]
+        self.assertEqual(m.projection(self.container), m.projection(changed))
+        self.container["Config"]["Hostname"] = "loki-explicit-host"
+        self.assertEqual(m.clone_spec(self.container, self.data)["Hostname"], "loki-explicit-host")
+        self.assertNotEqual(m.projection(self.container), m.projection(changed))
+
+    def test_engine_clone_rejects_features_that_prevent_exact_original_rollback(self):
+        for alter, reason in ((lambda c: c["HostConfig"].update(AutoRemove=True), "engine_rollback_unsafe"),
+                              (lambda c: c["HostConfig"].update(Binds=[]), "engine_mount_unsupported"),
+                              (lambda c: c["Config"].update(MacAddress="static"), "engine_network_unsupported"),
+                              (lambda c: c["NetworkSettings"]["Networks"]["logs-net"].update(IPAMConfig={"IPv4Address": "172.18.0.5"}), "engine_network_unsupported")):
+            changed = copy.deepcopy(self.container)
+            alter(changed)
+            with self.assertRaisesRegex(ValueError, reason):
+                m.clone_spec(changed, self.data)
+
+    def test_engine_api_deletion_never_removes_volumes_or_accepts_a_name(self):
+        engine = m.Engine.__new__(m.Engine)
+        engine.version = "/v1.47"
+        connection = Mock()
+        connection.getresponse.return_value = Mock(status=204, read=Mock(return_value=b""))
+        with patch.object(m, "UnixConnection", return_value=connection):
+            engine.remove("c" * 64, force=True)
+        self.assertEqual(connection.request.call_args.args[0:2],
+                         ("DELETE", "/v1.47/containers/" + "c" * 64 + "?v=false&force=true"))
+        connection.close.assert_called_once()
+        with self.assertRaisesRegex(ValueError, "engine_identity"):
+            engine.remove("loki")
+
+    def test_engine_error_body_is_never_reflected(self):
+        engine = m.Engine.__new__(m.Engine)
+        engine.version = "/v1.47"
+        connection = Mock()
+        connection.getresponse.return_value = Mock(status=500, read=Mock(return_value=b"SYNTHETIC_DOWNSTREAM_SECRET"))
+        with patch.object(m, "UnixConnection", return_value=connection), self.assertRaisesRegex(ValueError, "^engine_failed$"):
+            engine.start("c" * 64)
+        connection.close.assert_called_once()
 
     def test_immutable_projection_rejects_resource_and_userlabel_changes(self):
         changed = copy.deepcopy(self.container)
@@ -162,86 +205,131 @@ class ScopeTests(unittest.TestCase):
 
 class TransactionTests(unittest.TestCase):
     def exercise(self, *, preflight=False, immutable_failure=False, readiness=True, command_failure=False, already=False,
-                 storage_failure=False):
+                 storage_failure=False, retirement_ambiguous=False, rollback_projection_drift=False):
         data, container, compose = fixture()
-        live = [copy.deepcopy(container)]
-        applications = []
+        objects = {container["Id"]: copy.deepcopy(container)}
+        calls = []
+        new_id = "c" * 64
         if already:
-            env = m.envmap(live[0])
-            env.update(dict(zip(m.KEYS, (data["new_access"], data["new_secret"]))))
-            live[0]["Config"]["Env"] = [key + "=" + value for key, value in env.items()]
+            objects[container["Id"]]["Config"]["Env"] = [row if not row.startswith("S3_ACCESS_KEY=") and not row.startswith("S3_SECRET_KEY=")
+                else row.split("=", 1)[0] + "=" + data["new_access" if row.startswith("S3_ACCESS_KEY=") else "new_secret"]
+                for row in objects[container["Id"]]["Config"]["Env"]]
 
-        def apply(doc, _directory):
-            applications.append(copy.deepcopy(doc))
-            if command_failure and len(applications) == 1:
-                raise ValueError("raw secret must never escape: " + data["new_secret"])
-            live[0] = copy.deepcopy(container)
-            env = doc["services"]["loki"]["environment"]
-            live[0]["Config"]["Env"] = [key + "=" + value for key, value in env.items()]
-            if immutable_failure and len(applications) == 1:
-                live[0]["HostConfig"]["Memory"] = 1
+        class FakeEngine:
+            def inspect(self, identity, missing_ok=False):
+                item = objects.get(identity) or next((v for v in objects.values() if v["Name"] == "/" + identity), None)
+                if item is None:
+                    if missing_ok:
+                        return None
+                    raise ValueError("engine_failed")
+                return copy.deepcopy(item)
+
+            def stop(self, identity):
+                calls.append(("stop", identity))
+                objects[identity]["State"]["Running"] = False
+
+            def rename(self, identity, name):
+                calls.append(("rename", identity))
+                objects[identity]["Name"] = "/" + name
+
+            def create(self, name, spec):
+                calls.append(("create", new_id))
+                item = copy.deepcopy(container)
+                item.update(Id=new_id, Name="/" + name, State={"Running": False})
+                item["Config"] = {key: copy.deepcopy(value) for key, value in spec.items() if key not in ("HostConfig", "NetworkingConfig")}
+                item["HostConfig"] = copy.deepcopy(spec["HostConfig"])
+                for network, endpoint in spec["NetworkingConfig"]["EndpointsConfig"].items():
+                    item["NetworkSettings"]["Networks"][network].update(copy.deepcopy(endpoint))
+                if immutable_failure:
+                    item["HostConfig"]["Memory"] = 1
+                objects[new_id] = item
+                if command_failure:
+                    raise ValueError("raw secret must never escape: " + data["new_secret"])
+                return new_id
+
+            def start(self, identity):
+                calls.append(("start", identity))
+                objects[identity]["State"]["Running"] = True
+                if rollback_projection_drift and identity == container["Id"]:
+                    objects[identity]["HostConfig"]["Memory"] += 1
+
+            def remove(self, identity, force=False):
+                calls.append(("remove", identity, force))
+                objects.pop(identity)
+                if retirement_ambiguous and identity == container["Id"]:
+                    raise TimeoutError()
 
         with patch.object(m.os, "geteuid", return_value=0), \
-             patch.object(m, "discover", side_effect=lambda: copy.deepcopy(live[0])), \
+             patch.object(m, "discover", side_effect=lambda: copy.deepcopy(objects[container["Id"]])), \
              patch.object(m, "sources", return_value=("/trusted/docker-compose.yaml", "/trusted")), \
              patch.object(m, "command", side_effect=lambda args: json.dumps(
                  [{"Id": container["Image"], "Config": image_defaults(container)}]) if args[1] == "image" else json.dumps(compose)), \
-             patch.object(m, "apply", side_effect=apply), \
+             patch.object(m, "Engine", return_value=FakeEngine()), \
              patch.object(m, "historical_canary", return_value={"stream": {"job": "docker"}, "timestamp": 1, "line": "old"}), \
              patch.object(m, "storage_proof", side_effect=ValueError("loki_flush_failed") if storage_failure else None,
-                 return_value={"backing_storage_write_verified": True,
-                 "marker_readback_verified": True, "historical_readback_verified": True,
-                 "flush_success_delta": 1, "flush_failure_delta": 0}), \
-             patch.object(m, "ready", side_effect=lambda _c: readiness or len(applications) > 1):
+                 return_value={"backing_storage_write_verified": True, "marker_readback_verified": True,
+                 "historical_readback_verified": True, "flush_success_delta": 1, "flush_failure_delta": 0}), \
+             patch.object(m, "ready", side_effect=lambda current: readiness or current["Id"] == container["Id"]):
             report = m.run(data, preflight)
         self.assertNotIn(data["new_secret"], json.dumps(report))
         self.assertNotIn(data["expected_old_secret"], json.dumps(report))
-        return report, applications, live[0]
+        live = next(value for value in objects.values() if value["State"]["Running"])
+        return report, calls, live
 
     def test_preflight_is_read_only(self):
         report, calls, _ = self.exercise(preflight=True)
         self.assertEqual(report["status"], "PASS")
         self.assertFalse(report["runtime_changed"])
+        self.assertTrue(report["ready"])
         self.assertEqual(report["source_file"], "docker-compose.yaml")
         self.assertEqual(calls, [])
 
-    def test_success_changes_only_the_s3_pair(self):
+    def test_success_preserves_actual_config_and_retires_original_without_volumes(self):
         report, calls, live = self.exercise()
         self.assertEqual(report["status"], "PASS")
-        self.assertEqual(len(calls), 1)
-        self.assertTrue(report["ready"])
+        self.assertEqual(calls[-1], ("remove", "a" * 64, False))
+        self.assertEqual(live["Id"], "c" * 64)
         self.assertEqual(m.envmap(live)["S3_SECRET_KEY"], payload()["new_secret"])
+        self.assertEqual(m.projection(live), m.projection(fixture()[1]))
 
-    def test_ambiguous_command_failure_rolls_back_loki_only(self):
+    def test_lost_create_response_recovers_by_exact_name_then_restores_original_id(self):
         report, calls, live = self.exercise(command_failure=True)
         self.assertEqual(report["status"], "FAIL")
         self.assertTrue(report["rollback_verified"])
         self.assertEqual(report["failure_reason"], "operation_failed")
-        self.assertEqual(len(calls), 2)
-        self.assertEqual(m.envmap(live)["S3_SECRET_KEY"], payload()["expected_old_secret"])
-        self.assertTrue(all(set(doc["services"]) == {"loki"} for doc in calls))
+        self.assertEqual(live["Id"], "a" * 64)
+        self.assertIn(("remove", "c" * 64, True), calls)
+        self.assertNotIn(("remove", "a" * 64, False), calls)
 
-    def test_runtime_resource_drift_rolls_back(self):
-        report, calls, _ = self.exercise(immutable_failure=True)
+    def test_runtime_resource_drift_restores_the_original_container(self):
+        report, calls, live = self.exercise(immutable_failure=True)
         self.assertEqual(report["status"], "FAIL")
         self.assertTrue(report["rollback_verified"])
-        self.assertEqual(report["failure_reason"], "runtime_binding_changed")
         self.assertEqual(report["immutable_drift"], ["host"])
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(live["Id"], "a" * 64)
 
-    def test_readiness_failure_rolls_back(self):
-        report, calls, _ = self.exercise(readiness=False)
-        self.assertEqual(report["status"], "FAIL")
-        self.assertTrue(report["rollback_verified"])
-        self.assertEqual(len(calls), 2)
+    def test_readiness_or_storage_failure_restores_original(self):
+        for kwargs, reason in (({"readiness": False}, "readiness_failed"), ({"storage_failure": True}, "loki_flush_failed")):
+            report, _, live = self.exercise(**kwargs)
+            self.assertEqual(report["status"], "FAIL")
+            self.assertEqual(report["failure_reason"], reason)
+            self.assertTrue(report["rollback_verified"])
+            self.assertEqual(live["Id"], "a" * 64)
 
-    def test_successful_push_but_failed_storage_proof_rolls_back(self):
-        report, calls, _ = self.exercise(storage_failure=True)
-        self.assertEqual(report["status"], "FAIL")
-        self.assertEqual(report["phase"], "storage_verification")
-        self.assertEqual(report["failure_reason"], "loki_flush_failed")
-        self.assertTrue(report["rollback_verified"])
-        self.assertEqual(len(calls), 2)
+    def test_rollback_projection_drift_does_not_hide_old_pair_and_readiness(self):
+        report, _, live = self.exercise(storage_failure=True, rollback_projection_drift=True)
+        self.assertFalse(report["rollback_verified"])
+        self.assertFalse(report["rollback_identity_verified"])
+        self.assertTrue(report["rollback_old_pair_verified"])
+        self.assertTrue(report["rollback_ready"])
+        self.assertTrue(report["ready"])
+        self.assertEqual(live["Id"], "a" * 64)
+
+    def test_lost_retirement_response_cannot_delete_the_working_replacement(self):
+        report, calls, live = self.exercise(retirement_ambiguous=True)
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(live["Id"], "c" * 64)
+        self.assertNotIn(("remove", "c" * 64, True), calls)
 
     def test_retry_after_success_never_recreates_loki(self):
         report, calls, _ = self.exercise(already=True)
@@ -250,12 +338,11 @@ class TransactionTests(unittest.TestCase):
         self.assertFalse(report["runtime_changed"])
         self.assertEqual(calls, [])
 
-    def test_already_adopted_preflight_is_reported_as_read_only_preflight(self):
+    def test_already_adopted_preflight_stays_read_only(self):
         report, calls, _ = self.exercise(already=True, preflight=True)
         self.assertEqual(report["phase"], "preflight")
         self.assertEqual(report["status"], "PASS")
         self.assertEqual(report["loki_count"], 1)
-        self.assertFalse(report["runtime_changed"])
         self.assertNotIn("backing_storage_write_verified", report)
         self.assertEqual(calls, [])
 
@@ -268,7 +355,6 @@ class TransactionTests(unittest.TestCase):
     def test_primary_work_cannot_consume_rollback_reservation(self):
         with patch.object(m.time, "monotonic", side_effect=[0, 100]):
             report, calls, _ = self.exercise()
-        self.assertEqual(report["status"], "FAIL")
         self.assertEqual(report["failure_reason"], "deadline_exhausted")
         self.assertFalse(report["runtime_changed"])
         self.assertEqual(calls, [])

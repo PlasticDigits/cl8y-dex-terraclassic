@@ -80,7 +80,7 @@ def closed_report(value):
     boolean = {"job_binding", "old_pair_matches", "new_pair_matches", "runtime_running", "ready",
                "original_projection_available", "config_stop_timeout_present", "image_stop_timeout_present",
                "canonical_stop_grace_period_present", "stop_timeout_matches_image", "mount_mode_default_equivalence"}
-    optional = boolean | {"host_mount_representation", "host_binds_count", "host_mounts_count"}
+    optional = boolean | {"host_mount_representation", "host_binds_count", "host_mounts_count", "canonical_source_file"}
     try:
         if not isinstance(value, dict) or not required <= set(value) <= required | optional:
             return None
@@ -97,6 +97,8 @@ def closed_report(value):
             if key in value and (type(value[key]) is not int or not 0 <= value[key] <= 64):
                 return None
         if "host_mount_representation" in value and value["host_mount_representation"] not in REPRESENTATIONS:
+            return None
+        if "canonical_source_file" in value and value["canonical_source_file"] != "compose.yaml":
             return None
         if value["status"] == "PASS" and not (value["job_binding"] and value["phase"] == "complete"
                 and value["old_pair_matches"] and not value["new_pair_matches"] and value["ready"]
@@ -142,7 +144,14 @@ def observe(helper, values):
                       new_pair_matches=pair == (data["new_access"], data["new_secret"]),
                       runtime_running=current["State"].get("Running") is True,
                       ready=fresh_health(current), phase="source_attestation")
-        source, directory = helper.sources(current, data)
+        # The original preflight attested this exact canonical source. The failed
+        # stdin Compose replacement changed generated config_files metadata to
+        # '-', which cannot identify a source file. Keep the host helper's full
+        # canonical-path and symlink checks while supplying that known source.
+        source_data = {**data, "source_file": "compose.yaml",
+                       "workdir": "/data/coolify/applications/" + helper.APP}
+        source, directory = helper.sources(current, source_data)
+        report["canonical_source_file"] = "compose.yaml"
         rendered = helper.command(["docker", "compose", "--project-name", helper.APP,
             "--project-directory", directory, "--file", source, "config", "--format", "json"])
         helper.require("expected_config_sha" not in data or

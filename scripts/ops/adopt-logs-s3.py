@@ -7,6 +7,7 @@ This never deploys the logs application or revokes either S3 credential.
 """
 import argparse
 import base64
+import copy
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -28,7 +29,8 @@ ID = re.compile(r"[a-z0-9]{20,32}")
 SHA = re.compile(r"[a-f0-9]{40}")
 BASE = "docker:27.5.1-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c"
 PROTECTED = {APP, "s14i3w45r5g6ulyu6nsxzm0n", "o4htirce3mwp89dzip3vdikt"}
-SAFE_PHASES = {"prepared", "preflight_started", "adoption_started", "adoption_failed", "runtime_adopted", "config_persisted", "cleaned"}
+SOURCE_OVERRIDES = {"source_file": "compose.yaml", "workdir": "/data/coolify/applications/" + APP}
+SAFE_PHASES = {"prepared", "reset_prepared", "preflight_started", "adoption_started", "adoption_failed", "runtime_adopted", "config_persisted", "cleaned"}
 
 
 class GuardError(ValueError):
@@ -109,6 +111,7 @@ def recipe(revision):
 def compose_document(dockerfile, transaction):
     require(re.fullmatch(r"[a-f0-9]{16}", transaction), "transaction_identity")
     directory = "/data/coolify/applications/" + APP
+    state_volume = "transaction-state-" + transaction
     keys = ("LOKI_S3_JOB_UUID", "LOKI_S3_JOB_ID", "LOKI_S3_MODE", "LOKI_S3_NETWORK", "LOKI_S3_PAYLOAD_JSON")
     return {"services": {"maintenance": {
         "image": "cl8y-loki-s3-adoption:" + transaction,
@@ -116,8 +119,8 @@ def compose_document(dockerfile, transaction):
         "restart": "no", "cap_drop": ["ALL"], "mem_limit": "256m", "cpus": "0.5",
         "environment": {key: "${" + key + ":-disabled}" for key in keys},
         "volumes": ["/var/run/docker.sock:/var/run/docker.sock:rw", directory + ":" + directory + ":ro",
-                    "transaction-state:/state"]}},
-        "volumes": {"transaction-state": {"name": "dex-loki-s3-" + transaction}}}
+                    state_volume + ":/state"]}},
+        "volumes": {state_volume: {"name": "dex-loki-s3-" + transaction}}}
 
 
 def compose_source(dockerfile, transaction):
@@ -143,6 +146,9 @@ def validate(state):
             and bool(re.fullmatch(r"[a-f0-9]{64}", state.get("compose_sha256", ""))), "journal_binding")
     if state.get("job_uuid"):
         require(ID.fullmatch(state["job_uuid"]) and state["job_uuid"] not in PROTECTED, "job_identity")
+    if "attempt_nonce" in state:
+        require(isinstance(state["attempt_nonce"], str)
+                and re.fullmatch(r"[a-f0-9]{16}", state["attempt_nonce"]), "journal_binding")
 
 
 def bind_job(app, state):
@@ -234,6 +240,19 @@ def resume_create(api, previous):
     state = previous["data"]
     validate(state)
     require(state["phase"] == "prepared" and "job_uuid" not in state, "resume_create_phase")
+    unchanged_candidate(api, state)
+    rows = api.call("services")
+    require(isinstance(rows, list) and len(rows) <= 512 and all(isinstance(row, dict) for row in rows), "recovery_inventory_bound")
+    require(not any(row.get("name") == state["job_name"] for row in rows), "owned_job_name_exists_use_recover")
+    dockerfile = recipe(state["revision"])
+    raw = compose_source(dockerfile, state["transaction"])
+    require(hashlib.sha256(dockerfile.encode()).hexdigest() == state["recipe_sha256"]
+            and hashlib.sha256(raw.encode()).hexdigest() == state["compose_sha256"], "journal_recipe_changed")
+    return create_service_job(api, state, previous, raw)
+
+
+def unchanged_candidate(api, state):
+    """Revalidate the original application, pending version and canonical old pair."""
     require(binding(api.call("applications/" + APP)) == state["binding"], "logs_binding_changed")
     stage = load("s3_stage", ROOT / "scripts/ops/stage-logs-s3-credentials.py")
     old, pending = stage.environment(), stage.bao_read()
@@ -246,14 +265,123 @@ def resume_create(api, previous):
         require(pending["data"].get(field) == state["payload"][source], "candidate_changed")
     require(old["S3_ACCESS_KEY"] == state["payload"]["expected_old_access"]
             and old["S3_SECRET_KEY"] == state["payload"]["expected_old_secret"], "configuration_changed")
-    rows = api.call("services")
-    require(isinstance(rows, list) and len(rows) <= 512 and all(isinstance(row, dict) for row in rows), "recovery_inventory_bound")
-    require(not any(row.get("name") == state["job_name"] for row in rows), "owned_job_name_exists_use_recover")
-    dockerfile = recipe(state["revision"])
-    raw = compose_source(dockerfile, state["transaction"])
-    require(hashlib.sha256(dockerfile.encode()).hexdigest() == state["recipe_sha256"]
-            and hashlib.sha256(raw.encode()).hexdigest() == state["compose_sha256"], "journal_recipe_changed")
-    return create_service_job(api, state, previous, raw)
+
+
+def recovery_observation(state):
+    """Require bounded, source-bound observed recovery; never infer old projection."""
+    value = state.get("recovery_observation")
+    fields = {"report", "revision", "recipe_sha256", "job_uuid", "recorded_at_utc", "task_uuid", "execution_uuid"}
+    require(isinstance(value, dict) and set(value) == fields, "recovery_observation_required")
+    require(all(value[key] == state[key] for key in ("revision", "recipe_sha256", "job_uuid")), "recovery_observation_binding")
+    require(all(isinstance(value[key], str) and ID.fullmatch(value[key]) for key in ("task_uuid", "execution_uuid")),
+            "recovery_observation_binding")
+    stamp = value["recorded_at_utc"]
+    require(isinstance(stamp, str) and len(stamp) <= 40, "recovery_observation_binding")
+    try:
+        require(datetime.fromisoformat(stamp).tzinfo is not None, "recovery_observation_binding")
+    except ValueError:
+        raise GuardError("recovery_observation_binding") from None
+    diagnostic = load("s3_recovery_schema", ROOT / "scripts/ops/diagnose-loki-s3-host.py")
+    report = diagnostic.closed_report(value["report"])
+    required = {"status": "PASS", "phase": "complete", "job_binding": True,
+                "old_pair_matches": True, "new_pair_matches": False, "runtime_running": True,
+                "ready": True, "readiness_source": "docker_healthcheck", "canonical_source_attestation": "PASS",
+                "canonical_source_file": SOURCE_OVERRIDES["source_file"],
+                "original_projection_available": False, "limitation": "original_projection_unavailable"}
+    require(report is not None and all(type(report.get(key)) is type(expected) and report.get(key) == expected
+                                      for key, expected in required.items()), "recovery_not_verified")
+    return copy.deepcopy(value)
+
+
+def active_receipts(state, found):
+    """A fresh image/state nonce prevents stale logs authorizing another attempt."""
+    if "attempt_nonce" not in state:
+        return found
+    return [row for row in found if row.get("attempt_nonce") == state["attempt_nonce"]]
+
+
+def reset_preflight(api, previous, revision):
+    """Upgrade only the owned maintenance job after independently observed recovery.
+
+    Persist the replacement plan before PATCH. A retry reconciles only its exact
+    old/new raw Compose hashes, keeping the old latch, receipt and source archive.
+    No invocation replays an adoption or changes the Loki runtime.
+    """
+    state = copy.deepcopy(previous["data"])
+    validate(state)
+    require(state["phase"] in {"adoption_started", "adoption_failed", "reset_prepared"}, "reset_phase")
+    require(isinstance(revision, str) and SHA.fullmatch(revision), "revision_shape")
+    require(revision != state["revision"], "replacement_source_required")
+    current_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=5)
+    require(current_sha.returncode == 0 and current_sha.stdout.strip() == revision, "revision_binding")
+    observation = recovery_observation(state)
+    history = state.get("attempt_archive", [])
+    require(isinstance(history, list) and len(history) < 8, "attempt_archive_bound")
+    unchanged_candidate(api, state)
+    app = api.call("services/" + state["job_uuid"])
+    dockerfile = recipe(revision)
+    if state["phase"] != "reset_prepared":
+        bind_job(app, state)
+        found = active_receipts(state, receipts(api.call(
+            "services/" + state["job_uuid"] + "/logs?sub_service_name=maintenance&lines=60")))
+        require(found and found[-1].get("mode") == "adopt" and found[-1].get("status") == "FAIL",
+                "failed_attempt_receipt_required")
+        nonce = secrets.token_hex(8)
+        used = {state.get("attempt_nonce", state["transaction"])}
+        used.update(row.get("attempt_nonce") for row in history if isinstance(row, dict))
+        require(nonce not in used, "fresh_attempt_required")
+        raw = compose_source(dockerfile, nonce)
+        archive = {"phase": state["phase"], "revision": state["revision"],
+                   "recipe_sha256": state["recipe_sha256"], "compose_sha256": state["compose_sha256"],
+                   "attempt_nonce": state.get("attempt_nonce", state["transaction"]),
+                   "terminal_receipt": found[-1], "recovery_observation": observation,
+                   "archived_at_utc": datetime.now(timezone.utc).isoformat()}
+        # The original preflight attested this canonical file. Failed stdin
+        # Compose rollback can replace generated config_files labels with '-'.
+        # Keep strict helper path checks; carry only these fixed owned paths.
+        state["payload"] = {**state["payload"], **SOURCE_OVERRIDES}
+        state["reset_plan"] = {"revision": revision, "attempt_nonce": nonce, "payload": copy.deepcopy(state["payload"]),
+                               "recipe_sha256": hashlib.sha256(dockerfile.encode()).hexdigest(),
+                               "compose_sha256": hashlib.sha256(raw.encode()).hexdigest(), "previous_attempt": archive}
+        state["phase"] = "reset_prepared"
+        previous = save(state, previous)
+    plan = state.get("reset_plan")
+    fields = {"revision", "attempt_nonce", "recipe_sha256", "compose_sha256", "previous_attempt", "payload"}
+    require(isinstance(plan, dict) and set(plan) == fields and plan["revision"] == revision,
+            "reset_plan_binding")
+    require(plan["payload"] == state["payload"]
+            and all(state["payload"].get(key) == value for key, value in SOURCE_OVERRIDES.items()), "reset_plan_binding")
+    raw = compose_source(dockerfile, plan["attempt_nonce"])
+    require(plan["recipe_sha256"] == hashlib.sha256(dockerfile.encode()).hexdigest()
+            and plan["compose_sha256"] == hashlib.sha256(raw.encode()).hexdigest(), "reset_plan_binding")
+    expected_archive = plan["previous_attempt"]
+    require(isinstance(expected_archive, dict)
+            and all(expected_archive.get(key) == state[key] for key in ("revision", "recipe_sha256", "compose_sha256"))
+            and expected_archive.get("recovery_observation") == observation
+            and expected_archive.get("terminal_receipt", {}).get("mode") == "adopt"
+            and expected_archive["terminal_receipt"].get("status") == "FAIL"
+            and plan["attempt_nonce"] != state.get("attempt_nonce", state["transaction"]), "reset_plan_binding")
+    require(all(isinstance(row, dict) and row.get("attempt_nonce") != plan["attempt_nonce"] for row in history),
+            "reset_plan_binding")
+    replacement = {**state, "revision": revision, "recipe_sha256": plan["recipe_sha256"],
+                   "compose_sha256": plan["compose_sha256"], "attempt_nonce": plan["attempt_nonce"]}
+    actual_hash = hashlib.sha256(app.get("docker_compose_raw", "").encode()).hexdigest()
+    if actual_hash == state["compose_sha256"]:
+        bind_job(app, state)
+        api.call("services/" + state["job_uuid"], "PATCH", {"docker_compose_raw": base64.b64encode(raw.encode()).decode()})
+    else:
+        bind_job(app, replacement)  # An unknown hash/ownership never gets overwritten.
+    bind_job(api.call("services/" + state["job_uuid"]), replacement)
+    api.call("services/" + state["job_uuid"] + "/envs", "PATCH",
+             service_env_value("LOKI_S3_PAYLOAD_JSON", json.dumps(replacement["payload"]), True))
+    api.call("services/" + state["job_uuid"] + "/envs", "PATCH", service_env_value("LOKI_S3_MODE", "preflight"))
+    replacement["attempt_archive"] = [*state.get("attempt_archive", []), copy.deepcopy(expected_archive)]
+    replacement["phase"] = "preflight_started"
+    for key in ("reset_plan", "recovery_observation", "adoption_receipt"):
+        replacement.pop(key, None)
+    save(replacement, previous)  # An ambiguous restart cannot re-enter reset-preflight.
+    api.call("services/" + state["job_uuid"] + "/restart", "POST")
+    return {**summary(replacement), "attempt_nonce": replacement["attempt_nonce"], "preflight_reset": True}
 
 def receipts(raw):
     """Ignore all raw log text except complete closed worker JSON reports."""
@@ -331,7 +459,8 @@ def status(api, previous):
     require("job_uuid" in state, "create_outcome_requires_inventory")
     app = api.call("services/" + state["job_uuid"])
     bind_job(app, state)
-    found = receipts(api.call("services/" + state["job_uuid"] + "/logs?sub_service_name=maintenance&lines=60"))
+    found = active_receipts(state, receipts(api.call(
+        "services/" + state["job_uuid"] + "/logs?sub_service_name=maintenance&lines=60")))
     if state["phase"] == "adoption_started" and found:
         last = found[-1]
         if (last.get("mode") == "adopt" and last.get("status") == "FAIL"
@@ -348,7 +477,8 @@ def adopt(api, previous):
     require(state["phase"] == "preflight_started", "adoption_phase")
     report = status(api, previous)
     require(any(
-        x.get("status") == "PASS" and x.get("mode") == "preflight" for x in report["receipts"]), "preflight_not_passed")
+        x.get("status") == "PASS" and x.get("mode") == "preflight"
+        for x in active_receipts(state, report["receipts"])), "preflight_not_passed")
     stage = load("s3_stage", ROOT / "scripts/ops/stage-logs-s3-credentials.py")
     pending = stage.bao_read()
     require(pending is not None and pending["metadata"]["version"] == state["pending_version"]
@@ -370,10 +500,12 @@ def finalize(api, previous):
     state = previous["data"]
     require(state["phase"] in {"adoption_started", "runtime_adopted", "config_persisted"}, "finalize_phase")
     report = status(api, previous)
-    require(any(x.get("status") == "PASS" and x.get("mode") == "adopt" for x in report["receipts"]), "adoption_not_passed")
+    passed = [x for x in active_receipts(state, report["receipts"])
+              if x.get("status") == "PASS" and x.get("mode") == "adopt"]
+    require(passed, "adoption_not_passed")
     if state["phase"] == "adoption_started":
         state["phase"] = "runtime_adopted"
-        state["adoption_receipt"] = report["receipts"][-1]
+        state["adoption_receipt"] = passed[-1]
         previous = save(state, previous)
     binding(api.call("applications/" + APP))
     # Persist only these two fields; a configuration edit never redeploys the stack.
@@ -440,7 +572,7 @@ def main():
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("phase", choices=("create", "resume-create", "recover", "status", "adopt", "finalize", "cleanup", "cleanup-status"))
+    parser.add_argument("phase", choices=("create", "resume-create", "recover", "reset-preflight", "status", "adopt", "finalize", "cleanup", "cleanup-status"))
     parser.add_argument("--revision")
     args = parser.parse_args()
     try:
@@ -450,7 +582,10 @@ def main():
         else:
             previous = vault_read()
             require(previous is not None, "journal_missing")
-            result = globals()[args.phase.replace("-", "_")](api, previous)
+            if args.phase == "reset-preflight":
+                result = reset_preflight(api, previous, args.revision or "")
+            else:
+                result = globals()[args.phase.replace("-", "_")](api, previous)
         print(json.dumps(result, sort_keys=True))
         return 0
     except Exception as error:

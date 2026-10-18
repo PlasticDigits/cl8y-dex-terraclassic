@@ -1,6 +1,6 @@
 {
   "issue": 1544,
-  "recorded_at_utc": "2026-10-18T13:19:10.778825+00:00",
+  "recorded_at_utc": "2026-10-18T13:41:13.585212+00:00",
   "source_revision": "809df57b958fd076cb4395735159feb39459f0f1",
   "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1551",
   "worker_recipe_sha256": "e8056ad27615a956dc7fe770cd3b4708d85f7a979e8b196038f28765b627dfc0",
@@ -28,11 +28,53 @@
       "existing_owned_service_count": 0,
       "runtime_changed": false,
       "reset": "No service was created or launched; original Loki and its credentials remain unchanged. Correct the unsupported API option before a reconciled retry."
+    },
+    {
+      "phase": "original_compose_runtime_recreation",
+      "overall": "FAIL",
+      "revision": "809df57b958fd076cb4395735159feb39459f0f1",
+      "job_uuid": "9tksfavan8o2tcdjovzunumt",
+      "runtime_changed": true,
+      "failure_reason": "runtime_binding_changed",
+      "immutable_drift": [
+        "config",
+        "host",
+        "mounts"
+      ],
+      "rollback_attempted": true,
+      "rollback_verified": false,
+      "note": "Rollback recreated the old configuration, but the same strict projection check failed before credential/readiness checks. Keep this failure; do not claim full original-projection restoration."
+    },
+    {
+      "phase": "read_only_recovery_observation",
+      "overall": "FAIL",
+      "old_pair_matches": true,
+      "new_pair_matches": false,
+      "runtime_running": true,
+      "ready": true,
+      "readiness_source": "fresh Docker /ready healthcheck",
+      "canonical_source_attestation": "UNAVAILABLE",
+      "limitation": "original_projection_unavailable",
+      "reason": "Generated config_files metadata changed after stdin Compose execution. Retry diagnostics against the original preflight-attested canonical compose.yaml with unchanged path/symlink guards."
+    },
+    {
+      "phase": "authenticated_external_continuity",
+      "utc": "2026-10-18T13:26:32.485396+00:00",
+      "overall": "PASS",
+      "grafana_database_ok": true,
+      "loki_query": "PASS",
+      "fresh_window_seconds": 300,
+      "fresh_window_line_count": 31873
     }
   ],
   "runtime_adoption": "PENDING",
   "canonical_persistence": "PENDING",
   "old_key_revoked": false,
   "ingestion_rotation": "PENDING",
-  "scope": "Closed diagnostic evidence only; no credentials, credential digests, object IDs, raw API bodies, environment payloads or log lines."
+  "scope": "Closed diagnostic evidence only; no credentials, credential digests, object IDs, raw API bodies, environment payloads or log lines.",
+  "fix_followup": {
+    "runtime_method": "Clone inspected Config/HostConfig through local Docker Engine; retain the original container for exact-ID rollback, no runtime Compose up.",
+    "recovery_method": "Pinned diagnostic source, disabled manually executed task, SHA256 checked before execution; canonical source override stays fixed to the original preflight-attested compose.yaml.",
+    "retry_method": "Archive failed attempt; fresh image and state-volume nonce; reject stale receipts and changed candidates; restart only maintenance job."
+  }
 }

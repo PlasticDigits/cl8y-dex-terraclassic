@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Synthetic journal/deployment boundary checks; no network or production secrets."""
 import copy
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import unittest
@@ -308,6 +310,221 @@ class Tests(unittest.TestCase):
         api.call.side_effect = m.GuardError("api_http_403")
         with self.assertRaisesRegex(m.GuardError, "cleanup_status_failed"):
             m.cleanup_status(api, {"data": s})
+
+
+class ResetPreflightTests(unittest.TestCase):
+    def setUp(self):
+        self.old = state("adoption_started")
+        self.old["recovery_observation"] = {
+            "report": {"schema": "loki_s3_diagnostic_v1", "status": "PASS", "phase": "complete",
+                       "job_binding": True, "old_pair_matches": True, "new_pair_matches": False,
+                       "runtime_running": True, "ready": True, "readiness_source": "docker_healthcheck",
+                       "canonical_source_attestation": "PASS", "original_projection_available": False,
+                       "canonical_source_file": "compose.yaml",
+                       "limitation": "original_projection_unavailable"},
+            "revision": self.old["revision"], "recipe_sha256": self.old["recipe_sha256"],
+            "job_uuid": self.old["job_uuid"], "recorded_at_utc": "2026-10-18T12:00:00+00:00",
+            "task_uuid": "t" * 24, "execution_uuid": "x" * 24}
+        self.failure = {"schema": "loki_s3_adoption_v1", "mode": "adopt", "status": "FAIL",
+                        "phase": "adoption_verification", "runtime_changed": True,
+                        "network_checked": True, "network_detached": True, "adoption_latched": True,
+                        "rollback_attempted": True, "rollback_verified": False, "ready": False,
+                        "failure_reason": "runtime_binding_changed", "immutable_drift": ["config", "host", "mounts"]}
+        self.latest = {"data": copy.deepcopy(self.old), "metadata": {"version": 10}}
+        self.app = job(self.old)
+        self.calls = []
+        self.saves = []
+        self.events = []
+        self.revision = "f" * 40
+        self.nonce = "e" * 16
+        self.fail_patch = False
+        self.stack = contextlib.ExitStack()
+        self.addCleanup(self.stack.close)
+        self.stack.enter_context(patch.object(m.subprocess, "run", return_value=Mock(returncode=0, stdout=self.revision)))
+        self.stack.enter_context(patch.object(m, "recipe", return_value="new reviewed recipe"))
+        self.stack.enter_context(patch.object(m.secrets, "token_hex", return_value=self.nonce))
+        self.candidate = self.stack.enter_context(patch.object(m, "unchanged_candidate"))
+        self.stack.enter_context(patch.object(m, "save", side_effect=self.save))
+        self.api = Mock()
+        self.api.call.side_effect = self.call
+
+    def save(self, value, previous):
+        self.assertEqual(previous["metadata"]["version"], self.latest["metadata"]["version"])
+        self.events.append(("save", value["phase"]))
+        self.latest = {"data": copy.deepcopy(value), "metadata": {"version": previous["metadata"]["version"] + 1}}
+        self.saves.append(copy.deepcopy(value))
+        return copy.deepcopy(self.latest)
+
+    def call(self, path, method="GET", value=None):
+        self.calls.append((path, method, value))
+        self.events.append((method, path))
+        base = "services/" + self.old["job_uuid"]
+        if path == base and method == "GET":
+            return copy.deepcopy(self.app)
+        if path == base and method == "PATCH":
+            self.assertEqual(set(value), {"docker_compose_raw"})
+            self.assertEqual(self.latest["data"]["phase"], "reset_prepared")
+            self.assertEqual(self.latest["data"]["reset_plan"]["previous_attempt"]["terminal_receipt"], self.failure)
+            self.app["docker_compose_raw"] = m.base64.b64decode(value["docker_compose_raw"]).decode()
+            if self.fail_patch:
+                raise m.GuardError("api_http_504")
+            return {}
+        if path.endswith("/logs?sub_service_name=maintenance&lines=60"):
+            return {"logs": json.dumps(self.failure)}
+        if path == base + "/envs" and method == "PATCH":
+            if value["key"] == "LOKI_S3_PAYLOAD_JSON":
+                expected = {**self.old["payload"], "source_file": "compose.yaml",
+                            "workdir": "/data/coolify/applications/" + m.APP}
+                self.assertEqual(json.loads(value["value"]), expected)
+                self.assertEqual(value, m.service_env_value("LOKI_S3_PAYLOAD_JSON", value["value"], True))
+                self.assertEqual(self.latest["data"]["payload"], expected)
+                self.assertEqual(self.latest["data"]["reset_plan"]["payload"], expected)
+            else:
+                self.assertEqual(value, m.service_env_value("LOKI_S3_MODE", "preflight"))
+            return {}
+        if path == base + "/restart" and method == "POST":
+            self.assertEqual(self.latest["data"]["phase"], "preflight_started")
+            self.assertEqual(self.latest["data"]["attempt_nonce"], self.nonce)
+            return {}
+        self.fail("unexpected synthetic API operation")
+
+    def test_reset_archives_failed_attempt_then_replaces_only_owned_job_and_starts_preflight(self):
+        result = m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertTrue(result["preflight_reset"])
+        self.assertEqual(result["attempt_nonce"], self.nonce)
+        self.assertEqual([item["phase"] for item in self.saves], ["reset_prepared", "preflight_started"])
+        self.assertEqual(self.saves[-1]["attempt_archive"][0]["terminal_receipt"], self.failure)
+        self.assertFalse(self.saves[-1]["attempt_archive"][0]["terminal_receipt"]["rollback_verified"])
+        self.assertEqual(self.saves[-1]["attempt_archive"][0]["recovery_observation"], self.old["recovery_observation"])
+        self.assertNotIn("recovery_observation", self.saves[-1])
+        self.assertEqual(self.saves[-1]["transaction"], self.old["transaction"])
+        document = json.loads(self.app["docker_compose_raw"])
+        self.assertEqual(document["volumes"]["transaction-state-" + self.nonce]["name"], "dex-loki-s3-" + self.nonce)
+        self.assertIn("transaction-state-" + self.nonce + ":/state", document["services"]["maintenance"]["volumes"])
+        self.assertEqual(document["services"]["maintenance"]["image"], "cl8y-loki-s3-adoption:" + self.nonce)
+        self.assertNotIn("NEW_SYNTHETIC_SECRET", self.app["docker_compose_raw"])
+        self.assertTrue(all(not path.startswith("applications/") for path, _, _ in self.calls))
+        self.assertEqual(sum(method == "POST" for _, method, _ in self.calls), 1)
+        self.assertNotIn("SYNTHETIC", json.dumps(result))
+
+    def test_ambiguous_patch_reconciles_new_hash_and_never_allocates_another_attempt(self):
+        self.fail_patch = True
+        with self.assertRaisesRegex(m.GuardError, "api_http_504"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertEqual(self.latest["data"]["phase"], "reset_prepared")
+        self.fail_patch = False
+        result = m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertTrue(result["preflight_reset"])
+        self.assertEqual(sum(method == "PATCH" and not path.endswith("/envs") for path, method, _ in self.calls), 1)
+        self.assertEqual(len(self.latest["data"]["attempt_archive"]), 1)
+        self.assertEqual(self.latest["data"]["attempt_nonce"], self.nonce)
+
+    def test_reset_journals_fixed_source_overrides_and_patches_private_payload_without_output(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            result = m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertEqual(output.getvalue(), "")
+        payload = self.latest["data"]["payload"]
+        self.assertEqual({key: payload[key] for key in self.old["payload"]}, self.old["payload"])
+        self.assertEqual(payload["source_file"], "compose.yaml")
+        self.assertEqual(payload["workdir"], "/data/coolify/applications/" + m.APP)
+        env = [body for path, method, body in self.calls if path.endswith("/envs") and method == "PATCH"]
+        self.assertEqual([row["key"] for row in env], ["LOKI_S3_PAYLOAD_JSON", "LOKI_S3_MODE"])
+        self.assertTrue(env[0]["is_shown_once"])
+        self.assertNotIn("SYNTHETIC", json.dumps(result))
+        self.assertEqual(self.saves[0]["phase"], "reset_prepared")
+        self.assertEqual(self.saves[0]["reset_plan"]["payload"], payload)
+
+    def test_unapplied_ambiguous_patch_reuses_only_the_existing_prepared_plan(self):
+        self.fail_patch = True
+        with self.assertRaisesRegex(m.GuardError, "api_http_504"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.app = job(self.old)  # Server never committed the first PATCH.
+        self.fail_patch = False
+        m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertEqual(len(self.latest["data"]["attempt_archive"]), 1)
+        self.assertEqual(self.latest["data"]["attempt_nonce"], self.nonce)
+        self.assertEqual(sum(method == "POST" for _, method, _ in self.calls), 1)
+
+    def test_ambiguous_plan_cannot_overwrite_unknown_service_bytes(self):
+        self.fail_patch = True
+        with self.assertRaisesRegex(m.GuardError, "api_http_504"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.app["docker_compose_raw"] = "foreign bytes"
+        self.calls.clear()
+        with self.assertRaisesRegex(m.GuardError, "owned_job_recipe"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertTrue(all(method == "GET" for _, method, _ in self.calls))
+        self.assertEqual(self.latest["data"]["phase"], "reset_prepared")
+
+    def test_reset_refuses_reusing_the_old_latch_or_the_failed_source(self):
+        with patch.object(m.secrets, "token_hex", return_value=self.old["transaction"]), \
+                self.assertRaisesRegex(m.GuardError, "fresh_attempt_required"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.assertFalse(self.saves)
+        with self.assertRaisesRegex(m.GuardError, "replacement_source_required"):
+            m.reset_preflight(self.api, copy.deepcopy(self.latest), self.old["revision"])
+
+    def test_reset_requires_exact_closed_recovered_old_pair_before_any_api_or_write(self):
+        changes = [lambda s: s.pop("recovery_observation"),
+                   lambda s: s["recovery_observation"].update(recipe_sha256="a" * 64),
+                   lambda s: s["recovery_observation"].update(recorded_at_utc="2026-10-18T12:00:00"),
+                   lambda s: s["recovery_observation"].update(extra="FOREIGN_SYNTHETIC_SECRET"),
+                   lambda s: s["recovery_observation"]["report"].update(old_pair_matches=False),
+                   lambda s: s["recovery_observation"]["report"].update(ready=False),
+                   lambda s: s["recovery_observation"]["report"].update(canonical_source_attestation="UNAVAILABLE"),
+                   lambda s: s["recovery_observation"]["report"].pop("canonical_source_file"),
+                   lambda s: s["recovery_observation"]["report"].update(original_projection_available=True),
+                   lambda s: s["recovery_observation"]["report"].update(secret="FOREIGN_SYNTHETIC_SECRET")]
+        for change in changes:
+            previous = copy.deepcopy(self.latest)
+            change(previous["data"])
+            with self.subTest(change=change), self.assertRaises(m.GuardError) as raised:
+                m.reset_preflight(self.api, previous, self.revision)
+            self.assertNotIn("SYNTHETIC", str(raised.exception))
+            self.assertFalse(self.calls)
+            self.assertFalse(self.saves)
+
+    def test_changed_candidate_stops_reset_before_service_mutation(self):
+        self.candidate.side_effect = m.GuardError("candidate_changed")
+        with self.assertRaisesRegex(m.GuardError, "candidate_changed"):
+            m.reset_preflight(self.api, self.latest, self.revision)
+        self.assertFalse(self.calls)
+        self.assertFalse(self.saves)
+
+    def test_unknown_service_or_nonfailed_terminal_never_gets_overwritten(self):
+        for change in (lambda: self.app.update(docker_compose_raw="foreign"),
+                       lambda: self.failure.update(mode="preflight")):
+            with self.subTest(change=change):
+                self.app = job(self.old)
+                self.failure["mode"] = "adopt"
+                change()
+                self.calls.clear()
+                with self.assertRaises(m.GuardError):
+                    m.reset_preflight(self.api, self.latest, self.revision)
+                self.assertFalse(self.saves)
+                self.assertTrue(all(method == "GET" for _, method, _ in self.calls))
+
+    def test_preflight_reset_cannot_be_replayed_after_restart_dispatch(self):
+        m.reset_preflight(self.api, copy.deepcopy(self.latest), self.revision)
+        self.calls.clear()
+        with self.assertRaisesRegex(m.GuardError, "reset_phase"):
+            m.reset_preflight(self.api, self.latest, self.revision)
+        self.assertFalse(self.calls)
+
+    def test_old_preflight_receipt_cannot_authorize_the_new_attempt(self):
+        s = state()
+        s["attempt_nonce"] = self.nonce
+        for nonce in (None, s["transaction"]):
+            receipt = {"mode": "preflight", "status": "PASS"}
+            if nonce is not None:
+                receipt["attempt_nonce"] = nonce
+            with patch.object(m, "status", return_value={"receipts": [receipt]}), \
+                    self.assertRaisesRegex(m.GuardError, "preflight_not_passed"):
+                m.adopt(Mock(), {"data": s})
+        with patch.object(m, "status", return_value={"receipts": [{"mode": "adopt", "status": "PASS"}]}), \
+                self.assertRaisesRegex(m.GuardError, "adoption_not_passed"):
+            m.finalize(Mock(), {"data": {**s, "phase": "adoption_started"}})
 
 
 if __name__ == "__main__":
