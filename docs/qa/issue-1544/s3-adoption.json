@@ -1,6 +1,6 @@
 {
   "issue": 1544,
-  "recorded_at_utc": "2026-10-18T13:57:13.059246+00:00",
+  "recorded_at_utc": "2026-10-18T14:20:42.929246+00:00",
   "source_revision": "809df57b958fd076cb4395735159feb39459f0f1",
   "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1551",
   "worker_recipe_sha256": "e8056ad27615a956dc7fe770cd3b4708d85f7a979e8b196038f28765b627dfc0",
@@ -15,7 +15,14 @@
     "actual_runtime_compose_available": "PASS",
     "commit_hooks": "PASS",
     "hosted_ci": "PENDING_UNVERIFIED",
-    "merge_gate_override": "explicit_user_instruction"
+    "merge_gate_override": "explicit_user_instruction",
+    "latest_covered_controls": 194,
+    "actual_docker_clone_and_original_id_rollback_rehearsal": "PASS",
+    "final_focused_make": "PASS",
+    "operator_hidden_target_tests": 7,
+    "scoped_cleanup_client_tests": 37,
+    "operator_private_journal_minimal_environment_read": "PASS",
+    "operator_actual_latest_receipt_validation": "PASS"
   },
   "live_attempts": [
     {
@@ -101,8 +108,8 @@
       "owned_marker_exact_roundtrip": true
     }
   ],
-  "runtime_adoption": "PENDING",
-  "canonical_persistence": "PENDING",
+  "runtime_adoption": "PASS",
+  "canonical_persistence": "PASS",
   "old_key_revoked": false,
   "ingestion_rotation": "PENDING",
   "scope": "Closed diagnostic evidence only; no credentials, credential digests, object IDs, raw API bodies, environment payloads or log lines.",
@@ -110,5 +117,45 @@
     "runtime_method": "Clone inspected Config/HostConfig through local Docker Engine; retain the original container for exact-ID rollback, no runtime Compose up.",
     "recovery_method": "Pinned diagnostic source, disabled manually executed task, SHA256 checked before execution; canonical source override stays fixed to the original preflight-attested compose.yaml.",
     "retry_method": "Archive failed attempt; fresh image and state-volume nonce; reject stale receipts and changed candidates; restart only maintenance job."
-  }
+  },
+  "deployed_source_revision": "2cb435f284616c75185db3b1ea22e84c16ecdfe7",
+  "deployed_worker_recipe_sha256": "66a56e47c3eefd2d073eb99f7fe0ddea5aa3939e311df882ab804d132d89de31",
+  "maintenance_service_uuid": "9tksfavan8o2tcdjovzunumt",
+  "verified_adoption_receipt": {
+    "adoption_latched": true,
+    "attempt_nonce": "a3089a1655045092",
+    "backing_storage_write_verified": true,
+    "flush_failure_delta": 0,
+    "flush_success_delta": 99,
+    "historical_readback_verified": true,
+    "marker_readback_verified": true,
+    "mode": "adopt",
+    "network_checked": true,
+    "network_detached": true,
+    "phase": "adopted",
+    "ready": true,
+    "rollback_attempted": false,
+    "rollback_verified": false,
+    "runtime_changed": true,
+    "schema": "loki_s3_adoption_v1",
+    "status": "PASS"
+  },
+  "canonical_configuration": {
+    "two_s3_fields_match_adopted_candidate": true,
+    "storage_endpoint_bucket_region_unchanged": true,
+    "full_logs_stack_deployed": false,
+    "canonical_openbao_s3_scalar_records_present": false,
+    "private_pending_and_rollback_records_retained": true
+  },
+  "cleanup": {
+    "overall": "PASS_WITH_SKIPS",
+    "saved_payload_removed": true,
+    "maintenance_network_detached": true,
+    "coolify_service_record_removed": true,
+    "runtime_container_removal_verified": false,
+    "shared_volumes_and_networks_protected": true,
+    "nonsecret_attempt_receipts_and_latches_retained": true,
+    "skip_reason": "The known logs route did not establish physical absence before the asynchronous Service deletion removed the API record. Record deletion is confirmed; it cannot independently prove Docker-object removal."
+  },
+  "post_adoption_live_evidence": "s3-post-adoption.json"
 }

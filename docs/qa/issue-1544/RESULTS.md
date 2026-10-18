@@ -172,3 +172,28 @@ guard pass, along with eighteen staging workflow controls; each process takes
 under one second. A live read-only preflight through the launcher boundary
 passes. The updated operator entrypoint is documented in the runbook; no service
 was restarted, no runtime credential changed, and no S3 adoption is claimed.
+
+## S3 credential adoption follow-up
+
+The operator-staged replacement is deployed in Loki from
+`2cb435f284616c75185db3b1ea22e84c16ecdfe7`. Exact runtime preservation, readiness,
+marker/historical readback and actual successful backing-storage writes passed
+(99 stored-chunk increments, zero new flush failures). Canonical Coolify
+credential readback passed without a full logging-stack deployment.
+[S3 adoption evidence](s3-adoption.json) retains the failed attempts and verified
+exact original-container rollback; [post-adoption checks](s3-post-adoption.json)
+show Grafana healthy, fresh logs, both intended Prometheus targets successfully
+scraped, and HTTP200/admitted serving from the unchanged DEX revision. Indexer
+readiness remains a separate observed zero; this does not certify indexing or
+close native/provider acceptance.
+
+The final focused suite passed 194 controls plus config/rule checks, each process
+bounded to 55 seconds. Old S3 key revocation and ingestion-principal rotation
+remain unverified, so the privacy criterion and #1544 remain open. The reviewed
+hidden Console target check is linked from the runbook; it performs no deletion.
+
+Maintenance cleanup erased the saved payload and confirmed deletion of the
+Coolify Service record. Network detachment had already passed. Physical Docker
+object deletion remains an explicit unavailable check; record HTTP404 alone
+is not treated as that proof. Nonsecret receipts/latches and shared data stay
+protected. This limitation is separate from successful Loki adoption.

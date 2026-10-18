@@ -296,6 +296,31 @@ results. No phase revokes the previous S3 key. Keep old-key revocation and
 ingestion-principal rotation pending until their own verification succeeds;
 successful S3 adoption cannot close those items or #1544 by itself.
 
+### Checking the Console entry before retiring the old key
+
+After verified adoption and canonical persistence, run the reviewed
+[`check-logs-s3-revocation-target.py`](../../scripts/ops/check-logs-s3-revocation-target.py)
+directly in the operator terminal:
+
+```sh
+python3 /home/answorld/repos/cl8y-dex-terraclassic/scripts/ops/check-logs-s3-revocation-target.py
+```
+
+Copy the access-key ID of the selected Hetzner Console entry into its hidden
+prompt. It compares privately against the retired key and the latest verified
+adoption receipt; only `may_revoke_selected_console_entry: true` permits deleting
+that same selected entry. It rejects the replacement, changes nothing and prints
+no key values. The operator performs the Console deletion; agent verification
+afterwards must establish old-key rejection and continuing replacement access.
+Hetzner documents that its S3-specific management API is unavailable in the
+[Object Storage FAQ](https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/#can-i-check-the-storage-and-network-utilization-via-api).
+The exact command and single Console action belong in one cl8y-pm custody card.
+
+Cleanup separately verifies absence through the known container-log route while
+the exact maintenance Service still exists, then deletes its API record. A
+missing Service record alone never proves physical container removal. Preserve
+that distinction and the separate secret-removal readback in evidence.
+
 Completing the collector card granted no persistent sudo or Docker access.
 Before ingestion rotation, prepare one reviewed privileged transaction with
 preflight for every actual host/stack/future-worker consumer. Add a distinct

@@ -17,6 +17,7 @@ run 'One-shot maintenance worker identity, isolation and private receipts' pytho
 run 'Private adoption journal and scoped Coolify deployment controls' python3 scripts/ops/test_adopt_logs_s3.py
 run 'Read-only rollback observation and canonical source metadata' python3 scripts/ops/test_diagnose_loki_s3_host.py
 run 'Disabled finite recovery task, source digest and output boundaries' python3 scripts/ops/test_diagnose_logs_s3.py
+run 'Hidden Console target check rejects the replacement key and incomplete adoption' python3 scripts/ops/test_check_logs_s3_revocation_target.py
 run 'Collector credential-name inventory including digits' python3 scripts/ops/test_logs_collector_inventory.py
 run 'Scoped ops fake-API mutation and diagnostic guards' python3 scripts/qa/test-dex-monitoring-ops-1544.py
 run 'Exact target identity, freshness and Grafana response validation' python3 scripts/qa/test-swap-monitoring-1479-1480.py

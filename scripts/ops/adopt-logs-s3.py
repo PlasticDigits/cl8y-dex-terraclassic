@@ -18,6 +18,7 @@ import re
 import resource
 import secrets
 import subprocess
+import time
 import urllib.error
 import urllib.request
 
@@ -149,6 +150,8 @@ def validate(state):
     if "attempt_nonce" in state:
         require(isinstance(state["attempt_nonce"], str)
                 and re.fullmatch(r"[a-f0-9]{16}", state["attempt_nonce"]), "journal_binding")
+    if "runtime_container_removal_verified" in state:
+        require(type(state["runtime_container_removal_verified"]) is bool, "journal_binding")
 
 
 def bind_job(app, state):
@@ -523,6 +526,40 @@ def finalize(api, previous):
     return {**summary(state), "canonical_configuration_verified": True, "stack_deployed": False}
 
 
+def container_removed(api, state):
+    """Prove Docker absence while its exact Service and child still exist.
+
+    This known logs route uses Docker's all-container inventory, including
+    stopped containers. Only its HTTP404 after a bound parent read is proof;
+    the Service record's own HTTP404 never establishes physical removal.
+    """
+    base = "services/" + state["job_uuid"]
+    deadline = time.monotonic() + 15
+    for attempt in range(3):
+        if time.monotonic() >= deadline:
+            return False
+        try:
+            parent = api.call(base)
+        except Exception:
+            return False
+        bind_job(parent, state)  # Ownership drift never authorizes deletion.
+        if time.monotonic() >= deadline:
+            return False
+        try:
+            api.call(base + "/logs?sub_service_name=maintenance&lines=1")
+        except GuardError as error:
+            if str(error) == "api_http_404":
+                return True
+            if str(error) != "api_http_400":
+                return False
+        except Exception:
+            return False
+        # HTTP200 or a stopped-but-not-removed HTTP400 remains unproven.
+        if attempt < 2:
+            time.sleep(max(0, min(1, deadline - time.monotonic())))
+    return False
+
+
 def cleanup(api, previous):
     state = previous["data"]
     validate(state)
@@ -546,12 +583,20 @@ def cleanup(api, previous):
             require(ID.fullmatch(row.get("uuid", "")), "job_environment_identity")
             api.call("services/" + job + "/envs/" + row["uuid"], "DELETE")
     require(not any(x.get("key") == "LOKI_S3_PAYLOAD_JSON" for x in api.call("services/" + job + "/envs")), "job_secret_removal_failed")
-    api.call("services/" + job + "/stop?docker_cleanup=false", "POST")
+    stopped_error = None
+    try:
+        api.call("services/" + job + "/stop?docker_cleanup=false", "POST")
+    except GuardError as error:
+        require(str(error) == "api_http_400", "job_stop_failed")
+        stopped_error = error
+    removed = container_removed(api, state)
+    if stopped_error is not None and not removed:
+        raise stopped_error
     api.call("services/" + job + "?delete_volumes=false&delete_connected_networks=false&docker_cleanup=false", "DELETE")
-    state["phase"] = "cleaned"
+    state.update(phase="cleaned", runtime_container_removal_verified=removed)
     save(state, previous)
     return {**summary(state), "saved_payload_removed": True, "job_deletion_queued": True,
-            "shared_volumes_and_networks_protected": True}
+            "shared_volumes_and_networks_protected": True, "runtime_container_removal_verified": removed}
 
 
 def cleanup_status(api, previous):
@@ -565,7 +610,8 @@ def cleanup_status(api, previous):
     except GuardError as error:
         require(str(error) == "api_http_404", "cleanup_status_failed")
         removed = True
-    return {**summary(state), "job_record_removed": removed, "runtime_container_removal_verified": False}
+    return {**summary(state), "job_record_removed": removed,
+            "runtime_container_removal_verified": state.get("runtime_container_removal_verified", False)}
 
 
 def main():

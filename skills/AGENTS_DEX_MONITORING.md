@@ -84,3 +84,10 @@ maintenance recipe. Preserve any unavailable original-projection limitation.
 Use a fresh nonce in both the state-volume key/name and image tag; stale or
 wrong-nonce receipts cannot authorize adoption. A reset never deletes old
 latches, changes candidate credentials or redeploys the logs application.
+
+For final Console custody, use the [hidden revocation-target check](../scripts/ops/check-logs-s3-revocation-target.py)
+only in the real operator terminal, after completed adoption and canonical
+persistence. It must reject the replacement and compare the selected ID against
+the private retired-key record without printing values. It never revokes a key.
+Agent-owned post-revocation checks remain mandatory. Cleanup proof must distinguish
+physical container absence, saved-payload removal and API record deletion.

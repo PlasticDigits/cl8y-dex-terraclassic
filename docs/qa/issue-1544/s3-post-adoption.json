@@ -1,0 +1,50 @@
+{
+  "utc": "2026-10-18T14:13:26.297306+00:00",
+  "scope": "bounded post-adoption Grafana/Loki, exact Prometheus targets and public cached serving checks",
+  "runtime_changed": false,
+  "ingestion_password_rotation_verified": false,
+  "grafana_database_ok": true,
+  "fresh_loki_window_seconds": 120,
+  "fresh_loki_line_count": 12499.0,
+  "prometheus": {
+    "status": "PASS",
+    "datasource_uid": "cl8y-dex-prometheus",
+    "datasource_health": "OK",
+    "max_sample_age_seconds": 90,
+    "queries": [
+      "label_replace(label_replace({__name__=~\"up|dex_observation_timestamp_seconds|dex_endpoint_up\",job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"},\"monitor_metric\",\"$1\",\"__name__\",\"(.+)\"),\"monitor_check\",\"value\",\"\",\"\") or label_replace(timestamp(label_replace({__name__=~\"up|dex_observation_timestamp_seconds|dex_endpoint_up\",job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"},\"monitor_metric\",\"$1\",\"__name__\",\"(.+)\")),\"monitor_check\",\"timestamp\",\"\",\"\")"
+    ],
+    "targets": {
+      "cl8y-dex-api": {
+        "scrape_up": 1,
+        "observation_age_seconds": 23.427,
+        "endpoint_up": {
+          "serving": 1.0,
+          "liveness": 1.0,
+          "quote_readiness": 1.0
+        }
+      },
+      "cl8y-dex-indexer": {
+        "scrape_up": 1,
+        "observation_age_seconds": 23.427,
+        "endpoint_up": {
+          "indexer_readiness": 0.0
+        }
+      }
+    },
+    "scope": "Scrape and serving availability; readiness values remain independent and do not certify quote acceptance."
+  },
+  "dex_serving": [
+    {
+      "endpoint": "/health",
+      "http_status": 200,
+      "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc"
+    },
+    {
+      "endpoint": "/health/serving",
+      "http_status": 200,
+      "admitted": true
+    }
+  ],
+  "overall": "PASS"
+}
