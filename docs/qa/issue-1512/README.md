@@ -15,7 +15,9 @@ Implementation: [pairPriceUsd.ts](../../../frontend-dapp/src/utils/pairPriceUsd.
 - [x] Actual Trade phone/desktop and Charts components replace prior valid USD with **—**, retain **—** through inversion, recover indexed USD and reject foreign-pair rows.
 - [x] Historical candles stay plotted when latest trade USD is missing; no candle-close current headline fallback.
 - [x] T524/C543/C680 orientation, tape/amount and transaction conversion regressions pass; types and focused lint pass.
-- [ ] Exact frontend/backend deployment revision and build logs attested separately; live desktop/phone Trade/Charts inspected.
+- [x] Served frontend and restored prior backend identities recorded separately; desktop/phone Trade/Charts rendering inspected in the bounded cases below. This is mixed-deployment evidence, not deployment of the new backend.
+- [x] Additional actual delayed-response pair/orientation isolation and clean-URL reload persistence pass on both pages at desktop/phone widths; see the [additional matrix](deployed-races.md).
+- [ ] Entire original API/browser/attack/execution acceptance matrix; the [coverage audit](deployed-races.md#coverage-audit) names the remaining gaps.
 
 Run `make verify-issue-1512` for the focused source suites. Each process uses a
 59-second timeout. Relevant legacy verifiers can be run separately with the same
@@ -137,3 +139,8 @@ the deployed frontend's current indexed price, unavailable price, inversion,
 recovery, foreign-pair rejection and historical-candle behavior. The actual
 unmocked run used available indexed USD; controlled fixtures cover absence.
 Native quote latency, signing and backend M migration remain separate work.
+
+The [additional race/reload matrix](deployed-races.md) closes the focused delayed
+pair/orientation and reload checks with distinct new cases, without repeating the
+four completed missing-USD cases or the unmocked market comparison. Full issue
+acceptance remains incomplete.
