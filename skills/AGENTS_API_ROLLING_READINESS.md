@@ -19,3 +19,11 @@ HTTP/lock rehearsal uses synthetic source observations and production scheduled
 API producers. Its lifecycle progress after real advisory-lock exchange is an
 explicit fixture; complete old/new-process and proxy promotion evidence is separate.
 See the [checklist and configuration](../docs/qa/api-rolling-readiness/README.md).
+
+For release eligibility, use the GET-only
+[`api-rolling-eligibility.py`](../scripts/ops/api-rolling-eligibility.py) and its
+[manifest/proof contract](../docs/qa/api-rolling-readiness/README.md). An inventory
+receipt is never deployment permission. Exact remote-main/source proof is required
+before mutations; historical source verification is allowed only for read-only
+status of an already dispatched release. Never include credentials, raw env values,
+logs or actor identifiers in the public inventory receipt.

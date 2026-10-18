@@ -91,3 +91,33 @@ provisioned after container/port identity checks. Final latch units passed2/2 in
 6.48s. Each execution had a59s outer bound; compilation was separate. The
 stronger independent HTTP/state/block-processing/proxy forwarding rehearsal is
 separate acceptance; no OS-process/Coolify deployment proof is asserted here.
+
+
+Read-only release eligibility is implemented by
+[`api-rolling-eligibility.py`](../../../scripts/ops/api-rolling-eligibility.py).
+`inventory` performs seven bounded GETs and is always `INVENTORY_ONLY`; it never
+permits a rollout. The [retained production inventory](eligibility-inventory-20261018.json)
+observed the restored old API healthy, with the reviewed rolling settings and no
+active deployment. Its three profile checks failed because the explicit runtime
+profile was absent. No environment, source pin or deployment changed.
+
+`inspect` requires exact remote main, its archived compiled-input manifest, a
+reviewed public profile and a private0600 owned proof. It checks the executable
+Docker startup health instruction, not merely an endpoint mentioned in a comment.
+The shared pure `application_manifest(root)` / `manifest_from_files(files)` contract
+covers all indexer source/migrations, Cargo manifests, Dockerfile and optional
+project compiler configuration/build scripts. It excludes env files, test data
+and target caches; it refuses symlinks. Final proofs must bind the final frozen
+compiled source, including later changes. `revision_manifest(revision)` is strict
+by default; `exact_main=False` skips only the remote-main comparison so read-only
+status can inspect an already dispatched release after main advances.
+
+Owned proof contract: `schema=api_rolling_eligibility_proof_v1`, `overall=PASS`,
+`source_manifest` equals the full compiled-input descriptor, and `controls` contains
+each exact key in `PROOF_CONTROLS` with boolean true. `measurements` contains integer
+(not boolean) `proxy_requests>=10`, `native_quote_successes>=4`, `http_failures=0`,
+`request_lcd_calls=0` and `parsed_blocks_after_handoff>=1`. The exact scope is
+`owned independent HTTP/state, production block indexing and proxy forwarding; not OS-process or actual Coolify deployment`.
+These observations do not claim an actual Coolify rollout or continuous future
+native availability. Nine focused offline controls pass; no production mutation
+or extra application test run is involved in this eligibility implementation.

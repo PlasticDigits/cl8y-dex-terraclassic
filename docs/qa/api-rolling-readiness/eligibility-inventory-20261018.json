@@ -1,0 +1,31 @@
+{
+  "application_uuid": "s14i3w45r5g6ulyu6nsxzm0n",
+  "old_commit": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "prior_git_commit_sha": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "checks": {
+    "reviewed_coolify_version": true,
+    "standalone_docker": true,
+    "no_host_port_mappings": true,
+    "no_fixed_container_name": true,
+    "no_custom_docker_overrides": true,
+    "uses_image_healthcheck": true,
+    "image_build_secrets_enabled": true,
+    "no_unreviewed_compiler_environment": true,
+    "auto_deploy_disabled": true,
+    "no_active_deployment": true,
+    "old_application_healthy": true,
+    "public_health_matches_prior": true,
+    "traefik_proxy_running": true,
+    "no_privileged_environment": true,
+    "explicit_profile_valid": false,
+    "profile_runtime_only_public": false,
+    "profile_matches_reviewed_input": false
+  },
+  "profile_sha256": null,
+  "scenario_count": 0,
+  "reads": 7,
+  "overall": "INVENTORY_ONLY",
+  "revision": null,
+  "remote_changed": false,
+  "observed_at_utc": "2026-10-18T07:31:51.279239+00:00"
+}
