@@ -49,3 +49,11 @@ corrected and source tests/clippy repeated; optimized artifacts were rebuilt fro
 that source. The committed public build receipt exports filename/digest maps as
 explicit `path`/`sha256` rows. The canonical generated receipt remains in the
 owned build output; no scanner exemption or hook bypass was added.
+
+The final cohort HTTP check reproduced a new-field formatting defect: BigDecimal
+Display emits scientific notation for tiny values. Only the new cohort USD/share
+mappers now use the existing plain-decimal formatter. The exact 1e-18 HTTP fixture
+failed before and passes afterward across all three windows. The focused backend
+count is now 71, including nine cohort tests; existing fee-source/token shapes
+remain unchanged. Public deployment checks use the [bounded API smoke](../../../scripts/qa/live-evidence-1206-1211.py)
+and [separate desktop/phone browser cases](../../../scripts/qa/browser-price-campaign-1512.cjs).

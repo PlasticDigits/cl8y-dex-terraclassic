@@ -23,7 +23,7 @@ breakdowns publish atomically from a consistent repeatable-read snapshot; GET
 reads only these rollups in a single read snapshot and retains the 60-second
 cache. Existing source/token payloads remain additive.
 
-[Executed local results](RESULTS.md) record 70 passing relevant checks.
+[Executed local results](RESULTS.md) record 71 passing relevant checks.
 
 ## Acceptance checklist
 
@@ -75,3 +75,7 @@ then inspect a bounded logs.cl8y.com interval for that deployment. Compare new
 cohort totals with source totals and classify remaining unjoined receipts without
 exposing actors. This is read-only after migration/deployment; it requires no
 wallet signing.
+
+Production schema preparation and isolated SELECT-only evidence are documented in
+[deployment.md](deployment.md). This preflight does not apply the migration or
+establish deployed cohort acceptance.

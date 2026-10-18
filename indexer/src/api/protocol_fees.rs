@@ -178,8 +178,8 @@ pub async fn get_protocol_fees(
         .into_iter()
         .map(|r| ProtocolFeeCohortRow {
             cohort: r.cohort,
-            amount_usd: r.amount_usd.map(|v| v.to_string()),
-            share_pct: r.share_pct.map(|v| v.to_string()),
+            amount_usd: r.amount_usd.as_ref().map(super::pairs::bd_plain_string),
+            share_pct: r.share_pct.as_ref().map(super::pairs::bd_plain_string),
             event_count: r.event_count,
         })
         .collect();

@@ -47,3 +47,22 @@ Local passing evidence does not close this issue's remaining live/integration cr
 tests in 1.72s and the campaign solver-failure/retry integration in 12.76s. Each
 process had a 55-second ceiling. The initially reproduced campaign loss is fixed.
 Live routing and third-party adapter acceptance remain unchecked above.
+
+## Bounded deployed campaign browser cases
+
+After independently attesting the new frontend and confirming useful anonymous
+UST1/USTR backend quotes, run each viewport separately:
+
+```bash
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case campaign --viewport desktop
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case campaign --viewport phone
+```
+
+This injects a solver HTTP 503 until one Retry click, then permits the actual
+anonymous backend response. Repeated `utm_source` and campaign/ref fields must
+survive URL canonicalization, failure and retry; none may enter solver requests.
+No wallet connection, signing, raw activity export or screenshot occurs. A
+missing useful backend quote remains failed/incomplete acceptance rather than a
+synthetic success. Served-script hashes bind each receipt to observed frontend
+assets; source/deployment identity is attested separately. This does not prove
+middle-hop ranking or third-party adapters.

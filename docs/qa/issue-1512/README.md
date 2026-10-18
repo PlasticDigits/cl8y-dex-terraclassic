@@ -23,3 +23,30 @@ bound. Backend API/storage units are unchanged. Full original issue browser,
 attack, API and execution acceptance must remain explicit if not exercised;
 source checks alone do not close the issue. Retained local before/fixed logs are
 in `/tmp/dex-issues-1206-1512` during this investigation.
+
+## Bounded deployed frontend browser cases
+
+The helper `scripts/qa/browser-price-campaign-1512.cjs` checks the deployed
+frontend using anonymous synthetic HTTP fixtures for the canonical UST1/USTR
+catalog/detail, latest trades and historical candles. It records served-script
+hashes and acceptance booleans; it never exports actor/transaction rows, takes
+screenshots, connects a wallet or signs. These cases verify deployed rendering;
+actual market pricing and execution remain separate acceptance.
+
+After independently attesting the frontend deployment, run each process
+separately with a 59-second outer ceiling (the browser itself has a 52-second
+budget):
+
+```bash
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case trade --viewport desktop
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case trade --viewport phone
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case charts --viewport desktop
+timeout 59s node scripts/qa/browser-price-campaign-1512.cjs --case charts --viewport phone
+```
+
+Each case verifies valid USD, missing USD replacing the headline with `—`,
+inversion while unavailable, indexed recovery in the new direction, rejection
+of foreign-pair trade rows, and retained historical candles. Virtual browser time
+advances the existing refetch intervals; it does not alter production responses
+or the application's quote/signing rules. Only the price rendering fixture
+requests are substituted. Default receipts stay under `/tmp/deployed-*-1512.json`.

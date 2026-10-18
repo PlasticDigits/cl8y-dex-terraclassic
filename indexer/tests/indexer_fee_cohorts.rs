@@ -781,3 +781,75 @@ async fn malformed_pinned_registry_receipts_invalidate_prior_membership_fail_clo
     assert_eq!(tag(&pool, ids[1]).await.1, "unknown");
     assert_eq!(tag(&pool, ids[2]).await.1, "retail");
 }
+
+#[tokio::test]
+#[serial]
+async fn cohort_http_dust_amounts_and_shares_use_plain_decimal_strings() {
+    use std::str::FromStr;
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let dust = fee(
+        &pool,
+        FeeSource::Wrap,
+        0,
+        "DUST",
+        100,
+        seed.asset_0_id,
+        None,
+        Some(1),
+    )
+    .await;
+    let large = fee(
+        &pool,
+        FeeSource::Wrap,
+        1,
+        "LARGE",
+        100,
+        seed.asset_0_id,
+        None,
+        Some(1),
+    )
+    .await;
+    sqlx::query("UPDATE protocol_fee_events SET fee_usd=$1 WHERE id=$2")
+        .bind(bigdecimal::BigDecimal::from_str("0.000000000000000001").unwrap())
+        .bind(dust)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE protocol_fee_events SET fee_usd=99.999999999999999999 WHERE id=$1")
+        .bind(large)
+        .execute(&pool)
+        .await
+        .unwrap();
+    for (id, cohort) in [(dust, "retail"), (large, "mm")] {
+        sqlx::query(
+            "INSERT INTO protocol_fee_attributions(fee_event_id,actor,cohort) VALUES($1,$2,$3)",
+        )
+        .bind(id)
+        .bind(addr(9))
+        .bind(cohort)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    fees::refresh_protocol_fees(&pool, true, false)
+        .await
+        .unwrap();
+    cl8y_dex_indexer::api::reset_protocol_fees_cache();
+    let server = TestServer::new(common::build_test_app(pool).await);
+    for window in ["24h", "7d", "30d"] {
+        let response = server
+            .get(&format!("/api/v1/protocol/fees?window={window}"))
+            .await;
+        response.assert_status_ok();
+        let value: Value = response.json();
+        let dust_row = value["by_cohort"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["cohort"] == "retail")
+            .unwrap();
+        assert_eq!(dust_row["amount_usd"], "0.000000000000000001");
+        assert_eq!(dust_row["share_pct"], "0.000000000000000001");
+    }
+}

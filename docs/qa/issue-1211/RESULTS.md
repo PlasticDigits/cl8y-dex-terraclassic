@@ -7,13 +7,13 @@ Postgres. Build and test steps were separate; each actual test process had a
 | Focused binary/filter | Result | Test duration |
 |---|---|---|
 | `cl8y_dex_indexer fee_cohorts::tests` | 2 passed | 0.00s |
-| `indexer_fee_cohorts` | 8 passed | 2.29s |
+| `indexer_fee_cohorts` | 9 passed | 2.45s |
 | `indexer_protocol_fees` | 31 passed | 8.45s |
 | `indexer_tier_sync` | 4 passed | 1.01s |
 | `indexer_economic_fee_usd` | 8 passed | 2.50s |
 | `indexer_defillama` | 17 passed | 5.85s |
 
-The cohort binary includes seven feature tests and one shared QA safety test.
+The cohort binary includes eight feature tests and one shared QA safety test.
 The old tier-sync route test expected request-triggered remote optimization and
 failed with the current local quote policy. Its replacement verifies the intended
 current behavior: indexed live tier state alone does not authorize an unobserved
@@ -38,3 +38,13 @@ Current contract receipts lack some payer attributes, as described in the
 [checklist](README.md#actual-chain-limitations). Synthetic future-compatible
 receipt shapes do not prove deployed emissions. Overall local tests pass; the
 issue remains open pending its actual-chain/deployment criteria.
+
+## Plain decimal HTTP follow-up
+
+An actual HTTP dust fixture first reproduced `amount_usd: "1.00E-18"`
+instead of the required `"0.000000000000000001"` (one test failed in 0.63s).
+The new cohort amount/share serialization now uses the existing #557 plain
+decimal helper. The fixture checks both 1e-18 USD and a 1e-18 percent share
+through all three HTTP windows; all nine cohort checks pass in 2.45s afterward.
+Only new `by_cohort` fields changed; existing source/token serialization remains
+unchanged. Compilation was separate (40.51s); each actual test had a 59s ceiling.
