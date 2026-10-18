@@ -6,7 +6,10 @@
   "hosted_ci": {
     "pipeline": 526,
     "overall": "PASS",
-    "scope": "genuine complete source pipeline"
+    "scope": "genuine complete source pipeline",
+    "main_pipeline": 527,
+    "main_commit": "5b623a04f35bb6b44d3e64df0014e458cad653fc",
+    "main_status": "PASS"
   },
   "rolling": {
     "revision": "5b623a04f35bb6b44d3e64df0014e458cad653fc",

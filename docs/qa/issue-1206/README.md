@@ -45,3 +45,8 @@ The bounded-size fixture inserts 10,000 parent swaps and ten fee assets. It
 requires one small digest object, eight token rows plus other, partial-source/token
 nulls and an intact priced headline. Midnight fixtures distinguish prior 23:30Z
 from selected-day 00:30Z and exclude the next midnight exactly.
+
+The [dated live release](../issues-1206-1512/live-release-20261018.md) and
+[14-request API receipt](../issues-1206-1512/live-api-20261018.json) now establish
+exact deployed identity, digest/OpenAPI and observed socket timing separately
+from the seeded source/SQL checks. Required body/comment acceptance is complete.

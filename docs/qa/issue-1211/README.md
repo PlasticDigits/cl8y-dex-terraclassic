@@ -29,20 +29,29 @@ cache. Existing source/token payloads remain additive.
 
 ## Acceptance checklist
 
-- [ ] AC1: production ingested rows have an actor/unjoined and immutable as-of cohort.
-- [ ] AC2: live `24h`, `7d`, `30d` return three additive cohort rows with priced/null/idle semantics.
-- [ ] AC3: cohort JSON contains no payer, wallet, registry or tier identities.
-- [ ] AC4: exact historical unregistered/default-tier-0 state classifies retail.
-- [ ] AC5: register tier 0 → MM; deregister → retail; prior tags remain unchanged.
-- [ ] AC6: self tiers 1–9 and tier 255 retail; book actor is taker, never maker.
-- [ ] AC7: attributable trusted-router trader wins; unjoinable payer receipts are unknown.
-- [ ] AC8: GET uses bounded rollups and one consistent cache snapshot; client analytics/FeeSource stay unchanged.
+- [x] AC1: immutable actor-or-unjoined/as-of cohort persistence verified by source fixtures and actual LocalTerra production ingestion; deployed schema 68/joint publication verified separately.
+- [x] AC2: live `24h`, `7d`, `30d` return three available cohort rows; source/cohort counts and priced USD reconcile, shares total 100%. Idle/unpriced/null/plain-decimal cases are fixture-tested.
+- [x] AC3: source/actual-chain/public API checks show aggregate-only cohort JSON without payer, wallet, registry or tier identities.
+- [x] AC4: certified historical unregistered/default-tier-0 classification is retail in provider fixtures and the actual LocalTerra swap.
+- [x] AC5: registration → MM shown by an actual paid LocalTerra wrap; deregistration, same-transaction ordering and immutable history/replay covered by fixtures.
+- [x] AC6: source/tier/taker-vs-maker fixtures establish self tiers 1–9 and tier 255 retail, with book fees attributed to the taker.
+- [x] AC7: trusted-router and spoof/unjoinable cases covered by source fixtures; genuine mapper depositor handled in actual LocalTerra receipts. Missing payer/trader emissions remain unknown.
+- [x] AC8: bounded materialized GET, consistent joint cache publication and unchanged client analytics/FeeSource verified by fixtures/source; all production windows reconcile. Optional cohort UI was not shipped.
 
-The integration fixtures cover chain/action ordering, mutable-live-tier disagreement,
-replay immutability, exact-height success/refusal, parser ordinal spoofing,
-source payer rules, custom events, duplicate actor keys, taker/maker, privacy,
-priced/unpriced/legacy/idle state and allowed windows. Record executed results in
-this task's release comment; unchecked boxes above require live receipts before closure.
+[Live release and migration acceptance](../issues-1206-1512/live-release-20261018.md)
+records exact backend `5b623a04f35bb6b44d3e64df0014e458cad653fc`, schema 68,
+hosted CI 526/527 PASS and [the 14-request public API smoke](../issues-1206-1512/live-api-20261018.json).
+Behavior-specific criteria use their required source/provider fixtures and actual
+LocalTerra path; public production API/schema criteria use the live receipts.
+The historical windows remain conservatively unknown (208/1,257/3,837 events),
+not fabricated retail/MM attribution. No new funded mainnet transaction was needed.
+
+The fixtures cover chain/action ordering, mutable-live-tier disagreement, replay,
+exact-height refusal, ordinal/emitter spoofing, payer/taker rules, duplicate actor
+keys, privacy and priced/unpriced/legacy/idle semantics. Their PASS is distinct
+from the actual LocalTerra ingestion path and deployed schema/API PASS. Together
+these satisfy the issue body's and comments' required acceptance; no extra
+per-criterion mainnet signing test is implied.
 
 ## Actual-chain limitations
 
@@ -62,9 +71,11 @@ The [owned LocalTerra receipt](localterra-ingestion.json) proves an actual paid
 direct swap → retail, registry tier-0 registration → paid wrap → MM, exact H−1
 provider queries, replay and aggregate-only public HTTP through production
 ingestion. Explicit synthetic QA prices are not real USD feed acceptance.
-Production migration, deployment and mainnet provider acceptance remain separate.
-Servers undergoing upgrades are not reset by this work. Leave #1211 open until
-its body and comments' runnable/live criteria have corresponding evidence.
+Production migration, deployment and aggregate API acceptance are now recorded in
+[the live release receipt](../issues-1206-1512/live-release-20261018.md).
+The actual LocalTerra path supplies the required retail→MM behavioral proof;
+production historical membership was not guessed or backfilled. Contract receipts
+without authenticated payer/trader fields continue to be unknown by design.
 
 ## Commands
 

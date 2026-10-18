@@ -2,7 +2,8 @@
 
 Fix: [PR #1542](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1542),
 backend `5b623a04f35bb6b44d3e64df0014e458cad653fc`.
-The genuine complete source CI pipeline **526 passed**. The separately attested
+The genuine source PR pipeline **526 passed**, and exact merged-main pipeline
+**527 passed**. The separately attested
 frontend remains `2df4a471a9ca98a8672d911b67d4bd8134f411fd`.
 The [machine-readable receipt](live-release-20261018.json) preserves the scope
 of each observation; earlier failures remain in their original receipts.
