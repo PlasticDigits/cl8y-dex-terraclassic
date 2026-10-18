@@ -68,7 +68,7 @@ async function main() {
     scope: entry === 'campaign'
       ? 'Deployed anonymous Swap; solver failure injected, actual backend allowed after one retry; no signing.'
       : 'Deployed frontend rendering with owned anonymous canonical-pair HTTP fixtures; not live market-price or execution acceptance.',
-    browser_budget_ms: 52000, requests: 0, blocked_writes: 0, blocked_actor_requests: 0,
+    browser_budget_ms: 52000, refetches: [], requests: 0, blocked_writes: 0, blocked_actor_requests: 0,
     tool_digest: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
     deployment_attestation: 'Served script paths/hashes identify observed frontend; source revision must be independently attested.',
   };
@@ -118,6 +118,9 @@ async function main() {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(6000);
+    // Own the application timers from startup; clocks installed after mount
+    // cannot reliably advance already registered native React Query intervals.
+    if (entry !== 'campaign') await page.clock.install();
     page.on('response', response => {
       const url = new URL(response.url());
       if (url.origin !== origin || !/^\/assets\/[^/]+\.js$/.test(url.pathname) || scriptPaths.has(url.pathname)) return;
@@ -161,13 +164,20 @@ async function main() {
       stage = 'initial-indexed-usd';
       await expect(headline).toContainText(first, { timeout: 18000 });
       await expect(region.locator(':scope > p[aria-live="polite"]')).toContainText('2 candles on chart.');
-      await page.clock.install();
+      receipt.checks.initial_indexed_usd_matches = true;
+      receipt.checks.initial_historical_candles = true;
       const refetch = async (next, expected) => {
         phase = next;
         const before = tradeReads;
-        await page.clock.fastForward(16000);
-        await expect.poll(() => tradeReads, { timeout: 5000 }).toBeGreaterThan(before);
-        await expect(headline).toContainText(expected);
+        const sample = { phase: next, before, after: before };
+        receipt.refetches.push(sample);
+        stage = next + '-wait-for-refetch';
+        try {
+          await page.clock.fastForward(16000);
+          await expect.poll(() => tradeReads, { timeout: 5000 }).toBeGreaterThan(before);
+          stage = next + '-headline-assertion';
+          await expect(headline).toContainText(expected);
+        } finally { sample.after = tradeReads; }
       };
       stage = 'missing-current-usd';
       await refetch('missing', '—');

@@ -1,0 +1,73 @@
+{
+  "overall": "PASS",
+  "frontend_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "frontend_deployment_uuid": "me0y48gdxmjv3ibut9yz9grv",
+  "deployment_identity_source": "Parent independently attested successful Coolify frontend deployment; each browser receipt binds the observed served JS paths and digests.",
+  "scope": "Controlled anonymous HTTP price fixtures on deployed frontend only; virtual refetch clock; no backend revision/current-market/execution/native-latency claim.",
+  "cases": [
+    {
+      "entry": "trade",
+      "viewport": "desktop",
+      "elapsed_ms": 7826,
+      "verdict": "PASS",
+      "receipt": "deployed-price-trade-desktop.json",
+      "all_rendering_checks": true,
+      "refetches_observed": 3,
+      "writes": 0,
+      "actor_requests": 0
+    },
+    {
+      "entry": "trade",
+      "viewport": "phone",
+      "elapsed_ms": 13202,
+      "verdict": "PASS",
+      "receipt": "deployed-price-trade-phone.json",
+      "all_rendering_checks": true,
+      "refetches_observed": 3,
+      "writes": 0,
+      "actor_requests": 0
+    },
+    {
+      "entry": "charts",
+      "viewport": "desktop",
+      "elapsed_ms": 5544,
+      "verdict": "PASS",
+      "receipt": "deployed-price-charts-desktop.json",
+      "all_rendering_checks": true,
+      "refetches_observed": 3,
+      "writes": 0,
+      "actor_requests": 0
+    },
+    {
+      "entry": "charts",
+      "viewport": "phone",
+      "elapsed_ms": 5239,
+      "verdict": "PASS",
+      "receipt": "deployed-price-charts-phone.json",
+      "all_rendering_checks": true,
+      "refetches_observed": 3,
+      "writes": 0,
+      "actor_requests": 0
+    }
+  ],
+  "initial_failures": [
+    {
+      "receipt": "deployed-before-trade-desktop.json",
+      "verdict": "FAIL",
+      "qualification": "INCONCLUSIVE_HARNESS_TIMER_OWNERSHIP",
+      "sha256": "41a3b7018e2fff1bd71f92b78f47a486cb5aeb7ab464d6f781bbba2a5b11d1fb"
+    },
+    {
+      "receipt": "deployed-first-trade-desktop-harness-fail.json",
+      "verdict": "FAIL",
+      "qualification": "INCONCLUSIVE_HARNESS_TIMER_OWNERSHIP",
+      "sha256": "81eda0326935ec011a3ae81faaa7b9b3d81cbf437d0d2e4844c351841d9a031e"
+    },
+    {
+      "receipt": "deployed-first-trade-phone-harness-fail.json",
+      "verdict": "FAIL",
+      "qualification": "INCONCLUSIVE_HARNESS_TIMER_OWNERSHIP",
+      "sha256": "296398e44924f76494776bda77650c892470ffb89295fbc75b6134ffa35b81e8"
+    }
+  ]
+}
