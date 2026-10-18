@@ -1,0 +1,38 @@
+{
+  "issue": 1544,
+  "recorded_at_utc": "2026-10-18T13:19:10.778825+00:00",
+  "source_revision": "809df57b958fd076cb4395735159feb39459f0f1",
+  "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1551",
+  "worker_recipe_sha256": "e8056ad27615a956dc7fe770cd3b4708d85f7a979e8b196038f28765b627dfc0",
+  "source_checks": {
+    "overall": "PASS",
+    "focused_make_controls": 146,
+    "final_client_controls": 18,
+    "total_covered_controls": 147,
+    "individual_process_timeout_seconds": 55,
+    "actual_runtime_image_build": "PASS",
+    "actual_runtime_python_and_closed_report": "PASS",
+    "actual_runtime_compose_available": "PASS",
+    "commit_hooks": "PASS",
+    "hosted_ci": "PENDING_UNVERIFIED",
+    "merge_gate_override": "explicit_user_instruction"
+  },
+  "live_attempts": [
+    {
+      "phase": "create_preflight_service",
+      "overall": "FAIL",
+      "http_status": 422,
+      "validation_fields": [
+        "connect_to_docker_network"
+      ],
+      "existing_owned_service_count": 0,
+      "runtime_changed": false,
+      "reset": "No service was created or launched; original Loki and its credentials remain unchanged. Correct the unsupported API option before a reconciled retry."
+    }
+  ],
+  "runtime_adoption": "PENDING",
+  "canonical_persistence": "PENDING",
+  "old_key_revoked": false,
+  "ingestion_rotation": "PENDING",
+  "scope": "Closed diagnostic evidence only; no credentials, credential digests, object IDs, raw API bodies, environment payloads or log lines."
+}
