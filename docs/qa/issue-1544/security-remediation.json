@@ -14,10 +14,10 @@
     "note": "The running container's historical process environment is unchanged; the Grafana database rejects its previous password and future container configuration contains the replacement."
   },
   "loki_storage": {
-    "status": "PENDING_HIDDEN_REENTRY_AFTER_FAILED_STAGING",
-    "reason": "Original staging failed after both hidden prompts without retaining a replacement; exact original cause is unknown. Existing key HEAD200 and private staging authority are verified. Updated helper retains candidates before network verification.",
+    "status": "CANDIDATE_STAGED_VERIFIED_ADOPTION_PENDING",
+    "reason": "The operator terminal launcher completed with retained staged_verified_read; private readback confirms the candidate differs from canonical runtime configuration. A separate owned object write/read/delete probe passed. Running Loki adoption and old-key revocation remain separate.",
     "source": "https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/",
-    "pm_task_id": "c1c74912-795a-4108-bd86-4493c0b0b133",
+    "pm_task_id": "8260ea2f-b853-4703-b347-06045c63f196",
     "pm_task_status_at_creation": "queued",
     "helper": "scripts/ops/stage-logs-s3-credentials.py",
     "prepared_check": "PASS: helper --check and two focused signing/input-bound tests; test process 0.001 seconds.",
@@ -78,5 +78,16 @@
     "synthetic_staging_tests": 18,
     "installed_guard_read_only_preflight": "PASS",
     "runtime_credentials_changed": false
+  },
+  "s3_candidate_followup": {
+    "utc": "2026-10-18T12:54:08.345495+00:00",
+    "candidate_state": "staged_verified_read",
+    "candidate_retention": "confirmed",
+    "owned_object_put": "PASS",
+    "owned_object_get": "PASS",
+    "owned_object_cleanup": "PASS",
+    "runtime_changed": false,
+    "current_key_revoked": false,
+    "scope": "Candidate capability only; not a Loki adoption or revocation receipt. No object identifiers, credentials or credential digests retained."
   }
 }

@@ -111,6 +111,47 @@ and [collector inventory](../../../scripts/ops/logs-collector-inventory.py)
 helpers. Grafana rotation passed; remaining S3/ingestion custody work is
 incomplete. Monitoring success cannot establish complete credential remediation.
 
+## Credential remediation acceptance
+
+Follow the [Loki-only S3 adoption runbook](../../runbooks/dex-prometheus-monitoring.md#adopting-staged-s3-credentials-without-restarting-the-logs-stack).
+Keep each item separate and check it only after its own sanitized evidence is
+recorded. A command-level `PASS` means that phase completed, not that all
+credential remediation passed. These pending boxes do not supersede earlier
+monitoring evidence or assert a new live failure.
+
+- [ ] Focused source tests pass for the client, once-only worker, Loki runtime
+  preservation, rollback and closed/private output; every test process stays
+  under 60 seconds. Record the exact reviewed source SHA and worker recipe hash.
+- [ ] The unchanged staged candidate has private CAS/readback and bucket HEAD200;
+  separately record its bounded owned-object PUT/GET/DELETE outcome.
+- [ ] The owned job's preflight confirms exact application/server/container,
+  immutable runtime projection, existing mounts/networks and historical data.
+  Bind the separate Coolify Service and maintenance child; verify raw Compose
+  has inline source from the exact SHA, explicit mounts and no restart, and only
+  environment references for the runtime payload. Require closed worker
+  receipts rather than Application deployment status.
+- [ ] Loki alone adopts the candidate and becomes ready; historical readback,
+  successful backing-storage write/flush deltas without new failures, and marker
+  readback pass. Record rollback evidence separately if replacement fails.
+- [ ] Only canonical Coolify S3 credential fields are updated and privately read
+  back, with no full logs-stack deployment; DEX, Grafana, proxy and collectors
+  remain available.
+- [ ] Maintenance network attachment is removed; its saved payload and job are
+  deleted and deletion confirmed; shared networks, WAL/data volumes and private
+  rollback journal remain protected.
+- [ ] Previous S3 key is revoked and rejection established; the replacement still
+  reads/writes successfully afterwards.
+- [ ] Every ingestion consumer adopts the replacement principal, fresh delivery
+  passes, canonical configuration persists, and old401/new204 is established.
+
+The job has effective host-root authority through its Docker socket, despite
+its read-only application-directory mount. Verify exact ownership/source,
+once-only execution and nonsecret state. Its private payload contains only the
+old/new S3 transaction values; it must receive no workstation identity, OpenBao
+or Coolify credentials. Never publish raw logs, environments, HTTP bodies or
+rollback values. Source tests and direct S3 probes do not establish live Loki
+adoption, canonical persistence, old-key revocation or ingestion rotation.
+
 If any live item fails or is unavailable, leave #1544 open and record exactly
 what failed or remains unverified. Request any unavoidable human/device action
 as one concise cl8y-pm inbox card per action; never substitute a source PASS for

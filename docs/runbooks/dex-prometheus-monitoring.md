@@ -116,8 +116,10 @@ explicitly supports those names. Do not copy tokens between files.
 The separate [security remediation receipt](../qa/issue-1544/security-remediation.json)
 records credential custody follow-ups discovered during monitoring inventory.
 Grafana administrator authentication was rotated and old authentication rejected;
-S3 and ingestion credential adoption remain incomplete operator-custody actions
-tracked by the cl8y-pm cards in that receipt. Do not claim all affected
+S3 runtime adoption, canonical configuration persistence, old-key revocation
+and ingestion credential rotation require separate evidence; staging is not
+completion. Follow the scoped S3 transaction below before handing off any
+remaining unavailable custody action. Do not claim all affected
 credentials were rotated. The hidden-prompt
 [S3 staging helper](../../scripts/ops/stage-logs-s3-credentials.py) verifies and
 stages a replacement only; it does not switch Loki or revoke the current key.
@@ -173,7 +175,8 @@ If login is expired, it reports a fixed certificate-login requirement before
 prompting. Tests use a real PTY and the installed guard with synthetic fetch;
 they prove echo is disabled, legacy execution is refused before launch, guarded
 children have three nonterminal streams, and unknown downstream output cannot
-reach the terminal. No actual replacement has yet been verified or adopted.
+reach the terminal. Staged bucket read verification and a separate owned
+PUT/GET/DELETE probe do not establish that Loki has adopted the candidate.
 
 `candidate_retention=confirmed` means the current candidate had private
 readback; `unknown` means a storage request/readback was ambiguous, and `none`
@@ -186,6 +189,85 @@ a previously verified candidate first downgrades it, so a negative read cannot
 leave the older positive eligible for adoption. Only `staged_verified_read`
 permits subsequent agent-owned adoption verification; even that proves read
 access only, not Loki write permission or successful runtime rotation.
+
+### Adopting staged S3 credentials without restarting the logs stack
+
+Use the reviewed [`adopt-logs-s3.py`](../../scripts/ops/adopt-logs-s3.py) client,
+[`loki-s3-adoption-worker.py`](../../scripts/ops/loki-s3-adoption-worker.py), and
+[`replace-loki-s3-host.py`](../../scripts/ops/replace-loki-s3-host.py). Source
+checks and the [focused acceptance checklist](../qa/issue-1544/README.md#credential-remediation-acceptance)
+are separate from live adoption. Do not deploy the full existing logs application:
+Coolify stops the complete Compose application before starting its replacement.
+The credential transaction may replace only Loki; Grafana, the ingestion proxy,
+collectors and the serving DEX remain running.
+
+The client journals the expected old and new S3 credentials privately in OpenBao
+using CAS and private readback before deployment. It binds the job to the exact
+logs application/server, reviewed source revision and worker recipe hash; build
+the embedded scripts from `git show` at that revision, never uncommitted bytes. An
+ambiguous deployment outcome requires status inspection; never blindly retry an
+adoption. `recover` reconciles an ambiguous Service creation against the journal
+without starting or recreating a job. A staged candidate must remain unchanged
+between preflight and adoption.
+
+Create the maintenance job as a separate Coolify **Service** with raw Compose
+and an explicit `build.dockerfile_inline`. Dockerfile Application custom run
+options do not reliably preserve the required volume/restart settings. Define
+the socket, read-only application directory, state volume and `restart: "no"`
+in the Service's Compose document. Keep only environment references in raw
+Compose: the private runtime payload must never appear in build arguments,
+inline Dockerfile bytes or persisted raw Compose text. Coolify's private runtime
+environment and generated configuration remain credential-bearing and must be
+removed with the job; never publish them.
+
+The one-shot maintenance job has effective host-root authority through its Docker
+socket. This is an explicitly scoped owner deployment, not an unprivileged
+container sandbox. Give it only the old/new S3 transaction payload and nonsecret
+job identity; never copy workstation certificates, cached sessions, OpenBao or
+Coolify tokens into it. Mount only the Docker socket, the existing application's
+configuration directory read-only, and the job's named state volume. The volume
+holds nonsecret receipts and a once-only latch, never the payload. Disable
+automatic retries/restarts, attach only to the inspected existing application
+network for verification, and detach afterwards. Do not use root SSH or broaden
+OpenBao ACLs to run this transaction.
+
+Agents execute each phase separately under guarded, noninteractive `bao-exec`,
+checking its closed report before continuing. Use `create --revision <exact-main-sha>`
+for preflight; `status` must show the exact owned Service/maintenance child and
+a successful closed preflight receipt before `adopt`. Service work is verified
+through worker receipts, not an Application deployment UUID/status. `adopt`
+updates only the job's runtime mode and restarts only that maintenance Service.
+After `status` proves successful adoption, use
+`finalize` to persist and privately read back only the two canonical Coolify S3
+credential fields, without redeploying the stack. Finally `cleanup` removes the
+saved secret environment entry and the maintenance Service; confirm deletion
+completed. Shared networks and data volumes must survive cleanup.
+
+```sh
+# Each invocation is an agent operation; never print raw captured responses.
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/adopt-logs-s3.py status
+```
+
+The Loki replacement preserves its exact image, command, mounts, networks,
+security/resource settings and noncredential environment. Only the two S3
+credential values may change. Keep the original runtime projection for bounded
+rollback; failed readiness or storage proof requires restoration and verified
+readiness of the old configuration. Preserve WAL and historical data.
+
+Live proof requires exact runtime credential matching, readiness, the same
+historical sample before/after replacement, and successful backing-storage
+writes. A push HTTP204 or asynchronous `/flush` HTTP204 alone is insufficient:
+require increased successful stored/flushed chunk counters and no new flush
+failures, plus marker readback. Historical store statistics do not prove a fresh
+uncached S3 GET; marker readback may use an ingester, so it does not alone prove
+that exact marker's object durability. The independent owned S3 object probe
+establishes only that candidate's direct read/write/delete scope.
+
+Record source/Service/maintenance-child identities, UTC, readiness, immutable-runtime checks,
+storage proof, canonical readback and job/secret cleanup as separate sanitized
+results. No phase revokes the previous S3 key. Keep old-key revocation and
+ingestion-principal rotation pending until their own verification succeeds;
+successful S3 adoption cannot close those items or #1544 by itself.
 
 Completing the collector card granted no persistent sudo or Docker access.
 Before ingestion rotation, prepare one reviewed privileged transaction with
