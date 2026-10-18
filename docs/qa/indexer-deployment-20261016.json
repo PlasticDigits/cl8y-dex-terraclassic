@@ -1,0 +1,56 @@
+{
+  "incident": "USTR swap quotes failed with missing_observations because hub-fixed-reference-v1 suppressed the USTR hub mark after >10% reserve drift; the client showed a permanent pricing-pending state",
+  "fix": {
+    "pull_request": 1526,
+    "branch": "fix/remove-hub-divergence-policy",
+    "policy_removed": "hub-fixed-reference-v1",
+    "policy_replacement": "live-reserve-spot-v1",
+    "served_revision": "77597ad9f82de786caa2a360a360c4481ae6fd23"
+  },
+  "migration": {
+    "version": 20261016120000,
+    "file": "indexer/migrations/20261016120000_drop_hub_price_references.sql",
+    "sql_sha384": "3a27b68e072f00b30d5cc269cb5de9c3542ae06835a3f1d4984cc4e2211356f7e0f47760777e6b21ad3a663b595251c0",
+    "separate_process": true,
+    "effective_identity": "Existing migrator dex_indexer_migrator_20261006 via authenticated bootstrap owner session",
+    "marker_before": 20261009145300,
+    "marker_after": 20261016120000,
+    "migration_count_before": 66,
+    "migration_count_after": 67,
+    "dropped_table": null,
+    "original_history_preserved": true,
+    "roles_credentials_memberships_unchanged": true,
+    "recorded_migration_row": true,
+    "runtime_grants_reconciled": true
+  },
+  "production_acceptance": {
+    "public_health": "ok",
+    "served_revision_readback": "77597ad9f82de786caa2a360a360c4481ae6fd23",
+    "overview_http_status": 200,
+    "hub_prices_policy": "live-reserve-spot-v1",
+    "hub_prices_ustr": {
+      "price_usd": "0.00534617352038921700",
+      "quality": "bounded_spot",
+      "policy": "live-reserve-spot-v1"
+    },
+    "route_solve_ustr_to_ust1": {
+      "http_status": 200,
+      "estimated_amount_out": "5819",
+      "missing_observations": false
+    },
+    "indexer_status": "running:healthy",
+    "indexer_restart_count": 0,
+    "observed_at_utc": "2026-10-16T12:35:00Z"
+  },
+  "cleanup": {
+    "one_shot_job_uuid": "wukcczui2kvcapjhkmpt5fkz",
+    "job_deleted": true,
+    "bootstrap_credential_removed": true,
+    "maintenance_env_absent_in_serving_app": true,
+    "serving_app_source_restored": "HEAD"
+  },
+  "deviations": {
+    "pre_migration_snapshot": "Not taken. The reviewed migration is a single DROP TABLE IF EXISTS of the policy artifact being removed; the removed table carried no reader or writer after #1526, and this rollout is forward-fix only (the pre-#1526 binary reads the dropped table, so rollback would require its own recovery)."
+  },
+  "scope": "Production migration and deployment acceptance for the hub-divergence policy removal. Read-only acceptance only; no financial automation, oracle-grade certification or spending is claimed."
+}
