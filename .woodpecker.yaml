@@ -13,7 +13,7 @@ when:
 
 clone:
   - name: git
-    image: woodpeckerci/plugin-git:2.9.3@sha256:b2d65ece33918fd8763192effb11b226ff4631faa1f3568c941ae69462b1f1be
+    image: woodpeckerci/plugin-git:2.10.1@sha256:550075c844fcec0af41d9d28f9860aa5d8c43e1e9419be4b9266dc02c2f29804
     settings:
       lfs: false
       recursive: false
