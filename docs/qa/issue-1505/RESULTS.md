@@ -1843,3 +1843,46 @@ reference and per-candidate wrapper gaps cannot be distinguished retrospectively
 Wrapper completion alone cannot identify or exclude the missing prerequisite.
 The four actual failures remain FAIL; this correction establishes monitoring
 accuracy only. Actual prerequisite causality and deployed acceptance remain open.
+
+## Missing-candidate trace-gap correction (2026-10-18)
+
+The historical five-candidate `missing_observations` events identify candidate
+selection but omit the failing prerequisite stage. The source correction records
+fixed missing-stage evidence at the existing identity, mirror/admission, tax,
+reference, simulator and native capability rejection sites. It changes no quote
+classification, ranking, economics, RPC, provider work, clocks or signing fields.
+It cannot retrospectively identify the missing prerequisite in retained failures.
+
+Missing and stale evidence share the **same eight original component slots**.
+Only the first original witness per component is retained, and only a final503
+emits it. `Local quote prerequisite missing` has fixed component/stage fields
+and explicit unknown original clocks (`age_known=false`, `expiry_known=false`);
+it never labels absence as staleness. Existing stale event fields/semantics stay
+unchanged. Repeated candidates cannot increase this eight-event total, successful
+fallbacks and non503 rejections emit neither kind, and request scopes never share
+witness state. No asset/actor/path/provider value is added.
+
+| Existing component | Fixed missing stages |
+| --- | --- |
+| pair_config | asset_identity, pair_admission |
+| simulation_mirror | mirror_admission, simulation_mirror, simulation_fee |
+| tax_policy | tax_pair |
+| tax_actor | tax_actor, tax_balance |
+| reference | reference_price |
+| wrapper | native_mapping, native_router, native_tax_rate, native_tax_cap |
+
+`mirror_admission` means that no currently eligible mirror view was selected;
+it does not distinguish an absent view from fee-phase admission. A stage is a
+candidate witness, not evidence that every path failed there or that it was the
+sole cause. Missing identity still returns the existing TradingBlocked protocol
+guard before the defensive candidate lookup when that guard detects it.
+
+The existing bounded monitor context/exact-ID queries summarize missing witnesses
+without a new aggregate or read. They reject unknown or mismatched stage/component
+labels, duplicate fields, invented clocks and private data; absent clocks export
+as null. Its eighteen-read, 300-line and eight-request-ID limits remain unchanged.
+The parser's stage allowlist is bound to the source enum literals in a focused
+control. [Local before/after proof and retained fixture failures](missing-trace-source-20261018.json)
+record the exact source/test inputs and commands. Actual live prerequisite
+causality, release deployment and sustained acceptance remain pending; the four
+historical executed503s remain FAIL and #1505 stays open.

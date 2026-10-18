@@ -342,6 +342,43 @@ fi
         self.assertEqual(len(result["candidate_stale_witnesses"]), 1)
         self.assertNotIn("do-not-export", json.dumps(result))
 
+    def test_missing_witnesses_reject_private_stages_and_invented_clocks(self):
+        root = Path(__file__).resolve().parents[2]
+        source = (root / "indexer/src/api/prerequisite_trace.rs").read_text()
+        stage_source = source.split("impl MissingStage {", 1)[1].split("struct Timing", 1)[0]
+        self.assertEqual(set(MONITOR.MISSING_STAGES), set(re.findall(
+            r'Self::[A-Za-z]+ => "([a-z_]+)"', stage_source)))
+        line = ('Local quote prerequisite missing component="reference" stage="reference_price" '
+                'age_known=false age_ms=0 expiry_known=false expires_in_ms=0 '
+                'request_id=0000000000000001 actor=do-not-export endpoint=https://private.invalid')
+        expected = {"component": "reference", "stage": "reference_price", "age_ms": None,
+                    "expires_in_ms": None, "request_id": "0000000000000001"}
+        self.assertEqual(MONITOR.missing_witness(line, ["0000000000000001"]), expected)
+        self.assertNotIn("request_id", MONITOR.missing_witness(line, []))
+        for stage, component in MONITOR.MISSING_STAGES.items():
+            fixture = line.replace('stage="reference_price"', 'stage="' + stage + '"').replace(
+                'component="reference"', 'component="' + component + '"')
+            self.assertEqual(MONITOR.missing_witness(fixture, [])["stage"], stage)
+        for bad in (line.replace('reference_price', 'private_stage'),
+                    line.replace('component="reference"', 'component="wrapper"'),
+                    line.replace('age_known=false', 'age_known=true'),
+                    line.replace('expiry_known=false', 'expiry_known=true'),
+                    line.replace('age_ms=0', 'age_ms=1'),
+                    line.replace('expires_in_ms=0', 'expires_in_ms=-1'),
+                    line.replace('age_ms=0 ', ''),
+                    line + ' stage="reference_price"', line + ' age_ms=0'):
+            self.assertIsNone(MONITOR.missing_witness(bad, []))
+        payload = {"status": "success", "data": {"resultType": "streams", "result": [
+            {"stream": {"actor": "do-not-export"}, "values": [["1", line]] * 300}]}}
+        summary = MONITOR.sample_summary(payload, ["0000000000000001"])
+        self.assertEqual(len(summary["candidate_missing_witnesses"]), 300)
+        self.assertEqual(summary["candidate_stale_witnesses"], [])
+        self.assertNotIn("do-not-export", json.dumps(summary))
+        self.assertNotIn("private.invalid", json.dumps(summary))
+        payload["data"]["result"][0]["values"].append(["1", line])
+        with self.assertRaises(ValueError):
+            MONITOR.sample_summary(payload)
+
     def test_monitoring_commit_queries_match_actual_hub_producer(self):
         root = Path(__file__).resolve().parents[2]
         producer = (root / "indexer/src/db/queries/hub_prices.rs").read_text()

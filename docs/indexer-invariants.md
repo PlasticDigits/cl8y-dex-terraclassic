@@ -5,7 +5,12 @@
 Independent scheduled wrapper reads share existing provider capacity and original
 deadlines. Native requests remain local and fail closed on unknown prerequisites.
 Fixed reason/phase diagnostics correlate a server-generated request identifier
-without logging query strings, actors or provider endpoints. Apply
+without logging query strings, actors or provider endpoints. Final503 evidence
+shares the original eight component slots across missing and stale witnesses;
+retain the first original witness per component. Missing stages have unknown
+clocks and a separate event name. Successes and non503 rejections emit neither
+kind. Candidate witnesses cannot establish a sole historical cause; see the
+[focused trace-gap correction](qa/issue-1505/RESULTS.md#missing-candidate-trace-gap-correction-2026-10-18). Apply
 [NR1505](../skills/AGENTS_NATIVE_QUOTE_RECOVERY.md) and run
 `make verify-issue-1505`; [focused source/deployed evidence](qa/issue-1505/RESULTS.md)
 does not renew original freshness or replace actual live acceptance.

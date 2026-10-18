@@ -101,11 +101,16 @@ waits; it is not wire-attempt evidence. Aggregate deadlines without a slot are
 not physical-read records. Reject missing/inconsistent stage/clock fields rather
 than inventing values, and retain the existing 300-line/eight-ID bounds.
 
-Final503 diagnostics retain at most one stale witness for each of eight fixed
-components. The monitor exports only allowlisted component names, bounded
-age/expiry scalars and explicitly requested server IDs. A failed alternative can
-contribute a candidate witness; these events do not alone prove the sole cause.
-Successful responses do not emit stale candidate witnesses.
+Final503 diagnostics share one first original witness per existing component,
+with at most eight total events across missing and stale kinds. The separate
+`Local quote prerequisite missing` event uses thirteen fixed stage labels and
+unknown original clocks; stale events preserve their original name/semantics.
+The monitor exports only validated stage/component combinations, bounded stale
+age/expiry scalars, explicit null missing clocks and requested server IDs, from
+the existing bounded context/exact-ID samples. There is no extra query or
+aggregate. A failed alternative can contribute a witness; it does not alone
+prove the sole cause. Successes and non503 rejections emit neither kind. See the
+[missing-candidate trace controls](RESULTS.md#missing-candidate-trace-gap-correction-2026-10-18).
 
 Reference regressions must reproduce the late-pool/timer phase with original
 twenty-second expiry, verify coalesced nonoverlapping work and cancellation, and
@@ -300,3 +305,14 @@ counts, all required limits and source/deployment boundaries. The preceding
 [natural FIRST](deployment-1524-browser-first.json) passed while its
 [unchanged RETEST](deployment-1524-browser-retest-fail.json) failed. Keep both;
 never turn recovery or a later pass into a rewritten historical verdict.
+
+Trace-gap source checklist (2026-10-18):
+
+- [x] Source-bound canonical hub event and fixed missing-stage monitoring.
+- [x] Qualified original-runtime Missing candidate RED, then bounded local PASS.
+- [x] Shared eight-event cap, first original witness, privacy, final503 only.
+- [x] Original stale witnesses, protocol guards and rejection classes preserved.
+- [ ] Actual deployed missing prerequisite identified with new diagnostics.
+- [ ] Exact release deployment and required sustained live acceptance.
+
+See [source proof and retained fixture failures](missing-trace-source-20261018.json).

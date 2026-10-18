@@ -1,0 +1,146 @@
+{
+  "issue": 1505,
+  "utc": "2026-10-18T07:39:06.675837+00:00",
+  "overall": "PASS WITH SKIPS",
+  "scope": "Owned local source tracing/monitoring controls only; no production mutation, fresh live quote, deployment or historical cause claim. Compilation separate from bounded actual tests.",
+  "base_revision": "461d0c81107a62ea74e2adc5fb613e254451886d",
+  "constraints": {
+    "maximum_total_request_witnesses": 8,
+    "fixed_missing_stages": 13,
+    "first_original_witness_per_component": true,
+    "final503_only": true,
+    "new_rpc_reads": 0,
+    "new_monitoring_queries": 0,
+    "monitor_read_budget": 18,
+    "monitor_sample_limit": 300,
+    "original_clocks_unknown_for_missing": true,
+    "runtime_classifications_unchanged": true
+  },
+  "retained_failures": [
+    {
+      "kind": "fixture_setup",
+      "status": "FAIL",
+      "seconds": 0.02,
+      "reason": "Synthetic protected route was outside production correlation allowlist; corrected to existing progress route, no runtime change."
+    },
+    {
+      "kind": "qualified_original_runtime_regression",
+      "status": "FAIL",
+      "seconds": 0.08,
+      "reason": "Actual candidate selection Missing/candidates5 final503 emitted zero missing-stage witnesses, expected one."
+    },
+    {
+      "kind": "fixture_classification",
+      "status": "FAIL",
+      "seconds": 0.0,
+      "reason": "Removing asset identity triggers existing TradingBlocked protocol guard; corrected fixture to assert that guard without relaxing runtime."
+    }
+  ],
+  "tests": [
+    {
+      "kind": "http-stages",
+      "status": "PASS",
+      "passed": 2,
+      "seconds": 0.02,
+      "timeout_seconds": 59,
+      "command": "timeout 59s indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe missing_trace_tests --nocapture"
+    },
+    {
+      "kind": "cap",
+      "status": "PASS",
+      "passed": 1,
+      "seconds": 0.0,
+      "timeout_seconds": 59,
+      "command": "timeout 59s indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe issue1505_missing_witness_registry --nocapture"
+    },
+    {
+      "kind": "stale",
+      "status": "PASS",
+      "passed": 1,
+      "seconds": 0.01,
+      "timeout_seconds": 59,
+      "command": "timeout 59s indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe issue1505_http_stale_origins --nocapture"
+    },
+    {
+      "kind": "correlation",
+      "status": "PASS",
+      "passed": 1,
+      "seconds": 0.0,
+      "timeout_seconds": 59,
+      "command": "timeout 59s indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe issue1505_correlation_rejects --nocapture"
+    },
+    {
+      "kind": "classification",
+      "status": "PASS",
+      "passed": 6,
+      "seconds": 0.0,
+      "timeout_seconds": 59,
+      "command": "timeout 59s indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe api::local_quote::diagnostics::tests --nocapture"
+    },
+    {
+      "kind": "parser",
+      "status": "PASS",
+      "passed": 2,
+      "seconds": 0.014,
+      "timeout_seconds": 59,
+      "command": "timeout 59s python3 scripts/qa/test-native-recovery-1505.py -k missing"
+    },
+    {
+      "kind": "monitoring",
+      "status": "PASS",
+      "passed": 5,
+      "seconds": 0.01,
+      "timeout_seconds": 59,
+      "command": "timeout 59s python3 scripts/qa/test-native-recovery-1505.py -k monitoring"
+    }
+  ],
+  "pending": [
+    "Actual prerequisite cause in four historical deployed503 failures.",
+    "Exact release deployment and fresh bounded diagnosis if failure recurs.",
+    "Required sustained socket/browser acceptance and unchanged RETEST; no closure claim."
+  ],
+  "checks": {
+    "qualified_before_after_candidate_selection": true,
+    "duplicate_candidates_bounded": true,
+    "mixed_missing_stale_cap_eight": true,
+    "unknown_missing_clocks_export_null": true,
+    "successful_recovery_suppresses_witnesses": true,
+    "protection_rejection_suppresses_witnesses": true,
+    "missing_identity_guard_stays_trading_blocked": true,
+    "request_scopes_isolated": true,
+    "private_fixture_values_absent_from_witness_logs": true,
+    "public_error_schema_unchanged": true,
+    "producer_and_stage_literals_source_bound": true
+  },
+  "input_files": [
+    {
+      "path": "indexer/src/api/local_quote.rs",
+      "sha256": "b30f8111dccf9709809afc9c863888eb66dc9d9e9c2057e2283debef512dd7dd"
+    },
+    {
+      "path": "indexer/src/api/local_quote/diagnostics.rs",
+      "sha256": "80299e2b47ff17b85e8b09e810fbdda1dbd8ca92a5d5e91d210c06dc8b81147e"
+    },
+    {
+      "path": "indexer/src/api/prerequisite_trace.rs",
+      "sha256": "dbca488851eda96625ea5faac9eec95ed2d8fb151c2ac080e45d5bc222be40c1"
+    },
+    {
+      "path": "indexer/src/api/local_quote/missing_trace_tests.rs",
+      "sha256": "2b2150cd02665f3402431b0dac4ac5c695f90b1d4746ef257b36fd75549afb18"
+    },
+    {
+      "path": "scripts/qa/probe-native-monitoring-1505.py",
+      "sha256": "a3155ef0891b4c0e26b066e77b6fa0a12bdd2398bacfc07519f4500a11c27bff"
+    },
+    {
+      "path": "scripts/qa/test-native-recovery-1505.py",
+      "sha256": "fa0bbea52854c8e9304e35ecaa16c3ce2b63c42a1cae593c2324079e86f87a28"
+    }
+  ],
+  "build_command": "CARGO_TARGET_DIR=indexer/target cargo test --manifest-path indexer/Cargo.toml --lib --no-run",
+  "execution_artifact": {
+    "path": "indexer/target/debug/deps/cl8y_dex_indexer-32d6150ad77432fe",
+    "sha256": "c11aa69449d52ea7f2249e41f1bf4f8dd806b799d429f9d1f16737455a698e50"
+  }
+}
