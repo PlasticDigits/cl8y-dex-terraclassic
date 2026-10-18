@@ -1812,3 +1812,34 @@ record 17 Python outcome tests, 39 JavaScript economics/browser/input-clock test
 and 20 native-probe tests passing. All locally invoked focused test processes were
 below 60s; compilation/provisioning is separate. Repository-mandated hosted full
 matrix execution is separate. No production mutation or wallet signing was used.
+
+## Committed-event monitoring correction (2026-10-18)
+
+The native monitor used obsolete event `Reference cohort committed` for both its
+`reference_committed` aggregate and bounded context sample. The current producer
+in `indexer/src/db/queries/hub_prices.rs` emits `Hub mark cohort committed` with
+phase `hub_marks`. Both queries now match that literal and the phase allowlist
+retains its actual fixed phase. The existing receipt key, twelve aggregate
+queries, eighteen-read ceiling and 300-line sample bound remain unchanged. A
+source-bound producer fixture first failed against the old literal; all five
+focused monitoring controls then passed in 0.010seconds, including privacy and
+real reader-cap controls. No application or production change was made.
+
+[Four bounded historical queries](monitor-event-correction-20261018.json), for
+06:47:30–06:48:35 UTC against backend `0a3c2517…`, found seventeen hub economic
+mark commits (sixteen with five marks, one with zero), seven reference scheduling
+events and one earlier admission-budget warning. None of the queries reached
+300lines. Original receipts remain unchanged: an old zero under the obsolete
+label is **incorrect-label evidence**, not proof of absent reference publication.
+Hub economic marks and scheduled execution references are different producers;
+these counts do not prove executable reference coverage.
+
+Each of the four exact rejected requests had `Local quote candidate rejected`,
+`candidates=5`, `reason=missing_observations`. This pins the aggregate candidate
+selection rejection, excluding an early missing-wrapper/config return for those
+requests. No stale-prerequisite witness or failing candidate-stage field was
+emitted. Eligible mirror/fee-generation admission, identity, tax view, execution
+reference and per-candidate wrapper gaps cannot be distinguished retrospectively.
+Wrapper completion alone cannot identify or exclude the missing prerequisite.
+The four actual failures remain FAIL; this correction establishes monitoring
+accuracy only. Actual prerequisite causality and deployed acceptance remain open.

@@ -1,0 +1,453 @@
+{
+  "overall": "PASS",
+  "scope": "Four bounded historical Loki queries only. Event counts do not prove prerequisite causality. No raw log lines, actor values or endpoint values exported.",
+  "window_start": "2026-10-18T06:47:30Z",
+  "window_end": "2026-10-18T06:48:35Z",
+  "backend_revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "utc": "2026-10-18T07:25:41.775729+00:00",
+  "queries": [
+    {
+      "label": "exact_failures",
+      "limit": 300,
+      "at_limit": false,
+      "event_counts": {
+        "rejected": 4,
+        "candidate_rejected": 4
+      },
+      "levels": {
+        "ERROR": 4,
+        "DEBUG": 4,
+        "WARN": 4
+      },
+      "summary": {
+        "bounded_sample_lines": 12,
+        "typed_fields": {
+          "phase": {},
+          "reason": {
+            "missing_observations": 8
+          },
+          "direction": {
+            "native_input": 2,
+            "native_output": 2
+          }
+        },
+        "candidate_stale_witnesses": [],
+        "producer_read_witnesses": [],
+        "scheduled_alternative_witnesses": [],
+        "wrapper_dispatch_witnesses": [],
+        "request_correlation": {}
+      },
+      "numeric_events": [
+        {
+          "timestamp_ms": 1792306084467,
+          "events": [
+            "candidate_rejected"
+          ],
+          "failure_sample_indices": [
+            0
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306084467,
+          "events": [
+            "rejected"
+          ],
+          "failure_sample_indices": [
+            0
+          ]
+        },
+        {
+          "timestamp_ms": 1792306084762,
+          "events": [
+            "candidate_rejected"
+          ],
+          "failure_sample_indices": [
+            1
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306084762,
+          "events": [
+            "rejected"
+          ],
+          "failure_sample_indices": [
+            1
+          ]
+        },
+        {
+          "timestamp_ms": 1792306090056,
+          "events": [
+            "candidate_rejected"
+          ],
+          "failure_sample_indices": [
+            2
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306090056,
+          "events": [
+            "rejected"
+          ],
+          "failure_sample_indices": [
+            2
+          ]
+        },
+        {
+          "timestamp_ms": 1792306090351,
+          "events": [
+            "candidate_rejected"
+          ],
+          "failure_sample_indices": [
+            3
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306090351,
+          "events": [
+            "rejected"
+          ],
+          "failure_sample_indices": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "label": "reference_publication",
+      "limit": 300,
+      "at_limit": false,
+      "event_counts": {
+        "hub_committed": 17,
+        "reference_scheduled": 7
+      },
+      "levels": {
+        "INFO": 24
+      },
+      "summary": {
+        "bounded_sample_lines": 24,
+        "typed_fields": {
+          "phase": {
+            "reference_schedule": 7
+          },
+          "reason": {},
+          "direction": {}
+        },
+        "candidate_stale_witnesses": [],
+        "producer_read_witnesses": [],
+        "scheduled_alternative_witnesses": [],
+        "wrapper_dispatch_witnesses": [],
+        "request_correlation": {}
+      },
+      "numeric_events": [
+        {
+          "timestamp_ms": 1792306051353,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        },
+        {
+          "timestamp_ms": 1792306052927,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306052932,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306057935,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        },
+        {
+          "timestamp_ms": 1792306059259,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306059264,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306064267,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 6
+        },
+        {
+          "timestamp_ms": 1792306066404,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306066412,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        },
+        {
+          "timestamp_ms": 1792306071412,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        },
+        {
+          "timestamp_ms": 1792306076409,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 0,
+          "elapsed_ms": 3
+        },
+        {
+          "timestamp_ms": 1792306081015,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306081021,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306086021,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 6
+        },
+        {
+          "timestamp_ms": 1792306091022,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 6
+        },
+        {
+          "timestamp_ms": 1792306091038,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306091046,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        },
+        {
+          "timestamp_ms": 1792306096046,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306099075,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306099081,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306104083,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 6
+        },
+        {
+          "timestamp_ms": 1792306109082,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 5
+        },
+        {
+          "timestamp_ms": 1792306112078,
+          "events": [
+            "reference_scheduled"
+          ]
+        },
+        {
+          "timestamp_ms": 1792306112085,
+          "events": [
+            "hub_committed"
+          ],
+          "economic_marks": 5,
+          "elapsed_ms": 7
+        }
+      ]
+    },
+    {
+      "label": "ingestion_failures",
+      "limit": 300,
+      "at_limit": false,
+      "event_counts": {
+        "admission_budget": 1
+      },
+      "levels": {
+        "WARN": 1
+      },
+      "summary": {
+        "bounded_sample_lines": 1,
+        "typed_fields": {
+          "phase": {},
+          "reason": {},
+          "direction": {}
+        },
+        "candidate_stale_witnesses": [],
+        "producer_read_witnesses": [],
+        "scheduled_alternative_witnesses": [],
+        "wrapper_dispatch_witnesses": [],
+        "request_correlation": {}
+      },
+      "numeric_events": [
+        {
+          "timestamp_ms": 1792306059259,
+          "events": [
+            "admission_budget"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "candidate_debug",
+      "limit": 300,
+      "at_limit": false,
+      "event_counts": {
+        "candidate_rejected": 4
+      },
+      "levels": {
+        "DEBUG": 4
+      },
+      "summary": {
+        "bounded_sample_lines": 4,
+        "typed_fields": {
+          "phase": {},
+          "reason": {
+            "missing_observations": 4
+          },
+          "direction": {}
+        },
+        "candidate_stale_witnesses": [],
+        "producer_read_witnesses": [],
+        "scheduled_alternative_witnesses": [],
+        "wrapper_dispatch_witnesses": [],
+        "request_correlation": {}
+      },
+      "numeric_events": [
+        {
+          "timestamp_ms": 1792306084467,
+          "events": [
+            "candidate_rejected"
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306084762,
+          "events": [
+            "candidate_rejected"
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306090056,
+          "events": [
+            "candidate_rejected"
+          ],
+          "candidates": 5
+        },
+        {
+          "timestamp_ms": 1792306090351,
+          "events": [
+            "candidate_rejected"
+          ],
+          "candidates": 5
+        }
+      ]
+    }
+  ],
+  "loki_query_count": 4,
+  "total_read_count": 7,
+  "qualification": "Historical read-only diagnosis, not live acceptance. The obsolete event-label zero count is not evidence of absent publication. Hub economic mark commits do not certify execution reference publication or identify the rejected prerequisite.",
+  "old_evidence": "Original monitoring/probe receipts remain unchanged. Four executed missing_observations failures remain FAIL.",
+  "correction": {
+    "schema_key": "reference_committed",
+    "producer_event": "Hub mark cohort committed",
+    "producer_phase": "hub_marks",
+    "query_count_change": 0,
+    "read_budget": 18,
+    "sample_limit": 300,
+    "source_fixture_before": {
+      "tests": 1,
+      "failures": 1,
+      "seconds": 0.001,
+      "failure": "Obsolete monitor event differs from actual producer literal"
+    },
+    "focused_controls_after": {
+      "tests": 5,
+      "failures": 0,
+      "seconds": 0.01,
+      "command": "timeout 59s python3 scripts/qa/test-native-recovery-1505.py -k monitoring"
+    }
+  },
+  "input_files": [
+    {
+      "path": "indexer/src/db/queries/hub_prices.rs",
+      "sha256": "4f04f9d57901982b5aa1815e2325ee017b3fbdc52770268efaa892b9f4a9473d"
+    },
+    {
+      "path": "scripts/qa/probe-native-monitoring-1505.py",
+      "sha256": "ae2693fb4dd359bc5d6b446c0b8eec78f079f20d30729045c7389ad387c7a2d2"
+    },
+    {
+      "path": "scripts/qa/test-native-recovery-1505.py",
+      "sha256": "231f079de3098bc01c78e9d593b0f2ad4a6e2994e795b75b5781b9c1f7331696"
+    }
+  ]
+}

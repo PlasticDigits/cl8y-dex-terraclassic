@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 from contextlib import contextmanager, redirect_stdout
 
@@ -340,6 +341,43 @@ fi
         result = MONITOR.sample_summary(payload, ["0000000000000001"])
         self.assertEqual(len(result["candidate_stale_witnesses"]), 1)
         self.assertNotIn("do-not-export", json.dumps(result))
+
+    def test_monitoring_commit_queries_match_actual_hub_producer(self):
+        root = Path(__file__).resolve().parents[2]
+        producer = (root / "indexer/src/db/queries/hub_prices.rs").read_text()
+        event = "Hub mark cohort committed"
+        block = re.search(r'tracing::info!\(\s*phase = "hub_marks",.*?\n    \);', producer, re.S)
+        self.assertIsNotNone(block, "the committed producer must retain its fixed hub_marks phase")
+        self.assertIn('"' + event + '"', block[0])
+        self.assertEqual(MONITOR.PATTERNS["reference_committed"], event)
+        fixture = ('phase="hub_marks" economic_marks=5 ' + event +
+                   ' actor=do-not-export endpoint=https://private.invalid/body')
+        instance = type("Monitor", (), {"reader": type("Reader", (), {"reads": 2})()})()
+        queries = []
+
+        def read(path):
+            instance.reader.reads += 1
+            if path == "/api/datasources":
+                return [{"type": "loki", "uid": "Loki"}]
+            query = parse_qs(urlsplit(path).query)["query"][0]
+            queries.append(query)
+            if "query_range" in path:
+                return {"status": "success", "data": {"resultType": "streams", "result": [
+                    {"stream": {"actor": "do-not-export"}, "values": [["1", fixture]]}]}}
+            count = "1" if event in query else "0"
+            return {"status": "success", "data": {"resultType": "vector", "result": [
+                {"value": [0, count], "metric": {"actor": "do-not-export"}}]}}
+
+        instance.read = read
+        result = MONITOR.collect(instance)
+        self.assertEqual(result["loki"]["pattern_counts"]["reference_committed"], 1)
+        self.assertEqual(result["loki"]["typed_fields"]["phase"], {"hub_marks": 1})
+        self.assertEqual(sum(event in query for query in queries), 2,
+                         "aggregate and bounded context queries must both match the producer")
+        self.assertTrue(all("Reference cohort committed" not in query for query in queries))
+        self.assertEqual(result["read_count"], 16)
+        self.assertNotIn("do-not-export", json.dumps(result))
+        self.assertNotIn("private.invalid", json.dumps(result))
 
     def test_monitoring_uses_bounded_fixed_queries_without_raw_lines(self):
         instance = type("Monitor", (), {"reader": type("Reader", (), {"reads": 2})()})()

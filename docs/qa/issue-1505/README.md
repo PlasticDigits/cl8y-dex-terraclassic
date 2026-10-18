@@ -86,6 +86,12 @@ bootstrap reads: datasource discovery, twelve fixed aggregates, one bounded
 sample, optional requested-ID sample and optional Prometheus. Existing shared
 monitoring keeps its 16-read default. Test all optional branches through the real
 reader cap with mocked transport; the nineteenth read must stop before transport.
+The compatibility key `reference_committed` counts the actual hub producer event
+`Hub mark cohort committed` (`phase="hub_marks"`), not execution-reference
+publication. Bind both aggregate and sampled event patterns to the producer
+literal in focused controls. An obsolete-label zero does not prove absent
+publication; retain and qualify old receipts. See the
+[historical correction and unresolved trace gap](RESULTS.md#committed-event-monitoring-correction-2026-10-18).
 
 Slot-bearing producer failure records distinguish per-denom dispatch, global
 dispatch and logical LCD-future polling. Export only the fourteen fixed slots,

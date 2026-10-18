@@ -19,7 +19,7 @@ PATTERNS = {
     "wrapper_unavailable": "Native wrapper observations unavailable",
     "wrapper_read_unavailable": "Native wrapper read unavailable",
     "stale_prerequisite": "Local quote prerequisite stale",
-    "reference_committed": "Reference cohort committed",
+    "reference_committed": "Hub mark cohort committed",
     "reference_woken": "Reference refresh scheduled",
     "provider_pressure": r'(?i)(LCD provider admission deferred|all provider circuits open|reason="?(capacity|circuit_open))',
     "historical_height": "(?i)(historical|height.*(unavailable|not available|not found|pruned)|requested height|lowest height)",
@@ -28,7 +28,7 @@ PATTERNS = {
     "admission_budget": "Local quote admission exhausted pass budget",
     "errors": "(?i)(error|panic|fatal)",
 }
-PHASES = frozenset(("uluna_tax_cap", "uusd_tax_cap", "uluna_mapping", "uusd_mapping", "mapper_floor", "treasury_floor", "identity", "data", "chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability", "reference_marks", "reference_schedule", "reference_accounting"))
+PHASES = frozenset(("uluna_tax_cap", "uusd_tax_cap", "uluna_mapping", "uusd_mapping", "mapper_floor", "treasury_floor", "identity", "data", "chain", "mapper", "treasury", "mappings", "output", "floor_capabilities", "mapper_config", "treasury_config", "denom_bindings", "denom_mapping", "rate_limit", "tax_cap", "tax_rate", "router_config", "floor_capability", "hub_marks", "reference_marks", "reference_schedule", "reference_accounting"))
 REASONS = frozenset(("mapper_paused", "treasury_wrapping_paused", "capacity", "circuit_open", "provider_unavailable", "chain_identity", "historical_height", "lagging", "contract_rejected", "query_gas_limit", "http_rejected", "malformed", "deadline", "cancelled", "missing_or_invalid", "missing_observations", "stale_observations", "accounting_unavailable", "protection", "unsupported_semantics", "no_route"))
 REQUEST_ID = re.compile(r"[0-9a-f]{16}")
 COMPONENTS = frozenset(("pair_config", "pool_mirror", "hybrid_mirror", "reference", "tax_policy", "tax_actor", "wrapper", "simulation_mirror"))
@@ -195,7 +195,7 @@ def collect(instance, request_ids=()):
     for label, pattern in PATTERNS.items():
         query = "sum(count_over_time(" + selector + " |~ " + json.dumps(pattern) + "[15m]))"
         counts[label] = MONITORING.aggregate(instance.read(prefix + "query?" + urlencode({"query": query})))
-    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|LCD scheduled alternatives deferred|Local quote rejected|Local quote prerequisite stale|Reference cohort committed|Reference refresh scheduled)"',
+    params = {"query": selector + ' |~ "(Native wrapper|LCD scheduled admission deferred|LCD scheduled alternatives deferred|Local quote rejected|Local quote prerequisite stale|Hub mark cohort committed|Reference refresh scheduled)"',
         "start": str(int((time.time() - 900) * 1e9)), "end": str(int(time.time() * 1e9)), "limit": "300", "direction": "backward"}
     sample = sample_summary(instance.read(prefix + "query_range?" + urlencode(params)))
     if request_ids:

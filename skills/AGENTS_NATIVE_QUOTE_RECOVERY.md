@@ -124,6 +124,12 @@ bounded samples, optional requested-ID correlation and optional Prometheus.
 Shared monitoring retains its default 16-read profile; exercise actual capped
 transport in tests, not only a fake counter. Keep 300 sampled lines and eight
 requested IDs as hard bounds, with no extra query or raw-data export.
+The monitor compatibility key `reference_committed` matches the actual hub event
+`Hub mark cohort committed` / `hub_marks`; source-bind aggregate and context
+queries to that producer literal. Hub economic mark publication does not certify
+execution-reference coverage. Preserve obsolete-label counts as incorrectly
+labeled evidence rather than inferring absent publication; see the
+[qualified historical diagnosis](../docs/qa/issue-1505/RESULTS.md#committed-event-monitoring-correction-2026-10-18).
 
 Endpoint data transport must check its original total and intrinsic attempt
 boundaries before identity work and after any awaited identity/metadata step.
