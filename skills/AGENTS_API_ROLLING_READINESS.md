@@ -35,3 +35,10 @@ final owned source proof. Persist deployment intent before dispatch; reconcile
 ambiguous acknowledgements through owned history without retrying the deployment.
 Unavailable deployment logs cannot certify success. Keep status read-only and
 usable for its exact dispatched revision when main moves.
+
+For dual-instance handoff use the [owned fixture checklist](../docs/qa/api-rolling-readiness/owned-handoff.md):
+independent HTTP/AppState/LCD namespaces, real advisory/block checkpoint transfer,
+explicit proxy admission and in-flight drain. Pace native checks at 200ms with
+a 150 total client-call cap; compile separately and keep actual tests below 59s.
+Retain failed stress runs. A subsequent PASS does not explain earlier native 503s
+or certify full poller-supervisor, OS-process or actual Coolify/Traefik behavior.

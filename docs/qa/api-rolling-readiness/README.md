@@ -128,8 +128,8 @@ reviewed public profile, private owned proof and one private journal. It has no
 stop, restart, cancellation, rollback or database operation. A phase permits at
 most one whitelisted mutation: the runtime-only public `API_READY_SCENARIOS`
 value, the exact source pin, or one scoped rolling deployment. The profile and
-pin phases do not restart the application. Build concurrency is capped at two
-jobs so replacement compilation does not use every host CPU.
+pin phases do not restart the application. Replacement builds have an explicit
+concurrency limit of two Cargo jobs.
 
 ```sh
 bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
@@ -152,3 +152,7 @@ exact current main; read-only status remains available if main advances.
 Eighteen focused transport controls pass in 0.013s. They include the original
 false-PASS for missing/malformed logs and its corrected failures. They do not
 establish an actual production deployment.
+
+The [owned dual-HTTP/proxy fixture](owned-handoff.md) is separate from platform
+source eligibility and live deployment. Its paced 150-call profile and retained
+unresolved stress 503 remain explicit; it does not establish full #1505 acceptance.
