@@ -160,7 +160,7 @@ async function main() {
       const flipped = entry === 'trade' ? '0.849757' : '0.00528599';
       stage = 'initial-indexed-usd';
       await expect(headline).toContainText(first, { timeout: 18000 });
-      await expect(region.locator('[aria-live="polite"]')).toContainText('2 candles on chart.');
+      await expect(region.locator(':scope > p[aria-live="polite"]')).toContainText('2 candles on chart.');
       await page.clock.install();
       const refetch = async (next, expected) => {
         phase = next;
@@ -171,8 +171,8 @@ async function main() {
       };
       stage = 'missing-current-usd';
       await refetch('missing', '—');
-      await expect(region.locator('[aria-live="polite"]')).toContainText('Last price unavailable.');
-      await expect(region.locator('[aria-live="polite"]')).toContainText('2 candles on chart.');
+      await expect(region.locator(':scope > p[aria-live="polite"]')).toContainText('Last price unavailable.');
+      await expect(region.locator(':scope > p[aria-live="polite"]')).toContainText('2 candles on chart.');
       receipt.checks.missing_current_usd_is_dash = true;
       receipt.checks.historical_candles_retained = true;
       stage = 'invert-while-unpriced';
@@ -203,4 +203,4 @@ async function main() {
   }
 }
 if (require.main === module) main().catch(() => { process.exitCode = 1; });
-module.exports = { fixtureKind, trade, candles };
+module.exports = { PAIR, UST1, USTR, acknowledge, fixtureKind, trade, candles };

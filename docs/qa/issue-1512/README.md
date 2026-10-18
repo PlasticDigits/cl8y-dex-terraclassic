@@ -50,3 +50,30 @@ of foreign-pair trade rows, and retained historical candles. Virtual browser tim
 advances the existing refetch intervals; it does not alter production responses
 or the application's quote/signing rules. Only the price rendering fixture
 requests are substituted. Default receipts stay under `/tmp/deployed-*-1512.json`.
+
+The [old deployment desktop Trade receipt](deployed-before-trade-desktop.json)
+reproduced the bug in **10.00 seconds** at `missing-current-usd`. The initial
+indexed-USD headline and two historical candles passed before that stage. The
+owned missing-USD response then failed the required `—` assertion. The receipt
+records all observed frontend script paths and SHA-256 digests, the QA helper
+digest, zero writes and zero actor-shaped requests. It contains no trade rows,
+actors or screenshots. This is deployed frontend rendering with controlled
+HTTP price fixtures; it makes no native quote latency or live market-price claim.
+
+## One actual unmocked market comparison
+
+After the final frontend/backend deployments are independently attested, run:
+
+```bash
+timeout 59s node scripts/qa/browser-unmocked-price-1512.cjs
+```
+
+This one process visits desktop Trade and Charts for the canonical UST1/USTR
+pair. It observes the pages' own actual pair/trade/candle responses, immediately
+projects only the required USD/ratio scalars and validity flags, and compares the
+visible headline with the corresponding indexed scalar in the selected direction.
+It uses unchanged HTTP responses and ordinary browser time. Missing indexed
+USD requires `—`; available historical candles must remain plotted. Missing
+plottable history is recorded as an explicit historical-check skip, with overall
+`PASS_WITH_SKIPS`. Receipts contain booleans, price/count scalars and served-script
+digests only; no actor, transaction rows, screenshots or wallet connection.
