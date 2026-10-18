@@ -13,7 +13,7 @@ from urllib.parse import quote, urlencode
 SPEC = importlib.util.spec_from_file_location("monitoring", Path(__file__).with_name("probe-swap-monitoring-1479-1480.py"))
 MONITORING = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MONITORING)
-NATIVE_READ_BUDGET = 18
+NATIVE_READ_BUDGET = 19
 PATTERNS = {
     "wrapper_completed": "Native wrapper observations completed",
     "wrapper_unavailable": "Native wrapper observations unavailable",
@@ -238,10 +238,7 @@ def collect(instance, request_ids=()):
         sample["request_correlation"] = requested["request_correlation"]
         sample["candidate_stale_witnesses"] = requested["candidate_stale_witnesses"]
         sample["candidate_missing_witnesses"] = requested["candidate_missing_witnesses"]
-    prometheus = [row for row in sources if isinstance(row, dict) and row.get("type") == "prometheus"]
-    prom = {"status": "SKIP", "reason": "no_prometheus_datasource_provisioned"}
-    if len(prometheus) == 1 and MONITORING.ATTESTER.APP_ID.fullmatch(str(prometheus[0].get("uid", ""))):
-        prom = {"status": "PASS", "up_sum": MONITORING.aggregate(instance.read("/api/datasources/proxy/uid/" + quote(prometheus[0]["uid"], safe="") + "/api/v1/query?" + urlencode({"query": "sum(up)"})))}
+    prom = MONITORING.collect_prometheus(instance, sources)
     return {"loki": {"status": "PASS", "window_seconds": 900, "pattern_counts": counts, **sample}, "prometheus": prom, "read_count": instance.reader.reads}
 
 
@@ -257,7 +254,7 @@ def main():
         "scope": "15-minute fixed pattern counts and at most 300 sampled lines summarized to fixed enums and bounded producer-read/alternative-admission diagnostics; no log bodies, actors or endpoints exported; LCD-future polling does not prove a wire attempt and pattern counts do not prove causality"}
     try:
         receipt.update(collect(MONITORING.Monitor(read_budget=NATIVE_READ_BUDGET), args.request_id))
-        receipt["overall"] = "PASS WITH SKIPS" if receipt["prometheus"]["status"] == "SKIP" else "PASS"
+        receipt["overall"] = "PASS"
     except Exception as error:
         receipt.update(overall="FAIL", failure_class=type(error).__name__)
     with os.fdopen(os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as output:

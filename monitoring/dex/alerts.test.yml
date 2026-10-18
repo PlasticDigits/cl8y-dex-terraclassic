@@ -1,0 +1,40 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 5s
+tests:
+  - interval: 5s
+    input_series:
+      - series: 'up{job="cl8y-dex-api",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800"}'
+        values: '0x29 1x20'
+      - series: 'up{job="cl8y-dex-indexer",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800"}'
+        values: '1x50'
+      - series: 'dex_observation_timestamp_seconds{job="cl8y-dex-api"}'
+        values: '0+5x50'
+      - series: 'dex_observation_timestamp_seconds{job="cl8y-dex-indexer"}'
+        values: '0+5x50'
+      - series: 'dex_indexer_lag_blocks{job="cl8y-dex-indexer",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800"}'
+        values: '25x29 0x20'
+    promql_expr_test:
+      - expr: 'ALERTS{alertname="DexScrapeMissing",alertstate="pending"}'
+        eval_time: 30s
+        exp_samples:
+          - labels: '{__name__="ALERTS",alertname="DexScrapeMissing",alertstate="pending",job="cl8y-dex-api",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800",severity="critical"}'
+            value: 1
+      - expr: 'ALERTS{alertname="DexScrapeMissing",alertstate="firing"}'
+        eval_time: 65s
+        exp_samples:
+          - labels: '{__name__="ALERTS",alertname="DexScrapeMissing",alertstate="firing",job="cl8y-dex-api",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800",severity="critical"}'
+            value: 1
+      - expr: 'ALERTS{alertname="DexIndexerLag",alertstate="pending"}'
+        eval_time: 30s
+        exp_samples:
+          - labels: '{__name__="ALERTS",alertname="DexIndexerLag",alertstate="pending",job="cl8y-dex-indexer",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800",severity="warning"}'
+            value: 1
+      - expr: 'ALERTS{alertname="DexIndexerLag",alertstate="firing"}'
+        eval_time: 125s
+        exp_samples:
+          - labels: '{__name__="ALERTS",alertname="DexIndexerLag",alertstate="firing",job="cl8y-dex-indexer",service="cl8y-dex-terraclassic-indexer",instance="dex-exporter:9800",severity="warning"}'
+            value: 1
+      - expr: 'ALERTS{alertname=~"DexScrapeMissing|DexIndexerLag"}'
+        eval_time: 155s
+        exp_samples: []

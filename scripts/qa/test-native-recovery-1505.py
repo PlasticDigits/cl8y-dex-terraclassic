@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 from contextlib import contextmanager, redirect_stdout
+from monitoring_fixtures_1544 import prometheus_payload, grafana_frames
 
 
 def module(name, file):
@@ -60,7 +61,13 @@ def monitoring_transport(prometheus=False):
             elif path == "/api/datasources":
                 payload = [{"type": "loki", "uid": "Loki", "url": "synthetic-private-endpoint"}]
                 if prometheus:
-                    payload.append({"type": "prometheus", "uid": "Prometheus"})
+                    payload.append({"type": "prometheus", "uid": MONITOR.MONITORING.PROMETHEUS_UID, "url": MONITOR.MONITORING.PROMETHEUS_URL})
+            elif path.endswith("/health"):
+                payload = {"status": "OK"}
+            elif path == "/api/ds/query":
+                query = json.loads(request.data)
+                assert query["queries"][0]["expr"] == MONITOR.MONITORING.PROM_QUERY
+                payload = grafana_frames(prometheus_payload(MONITOR.MONITORING))
             elif path.endswith("/query_range"):
                 payload = {"status": "success", "data": {"resultType": "streams", "result": []}}
             elif path.endswith("/query"):
@@ -320,7 +327,7 @@ fi
         self.assertEqual(result['bounded_sample_lines'], 300)
         self.assertEqual(len(result['wrapper_dispatch_witnesses']), 300)
         self.assertNotIn('do-not-export', json.dumps(result))
-        self.assertEqual(MONITOR.NATIVE_READ_BUDGET, 18)
+        self.assertEqual(MONITOR.NATIVE_READ_BUDGET, 19)
         self.assertEqual(len(MONITOR.PATTERNS), 12)
         payload['data']['result'][0]['values'].append(['1', line])
         with self.assertRaises(ValueError):
@@ -406,7 +413,8 @@ fi
                 {"value": [0, count], "metric": {"actor": "do-not-export"}}]}}
 
         instance.read = read
-        result = MONITOR.collect(instance)
+        with patch.object(MONITOR.MONITORING, "collect_prometheus", return_value={"status": "PASS"}):
+            result = MONITOR.collect(instance)
         self.assertEqual(result["loki"]["pattern_counts"]["reference_committed"], 1)
         self.assertEqual(result["loki"]["typed_fields"]["phase"], {"hub_marks": 1})
         self.assertEqual(sum(event in query for query in queries), 2,
@@ -428,36 +436,39 @@ fi
                 return {"status": "success", "data": {"resultType": "streams", "result": []}}
             return {"status": "success", "data": {"resultType": "vector", "result": [{"value": [0, "2"], "metric": {"actor": "do-not-export"}}]}}
         instance.read = read
-        result = MONITOR.collect(instance, ["0000000000000001"])
+        with patch.object(MONITOR.MONITORING, "collect_prometheus", return_value={"status": "PASS"}):
+            result = MONITOR.collect(instance, ["0000000000000001"])
         self.assertEqual(result["read_count"], 17)
-        self.assertEqual(result["prometheus"]["status"], "SKIP")
+        self.assertEqual(result["prometheus"]["status"], "PASS")
         self.assertNotIn("do-not-export", json.dumps(result))
         self.assertTrue(all("limit=300" in p for p in paths if "query_range" in p))
         with self.assertRaises(ValueError):
             MONITOR.collect(instance, ["actor/private"])
 
     def test_native_monitoring_optional_branches_use_the_real_reader_budget(self):
-        for prometheus in (False, True):
-            for correlation in (False, True):
-                with self.subTest(prometheus=prometheus, correlation=correlation), monitoring_transport(prometheus) as opener:
-                    instance = MONITOR.MONITORING.Monitor(read_budget=MONITOR.NATIVE_READ_BUDGET)
-                    ids = ["0000000000000001"] if correlation else []
-                    result = MONITOR.collect(instance, ids)
-                    expected = 16 + int(prometheus) + int(correlation)
-                    self.assertEqual(result["read_count"], expected)
-                    self.assertEqual(len(opener.requests), expected)
-                    self.assertEqual(instance.read_budget, 18)
-                    self.assertEqual(result["prometheus"]["status"], "PASS" if prometheus else "SKIP")
-                    self.assertNotIn("synthetic-private", json.dumps(result))
-                    while instance.reader.reads < instance.read_budget:
-                        instance.read("/api/datasources")
-                    self.assertEqual(len(opener.requests), 18)
-                    with self.assertRaisesRegex(ValueError, "read_budget"):
-                        instance.read("/api/datasources")
-                    self.assertEqual(len(opener.requests), 18)
+        for correlation in (False, True):
+            with self.subTest(correlation=correlation), monitoring_transport(True) as opener:
+                instance = MONITOR.MONITORING.Monitor(read_budget=MONITOR.NATIVE_READ_BUDGET)
+                ids = ["0000000000000001"] if correlation else []
+                result = MONITOR.collect(instance, ids)
+                expected = 18 + int(correlation)
+                self.assertEqual(result["read_count"], expected)
+                self.assertEqual(len(opener.requests), expected)
+                self.assertEqual(instance.read_budget, 19)
+                self.assertEqual(result["prometheus"]["status"], "PASS")
+                self.assertNotIn("synthetic-private", json.dumps(result))
+                while instance.reader.reads < instance.read_budget:
+                    instance.read("/api/datasources")
+                self.assertEqual(len(opener.requests), 19)
+                with self.assertRaisesRegex(ValueError, "read_budget"):
+                    instance.read("/api/datasources")
+                self.assertEqual(len(opener.requests), 19)
+        with monitoring_transport(False):
+            with self.assertRaisesRegex(ValueError, "prometheus_identity"):
+                MONITOR.collect(MONITOR.MONITORING.Monitor(read_budget=MONITOR.NATIVE_READ_BUDGET))
 
     def test_native_monitoring_cli_retains_old_cap_failure_and_uses_explicit_profile(self):
-        for budget, expected_status in ((16, 1), (18, 0)):
+        for budget, expected_status in ((16, 1), (19, 0)):
             with self.subTest(budget=budget), monitoring_transport(True) as opener, tempfile.TemporaryDirectory() as temporary:
                 output = Path(temporary) / "receipt.json"
                 with patch.object(MONITOR, "NATIVE_READ_BUDGET", budget), \
@@ -471,14 +482,14 @@ fi
                 if budget == 16:
                     self.assertEqual(receipt["failure_class"], "ValueError")
                 else:
-                    self.assertEqual(receipt["read_count"], 18)
-                    self.assertEqual(receipt["read_budget"], 18)
+                    self.assertEqual(receipt["read_count"], 19)
+                    self.assertEqual(receipt["read_budget"], 19)
                 self.assertEqual(output.stat().st_mode & 0o777, 0o600)
                 self.assertNotIn("synthetic-private", json.dumps(receipt))
 
     def test_monitoring_budget_profile_is_closed_before_credentials_or_transport(self):
         self.assertEqual(MONITOR.MONITORING.Monitor.read_budget, 16)
-        for bad in (0, 1, 17, 19, True, "18", 18.0):
+        for bad in (0, 1, 17, 18, 20, True, "19", 19.0):
             with self.subTest(bad=bad), patch.object(MONITOR.MONITORING.ATTESTER, "Reader") as reader:
                 with self.assertRaisesRegex(ValueError, "read_budget"):
                     MONITOR.MONITORING.Monitor(read_budget=bad)

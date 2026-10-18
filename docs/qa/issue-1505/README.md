@@ -81,11 +81,14 @@ Receipts use private 0600 files. The monitoring helper accepts up to eight
 `--request-id` values from a response; it exports fixed enum counts and matching
 counts, never raw lines. Monitor collection success is separate from useful-quote
 acceptance. Keep failed original runs and exact helper hashes.
-The native monitor explicitly allows at most 18 reads including two credential
+The native monitor explicitly allows at most 19 reads including two credential
 bootstrap reads: datasource discovery, twelve fixed aggregates, one bounded
-sample, optional requested-ID sample and optional Prometheus. Existing shared
-monitoring keeps its 16-read default. Test all optional branches through the real
-reader cap with mocked transport; the nineteenth read must stop before transport.
+sample, optional requested-ID sample, required Prometheus datasource health and
+one fixed target/freshness query. The [#1544 verifier](../issue-1544/README.md)
+rejects missing/stale/wrong-service metrics instead of skipping them; the one-read
+increase preserves every existing Loki query. Existing shared monitoring keeps
+its 16-read default. Test both correlation branches through the real reader cap
+with mocked transport; the twentieth read must stop before transport.
 The compatibility key `reference_committed` counts the actual hub producer event
 `Hub mark cohort committed` (`phase="hub_marks"`), not execution-reference
 publication. Bind both aggregate and sampled event patterns to the producer
