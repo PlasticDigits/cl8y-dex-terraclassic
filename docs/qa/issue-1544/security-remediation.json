@@ -14,20 +14,20 @@
     "note": "The running container's historical process environment is unchanged; the Grafana database rejects its previous password and future container configuration contains the replacement."
   },
   "loki_storage": {
-    "status": "PENDING_OPERATOR_CUSTODY",
-    "reason": "Hetzner documents no dedicated public API to generate S3 credentials; an authenticated Console session is unavailable to this agent.",
+    "status": "PENDING_HIDDEN_REENTRY_AFTER_FAILED_STAGING",
+    "reason": "Original staging failed after both hidden prompts without retaining a replacement; exact original cause is unknown. Existing key HEAD200 and private staging authority are verified. Updated helper retains candidates before network verification.",
     "source": "https://docs.hetzner.com/storage/object-storage/faq/buckets-objects/",
     "pm_task_id": "c1c74912-795a-4108-bd86-4493c0b0b133",
     "pm_task_status_at_creation": "queued",
     "helper": "scripts/ops/stage-logs-s3-credentials.py",
     "prepared_check": "PASS: helper --check and two focused signing/input-bound tests; test process 0.001 seconds.",
-    "helper_contract": "Hidden local TTY prompts; verify replacement key with a signed read-only bucket HEAD; store it under OpenBao secret/data/groups/cl8y-logs/s3_rotation_pending with CAS and readback. This stages credentials only and never switches Loki or revokes the current key.",
+    "helper_contract": "Hidden prompts; CAS/readback staged_unverified in OpenBao before signed HEAD; only HEAD200 promotes staged_verified_read; resumable fixed diagnostics; never switches Loki or revokes current key.",
     "remaining_agent_work": "After staging, adopt the replacement in Loki through verified monitoring-only replacement/reload, verify historical reads and fresh ingestion, then notify the operator that revoking the previous Console key is safe.",
     "current_key_revoked": false
   },
   "loki_ingestion": {
-    "status": "PENDING_OPERATOR_SUDO",
-    "reason": "Normal power-man SSH to the existing WireGuard host on port 2223 works; sudo -n explicitly reports interactive authentication required. The separately authenticated cl8y-ops SSH identity is restricted to the existing hub command and cannot inventory or change collector configuration.",
+    "status": "INVENTORY_DONE_PRIVILEGED_ADOPTION_PENDING",
+    "reason": "Operator collector inventory completed, but its original parser omitted digit-containing key names. Corrected parser and public unit/config references identify the current environment source. Inventory grants no persistent sudo or Docker access; coordinated privileged adoption remains unexecuted.",
     "pm_task_id": "807d41d0-41a4-4e06-a690-344325ccb40e",
     "pm_task_status_at_creation": "queued",
     "helper": "scripts/ops/logs-collector-inventory.py",
@@ -47,5 +47,21 @@
     "dex_containers_restarted": false,
     "logging_containers_restarted_for_remediation": false,
     "existing_ingest_and_storage_credentials_preserved_until_adoption": true
+  },
+  "operator_followup": {
+    "utc": "2026-10-18T11:31:59.680392+00:00",
+    "s3_card_status": "failed",
+    "collector_card_status": "done",
+    "s3_prompts_reached": true,
+    "original_failure_phase": "unknown_generic_diagnostic",
+    "replacement_candidate_saved": false,
+    "existing_key_bucket_head_http_status": 200,
+    "pending_record_absent": true,
+    "pending_create_read_update_authorized": true,
+    "revised_preflight": "PASS: current configuration and private staging authority; no prompts or writes",
+    "revised_helper_contract": "CAS-retain staged_unverified before S3 probe, emit fixed phase and HTTP status only, promote only after HEAD200/readback; --resume needs no new input; never adopt unverified state",
+    "collector_inventory_correction": "Original environment assignment parser excluded digits and missed CL8Y_*; fixed parser and regression controls. /etc/default/alloy remains authoritative per systemd/config references.",
+    "runtime_credentials_changed": false,
+    "old_credentials_revoked": false
   }
 }

@@ -21,3 +21,13 @@ target verification or alert delivery. Follow the
 Run `make verify-issue-1544`; keep each executed test process under 60 seconds.
 Offline tests establish source behavior only. Check every live criterion in the
 checklist before closing [#1544](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1544).
+
+Credential recovery follows the [staging and collector follow-up](../docs/runbooks/dex-prometheus-monitoring.md#retrying-storage-staging-and-using-the-completed-collector-inventory).
+Keep S3 candidates private and `staged_unverified` until actual HEAD200 and
+CAS/readback promotion. `--resume` never prompts, renews no runtime credential,
+and downgrades an older verified pending state before rechecking. Never adopt an
+unverified candidate or interpret read verification as Loki write/adoption
+success. Emit only fixed diagnostics; no raw exception/subprocess/HTTP bodies.
+Collector environment names include digits (`CL8Y_*`); the earlier digit-blind
+inventory is not absence evidence. Completed operator discovery does not grant
+unavailable sudo or certify credential rotation.

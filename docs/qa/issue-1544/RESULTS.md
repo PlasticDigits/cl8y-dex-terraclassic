@@ -133,3 +133,25 @@ Operations and verification commands:
 [runbook](../../runbooks/dex-prometheus-monitoring.md),
 [DM1544 agent invariants](../../../skills/AGENTS_DEX_MONITORING.md), and
 [issue criteria](README.md#live-issue-criteria).
+
+## Operator follow-up after the first cards
+
+The collector-inventory card is done. The S3 card failed after both hidden
+prompts; the original generic diagnostic does not identify the precise cause,
+and no replacement record was saved. The existing key still passes signed
+HEAD200, and current OpenBao staging authority/preflight passes. These checks
+are not verification of the replacement key.
+
+The helper now retains a private unverified candidate before the bucket check,
+reports only fixed phase/status information, and supports no-prompt resumption.
+One hidden re-entry is required for the discarded original input. A candidate
+must reach verified-read state before agent-owned adoption; Loki write and
+consumer adoption remain separate acceptance. The collector parser also now
+recognizes digits in CL8Y names; its earlier empty key list was not absence
+evidence. Completing discovery did not grant persistent privileged access.
+
+The follow-up adds 16 synthetic S3 workflow/signing controls and two collector
+parser/privacy controls; each focused process passes in under one second. No
+runtime storage/ingestion credentials were changed or revoked during diagnosis.
+See the [updated runbook](../../runbooks/dex-prometheus-monitoring.md#retrying-storage-staging-and-using-the-completed-collector-inventory)
+and [security receipt](security-remediation.json). #1544 remains open.

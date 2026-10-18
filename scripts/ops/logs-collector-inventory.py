@@ -11,6 +11,13 @@ KEYS = frozenset(("CL8Y_LOGGING_USERNAME", "CL8Y_LOGGING_PASSWORD", "LOKI_PUSH_U
 OUTPUT = "/tmp/dex1544-collector-inventory.json"
 
 
+def credential_keys(body):
+    """Return inventoried assignment names only; digits are valid after column 1."""
+    return sorted({match[1] for match in re.finditer(
+        r"(?m)^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=", body
+    ) if match[1] in KEYS})
+
+
 def command(args):
     result = subprocess.run(args, capture_output=True, text=True, timeout=10)
     if result.returncode:
@@ -49,7 +56,7 @@ def inventory():
         body = source.read_text(encoding="utf-8")
         if len(body) > 65_536:
             raise ValueError("file_bound")
-        keys = sorted({match[1] for match in re.finditer(r"(?m)^\s*(?:export\s+)?([A-Z_]+)=", body) if match[1] in KEYS})
+        keys = credential_keys(body)
         files.append({"path": path, "present": True, "credential_keys": keys,
                       "mode": oct(source.stat().st_mode & 0o777)})
     ids = command(["docker", "ps", "-aq"]).split()

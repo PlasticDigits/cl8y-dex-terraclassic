@@ -126,6 +126,58 @@ requires operator sudo and exports metadata only. These security follow-ups
 remain separate from monitoring deployment acceptance and preserve existing
 ingestion/storage credentials until verified coordinated adoption.
 
+### Retrying storage staging and using the completed collector inventory
+
+The first S3 card failed after both hidden prompts with only a generic failure
+message. That helper had not saved a replacement; the precise original failure
+phase cannot be recovered. A read-only follow-up verified the existing key's
+signed bucket HEAD returned HTTP200, and the pending OpenBao path is readable
+and writable. This does not establish that the replacement key or its scope was
+valid. The collector-inventory card completed, but its initial parser excluded
+digits and missed `CL8Y_*` assignments. The corrected parser reports only
+allowlisted names; an empty old key list never proves a collector has no secrets.
+Systemd and Alloy references identify `/etc/default/alloy` as the host source.
+
+The revised storage helper checks configuration and staging authority before
+prompting. It saves a validated replacement privately as `staged_unverified`
+with CAS/readback **before** probing S3, then promotes it to
+`staged_verified_read` only after HEAD200. Failures emit fixed phase/reason and
+HTTP status fields without bodies, credentials or raw subprocess errors. A
+terminal-control failure cannot fall back to echoed input.
+
+```sh
+# Read-only configuration/authority check, with no key prompts or writes.
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/stage-logs-s3-credentials.py --preflight
+# Operator re-enters the original replacement through hidden prompts once.
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 /home/answorld/repos/cl8y-dex-terraclassic/scripts/ops/stage-logs-s3-credentials.py
+# Agents can retry a retained candidate without further secret input.
+bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/stage-logs-s3-credentials.py --resume
+```
+
+`candidate_retention=confirmed` means the current candidate had private
+readback; `unknown` means a storage request/readback was ambiguous, and `none`
+means the latest input was not confirmed saved. `prior_candidate_present`
+describes a separate older pending record. Check pending state privately before
+retrying an ambiguous write. Default execution refuses to overwrite an existing
+candidate; `--replace-pending` explicitly permits a new hidden-input candidate
+and retains CAS even when the prior record has stale configuration. Rechecking
+a previously verified candidate first downgrades it, so a negative read cannot
+leave the older positive eligible for adoption. Only `staged_verified_read`
+permits subsequent agent-owned adoption verification; even that proves read
+access only, not Loki write permission or successful runtime rotation.
+
+Completing the collector card granted no persistent sudo or Docker access.
+Before ingestion rotation, prepare one reviewed privileged transaction with
+preflight for every actual host/stack/future-worker consumer. Add a distinct
+replacement ingestion username/password alongside the old proxy principal;
+verify authenticated pushes and access restrictions. Adopt the new identity in
+only the existing collector environment sources/processes, preserving WAL,
+mounts, networks and rollback originals; update canonical OpenBao/worker
+delivery and Coolify replacement configuration with CAS/readback. Prove fresh
+per-source delivery before removing the old principal, then require old401 and
+new204. Never restart the DEX or blindly execute expanded Coolify Compose, and
+never treat completed discovery, KV changes or staging as completed adoption.
+
 Use the scoped
 [`dex-monitoring-1544.py`](../../scripts/ops/dex-monitoring-1544.py) helper for
 the independent Coolify application and existing Grafana API configuration:
