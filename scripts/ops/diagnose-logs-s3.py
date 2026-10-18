@@ -5,7 +5,6 @@ No production container is restarted and no secret enters the command or logs.
 The fixed diagnostic source is read from the selected committed Git revision.
 """
 import argparse
-import base64
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
@@ -13,7 +12,6 @@ import json
 import os
 from pathlib import Path
 import resource
-import shlex
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,9 +30,15 @@ def source_command(m, revision):
     result = subprocess.run(["git", "show", revision + ":" + PATH], cwd=ROOT,
                             capture_output=True, timeout=5)
     m.require(result.returncode == 0 and result.stdout == (ROOT / PATH).read_bytes(), "diagnostic_source_binding")
-    encoded = base64.b64encode(result.stdout).decode()
-    code = 'import base64;exec(compile(base64.b64decode("' + encoded + '"),"<loki-s3-diagnostic>","exec"))'
-    return "python3 -c " + shlex.quote(code)
+    # Installed Coolify stores commands in varchar(255). Fetch public source at
+    # the complete immutable Git SHA, then verify its digest BEFORE execution.
+    # Only public code is written in the owned container's /ops working directory.
+    url = ("https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/commit/" + revision
+           + "/scripts/ops/diagnose-loki-s3-host.py")
+    digest = hashlib.sha256(result.stdout).hexdigest()
+    command = "wget -T10 -qO d " + url + "&&echo " + digest + " d|sha256sum -c&&python3 d"
+    m.require(len(command) <= 255, "diagnostic_command_bound")
+    return command
 
 
 def bind(m, api, state):
@@ -47,7 +51,14 @@ def bind(m, api, state):
 def begin(m, api, previous, revision):
     state = previous["data"]
     prefix = bind(m, api, state)
-    m.require(not state.get("diagnostic"), "diagnostic_already_prepared")
+    if state.get("diagnostic"):
+        prior = state["diagnostic"]
+        m.require(prior.get("stage") == "prepared" and not prior.get("task_uuid")
+                  and prior.get("source_revision") == revision, "diagnostic_already_prepared")
+        tasks = api.call(prefix)
+        m.require(isinstance(tasks, list) and len(tasks) <= 64
+                  and not any(row.get("name") == "loki-s3-read-only-recovery-1544" for row in tasks),
+                  "diagnostic_create_outcome_unknown")
     report = m.status(api, previous)
     m.require(any(row.get("mode") == "adopt" and row.get("status") == "FAIL" for row in report["receipts"]), "failed_attempt_required")
     command = source_command(m, revision)
@@ -59,6 +70,8 @@ def begin(m, api, previous, revision):
     response = api.call(prefix, "POST", task)
     identity = response.get("uuid")
     m.require(isinstance(identity, str) and m.ID.fullmatch(identity), "diagnostic_task_identity")
+    state["diagnostic"].update(task_uuid=identity, stage="created")
+    previous = m.save(state, previous)
     m.require(response.get("enabled") is False and response.get("container") == "maintenance"
               and response.get("command") == command, "diagnostic_task_binding")
     state["diagnostic"].update(task_uuid=identity, stage="execution_requested")

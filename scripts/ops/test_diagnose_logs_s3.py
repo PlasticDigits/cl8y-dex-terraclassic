@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
 
     def test_ambiguous_task_cannot_be_blindly_rescheduled(self):
         m, state = self.fixture()
-        state["diagnostic"] = {"stage": "prepared"}
+        state["diagnostic"] = {"stage": "prepared", "task_uuid": "c" * 24}
         api = Mock()
         with self.assertRaisesRegex(m.GuardError, "diagnostic_already_prepared"):
             d.begin(m, api, {"data": state}, "a" * 40)
@@ -72,6 +72,16 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(m.GuardError, "diagnostic_task_binding"):
                 d.begin(m, api, {"data": state}, "a" * 40)
         self.assertNotIn("execute", api.call.call_args_list[-1].args[0])
+
+    def test_public_loader_binds_full_revision_digest_before_execution_under_database_limit(self):
+        m, _ = self.fixture()
+        source = (d.ROOT / d.PATH).read_bytes()
+        with patch.object(d.subprocess, "run", return_value=Mock(returncode=0, stdout=source)):
+            command = d.source_command(m, "a" * 40)
+        self.assertLessEqual(len(command), 255)
+        self.assertIn("/commit/" + "a" * 40 + "/", command)
+        self.assertIn(d.hashlib.sha256(source).hexdigest(), command)
+        self.assertIn("sha256sum -c&&python3", command)
 
 
 if __name__ == "__main__":
