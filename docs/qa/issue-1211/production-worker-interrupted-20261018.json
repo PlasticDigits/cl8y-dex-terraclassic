@@ -1,0 +1,15 @@
+{
+  "schema": "cohort_interrupted_worker_v1",
+  "revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "action": "apply",
+  "verdict": "UNVERIFIED",
+  "database_state": "UNKNOWN; do not infer rollback or successful migration",
+  "reason": "Coordinator accepted finished deployment plus stale exited application status as worker completion before a current-run terminal receipt existed.",
+  "raw_status_sha256": "9a0c446f2bbf94afc40d183bc1261804f8a4e01be2130b6eb0603621a5838dd3",
+  "cleanup": {
+    "credential_removed": true,
+    "stop_acknowledged": true,
+    "cleanup_overall": "PASS"
+  },
+  "recovery": "Correct status to await its bounded exact worker receipt; run verification-only first against the existing private snapshot and complete SQLx history. No blind reapply, ledger repair or incompatible old binary restart."
+}

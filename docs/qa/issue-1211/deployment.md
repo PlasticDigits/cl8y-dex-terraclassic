@@ -80,6 +80,29 @@ the current job/revision/action/run-ID receipt, stops that job and removes the
 credential with readback. Prior or conflicting receipts cannot authorize a later
 action. The serving application's environment never changes.
 
+Coolify prefixes the requested persistent volume name with the owning
+application UUID. The coordinator requires that exact scoped name, the same
+storage UUID in POST and GET, exactly one persistent mount at `/state`, no host
+path and zero file mounts anywhere. It refuses before job start on any mismatch.
+The [first production readback failure](production-storage-readback-fail-20261018.json)
+is retained: the old coordinator expected the unprefixed name, stopped before
+starting a build, and cleanup confirmed its job stopped and credential-free.
+The focused transport suite models the actual prefixed API response and tests
+wrong application prefix/UUID/path, host mount, duplicate/extra mounts and direct/nested file shadows.
+This coordinator correction changes no application or database migration bytes.
+
+Each start records the returned deployment UUID. If Coolify omits it, bounded
+owned-app history excludes every pre-start deployment before selecting a new
+identity. Status binds the deployment UUID, numeric application ID and embedded
+application UUID/name; queued/in-progress deployments return PENDING without
+stopping an old exited container or accepting its receipts. This applies to
+build, inspect, apply and verify. A single already-running credential-free legacy
+build can be adopted read-only only with its original WAITING/build journal,
+one owned deployment and the exact stored singleton storage binding. Explicit
+cleanup cancels only that bound pending deployment, then stops the owned job and
+removes credentials. Cancel/identity failures still attempt credential removal
+and remain failed. Finished previous runs cannot authorize a new action.
+
 After exact-main hosted checks and operator authorization, `stop-serving`
 requests the existing indexer's stop. `apply` requires stopped application status;
 the worker additionally checks real database sessions before taking its private
@@ -128,3 +151,13 @@ timeout 59s python3 scripts/tests/test_cohort_migration_ops.py
 timeout 59s bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- \
   python3 scripts/tests/test_cohort_migration_local.py
 ```
+
+The [interrupted first apply](production-worker-interrupted-20261018.json) remains
+unverified: a finished Coolify deployment and stale `exited` app state were not
+proof that its worker had completed. Normal status now waits for the exact
+current action/run/revision receipt within one persisted finite 70-second
+waiting/inspect or 915-second apply/verify allowance. It never renews that owner
+on polling. Timeout/known deployment failure remains FAIL and cleans the owned
+job; explicit cleanup still removes credentials. Recover uncertain applies with
+verification-only against the retained snapshot/full history before considering
+another apply; never repair SQLx history or restart an incompatible old binary.
