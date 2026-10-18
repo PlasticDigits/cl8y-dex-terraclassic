@@ -1,6 +1,6 @@
 {
   "issue": 1544,
-  "recorded_at_utc": "2026-10-18T14:07:35.940324+00:00",
+  "recorded_at_utc": "2026-10-18T14:20:42.929246+00:00",
   "source_revision": "809df57b958fd076cb4395735159feb39459f0f1",
   "implementation_pr": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1551",
   "worker_recipe_sha256": "e8056ad27615a956dc7fe770cd3b4708d85f7a979e8b196038f28765b627dfc0",
@@ -147,6 +147,15 @@
     "canonical_openbao_s3_scalar_records_present": false,
     "private_pending_and_rollback_records_retained": true
   },
-  "cleanup": "PENDING",
+  "cleanup": {
+    "overall": "PASS_WITH_SKIPS",
+    "saved_payload_removed": true,
+    "maintenance_network_detached": true,
+    "coolify_service_record_removed": true,
+    "runtime_container_removal_verified": false,
+    "shared_volumes_and_networks_protected": true,
+    "nonsecret_attempt_receipts_and_latches_retained": true,
+    "skip_reason": "The known logs route did not establish physical absence before the asynchronous Service deletion removed the API record. Record deletion is confirmed; it cannot independently prove Docker-object removal."
+  },
   "post_adoption_live_evidence": "s3-post-adoption.json"
 }

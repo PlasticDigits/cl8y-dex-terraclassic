@@ -191,3 +191,9 @@ The final focused suite passed 194 controls plus config/rule checks, each proces
 bounded to 55 seconds. Old S3 key revocation and ingestion-principal rotation
 remain unverified, so the privacy criterion and #1544 remain open. The reviewed
 hidden Console target check is linked from the runbook; it performs no deletion.
+
+Maintenance cleanup erased the saved payload and confirmed deletion of the
+Coolify Service record. Network detachment had already passed. Physical Docker
+object deletion remains an explicit unavailable check; record HTTP404 alone
+is not treated as that proof. Nonsecret receipts/latches and shared data stay
+protected. This limitation is separate from successful Loki adoption.

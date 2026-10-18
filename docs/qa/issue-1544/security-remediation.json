@@ -22,13 +22,18 @@
     "helper": "scripts/ops/stage-logs-s3-credentials.py",
     "prepared_check": "PASS: helper --check and two focused signing/input-bound tests; test process 0.001 seconds.",
     "helper_contract": "Hidden prompts; CAS/readback staged_unverified in OpenBao before signed HEAD; only HEAD200 promotes staged_verified_read; resumable fixed diagnostics; never switches Loki or revokes current key.",
-    "remaining_agent_work": "Remove the temporary maintenance job, provide the hidden Console target check, then verify old-key rejection and continued replacement reads/writes after owner Console revocation.",
+    "remaining_agent_work": "The temporary payload is erased and Coolify Service record deletion confirmed; physical Docker-object deletion is not independently verified. Owner Console revocation requires the hidden target check, followed by agent old-key rejection and continued replacement-access checks.",
     "current_key_revoked": false,
     "runtime_adoption": "PASS",
     "canonical_coolify_readback": "PASS",
     "successful_chunk_store_delta": 99,
     "new_flush_failure_delta": 0,
-    "previous_key_revoked": false
+    "previous_key_revoked": false,
+    "maintenance_cleanup": {
+      "saved_payload_removed": true,
+      "service_record_removed": true,
+      "physical_container_removal_verified": false
+    }
   },
   "loki_ingestion": {
     "status": "INVENTORY_DONE_PRIVILEGED_ADOPTION_PENDING",

@@ -136,9 +136,11 @@ monitoring evidence or assert a new live failure.
 - [x] Only canonical Coolify S3 credential fields are updated and privately read
   back, with no full logs-stack deployment; DEX, Grafana, proxy and collectors
   remain available.
-- [ ] Maintenance network attachment is removed; its saved payload and job are
-  deleted and deletion confirmed; shared networks, WAL/data volumes and private
-  rollback journal remain protected.
+- [x] Maintenance network attachment is removed; its saved payload is erased
+  with readback and its Coolify Service record is confirmed deleted. Shared
+  networks, WAL/data volumes and the private rollback journal remain protected.
+- [ ] Independently confirm physical Docker-object removal. This remains an
+  explicit unavailable check; the API record's HTTP404 is not that proof.
 - [ ] Previous S3 key is revoked and rejection established; the replacement still
   reads/writes successfully afterwards.
 - [ ] Every ingestion consumer adopts the replacement principal, fresh delivery
