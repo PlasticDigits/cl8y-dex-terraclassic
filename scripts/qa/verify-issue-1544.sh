@@ -11,6 +11,7 @@ run() {
 run 'Monitoring exporter and persistent alert receipt boundaries' python3 -m unittest discover -s monitoring/dex -p test_exporter.py
 run 'Monitoring-only drill state machine and delivery proof' python3 -m unittest discover -s monitoring/dex -p test_drill.py
 run 'Private S3 candidate retention, safe failure diagnostics and resume' python3 scripts/ops/test-stage-logs-s3-credentials.py
+run 'Real terminal hidden prompts with noninteractive guarded child' python3 scripts/ops/test_s3_guarded_operator.py
 run 'Collector credential-name inventory including digits' python3 scripts/ops/test_logs_collector_inventory.py
 run 'Scoped ops fake-API mutation and diagnostic guards' python3 scripts/qa/test-dex-monitoring-ops-1544.py
 run 'Exact target identity, freshness and Grafana response validation' python3 scripts/qa/test-swap-monitoring-1479-1480.py

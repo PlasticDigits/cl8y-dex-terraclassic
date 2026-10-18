@@ -146,13 +146,34 @@ HTTP status fields without bodies, credentials or raw subprocess errors. A
 terminal-control failure cannot fall back to echoed input.
 
 ```sh
-# Read-only configuration/authority check, with no key prompts or writes.
+# Agent/noninteractive execution only: read-only configuration/authority check.
 bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/stage-logs-s3-credentials.py --preflight
-# Operator re-enters the original replacement through hidden prompts once.
-bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 /home/answorld/repos/cl8y-dex-terraclassic/scripts/ops/stage-logs-s3-credentials.py
-# Agents can retry a retained candidate without further secret input.
+# Operator terminal: launch directly, not inside another bao-exec.
+python3 /home/answorld/repos/cl8y-dex-terraclassic/scripts/ops/stage-logs-s3-operator.py
+# Agent/noninteractive execution: resume without further secret input.
 bao-exec --only COOLIFY_URL,COOLIFY_WIRE_TOKEN -- python3 scripts/ops/stage-logs-s3-credentials.py --resume
 ```
+
+The installed OpenBao output guard intentionally refuses any terminal-connected
+standard stream before launching a child. Consequently the earlier direct
+terminal `bao-exec ... stage-logs-s3-credentials.py` command is obsolete; its
+guard rejection made no S3 request, read no replacement input and changed no
+candidate. Certificate login and this terminal refusal are separate outcomes.
+
+The reviewed local [operator launcher](../../scripts/ops/stage-logs-s3-operator.py)
+shows hidden prompts outside that child. It first runs guarded preflight, then
+automatically resumes a retained candidate or sends a new pair through a private
+bounded stdin JSON pipe to `--input-json`. Both child output streams are pipes;
+no raw-output option, secret arguments/environment or plaintext files are used.
+The launcher validates exact report keys, fixed values and operation/exit-status
+consistency before emitting a result; arbitrary child output/stderr is withheld.
+Do not use the terminal launcher in an agent transcript or place it inside an
+outer guarded `bao-exec`. Agents use noninteractive preflight/resume instead.
+If login is expired, it reports a fixed certificate-login requirement before
+prompting. Tests use a real PTY and the installed guard with synthetic fetch;
+they prove echo is disabled, legacy execution is refused before launch, guarded
+children have three nonterminal streams, and unknown downstream output cannot
+reach the terminal. No actual replacement has yet been verified or adopted.
 
 `candidate_retention=confirmed` means the current candidate had private
 readback; `unknown` means a storage request/readback was ambiguous, and `none`
