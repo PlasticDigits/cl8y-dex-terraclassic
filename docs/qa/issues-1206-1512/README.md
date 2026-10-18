@@ -72,3 +72,13 @@ four permission denials, exact history preservation, idempotent replay and full
 snapshot restore. [Rehearsal provenance](../issue-1211/local-migration-rehearsal.json)
 explicitly identifies a dirty worktree based on the checkout, rather than claiming
 a deployed release image. The production job must compile the exact merged main.
+
+Hosted pipeline 511 passed secrets, contracts, frontend and indexer library checks,
+but the ingestion recovery fixture still prohibited every registry request. Its
+22 sibling cases passed; the new historical cohort lookup caused the one failed
+assertion. The fixture now requires exactly one H−1 lookup, rejects heightless
+current-state hydration, confirms immutable `unknown` attribution on outage and
+retains complete once-only accounting/checkpoint checks. The focused corrected
+case passes in 0.78s on a freshly process-owned database. No runtime guard was
+changed. The QA observer follow-up is consolidated into the same release so the
+required hosted matrix need only repeat once for these corrections.
