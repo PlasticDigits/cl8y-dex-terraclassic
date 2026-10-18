@@ -30,15 +30,18 @@ Coolify network. Only Grafana's existing authenticated HTTPS entrypoint is publi
 
 | Component | Persistence/bounds | Budget |
 | --- | --- | --- |
-| Prometheus | Named data volume; seven-day and 2GB retention; committed config/rules | 512MB RAM, 0.5 CPU; 30s scrape interval, 5s timeout |
+| Prometheus | Named data volume; 7d/2GB block-retention policies; committed config/rules copied into the built image | 512MB RAM, 0.5 CPU; 30s scrape interval, 5s timeout |
 | Exporter | Cached snapshot; persistent bounded alert receipts; read-only fixed DEX origin | 256MB RAM, 0.25 CPU; four reads per at least 30s, each with 3s timeout/16KiB body bound |
-| Alertmanager | Named state volume; local webhook sends firing and resolved notifications | 128MB RAM, 0.25 CPU; 5s group wait, 10s group interval, 4h repeat |
+| Alertmanager | Named state volume; committed routing config copied into the built image; local webhook sends firing and resolved notifications | 128MB RAM, 0.25 CPU; 5s group wait, 10s group interval, 4h repeat |
 | Drill worker | Named state/receipt volume; one terminal proof per fresh monitoring state | 64MB RAM, 0.1 CPU; one bounded step every 5s |
 | Grafana/Loki | Existing deployment, datasource/dashboard changes through authenticated API | No restart/replacement to add DEX metrics |
 
 Keep the named data/receipt volumes when replacing monitoring containers. An
 application deletion, `down -v` or volume prune destroys historical evidence.
-Retention bounds apply concurrently: the first reached expires old blocks.
+Retention policies apply concurrently: the first reached expires old blocks.
+The 2GB setting is a retention target, not a hard filesystem quota. Allow
+additional disk for active head/WAL and operational overhead, and monitor actual
+storage use independently of the configured retention policy.
 
 ## Observation contract and interpretation
 
@@ -110,6 +113,19 @@ raw deployment logs as published evidence. The existing probes require
 `COOLIFY_WIRE_TOKEN`; select other inventoried names only for tooling that
 explicitly supports those names. Do not copy tokens between files.
 
+The separate [security remediation receipt](../qa/issue-1544/security-remediation.json)
+records credential custody follow-ups discovered during monitoring inventory.
+Grafana administrator authentication was rotated and old authentication rejected;
+S3 and ingestion credential adoption remain incomplete operator-custody actions
+tracked by the cl8y-pm cards in that receipt. Do not claim all affected
+credentials were rotated. The hidden-prompt
+[S3 staging helper](../../scripts/ops/stage-logs-s3-credentials.py) verifies and
+stages a replacement only; it does not switch Loki or revoke the current key.
+The [collector inventory helper](../../scripts/ops/logs-collector-inventory.py)
+requires operator sudo and exports metadata only. These security follow-ups
+remain separate from monitoring deployment acceptance and preserve existing
+ingestion/storage credentials until verified coordinated adoption.
+
 Use the scoped
 [`dex-monitoring-1544.py`](../../scripts/ops/dex-monitoring-1544.py) helper for
 the independent Coolify application and existing Grafana API configuration:
@@ -143,21 +159,32 @@ UUID and accepts exactly one matching deployment receipt. An ambiguous response
 is a failure to reconcile through `status`, never a reason to repeat dispatch.
 
 Coolify evaluates this nested Compose file from the **repository root**.
-Its build context is `.` and bind mounts use `./monitoring/dex/...`, despite
-the file residing in `monitoring/dex/`. Preserve that convention. Local config
-checks must select the same project directory:
+Its build context is `.`, despite the file residing in `monitoring/dex/`.
+Prometheus and Alertmanager configuration is copied into their respective
+images by the committed Dockerfiles; production has no configuration bind
+mounts. This avoids depending on Coolify's nested host-path rewriting and
+repository staging lifetime. Preserve the root build-context convention.
+Local config checks must select the same project directory:
 
 ```sh
 timeout 55s docker compose --project-directory "$PWD" -f monitoring/dex/compose.yaml config --quiet
 ```
 
-Run that command from the checkout root. Paths relative to the Compose file
-directory can pass a differently rooted local check and still fail in Coolify.
+Run that command from the checkout root. A differently rooted local check can
+pass while the platform builds from another directory. Restore/replacement
+must rebuild the images from the exact selected Git SHA, whose Dockerfiles pin
+their base images by digest and copy that revision's configuration/rules.
+Preserve the named TSDB, Alertmanager, alert-receipt and drill-receipt volumes.
+Configuration changes require a new committed image build and monitoring-only
+rollout; editing a checkout file cannot update a running image's configuration.
 
 Committed configuration:
 
 - [`compose.yaml`](../../monitoring/dex/compose.yaml): independent application,
   resource bounds, named volumes and existing Grafana network attachment.
+- [`Dockerfile.prometheus`](../../monitoring/dex/Dockerfile.prometheus) and
+  [`Dockerfile.alertmanager`](../../monitoring/dex/Dockerfile.alertmanager):
+  digest-pinned base images with committed configuration copied into each image.
 - [`prometheus.yml`](../../monitoring/dex/prometheus.yml): fixed scrape jobs,
   per-job sample/label/body bounds and metric allowlists.
 - [`alerts.yml`](../../monitoring/dex/alerts.yml): five-second evaluation and
@@ -180,6 +207,13 @@ Grafana datasource URL is `http://dex-prometheus:9090`.
 ## Scoped live verification
 
 Run `make verify-issue-1544` first. Keep each executed test process under 60s.
+Config parser success does not validate startup arguments or container health.
+Use a bounded isolated full-stack startup check as well; a local rehearsal
+caught Prometheus rejecting `--web.enable-admin-api=false` even after parser
+checks passed. Omit that unsupported flag: the admin API is disabled by default.
+When confirming the disabled admin endpoint, Prometheus returns HTTP500 JSON
+with `status=error`, `errorType=unavailable`, `error="admin APIs disabled"`.
+Do not require HTTP403 as the disabled-admin contract.
 The bounded existing monitoring probes enforce the provisioned datasource UID,
 datasource health, exact DEX service/jobs, expected series, successful scrapes
 and observation/scrape freshness. Missing Prometheus now fails verification.
@@ -263,8 +297,11 @@ its credentials through OpenBao, preserve local delivery and separately prove
 external delivery and recovery.
 
 For rollback, stop/revert only the new monitoring application or revert its
-datasource/dashboard configuration through Grafana API. Preserve both named
-volumes, reapply the committed datasource/rules/dashboard from the chosen
-revision and repeat target freshness, Loki and drill checks after recovery.
+datasource/dashboard configuration through Grafana API. Preserve every named
+data/receipt volume, rebuild the images and reapply the datasource/dashboard
+from the exact chosen revision, then repeat target freshness and Loki checks.
+Verify the existing terminal drill proof survives replacement; any separate
+fresh rehearsal must preserve its original result. Embedded rules/configuration
+come from that revision's images rather than host files.
 If the DEX itself fails, use the existing API recovery/rolling runbooks; a
 monitoring reinstall cannot repair or authorize application changes.
