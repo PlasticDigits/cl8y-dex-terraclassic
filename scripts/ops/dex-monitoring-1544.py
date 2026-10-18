@@ -33,7 +33,7 @@ def require(value, label):
         raise ValueError(label)
 
 
-def exchange(opener, url, authorization, method="GET", payload=None):
+def exchange(opener, url, authorization, method="GET", payload=None, *, limit=2 * 1024 * 1024):
     headers = {"Authorization": authorization, "Accept": "application/json", "Cache-Control": "no-cache"}
     data = None
     if payload is not None:
@@ -41,11 +41,11 @@ def exchange(opener, url, authorization, method="GET", payload=None):
         data = json.dumps(payload).encode()
     try:
         with opener.open(Request(url, data=data, headers=headers, method=method), timeout=10) as response:
-            body = response.read(2 * 1024 * 1024 + 1)
+            body = response.read(limit + 1)
     except HTTPError as error:
         # Response bodies may contain interpolated secrets. Publish only status.
         raise ValueError("http_status_" + str(error.code)) from None
-    require(len(body) <= 2 * 1024 * 1024, "body_bound")
+    require(len(body) <= limit, "body_bound")
     return json.loads(body) if body else {}
 
 
@@ -58,7 +58,9 @@ class Coolify:
         require(not path.startswith("/") and ".." not in path and len(path) <= 256, "api_path")
         self.calls += 1
         require(self.calls <= 12, "request_budget")
-        return exchange(self.reader.opener, self.reader.api_base + path, "Bearer " + self.reader.token, method, payload)
+        # The existing bounded Coolify inventory includes historical build recipes.
+        limit = 8 * 1024 * 1024 if path == "applications" else 2 * 1024 * 1024
+        return exchange(self.reader.opener, self.reader.api_base + path, "Bearer " + self.reader.token, method, payload, limit=limit)
 
     def owned(self, app):
         require(isinstance(app, str) and ID.fullmatch(app) and app != LOGS, "application_id")
