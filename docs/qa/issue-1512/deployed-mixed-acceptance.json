@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "overall": "PASS",
+  "frontend_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "backend_revision": "0a3c251755a88ee9cbbbbc222fc747811c9da08c",
+  "scope": "Actual mixed deployment: deployed frontend M plus restored prior backend. No claim that backend M is deployed.",
+  "identity": "Frontend independently attested by parent deployment record; per-case served-JS digests and post-case backend health identity retained.",
+  "cases": [
+    {
+      "case": "campaign-desktop",
+      "verdict": "PASS",
+      "elapsed_ms": 11521,
+      "forced_solver_failures": 1,
+      "actual_post_retry_status": 200
+    },
+    {
+      "case": "campaign-phone",
+      "verdict": "PASS",
+      "elapsed_ms": 11932,
+      "forced_solver_failures": 1,
+      "actual_post_retry_status": 200
+    },
+    {
+      "case": "unmocked-trade-and-charts",
+      "verdict": "PASS",
+      "elapsed_ms": 13435,
+      "virtual_clock": false,
+      "modified_http_responses": false
+    }
+  ],
+  "first_desktop_failure": "Preserved as inconclusive selector failure: HTTP503 may render the existing Swap outage Retry rather than the quote RetryError. The corrected helper accepts only those two named Swap containers and requires forced solver failure, a new solver request after one click, and positive receive recovery.",
+  "privacy": "Only scalars/flags and served script hashes exported; no actors, trade tapes, screenshots, wallet connections or signing.",
+  "receipts": [
+    {
+      "path": "issue-1330/deployed-campaign-desktop-first-selector-fail.json",
+      "sha256": "713f302ef9c3831da03d11e58227352692a8c7b64b196fa0a331c1e7e4128448"
+    },
+    {
+      "path": "issue-1330/deployed-campaign-desktop.json",
+      "sha256": "07e0dbfa925a19d20988de1e7a7907daf77247ff240e69ac6c74cc5e809506f5"
+    },
+    {
+      "path": "issue-1330/deployed-campaign-phone.json",
+      "sha256": "4934c1f4287aa793e4d7055deeb25889552023d6dc1e804f2f62e15df4fa7d88"
+    },
+    {
+      "path": "issue-1512/deployed-unmocked-trade-charts.json",
+      "sha256": "035deea9c4e7320b8f868bde4fefe9b40145d44c701beb019b514420b91117a8"
+    },
+    {
+      "path": "issue-1512/deployed-mixed-backend-identity.json",
+      "sha256": "a0d9d4a4bae686414cd31b31b3d2f5fb69037a785c36a46ffd9d397b05650e41"
+    }
+  ]
+}

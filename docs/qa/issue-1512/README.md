@@ -114,3 +114,26 @@ fixtures and virtual refetch time. The backend was deliberately still on its
 prior revision. Campaign retry, actual unmocked market behavior, exact backend
 revision and native quote useful-result latency are separate checks; this matrix
 does not claim they passed.
+
+## Actual mixed-deployment market acceptance (2026-10-18)
+
+The [mixed-deployment manifest](deployed-mixed-acceptance.json) records frontend
+`2df4a471a9ca98a8672d911b67d4bd8134f411fd` with the restored, prior backend
+`0a3c251755a88ee9cbbbbc222fc747811c9da08c`. The
+[post-case backend identity](deployed-mixed-backend-identity.json) confirms that
+prior backend at 06:50:44Z. These receipts do not establish backend M deployment.
+
+The [one unmocked Trade/Charts process](deployed-unmocked-trade-charts.json)
+passed in **13.435s** with ordinary browser time and unchanged HTTP responses.
+Actual indexed factory USD was `0.9210291980528618`; the human ratio was
+`142.63466865686598`. Trade's inverted headline matched
+`0.006457260403279426`, and Charts matched factory USD. Both retained all
+**200** plottable historical candles. Pair/timestamp checks passed. The receipt
+contains only the required scalar/boolean projections and served-script digests;
+zero writes and actor-shaped requests occurred.
+
+Together with the four controlled missing-USD rendering cases above, this covers
+the deployed frontend's current indexed price, unavailable price, inversion,
+recovery, foreign-pair rejection and historical-candle behavior. The actual
+unmocked run used available indexed USD; controlled fixtures cover absence.
+Native quote latency, signing and backend M migration remain separate work.

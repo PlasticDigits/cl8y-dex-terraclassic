@@ -68,11 +68,11 @@ async function main() {
     scope: entry === 'campaign'
       ? 'Deployed anonymous Swap; solver failure injected, actual backend allowed after one retry; no signing.'
       : 'Deployed frontend rendering with owned anonymous canonical-pair HTTP fixtures; not live market-price or execution acceptance.',
-    browser_budget_ms: 52000, refetches: [], requests: 0, blocked_writes: 0, blocked_actor_requests: 0,
+    browser_budget_ms: 52000, refetches: [], solver_requests: 0, forced_solver_failures: 0, solver_statuses: [], requests: 0, blocked_writes: 0, blocked_actor_requests: 0,
     tool_digest: crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
     deployment_attestation: 'Served script paths/hashes identify observed frontend; source revision must be independently attested.',
   };
-  let browser, stage = 'launch', phase = 'valid', recover = false, tradeReads = 0;
+  let browser, page, stage = 'launch', phase = 'valid', recover = false, tradeReads = 0;
   const scriptTasks = [], scriptPaths = new Set();
   const started = Date.now();
   const deadline = setTimeout(() => { void browser?.close(); }, 52000);
@@ -100,10 +100,14 @@ async function main() {
       if (url.origin !== backend && url.origin !== origin) return route.continue();
       if (entry === 'campaign') {
         if (url.pathname === '/api/v1/route/solve') {
+          receipt.solver_requests++;
           if (['utm_source', 'utm_campaign', 'ref'].some(key => url.searchParams.has(key)))
             throw new Error('CampaignEscapedUrl');
-          if (!recover) return route.fulfill({ status: 503, contentType: 'application/json',
-            body: JSON.stringify({ error: 'Pricing service unavailable' }) });
+          if (!recover) {
+            receipt.forced_solver_failures++;
+            return route.fulfill({ status: 503, contentType: 'application/json',
+              body: JSON.stringify({ error: 'Pricing service unavailable' }) });
+          }
         }
         return route.continue();
       }
@@ -116,13 +120,16 @@ async function main() {
       if (kind === 'candles') body = candles();
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     });
-    const page = await context.newPage();
+    page = await context.newPage();
     page.setDefaultTimeout(6000);
     // Own the application timers from startup; clocks installed after mount
     // cannot reliably advance already registered native React Query intervals.
     if (entry !== 'campaign') await page.clock.install();
     page.on('response', response => {
       const url = new URL(response.url());
+      if ([origin, backend].includes(url.origin) && url.pathname === '/api/v1/route/solve') {
+        if (receipt.solver_statuses.length < 16) receipt.solver_statuses.push(response.status());
+      }
       if (url.origin !== origin || !/^\/assets\/[^/]+\.js$/.test(url.pathname) || scriptPaths.has(url.pathname)) return;
       scriptPaths.add(url.pathname);
       scriptTasks.push(response.body().then(bytes => {
@@ -138,8 +145,9 @@ async function main() {
     await acknowledge(page);
     if (entry === 'campaign') {
       stage = 'forced-solver-failure';
-      const failure = page.getByTestId('swap-quote-retry-error');
+      const failure = page.locator('[data-testid="swap-quote-retry-error"], [data-testid="swap-market-data-outage-banner"]').filter({ has: page.getByRole('button', { name: 'Retry', exact: true }) }).first();
       await expect(failure).toBeVisible({ timeout: 18000 });
+      if (!receipt.forced_solver_failures) throw new Error('SolverFailureNotObserved');
       const checkCampaign = () => {
         const search = new URL(page.url()).searchParams;
         if (JSON.stringify(search.getAll('utm_source')) !== JSON.stringify(['launch', 'agent']) ||
@@ -149,10 +157,15 @@ async function main() {
       checkCampaign();
       receipt.checks.campaign_survives_failure = true;
       stage = 'one-action-retry';
+      const beforeRetry = receipt.solver_requests;
       recover = true;
-      await failure.getByTestId('retry-error-button').click();
+      await failure.getByRole('button', { name: 'Retry', exact: true }).click();
+      await expect.poll(() => receipt.solver_requests, { timeout: 18000 }).toBeGreaterThan(beforeRetry);
       await expect(failure).toHaveCount(0, { timeout: 18000 });
-      await expect(page.getByTestId('swap-you-receive')).not.toHaveValue('', { timeout: 18000 });
+      await expect.poll(async () => {
+        const n = Number(await page.getByTestId('swap-you-receive').inputValue());
+        return Number.isFinite(n) && n > 0;
+      }, { timeout: 18000 }).toBe(true);
       checkCampaign();
       receipt.checks.one_click_retry_recovers = true;
       receipt.checks.campaign_survives_retry = true;
@@ -202,6 +215,18 @@ async function main() {
     receipt.verdict = 'PASS';
   } catch {
     receipt.failed_stage = stage;
+    if (entry === 'campaign' && page && !page.isClosed()) {
+      receipt.ui_diagnostic = await page.evaluate(() => {
+        const value = selector => document.querySelector(selector)?.value;
+        return {
+          pay_prefill_matched: value('[aria-label="Select token you pay"]') === 'UST1',
+          receive_prefill_matched: value('[aria-label="Select token you receive"]') === 'USTR',
+          amount_prefill_matched: value('[data-testid="swap-you-pay-amount"]') === '0.1',
+          retry_error_present: !!document.querySelector('[data-testid="swap-quote-retry-error"]'),
+          outage_banner_present: !!document.querySelector('[data-testid="swap-market-data-outage-banner"]'),
+        };
+      }).catch(() => ({ unavailable: true }));
+    }
   } finally {
     clearTimeout(deadline);
     await browser?.close();
