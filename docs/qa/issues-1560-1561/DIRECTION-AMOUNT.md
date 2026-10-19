@@ -42,7 +42,10 @@ Agent guidance: [QL1499](../../../skills/AGENTS_QUOTE_LIFECYCLE.md),
 - [x] Excess nonzero token precision clears rather than rounds.
 - [x] Generated amounts longer than the ordinary 24-character draft limit allow
   backspace and same-length digit corrections without allowing further growth.
-- [ ] Live production browser checks on desktop and phone-sized viewports.
+- [x] Live production browser checks on desktop and phone-sized viewports.
+  Both adopted `0.851568201759174334` as new pay and requested raw
+  `851568201759174334` for the reversed quote (HTTP200), with zero signing.
+  See [live receipt](status-direction-live.json).
 
 The focused component suite is
 `src/pages/SwapPage.assetDecimals.test.tsx`: 19 tests passed in 7.28 seconds. An earlier bounded

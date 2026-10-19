@@ -34,8 +34,8 @@ output to a fresh reversed input and clears old denomination-bound consent.
   including ordinary/200% text, normal scrolling, footer/centering and route
   spacing. Separate connected light-theme 375×667 fixture checks preserve CTA
   reachability. All fixtures own their state and request zero providers.
-- [ ] Frontend-only rolling deployment and actual live desktop/phone-width
-  direction-switch checks; results will be recorded after release.
+- [x] Frontend-only rolling deployment and actual live desktop/phone-width
+  direction-switch checks; results are recorded below.
 - [ ] Physical-device, funded settlement and full repository CI acceptance.
 
 The initial issue-1498 run found one old test expecting the previous pay amount
@@ -53,3 +53,43 @@ They bind runtime source hash
 `a59e1c8e9b88b66572e211df0379cf082532a77a055acbbc172dfec0cb006272`.
 
 [Test summary](status-direction-verification.json); [375px screenshot](screenshots/status-density-375.png), [desktop screenshot](screenshots/status-density-1440.png).
+
+
+## Live release
+
+[PR #1566](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1566) is merged.
+Coolify deployment `wezykqhxcuhuvdilkmbyogla` finished at frontend revision
+`bd2b4ba508d08bf8632b164c82ae02cff1284be0`. The user-authorized CI gate override
+was used with full repository CI pending; it is not claimed PASS.
+
+[Live browser evidence](status-direction-live.json) passes at 375×667 and
+1440×1000, using actual public cached native quotes. Both retain the complete
+18-decimal receive amount as new pay and request the same raw quantity in the
+reversed quote (HTTP200). No wallet injection, signing or transaction calls.
+Status computed leading/minimum are 16.2/32.4px. Mobile form 136.3–515.7px is
+centered between header 58px and nav 594px; CTA bottom 515.7px is clear of the
+nav. Footer visibility, compact right-aligned routes, wrapped Trade preview,
+zero runtime errors and zero serious/critical axe findings pass.
+[Phone switch screenshot](screenshots/direction-live-375x667.png);
+[desktop switch screenshot](screenshots/direction-live-1440x1000.png).
+
+The [conservative deployment checker](status-direction-deployment.json) flagged
+one keyword entry among 75 inspected log entries. [Exact classification](status-direction-log-review.json)
+shows that row equals the public merge commit subject, whose wording contains
+“error spacing”; no error tokens remain after removing that exact public subject.
+No unexpected build/runtime error was found. Two exact missing cleanup-container
+messages were also recognized. The original checker FAIL is retained, with this
+explicit review; it is not silently rewritten as PASS or broadly allowlisted.
+
+Fresh [Loki/Grafana/Prometheus observations](status-direction-monitor.json)
+and [public availability samples](status-direction-availability.json) are linked.
+DEX API serving/quote readiness remain up; indexer readiness is independently 0,
+so this does not certify indexer recovery. Backend stays
+`b7b08736b3529af344a693ae6d16236a4f324c13`; no API/database/chain/logs reset occurred.
+Source/config monitoring verification 1544 passed; traffic SLO and physical/funded
+acceptance remain separate. Existing physical-phone Inbox card
+`3fff415d-9cc2-42b1-b635-37e0be4fd0f7` remains the operator follow-up.
+
+Issues #1560/#1561 remain open because full acceptance, including physical-device,
+funded and full CI scopes, is incomplete. This evidence follow-up changes no
+frontend runtime files from the deployed revision.

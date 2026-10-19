@@ -105,7 +105,9 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
       await page.waitForFunction(expected => document.querySelector('[data-testid="swap-you-pay-amount"]').value === expected, displayedOutput, {timeout:5000});
       const reverseResponse = await reverseReply;
       check(reverseResponse.status() === 200, 'LiveReverseQuoteUnavailable');
+      check(errors === 0, 'LiveRuntimeError');
       receipt.observations.at(-1).directionSwitch = {previousOutput:displayedOutput, newPayMatches:true, reverseRequestRaw:reverseRaw, reverseHttp:reverseResponse.status(), signingAttempts:0};
+      if (process.env.TRADING_UI_SCREENSHOT_DIR) await page.screenshot({path:path.join(process.env.TRADING_UI_SCREENSHOT_DIR, `live-direction-${viewport.width}x${viewport.height}.png`)});
       if (viewport.width === 1440) {
         const wrapped = q.execution_metadata.hops[0].offer_token;
         const tradeReply = page.waitForResponse(r => r.url().startsWith('https://indexer.dex.cl8y.com/api/v1/route/solve?') && new URL(r.url()).searchParams.get('token_in') === wrapped && new URL(r.url()).searchParams.get('amount_in') === '100000000' && r.status() === 200, {timeout: 15000});
