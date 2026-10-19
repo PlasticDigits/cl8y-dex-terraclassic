@@ -43,6 +43,12 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
         const el = document.querySelector('[data-testid="swap-you-receive"]');
         return el && el.value !== '' && el.value !== '0' && !document.querySelector('[data-testid="swap-price-data-loading"]');
       }, null, {timeout: 10000});
+      const initialOutput = await page.getByTestId('swap-you-receive').inputValue();
+      const initialParts = initialOutput.split('.'), initialFraction = initialParts[1] || '';
+      const digits = BigInt(initialParts[0] + initialFraction);
+      const scales = Array.from({length:39},(_,d)=>d).filter(d => d >= initialFraction.length && digits * 10n**BigInt(d-initialFraction.length) === BigInt(q.estimated_amount_out));
+      check(scales.length === 1, 'LiveQuoteScaleMismatch');
+      const outputDecimals = scales[0];
       await page.evaluate(() => window.scrollTo(0, 0));
       const measured = await page.evaluate(() => {
         const cta = document.querySelector('[data-testid="swap-submit"]');
@@ -58,6 +64,7 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
         const routeRightGap = segments.length ? route.getBoundingClientRect().right - segments.at(-1).right : 0;
         const routeMaxGap = Math.max(0,...segments.slice(1).map((s,i)=>s.left-segments[i].right));
         const v = window.visualViewport;
+        const statusStyle = getComputedStyle(status);
         const form = document.querySelector('.swap-page').getBoundingClientRect();
         const headerBottom = document.querySelector('.app-top-sticky').getBoundingClientRect().bottom;
         const footerDisplayed = getComputedStyle(document.querySelector('.app-footer-shell')).display !== 'none';
@@ -67,13 +74,14 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
           form: {top: form.top, bottom: form.bottom}, headerBottom, footerDisplayed,
           centerHit: hit === cta || cta.contains(hit), pageOverflow: document.documentElement.scrollWidth > innerWidth,
           route: route && {scrollWidth: route.scrollWidth, clientWidth: route.clientWidth, rightGap:routeRightGap, maxGap:routeMaxGap},
-          status: {scrollWidth: status.scrollWidth, clientWidth: status.clientWidth, empty: !status.textContent.trim()},
+          status: {scrollWidth: status.scrollWidth, clientWidth: status.clientWidth, empty: !status.textContent.trim(), font:parseFloat(statusStyle.fontSize), lineHeight:parseFloat(statusStyle.lineHeight), minHeight:parseFloat(statusStyle.minHeight)},
           riskNoticeCount: document.querySelectorAll('[data-testid="swap-impact-aside"]').length,
           detailsCount: document.querySelectorAll('[data-testid="swap-details"]').length,
           renderedRouteTokens: route?.querySelectorAll('[data-token-identity]').length};
       });
       check(measured.riskNoticeCount === Number(expectedNotice), 'LiveRiskNoticeMismatch');
       if (!expectedNotice) check(measured.status.empty, 'LiveRedundantStatus');
+      check(measured.status.lineHeight / measured.status.font <= 1.4 && measured.status.minHeight / measured.status.font <= 2.71, 'LiveStatusDensity');
       check(!measured.pageOverflow && measured.route && measured.route.scrollWidth <= measured.route.clientWidth + 1 && measured.status.scrollWidth <= measured.status.clientWidth + 1, 'LiveHorizontalOverflow');
       check(measured.cta.top >= 0 && measured.cta.bottom <= Math.min(measured.navTop, measured.viewportBottom) && measured.centerHit, 'LiveCTAObscured');
       check(Math.abs(measured.route.rightGap) <= 1 && measured.route.maxGap <= 5, 'LiveRouteSpacing');
@@ -88,6 +96,16 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
         fs.mkdirSync(process.env.TRADING_UI_SCREENSHOT_DIR, {recursive: true});
         await page.screenshot({path: path.join(process.env.TRADING_UI_SCREENSHOT_DIR, `live-${viewport.width}x${viewport.height}.png`)});
       }
+      // Flip only the anonymous preview. No wallet connection or submission.
+      const displayedOutput = await page.getByTestId('swap-you-receive').inputValue();
+      const parts = displayedOutput.split('.'), fraction = parts[1] || '';
+      const reverseRaw = (BigInt(parts[0] + fraction) * 10n**BigInt(outputDecimals-fraction.length)).toString();
+      const reverseReply = page.waitForResponse(r => r.url().startsWith('https://indexer.dex.cl8y.com/api/v1/route/solve?') && new URL(r.url()).searchParams.get('token_in') === q.token_out && new URL(r.url()).searchParams.get('amount_in') === reverseRaw, {timeout: 15000});
+      await page.getByRole('button', {name:'Swap pay and receive tokens', exact:true}).click();
+      await page.waitForFunction(expected => document.querySelector('[data-testid="swap-you-pay-amount"]').value === expected, displayedOutput, {timeout:5000});
+      const reverseResponse = await reverseReply;
+      check(reverseResponse.status() === 200, 'LiveReverseQuoteUnavailable');
+      receipt.observations.at(-1).directionSwitch = {previousOutput:displayedOutput, newPayMatches:true, reverseRequestRaw:reverseRaw, reverseHttp:reverseResponse.status(), signingAttempts:0};
       if (viewport.width === 1440) {
         const wrapped = q.execution_metadata.hops[0].offer_token;
         const tradeReply = page.waitForResponse(r => r.url().startsWith('https://indexer.dex.cl8y.com/api/v1/route/solve?') && new URL(r.url()).searchParams.get('token_in') === wrapped && new URL(r.url()).searchParams.get('amount_in') === '100000000' && r.status() === 200, {timeout: 15000});
@@ -115,7 +133,7 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
   } catch (error) {
     // Error messages from page/transport can contain identifiers. Only our fixed
     // assertion codes enter receipts; otherwise keep the constructor name.
-    const allowed = new Set(['OriginalEvidenceUnavailable','LiveRiskNoticeMismatch','LiveHorizontalOverflow','LiveCTAObscured','NativeRouteOrDisclosureMissing','LiveRuntimeError','TradeRuntimeError','LiveAccessibilityFailure','LiveFooterVisibility','LiveFormNotCentered','LiveRouteSpacing','LiveRedundantStatus']);
+    const allowed = new Set(['OriginalEvidenceUnavailable','LiveRiskNoticeMismatch','LiveHorizontalOverflow','LiveCTAObscured','NativeRouteOrDisclosureMissing','LiveRuntimeError','TradeRuntimeError','LiveAccessibilityFailure','LiveFooterVisibility','LiveFormNotCentered','LiveRouteSpacing','LiveRedundantStatus','LiveReverseQuoteUnavailable','LiveQuoteScaleMismatch','LiveStatusDensity']);
     receipt.overall = 'FAIL';
     receipt.failure = allowed.has(error.message) ? error.message : error.constructor.name;
   } finally { await browser.close(); }

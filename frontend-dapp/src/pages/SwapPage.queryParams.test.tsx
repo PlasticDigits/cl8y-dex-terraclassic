@@ -469,18 +469,21 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitFor(() => expect(screen.getByTestId('receive-search-probe')).not.toHaveTextContent('exactAmount='))
   })
 
-  it('flip keeps output intent and quotes the swapped assets', async () => {
+  it('flip moves the receive target into exact-input intent and updates the swapped URL', async () => {
     const user = userEvent.setup()
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1.5')
     await waitForSwapReady()
     await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
-    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
-    await waitFor(() =>
-      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
-        expect.objectContaining({ targetRaw: '1500000', fromToken: 'uusd', toToken: 'uluna' })
-      )
-    )
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('1.5')
+    await waitFor(() => {
+      const params = new URLSearchParams(screen.getByTestId('receive-search-probe').textContent ?? '')
+      expect(params.get('from')).toBe('USTC')
+      expect(params.get('to')).toBe('LUNC')
+      expect(params.get('exactAmount')).toBe('1.5')
+      expect(params.has('exactField')).toBe(false)
+    })
+    expect(vi.mocked(quoteSwapReceiveViaSolver).mock.calls.some(([args]) => args.fromToken === 'uusd')).toBe(false)
   })
 
   it.each(['swap-pay-max', 'swap-pay-frac-25', 'swap-pay-frac-50', 'swap-pay-frac-75', 'swap-pay-frac-100'])(

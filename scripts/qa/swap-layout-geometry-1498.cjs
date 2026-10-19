@@ -7,6 +7,7 @@ const {
   installSyntheticWallet,
   verifyCompactStates,
   verifyOrdinaryReview,
+  verifyCompactStatus,
 } = require("./swap-mobile-geometry-1561.cjs");
 const { expect } = createRequire(
   path.resolve(__dirname, "../../frontend-dapp/package.json"),
@@ -88,6 +89,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
   const connected = process.env.SWAP_GEOMETRY_CONNECTED === "1";
   const compactOnly = process.env.SWAP_GEOMETRY_COMPACT_ONLY === "1";
   const reviewOnly = process.env.SWAP_GEOMETRY_REVIEW_ONLY === "1";
+  const statusOnly = process.env.SWAP_GEOMETRY_STATUS_ONLY === "1";
   for (const [width, height] of viewports) {
     process.stderr.write(`geometry ${width}: initialize production fixture\n`);
     const context = await browser.newContext({
@@ -140,7 +142,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
       }
     }
     try {
-      fixture.set(reviewOnly ? { fairDeviationBps: 1100 } : {});
+      fixture.set(statusOnly ? { fairDeviationBps: 6491 } : reviewOnly ? { fairDeviationBps: 1100 } : {});
       await page.goto(`${origin}/?from=${from}&to=${to}`, {
         waitUntil: "domcontentloaded",
         timeout: 30000,
@@ -168,6 +170,13 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
       await ready(page, "1");
       await page.evaluate(() => document.fonts.ready);
       const details = page.getByTestId("swap-details");
+      if (statusOnly) {
+        await check("compact-error-leading-and-accessible-inline-expert-action", () => verifyCompactStatus(page));
+        const dir = process.env.SWAP_GEOMETRY_SCREENSHOT_DIR;
+        if (dir) { fs.mkdirSync(dir,{recursive:true}); await page.screenshot({path:path.join(dir,`status-${width}x${height}.png`)}); }
+        receipts.push({width,height,verdict:findings.every(f=>f.verdict==="PASS")&&!pageErrors.length?"PASS":"FAIL",findings,page_errors:pageErrors});
+        continue;
+      }
       if (reviewOnly) {
         await check(
           "ordinary-review-pins-original-response-across-producer-and-refresh-cycles",

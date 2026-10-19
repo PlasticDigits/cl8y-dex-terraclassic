@@ -800,8 +800,12 @@ describe('SwapPage local executable quotes (#1452)', () => {
     fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('swap-price-data-loading')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
-    // The new direction can have its own initial wait; no obsolete rejection survives.
+    // No receive amount was available: never carry the old pay number into
+    // another denomination. A fresh edit can quote the reversed direction.
     expect(screen.queryByTestId('swap-quote-error')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1'))
   })
   it('immediately rechecks an expired cached amount within the global10s freshness window', async () => {

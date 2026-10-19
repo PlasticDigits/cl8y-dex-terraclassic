@@ -1,4 +1,5 @@
 import { localMarketMocks } from '@/test/localMarketMocks'
+import { localQuote } from '@/test/localRouteFixtures'
 import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 vi.mock('@/utils/swapReceiveQuote', () => ({
   quoteSwapReceiveViaSolver: vi.fn().mockResolvedValue({
@@ -10,7 +11,7 @@ vi.mock('@/utils/swapReceiveQuote', () => ({
   }),
 }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
@@ -177,6 +178,7 @@ function seedPair(pay = TERRA_A, receive = TERRA_B) {
 }
 
 let observedDecimals: number | null = 18
+let quotedOutput = '1000000000000000000'
 describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -185,10 +187,16 @@ describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     observedDecimals = 18
+    quotedOutput = '1000000000000000000'
     seedPair()
     vi.mocked(queryContract).mockImplementation(queryContractTokenInfoImpl(18))
     vi.mocked(getTokenBalance).mockResolvedValue('1000000000000000000')
-    localMarketMocks(getAllPairsPaginated, { decimals: () => observedDecimals, output: () => '1000000000000000000' })
+    localMarketMocks(getAllPairsPaginated, { decimals: () => observedDecimals })
+    // These amount/decimal tests exercise original execution metadata and full
+    // integer ranges, without manufacturing risk consent for synthetic reserves.
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, constraints) =>
+      localQuote(from, to, amount, constraints, quotedOutput)
+    )
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -258,7 +266,9 @@ describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-    await new Promise((r) => setTimeout(r, SIM_QUOTE_DEBOUNCE_MS + 80))
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, SIM_QUOTE_DEBOUNCE_MS + 80))
+    })
     expect(simulateSwap).not.toHaveBeenCalled()
     expect(screen.getByTestId('swap-submit')).toBeDisabled()
   })
@@ -279,7 +289,9 @@ describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
-    await new Promise((r) => setTimeout(r, SIM_QUOTE_DEBOUNCE_MS + 80))
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, SIM_QUOTE_DEBOUNCE_MS + 80))
+    })
     expect(simulateSwap).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(screen.getByTestId('swap-submit')).toHaveTextContent(/decimals unavailable/i)
@@ -343,5 +355,120 @@ describe('SwapPage indexed CW20 decimals (#1255 / #1452)', () => {
       },
       { timeout: 5000 }
     )
+  })
+
+  it.each([
+    [6, '5405720', '5.40572'],
+    [18, '5405720000000000001', '5.405720000000000001'],
+    [18, '9007199254740993123456789', '9007199.254740993123456789'],
+  ])('switch uses exact %i-decimal output as the new pay amount', async (decimals, rawOutput, humanOutput) => {
+    // The original pay token has six decimals; the old receive token owns output scaling.
+    seedPair(UST1, TERRA_B)
+    observedDecimals = decimals
+    quotedOutput = rawOutput
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-pay-amount'), '10')
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue(humanOutput))
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue(humanOutput)
+    await waitFor(() => {
+      const [from, to, amount] = vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)!
+      expect([from, to, amount]).toEqual([TERRA_B, UST1, rawOutput])
+    })
+  })
+
+  it('switched long precise output supports deletion and digit correction without allowing growth', async () => {
+    seedPair(UST1, TERRA_B)
+    quotedOutput = '9007199254740993123456789'
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    const pay = await screen.findByTestId('swap-you-pay-amount')
+    await user.type(pay, '10')
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('9007199.254740993123456789'))
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    await user.click(pay)
+    await user.keyboard('{End}0')
+    expect(pay).toHaveValue('9007199.254740993123456789')
+    await user.keyboard('{Backspace}')
+    expect(pay).toHaveValue('9007199.25474099312345678')
+    fireEvent.change(pay, { target: { value: '9007199.25474099312345671' } })
+    expect(pay).toHaveValue('9007199.25474099312345671')
+    await waitFor(() => {
+      const [from, to, amount] = vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)!
+      expect([from, to, amount]).toEqual([TERRA_B, UST1, '9007199254740993123456710'])
+    })
+  })
+
+  it('switch clears pay when no output is available instead of retaining the old token amount', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(() => new Promise(() => {}))
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-pay-amount'), '10')
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+  })
+
+  it('switch cannot adopt a previous amount while the new draft is still debouncing', async () => {
+    quotedOutput = '5405720000000000000'
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-pay-amount'), '10')
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('5.40572'))
+    fireEvent.change(screen.getByTestId('swap-you-pay-amount'), { target: { value: '20' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+  })
+
+  it('switch retains a fresh same-intent output during a background refresh', async () => {
+    quotedOutput = '5405720000000000000'
+    const user = userEvent.setup()
+    const { queryClient } = renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-pay-amount'), '10')
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('5.40572'))
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(() => new Promise(() => {}))
+    act(() => {
+      void queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    })
+    await waitFor(() => expect(queryClient.isFetching({ queryKey: ['simulation'] })).toBeGreaterThan(0))
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('5.40572')
+  })
+
+  it('switch rechecks the original quote deadline at the click', async () => {
+    quotedOutput = '5405720000000000000'
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-pay-amount'), '10')
+    await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('5.40572'))
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 20_000)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+      expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
+  it('switch changes an edited receive target into an exact-input intent without waiting for inverse pricing', async () => {
+    vi.mocked(quoteSwapReceiveViaSolver).mockImplementation(() => new Promise(() => {}))
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-receive'), '5.405720000000000001')
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('5.405720000000000001')
+    await waitFor(() => {
+      const [from, to, amount] = vi.mocked(indexerClient.getRouteSolve).mock.calls.at(-1)!
+      expect([from, to, amount]).toEqual([TERRA_B, TERRA_A, '5405720000000000001'])
+    })
+  })
+
+  it('switch clears a receive draft below token precision instead of silently rounding it', async () => {
+    observedDecimals = 6
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await user.type(await screen.findByTestId('swap-you-receive'), '5.4057201')
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
   })
 })

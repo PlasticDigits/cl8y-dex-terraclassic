@@ -1579,11 +1579,53 @@ export default function SwapPage() {
     isPositiveDecimalAmount(inputAmount)
 
   const applyTypedAmount = (value: string, field: 'input' | 'output') => {
-    if (value.length <= 24 && (value === '' || /^\d*\.?\d*$/.test(value))) {
+    const displayedValue = field === 'input' ? payInputValue : receiveInputValue
+    // Generated full-precision amounts remain editable without raising the
+    // ordinary draft limit or allowing an already-long amount to grow.
+    const maxLength = Math.max(24, displayedValue.length)
+    if (value.length <= maxLength && (value === '' || /^\d*\.?\d*$/.test(value))) {
       setExactField(field)
       setInputAmount(value)
       setShowImpactConfirm(false)
     }
+  }
+
+  const handleSwapDirection = () => {
+    sounds.playButtonPress()
+    // A receive edit is the user's target; otherwise only the current unexpired
+    // displayed quote owns the new pay amount. Never carry the old pay number
+    // into a different token or round raw output through Number/display formatting.
+    let nextPayAmount = ''
+    if (reverseQuoteActive) {
+      if (
+        receiveDecimals != null &&
+        isPositiveDecimalAmount(inputAmount) &&
+        !/[1-9]/.test((inputAmount.split('.')[1] ?? '').slice(receiveDecimals))
+      ) {
+        const receiveRaw = toRawAmount(inputAmount, receiveDecimals)
+        if (isPositiveRawAmount(receiveRaw)) nextPayAmount = fromRawAmount(receiveRaw, receiveDecimals)
+      }
+    } else if (
+      hasSettledSimQuote &&
+      !showSimReceiveCalculating &&
+      !theaterRouteQuote &&
+      !isExpiredLocalQuote(simData) &&
+      outputAmount &&
+      isPositiveRawAmount(outputAmount) &&
+      receiveDecimals != null
+    ) {
+      nextPayAmount = fromRawAmount(outputAmount, receiveDecimals)
+    }
+    const tmp = fromToken
+    setFromToken(toToken)
+    setToToken(tmp)
+    setExactField('input')
+    setInputAmount(nextPayAmount)
+    // Manual book budgets and consent bind the old direction/denomination.
+    setBookInputHuman('')
+    impactAcceptedQuoteRef.current = null
+    impactReviewedQuoteRef.current = null
+    setShowImpactConfirm(false)
   }
 
   const handleOpenSettings = useCallback(() => {
@@ -1908,13 +1950,7 @@ export default function SwapPage() {
                 <button
                   type="button"
                   aria-label="Swap pay and receive tokens"
-                  onClick={() => {
-                    sounds.playButtonPress()
-                    const tmp = fromToken
-                    setFromToken(toToken)
-                    setToToken(tmp)
-                    setShowImpactConfirm(false)
-                  }}
+                  onClick={handleSwapDirection}
                   className="pointer-events-auto swap-direction-btn w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center transition-colors"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -1978,7 +2014,7 @@ export default function SwapPage() {
             />
             <div
               data-testid="swap-quote-status"
-              className="swap-quote-status mb-3 text-xs leading-relaxed"
+              className="swap-quote-status mb-3 text-xs"
               role="region"
               aria-label="Quote status"
               data-notice={primaryNotice ?? undefined}

@@ -7,6 +7,7 @@ source scripts/qa/verify-followup-common.sh
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/vitest run \
     src/pages/SwapPage.test.tsx src/pages/SwapPage.acquireGuidance.test.tsx \
+    src/pages/SwapPage.assetDecimals.test.tsx src/swapDirectionSeam.test.ts \
     src/components/ui/__tests__/Modal.test.tsx \
     src/pages/SwapPage.queryParams.test.tsx src/pages/SwapPage.extraDebitSell.test.tsx \
     src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx \
@@ -53,6 +54,10 @@ PYPORTS
   timeout 55s env "${fixtureEnv[@]}" LOCAL_QUOTE_BROWSER_SKIP_BUILD=1 LOCAL_QUOTE_BROWSER_GEOMETRY_ONLY=1 \
     SWAP_GEOMETRY_REVIEW_ONLY=1 SWAP_GEOMETRY_CONNECTED=1 SWAP_GEOMETRY_VIEWPORTS=375x667 \
     LOCAL_QUOTE_BROWSER_RECEIPT="${VERIFY_ISSUE_1498_RECEIPT_DIR:-/tmp}/swap-layout-1498-$attempt-review.json" \
+    bash scripts/with-node.sh -- node scripts/qa/browser-local-quotes-1452.cjs || return
+  timeout 55s env "${fixtureEnv[@]}" LOCAL_QUOTE_BROWSER_SKIP_BUILD=1 LOCAL_QUOTE_BROWSER_GEOMETRY_ONLY=1 \
+    SWAP_GEOMETRY_STATUS_ONLY=1 SWAP_GEOMETRY_VIEWPORTS=375x667,768x1000,1440x1000 \
+    LOCAL_QUOTE_BROWSER_RECEIPT="${VERIFY_ISSUE_1498_RECEIPT_DIR:-/tmp}/swap-layout-1498-$attempt-status.json" \
     bash scripts/with-node.sh -- node scripts/qa/browser-local-quotes-1452.cjs || return
   rm -rf "$fixtureBuild"
 }

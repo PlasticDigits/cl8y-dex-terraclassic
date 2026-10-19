@@ -39,27 +39,30 @@ export function SwapImpactAside({
   return (
     <div
       className={
-        details
+        'swap-impact-notice ' +
+        (details
           ? 'text-[11px] sm:text-xs'
           : blocked || risk?.availability === 'unavailable'
             ? 'alert-error mb-3 text-xs'
-            : 'alert-warning mb-3 text-xs'
+            : 'alert-warning mb-3 text-xs')
       }
       role={details ? undefined : 'status'}
       style={details ? { color: 'var(--ink-dim)' } : undefined}
       data-testid={testId}
     >
-      <p>{sentence}</p>
-      {!details && risk?.availability === 'available' && blocked === 'expert' && onEnableExpert && (
-        <button type="button" className="underline" onClick={onEnableExpert}>
-          Enable Expert Mode
-        </button>
-      )}
-      {!details && !blocked && confirming && onCancel && (
-        <button type="button" className="underline" onClick={onCancel}>
-          Cancel
-        </button>
-      )}
+      <p>
+        {sentence}{' '}
+        {!details && risk?.availability === 'available' && blocked === 'expert' && onEnableExpert && (
+          <button type="button" className="swap-inline-action underline" onClick={onEnableExpert}>
+            Enable Expert Mode
+          </button>
+        )}
+        {!details && !blocked && confirming && onCancel && (
+          <button type="button" className="swap-inline-action underline" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </p>
     </div>
   )
 }
