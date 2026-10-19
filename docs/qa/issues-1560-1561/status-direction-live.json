@@ -1,0 +1,115 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T06:16:50.186Z",
+  "scope": "Live disconnected Swap with actual cached native quote; Trade market preview with actual cached wrapped quote. No funded settlement or physical device proof.",
+  "observations": [
+    {
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "expectedRiskNotice": false,
+      "cta": {
+        "top": 461.703125,
+        "bottom": 515.703125,
+        "height": 54
+      },
+      "navTop": 594,
+      "viewportBottom": 667,
+      "scrollY": 0,
+      "form": {
+        "top": 136.3125,
+        "bottom": 515.703125
+      },
+      "headerBottom": 58,
+      "footerDisplayed": false,
+      "centerHit": true,
+      "pageOverflow": false,
+      "route": {
+        "scrollWidth": 350,
+        "clientWidth": 350,
+        "rightGap": 0,
+        "maxGap": 2
+      },
+      "status": {
+        "scrollWidth": 350,
+        "clientWidth": 350,
+        "empty": true,
+        "font": 12,
+        "lineHeight": 16.2,
+        "minHeight": 32.4
+      },
+      "riskNoticeCount": 0,
+      "detailsCount": 1,
+      "renderedRouteTokens": 3,
+      "seriousOrCriticalAxe": 0,
+      "runtimeErrors": 0,
+      "directionSwitch": {
+        "previousOutput": "0.851568201759174334",
+        "newPayMatches": true,
+        "reverseRequestRaw": "851568201759174334",
+        "reverseHttp": 200,
+        "signingAttempts": 0
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "expectedRiskNotice": false,
+      "cta": {
+        "top": 628.390625,
+        "bottom": 686.390625,
+        "height": 58
+      },
+      "navTop": 1000,
+      "viewportBottom": 1000,
+      "scrollY": 0,
+      "form": {
+        "top": 104,
+        "bottom": 711.390625
+      },
+      "headerBottom": 76,
+      "footerDisplayed": true,
+      "centerHit": true,
+      "pageOverflow": false,
+      "route": {
+        "scrollWidth": 282,
+        "clientWidth": 282,
+        "rightGap": 0,
+        "maxGap": 4
+      },
+      "status": {
+        "scrollWidth": 450,
+        "clientWidth": 450,
+        "empty": true,
+        "font": 12,
+        "lineHeight": 16.2,
+        "minHeight": 32.4
+      },
+      "riskNoticeCount": 0,
+      "detailsCount": 1,
+      "renderedRouteTokens": 3,
+      "seriousOrCriticalAxe": 0,
+      "runtimeErrors": 0,
+      "directionSwitch": {
+        "previousOutput": "0.851568201759174334",
+        "newPayMatches": true,
+        "reverseRequestRaw": "851568201759174334",
+        "reverseHttp": 200,
+        "signingAttempts": 0
+      }
+    }
+  ],
+  "tradeMarket": {
+    "expectedRiskNotice": false,
+    "riskNoticeCount": 0
+  },
+  "tradeSeriousOrCriticalAxe": 0,
+  "tradeNavigation": "PASS",
+  "overall": "PASS"
+}

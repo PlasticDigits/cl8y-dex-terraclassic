@@ -1,0 +1,41 @@
+{
+  "scope": "Bounded HTTP samples during and after frontend rolling release, not continuous uptime or traffic SLO evidence",
+  "samples": [
+    {
+      "utc": "2026-10-19T06:15:39.856561+00:00",
+      "checks": [
+        {
+          "name": "frontend",
+          "http": 200
+        },
+        {
+          "name": "api_health",
+          "http": 200,
+          "git_sha": "b7b08736b3529af344a693ae6d16236a4f324c13"
+        },
+        {
+          "name": "api_serving",
+          "http": 200
+        }
+      ]
+    },
+    {
+      "utc": "2026-10-19T06:18:27.166622+00:00",
+      "checks": [
+        {
+          "name": "frontend",
+          "http": 200
+        },
+        {
+          "name": "api_health",
+          "http": 200,
+          "git_sha": "b7b08736b3529af344a693ae6d16236a4f324c13"
+        },
+        {
+          "name": "api_serving",
+          "http": 200
+        }
+      ]
+    }
+  ]
+}
