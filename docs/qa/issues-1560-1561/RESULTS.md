@@ -94,7 +94,7 @@ Unchanged DB/chain/full-backend suites were not rerun for this frontend change.
 | Modal/Expert/wallet | 32 focused tests pass, including stacked naming and keyboard return. |
 | Types / full frontend lint | PASS; ESLint0 errors,5 existing warnings in unrelated chart/LazyRoute/PortalListbox/LimitOrders files. |
 | `make verify-issue-1544` | PASS focused source/config/monitor privacy/target checks, isolated config parsers; no production monitoring lifecycle mutation. |
-| Frontend-only release helper | Six synthetic identity/revision/status/log-privacy controls pass. PASS requires exact finished revision and zero unexpected error-pattern entries; queued/in-progress is PENDING. |
+| Frontend-only release helper | Seven synthetic identity/revision/status/log-privacy controls pass. PASS requires exact finished revision and zero unexpected error-pattern entries; queued/in-progress is PENDING. |
 
 The first1500 wrapper failed only its stable-source check because final CSS edits
 landed during verification; source was frozen and the full target rerun successfully.
@@ -108,9 +108,63 @@ processes/HTTP fixtures, never the production chain/API/database/logs stack.
 
 ## Live release
 
-Deployment and post-release observations will be appended after the reviewed
-source is merged. The frontend alone is released through Coolify; API/indexer
-and logging application identities remain untouched. Existing baseline
-[availability](availability-before.json), [frontend pin](deployment-before.json)
-and [Grafana/Loki/exact fresh Prometheus observations](monitoring-before.json)
-pass. Monitoring aggregates are not traffic SLOs or proof of native recovery.
+[PR #1562](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1562) is merged.
+Source commit `4b1c803d0ba647613515183c30a7118b733064c9`; deployed merged main
+`6a5118ffc2a3bf71b4ad638226d48228bd2eb64a`. Both local main and the isolated
+worktree were updated from origin. Pre-commit Rust fmt/Clippy, frontend checks,
+message policy and gitleaks passed. The post-hook product source hash remains
+`e984d27f76c9f91e838b86438edf91eb9752adf695be79fdce371cdfdbc79d7b`, matching
+all final isolated browser receipts. Modal tests also passed after hook formatting.
+
+- [x] [Coolify frontend deployment](deployment-status.json)
+  `qvplhwapjhqfxd2mm8lfnzua` finished at the exact reviewed revision. Its 94 log
+  entries were inspected privately: 0 unexpected error-level pattern entries,
+  2 exact expected missing-cleanup-container entries. No raw logs/configuration
+  were exported. The initial observer rejected an omitted public internal-ID
+  field, then counted an Error substring in a public bundle filename. Both
+  [failed observer receipts](deployment-status-initial.json) and the
+  [pattern receipt](deployment-log-pattern-initial.json) remain. The helper now
+  binds the deployment's embedded application UUID/numeric ID and matches whole
+  error-level words; seven focused controls pass. These were observer defects,
+  not failed application deployments.
+- [x] [Live browser](live-browser.json), observed 2026-10-19 at 04:22 UTC:
+  actual anonymous cached native USTC→CL8Y Swap and wrapped Trade market previews
+  pass the independently calculated strict risk rule. This live sample was below
+  both ordinary thresholds and showed zero risk notices. At 375×667, CTA 399–453px
+  lies above nav 594px, is hit-testable, and the actual three-token native/wrapper
+  path fits 350/350px with no status/page overflow. Desktop also passes. Both
+  Swap viewports and the Trade market page have 0 serious/critical axe findings
+  and 0 runtime errors. This does not reproduce the historical 3.34% quote or
+  establish connected funded settlement.
+- [x] [Artifact attestation](artifacts-after.json): completed frontend source
+  matches 6a5118f; every root external script, including both bootstrap scripts,
+  is hashed. Backend deployment/public health remain at unchanged
+  `b7b08736b3529af344a693ae6d16236a4f324c13`. No backend, database or logs
+  lifecycle operation was performed. [Live screenshots](screenshots/) are public,
+  disconnected product evidence without wallet/session identifiers.
+- [x] [During-deployment samples](availability-during.json) and
+  [after](availability-after.json): frontend, API liveness and serving all HTTP200;
+  backend revision unchanged. No outage was observed. Sparse samples do not prove
+  uninterrupted service between observations; no Stop/reset operation was used.
+- [x] [Fresh Grafana/Loki/Prometheus observation](monitoring-after.json),
+ 2026-10-19 at 04:23 UTC: PASS in 11 reads. Both exact DEX jobs scraped successfully,
+  original observations aged 28.961s (90s bound), datasource healthy, liveness,
+  serving and useful-quote readiness 1. Indexer readiness was separately 0; it is
+  retained as an independent observation, not hidden or called an API outage.
+  Loki aggregate queries pass. These are not traffic SLOs or proof of native
+  recovery/complete indexing.
+- [ ] Repository-wide CI is not claimed PASS. The normal merge returned 405 while
+  its required Woodpecker context was pending. The user explicitly authorized
+  overriding workflow gates; the merge API override was applied after bounded
+  local verification. [CI status](ci-status.json) records this separately.
+- [ ] Physical-device check assigned through the [cl8y-pm inbox](https://pm.cl8y.com/inbox),
+  card `3fff415d-9cc2-42b1-b635-37e0be4fd0f7` ([receipt](operator-card.json)).
+  It requests one physical-phone reachability check and no transaction signing.
+  The complete funded/assistive-device matrices remain unperformed, so #1560
+  and #1561 remain open. No chain signing or privileged sudo operation was needed
+  for the implemented frontend release.
+
+The follow-up evidence/observer-helper commit changes no deployed frontend files;
+the runtime remains the independently attested 6a5118f release. See the
+[original baseline](availability-before.json), [prior frontend pin](deployment-before.json)
+and [pre-release monitoring](monitoring-before.json) for comparison.

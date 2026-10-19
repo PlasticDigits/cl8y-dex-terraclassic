@@ -46,3 +46,5 @@ critical-routes accessibility scan. Bound each verification invocation below
 A fixture establishes layout and focus behavior only; record live artifacts,
 physical device/assistive technology and funded settlement separately. Keep
 executed failures visible until repaired/retested; list remaining scope explicitly.
+
+Final implementation, bounded verification, deployment and remaining acceptance: [joint results](../issues-1560-1561/RESULTS.md). Both issues remain open for the explicitly unperformed scopes.

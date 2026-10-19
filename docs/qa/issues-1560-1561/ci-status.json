@@ -1,0 +1,15 @@
+{
+  "pr": 1562,
+  "merged": true,
+  "explicit_user_ci_gate_override": true,
+  "statuses": {
+    "pr_head": {
+      "revision": "4b1c803d0ba647613515183c30a7118b733064c9",
+      "state": "pending"
+    },
+    "merged_main": {
+      "revision": "6a5118ffc2a3bf71b4ad638226d48228bd2eb64a",
+      "state": "pending"
+    }
+  }
+}

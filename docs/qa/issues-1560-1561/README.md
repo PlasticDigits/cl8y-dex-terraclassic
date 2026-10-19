@@ -72,3 +72,15 @@ browser wallets cannot sign and do not establish funded settlement, physical
 assistive-device behavior, native-route acceptance or real on-chain recovery.
 Physical-device and funded checks stay unchecked unless actual receipts exist;
 issues may only close when their body and comment criteria have all passed.
+
+Post-release read-only product check (no wallet injection or broadcast):
+
+```sh
+timeout 55s bash scripts/with-node.sh -- node \
+  scripts/qa/probe-trading-ui-1560-1561.cjs /tmp/live-trading-ui.json
+```
+
+The physical follow-up uses the cl8y-pm
+[inbox-assigner skill](https://git.cl8y.com/PlasticDigits/cl8y-pm/src/branch/main/skills/inbox-assigner/SKILL.md).
+Its card requests no signing or privileged command; other unperformed verification
+stays in these DEX issues. No engineering or CI queue work was assigned to the operator.

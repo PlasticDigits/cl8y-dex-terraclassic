@@ -1,0 +1,14 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T04:20:22.772308+00:00",
+  "application_uuid": "afs50d2ect995yzc9jkp7u2u",
+  "operation": "deploy",
+  "prior_pinned_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "overall": "PENDING",
+  "revision": "6a5118ffc2a3bf71b4ad638226d48228bd2eb64a",
+  "deployment_uuid": "qvplhwapjhqfxd2mm8lfnzua",
+  "status": "queued"
+}
