@@ -1,0 +1,17 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T05:47:50.284457+00:00",
+  "application_uuid": "afs50d2ect995yzc9jkp7u2u",
+  "operation": "deployment",
+  "prior_pinned_revision": "0941e9105142542009252295bb3ebb9bd2e3f1ca",
+  "overall": "PASS",
+  "deployment_uuid": "xyidlzlftlxxntlkiyjulc6b",
+  "status": "finished",
+  "revision": "0941e9105142542009252295bb3ebb9bd2e3f1ca",
+  "log_entries_inspected": 71,
+  "error_pattern_entries": 0,
+  "missing_cleanup_container_entries": 2
+}

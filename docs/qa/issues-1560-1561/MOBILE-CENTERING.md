@@ -59,3 +59,27 @@ The CTA remains fully above navigation. 375/390 mobile and 1440 desktop compact
 states pass, including 200% text and real border-box padding updates, with zero
 serious/critical axe findings and zero fixture provider requests. See
 [the bounded local receipt](mobile-centering-local.json).
+
+## Live release
+
+[PR #1564](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1564) is merged.
+Frontend `0941e9105142542009252295bb3ebb9bd2e3f1ca` is deployed through Coolify
+`xyidlzlftlxxntlkiyjulc6b`; 71 deployment log entries inspected privately, zero
+unexpected error-level matches and two exact expected cleanup-container messages.
+The user's existing workflow-gate override was used while repository-wide CI was
+pending; full CI is not claimed PASS.
+
+[Live browser verification](mobile-centering-live.json) at 05:48 UTC passes:
+
+- 375×667: form 134.5–517.5px between header 58px and nav 594px gives 76.5px equal
+  margins. Footer hidden, status empty, actual native USTC/cUSTC/CL8Y path has
+  right-edge gap 0px and maximum visual gap 2px, no overflow, CTA hit-test passes.
+- 1440×1000: footer retained; route right-edge gap 0px and maximum gap 4px.
+- Native Swap and wrapped Trade previews pass; runtime errors 0 and serious/
+  critical axe findings 0. No wallet injection/signing or funded settlement claim.
+
+[Fresh monitoring](mobile-centering-monitor.json) passes exact DEX target and
+observation checks; frontend/API health/serving samples are HTTP200 with unchanged
+backend b7b08736b3529af344a693ae6d16236a4f324c13. No API, database or logs
+lifecycle changes were made. [Live mobile screenshot](screenshots/centered-live- 375x667.png).
+The follow-up documentation commit changes no deployed frontend files.

@@ -1,0 +1,95 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T05:48:36.216Z",
+  "scope": "Live disconnected Swap with actual cached native quote; Trade market preview with actual cached wrapped quote. No funded settlement or physical device proof.",
+  "observations": [
+    {
+      "viewport": {
+        "width": 375,
+        "height": 667
+      },
+      "expectedRiskNotice": false,
+      "cta": {
+        "top": 463.4670715332031,
+        "bottom": 517.467041015625,
+        "height": 53.999969482421875
+      },
+      "navTop": 594,
+      "viewportBottom": 667,
+      "scrollY": 0,
+      "form": {
+        "top": 134.5,
+        "bottom": 517.5
+      },
+      "headerBottom": 58,
+      "footerDisplayed": false,
+      "centerHit": true,
+      "pageOverflow": false,
+      "route": {
+        "scrollWidth": 350,
+        "clientWidth": 350,
+        "rightGap": 0,
+        "maxGap": 2
+      },
+      "status": {
+        "scrollWidth": 350,
+        "clientWidth": 350,
+        "empty": true
+      },
+      "riskNoticeCount": 0,
+      "detailsCount": 1,
+      "renderedRouteTokens": 3,
+      "seriousOrCriticalAxe": 0,
+      "runtimeErrors": 0
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "expectedRiskNotice": false,
+      "cta": {
+        "top": 668,
+        "bottom": 726,
+        "height": 58
+      },
+      "navTop": 1000,
+      "viewportBottom": 1000,
+      "scrollY": 0,
+      "form": {
+        "top": 104,
+        "bottom": 751
+      },
+      "headerBottom": 76,
+      "footerDisplayed": true,
+      "centerHit": true,
+      "pageOverflow": false,
+      "route": {
+        "scrollWidth": 282,
+        "clientWidth": 282,
+        "rightGap": 0,
+        "maxGap": 4
+      },
+      "status": {
+        "scrollWidth": 450,
+        "clientWidth": 450,
+        "empty": true
+      },
+      "riskNoticeCount": 0,
+      "detailsCount": 1,
+      "renderedRouteTokens": 3,
+      "seriousOrCriticalAxe": 0,
+      "runtimeErrors": 0
+    }
+  ],
+  "tradeMarket": {
+    "expectedRiskNotice": false,
+    "riskNoticeCount": 0
+  },
+  "tradeSeriousOrCriticalAxe": 0,
+  "tradeNavigation": "PASS",
+  "overall": "PASS"
+}
