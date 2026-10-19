@@ -18,6 +18,9 @@ async function surfaceGeometry(page, requireInitialFit = false) {
     const visibleTop = vv?.offsetTop ?? 0;
     const visibleBottom = visibleTop + (vv?.height ?? innerHeight);
     const navRect = nav?.getBoundingClientRect();
+    const headerBottom = document.querySelector(".app-top-sticky").getBoundingClientRect().bottom;
+    const form = document.querySelector(".swap-page").getBoundingClientRect();
+    const footer = document.querySelector(".app-footer-shell");
     const navTop =
       navRect && getComputedStyle(nav).display !== "none"
         ? navRect.top
@@ -42,6 +45,12 @@ async function surfaceGeometry(page, requireInitialFit = false) {
         overflowY: getComputedStyle(el).overflowY,
         left: rect.left,
         right: rect.right,
+        specifiedGap: parseFloat(getComputedStyle(el.querySelector(".swap-route-path") ?? el).columnGap) || 0,
+        visibleSegments: [...el.querySelectorAll(".swap-route-path > :not(.sr-only)")].map((part) => {
+          const first = part.hasAttribute("data-token-identity") ? part.firstElementChild : part;
+          const last = part.hasAttribute("data-token-identity") ? part.lastElementChild : part;
+          return { left: first.getBoundingClientRect().left, right: last.getBoundingClientRect().right };
+        }),
         tokenBounds: [...el.querySelectorAll("[data-token-identity]")].map(
           (token) => {
             const tokenRect = token.getBoundingClientRect();
@@ -60,6 +69,11 @@ async function surfaceGeometry(page, requireInitialFit = false) {
       visibleTop,
       visibleBottom,
       navTop,
+      headerBottom,
+      form: { top: form.top, bottom: form.bottom, height: form.height },
+      footerDisplayed: getComputedStyle(footer).display !== "none",
+      measuredNavStack: document.documentElement.style.getPropertyValue("--app-mobile-nav-stack"),
+      shellPaddingBottom: getComputedStyle(document.querySelector(".app-shell")).paddingBottom,
       unobstructed: hitPoints.map(([x, y]) =>
         cta.contains(document.elementFromPoint(x, y)),
       ),
@@ -72,6 +86,12 @@ async function surfaceGeometry(page, requireInitialFit = false) {
     expect(result.pageWidth, "page horizontal overflow").toBeLessThanOrEqual(
       result.viewportWidth + 1,
     );
+    expect(result.footerDisplayed, "content footer is desktop-only").toBe(result.viewportWidth >= 768);
+    if (requireInitialFit === true && result.viewportWidth < 768 &&
+        result.form.height <= result.navTop - result.headerBottom - 16) {
+      expect(Math.abs((result.form.top + result.form.bottom - result.headerBottom - result.navTop) / 2),
+        "Swap centered between header and measured navigation").toBeLessThanOrEqual(1);
+    }
     for (const region of result.regions) {
       expect(
         region.scrollWidth,
@@ -85,6 +105,13 @@ async function surfaceGeometry(page, requireInitialFit = false) {
     const routeRegion = result.regions.find(
       (r) => r.id === "swap-route-summary",
     );
+    if (routeRegion.visibleSegments.length) {
+      const parts = routeRegion.visibleSegments;
+      expect(Math.abs(parts.at(-1).right - routeRegion.right), "route right aligned").toBeLessThanOrEqual(1);
+      for (let i = 1; i < parts.length; i++) {
+        expect(parts[i].left - parts[i - 1].right, "compact visual route spacing").toBeLessThanOrEqual(routeRegion.specifiedGap + 1);
+      }
+    }
     for (const [index, token] of routeRegion.tokenBounds.entries()) {
       expect(
         token.width,
@@ -241,6 +268,18 @@ async function verifyCompactStates({
   pay,
   details,
 }) {
+  if (width < 768) {
+    await check("mobile-footer-hidden-and-about-accessible-in-more", async () => {
+      await page.getByRole("button", { name: "More", exact: true }).click();
+      const about = page.getByRole("region", { name: "About and legal" });
+      await expect(about).toBeVisible();
+      await expect(about.getByRole("link", { name: "Homepage", exact: true })).toBeVisible();
+      await expect(about.getByRole("link", { name: "Security", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "More", exact: true }).click();
+      await expect(about).toHaveCount(0);
+      return { footer_displayed: false, environment_product_and_legal_available_in_more: true };
+    });
+  }
   if (process.env.SWAP_GEOMETRY_AXE === "1") {
     await check("axe-critical-serious-and-keyboard-focus", async () => {
       const accessibility = await assertAccessible(page);

@@ -226,7 +226,7 @@ export default function Layout() {
                 </div>
               ) : null}
               {/*
-                EnvironmentRibbon lives in the footer on all breakpoints (shell density).
+                EnvironmentRibbon lives in the desktop footer and mobile More sheet.
                 Omit desktop NetworkBadge so theme + wallet keep ≥ ~8px gap from More (#483).
                 Mobile keeps the badge next to the wallet chip.
               */}
@@ -313,6 +313,11 @@ export default function Layout() {
               className="app-mobile-sound-toggle"
             />
           </div>
+          <section className="space-y-3 pt-3" aria-label="About and legal">
+            <EnvironmentRibbon />
+            <Cl8yProductLinks />
+            <LegalFooterNotice />
+          </section>
         </section>
       )}
       <WalletConnectPairingModal />

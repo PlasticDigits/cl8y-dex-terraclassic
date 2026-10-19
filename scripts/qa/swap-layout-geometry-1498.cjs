@@ -195,6 +195,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
             process.env.SWAP_GEOMETRY_THEME || "dark",
           );
           await expect(details).not.toHaveAttribute("open", "");
+          await expect(page.getByTestId("swap-status-none")).toBeEmpty();
           if (connected) {
             await expect(page.getByTestId("swap-submit")).toBeEnabled();
             await expect(page.getByTestId("swap-submit")).not.toContainText(
@@ -279,9 +280,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
           await expect(
             page.getByText(/This swap will wrap your tokens/),
           ).toHaveCount(0);
-          await expect(page.getByTestId("swap-status-none")).toContainText(
-            "None",
-          );
+          await expect(page.getByTestId("swap-status-none")).toBeEmpty();
           const route = page.getByTestId("swap-route-summary");
           expect(
             await route

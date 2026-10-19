@@ -1983,17 +1983,7 @@ export default function SwapPage() {
               aria-label="Quote status"
               data-notice={primaryNotice ?? undefined}
             >
-              {!primaryNotice && (
-                <p data-testid="swap-status-none" role="status">
-                  {hasPositiveInputAmount && (!hasSettledSimQuote || simQuoteStale) ? (
-                    'Refreshing price…'
-                  ) : (
-                    <>
-                      <span aria-hidden="true">✓ </span>None
-                    </>
-                  )}
-                </p>
-              )}
+              {!primaryNotice && <p data-testid="swap-status-none" aria-hidden="true" />}
               {primaryNotice && primaryNotice !== 'pricing' && (
                 <span className="swap-status-cross" aria-hidden="true">
                   ✕{' '}

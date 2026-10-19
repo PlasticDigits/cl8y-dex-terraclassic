@@ -30,13 +30,16 @@ test.describe('Footer official CL8Y product links (GitLab #663)', () => {
     await expect(footer.locator('iframe')).toHaveCount(0)
   })
 
-  test('phone 375 product links wrap above the mobile tab bar', async ({ page }) => {
+  test('phone 375 product links remain accessible in More', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/')
     await page.waitForLoadState('domcontentloaded')
 
-    const home = page.locator('footer.app-footer-shell').getByTestId('footer-product-home')
-    const bridge = page.locator('footer.app-footer-shell').getByTestId('footer-product-bridge')
+    await expect(page.locator('footer.app-footer-shell')).toBeHidden()
+    await page.getByRole('button', { name: 'More', exact: true }).click()
+    const about = page.getByRole('region', { name: 'About and legal' })
+    const home = about.getByTestId('footer-product-home')
+    const bridge = about.getByTestId('footer-product-bridge')
     await home.scrollIntoViewIfNeeded()
     await expect(home).toBeVisible()
     await expect(bridge).toBeVisible()
@@ -104,15 +107,16 @@ test.describe('Footer official CL8Y product links (GitLab #663)', () => {
     await expect(page.getByTestId('footer-product-bridge')).toBeVisible()
   })
 
-  test('mobile More sheet stays in-app and does not list Bridge', async ({ page }) => {
+  test('mobile More keeps official products separate from in-app routes', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/')
     await page.getByRole('button', { name: 'More' }).click()
     const sheet = page.getByRole('region', { name: 'More pages' })
     await expect(sheet).toBeVisible()
     await expect(sheet.getByRole('link', { name: 'Protocol' })).toBeVisible()
-    await expect(sheet.getByRole('link', { name: 'Bridge' })).toHaveCount(0)
-    await expect(page.locator('footer.app-footer-shell').getByTestId('footer-product-bridge')).toBeVisible()
+    const about = sheet.getByRole('region', { name: 'About and legal' })
+    await expect(about.getByTestId('footer-product-bridge')).toBeVisible()
+    await expect(page.locator('footer.app-footer-shell')).toBeHidden()
   })
 
   test('More still reaches Protocol (in-app) without leaving the DEX', async ({ page }) => {

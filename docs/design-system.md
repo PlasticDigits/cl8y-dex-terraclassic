@@ -218,3 +218,5 @@ wallet sheets. On close, restore focus to its connected invoking control if
 focus remains inside the departing dialog or on the document body; preserve
 intentional focus on another surface. The [#1561 verification loop](qa/issues-1560-1561/RESULTS.md)
 found and repaired focus loss after Escape and duplicate dialog title IDs.
+
+Mobile Swap uses spare viewport space to center the form between header and measured bottom navigation; content taller than that space uses ordinary page scrolling. The mobile content footer is hidden, with environment, product and legal information in More → About and legal. Route nodes size to content and align right with compact gaps, retaining every token/wrapper and full identities in DETAILS. See [the #1561 follow-up](qa/issues-1560-1561/MOBILE-CENTERING.md).
