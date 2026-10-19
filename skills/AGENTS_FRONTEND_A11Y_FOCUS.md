@@ -28,3 +28,13 @@ Use when changing **interactive styling** in [`frontend-dapp/src/index.css`](../
 - Visual QA umbrella: [GitLab **#133**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/133)
 - Slippage preset chips stay a labelled `role="group"`: [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
 - Swap Pay/Receive flip plate: [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659))
+
+## Dialog lifecycle follow-up (#1561)
+
+Dialog titles use per-instance IDs: stacked wallet dialogs cannot share an
+`aria-labelledby` target. Closing/unmounting a dialog returns focus to its
+connected invoking control when focus was left inside that departing dialog or
+on the document body. Respect a deliberate move to another surface/newer dialog.
+See [Modal](../frontend-dapp/src/components/ui/Modal.tsx),
+[focus regression tests](../frontend-dapp/src/components/ui/__tests__/Modal.test.tsx)
+and the [production browser evidence](../docs/qa/issues-1560-1561/RESULTS.md).

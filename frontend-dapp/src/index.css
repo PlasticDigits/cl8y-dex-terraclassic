@@ -2563,3 +2563,239 @@ input[type='number'] {
     justify-content: center;
   }
 }
+
+/* Swap #1561: persistent inline status, with ordinary page reflow for long text.
+ * The cross and first sentence share a text line; shared alert cards elsewhere
+ * retain their chrome. There is no nested status scroller or dismiss control. */
+.swap-quote-status {
+  min-height: 6em;
+  overflow-wrap: anywhere;
+}
+
+.swap-quote-status[data-notice]:not([data-notice='pricing']) {
+  --swap-status-error-ink: #fca5a5;
+  color: var(--swap-status-error-ink);
+}
+
+:root[data-theme='light'] .swap-quote-status[data-notice]:not([data-notice='pricing']) {
+  --swap-status-error-ink: #a12c35;
+}
+
+.swap-quote-status > :not(.swap-status-cross),
+.swap-quote-status p {
+  display: inline;
+}
+
+.swap-quote-status :is(.alert-error, .alert-warning, [data-testid$='retry-error']) {
+  display: inline;
+  color: inherit;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.swap-quote-status p {
+  margin: 0 !important;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit !important;
+}
+
+.swap-quote-status button,
+.swap-quote-status a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0 0 0.35em;
+  vertical-align: middle;
+}
+
+.swap-quote-status [data-testid$='retry-error'] button {
+  padding: 0 0.5em !important;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* A long bounded route gets a full line even on desktop; the same summary
+ * height remains reserved, so no sibling geometry changes. */
+.swap-quote-summary[data-long-route] {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  gap: 2px 12px;
+}
+
+.swap-quote-summary[data-long-route] .swap-route-summary {
+  grid-column: 1 / -1;
+}
+
+.swap-quote-summary[data-long-route] .swap-route-path {
+  width: 100%;
+  gap: 2px;
+}
+
+.swap-quote-summary[data-long-route] .swap-route-token {
+  gap: 2px;
+}
+
+@media (max-width: 767px) {
+  /* Scope shell changes to Swap, including its default '/' entry. */
+  .app-shell:has(.swap-page) .app-header {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+
+  .app-main-shell:has(.swap-page) {
+    padding-top: 4px;
+  }
+
+  .swap-form-panel.shell-panel-strong {
+    padding: 0 !important;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .swap-form-header {
+    justify-content: flex-end;
+    margin-bottom: 4px;
+  }
+
+  .swap-form-header h2,
+  .swap-io-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .swap-form-header button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .swap-page .swap-direction-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .swap-page .swap-direction-seam {
+    margin-top: -22px;
+    margin-bottom: -22px;
+  }
+
+  .swap-page .swap-io-stack {
+    margin-bottom: 4px;
+  }
+
+  .swap-page :is(.swap-io-card-pay, .swap-io-card-receive).card-glass {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: 0 12px;
+    padding: 10px 12px !important;
+  }
+
+  .swap-page .swap-io-card-receive.card-glass {
+    padding-top: 24px !important;
+  }
+
+  .swap-io-header {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .swap-page .swap-io-amount-input {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 1.125rem;
+    line-height: 1.5;
+  }
+
+  .swap-page .token-select-root,
+  .swap-page .token-select-trigger {
+    min-height: 44px;
+  }
+
+  .swap-page .token-select-trigger {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .swap-balance-actions {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .swap-balance-actions > div {
+    gap: 0 4px;
+    margin-top: 2px;
+  }
+
+  .swap-balance-actions > div > span:first-child {
+    flex: 1 1 6rem;
+  }
+
+  .swap-balance-actions > div > span:last-child {
+    gap: 0;
+  }
+
+  .swap-balance-actions button {
+    min-width: 44px;
+    min-height: 44px;
+    letter-spacing: 0;
+  }
+
+  .swap-quote-summary {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-content: center;
+    gap: 2px 12px;
+  }
+
+  .swap-quote-summary-loading,
+  .swap-route-summary {
+    grid-column: 1 / -1;
+  }
+
+  .swap-route-path {
+    width: 100%;
+    gap: 2px;
+  }
+
+  .swap-route-token {
+    gap: 2px;
+  }
+
+  .swap-page [data-testid='swap-details'] {
+    margin-bottom: 4px;
+  }
+
+  .swap-page [data-testid='swap-details'] > summary {
+    display: list-item;
+    min-height: 44px;
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+
+  .swap-quote-status {
+    min-height: 3em;
+    margin-bottom: 0;
+  }
+}

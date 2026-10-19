@@ -9,7 +9,7 @@ rust() {
 }
 frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/vitest run \
-    src/utils/routeOrderMetrics.test.ts src/utils/routeEconomicExplanation.test.ts \
+    src/utils/tradingRisk.test.ts src/utils/routeOrderMetrics.test.ts src/utils/routeEconomicExplanation.test.ts \
     src/utils/swapRouteSlippage.test.ts src/utils/cw20RouteSolveQuote.test.ts \
     src/components/swap/SwapImpactAside.test.tsx \
     src/components/swap/RouteOrderCostDetails.test.tsx \

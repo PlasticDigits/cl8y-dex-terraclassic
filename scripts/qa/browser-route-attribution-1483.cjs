@@ -20,7 +20,7 @@ const COPIES = [
   "Selected pool price movement",
   "Selected pool and order pricing",
   "Better selected pool or order pricing",
-  "Different pricing",
+  "Independent reference and selected route spot prices differ",
   "Combined costs and pricing",
   "Matches reference prices",
 ];
@@ -121,39 +121,54 @@ function sharedSources() {
       replacement +
       measurement.slice(end - measure.start);
   }
-  const typescript = frontend("typescript");
-  const explanation = typescript.transpileModule(
-    fs.readFileSync(
-      path.join(ROOT, "frontend-dapp/src/utils/routeEconomicExplanation.ts"),
-      "utf8",
-    ),
-    {
-      compilerOptions: {
-        target: typescript.ScriptTarget.ES2022,
-        module: typescript.ModuleKind.CommonJS,
+  // Bundle actual source with its full local dependency graph. Literal public
+  // production flags match the deployed target without importing process secrets.
+  const dependencies = new Set();
+  const bundle = (name) => {
+    const result = frontend("esbuild").buildSync({
+      entryPoints: [path.join(ROOT, `frontend-dapp/src/utils/${name}.ts`)],
+      bundle: true,
+      write: false,
+      metafile: true,
+      platform: "browser",
+      format: "iife",
+      globalName: "__sourceModule1483",
+      tsconfig: path.join(ROOT, "frontend-dapp/tsconfig.app.json"),
+      define: {
+        "import.meta.env": JSON.stringify({ MODE: "production", PROD: true }),
+        "process.env.NODE_ENV": JSON.stringify("production"),
       },
-    },
-  ).outputText;
-  assert(!/require\(/.test(explanation), "ExplanationDependencyShape");
-  const precision = typescript.transpileModule(
-    fs.readFileSync(
-      path.join(ROOT, "frontend-dapp/src/utils/swapRouteSlippage.ts"),
-      "utf8",
-    ),
-    {
-      compilerOptions: {
-        target: typescript.ScriptTarget.ES2022,
-        module: typescript.ModuleKind.CommonJS,
-      },
-    },
-  ).outputText;
-  assert(!/require\(/.test(precision), "PrecisionDependencyShape");
+      logLevel: "silent",
+    });
+    for (const input of Object.keys(result.metafile.inputs)) {
+      if (input === "<define:import.meta.env>") continue;
+      const absolute = path.resolve(input);
+      if (input.includes("node_modules")) continue; // Pinned by the committed lockfile below.
+      assert(absolute.startsWith(ROOT + path.sep), "SharedDependencyPath");
+      dependencies.add(path.relative(ROOT, absolute));
+    }
+    const source = result.outputFiles[0].text;
+    assert(
+      source.length <= 256 * 1024 &&
+        !/\brequire\(/.test(source) &&
+        Object.values(result.metafile.outputs).every(
+          (output) => output.imports.length === 0,
+        ),
+      "SharedDependencyBundle",
+    );
+    return source;
+  };
+  const explanation = bundle("routeEconomicExplanation"),
+    precision = bundle("swapRouteSlippage"),
+    risk = bundle("tradingRisk");
   return {
-    precision: `(() => { const exports = {}; ${precision}; return exports.preciseFairDeviationPercent; })()`,
-    format: `(() => { const exports = {}; ${precision}; return exports.formatTradingPriceDifference; })()`,
+    precision: `(() => { ${precision}; return __sourceModule1483.preciseFairDeviationPercent; })()`,
+    format: `(() => { ${precision}; return __sourceModule1483.formatTradingPriceDifference; })()`,
     validator: `(() => { ${declarations.map(text).join("\n")} return ${text(validate)}; })()`,
     measurement,
-    explanation: `(() => { const exports = {}; ${explanation}; return exports.routeEconomicExplanation; })()`,
+    explanation: `(() => { ${explanation}; return __sourceModule1483.routeEconomicExplanation; })()`,
+    risk: `(() => { ${risk}; return __sourceModule1483; })()`,
+    dependencies: [...dependencies].sort(),
   };
 }
 
@@ -347,7 +362,9 @@ function installRuntime(config) {
       `[data-testid="${expected.entry === "trade" ? "trade-market-expected-receive" : "swap-you-receive"}"]`,
     );
     if (!diag?.valid || !visible(receive)) return false;
-    const low = diag.precise_percent <= 5;
+    const risk = diag.risk;
+    if (risk?.availability !== "available") return false;
+    const low = !risk.consentRequired;
     const outside = scope.querySelector(
       `[data-testid="${prefix}-impact-aside"]`,
     );
@@ -364,14 +381,23 @@ function installRuntime(config) {
     )
       return false;
     const text = node.textContent.replace(/\s+/g, " ").trim();
-    const expectedText = `Fair-reference deviation ${diag.percent}%.`;
+    const metric = window.__riskPolicy1483.tradingRiskNotice(risk);
+    const expectedText = low
+      ? `Fair-reference deviation ${diag.percent}%.`
+      : risk.extreme
+        ? `${metric} is too high.`
+        : risk.expertRequired
+          ? `${metric} requires Expert Mode.`
+          : `${metric}.`;
     const alerts = [...scope.querySelectorAll('[role="alert"]')].filter(
       visible,
     );
     return (
       text === expectedText &&
-      (text.match(/%/g) || []).length === 1 &&
-      alerts.length === (low ? 0 : 1) &&
+      (text.match(/%/g) || []).length ===
+        (!low && risk.reason === "both" ? 2 : 1) &&
+      alerts.length === 0 &&
+      (low || outside.getAttribute("role") === "status") &&
       ![
         ...scope.querySelectorAll(
           '[data-testid="swap-expected-slippage"],[data-testid="trade-market-quote-extras"]',
@@ -473,6 +499,11 @@ function installRuntime(config) {
               percent: window.__format1483(
                 Number(window.__precise1483(String(net), String(fair))),
               ),
+              risk: window.__riskPolicy1483.evaluateTradingRisk({
+                return_amount: body.estimated_amount_out,
+                executionMetadata: body.execution_metadata,
+                riskEvidence: body,
+              }),
               valid:
                 body.economic_attribution?.status === "available" &&
                 config.copies.includes(explanation),
@@ -520,15 +551,19 @@ async function run() {
     JSON.parse(fs.readFileSync(file, "utf8")),
     SHA,
   );
+  const shared = sharedSources();
   for (const file of [
-    "frontend-dapp/src/utils/routeEconomicExplanation.ts",
-    "frontend-dapp/src/utils/swapRouteSlippage.ts",
+    ...shared.dependencies,
+    "frontend-dapp/package-lock.json",
+    "frontend-dapp/package.json",
+    "frontend-dapp/tsconfig.json",
+    "frontend-dapp/tsconfig.app.json",
     "scripts/qa/browser-live-trading-quotes-1473.cjs",
     "scripts/qa/browser-case-lifecycle.cjs",
   ]) {
     const committed = execFileSync("git", ["show", SHA + ":" + file], {
       cwd: ROOT,
-      maxBuffer: 256 * 1024,
+      maxBuffer: 2 * 1024 * 1024,
       stdio: ["ignore", "pipe", "ignore"],
     });
     assert(
@@ -536,10 +571,9 @@ async function run() {
       "LocalValidatorRevision",
     );
   }
-  const shared = sharedSources(),
-    output =
-      process.env.DEX1483_BROWSER_OUTPUT ||
-      "/tmp/dex1483-browser-explanation.json";
+  const output =
+    process.env.DEX1483_BROWSER_OUTPUT ||
+    "/tmp/dex1483-browser-explanation.json";
   const started = Date.now(),
     elapsedLimit = 180000;
   let ownedBrowser,
@@ -714,7 +748,7 @@ async function run() {
         socket.close();
       });
       await context.addInitScript({
-        content: `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format};`,
+        content: `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format}; window.__riskPolicy1483 = ${shared.risk};`,
       });
       await context.addInitScript(installRuntime, { copies: COPIES });
       await context.route("**/*", async (route) => {

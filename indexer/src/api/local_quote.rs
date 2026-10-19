@@ -186,7 +186,8 @@ pub(super) fn public_error((status, body): Error) -> (StatusCode, Json<Value>) {
                 at > now_ms()
                     && at <= now_ms() + LOCAL_QUOTE_SIGNING_WINDOW_MS
                     && parsed["observed_at_ms"].as_i64().is_some_and(|observed| {
-                        at > observed && at.saturating_sub(observed) <= LOCAL_QUOTE_SIGNING_WINDOW_MS
+                        at > observed
+                            && at.saturating_sub(observed) <= LOCAL_QUOTE_SIGNING_WINDOW_MS
                     })
             })
             && !public["generation"].is_null()
@@ -2577,7 +2578,8 @@ mod tests {
         assert_eq!(body["generation"], s.generation);
         assert!(
             body["expires_at_ms"].as_i64().unwrap()
-                <= s.mirrors["pair0a"].snapshot_at.timestamp_millis() + LOCAL_QUOTE_SIGNING_WINDOW_MS
+                <= s.mirrors["pair0a"].snapshot_at.timestamp_millis()
+                    + LOCAL_QUOTE_SIGNING_WINDOW_MS
         );
         for absent in [
             "router_operations",

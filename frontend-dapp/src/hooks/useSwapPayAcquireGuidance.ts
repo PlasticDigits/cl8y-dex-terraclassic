@@ -1,3 +1,4 @@
+import type { TradingRisk } from '@/utils/tradingRisk'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getUst1EffectiveSwap } from '@/services/terraclassic/ust1Window'
 import {
@@ -29,7 +30,8 @@ export function useSwapPayAcquireGuidance(input: {
   payDecimals: number
   payRaw: bigint | null
   payBalanceRaw: bigint | null
-  expectedSlippagePct: number | null
+  risk?: TradingRisk
+  expectedSlippagePct?: number | null
 }): SwapPayAcquireGuidance {
   const payIsUst1 = isUst1PayAsset(input.payAsset, UST1_TOKEN_ADDRESS)
   const windowEnabled = isUst1WindowEnabled()
@@ -72,7 +74,7 @@ export function useSwapPayAcquireGuidance(input: {
         windowViewError: windowQuery.isError,
         wrapEnabled: isNativeWrapEnabled(),
         wrappedPayAssets: WRAPPED_PAY_ASSETS,
-        expectedSlippagePct: input.expectedSlippagePct,
+        risk: input.risk,
         nowSec,
       }),
     [
@@ -84,7 +86,7 @@ export function useSwapPayAcquireGuidance(input: {
       input.payDecimals,
       input.payRaw,
       input.payBalanceRaw,
-      input.expectedSlippagePct,
+      input.risk,
       vfdusdQuery.data,
       windowEnabled,
       windowQuery.data,

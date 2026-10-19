@@ -662,8 +662,7 @@ pub async fn run_hub_usd_refresh_loop_with_signal(
         async move {
             let ustc = ustc_price.read().await.clone();
             let lunc = lunc_price.read().await.clone();
-            if let Err(e) = refresh_hub_marks(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await
-            {
+            if let Err(e) = refresh_hub_marks(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
                 tracing::warn!("Hub USD refresh failed: {}", e);
             }
         }

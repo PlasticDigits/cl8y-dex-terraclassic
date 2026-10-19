@@ -27,7 +27,15 @@ function keys(value: Record<string, unknown>, expected: string[]) {
 }
 function percent(n: bigint, d: bigint): number {
   // Checked integer ratio before conversion; preserve favorable signs.
-  return (Number(n) / Number(d)) * 100
+  const result = (Number(n) / Number(d)) * 100
+  // Keep a one-raw-unit original crossing visible even when IEEE conversion
+  // collapses that ratio onto the boundary. Policy itself uses only integers.
+  for (const threshold of [5, 10, 30, 99]) {
+    const delta = n * 100n - BigInt(threshold) * d
+    if (delta > 0n && result <= threshold) return threshold + Number.EPSILON * threshold
+    if (delta < 0n && result >= threshold) return threshold - Number.EPSILON * threshold
+  }
+  return result
 }
 function replayBook(
   rows: unknown[],
@@ -75,7 +83,10 @@ function replayBook(
 
 const unavailable = (): RouteOrderMetrics => ({ orderSlippagePercent: null, tradingFeePercent: null, costs: null })
 
-/** Selected-route original fee-free economics. Advisory failure never changes execution/risk admission. */
+/** Independently checked selected-route original fee-free economics. Display
+ * numbers alone grant no signing permission; TR1560 requires the original checked
+ * evidence for risk classification and blocks unavailable evidence.
+ */
 export function routeOrderMetrics(quote: IndexerRouteSolveResponse): RouteOrderMetrics {
   const d = record(quote.order_economics),
     m = quote.execution_metadata

@@ -5,6 +5,7 @@ import { vi } from 'vitest'
 import * as client from '@/services/indexer/client'
 import type { PairInfo, IndexerPair, IndexerToken } from '@/types'
 import { localQuote } from './localRouteFixtures'
+import { attachZeroMovementRiskFixture } from './routeEconomicFixtures'
 
 export function localMarketMocks(
   catalog: () => Promise<{ pairs: PairInfo[] }>,
@@ -69,6 +70,6 @@ export function localMarketMocks(
     if (!pair) throw new Error('Quote unavailable')
     result.hops[0].pair = pair.pair_address
     result.execution_metadata!.hops[0].pair = pair.pair_address
-    return result
+    return attachZeroMovementRiskFixture(result)
   })
 }

@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-19T04:14:31.183Z",
+  "scope": "Isolated375x667 production fixture, intentional200% root-font resize",
+  "source_tree_hash": "e984d27f76c9f91e838b86438edf91eb9752adf695be79fdce371cdfdbc79d7b",
+  "failed_findings": [
+    {
+      "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+      "verdict": "FAIL",
+      "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 1\nReceived:    4.53125"
+    }
+  ],
+  "resolution": "Settle two animation frames and loaded fonts after intentional zoom before establishing baseline; unchanged quote transitions retain strict1px stability checks. Fresh fixture retest is recorded separately."
+}

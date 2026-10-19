@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { sounds } from '@/lib/sounds'
 
@@ -40,6 +40,7 @@ export function Modal({
   closeAriaLabel = 'Close',
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
 
   const handleDismiss = () => {
     if (!dismissible) return
@@ -57,8 +58,17 @@ export function Modal({
   }, [isOpen, onClose, dismissible])
 
   useEffect(() => {
-    if (isOpen) {
-      modalRef.current?.focus()
+    if (!isOpen) return
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const panel = modalRef.current
+    panel?.focus()
+    return () => {
+      const active = document.activeElement
+      // Restore the invoking control on close/unmount, including nested wallet
+      // sheets. A deliberate focus move to another surface must stay respected.
+      if (trigger?.isConnected && (active === document.body || active == null || panel?.contains(active))) {
+        trigger.focus({ preventScroll: true })
+      }
     }
   }, [isOpen])
 
@@ -103,13 +113,13 @@ export function Modal({
         className={`app-modal-panel animate-fade-in-up${panelClassName ? ` ${panelClassName}` : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
+        aria-labelledby={title ? titleId : undefined}
         onClick={(event) => event.stopPropagation()}
       >
         {title && (
           <div className={`app-modal-header${dismissible ? '' : ' app-modal-header--blocking'}`}>
             <h2
-              id="modal-title"
+              id={titleId}
               className="text-lg font-semibold font-heading min-w-0 truncate"
               style={{ color: 'var(--ink)' }}
             >

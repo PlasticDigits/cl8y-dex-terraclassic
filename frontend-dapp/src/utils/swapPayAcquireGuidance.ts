@@ -5,13 +5,12 @@
  * results. Identity is contract address (or native denom), never a ticker string.
  */
 
+import type { TradingRisk } from '@/utils/tradingRisk'
 import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { fromRawAmount } from '@/utils/formatAmount'
 import { isOracleStale, rollingRemainingUst1, type Ust1EffectiveSwapView } from '@/utils/ust1WindowGates'
 import { vfdusdInForTargetUst1 } from '@/utils/ust1WindowMath'
 
-/** Same 5% confirm-again / size-warning threshold as Swap today (#293 / #497). */
-export const SWAP_FUNDED_HIGH_IMPACT_PCT = 5
 export const UST1_PAY_DECIMALS_DEFAULT = 6
 
 export const SWAP_ACQUIRE_GUIDE_UST1_PATH = '/ust1'
@@ -63,7 +62,9 @@ export type EvaluateSwapPayAcquireInput = {
   windowViewError: boolean
   wrapEnabled: boolean
   wrappedPayAssets: ReadonlySet<string>
-  expectedSlippagePct: number | null
+  risk?: TradingRisk
+  /** Display compatibility only; never supplies a warning or signing predicate. */
+  expectedSlippagePct?: number | null
   nowSec: number
 }
 
@@ -223,7 +224,7 @@ export function evaluateSwapPayAcquireGuidance(input: EvaluateSwapPayAcquireInpu
   }
 
   const funded = input.payRaw !== null && input.payBalanceRaw !== null && input.payRaw <= input.payBalanceRaw
-  if (funded && input.expectedSlippagePct != null && input.expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT) {
+  if (funded && input.hasSettledQuote && input.risk?.consentRequired) {
     return result('high_impact', {
       message: SWAP_ACQUIRE_COPY.highImpact,
     })

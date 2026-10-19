@@ -61,6 +61,14 @@ inside the original deadline. Other discovery/actor trust gates stay enforced.
 Inspect initialized_api_checkpoint outcomes (NR1505-6) before reporting initialized
 API success; entering browser windows does not certify those checks.
 
+## Shared trading risk policy
+
+For Swap/Trade warnings, ordinary consent, funded guidance and mutation guards,
+follow [TR1560](skills/AGENTS_TRADING_RISK.md): exact validated order >5% OR
+symmetric total >10%. This supersedes old ordinary >5% aggregate consent;
+independent total >30% Expert and >=99% nonwaivable refusal remain. Use
+[the acceptance checklist](docs/qa/issue-1560/README.md).
+
 ## Trade entry, stable Swap layout and order metrics
 
 For Trade entry/history follow [TE1497](skills/AGENTS_TRADE_ENTRY.md) and run

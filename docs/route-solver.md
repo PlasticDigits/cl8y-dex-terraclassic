@@ -43,8 +43,9 @@ ties yield `mixed`, and signed favorable offsets retain their direction.
 
 The existing single retail percentage is `100 * abs(F - N) / max(F, N)`.
 It is distinct from selected slippage tolerance, L9 AMM spread, gas and network
-fees. Exact raw fraction thresholds govern >5%, >30% and >=99% before display
-rounding. Legitimately high best quotes retain their warnings. Exact-amount
+fees. [TR1560](../skills/AGENTS_TRADING_RISK.md) supersedes ordinary aggregate
+>5% warnings/consent: validated signed order >5% OR total >10% triggers review.
+Exact raw fractions retain independent total >30% and >=99% before display rounding. Legitimately high best quotes retain their warnings. Exact-amount
 results and skeleton reuse still compare supported eligible alternatives within
 the original work caps; the new same-cohort fixture proves a small cached direct
 winner yields to the better deep two-hop route at a larger amount. Native routes
@@ -60,10 +61,10 @@ existing `commission_amount` retains its pool-commission meaning.
 
 Actual Swap and Trade use the plain **Price difference** label and a compact
 fixed cause explanation only after client schema/reconciliation/quote binding
-checks. Ordinary <=5% details stay behind existing Signing details. Higher-risk
+checks. Ordinary order <=5% AND total <=10% comparisons stay behind existing DETAILS. Higher-risk
 quotes and confirmation share one actionable notice, and active blockers have
-one presentation priority. Missing or tampered advisory diagnostics are silent
-in the primary flow. Every execution gate still applies independently.
+one presentation priority. Missing or tampered optional cost copy remains silent. Missing or tampered required
+validated order risk evidence blocks signing with a persistent risk-unavailable notice. Every execution gate still applies independently.
 Diagnostics cannot authorize signing or replace
 original gross input, generation, expiry, positive floors or offline fee budgets.
 Remaining protocol/reference/device/deployment limits are recorded in
@@ -495,7 +496,7 @@ There is no executable exact-output response cache, so targets and contexts cann
 
 The fair-reference engine in [`route_exact_output_reference.rs`](../indexer/src/api/route_exact_output_reference.rs) prices one whole input/output token against the preferred wrapped USTC/LUNC quote asset using the same bounded pool-only path scope and fee context. If no standard quote asset exists, the input token is the local reference. A present but ambiguous or unreachable standard quote fails closed. Strict tax catalog loading includes reference intermediaries; unsupported taxed middle hops are excluded. Reference-only paths are advisory fresh reserve arithmetic with metadata/gem/freeze filters; they receive no additional live pause/blacklist probes. Actual execution candidates still receive those live guards. This is a bounded pool reference, not unrestricted hybrid-book valuation.
 
-`spot_amount_out` and `slippage_percent` are mandatory positive-reference fields on successful exact-output responses. Cross-rate products, decimal scaling, rounding and symmetric deviation use checked integer arithmetic. Server selection rejects ≥99% deviation and may try an alternate; lower deviations preserve the existing 5/30 consent and Expert behavior. The frontend requires the reference, recomputes deviation against fresh wallet output and rechecks spread/slippage at mutation entry. Missing/stale/unrepresentable references never silently remove these protections.
+`spot_amount_out` and `slippage_percent` are mandatory positive-reference fields on successful exact-output responses. Cross-rate products, decimal scaling, rounding and symmetric deviation use checked integer arithmetic. Server selection rejects ≥99% deviation and may try an alternate; lower deviations preserve the existing order >5 OR total >10 ordinary consent and total >30 Expert behavior. The frontend requires the reference, recomputes deviation against fresh wallet output and rechecks spread/slippage at mutation entry. Missing/stale/unrepresentable references never silently remove these protections.
 
 Execution remains an offer-in transaction protected by existing spread and minimum-receive semantics. A successful sizing quote is not a guarantee against changes between quote and inclusion. Review [E1376 invariants](frontend.md#solver-receive-sizing), [agent protocol](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), and [the verification/migration checklist](qa/issue-1376/README.md).
 
@@ -837,7 +838,7 @@ Declared POST plans remain restricted to their actual declared per-hop budgets
 and maker caps. Receive sizing retains its minimum-input objective and bounded
 inverse candidate scope; it is not a claim of exhaustive exact-output optimality.
 Offline requests do not drive ingestion or extend original expiry. Raw attribution,
-reference quality, exact funding, positive floors and 5/30/99 controls remain
+reference quality, exact funding, positive floors and order >5 OR total >10 consent plus total >30/>=99 controls remain
 mandatory. Current tests, deadline and deployment limits belong in
 [RESULTS.md](qa/issue-1489/RESULTS.md).
 
@@ -861,7 +862,7 @@ The #1489 price notice follows the same current, unexpired quote that supplies
 the displayed receive amount. A same-intent background fetch may block signing
 without hiding that factual notice; it does not grant signing permission. Intent
 changes and original expiry clear stale display/notice state. A newly validated
-quote may legitimately move above or below exact 5%; no warning hysteresis or
+quote may legitimately cross either exact order 5% or total 10% threshold; no warning hysteresis or
 threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 
@@ -956,9 +957,11 @@ remain unchanged. Missing or malformed diagnostics do not grant permission.
 The compact **Slippage / Fee / actual route** row uses these advisory values.
 Selected protection tolerance remains an independent execution setting. The
 accurately named **Fair-reference deviation** still uses the original symmetric
-fair/net economic metric for genuine >5% consent, >30% Expert review and the
+fair/net economic metric for total >10% ordinary consent, >30% Expert review and the
 nonwaivable >=99% refusal, including favorable reference differences. Costs and
-reference comparisons belong in the single **DETAILS** disclosure. This revised
+reference comparisons belong in the single **DETAILS** disclosure. Ordinary risk
+warning/consent now uses signed validated order >5% OR total >10%, superseding
+the earlier >5% aggregate rule under [TR1560](../skills/AGENTS_TRADING_RISK.md). This revised
 presentation supersedes RC1483-2 and RC1483-7's earlier retail labels, while all
 signed reconciliation, original-reference quality, delivered-net ranking,
 positive floors, route funding, offline fees and signing controls remain intact.

@@ -83,7 +83,7 @@ import {
 import { useQuoteErrorRecovery } from '@/hooks/useQuoteErrorRecovery'
 import { useQuotePricingDataPending } from '@/hooks/useQuotePricingDataPending'
 import { useLocalQuoteExpired } from '@/hooks/useLocalQuoteExpired'
-import { SwapQuoteSummary } from '@/components/swap/SwapQuoteSummary'
+import { SwapQuoteSummary, SwapRouteDetails } from '@/components/swap/SwapQuoteSummary'
 import { RouteOrderCostDetails } from '@/components/swap/RouteOrderCostDetails'
 import type { RouteOrderCosts } from '@/utils/routeOrderMetrics'
 import { isExpiredLocalQuote, localQuoteStaleTime, localQuoteRefetchInterval } from '@/utils/localQuoteFreshness'
@@ -115,7 +115,7 @@ import {
   shouldShowSimReceiveCalculating,
   SIM_QUOTE_DEBOUNCE_MS,
 } from '@/utils/quoteDebounce'
-import { applySlippagePercentFloor, isPositiveRawAmount, spreadPercentFromRawSim } from '@/utils/rawAmountMath'
+import { applySlippagePercentFloor, isPositiveRawAmount } from '@/utils/rawAmountMath'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { resolveSimQuoteLoadingLabel } from '@/utils/routeSolveProgress'
 import {
@@ -141,14 +141,14 @@ import {
 } from '@/utils/swapDisclosure'
 import { detectSwapIndexerOutage } from '@/utils/swapIndexerOutage'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
-import { acquireReduceHiddenForBroadcastPhase, SWAP_FUNDED_HIGH_IMPACT_PCT } from '@/utils/swapPayAcquireGuidance'
+import { acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
 import {
   applySwapQueryParams,
   canonicalSwapSearch,
   parseSwapExactField,
   swapSearchEquals,
 } from '@/utils/swapQueryParams'
-import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
+import { assertTradingRiskForSubmit, evaluateTradingRisk, tradingRiskBlocksSubmit } from '@/utils/tradingRisk'
 import {
   computeSwapRouteDisplay,
   deriveSwapSubmitRouteOps,
@@ -156,11 +156,7 @@ import {
   SWAP_CLIENT_BFS_FALLBACK_COPY,
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
 } from '@/utils/swapRouteDisplay'
-import {
-  formatTradingPriceDifference,
-  resolveSwapExpectedSlippagePercent,
-  SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT,
-} from '@/utils/swapRouteSlippage'
+import { parseSlippagePercent, SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT } from '@/utils/swapRouteSlippage'
 import { readSwapSettingsAdvancedOpen, writeSwapSettingsAdvancedOpen } from '@/utils/swapSettingsAdvanced'
 import {
   communityTaxExecuteUsesRouter,
@@ -177,6 +173,7 @@ import { useSearchParams } from 'react-router-dom'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   executionBlocker?: string
+  riskEvidence?: import('@/types').IndexerRouteSolveResponse
   executionMetadata?: import('@/types').IndexerRouteExecutionMetadata
   executionOperations?: string
   minimumReceive?: string
@@ -537,7 +534,10 @@ export default function SwapPage() {
     staleTime: localQuoteStaleTime,
     enabled: decimalsResolved && reverseQuoteActive && reverseAskRaw !== '0' && !taxReceive.isLoading,
     // Receive failures require explicit retry or a changed published generation.
-    refetchInterval: (query) => (query.state.status === 'error' ? false : localQuoteRefetchInterval(query)),
+    refetchInterval: (query) =>
+      query.state.status === 'error' || (showImpactConfirm && !isExpiredLocalQuote(query.state.data))
+        ? false
+        : localQuoteRefetchInterval(query),
   })
 
   const reverseQuoteExpired = useLocalQuoteExpired(reverseQuery.data)
@@ -772,7 +772,12 @@ export default function SwapPage() {
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: localQuoteStaleTime,
-    refetchInterval: reverseQuoteActive ? false : localQuoteRefetchInterval,
+    // Reviewing owns the original unexpired quote: scheduled arithmetic refresh
+    // must not create a ten-second acknowledgement deadline. Expiry/edits still revoke.
+    refetchInterval: (query) =>
+      reverseQuoteActive || (showImpactConfirm && !isExpiredLocalQuote(query.state.data))
+        ? false
+        : localQuoteRefetchInterval(query),
   })
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
@@ -1016,12 +1021,12 @@ export default function SwapPage() {
       if (!simData) throw new Error('Quote unavailable')
       if (simData.executionBlocker || simData.executionMetadata?.execution_supported === false)
         throw new Error(simData.executionBlocker ?? LOCAL_ROUTE_UNAVAILABLE)
-      if (routeSlippageBlocked) throw new Error('Fair-reference deviation is too high')
-      if (
-        (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
-        impactAcceptedQuoteRef.current !== impactReviewKey
+      assertTradingRiskForSubmit(
+        simData,
+        expertMode,
+        tradingRisk.evidenceKey,
+        impactAcceptedQuoteRef.current === impactReviewKey
       )
-        throw new Error('Confirm the price difference first.')
       impactAcceptedQuoteRef.current = null
       if (simData.routePreflight?.anyHopExceedsMaxSpread) {
         throw new Error('Quote exceeds your price protection.')
@@ -1159,15 +1164,9 @@ export default function SwapPage() {
   const executableOutput = !simData?.executionBlocker && simData?.executionMetadata?.execution_supported !== false
   const outputAmount = executableOutput ? (simData?.return_amount ?? '') : ''
 
-  const hopSpreadPercent = simData
-    ? simData.routePreflight != null
-      ? simData.routePreflight.worstSpreadPercent
-      : spreadPercentFromRawSim(simData.return_amount, simData.commission_amount, simData.spread_amount)
-    : null
+  const expectedSlippagePct = parseSlippagePercent(simData?.routeSlippagePercent)
 
-  const expectedSlippagePct = simData
-    ? resolveSwapExpectedSlippagePercent(simData.routeSlippagePercent, hopSpreadPercent)
-    : null
+  const tradingRisk = evaluateTradingRisk(simData)
 
   const impactReviewKey = JSON.stringify([
     address,
@@ -1179,6 +1178,7 @@ export default function SwapPage() {
     slippageTolerance,
     deadlineSeconds,
     expertMode,
+    tradingRisk.evidenceKey,
     simData?.routeSlippagePercent,
     submitPayRaw,
     simData?.executionMetadata,
@@ -1214,10 +1214,8 @@ export default function SwapPage() {
     refetch: simQuery.refetch,
   })
 
-  const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
-
-  const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
-  const routeSlippageBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
+  const theaterRouteQuote = tradingRisk.extreme
+  const routeSlippageBlocked = !!simData && tradingRiskBlocksSubmit(tradingRisk, expertMode)
 
   const directHybridBookSplit = useMemo(
     () =>
@@ -1387,7 +1385,7 @@ export default function SwapPage() {
     payDecimals: offerDecimals ?? 6,
     payRaw: tryParseBigInt(rawInputAmount),
     payBalanceRaw: isWalletConnected && balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
-    expectedSlippagePct,
+    risk: tradingRisk,
   })
 
   const defaultActionLabel = wrapUnwrapType === 'wrap' ? 'Wrap' : wrapUnwrapType === 'unwrap' ? 'Unwrap' : 'Swap'
@@ -1464,7 +1462,8 @@ export default function SwapPage() {
     buttonText = 'Trade unavailable'
     buttonDisabled = true
   } else if (routeSlippageBlocked) {
-    buttonText = 'Fair-reference deviation is too high'
+    buttonText =
+      tradingRisk.availability === 'unavailable' ? 'Quote risk unavailable' : 'Fair-reference deviation is too high'
     buttonDisabled = true
   } else if (simData?.routePreflight?.anyHopExceedsMaxSpread) {
     buttonText = 'Quote exceeds price protection'
@@ -1505,19 +1504,13 @@ export default function SwapPage() {
       'price',
       // Background refresh blocks signing but retains the current fresh quote
       // and its factual price notice. Intent changes and expiry still clear both.
-      hasSettledSimQuote && expectedSlippagePct != null && expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
+      hasSettledSimQuote && (tradingRisk.consentRequired || tradingRisk.availability === 'unavailable'),
     ],
     ['tx', swapMutation.isError],
   ] as const)
 
-  if (
-    primaryNotice === 'tx' &&
-    showImpactConfirm &&
-    !buttonDisabled &&
-    expectedSlippagePct != null &&
-    expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT
-  )
-    buttonText = `Confirm ${defaultActionLabel} (${formatTradingPriceDifference(expectedSlippagePct)}%)`
+  if (primaryNotice === 'tx' && showImpactConfirm && !buttonDisabled && tradingRisk.consentRequired)
+    buttonText = `Confirm ${defaultActionLabel}`
 
   const lastErrorIntentRef = useRef(impactReviewKey)
   const { error: lastMutationError, reset: resetMutationError } = swapMutation
@@ -1637,7 +1630,7 @@ export default function SwapPage() {
 
   return (
     <LocalQuoteTokenMetadata.Provider value={true}>
-      <div className="relative max-w-[500px] mx-auto w-full">
+      <div className="swap-page relative max-w-[500px] mx-auto w-full">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-3 sm:inset-x-6 top-6 sm:top-8 h-[78%] rounded-[40px] theme-hero-glow blur-3xl"
@@ -1653,9 +1646,9 @@ export default function SwapPage() {
             </div>
           }
         >
-          <div className="shell-panel-strong relative z-10 !p-5 sm:!p-6">
+          <div className="swap-form-panel shell-panel-strong relative z-10 !p-5 sm:!p-6">
             {/* Header */}
-            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+            <div className="swap-form-header flex items-center justify-between gap-2 mb-4 sm:mb-6">
               <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
               <div className="flex items-center gap-2">
                 {swapShareUrl ? (
@@ -1858,8 +1851,8 @@ export default function SwapPage() {
             {/* You Pay / swap direction / You Receive — abutting cards, control on seam */}
             <div className="swap-io-stack relative mb-4">
               <div className="card-glass swap-io-card-pay !p-4 sm:!p-5">
-                <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                  <label htmlFor={swapYouPayAmountInputId} className="label-glass !mb-0 sm:pt-1">
+                <div className="swap-io-header flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                  <label htmlFor={swapYouPayAmountInputId} className="swap-io-label label-glass !mb-0 sm:pt-1">
                     You Pay
                   </label>
                   <TokenSearchSelect
@@ -1888,24 +1881,26 @@ export default function SwapPage() {
                   aria-busy={pricingDataPending || showReversePayCalculating || undefined}
                 />
                 {isWalletConnected && offerDecimals != null && (
-                  <AmountBalanceActions
-                    balanceQuery={balanceQuery}
-                    decimals={offerDecimals}
-                    walletConnected={isWalletConnected}
-                    showBalance={!!offerAssetInfo}
-                    spendableRaw={payMaxResult.spendableRaw}
-                    onMax={() => {
-                      setExactField('input')
-                      setInputAmount(payMaxResult.human)
-                    }}
-                    onFraction={(human) => {
-                      setExactField('input')
-                      setInputAmount(human)
-                      setShowImpactConfirm(false)
-                    }}
-                    testIdMax="swap-pay-max"
-                    testIdFractionPrefix="swap-pay-frac"
-                  />
+                  <div className="swap-balance-actions">
+                    <AmountBalanceActions
+                      balanceQuery={balanceQuery}
+                      decimals={offerDecimals}
+                      walletConnected={isWalletConnected}
+                      showBalance={!!offerAssetInfo}
+                      spendableRaw={payMaxResult.spendableRaw}
+                      onMax={() => {
+                        setExactField('input')
+                        setInputAmount(payMaxResult.human)
+                      }}
+                      onFraction={(human) => {
+                        setExactField('input')
+                        setInputAmount(human)
+                        setShowImpactConfirm(false)
+                      }}
+                      testIdMax="swap-pay-max"
+                      testIdFractionPrefix="swap-pay-frac"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -1935,8 +1930,8 @@ export default function SwapPage() {
               </div>
 
               <div className="card-glass swap-io-card-receive !px-4 !pt-6 !pb-4 sm:!px-5 sm:!pt-7 sm:!pb-5">
-                <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                  <label htmlFor={swapYouReceiveAmountInputId} className="label-glass !mb-0 sm:pt-1">
+                <div className="swap-io-header flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                  <label htmlFor={swapYouReceiveAmountInputId} className="swap-io-label label-glass !mb-0 sm:pt-1">
                     You Receive
                   </label>
                   <TokenSearchSelect
@@ -1983,13 +1978,13 @@ export default function SwapPage() {
             />
             <div
               data-testid="swap-quote-status"
-              className="h-[6em] overflow-y-auto overscroll-contain mb-3 text-xs leading-relaxed"
+              className="swap-quote-status mb-3 text-xs leading-relaxed"
               role="region"
               aria-label="Quote status"
-              aria-live="polite"
+              data-notice={primaryNotice ?? undefined}
             >
               {!primaryNotice && (
-                <p data-testid="swap-status-none">
+                <p data-testid="swap-status-none" role="status">
                   {hasPositiveInputAmount && (!hasSettledSimQuote || simQuoteStale) ? (
                     'Refreshing price…'
                   ) : (
@@ -1999,7 +1994,11 @@ export default function SwapPage() {
                   )}
                 </p>
               )}
-              {primaryNotice && primaryNotice !== 'pricing' && <span aria-hidden="true">✕ </span>}
+              {primaryNotice && primaryNotice !== 'pricing' && (
+                <span className="swap-status-cross" aria-hidden="true">
+                  ✕{' '}
+                </span>
+              )}
               {primaryNotice === 'outage' && !pricingDataPending && (
                 <MarketDataServiceOutageBanner
                   testId="swap-market-data-outage-banner"
@@ -2078,7 +2077,14 @@ export default function SwapPage() {
                 <SwapImpactAside
                   economicExplanation={simData?.economicExplanation}
                   routeSlippagePct={expectedSlippagePct}
-                  blocked={routeSlippageBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
+                  risk={tradingRisk}
+                  blocked={
+                    tradingRisk.availability === 'available' && routeSlippageBlocked
+                      ? theaterRouteQuote
+                        ? 'extreme'
+                        : 'expert'
+                      : undefined
+                  }
                   confirming={showImpactConfirm && isWalletConnected}
                   onCancel={() => setShowImpactConfirm(false)}
                   onEnableExpert={() => setShowExpertModeModal(true)}
@@ -2132,10 +2138,17 @@ export default function SwapPage() {
                 />
               )}
               {primaryNotice === 'route' && fromToken && toToken && !hasRoute && (
-                <div className="alert-error !text-xs">No route found between these tokens</div>
+                <div className="alert-error !text-xs" role="alert">
+                  No route found between these tokens
+                </div>
               )}
 
-              {primaryNotice === 'pricing' && <p>Waiting for current pricing.</p>}
+              {primaryNotice === 'pricing' && <p role="status">Waiting for current pricing.</p>}
+              {primaryNotice === 'tx' && swapMutation.isError && (
+                <p role="alert" data-testid="swap-tx-error">
+                  {humanizeUserFacingErrorFromUnknown(swapMutation.error)}
+                </p>
+              )}
               {primaryNotice === 'funding' && (
                 <p role="alert">
                   {swapNetworkFeeEstimate.coverageError
@@ -2154,6 +2167,7 @@ export default function SwapPage() {
                 DETAILS
               </summary>
               <div className="mt-2 space-y-3" data-testid="swap-details-content">
+                <SwapRouteDetails tokens={simData && executableOutput && hasSettledSimQuote ? swapRouteTokens : []} />
                 {communityTaxHint && (
                   <p className="text-[11px] mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="swap-sell-tax-extra">
                     {communityTaxHint}
@@ -2175,6 +2189,7 @@ export default function SwapPage() {
                   <SwapImpactAside
                     details
                     routeSlippagePct={expectedSlippagePct}
+                    risk={tradingRisk}
                     economicExplanation={simData.economicExplanation}
                     testId="swap-price-details"
                   />
@@ -2310,8 +2325,7 @@ export default function SwapPage() {
                 }
                 if (extraDebitGate.blockSubmit) return
                 if (
-                  priceImpact &&
-                  (expectedSlippagePct ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
+                  tradingRisk.consentRequired &&
                   (!showImpactConfirm || impactReviewedQuoteRef.current !== impactReviewKey)
                 ) {
                   impactAcceptedQuoteRef.current = null
@@ -2339,12 +2353,6 @@ export default function SwapPage() {
               txHash={swapMutation.pendingTxHash}
               className="mt-2 text-[10px] font-mono break-all"
             />
-
-            {primaryNotice === 'tx' && swapMutation.isError && (
-              <div className="mt-4" role="alert" data-testid="swap-tx-error">
-                <TxResultAlert type="error" message={humanizeUserFacingErrorFromUnknown(swapMutation.error)} />
-              </div>
-            )}
 
             {swapMutation.isSuccess && (
               <div className="mt-4">

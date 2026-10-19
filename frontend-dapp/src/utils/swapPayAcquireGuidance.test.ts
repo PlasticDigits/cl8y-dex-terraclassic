@@ -8,6 +8,8 @@ import {
   isUst1PayAsset,
   type EvaluateSwapPayAcquireInput,
 } from '@/utils/swapPayAcquireGuidance'
+import { evaluateTradingRisk } from './tradingRisk'
+import { tradingRiskFixture } from '@/test/tradingRiskFixtures'
 import { assertSecondaryMarketCopy } from '@/utils/ust1SecondaryMarket'
 import type { Ust1EffectiveSwapView } from '@/utils/ust1WindowGates'
 import { UST1_RATE_SCALE } from '@/utils/ust1WindowMath'
@@ -166,7 +168,14 @@ describe('evaluateSwapPayAcquireGuidance (#678)', () => {
       base({
         payRaw: 10_000_000n,
         payBalanceRaw: 10_000_000n,
-        expectedSlippagePct: 8,
+        risk: (() => {
+          const q = tradingRiskFixture()
+          return evaluateTradingRisk({
+            return_amount: q.estimated_amount_out!,
+            executionMetadata: q.execution_metadata,
+            riskEvidence: q,
+          })
+        })(),
       })
     )
     expect(g.kind).toBe('high_impact')

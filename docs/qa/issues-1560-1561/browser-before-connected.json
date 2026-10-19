@@ -1,0 +1,703 @@
+{
+  "recorded_at": "2026-10-19T03:59:23.950Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet scope is declared per geometry scenario; no broadcast; not production reference evidence",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "quote_requests": 4,
+  "provider_requests": 0,
+  "geometry": [
+    {
+      "width": 375,
+      "height": 667,
+      "connected": true,
+      "wallet_scope": "synthetic unsigned extension, intercepted balances and legal acceptance status",
+      "verdict": "FAIL",
+      "findings": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "FAIL",
+          "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 153\nReceived:    215",
+          "measurements": {
+            "cta": {
+              "top": 740,
+              "bottom": 794,
+              "height": 54,
+              "width": 308
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 667,
+            "navTop": 594,
+            "unobstructed": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "pageWidth": 366,
+            "viewportWidth": 375,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 152,
+                "scrollWidth": 215,
+                "height": 20,
+                "scrollHeight": 20,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 184.71875,
+                "right": 337
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 308,
+                "scrollWidth": 308,
+                "height": 72,
+                "scrollHeight": 72,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 29,
+                "right": 337
+              }
+            ]
+          },
+          "state": {
+            "recorded_at_ms": 1792382351521,
+            "visibility": "visible",
+            "receive": "1",
+            "minimum": "Min return0.95 terra1qg\u20269namy2",
+            "status": "\u2713 None",
+            "loading": false
+          }
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "FAIL",
+          "reason": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByTestId('swap-quote-status').locator('.swap-status-cross')\nExpected: 1\nReceived: 0\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByTestId('swap-quote-status').locator('.swap-status-cross')\n    9 \u00d7 locator resolved to 0 elements\n      - unexpected value \"0\"\n",
+          "state": {
+            "recorded_at_ms": 1792382356641,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "FAIL",
+          "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 73\nReceived:    78",
+          "measurements": {
+            "cta": {
+              "top": 740,
+              "bottom": 794,
+              "height": 54,
+              "width": 308
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 667,
+            "navTop": 584,
+            "unobstructed": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "pageWidth": 366,
+            "viewportWidth": 375,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 103,
+                "scrollWidth": 103,
+                "height": 17,
+                "scrollHeight": 17,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 234.15625,
+                "right": 337
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 308,
+                "scrollWidth": 308,
+                "height": 72,
+                "scrollHeight": 78,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 29,
+                "right": 337
+              }
+            ]
+          },
+          "state": {
+            "recorded_at_ms": 1792382356704,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "FAIL",
+          "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 145\nReceived:    217",
+          "measurements": {
+            "cta": {
+              "top": 1347,
+              "bottom": 1501,
+              "height": 154,
+              "width": 268
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 667,
+            "navTop": 584,
+            "unobstructed": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "pageWidth": 366,
+            "viewportWidth": 375,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 39,
+                "scrollWidth": 39,
+                "height": 17,
+                "scrollHeight": 17,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 278.15625,
+                "right": 317
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 268,
+                "scrollWidth": 268,
+                "height": 144,
+                "scrollHeight": 217,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 49,
+                "right": 317
+              }
+            ]
+          },
+          "state": {
+            "recorded_at_ms": 1792382356727,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        }
+      ],
+      "page_errors": []
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "connected": true,
+      "wallet_scope": "synthetic unsigned extension, intercepted balances and legal acceptance status",
+      "verdict": "FAIL",
+      "findings": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS",
+          "cta": {
+            "top": 714,
+            "bottom": 772,
+            "height": 58,
+            "width": 450
+          },
+          "scrollY": 0,
+          "visibleTop": 0,
+          "visibleBottom": 1000,
+          "navTop": 1000,
+          "unobstructed": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "pageWidth": 1431,
+          "viewportWidth": 1440,
+          "regions": [
+            {
+              "id": "swap-route-summary",
+              "width": 282,
+              "scrollWidth": 282,
+              "height": 19,
+              "scrollHeight": 19,
+              "overflowX": "auto",
+              "overflowY": "auto",
+              "left": 658.171875,
+              "right": 940.5
+            },
+            {
+              "id": "swap-quote-status",
+              "width": 450,
+              "scrollWidth": 450,
+              "height": 72,
+              "scrollHeight": 72,
+              "overflowX": "auto",
+              "overflowY": "auto",
+              "left": 490.5,
+              "right": 940.5
+            }
+          ],
+          "controls": {
+            "swap-you-pay-amount": {
+              "x": 511.5,
+              "y": 298,
+              "width": 408,
+              "height": 32
+            },
+            "swap-you-receive": {
+              "x": 511.5,
+              "y": 465,
+              "width": 408,
+              "height": 32
+            },
+            "swap-quote-summary": {
+              "x": 490.5,
+              "y": 534,
+              "width": 450,
+              "height": 48
+            },
+            "swap-quote-status": {
+              "x": 490.5,
+              "y": 582,
+              "width": 450,
+              "height": 72
+            }
+          }
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "FAIL",
+          "reason": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByTestId('swap-quote-status').locator('.swap-status-cross')\nExpected: 1\nReceived: 0\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByTestId('swap-quote-status').locator('.swap-status-cross')\n    9 \u00d7 locator resolved to 0 elements\n      - unexpected value \"0\"\n",
+          "state": {
+            "recorded_at_ms": 1792382363772,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "FAIL",
+          "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 73\nReceived:    78",
+          "measurements": {
+            "cta": {
+              "top": 714,
+              "bottom": 772,
+              "height": 58,
+              "width": 450
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 1000,
+            "navTop": 1000,
+            "unobstructed": [
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            "pageWidth": 1431,
+            "viewportWidth": 1440,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 228,
+                "scrollWidth": 228,
+                "height": 16,
+                "scrollHeight": 16,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 712.078125,
+                "right": 940.5
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 450,
+                "scrollWidth": 450,
+                "height": 72,
+                "scrollHeight": 78,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 490.5,
+                "right": 940.5
+              }
+            ]
+          },
+          "state": {
+            "recorded_at_ms": 1792382363833,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "FAIL",
+          "reason": "expect(received).toBeLessThanOrEqual(expected)\n\nExpected: <= 1\nReceived:    19",
+          "measurements": {
+            "cta": {
+              "top": 1372,
+              "bottom": 1534,
+              "height": 162,
+              "width": 402
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 1000,
+            "navTop": 1000,
+            "unobstructed": [
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "pageWidth": 1431,
+            "viewportWidth": 1440,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 0,
+                "scrollWidth": 19,
+                "height": 32,
+                "scrollHeight": 32,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 957.65625,
+                "right": 957.65625
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 402,
+                "scrollWidth": 402,
+                "height": 144,
+                "scrollHeight": 185,
+                "overflowX": "auto",
+                "overflowY": "auto",
+                "left": 514.5,
+                "right": 916.5
+              }
+            ]
+          },
+          "state": {
+            "recorded_at_ms": 1792382363852,
+            "visibility": "visible",
+            "receive": "",
+            "minimum": "Min return\u2014",
+            "status": "\u2715 This trade is not supported by current pricing.",
+            "loading": false
+          }
+        }
+      ],
+      "page_errors": []
+    }
+  ],
+  "build_provenance": {
+    "source_revision": "b7b08736b3529af344a693ae6d16236a4f324c13",
+    "source_dirty": true,
+    "built_at_utc": "2026-10-19T03:57:21.257Z",
+    "source_tree_hash": "06e5336a17ef52895e256b29e7d19b30eb9ca242f4c2b10a5380104b6d939871",
+    "served_assets": [
+      {
+        "path": "/assets/ChartsPage-BRA64QLO.js",
+        "sha256": "481d7659210f4c4228fa18effee17c765af1ef7875dc90b35a980d40bdc934b2"
+      },
+      {
+        "path": "/assets/CreatePairPage-BGul1afq.js",
+        "sha256": "e3953af3583d2a78663e8fb993c45ad01db019e3e21358a1193052e144598065"
+      },
+      {
+        "path": "/assets/CreateTokenPage-D-ybMw1U.js",
+        "sha256": "c8df6e46511515c32361f676746366cb0ad7e97fd6ef57ff02e707c8ca35904a"
+      },
+      {
+        "path": "/assets/LcdQueryGate-DUNwPlMe.js",
+        "sha256": "c53d4b441a52468b017e6a4db3f8798787bcb7a7ccfcbb20a590b48b7e885d0a"
+      },
+      {
+        "path": "/assets/LimitOrdersPage-oIZSFtFZ.js",
+        "sha256": "08022285c5c369237487889135d5894980f472a2e1f99352776ccdde26f9ca0e"
+      },
+      {
+        "path": "/assets/ManageTokenPage-DWyOBidC.js",
+        "sha256": "5dfefd9a3e0731c1054900a646d9e7153709ebf68ab5c0219a7175b3a2cf3fc2"
+      },
+      {
+        "path": "/assets/MigrateTokenPage-CEOXCJsU.js",
+        "sha256": "af7eed0099a5b66e8158fab0ad45fe54e48692d478aa5153aac439d4e0ba31e3"
+      },
+      {
+        "path": "/assets/MintPage-BP3IYjvD.js",
+        "sha256": "7b27b15a238b69ca4c3554c347f5ab703ed0dd8742a605b42effc4fda4dc7b88"
+      },
+      {
+        "path": "/assets/MyCommunityTokensPage-Bdf4L5f9.js",
+        "sha256": "77fb875112ae2c47d0f0b41533378b76cba7c9162795163cb1aedd4de2bb335f"
+      },
+      {
+        "path": "/assets/PairCodeIdFrozenBanner-RZ6Oc6NK.js",
+        "sha256": "8b21fe7af9de14dca4b8b0c83bb290f1f6dbe3dbb14401337783e57fd7a034b4"
+      },
+      {
+        "path": "/assets/PairTokenLinks-elD_NRLF.js",
+        "sha256": "6e17ef4d61e882119622c4d6dbb33036e05abd3872ba5039235b31eda7503b3d"
+      },
+      {
+        "path": "/assets/PnlValue-DGhOGyBV.js",
+        "sha256": "ac1fd4dfa9bf79c495d6e1c7d5f421e433ec591fb888de85e7322baa1aaf1f44"
+      },
+      {
+        "path": "/assets/PoolPage-DUPVPbQr.js",
+        "sha256": "d489f909e6ed6a8a26965837067e6012da96e1866c573ffb3b4fd7499bb667b6"
+      },
+      {
+        "path": "/assets/PortfolioPage-D_-7pZPj.js",
+        "sha256": "0e8d89e7629955cd8b2daa82b259e4a9786ed6ea884733165fbcfd278b2df448"
+      },
+      {
+        "path": "/assets/ProtocolPage-Bk5TcEgx.js",
+        "sha256": "c2765660993737c7dbd698fabdc946728bdaa63c1179703dad30c5adb726e3d3"
+      },
+      {
+        "path": "/assets/ShareLinkButton-CdjWTfHf.js",
+        "sha256": "2b338e1cf6d1155f01e146d413209e971221d4a1fb7161cb1b07cca427a09686"
+      },
+      {
+        "path": "/assets/StatBox-BsQCaZ7v.js",
+        "sha256": "82341ba465416eb9a1dfb39f992c8def9e98494c3438168edcc5ecc4ee3eebf5"
+      },
+      {
+        "path": "/assets/SwapPage-ClWx2I2r.js",
+        "sha256": "529032c50425163a73dffb40a33eacee5caee7d75152f8e9dabc6a9eed1b0d8a"
+      },
+      {
+        "path": "/assets/TiersPage-CUy5FNoV.js",
+        "sha256": "8e812221e19626645754b6ea26d080573d3dba239b7fd6024610cbb5a29f1f05"
+      },
+      {
+        "path": "/assets/TokenLogo-CX5Jx9nx.js",
+        "sha256": "a63028073b9855bb537e56e83999037e0144c83c6461e436ac250394e933336e"
+      },
+      {
+        "path": "/assets/TokenSearchSelect-CDkMM8H0.js",
+        "sha256": "fdc0478488af5dab762552c49710bc5d11c646dee3267d4dc452aa86d1f004b8"
+      },
+      {
+        "path": "/assets/TradeMarketDataUnavailableNotice-B9ZYBK-s.js",
+        "sha256": "596a23ee46ea52e52e55c46b32e4153d6c26f665e1d373ccbb0368c9692bf255"
+      },
+      {
+        "path": "/assets/TradePage-gOPgb3Cv.js",
+        "sha256": "0f953ae9f6a0ed939785b17bc3c9fb269689478b0afb1363396992b115be6e1f"
+      },
+      {
+        "path": "/assets/TraderLeaderboard-BxQtmTz4.js",
+        "sha256": "425f402e1974646386aa6f201dfa5fb176e07f6ee347252041ce9166dc936a85"
+      },
+      {
+        "path": "/assets/TraderPage-BUaOkZJw.js",
+        "sha256": "7fac51e0d121dcea0b66b5409e0071585d2ffec275a4776c02779c6a70166e20"
+      },
+      {
+        "path": "/assets/TraderPositionsTable-DVcxFixA.js",
+        "sha256": "0c9ff4af4b5d413b04e81498d6ad16f6703214af43dba03555c1b10b954e801d"
+      },
+      {
+        "path": "/assets/TradesTable-BIRjvKcp.js",
+        "sha256": "d18dade4d9b9b5a839250c641c7c7a8ad62626e9593d31a91e6dc568af88a89e"
+      },
+      {
+        "path": "/assets/TxResultAlert-BQ4-IcZk.js",
+        "sha256": "3ae75ee4d483db7f6252d06ed53c7ee67e81fb36dd69fef864f52772507d09cc"
+      },
+      {
+        "path": "/assets/Ust1Page-JgTCY1ff.js",
+        "sha256": "a47cfeef92c41e242f3d27f83d5692879b685c659c0b42c53a7aca2d9a697f95"
+      },
+      {
+        "path": "/assets/WrapPage-DYcu2fLO.js",
+        "sha256": "f4a50f6e14ce4b239299bf05eb76f505aad2f11b30cc5f5f76ed93d7d46ec75a"
+      },
+      {
+        "path": "/assets/assetCodeIdFreeze-CJoxgdqe.js",
+        "sha256": "d25799d8cf301de54ac8a5cde7dfb4af40b8fcff72fa6f61cea749d82ade0100"
+      },
+      {
+        "path": "/assets/chartsPairRoute-CZ0tzgsF.js",
+        "sha256": "33f1e8cc71fa66a75e7e5e88efb2d8d801e5237697eeb2ec19f655100e00c63b"
+      },
+      {
+        "path": "/assets/communityTaxInvoice-BBSEOVUF.js",
+        "sha256": "3cc54c0bb63f13ef1907b7503f9ae7d0dfbbdc6ee3ef6f928b5664ccba40871c"
+      },
+      {
+        "path": "/assets/communityTaxManager-f_eVvv2z.js",
+        "sha256": "7b8c1ab25763690309a45940033fc0f7b9a657a693aa1415f64b7ab8c95c3cc1"
+      },
+      {
+        "path": "/assets/communityTaxRegisterPair-DsYN2O4e.js",
+        "sha256": "87586b3209d9d10845577fb331e0b6be851cd6d1cfbdcdc6a83d487cbe42b8bf"
+      },
+      {
+        "path": "/assets/communityTaxToken-CxxJxiSK.js",
+        "sha256": "e520d68b93a583825e553e6afa6de40f25f948f339380cef6c288f85d3d58f6c"
+      },
+      {
+        "path": "/assets/crypto-DTQ8O1tF.js",
+        "sha256": "b22b41c782eeb64de40f5599903d38d619efe1ca140511fdc3967185f18522f1"
+      },
+      {
+        "path": "/assets/dex-50IMmXQL.js",
+        "sha256": "0cdcee4fa7f7b1a727d7a0c9d99392626f6c5095a159c4a44322a03de7f40ff7"
+      },
+      {
+        "path": "/assets/factory-DuYaik6S.js",
+        "sha256": "e0fe0b55250761c4af39fd3134b26c2784d56ba9930a28905ab4779efd3759a6"
+      },
+      {
+        "path": "/assets/feeDiscount-xoDaUwQ0.js",
+        "sha256": "139feb55b46ad7b9979cbd07a11697d59f01c55a4bff266c4aa29074bdd30f55"
+      },
+      {
+        "path": "/assets/formatDate-CIOk6n5S.js",
+        "sha256": "00c10c70476e6d0278345c520c521b1af4e9d234a913ce3407a4c5be6eca6247"
+      },
+      {
+        "path": "/assets/index-JFKyQRYU.js",
+        "sha256": "1a1d77c036fdea7961a37d103099153f44920d97f92c5b2f89a2340b4455d994"
+      },
+      {
+        "path": "/assets/indexerErrors-DEjT-LF8.js",
+        "sha256": "e6b949f4d51879c609cc49338390a18170bb054a6e20076e991b8ad1bb20a396"
+      },
+      {
+        "path": "/assets/lightweight-charts.production-B8Uekivy.js",
+        "sha256": "22ec05473f3b09b65c5c8a9bc5fb7241a5ec34743c944c0f41346570243bf60f"
+      },
+      {
+        "path": "/assets/limitOrderPriceEdit-5JevZ3cd.js",
+        "sha256": "f16904d94eedbf51aef8e699f47a39995b72ea85b085b779416f29352c686154"
+      },
+      {
+        "path": "/assets/limitPlacementLifecycle-Bgb-jFhn.js",
+        "sha256": "57217d8815a176ab5cd8691d05e6d3f45695bf0ac6bc2791f14063631899b104"
+      },
+      {
+        "path": "/assets/marketDataOutage-BT9RtFCb.js",
+        "sha256": "9bdf8334e26e19453f1707b24db634c9e1d107772bd4d603d5a2f7266a16cda6"
+      },
+      {
+        "path": "/assets/maxSpendableAmount-BSZJaSL3.js",
+        "sha256": "297237e96ab4778267ccca53b0f62920600e83597a62890c95c7c91e16ca6dc2"
+      },
+      {
+        "path": "/assets/pairPriceUsd-CtbjFkAe.js",
+        "sha256": "ffa451e84b30f3f698e2c3797b0facbe0f111295a5cea802561dcedd66000949"
+      },
+      {
+        "path": "/assets/portalListboxKeyboard-Etw3GRUw.js",
+        "sha256": "ee93eed78a90291de78320c97c574866352edf1cf9108722a16029cdc05b2e4d"
+      },
+      {
+        "path": "/assets/quoteDebounce-CmERuh93.js",
+        "sha256": "3d99fe37c94c8905d8f31c787f6fbb1d7f71ecd71f8a4796c87bf5b0fa4f55d3"
+      },
+      {
+        "path": "/assets/rawAmountMath-D0bWfzVe.js",
+        "sha256": "885829e13a7535eabbb480bf410187b76024181585684055383af1078e1d5575"
+      },
+      {
+        "path": "/assets/router-SWNd-V0K.js",
+        "sha256": "ee0048ff687370e6d3592fc3477a22303ec887a431925ec3386f04e50ee3471b"
+      },
+      {
+        "path": "/assets/settings-Cv8skBdE.js",
+        "sha256": "6779e36936b20c7b06b2b14e2caa173fa7e582fc86cf39e54c8b019aaa43191e"
+      },
+      {
+        "path": "/assets/swapQueryParams-C6Pnaiwd.js",
+        "sha256": "9e5fe3486f8c5056ad478ab60cec418cede982e708c655680652d18d969b962e"
+      },
+      {
+        "path": "/assets/swapQuoteAmountScale-D4bYI9rM.js",
+        "sha256": "ec98280a287bc11d1c70ec9123f41c4dc95147b149f652e34b618bfded845a18"
+      },
+      {
+        "path": "/assets/trailingWindowCopy-CwZfRH-q.js",
+        "sha256": "47ecf676da93f76a9180bae7d796ba164405079f0050e85b88dbaa80f2c77367"
+      },
+      {
+        "path": "/assets/transactions-Cn4l_3d2.js",
+        "sha256": "8bf44e3fa5db54be4339acac703b3e99f446011bf0851cc0427ee8a217c1d411"
+      },
+      {
+        "path": "/assets/useDebouncedValue-COobZORi.js",
+        "sha256": "2d981cf9b3891b894490c943ba4838e222fc5a119c2ca473ce8caf3a73cf854d"
+      },
+      {
+        "path": "/assets/usePairCodeIdFreeze-C5KgtWdN.js",
+        "sha256": "71f45e50f4a1421613d7566de05d447bc0433f4eb2c952d451e03bb632f8bd2f"
+      },
+      {
+        "path": "/assets/usePairDisplayOrientation-I6pp-R0R.js",
+        "sha256": "372f38291761888c545cd095d16875274942faf5d50d4805084c7ce5ccd876fc"
+      },
+      {
+        "path": "/assets/usePairPaused-CE1B4LVP.js",
+        "sha256": "8071a16893966e10d775e7ab18b3ad90986a23919d632468dcb4a97022846c27"
+      },
+      {
+        "path": "/assets/useProtocolHubPricesQuery-BIS8Qxue.js",
+        "sha256": "509ce208d9fdc1fb1849a6251a7b7b211b2b05fc7e76058249db15fd7598a605"
+      },
+      {
+        "path": "/assets/useTerraBroadcastMutation-BmnULAIN.js",
+        "sha256": "06e423195738777beeb890963f9cfcaa68c62427eb3347c6b807234ecf9f99d7"
+      },
+      {
+        "path": "/assets/useTradingBlacklist-DOAU9JSy.js",
+        "sha256": "b190750d7c6d86aac79569073ed504cc305dd5ea2ffc3e911a7c5a02baaaa1dd"
+      },
+      {
+        "path": "/assets/ust1Window-B4ZREoqA.js",
+        "sha256": "55a5ad635fa0018772ac0c7ca50f97a86e3068ab75c6d752867bd7c41697c2af"
+      },
+      {
+        "path": "/assets/vendor-react-_peu2KPp.js",
+        "sha256": "cdc3f95b11e668f7a4c84a3dab54dee9af84ab8aafc9831f080e4b3eefa563de"
+      },
+      {
+        "path": "/assets/vendor-state-DbRNHhEP.js",
+        "sha256": "4d5c92a590790327532deb70c93b49c8acecf3b5f088070c35c85ece4fbb1675"
+      },
+      {
+        "path": "/assets/wallet-terra-CL0ybbQF.js",
+        "sha256": "8d5a9ed88f3f607bbf5be9f65491085358123c3db84b08ad1dc10c132db536ca"
+      }
+    ]
+  }
+}

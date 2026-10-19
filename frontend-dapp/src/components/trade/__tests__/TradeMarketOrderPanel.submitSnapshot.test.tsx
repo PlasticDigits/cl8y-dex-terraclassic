@@ -1,14 +1,17 @@
 import { useWalletStore } from '@/hooks/useWallet'
 import { executeMultiHopSwap } from '@/services/terraclassic/router'
 import { renderWithProviders } from '@/test-utils'
-import { LOCAL_WALLET, localQuote, localTokens } from '@/test/localRouteFixtures'
-import { attachReferenceAttribution } from '@/test/routeEconomicFixtures'
+import { LOCAL_WALLET, localQuote as unpricedLocalQuote, localTokens } from '@/test/localRouteFixtures'
+import { attachZeroMovementRiskFixture as attachReferenceAttribution } from '@/test/routeEconomicFixtures'
 import { useDexStore } from '@/stores/dex'
 import type { PairInfo } from '@/types'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TradeMarketOrderPanel } from '../TradeMarketOrderPanel'
+function localQuote(...args: Parameters<typeof unpricedLocalQuote>) {
+  return attachReferenceAttribution(unpricedLocalQuote(...args))
+}
 const { nativeBalance, mutationEntry } = vi.hoisted(() => ({
   nativeBalance: { data: '10000000000' },
   mutationEntry: { run: undefined as undefined | (() => Promise<unknown>), toastOnError: true },
@@ -210,7 +213,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   it('shows the advisory Slippage/Fee/route row before Advanced and discloses network fees once', async () => {
     await ready()
     expect(screen.getByTestId('trade-market-route-summary')).toBeVisible()
-    expect(screen.getByTestId('trade-market-route-summary')).toHaveTextContent('Slippage Unavailable · Fee Unavailable')
+    expect(screen.getByTestId('trade-market-route-summary')).toHaveTextContent('Slippage 0.00% · Fee 0.00%')
     expect(screen.getByTestId('trade-market-advanced')).toHaveAttribute('data-open', 'false')
     expect(screen.getAllByTestId('trade-market-network-fee')).toHaveLength(1)
     expect(screen.getByTestId('trade-market-signing-details')).toHaveTextContent('DETAILS')
@@ -225,6 +228,23 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
         if (tampered) (q.economic_attribution as Record<string, unknown>).generation = 'forged'
         return q
       })
+      if (tampered) {
+        renderWithProviders(
+          <TradeMarketOrderPanel
+            pairAddr={PAIR_ADDR}
+            selectedPair={selectedPair}
+            pairs={[selectedPair]}
+            side="ask"
+            isPaused={false}
+          />
+        )
+        fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
+        await waitFor(() =>
+          expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('Quote risk is unavailable')
+        )
+        expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+        return
+      }
       await ready()
       const aside = screen.getByTestId('trade-market-price-details')
       expect(aside).toHaveTextContent('Fair-reference deviation 0.99%')
@@ -260,7 +280,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   })
   it('keeps the reviewed transaction pinned when a better quote becomes available (#1489)', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-      const q = localQuote(from, to, amount, options, '940000')
+      const q = localQuote(from, to, amount, options, '890000')
       q.spot_amount_out = '1000000'
       return attachReferenceAttribution(q)
     })
@@ -284,22 +304,62 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     const solves = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
     await queryClient.invalidateQueries({ queryKey: ['routeQuotePromotion'] })
     expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(solves)
-    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.94')
+    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.89')
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(executeMultiHopSwap).mock.calls[0][5]).toBe('893000')
+    expect(vi.mocked(executeMultiHopSwap).mock.calls[0][5]).toBe('845500')
   })
 
-  it('retains its current 5.51% notice during unchanged background refresh while signing stays blocked (#1489)', async () => {
+  it('pins ordinary review beyond automatic refresh and revokes it at the original expiry', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
+      const q = localQuote(from, to, amount, options, '890000')
+      q.spot_amount_out = '1000000'
+      q.execution_metadata!.expires_at_ms = Date.now() + 60_000
+      return attachReferenceAttribution(q)
+    })
+    const { queryClient } = await ready()
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
+    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Confirm market swap')
+    const reads = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(25_000)
+      })
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(reads)
+      expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Confirm market swap')
+      expect(screen.getByTestId('trade-market-submit')).toBeEnabled()
+      // No new provider result is available after expiry: old review must fail closed.
+      vi.mocked(indexerClient.getRouteSolve).mockImplementation(() => new Promise(() => {}))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(36_000)
+      })
+      expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
+      expect(screen.getByTestId('trade-market-submit')).not.toHaveTextContent('Confirm market swap')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(11_000)
+      })
+      expect(vi.mocked(indexerClient.getRouteSolve).mock.calls.length).toBeGreaterThan(reads)
+      await expect(mutationEntry.run!()).rejects.toThrow()
+      expect(executeMultiHopSwap).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('retains its current 10.51% notice during unchanged background refresh while signing stays blocked (#1489)', async () => {
     let pinned: ReturnType<typeof localQuote> | undefined
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-      const q = localQuote(from, to, amount, options, '944900')
+      const q = localQuote(from, to, amount, options, '894900')
       q.spot_amount_out = '1000000'
       pinned = attachReferenceAttribution(q)
       return pinned
     })
     const { queryClient } = await ready()
-    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('10.51%')
     let finish: ((value: ReturnType<typeof localQuote>) => void) | undefined
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(
       () =>
@@ -311,9 +371,9 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       void queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
     })
     await waitFor(() => expect(finish).toBeDefined())
-    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.9449')
-    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.8949')
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('10.51%')
+    expect(screen.getAllByRole('status')).toHaveLength(1)
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
     await expect(mutationEntry.run!()).rejects.toThrow()
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
@@ -321,13 +381,13 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       finish!(pinned!)
     })
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
-    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+    expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('10.51%')
   })
   it.each(['missing_observations', 'stale_observations'] as const)(
     'retains exact-intent unexpired amount and notice after a %s refresh while refusing mutation (#1499)',
     async (reason) => {
       vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-        const q = localQuote(from, to, amount, options, '944900')
+        const q = localQuote(from, to, amount, options, '894900')
         q.spot_amount_out = '1000000'
         return attachReferenceAttribution(q)
       })
@@ -337,8 +397,8 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
         await queryClient.invalidateQueries({ queryKey: ['tradeMarketSim'] })
       })
       await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
-      expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.9449')
-      expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('5.51%')
+      expect(screen.getByTestId('trade-market-expected-receive')).toHaveTextContent('0.8949')
+      expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('10.51%')
       expect(screen.queryByTestId('trade-market-price-data-loading')).not.toBeInTheDocument()
       expect(screen.queryByTestId('trade-market-quote-error')).not.toBeInTheDocument()
       expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
@@ -346,16 +406,16 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
       expect(executeMultiHopSwap).not.toHaveBeenCalled()
     }
   )
-  it('requires renewed consent above 5%, cancel and changed quote', async () => {
+  it('requires renewed consent above 10%, cancel and changed quote', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94999n) / 100000n).toString())
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 89999n) / 100000n).toString())
       q.spot_amount_out = amount
       return attachReferenceAttribution(q)
     })
     await ready()
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm.')
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getAllByRole('status')).toHaveLength(1)
     await expect(mutationEntry.run!()).rejects.toThrow('Confirm the price difference first.')
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
@@ -371,7 +431,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     expect(executeMultiHopSwap).not.toHaveBeenCalled()
     expect(screen.getByTestId('trade-market-impact-aside')).toHaveTextContent('click again to confirm.')
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getAllByRole('status')).toHaveLength(1)
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     await waitFor(() => expect(executeMultiHopSwap).toHaveBeenCalledTimes(1))
   })
@@ -403,14 +463,14 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     fireEvent.click(screen.getByTestId('trade-market-submit'))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/included|network fee/i))
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94n) / 100n).toString())
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 89n) / 100n).toString())
       q.spot_amount_out = amount
       return attachReferenceAttribution(q)
     })
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '2' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
     fireEvent.click(screen.getByTestId('trade-market-submit'))
-    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Confirm market swap (6.00%)')
+    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent('Confirm market swap')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(executeMultiHopSwap).toHaveBeenCalledTimes(1)
     vi.mocked(executeMultiHopSwap).mockResolvedValue('txhash')
@@ -445,7 +505,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
   it('requires a new review after account and quote generation change', async () => {
     let generation = 'initial'
     vi.mocked(indexerClient.getRouteSolve).mockImplementation(async (from, to, amount, options) => {
-      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 94n) / 100n).toString())
+      const q = localQuote(from, to, amount, options, ((BigInt(amount) * 89n) / 100n).toString())
       q.spot_amount_out = amount
       q.execution_metadata!.generation = generation
       return attachReferenceAttribution(q)
@@ -500,8 +560,8 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
     fireEvent.change(screen.getByTestId('limit-order-escrow-amount-input'), { target: { value: '1' } })
     await waitFor(() => expect(screen.getByTestId('trade-market-impact-aside')).toBeInTheDocument())
     expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
-    await expect(mutationEntry.run!()).rejects.toThrow('Fair-reference deviation is too high')
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    await expect(mutationEntry.run!()).rejects.toThrow('Quote risk is unavailable or exceeds protection.')
+    expect(screen.getAllByRole('status')).toHaveLength(1)
     useDexStore.setState({ expertMode: true })
     if (impact === 99) expect(screen.getByTestId('trade-market-submit')).toBeDisabled()
     else await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeEnabled())
@@ -612,7 +672,7 @@ describe('TradeMarketOrderPanel local submit snapshot (#1452)', () => {
         ...split,
         book_start_hint: null,
       }
-      return q
+      return attachReferenceAttribution(q)
     })
     await ready()
     await openAdvanced(userEvent.setup())
