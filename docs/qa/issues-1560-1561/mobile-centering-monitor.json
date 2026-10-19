@@ -1,0 +1,55 @@
+{
+  "issues": [
+    1479,
+    1480
+  ],
+  "utc": "2026-10-19T05:48:35.880859+00:00",
+  "read_only": true,
+  "scope": "15-minute text-pattern aggregates; no log lines, actor identifiers, raw bodies or endpoints; counts alone do not prove quote or deployment readiness",
+  "loki": {
+    "status": "PASS",
+    "window_seconds": 900,
+    "counts": {
+      "cl8y-dex-terraclassic-indexer": {
+        "lines": 1497.0,
+        "error_pattern_lines": 38.0,
+        "provider_capacity_pattern_lines": 188.0
+      },
+      "cl8y-dex-frontend": {
+        "lines": 158.0,
+        "error_pattern_lines": 1.0,
+        "provider_capacity_pattern_lines": 0.0
+      }
+    }
+  },
+  "prometheus": {
+    "status": "PASS",
+    "datasource_uid": "cl8y-dex-prometheus",
+    "datasource_health": "OK",
+    "max_sample_age_seconds": 90,
+    "queries": [
+      "label_replace(label_replace({__name__=~\"up|dex_observation_timestamp_seconds|dex_endpoint_up\",job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"},\"monitor_metric\",\"$1\",\"__name__\",\"(.+)\"),\"monitor_check\",\"value\",\"\",\"\") or label_replace(timestamp(label_replace({__name__=~\"up|dex_observation_timestamp_seconds|dex_endpoint_up\",job=~\"cl8y-dex-api|cl8y-dex-indexer\",service=\"cl8y-dex-terraclassic-indexer\"},\"monitor_metric\",\"$1\",\"__name__\",\"(.+)\")),\"monitor_check\",\"timestamp\",\"\",\"\")"
+    ],
+    "targets": {
+      "cl8y-dex-api": {
+        "scrape_up": 1,
+        "observation_age_seconds": 42.742,
+        "endpoint_up": {
+          "quote_readiness": 1.0,
+          "liveness": 1.0,
+          "serving": 1.0
+        }
+      },
+      "cl8y-dex-indexer": {
+        "scrape_up": 1,
+        "observation_age_seconds": 42.742,
+        "endpoint_up": {
+          "indexer_readiness": 1.0
+        }
+      }
+    },
+    "scope": "Scrape and serving availability; readiness values remain independent and do not certify quote acceptance."
+  },
+  "read_count": 11,
+  "overall": "PASS"
+}
