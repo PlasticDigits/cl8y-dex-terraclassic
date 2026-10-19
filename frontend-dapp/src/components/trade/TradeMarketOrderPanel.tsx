@@ -53,19 +53,15 @@ import {
 } from '@/utils/quoteDebounce'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
-import {
-  SWAP_FUNDED_HIGH_IMPACT_PCT,
-  acquireGuidanceShowsQuoteOnly,
-  acquireReduceHiddenForBroadcastPhase,
-} from '@/utils/swapPayAcquireGuidance'
-import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
+import { acquireGuidanceShowsQuoteOnly, acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
+import { assertTradingRiskForSubmit, evaluateTradingRisk, tradingRiskBlocksSubmit } from '@/utils/tradingRisk'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { firstTradingNotice, isPreSignTradingError } from '@/utils/tradingNotice'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
 import { RouteOrderCostDetails } from '@/components/swap/RouteOrderCostDetails'
 import { formatOrderMetric, type RouteOrderCosts } from '@/utils/routeOrderMetrics'
-import { formatTradingPriceDifference, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
+import { parseSlippagePercent } from '@/utils/swapRouteSlippage'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
@@ -80,6 +76,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 interface MarketSimData {
+  riskEvidence?: import('@/types').IndexerRouteSolveResponse
   executionMetadata?: import('@/types').IndexerRouteExecutionMetadata
   executionOperations?: string
   minimumReceive?: string
@@ -309,7 +306,9 @@ export function TradeMarketOrderPanel({
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: localQuoteStaleTime,
-    refetchInterval: localQuoteRefetchInterval,
+    // Pin original unexpired review without pausing independent restriction checks.
+    refetchInterval: (query) =>
+      reviewedImpactKey != null && !isExpiredLocalQuote(query.state.data) ? false : localQuoteRefetchInterval(query),
   })
 
   const simInputIntentCurrent =
@@ -422,13 +421,11 @@ export function TradeMarketOrderPanel({
   const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
 
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
-  const expectedSlippagePct = resolveSwapExpectedSlippagePercent(
-    simQuery.data?.routeSlippagePercent,
-    simQuery.data?.routePreflight?.worstSpreadPercent ?? null
-  )
+  const expectedSlippagePct = parseSlippagePercent(simQuery.data?.routeSlippagePercent)
 
-  const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
-  const routeRiskBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
+  const tradingRisk = evaluateTradingRisk(simQuery.data)
+  const theaterRouteQuote = tradingRisk.extreme
+  const routeRiskBlocked = !!simQuery.data && tradingRiskBlocksSubmit(tradingRisk, expertMode)
 
   const hybridSubmitSnapshot = useMemo(
     () => ({
@@ -504,13 +501,14 @@ export function TradeMarketOrderPanel({
     simData?.executionMetadata,
     simData?.executionOperations,
     simData?.return_amount,
+    tradingRisk.evidenceKey,
     simData?.routeSlippagePercent,
   ])
   useEffect(() => {
     acceptedImpactKeyRef.current = null
     setReviewedImpactKey(null)
   }, [impactReviewKey])
-  const needsImpactConsent = expectedSlippagePct != null && expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT
+  const needsImpactConsent = tradingRisk.consentRequired
   const showImpactConfirm = needsImpactConsent && reviewedImpactKey === impactReviewKey
 
   const swapMutation = useTerraBroadcastMutation({
@@ -529,18 +527,20 @@ export function TradeMarketOrderPanel({
         assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
       }
       if (
-        routeRiskBlocked &&
-        simData &&
-        !isExpiredLocalQuote(simData) &&
-        !simQuery.isError &&
-        !simQuery.isFetching &&
-        !simQuery.isPlaceholderData
+        !simData ||
+        isExpiredLocalQuote(simData) ||
+        simQuery.isError ||
+        simQuery.isFetching ||
+        simQuery.isPlaceholderData
       )
-        throw new Error('Fair-reference deviation is too high')
-      if (!isSubmitReady || simQuery.isError || simQuery.isFetching || simQuery.isPlaceholderData)
         throw new Error(LOCAL_ROUTE_UNAVAILABLE)
-      if (needsImpactConsent && acceptedImpactKeyRef.current !== impactReviewKey)
-        throw new Error('Confirm the price difference first.')
+      assertTradingRiskForSubmit(
+        simData,
+        expertMode,
+        tradingRisk.evidenceKey,
+        acceptedImpactKeyRef.current === impactReviewKey
+      )
+      if (!isSubmitReady) throw new Error(LOCAL_ROUTE_UNAVAILABLE)
       acceptedImpactKeyRef.current = null
       if (!simData) throw new Error('Quote unavailable')
       if (marketSwapFee.coverageError) throw new Error(marketSwapFee.coverageError)
@@ -722,7 +722,7 @@ export function TradeMarketOrderPanel({
     payRaw: tryParseBigInt(rawInputAmount),
     payBalanceRaw:
       isWalletConnected && escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
-    expectedSlippagePct,
+    risk: tradingRisk,
   })
   const showQuoteOnly = acquireGuidanceShowsQuoteOnly(payAcquireGuidance, hasSettledSimQuote)
 
@@ -762,7 +762,9 @@ export function TradeMarketOrderPanel({
                     priceImpactTooHigh
                       ? 'Quote exceeds price protection'
                       : routeRiskBlocked
-                        ? 'Fair-reference deviation is too high'
+                        ? tradingRisk.availability === 'unavailable'
+                          ? 'Quote risk unavailable'
+                          : 'Fair-reference deviation is too high'
                         : liveSplit?.bookExceedsPay
                           ? 'Book leg exceeds pay'
                           : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
@@ -794,14 +796,13 @@ export function TradeMarketOrderPanel({
       'price',
       !!simData &&
         !showReceiveCalculating &&
-        expectedSlippagePct != null &&
-        expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT,
+        (tradingRisk.consentRequired || tradingRisk.availability === 'unavailable'),
     ],
     ['tx', swapMutation.isError],
   ] as const)
 
   if (primaryNotice === 'tx' && showImpactConfirm && canSubmit && expectedSlippagePct != null)
-    submitLabel = `Confirm market swap (${formatTradingPriceDifference(expectedSlippagePct)}%)`
+    submitLabel = 'Confirm market swap'
 
   const lastErrorIntentRef = useRef(impactReviewKey)
   const { error: lastMutationError, reset: resetMutationError } = swapMutation
@@ -951,8 +952,15 @@ export function TradeMarketOrderPanel({
         {primaryNotice === 'price' && (
           <SwapImpactAside
             routeSlippagePct={expectedSlippagePct}
+            risk={tradingRisk}
             economicExplanation={simData?.economicExplanation}
-            blocked={routeRiskBlocked ? (theaterRouteQuote ? 'extreme' : 'expert') : undefined}
+            blocked={
+              tradingRisk.availability === 'available' && routeRiskBlocked
+                ? theaterRouteQuote
+                  ? 'extreme'
+                  : 'expert'
+                : undefined
+            }
             confirming={showImpactConfirm && canSubmit}
             onCancel={() => setReviewedImpactKey(null)}
             onEnableExpert={() => setShowExpertModeModal(true)}
@@ -1115,10 +1123,11 @@ export function TradeMarketOrderPanel({
               decimals={receiveDecimals}
             />
             <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
-            {expectedSlippagePct != null && expectedSlippagePct <= SWAP_FUNDED_HIGH_IMPACT_PCT && (
+            {expectedSlippagePct != null && (
               <SwapImpactAside
                 details
                 routeSlippagePct={expectedSlippagePct}
+                risk={tradingRisk}
                 economicExplanation={simData.economicExplanation}
                 testId="trade-market-price-details"
               />

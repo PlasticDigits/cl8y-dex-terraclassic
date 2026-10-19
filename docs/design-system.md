@@ -155,6 +155,10 @@ Default `/limits` place card (#488 reopen): **rate** (“When 1 {token0} is wort
 
 Default `/` Swap card: centered Pay → flip → Receive → CTA; route + min-received on card; verbose trade/signing details behind progressive disclosure. Cool flip control (no brown).
 
+On mobile (≤767px), Swap removes the outer card/visible heading and visually hides redundant Pay/Receive labels while retaining their input associations. Picker and amount share each row; controls keep 44px touch targets and keyboard focus. At 375×667 with normal text and collapsed Settings/DETAILS, connected and disconnected CTAs must initially fit above the measured bottom navigation. Use the real safe-area edge above the header. Long content, zoom, open disclosures and software keyboards use normal vertical reflow with measured bottom-bar clearance.
+
+Swap status uses a compact minimum space, no nested scrolling, and one inline decorative cross for a current error. The error sentence persists in subdued accessible red without a padded card, border or dismiss button; necessary retry/review actions remain reachable. The full bounded route fits without horizontal scrolling; DETAILS exposes readable complete labels and canonical identities. These [#1561 invariants](../skills/AGENTS_SWAP_LAYOUT.md) supersede the old six-em status reservation and scrolling route; [QA checklist](./qa/issue-1561/README.md).
+
 Default `/trade` ticket (#489 / [#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)): compact Market/Limit text tabs, no nested **Side** / **Market** / **Limit** cards, no “Maker side / Choose direction / Resting order” essays. Heading wash is a clamped token accent (never leftover orange). Buy/Sell **side** controls use green/red semantic fills; `/trade` Limit/Market tabs are compact underlined text, not blue `tab-glass*` ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563) **T563-6** amended by #693; [`skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md)).
 
 ## Terminology glossary
@@ -208,3 +212,9 @@ make verify-issue-653
 ```
 
 Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents. Connect Wallet rows include circular brand logos ([#490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490); [docs/frontend.md § logos](./frontend.md#connect-modal-wallet-logos)).
+
+Dialog lifecycle: each mounted dialog has a unique title ID, including stacked
+wallet sheets. On close, restore focus to its connected invoking control if
+focus remains inside the departing dialog or on the document body; preserve
+intentional focus on another surface. The [#1561 verification loop](qa/issues-1560-1561/RESULTS.md)
+found and repaired focus loss after Escape and duplicate dialog title IDs.

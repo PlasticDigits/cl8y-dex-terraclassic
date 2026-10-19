@@ -8,8 +8,8 @@ retained failures and remaining scope. PASS WITH SKIPS never completes an
 unchecked acceptance criterion. Executed failures remain FAIL until fixed/retested.
 
 - [ ] AC1: Header/inputs/summary/status/DETAILS/CTA order; quote changes cannot move inputs.
-- [ ] AC2: One Slippage/Fee/actual token route row; equal-height loading replacement; bounded horizontal scroll.
-- [ ] AC3: Fixed status envelope; truthful check/None, waits and cross/current failures; keyboard and zoom access.
+- [ ] AC2: Slippage/Fee/actual token route summary; equal-height loading replacement; fitted full bounded route without horizontal scrolling. Mobile route uses the full second summary line ([#1561](../issue-1561/README.md)).
+- [ ] AC3: Compact minimum status space; truthful check/None, waits and inline cross/current failures. Long errors/zoom use ordinary page reflow, without a nested status scroller ([#1561](../issue-1561/README.md)); keyboard and zoom access.
 - [ ] AC4: One persistent DETAILS, one network fee and current checked minimum including anonymous quotes.
 - [ ] AC5: Settings/Share/pickers/edits/flip/deadline/keyboard/CTA functional and aligned.
 - [ ] AC6: Route/minimum/costs/signing belong to the same validated original cohort; all safeguards preserved.

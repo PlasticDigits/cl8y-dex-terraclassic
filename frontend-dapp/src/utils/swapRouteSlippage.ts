@@ -33,7 +33,7 @@ export function indexerWalletAmountMismatch(indexerAmountOut: string, walletAmou
   return parseFloat(pct) >= INDEXER_WALLET_AMOUNT_MISMATCH_WARN_PCT
 }
 
-/** Exact integer economics before display rounding; preserve all 5/30/99 transitions. */
+/** Exact integer economics before display rounding; preserve all 5/10/30/99 transitions. */
 export function preciseFairDeviationPercent(actualRaw: string, fairRaw: string): string | null {
   const raw = /^(?:[1-9]\d{0,38})$/
   if (!raw.test(actualRaw) || !raw.test(fairRaw)) return null
@@ -49,7 +49,7 @@ export function preciseFairDeviationPercent(actualRaw: string, fairRaw: string):
   const result = `${fixed / scale}.${fraction}`
   const parsed = Number(result)
   // IEEE conversion must never collapse an exact crossing onto its threshold.
-  for (const threshold of [5, 30, 99]) {
+  for (const threshold of [5, 10, 30, 99]) {
     const comparison = numerator - BigInt(threshold) * denominator
     if (comparison > 0n && parsed <= threshold) return String(threshold + Number.EPSILON * threshold)
     if (comparison < 0n && parsed >= threshold) return String(threshold - Number.EPSILON * threshold)
@@ -86,7 +86,7 @@ export function resolveSwapExpectedSlippagePercent(
 /** Display cannot collapse an exact risk transition onto its threshold. */
 export function formatTradingPriceDifference(percent: number): string {
   const rounded = percent.toFixed(2)
-  for (const threshold of [5, 30, 99]) {
+  for (const threshold of [5, 10, 30, 99]) {
     if (Number(rounded) === threshold && percent !== threshold) return `${percent > threshold ? '>' : '<'}${threshold}`
   }
   return rounded

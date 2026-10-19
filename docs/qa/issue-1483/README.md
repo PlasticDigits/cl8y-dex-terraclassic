@@ -24,10 +24,10 @@ Read [RC1483-1–RC1483-10](../../../skills/AGENTS_ROUTE_COST_ATTRIBUTION.md),
    native matched-credit/equal-gross controls and the reconciled signed components.
    New fixtures must pin original reserves, precision, fees and reference quality.
 4. Inspect actual Swap/Trade explanation, malformed/forged attribution, unchanged
-   5/30/99 safeguards, amount/context/expiry mutation and positive execution floors.
+   order >5 OR total >10 consent and total >30/>=99 safeguards, amount/context/expiry mutation and positive execution floors.
    Diagnostic failure cannot authorize a transaction or silently alter its metric.
    Apply [the cognitive-load rules](../../../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md):
-   ordinary <=5% information belongs in existing Signing details; higher-risk
+   ordinary order <=5% AND total <=10% information belongs in existing DETAILS; higher-risk
    quotes and confirmation share one notice. Check one visible operational
    blocker at a time, silence missing advisory breakdowns and speculative
    refresh warnings, and retain required risk/trust acknowledgements. Rounded

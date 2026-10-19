@@ -22,7 +22,7 @@ and one separate LUNC network fee belong in the single **DETAILS** disclosure.
 Missing or invalid advisory evidence stays visibly unavailable and never means zero.
 
 Fair-reference risk remains `100 × abs(fair − net) / max(fair, net)`, checked in
-raw units before display rounding. Genuine >5% consent, >30% Expert and ≥99%
+raw units before display rounding. Validated order >5% OR total >10% ordinary consent, total >30% Expert and ≥99%
 nonwaivable refusal stay bound to the original exact quote. One current actionable
 blocker/consent notice explains what is being reviewed; a smaller displayed order
 metric does not change reference quality, delivered-net ranking or signing.
@@ -2632,11 +2632,11 @@ See `.env.example` for the full list.
 |----|-----------|
 | **E1376-1** | Receive intent is independent on every selected route, including indexer-only discovery. Preserve its exact human value and canonical URL through retries; Max/fractions remain pay-sided. |
 | **E1376-2** | CW20 route sizing uses a bounded server `amount_out` request. Compare eligible pool-only candidates within documented scope. Native enters/exits use shared integer fee/tax inverses; unsupported hybrid native operations remain excluded. |
-| **E1376-3** | A current authoritative forward simulation on matching operations must cover the net target. Mandatory integer fair-reference metadata preserves symmetric 5/30/99 protections; wallet validation and mutation entry recheck them. Broadcast remains offer-in with existing minimum-receive/spread protection. Net receive, pre-tax minimum bases and extra-debit balances remain distinct. |
+| **E1376-3** | A current authoritative forward simulation on matching operations must cover the net target. Mandatory integer fair-reference metadata preserves order >5 OR symmetric total >10 consent and independent total >30/>=99 protections; wallet validation and mutation entry recheck them. Broadcast remains offer-in with existing minimum-receive/spread protection. Net receive, pre-tax minimum bases and extra-debit balances remain distinct. |
 | **E1376-4** | Loading, no-route and failed sizing are visible without wallet connection. Failure clears executable pay/operations and preserves receive intent; deterministic errors have bounded retries and a manual retry affordance. The entire receive pipeline has a 70-second deadline and propagates cancellation through solver and wallet validation; dust below token precision is a finite input error. |
 | **E1376-5** | Target, tokens, settings or trader changes invalidate executable sizing immediately. Late responses, cached results and background refetch errors cannot revive a prior offer or submit the typed target as pay. |
 | **E1376-6** | All money uses checked integer arithmetic with sufficient-offer rounding. Pool-only contract reverse validates the exact pool inverse without full-range bisection; hybrid search retains explicit call limits and errors on exhaustion. |
-| **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
+| **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, order >5 OR total >10 consent, total >30/>=99 and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
 | **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |
 | **E1376-9** | Frontend/indexer deployment never proves pair migration. Require complete factory count, matching factory pair-code pointer and every listed pair on cw2 1.19.0 for migrated acceptance. An explicit operator-custody closure waiver does not convert a failed live query into PASS or claim full production completion. [Live evidence and waiver](qa/issue-1376/live-verification.md). |
 
@@ -2792,8 +2792,8 @@ retain their own documented policy. Measurements of core synthetic pool routes d
 not establish arbitrary hook, wrapper, token implementation or physical-wallet
 coverage; consult [scoped receipts](qa/issue-1480/RESULTS.md).
 
-The price-impact confirmation remains separate from network fees. Genuine >5%,
-30% Expert and nonwaivable ≥99% protection retain their behavior. Quote-generation,
+The price-impact confirmation remains separate from network fees. Validated order >5% OR total >10% ordinary consent,
+>30% total Expert and nonwaivable ≥99% protection retain their behavior. Quote-generation,
 original-expiry and reviewed floor/message bindings remain unchanged. Included
 out-of-gas failures and unknown inclusion never cause automatic resend.
 
@@ -2822,7 +2822,7 @@ as new generations; retain the quote's original expiry. Consent and signing keep
 reviewed operations, input, fees and floors pinned. Progress cannot authorize a
 transaction or make expired data fresh. One concise notice describes costs and
 movement on the selected route without asserting scarcity across all eligible
-routes. Exact >5%, >30%, >=99% protections and unknown-budget refusal remain.
+routes. Exact order >5 OR total >10 consent, total >30 and >=99 protections and unknown-budget refusal remain.
 
 The bounded improvement observer polls advisory progress about once per second
 until the original quote expires or bounded discovery completes. It only reacts
@@ -2837,7 +2837,7 @@ The #1489 price notice follows the same current, unexpired quote that supplies
 the displayed receive amount. A same-intent background fetch may block signing
 without hiding that factual notice; it does not grant signing permission. Intent
 changes and original expiry clear stale display/notice state. A newly validated
-quote may legitimately move above or below exact 5%; no warning hysteresis or
+quote may legitimately cross either exact order 5% or total 10% threshold; no warning hysteresis or
 threshold relaxation is permitted. See [RD1489-7](../skills/AGENTS_ROUTE_DISCOVERY.md) and
 [PR #1490](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1490).
 

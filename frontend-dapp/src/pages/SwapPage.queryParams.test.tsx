@@ -1,4 +1,9 @@
-import { localQuote } from '@/test/localRouteFixtures'
+import { localQuote as rawLocalQuote } from '@/test/localRouteFixtures'
+import { attachZeroMovementRiskFixture } from '@/test/routeEconomicFixtures'
+
+function localQuote(...args: Parameters<typeof rawLocalQuote>) {
+  return attachZeroMovementRiskFixture(rawLocalQuote(...args))
+}
 import { localMarketMocks } from '@/test/localMarketMocks'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -235,6 +240,7 @@ function receiveFixture(from: string, to: string, offer: string, output: string,
   const q = localQuote(from, to, offer, { trader, maxSpread: '0.05' }, output)
   return {
     offerAmount: offer,
+    riskEvidence: q,
     return_amount: output,
     spotAmountOut: output,
     spread_amount: '0',
@@ -826,6 +832,8 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
           const operations = JSON.parse(fresh.executionOperations) as { terra_swap: { min_return: string } }[]
           operations.at(-1)!.terra_swap.min_return = input.targetRaw
           if (originalExpiry === 0) originalExpiry = metadata.expires_at_ms
+          fresh.riskEvidence.router_operations = operations as never
+          attachZeroMovementRiskFixture(fresh.riskEvidence)
           return {
             ...fresh,
             offerAmount: '2000000',

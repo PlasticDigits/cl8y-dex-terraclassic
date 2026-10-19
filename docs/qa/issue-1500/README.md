@@ -18,7 +18,7 @@ establish live deployment or funded settlement. Record receipts in RESULTS.md.
 | [ ] | AC2 | Isolated size, fee, wrapper, tax/hook, reference, favorable/mixed effects retain correct signs and separation. |
 | [ ] | AC3 | Actual desktop/phone Swap/Trade Slippage/Fee/route row, one DETAILS disclosure and gas once. |
 | [ ] | AC4 | Malformed canonical values, numerator/denominator, operations/cohort, expiry/context and same-intent lifecycle attacks fail appropriately. |
-| [ ] | AC5 | Original reference quality, delivered-net ranking, 5/30/99 protections, funding/floors and offline signing budgets pass; independent funded net/rollback receipts separate. |
+| [ ] | AC5 | Original reference quality, delivered-net ranking, order >5 OR total >10 ordinary consent and total >30/>=99 protections, funding/floors and offline signing budgets pass; independent funded net/rollback receipts separate. |
 | [x] | AC6 | API/types/consumer/risk wording/docs/agent guidance distinguish all metrics consistently. |
 
 Live acceptance also requires separately attested served frontend/backend/root

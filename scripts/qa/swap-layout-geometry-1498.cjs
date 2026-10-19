@@ -1,6 +1,13 @@
 // Geometry checks run after initialized timing trials; they never reset those clocks.
 const { createRequire } = require("node:module");
 const path = require("node:path");
+const fs = require("node:fs");
+const {
+  surfaceGeometry,
+  installSyntheticWallet,
+  verifyCompactStates,
+  verifyOrdinaryReview,
+} = require("./swap-mobile-geometry-1561.cjs");
 const { expect } = createRequire(
   path.resolve(__dirname, "../../frontend-dapp/package.json"),
 )("@playwright/test");
@@ -72,12 +79,27 @@ async function ready(page, amount) {
 }
 async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
   const receipts = [];
-  for (const width of [1440, 320, 390, 430]) {
+  const viewports = (
+    process.env.SWAP_GEOMETRY_VIEWPORTS ||
+    "1440x1000,320x568,375x667,390x844,430x932"
+  )
+    .split(",")
+    .map((value) => value.split("x").map(Number));
+  const connected = process.env.SWAP_GEOMETRY_CONNECTED === "1";
+  const compactOnly = process.env.SWAP_GEOMETRY_COMPACT_ONLY === "1";
+  const reviewOnly = process.env.SWAP_GEOMETRY_REVIEW_ONLY === "1";
+  for (const [width, height] of viewports) {
     process.stderr.write(`geometry ${width}: initialize production fixture\n`);
     const context = await browser.newContext({
-      viewport: { width, height: 1000 },
+      viewport: { width, height },
+      colorScheme: process.env.SWAP_GEOMETRY_THEME || "dark",
       reducedMotion: "reduce",
     });
+    await context.addInitScript((theme) => {
+      localStorage.setItem("cl8y-dex-theme", theme);
+    }, process.env.SWAP_GEOMETRY_THEME || "dark");
+    if (connected)
+      await installSyntheticWallet(context, from, fixture.providerUrl);
     const page = await context.newPage();
     await page.bringToFront();
     page.setDefaultTimeout(15000);
@@ -112,12 +134,13 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
           name,
           verdict: "FAIL",
           reason: String(error.message).slice(0, 1200),
+          measurements: error.measurements,
           state,
         });
       }
     }
     try {
-      fixture.set();
+      fixture.set(reviewOnly ? { fairDeviationBps: 1100 } : {});
       await page.goto(`${origin}/?from=${from}&to=${to}`, {
         waitUntil: "domcontentloaded",
         timeout: 30000,
@@ -137,7 +160,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
         await risk.check();
         await page.getByRole("button", { name: "Continue to the app" }).click();
       }
-      await pay.waitFor({ timeout: 30000 });
+      await pay.waitFor({ timeout: 15000 });
       expect(await page.evaluate(() => document.visibilityState)).toBe(
         "visible",
       );
@@ -145,6 +168,88 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
       await ready(page, "1");
       await page.evaluate(() => document.fonts.ready);
       const details = page.getByTestId("swap-details");
+      if (reviewOnly) {
+        await check(
+          "ordinary-review-pins-original-response-across-producer-and-refresh-cycles",
+          () => verifyOrdinaryReview({ page, fixture, pay, ready, connected }),
+        );
+        receipts.push({
+          width,
+          height,
+          connected,
+          verdict:
+            findings.every((f) => f.verdict === "PASS") && !pageErrors.length
+              ? "PASS"
+              : "FAIL",
+          findings,
+          page_errors: pageErrors,
+        });
+        continue;
+      }
+      await page.evaluate(() => scrollTo(0, 0));
+      await check(
+        "initial-collapsed-short-viewport-CTA-route-and-status",
+        async () => {
+          await expect(page.locator("html")).toHaveAttribute(
+            "data-theme",
+            process.env.SWAP_GEOMETRY_THEME || "dark",
+          );
+          await expect(details).not.toHaveAttribute("open", "");
+          if (connected) {
+            await expect(page.getByTestId("swap-submit")).toBeEnabled();
+            await expect(page.getByTestId("swap-submit")).not.toContainText(
+              /Connect/i,
+            );
+            await expect(
+              page.getByRole("button", { name: "Max", exact: true }),
+            ).toBeVisible();
+          }
+          const screenshotDir = process.env.SWAP_GEOMETRY_SCREENSHOT_DIR;
+          if (screenshotDir) {
+            fs.mkdirSync(screenshotDir, { recursive: true });
+            await page.screenshot({
+              mask: [page.locator(".wallet-trigger-connected")],
+              maskColor: "#64748b",
+              path: path.join(
+                screenshotDir,
+                `${width}x${height}-${connected ? "connected" : "disconnected"}-${process.env.SWAP_GEOMETRY_THEME || "dark"}.png`,
+              ),
+            });
+          }
+          return {
+            ...(await surfaceGeometry(page, width === 375 && height === 667)),
+            controls: await geometry(page),
+          };
+        },
+      );
+      if (compactOnly) {
+        await verifyCompactStates({
+          page,
+          check,
+          width,
+          height,
+          fixture,
+          ready,
+          pay,
+          details,
+        });
+        receipts.push({
+          width,
+          height,
+          connected,
+          theme: process.env.SWAP_GEOMETRY_THEME || "dark",
+          wallet_scope: connected
+            ? "synthetic unsigned extension, intercepted balances and legal acceptance status"
+            : "disconnected",
+          verdict:
+            findings.every((f) => f.verdict === "PASS") && !pageErrors.length
+              ? "PASS"
+              : "FAIL",
+          findings,
+          page_errors: pageErrors,
+        });
+        continue;
+      }
       const toggle = details.locator("summary");
       await check(
         "keyboard-single-details-disconnected-minimum-and-network-fee",
@@ -161,9 +266,10 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
           await expect(page.getByTestId("swap-network-fee")).toContainText(
             "LUNC",
           );
-          await expect(page.getByTestId("swap-submit")).toContainText(
-            /Connect/i,
-          );
+          if (!connected)
+            await expect(page.getByTestId("swap-submit")).toContainText(
+              /Connect/i,
+            );
           await expect(
             page.getByText("Quote only", { exact: true }),
           ).toHaveCount(0);
@@ -184,8 +290,7 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
                 elements.map((el) => el.dataset.tokenIdentity),
               ),
           ).toEqual([from, to]);
-          await route.focus();
-          await expect(route).toBeFocused();
+          await surfaceGeometry(page);
           const summaryBox = await page
             .getByTestId("swap-quote-summary")
             .boundingBox();
@@ -317,6 +422,16 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
               () => matchMedia("(prefers-reduced-motion: reduce)").matches,
             ),
           ).toBe(true);
+          // A deliberate root-font resize can update rem-sized scrollbar gutters
+          // and the navigation ResizeObserver on the next frame. Measure the
+          // settled zoom layout before checking unchanged quote geometry.
+          await page.evaluate(
+            () =>
+              new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve)),
+              ),
+          );
+          await page.evaluate(() => document.fonts.ready);
           const zoomBaseline = await geometry(page);
           await stable(page, zoomBaseline, "200% root text");
           const rows = await page
@@ -367,6 +482,8 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
       );
       receipts.push({
         width,
+        height,
+        connected,
         verdict:
           findings.every((f) => f.verdict === "PASS") && !pageErrors.length
             ? "PASS"
@@ -381,6 +498,8 @@ async function verifySwapGeometry({ browser, origin, from, to, fixture }) {
       );
       receipts.push({
         width,
+        height,
+        connected,
         verdict: "FAIL",
         findings,
         reason: String(error.message).slice(0, 1200),

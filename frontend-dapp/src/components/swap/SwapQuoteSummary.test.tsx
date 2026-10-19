@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { SwapQuoteSummary } from './SwapQuoteSummary'
+import { SwapQuoteSummary, SwapRouteDetails } from './SwapQuoteSummary'
 vi.mock('@/components/ui/TokenLogo', () => ({ TokenLogo: () => <span /> }))
 vi.mock('@/utils/tokenDisplay', () => ({
   getTokenDisplaySymbol: (id: string) => (id === 'uusd' ? 'USTC' : id === 'cl8y' ? 'CL8Y' : 'cUSTC'),
   getTokenLogoURI: () => undefined,
 }))
 
-describe('fixed quote summary (#1498)', () => {
+describe('fitting quote summary (#1498 / #1561)', () => {
   it('retains one height while replacing unresolved values with accessible loading', () => {
     const { rerender } = render(<SwapQuoteSummary loading tokens={[]} />)
     const row = screen.getByTestId('swap-quote-summary')
@@ -24,7 +24,7 @@ describe('fixed quote summary (#1498)', () => {
     expect(screen.getByTestId('swap-quote-summary')).toBe(row)
     expect(screen.getByTestId('swap-order-slippage')).toHaveTextContent('-2.00%')
     expect(screen.getByTestId('swap-trading-fee')).toHaveTextContent('0.30%')
-    expect(screen.getByRole('group')).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('group')).not.toHaveAttribute('tabindex')
     expect(row.querySelectorAll('[data-token-identity]')).toHaveLength(2)
     expect(row.querySelector('[data-token-identity="uusd"]')).toHaveTextContent('USTC')
     expect(row.querySelector('[data-token-identity="wrapped"]')).toHaveTextContent('cUSTC')
@@ -54,4 +54,24 @@ describe('fixed quote summary (#1498)', () => {
     expect(screen.getByTestId('swap-order-slippage')).toHaveTextContent('<0.01%')
     expect(screen.getByTestId('swap-trading-fee')).toHaveTextContent('Unavailable')
   })
+})
+
+// The strip keeps every operation; DETAILS exposes identities without relying on hover.
+it('retains repeated symbols, every boundary, and full unbroken identities in DETAILS', () => {
+  const tokens = ['uusd', 'wrapped', 'cl8y', 'long' + 'x'.repeat(300), 'wrapped', 'uusd']
+  const { rerender } = render(
+    <>
+      <SwapQuoteSummary loading={false} tokens={tokens} />
+      <SwapRouteDetails tokens={tokens} />
+    </>
+  )
+  const route = screen.getByRole('group', { name: 'Selected token route' })
+  expect(
+    Array.from(route.querySelectorAll('[data-token-identity]')).map((el) => el.getAttribute('data-token-identity'))
+  ).toEqual(tokens)
+  const details = screen.getByRole('list', { name: 'Full selected token route' })
+  expect(Array.from(details.querySelectorAll('code')).map((el) => el.textContent)).toEqual(tokens)
+  expect(route.querySelector('[data-token-identity="uusd"]')).toHaveAttribute('title', 'USTC (uusd)')
+  rerender(<SwapRouteDetails tokens={[]} />)
+  expect(screen.queryByTestId('swap-route-details')).not.toBeInTheDocument()
 })

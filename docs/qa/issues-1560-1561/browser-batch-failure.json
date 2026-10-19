@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-10-19T04:07:25.959Z",
+  "scope": "Two lifecycle viewports combined under one 55-second cap; isolated synthetic fixture only",
+  "source_tree_hash": "2aa2edbd03dbea105b8937f4dab0754419ea92b24751c252e0bd5d5ebd18c043",
+  "completed_viewport": {
+    "width": 375,
+    "verdict": "PASS",
+    "checks": 10
+  },
+  "failed_viewports": [
+    {
+      "width": 1440,
+      "findings": [
+        {
+          "name": "original-expiry-replaces-summary-with-equal-height-wait",
+          "verdict": "FAIL",
+          "reason": "expect(locator).toBeVisible() failed\n\nLocator: getByTestId('swap-price-data-loading')\nExpected: visible\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByTestId('swap-price-data-loading')\n"
+        },
+        {
+          "name": "rapid-new-intent-loading-keeps-fixed-inputs-and-disclosure",
+          "verdict": "FAIL",
+          "reason": "locator.fill: Target page, context or browser has been closed"
+        },
+        {
+          "name": "200-percent-root-text-reduced-motion-overflow-focus-and-row-alignment",
+          "verdict": "FAIL",
+          "reason": "page.evaluate: Target page, context or browser has been closed"
+        }
+      ]
+    }
+  ],
+  "resolution": "Run lifecycle viewports separately as the verifier already prescribes; reset owned browser/server fixture before desktop retest."
+}

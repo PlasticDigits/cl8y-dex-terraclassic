@@ -7,6 +7,7 @@ import type { IndexerRouteSolveResponse } from '@/types'
 import { quoteCw20ExactOutputViaRouteSolve, quoteCw20ViaRouteSolve } from './cw20RouteSolveQuote'
 import { assertLocalRouteSubmit } from './localRouteQuote'
 import { DIRECT_WRAPPER_FLOOR_UNSUPPORTED, validateWrapperOnlyQuote } from './localWrapperOnlyQuote'
+import { evaluateTradingRisk, tradingRiskBlocksSubmit } from './tradingRisk'
 import { LOCAL_QUOTE_SIGNING_WINDOW_MS } from '@/utils/localQuoteWindow'
 vi.mock('@/services/indexer/client', () => ({
   getRouteSolve: vi.fn(),
@@ -136,6 +137,7 @@ describe('zero-hop local wrapper arithmetic #1452', () => {
         executionBlocker: DIRECT_WRAPPER_FLOOR_UNSUPPORTED,
         indexerOperations: [],
       })
+      expect(evaluateTradingRisk(quote).availability).toBe('unavailable')
       idx.sizing_mode = 'local_pool_exact_output'
       idx.required_amount_in = '10000'
       idx.target_amount_out = '9800'
@@ -192,11 +194,29 @@ describe('version 1 direct wrapper signing #1459', () => {
     idx.execution_blocker = null // Exact supported backend wire shape.
     return idx
   }
+  it.each([false, true])(
+    'keeps original total risk and expiry on structural zero market movement: unwrap=%s',
+    (unwrap) => {
+      const q = executable(unwrap),
+        sim = { return_amount: q.estimated_amount_out!, executionMetadata: q.execution_metadata!, riskEvidence: q }
+      q.spot_amount_out = '11000'
+      expect(evaluateTradingRisk(sim)).toMatchObject({ orderWarning: false, totalWarning: true, consentRequired: true })
+      q.spot_amount_out = '15000'
+      expect(evaluateTradingRisk(sim).expertRequired).toBe(true)
+      expect(tradingRiskBlocksSubmit(evaluateTradingRisk(sim), false)).toBe(true)
+      expect(tradingRiskBlocksSubmit(evaluateTradingRisk(sim), true)).toBe(false)
+      q.execution_metadata!.expires_at_ms = Date.now() - 1
+      expect(evaluateTradingRisk(sim).availability).toBe('unavailable')
+    }
+  )
   it.each([false, true])('serializes the exact reviewed wallet floor without RPC: unwrap=%s', async (unwrap) => {
     const idx = executable(unwrap)
     vi.mocked(getRouteSolve).mockResolvedValue(idx)
     const quote = await quoteCw20ViaRouteSolve({ ...input, fromToken: idx.token_in, toToken: idx.token_out })
     expect(quote!.executionBlocker).toBeUndefined()
+    const risk = evaluateTradingRisk(quote)
+    expect(risk).toMatchObject({ availability: 'available', orderPercent: 0, totalPercent: 2, consentRequired: false })
+    expect(tradingRiskBlocksSubmit(risk, false)).toBe(false)
     expect(quote!.minimumReceive).toBe('9310')
     expect(() =>
       assertLocalRouteSubmit(quote!.executionMetadata, [], '10000', '0.05', 'terra1trader', '9310')

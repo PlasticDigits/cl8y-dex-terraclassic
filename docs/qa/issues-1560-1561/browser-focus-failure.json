@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-19T04:02:38.938Z",
+  "scope": "Isolated production-build 375x667 disconnected keyboard wallet-modal flow; no signing or broadcast",
+  "source_tree_hash": "abb816bd8ac051bb3c067ce39065237a3643ba2d8cb0bd88c30dbc66e3646070",
+  "failed_findings": [
+    {
+      "name": "primary-action-keyboard-and-wallet-modal",
+      "verdict": "FAIL",
+      "reason": "expect(locator).toBeFocused() failed\n\nLocator:  getByTestId('swap-submit')\nExpected: focused\nReceived: inactive\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.focused\" with timeout 5000ms\n  - waiting for getByTestId('swap-submit')\n    9 \u00d7 locator resolved to <button data-testid=\"swap-submit\" class=\"w-full py-3.5 sm:py-4 font-semibold text-base btn-primary btn-cta !w-full !py-3.5 sm:!py-4\">Connect Wallet</button>\n      - unexpected value \"inactive\"\n"
+    }
+  ],
+  "resolution": "Modal now restores its still-connected invoking control unless focus moved to another surface. Final browser and unit receipts retain the retest."
+}

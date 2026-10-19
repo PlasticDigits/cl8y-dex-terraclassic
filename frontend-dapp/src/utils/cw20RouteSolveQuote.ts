@@ -27,6 +27,7 @@ import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 /** Observation-pinned indexed quote. Missing executable metadata never starts a chain lookup. */
 export type Cw20RouteSolveQuote = {
   return_amount: string
+  riskEvidence?: IndexerRouteSolveResponse
   minimumReceive: string
   executionBlocker?: string
   executionMetadata: IndexerRouteExecutionMetadata
@@ -115,6 +116,7 @@ async function validateRouteSolveQuote(
     const orderMetrics = routeOrderMetrics(idx)
     return {
       return_amount: idx.estimated_amount_out!,
+      riskEvidence: idx,
       minimumReceive: metadata.minimum_receive,
       executionMetadata: metadata,
       executionOperations: '[]',
@@ -247,6 +249,7 @@ async function validateRouteSolveQuote(
 
   return {
     return_amount: displayNet,
+    riskEvidence: idx,
     minimumReceive: metadata.minimum_receive,
     executionMetadata: metadata,
     taxFundingVersion: metadata.tax_funding_version,

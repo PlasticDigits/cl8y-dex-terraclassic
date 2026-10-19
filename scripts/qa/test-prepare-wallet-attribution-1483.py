@@ -33,7 +33,7 @@ def quote(native):
         meta["wrapper"] = {"input_amount": "1000000", "route_input_amount": "980000",
                            "wrap_input": True, "unwrap_output": False}
     fair = "10000" if native else "9800"
-    return {"token_in": offer, "token_out": tokens["USTR"]["identity"],
+    return {"snapshot_age_ms": 1000, "token_in": offer, "token_out": tokens["USTR"]["identity"],
             "estimated_amount_out": "9000", "estimated_amount_out_net": "9000", "spot_amount_out": fair,
             "router_operations": [{"terra_swap": {"min_return": "8550", "hybrid": None}}],
             "execution_metadata": meta,

@@ -67,6 +67,13 @@ producerTimer.unref();
 function quote(q) {
   quoteRequests++;
   const amount = q.get("amount_in") || "1000000";
+  const fairDenominator =
+    10000n - BigInt(geometryFixture.fairDeviationBps || 0);
+  const fairAmount = (
+    (BigInt(amount) * 10000n + fairDenominator - 1n) /
+    fairDenominator
+  ).toString();
+  const divergence = (BigInt(fairAmount) - BigInt(amount)).toString();
   const maxSpread = q.get("max_spread") || "0.05";
   const quoteRelative = q.get("protection_policy") === "quote_relative_v1";
   const scale = 10n ** 18n;
@@ -99,15 +106,20 @@ function quote(q) {
     commission_amount: "0",
     min_return: floor,
     declared_hybrid: null,
+    reserve_in: (BigInt(amount) * scale).toString(),
+    reserve_out: ((BigInt(amount) + 1n) * scale - 1n).toString(),
+    book_side: "bid",
+    book_terms: [],
+    book_commission_amount: "0",
   };
-  return {
+  const result = {
     token_in: hop.offer_token,
     token_out: hop.ask_token,
     hops: [hop],
     intermediate_tokens: [hop.offer_token, hop.ask_token],
     quote_kind: "indexer_pool_db",
     estimated_amount_out: amount,
-    spot_amount_out: amount,
+    spot_amount_out: fairAmount,
     tax_kind: "none",
     router_operations: [
       {
@@ -138,6 +150,56 @@ function quote(q) {
       hops: [hop],
     },
   };
+  const m = result.execution_metadata;
+  result.economic_attribution = {
+    version: 1,
+    status: "available",
+    method: "spot_bridge_v1",
+    generation: m.generation,
+    observed_at_ms: m.observed_at_ms,
+    expires_at_ms: m.expires_at_ms,
+    fair_amount_out: fairAmount,
+    net_amount_out: amount,
+    components: {
+      wrapper_loss: "0",
+      trading_cost: "0",
+      market_movement: "0",
+      reference_divergence: divergence,
+    },
+    dominant_cause: divergence === "0" ? "mixed" : "reference_divergence",
+  };
+  result.order_economics = {
+    version: 1,
+    status: "available",
+    method: "selected_route_fee_free_v1",
+    generation: m.generation,
+    observed_at_ms: m.observed_at_ms,
+    expires_at_ms: m.expires_at_ms,
+    input_amount: amount,
+    policy: m.policy,
+    max_spread: maxSpread,
+    router_operations: result.router_operations,
+    baseline_amount_out: amount,
+    fee_free_amount_out: amount,
+    order_movement: "0",
+    trading_fee: "0",
+    tax_hook_cost: "0",
+    wrapper_cost: "0",
+    reference_divergence: divergence,
+    stages: [
+      {
+        reserve_in: hop.reserve_in,
+        reserve_out: hop.reserve_out,
+        input_amount: amount,
+        output_amount: amount,
+        book_input: "0",
+        max_maker_fills: 1,
+        book_side: "bid",
+        book: [],
+      },
+    ],
+  };
+  return result;
 }
 const server = http.createServer((req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -205,6 +267,7 @@ const server = http.createServer((req, res) => {
     }
     geometryObservations.push({
       amount_in: u.searchParams.get("amount_in"),
+      generation: body.execution_metadata?.generation ?? null,
       status: res.statusCode,
       observed_at_ms: body.execution_metadata?.observed_at_ms ?? null,
       expires_at_ms: body.execution_metadata?.expires_at_ms ?? null,
@@ -261,20 +324,48 @@ const server = http.createServer((req, res) => {
     }, delay);
   else send();
 });
-const buildDir = fs.mkdtempSync(
-  path.join(os.tmpdir(), "cl8y-local-quotes-1452-"),
-);
+const buildDir =
+  process.env.LOCAL_QUOTE_BROWSER_BUILD_DIR ||
+  fs.mkdtempSync(path.join(os.tmpdir(), "cl8y-local-quotes-1452-"));
 let browser;
 let buildProvenance;
+function sourceTreeHash() {
+  const hash = createHash("sha256");
+  function visit(dir) {
+    for (const entry of fs
+      .readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(dir, entry.name);
+      if (
+        entry.isDirectory() &&
+        entry.name !== "__tests__" &&
+        file !== path.join(root, "frontend-dapp/src/test")
+      )
+        visit(file);
+      else if (entry.isFile() && !/\.(test|spec)\.[jt]sx?$/.test(entry.name))
+        hash.update(path.relative(root, file)).update(fs.readFileSync(file));
+    }
+  }
+  visit(path.join(root, "frontend-dapp/src"));
+  return hash.digest("hex");
+}
 async function main() {
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
+    server.listen(
+      Number(process.env.LOCAL_QUOTE_BROWSER_PORT || 0),
+      "127.0.0.1",
+      resolve,
+    );
   });
   api = origin = `http://127.0.0.1:${server.address().port}`;
   await new Promise((resolve, reject) => {
     provider.once("error", reject);
-    provider.listen(0, "127.0.0.1", resolve);
+    provider.listen(
+      Number(process.env.LOCAL_QUOTE_BROWSER_PROVIDER_PORT || 0),
+      "127.0.0.1",
+      resolve,
+    );
   });
   providerUrl = `http://127.0.0.1:${provider.address().port}`;
   const fixtureEnv = {
@@ -297,27 +388,52 @@ async function main() {
       encoding: "utf8",
     }).stdout.trim(),
     built_at_utc: new Date().toISOString(),
+    source_tree_hash: sourceTreeHash(),
+    fixture_origin: origin,
+    fixture_provider: providerUrl,
   };
-  const built = spawnSync(
-    "bash",
-    [
-      "scripts/with-node.sh",
-      "--cwd",
-      "frontend-dapp",
-      "--",
-      "npm",
-      "run",
-      "build",
-      "--",
-      "--outDir",
-      buildDir,
-    ],
-    { cwd: root, env: fixtureEnv, encoding: "utf8" },
-  );
-  if (built.status !== 0)
-    throw new Error(
-      `Production fixture build failed: ${built.stdout.slice(-1500)} ${built.stderr.slice(-1500)}`,
+  if (!process.env.LOCAL_QUOTE_BROWSER_SKIP_BUILD) {
+    const built = spawnSync(
+      "bash",
+      [
+        "scripts/with-node.sh",
+        "--cwd",
+        "frontend-dapp",
+        "--",
+        "npm",
+        "run",
+        "build",
+        "--",
+        "--outDir",
+        buildDir,
+      ],
+      { cwd: root, env: fixtureEnv, encoding: "utf8" },
     );
+    if (built.status !== 0)
+      throw new Error(
+        `Production fixture build failed: ${built.stdout.slice(-1500)} ${built.stderr.slice(-1500)}`,
+      );
+    fs.writeFileSync(
+      path.join(buildDir, "fixture-provenance.json"),
+      JSON.stringify(buildProvenance),
+    );
+  } else {
+    buildProvenance = JSON.parse(
+      fs.readFileSync(path.join(buildDir, "fixture-provenance.json"), "utf8"),
+    );
+    if (buildProvenance.source_tree_hash !== sourceTreeHash())
+      throw new Error(
+        "Stale fixture build: frontend source changed; rebuild before verification",
+      );
+    if (
+      buildProvenance.fixture_origin !== origin ||
+      buildProvenance.fixture_provider !== providerUrl
+    )
+      throw new Error(
+        "Reused fixture endpoints differ; retain the original controlled ports",
+      );
+  }
+  if (process.env.LOCAL_QUOTE_BROWSER_BUILD_ONLY) return;
   buildProvenance.served_assets = fs
     .readdirSync(path.join(buildDir, "assets"))
     .filter((name) => name.endsWith(".js"))
@@ -634,6 +750,7 @@ async function main() {
       from,
       to,
       fixture: {
+        providerUrl,
         set(options = {}) {
           geometryFixture = {
             mode: "success",
@@ -646,6 +763,7 @@ async function main() {
         requests: () => quoteRequests,
         completed: () => completedQuoteRequests,
         observations: () => [...geometryObservations],
+        producerObservedAt: () => observedAtMs,
       },
     });
     await browser.close();
@@ -654,7 +772,7 @@ async function main() {
   const result = {
     recorded_at: new Date().toISOString(),
     environment:
-      "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected; no broadcast; not production reference evidence",
+      "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected unless the geometry receipt declares a synthetic unsigned extension with intercepted balances/legal status; no broadcast; not production reference evidence",
     measurement:
       "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
     browser_channel: "chrome",
@@ -707,5 +825,6 @@ main()
     if (browser) await browser.close();
     await new Promise((r) => server.close(r));
     await new Promise((r) => provider.close(r));
-    fs.rmSync(buildDir, { recursive: true, force: true });
+    if (!process.env.LOCAL_QUOTE_BROWSER_BUILD_DIR)
+      fs.rmSync(buildDir, { recursive: true, force: true });
   });

@@ -1,0 +1,12 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T03:49:41.459150+00:00",
+  "application_uuid": "afs50d2ect995yzc9jkp7u2u",
+  "operation": "inspect",
+  "prior_pinned_revision": "2df4a471a9ca98a8672d911b67d4bd8134f411fd",
+  "status": "running:healthy",
+  "overall": "PASS"
+}

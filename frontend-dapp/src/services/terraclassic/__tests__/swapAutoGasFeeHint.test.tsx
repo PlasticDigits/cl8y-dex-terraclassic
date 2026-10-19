@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router-dom'
 
 import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
+import { evaluateTradingRisk } from '@/utils/tradingRisk'
+import { tradingRiskFixture } from '@/test/tradingRiskFixtures'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { useAutoGasFeeEstimate } from '@/hooks/useAutoGasFeeEstimate'
 import {
@@ -78,14 +80,20 @@ describe('Swap and Trade market network fee (#1360)', () => {
 
 describe('acquire banner and impact aside (#1360)', () => {
   it('does not place a 2.63% worst-hop line beside the high-impact sentence', () => {
+    const q = tradingRiskFixture()
+    const risk = evaluateTradingRisk({
+      return_amount: q.estimated_amount_out!,
+      executionMetadata: q.execution_metadata!,
+      riskEvidence: q,
+    })
     render(
       <MemoryRouter>
         <SwapPayAcquireGuidanceBanner guidance={highImpact} testIdPrefix="swap" onReduce={() => undefined} />
-        <SwapImpactAside routeSlippagePct={6.2} worstHopPercent="2.63" />
+        <SwapImpactAside risk={risk} routeSlippagePct={risk.totalPercent} worstHopPercent="2.63" />
       </MemoryRouter>
     )
     expect(screen.getByTestId('swap-acquire-guidance')).toHaveTextContent(SWAP_ACQUIRE_COPY.highImpact)
-    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 6.20%')
+    expect(screen.getByTestId('swap-impact-aside')).toHaveTextContent('Fair-reference deviation 18.33%')
     expect(screen.getByTestId('swap-impact-aside').textContent).not.toMatch(/2\.63/)
     expect(document.body.textContent).not.toMatch(/2\.63/)
   })

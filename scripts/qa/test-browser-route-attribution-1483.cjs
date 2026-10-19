@@ -54,35 +54,43 @@ function attestation() {
 }
 function quote() {
   const now = epoch;
-  return {
+  const q = {
+    snapshot_age_ms: 1000,
     token_in: "in",
     token_out: "out",
-    estimated_amount_out_net: "900000",
-    estimated_amount_out: "900000",
+    estimated_amount_out_net: "890000",
+    estimated_amount_out: "890000",
     spot_amount_out: "1000000",
     execution_metadata: {
+      policy: "pool_only",
       protection_policy: "quote_relative_v1",
       max_spread: "0.05",
       input_amount: "1000000",
-      minimum_receive: "855000",
+      minimum_receive: "845500",
       observed_at_ms: now - 1000,
       expires_at_ms: now + 19000,
       generation: "original",
       execution_market_spread: "0.052631578947368422",
       hops: [
         {
-          pool_return_amount: "900000",
+          offer_amount: "1000000",
+          reserve_in: "1000000000000000000000000",
+          reserve_out: "890000999999999999999999",
+          book_side: "bid",
+          book_terms: [],
+          book_commission_amount: "0",
+          pool_return_amount: "890000",
           commission_amount: "0",
           book_return_net: "0",
           pool_input_actual: "1000000",
           book_offer_consumed: "0",
           spread_amount: "0",
-          return_amount: "900000",
-          min_return: "855000",
+          return_amount: "890000",
+          min_return: "845500",
         },
       ],
     },
-    router_operations: [{ terra_swap: { min_return: "855000" } }],
+    router_operations: [{ terra_swap: { min_return: "845500" } }],
     economic_attribution: {
       version: 1,
       status: "available",
@@ -91,16 +99,50 @@ function quote() {
       observed_at_ms: now - 1000,
       expires_at_ms: now + 19000,
       fair_amount_out: "1000000",
-      net_amount_out: "900000",
+      net_amount_out: "890000",
       components: {
         wrapper_loss: "0",
         trading_cost: "0",
         market_movement: "0",
-        reference_divergence: "100000",
+        reference_divergence: "110000",
       },
       dominant_cause: "reference_divergence",
     },
   };
+  const m = q.execution_metadata,
+    h = m.hops[0];
+  q.order_economics = {
+    version: 1,
+    status: "available",
+    method: "selected_route_fee_free_v1",
+    generation: m.generation,
+    observed_at_ms: m.observed_at_ms,
+    expires_at_ms: m.expires_at_ms,
+    input_amount: m.input_amount,
+    policy: m.policy,
+    max_spread: m.max_spread,
+    router_operations: q.router_operations,
+    baseline_amount_out: q.estimated_amount_out,
+    fee_free_amount_out: q.estimated_amount_out,
+    order_movement: "0",
+    trading_fee: "0",
+    tax_hook_cost: "0",
+    wrapper_cost: "0",
+    reference_divergence: "110000",
+    stages: [
+      {
+        reserve_in: h.reserve_in,
+        reserve_out: h.reserve_out,
+        input_amount: m.input_amount,
+        output_amount: q.estimated_amount_out,
+        book_input: "0",
+        max_maker_fills: 1,
+        book_side: "bid",
+        book: [],
+      },
+    ],
+  };
+  return q;
 }
 function fixture({ entry = "swap", offscreen = false } = {}) {
   const payId =
@@ -111,7 +153,7 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
     entry === "trade" ? "trade-market-expected-receive" : "swap-you-receive";
   const prefix = entry === "trade" ? "trade-market" : "swap";
   const dom = new JSDOM(
-    `<input data-testid="${payId}">${entry === "trade" ? `<span data-testid="${receiveId}"></span>` : `<input data-testid="${receiveId}">`}<p role="alert" data-testid="${prefix}-impact-aside"></p>`,
+    `<input data-testid="${payId}">${entry === "trade" ? `<span data-testid="${receiveId}"></span>` : `<input data-testid="${receiveId}">`}<p role="status" data-testid="${prefix}-impact-aside"></p>`,
     { runScripts: "outside-only", url: "https://dex.cl8y.com" },
   );
   const w = dom.window;
@@ -139,7 +181,7 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
   };
   w.clearInterval = (id) => intervals.delete(id);
   w.eval(
-    `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format}; (${installRuntime.toString()})(${JSON.stringify({ copies: COPIES })});`,
+    `window.__validate1483 = ${shared.validator}; window.__explain1483 = ${shared.explanation}; window.__precise1483 = ${shared.precision}; window.__format1483 = ${shared.format}; window.__riskPolicy1483 = ${shared.risk}; (${installRuntime.toString()})(${JSON.stringify({ copies: COPIES })});`,
   );
   const pay = w.document.querySelector(`[data-testid="${payId}"]`),
     receive = w.document.querySelector(`[data-testid="${receiveId}"]`),
@@ -184,21 +226,26 @@ function fixture({ entry = "swap", offscreen = false } = {}) {
     },
     classified: true,
     useful: true,
-    output: "900000",
-    minimum: "855000",
+    output: "890000",
+    minimum: "845500",
     observed: epoch - 1000,
     expires: epoch + 19000,
     diagnostic: {
       valid: true,
-      percent: "10.00",
-      precise_percent: 10,
+      percent: "11.00",
+      precise_percent: 11,
       explanation: w.__explain1483(q),
+      risk: w.__riskPolicy1483.evaluateTradingRisk({
+        return_amount: q.estimated_amount_out,
+        executionMetadata: q.execution_metadata,
+        riskEvidence: q,
+      }),
     },
   };
   w.__quotes1473.push(row);
-  if (entry === "trade") receive.textContent = "0.9 UST1";
-  else receive.value = "0.9";
-  aside.textContent = "Fair-reference deviation 10.00%.";
+  if (entry === "trade") receive.textContent = "0.89 UST1";
+  else receive.value = "0.89";
+  aside.textContent = "Fair-reference deviation 11.00%.";
   return {
     w,
     row,
@@ -465,7 +512,7 @@ for (const entry of ["swap", "trade"]) {
     for (const text of [
       "Cost breakdown unavailable.",
       "<script>private</script>",
-      "Fair-reference deviation 10.00%. 2%",
+      "Fair-reference deviation 11.00%. 2%",
     ]) {
       const f = fixture({ entry });
       f.aside.textContent = text;
@@ -544,6 +591,16 @@ test("ordinary price detail stays behind DETAILS without an outside warning", ()
   f.w.document.body.appendChild(detail);
   f.row.diagnostic.percent = "1.00";
   f.row.diagnostic.precise_percent = 1;
+  const q = f.q,
+    a = q.economic_attribution,
+    d = q.order_economics;
+  q.spot_amount_out = a.fair_amount_out = "898989";
+  a.components.reference_divergence = d.reference_divergence = "8989";
+  f.row.diagnostic.risk = f.w.__riskPolicy1483.evaluateTradingRisk({
+    return_amount: q.estimated_amount_out,
+    executionMetadata: q.execution_metadata,
+    riskEvidence: q,
+  });
   f.tick(300);
   f.frame(320);
   f.frame(340);
@@ -557,5 +614,62 @@ test("display metric formatter retains the real safety transitions", () => {
   assert.equal(f.w.__format1483(5.000000000000001), ">5");
   assert.equal(f.w.__format1483(30.000000000000004), ">30");
   assert.equal(f.w.__format1483(98.99999999999997), "<99");
+  f.close();
+});
+
+test("actual bundled risk policy uses exact raw 5/10/30/99 and rejects forged diagnostics", () => {
+  const f = fixture(),
+    policy = f.w.__riskPolicy1483;
+  const p = policy.exactTradingRiskPredicates({
+    movement: "334",
+    baseline: "10000",
+    net: "9309",
+    fair: "10000",
+  });
+  assert.equal(p.orderWarning || p.totalWarning, false);
+  for (const offset of [-1n, 0n, 1n]) {
+    const b = 10n ** 36n;
+    const exact = policy.exactTradingRiskPredicates({
+      movement: String(b / 20n + offset),
+      baseline: String(b),
+      net: String(b - b / 10n - offset),
+      fair: String(b),
+    });
+    assert.equal(exact.orderWarning, offset > 0n);
+    assert.equal(exact.totalWarning, offset > 0n);
+  }
+  for (const favorable of [false, true])
+    for (const offset of [-1n, 0n, 1n]) {
+      const b = 10n ** 36n;
+      const exact = (difference) =>
+        policy.exactTradingRiskPredicates({
+          movement: "-1",
+          baseline: String(b),
+          net: String(favorable ? b : b - difference),
+          fair: String(favorable ? b - difference : b),
+        });
+      assert.equal(
+        exact((b * 30n) / 100n + offset).expertRequired,
+        offset > 0n,
+      );
+      assert.equal(exact((b * 99n) / 100n + offset).extreme, offset >= 0n);
+      assert.equal(exact((b * 99n) / 100n + offset).orderWarning, false);
+    }
+  const q = f.q;
+  q.order_economics.order_movement = "0.1";
+  assert.equal(
+    policy.evaluateTradingRisk({
+      return_amount: q.estimated_amount_out,
+      executionMetadata: q.execution_metadata,
+      riskEvidence: q,
+    }).availability,
+    "unavailable",
+  );
+  assert.ok(
+    shared.dependencies.includes("frontend-dapp/src/utils/tradingRisk.ts"),
+  );
+  assert.ok(
+    shared.dependencies.includes("frontend-dapp/src/utils/localQuoteWindow.ts"),
+  );
   f.close();
 });

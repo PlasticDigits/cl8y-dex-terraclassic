@@ -1,5 +1,9 @@
 import { executeMultiHopSwap } from '@/services/terraclassic/router'
-import { localQuote } from '@/test/localRouteFixtures'
+import { localQuote as bareLocalQuote } from '@/test/localRouteFixtures'
+import { attachZeroMovementRiskFixture } from '@/test/routeEconomicFixtures'
+function localQuote(...args: Parameters<typeof bareLocalQuote>) {
+  return attachZeroMovementRiskFixture(bareLocalQuote(...args))
+}
 import * as indexerClient from '@/services/indexer/client'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, screen, waitFor } from '@testing-library/react'

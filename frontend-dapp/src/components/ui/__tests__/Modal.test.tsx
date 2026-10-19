@@ -1,9 +1,66 @@
 import { describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Modal } from '@/components/ui/Modal'
 
 describe('Modal', () => {
+  it('returns keyboard focus to the invoking control after Escape closes the dialog (#1561)', async () => {
+    const user = userEvent.setup()
+    function Fixture() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Connect Wallet</button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} title="Connect Wallet">
+            <button>Wallet option</button>
+          </Modal>
+        </>
+      )
+    }
+    render(<Fixture />)
+    const trigger = screen.getByRole('button', { name: 'Connect Wallet' })
+    await user.click(trigger)
+    expect(screen.getByRole('dialog')).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('does not steal focus deliberately moved outside a closing dialog (#1561)', () => {
+    const renderFixture = (open: boolean) => (
+      <>
+        <button>Next action</button>
+        <Modal isOpen={open} onClose={() => undefined} title="Test">
+          Body
+        </Modal>
+      </>
+    )
+    const { rerender } = render(renderFixture(true))
+    const next = screen.getByRole('button', { name: 'Next action' })
+    next.focus()
+    rerender(renderFixture(false))
+    expect(next).toHaveFocus()
+  })
+
+  it('preserves focus in a newer dialog when an older layer closes (#1561)', () => {
+    const renderLayers = (outerOpen: boolean) => (
+      <>
+        <Modal isOpen={outerOpen} onClose={() => undefined} title="Wallet">
+          Wallet
+        </Modal>
+        <Modal isOpen onClose={() => undefined} title="Pair wallet">
+          Pairing
+        </Modal>
+      </>
+    )
+    const { rerender } = render(renderLayers(true))
+    const pairing = screen.getByRole('dialog', { name: 'Pair wallet' })
+    expect(pairing).toHaveFocus()
+    rerender(renderLayers(false))
+    expect(pairing).toHaveFocus()
+  })
+
   it('calls onClose when Escape is pressed if dismissible', () => {
     const onClose = vi.fn()
     render(
