@@ -54,3 +54,5 @@ Unit/synthetic checks establish only their tested scope. The final issue comment
 and deployment receipts record checked criteria and unavailable acceptance;
 unperformed scenarios remain unchecked. Run each test process with a <=55-second
 timeout under the task's 60-second limit. Keep production serving while validating.
+
+Final implementation, bounded verification, deployment and remaining acceptance: [joint results](../issues-1560-1561/RESULTS.md). Both issues remain open for the explicitly unperformed scopes.

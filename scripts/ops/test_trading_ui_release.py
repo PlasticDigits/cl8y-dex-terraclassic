@@ -10,7 +10,7 @@ SPEC.loader.exec_module(R)
 
 
 def app():
-    return {'uuid': R.APP, 'id': 77, 'git_branch': 'main',
+    return {'uuid': R.APP, 'git_branch': 'main',
             'git_repository': 'https://git.cl8y.com/code/cl8y-dex-terraclassic',
             'build_pack': 'dockerfile', 'dockerfile_location': '/docker/frontend/Dockerfile',
             'fqdn': 'https://dex.cl8y.com', 'git_commit_sha': 'a' * 40}
@@ -20,6 +20,7 @@ class API:
     def __init__(self):
         self.app = app()
         self.detail = {'deployment_uuid': 'b' * 24, 'application_id': 77,
+                       'application': {'id': 77, 'uuid': R.APP},
                        'commit': 'a' * 40, 'status': 'finished',
                        'logs': json.dumps([{'output': 'SECRET_PAYLOAD'},
                                            {'output': 'ERROR SECRET_PAYLOAD'},
@@ -83,9 +84,16 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             R.deployment(api, 'b' * 24, 'a' * 40)
 
+    def test_public_bundle_filename_is_not_an_error_level(self):
+        api = API()
+        api.detail['logs'] = json.dumps([{'output': 'dist/assets/decodeContractError-abcd1234.js 1.2 kB'}])
+        result = R.deployment(api, 'b' * 24, 'a' * 40)
+        self.assertEqual(result['error_pattern_entries'], 0)
+        self.assertEqual(result['overall'], 'PASS')
+
     def test_rejects_other_deployment_and_malformed_log(self):
         for key, bad in [('deployment_uuid', 'c' * 24), ('application_id', 78),
-                         ('status', 'untrusted'), ('commit', 'HEAD'), ('commit', 'c' * 40), ('logs', '"SECRET_PAYLOAD"')]:
+                         ('application', {'id':77,'uuid':'wrong'}), ('application', {}), ('status', 'untrusted'), ('commit', 'HEAD'), ('commit', 'c' * 40), ('logs', '"SECRET_PAYLOAD"')]:
             api = API()
             api.detail[key] = bad
             with self.subTest(key=key), self.assertRaises(ValueError):

@@ -1,0 +1,44 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T04:23:50.359895+00:00",
+  "frontend": {
+    "source_sha": "6a5118ffc2a3bf71b4ad638226d48228bd2eb64a",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-19T04:21:39+00:00",
+    "artifact": {
+      "html_sha256": "31e02d3b243cb11a182d79e0efe4462abdaee9b8e44d4f104a25d6f8741f4453",
+      "root_scripts": [
+        {
+          "asset": "theme.js",
+          "path": "/bootstrap/theme.js",
+          "sha256": "6b0a6f50dd342a54d8ee98bbf1219160dd5a589e4a8a79582ae224abdabd8238",
+          "bytes": 266
+        },
+        {
+          "asset": "trade-shell.js",
+          "path": "/bootstrap/trade-shell.js",
+          "sha256": "2b8f53acdfafa4e5419dcd052ebafb13790124e91cf21b5dec75377921b9ec34",
+          "bytes": 869
+        },
+        {
+          "asset": "index-Cb-0YJZ3.js",
+          "path": "/assets/index-Cb-0YJZ3.js",
+          "sha256": "8f56b05b15321e2f5c3d199db85e9fbd1092f0bbf905c58d56e9ed8905ed78a3",
+          "bytes": 182178
+        }
+      ]
+    }
+  },
+  "backend_deployment": {
+    "source_sha": "b7b08736b3529af344a693ae6d16236a4f324c13",
+    "deployment_status": "finished",
+    "deployment_finished_at_utc": "2026-10-18T16:12:36+00:00"
+  },
+  "backend_unchanged": true,
+  "read_count": 9,
+  "overall": "PASS",
+  "limits": "Root scripts hashed completely; lazy chunks observed through live browser behavior. No funded or physical-device attestation."
+}

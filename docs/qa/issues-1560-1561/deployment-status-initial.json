@@ -1,0 +1,12 @@
+{
+  "issues": [
+    1560,
+    1561
+  ],
+  "utc": "2026-10-19T04:20:45.675127+00:00",
+  "application_uuid": "afs50d2ect995yzc9jkp7u2u",
+  "operation": "deployment",
+  "prior_pinned_revision": "6a5118ffc2a3bf71b4ad638226d48228bd2eb64a",
+  "overall": "FAIL",
+  "failure_class": "ValueError"
+}

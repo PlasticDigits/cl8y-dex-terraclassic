@@ -42,8 +42,15 @@ def deployment(api, identifier, revision):
     OPS.require(SHA.fullmatch(revision or ''), 'reviewed_revision')
     detail = api.api('deployments/' + identifier)
     app = owned(api)
+    embedded = detail.get('application')
+    OPS.require(isinstance(embedded, dict), 'deployment_application_shape')
+    internal_id = str(embedded.get('id', ''))
+    # The public application endpoint omits its internal numeric id. Bind the
+    # deployment's own embedded snapshot to the exact already-verified UUID.
     OPS.require(detail.get('deployment_uuid') == identifier and detail.get('status') in STATES
-                and detail.get('application_id') == app.get('id')
+                and re.fullmatch(r'[1-9][0-9]{0,18}', internal_id)
+                and str(detail.get('application_id')) == internal_id
+                and embedded.get('uuid') == APP
                 and app.get('git_commit_sha') == revision
                 and detail.get('commit') == revision, 'deployment_binding')
     logs = detail.get('logs')
@@ -54,7 +61,7 @@ def deployment(api, identifier, revision):
         OPS.require(isinstance(row, dict), 'log_shape')
         text = row.get('output', '')
         OPS.require(isinstance(text, str), 'log_shape')
-        if re.search(r'(?i)(error|panic|fatal|failed)', text):
+        if re.search(r'(?i)\b(error|panic|fatal|failed)\b', text):
             if re.fullmatch(r'(?:Error(?: response from daemon)?: )?No such container: [A-Za-z0-9_.-]+', text.strip(), re.IGNORECASE):
                 cleanup += 1
             else:
