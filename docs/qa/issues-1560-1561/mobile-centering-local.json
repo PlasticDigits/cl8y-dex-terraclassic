@@ -1,0 +1,427 @@
+{
+  "scope": "Isolated production build; connected wallet and legal status are synthetic, cannot sign.",
+  "runs": [
+    {
+      "width": 375,
+      "height": 667,
+      "connected": false,
+      "verdict": "PASS",
+      "checks": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS"
+        },
+        {
+          "name": "mobile-footer-hidden-and-about-accessible-in-more",
+          "verdict": "PASS"
+        },
+        {
+          "name": "axe-critical-serious-and-keyboard-focus",
+          "verdict": "PASS"
+        },
+        {
+          "name": "primary-action-keyboard-and-wallet-modal",
+          "verdict": "PASS"
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "PASS"
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "PASS"
+        }
+      ],
+      "initial": {
+        "cta": {
+          "top": 462.5,
+          "bottom": 516.5,
+          "height": 54,
+          "width": 350
+        },
+        "headerBottom": 58,
+        "navTop": 594,
+        "form": {
+          "top": 134.5,
+          "bottom": 517.5,
+          "height": 383
+        },
+        "footerDisplayed": false
+      },
+      "regions": [
+        {
+          "id": "swap-route-summary",
+          "width": 350,
+          "scrollWidth": 350,
+          "height": 17,
+          "scrollHeight": 17,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 358,
+          "specifiedGap": 2,
+          "visibleSegments": [
+            {
+              "left": 126.78125,
+              "right": 235.140625
+            },
+            {
+              "left": 237.140625,
+              "right": 248.140625
+            },
+            {
+              "left": 250.140625,
+              "right": 358
+            }
+          ],
+          "tokenBounds": [
+            {
+              "left": 126.78125,
+              "right": 235.140625,
+              "width": 108.359375
+            },
+            {
+              "left": 250.140625,
+              "right": 358,
+              "width": 107.859375
+            }
+          ]
+        },
+        {
+          "id": "swap-quote-status",
+          "width": 350,
+          "scrollWidth": 350,
+          "height": 36,
+          "scrollHeight": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 358,
+          "specifiedGap": 0,
+          "visibleSegments": [],
+          "tokenBounds": []
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "connected": false,
+      "verdict": "PASS",
+      "checks": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS"
+        },
+        {
+          "name": "mobile-footer-hidden-and-about-accessible-in-more",
+          "verdict": "PASS"
+        },
+        {
+          "name": "axe-critical-serious-and-keyboard-focus",
+          "verdict": "PASS"
+        },
+        {
+          "name": "primary-action-keyboard-and-wallet-modal",
+          "verdict": "PASS"
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "PASS"
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "PASS"
+        }
+      ],
+      "initial": {
+        "cta": {
+          "top": 551,
+          "bottom": 605,
+          "height": 54,
+          "width": 365
+        },
+        "headerBottom": 58,
+        "navTop": 771,
+        "form": {
+          "top": 223,
+          "bottom": 606,
+          "height": 383
+        },
+        "footerDisplayed": false
+      },
+      "regions": [
+        {
+          "id": "swap-route-summary",
+          "width": 365,
+          "scrollWidth": 365,
+          "height": 17,
+          "scrollHeight": 17,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 373,
+          "specifiedGap": 2,
+          "visibleSegments": [
+            {
+              "left": 141.78125,
+              "right": 250.140625
+            },
+            {
+              "left": 252.140625,
+              "right": 263.140625
+            },
+            {
+              "left": 265.140625,
+              "right": 373
+            }
+          ],
+          "tokenBounds": [
+            {
+              "left": 141.78125,
+              "right": 250.140625,
+              "width": 108.359375
+            },
+            {
+              "left": 265.140625,
+              "right": 373,
+              "width": 107.859375
+            }
+          ]
+        },
+        {
+          "id": "swap-quote-status",
+          "width": 365,
+          "scrollWidth": 365,
+          "height": 36,
+          "scrollHeight": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 373,
+          "specifiedGap": 0,
+          "visibleSegments": [],
+          "tokenBounds": []
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 1000,
+      "connected": false,
+      "verdict": "PASS",
+      "checks": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS"
+        },
+        {
+          "name": "axe-critical-serious-and-keyboard-focus",
+          "verdict": "PASS"
+        },
+        {
+          "name": "primary-action-keyboard-and-wallet-modal",
+          "verdict": "PASS"
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "PASS"
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "PASS"
+        }
+      ],
+      "initial": {
+        "cta": {
+          "top": 668,
+          "bottom": 726,
+          "height": 58,
+          "width": 450
+        },
+        "headerBottom": 76,
+        "navTop": 1000,
+        "form": {
+          "top": 104,
+          "bottom": 751,
+          "height": 647
+        },
+        "footerDisplayed": true
+      },
+      "regions": [
+        {
+          "id": "swap-route-summary",
+          "width": 282,
+          "scrollWidth": 282,
+          "height": 16,
+          "scrollHeight": 16,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 658.171875,
+          "right": 940.5,
+          "specifiedGap": 4,
+          "visibleSegments": [
+            {
+              "left": 683.53125,
+              "right": 802.296875
+            },
+            {
+              "left": 806.296875,
+              "right": 818.296875
+            },
+            {
+              "left": 822.296875,
+              "right": 940.5
+            }
+          ],
+          "tokenBounds": [
+            {
+              "left": 683.53125,
+              "right": 802.296875,
+              "width": 118.765625
+            },
+            {
+              "left": 822.296875,
+              "right": 940.5,
+              "width": 118.203125
+            }
+          ]
+        },
+        {
+          "id": "swap-quote-status",
+          "width": 450,
+          "scrollWidth": 450,
+          "height": 72,
+          "scrollHeight": 72,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 490.5,
+          "right": 940.5,
+          "specifiedGap": 0,
+          "visibleSegments": [],
+          "tokenBounds": []
+        }
+      ]
+    },
+    {
+      "width": 375,
+      "height": 667,
+      "connected": true,
+      "verdict": "PASS",
+      "checks": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS"
+        },
+        {
+          "name": "mobile-footer-hidden-and-about-accessible-in-more",
+          "verdict": "PASS"
+        },
+        {
+          "name": "axe-critical-serious-and-keyboard-focus",
+          "verdict": "PASS"
+        },
+        {
+          "name": "primary-action-keyboard-and-wallet-modal",
+          "verdict": "PASS"
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "PASS"
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "PASS"
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "PASS"
+        }
+      ],
+      "initial": {
+        "cta": {
+          "top": 488.5,
+          "bottom": 542.5,
+          "height": 54,
+          "width": 350
+        },
+        "headerBottom": 64,
+        "navTop": 594,
+        "form": {
+          "top": 114.5,
+          "bottom": 543.5,
+          "height": 429
+        },
+        "footerDisplayed": false
+      },
+      "regions": [
+        {
+          "id": "swap-route-summary",
+          "width": 350,
+          "scrollWidth": 350,
+          "height": 17,
+          "scrollHeight": 17,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 358,
+          "specifiedGap": 2,
+          "visibleSegments": [
+            {
+              "left": 126.78125,
+              "right": 235.140625
+            },
+            {
+              "left": 237.140625,
+              "right": 248.140625
+            },
+            {
+              "left": 250.140625,
+              "right": 358
+            }
+          ],
+          "tokenBounds": [
+            {
+              "left": 126.78125,
+              "right": 235.140625,
+              "width": 108.359375
+            },
+            {
+              "left": 250.140625,
+              "right": 358,
+              "width": 107.859375
+            }
+          ]
+        },
+        {
+          "id": "swap-quote-status",
+          "width": 350,
+          "scrollWidth": 350,
+          "height": 36,
+          "scrollHeight": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "left": 8,
+          "right": 358,
+          "specifiedGap": 0,
+          "visibleSegments": [],
+          "tokenBounds": []
+        }
+      ]
+    }
+  ],
+  "source_tree_hash": "8871610fa66a47b3125e8e6cbf5221b6e46e3670bcd4ee72cdbe52ffe74bf1ba",
+  "provider_requests": 0
+}

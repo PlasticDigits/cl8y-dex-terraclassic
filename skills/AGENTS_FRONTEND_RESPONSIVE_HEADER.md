@@ -1,5 +1,13 @@
 # Agent playbook: responsive header & navigation density
 
+Mobile shell follow-up (#1561): the explicit user request supersedes the older
+mobile-footer placement rules below. Below 768px the content footer is hidden;
+environment, official product and legal information remain in a separate About
+and legal section of mobile More. Desktop footer and link security stay unchanged.
+Swap centers in spare space between the header and measured bottom navigation;
+long/zoomed content scrolls normally. [Evidence and invariant](../docs/qa/issues-1560-1561/MOBILE-CENTERING.md).
+
+
 Use when changing **`Layout.tsx`**, **primary / More nav items**, **`HEADER_FULL_NAV_MIN_WIDTH_PX`**, sticky header spacing, footer **environment ribbon**, header **NetworkBadge** visibility, or Playwright tests under **`frontend-dapp/e2e/navigation.spec.ts`** that assert header overlap / sticky clearance.
 
 ## Canonical references

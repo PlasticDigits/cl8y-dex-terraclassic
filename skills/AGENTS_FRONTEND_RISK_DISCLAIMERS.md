@@ -1,5 +1,12 @@
 # Agent playbook: frontend risk disclaimers and first-visit acknowledgement
 
+Mobile placement follow-up (#1561): below 768px the content footer is hidden by
+explicit user request. The unchanged environment/NFA/security/product information
+is reachable in mobile More → About and legal, outside ConnectedTermsGate; first
+visit and connected signing disclosures remain enforced. This supersedes only the
+older all-breakpoint footer placement statements below. [Evidence](../docs/qa/issues-1560-1561/MOBILE-CENTERING.md).
+
+
 Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`EnvironmentRibbon`**, **`riskAcknowledgement` storage**, or **Playwright env** around the first-visit gate ([GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
 
 ## Canonical references

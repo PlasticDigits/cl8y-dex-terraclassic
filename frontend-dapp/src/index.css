@@ -1046,7 +1046,7 @@
   }
 
   /**
-   * Sticky header only — environment ribbon lives in the footer on all breakpoints.
+   * Sticky header only — environment ribbon lives in the desktop footer/mobile More sheet.
    * Opaque sticky bg keeps scrolled page copy from reading through the header card.
    * Sticky stack (`z-index: 40`) stays below modal portals (`z-index: 200`).
    * Historical #482/#486 ribbon-under-header stacking no longer applies.
@@ -2424,6 +2424,10 @@ input[type='number'] {
 }
 
 @media (max-width: 767px) {
+  #root {
+    padding-top: 0;
+  }
+
   /**
    * Fallback before JS measures the bar; Layout syncs the real height on :root.
    * Nav = padding + row + safe-area (see .app-mobile-nav-shell).
@@ -2517,10 +2521,9 @@ input[type='number'] {
     display: grid;
   }
 
-  /* Keep footer (ribbon + product links + NFA) above the bottom tab bar on mobile. */
+  /* Mobile uses the More sheet for environment, product and legal information. */
   .app-footer-shell {
-    display: block;
-    padding: 12px 0 calc(var(--app-mobile-nav-stack) + 16px);
+    display: none;
   }
 
   .app-footer {
@@ -2624,6 +2627,25 @@ input[type='number'] {
 
 /* A long bounded route gets a full line even on desktop; the same summary
  * height remains reserved, so no sibling geometry changes. */
+.swap-quote-summary {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 2px;
+}
+
+.swap-route-summary {
+  /* Wrap the entire path when enlarged metrics leave too little room. */
+  flex-basis: auto;
+}
+
+.swap-route-path {
+  justify-content: flex-end;
+}
+
+.swap-route-token {
+  flex: 0 1 auto;
+}
+
 .swap-quote-summary[data-long-route] {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -2646,12 +2668,35 @@ input[type='number'] {
 
 @media (max-width: 767px) {
   /* Scope shell changes to Swap, including its default '/' entry. */
+  .app-shell:has(.swap-page) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-bottom: var(--app-mobile-nav-stack);
+  }
+
+  .app-shell:has(.swap-page) .app-top-sticky {
+    flex-shrink: 0;
+  }
+
   .app-shell:has(.swap-page) .app-header {
     margin-top: env(safe-area-inset-top, 0px);
   }
 
   .app-main-shell:has(.swap-page) {
-    padding-top: 4px;
+    display: flex;
+    flex: 1;
+    padding: 8px 0;
+  }
+
+  .app-main-shell:has(.swap-page) .app-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-main-content:has(.swap-page) {
+    /* Auto margins center only spare space; expanded content grows and scrolls. */
+    margin-block: auto;
   }
 
   .swap-form-panel.shell-panel-strong {

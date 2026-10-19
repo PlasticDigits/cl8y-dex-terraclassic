@@ -50,20 +50,35 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
         const status = document.querySelector('[data-testid="swap-quote-status"]');
         const route = document.querySelector('[data-testid="swap-route-summary"]');
         const box = cta.getBoundingClientRect(), navBox = nav?.getBoundingClientRect();
+        const segments = [...route.querySelectorAll('.swap-route-path > :not(.sr-only)')].map(el => {
+          const first = el.hasAttribute('data-token-identity') ? el.firstElementChild : el;
+          const last = el.hasAttribute('data-token-identity') ? el.lastElementChild : el;
+          return {left:first.getBoundingClientRect().left, right:last.getBoundingClientRect().right};
+        });
+        const routeRightGap = segments.length ? route.getBoundingClientRect().right - segments.at(-1).right : 0;
+        const routeMaxGap = Math.max(0,...segments.slice(1).map((s,i)=>s.left-segments[i].right));
         const v = window.visualViewport;
+        const form = document.querySelector('.swap-page').getBoundingClientRect();
+        const headerBottom = document.querySelector('.app-top-sticky').getBoundingClientRect().bottom;
+        const footerDisplayed = getComputedStyle(document.querySelector('.app-footer-shell')).display !== 'none';
         const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
         return {cta: {top: box.top, bottom: box.bottom, height: box.height}, navTop: navBox?.height ? navBox.top : innerHeight,
           viewportBottom: v ? v.offsetTop + v.height : innerHeight, scrollY,
+          form: {top: form.top, bottom: form.bottom}, headerBottom, footerDisplayed,
           centerHit: hit === cta || cta.contains(hit), pageOverflow: document.documentElement.scrollWidth > innerWidth,
-          route: route && {scrollWidth: route.scrollWidth, clientWidth: route.clientWidth},
-          status: {scrollWidth: status.scrollWidth, clientWidth: status.clientWidth},
+          route: route && {scrollWidth: route.scrollWidth, clientWidth: route.clientWidth, rightGap:routeRightGap, maxGap:routeMaxGap},
+          status: {scrollWidth: status.scrollWidth, clientWidth: status.clientWidth, empty: !status.textContent.trim()},
           riskNoticeCount: document.querySelectorAll('[data-testid="swap-impact-aside"]').length,
           detailsCount: document.querySelectorAll('[data-testid="swap-details"]').length,
           renderedRouteTokens: route?.querySelectorAll('[data-token-identity]').length};
       });
       check(measured.riskNoticeCount === Number(expectedNotice), 'LiveRiskNoticeMismatch');
+      if (!expectedNotice) check(measured.status.empty, 'LiveRedundantStatus');
       check(!measured.pageOverflow && measured.route && measured.route.scrollWidth <= measured.route.clientWidth + 1 && measured.status.scrollWidth <= measured.status.clientWidth + 1, 'LiveHorizontalOverflow');
       check(measured.cta.top >= 0 && measured.cta.bottom <= Math.min(measured.navTop, measured.viewportBottom) && measured.centerHit, 'LiveCTAObscured');
+      check(Math.abs(measured.route.rightGap) <= 1 && measured.route.maxGap <= 5, 'LiveRouteSpacing');
+      check(measured.footerDisplayed === (viewport.width >= 768), 'LiveFooterVisibility');
+      if (viewport.width < 768) check(Math.abs((measured.form.top + measured.form.bottom - measured.headerBottom - measured.navTop) / 2) <= 1, 'LiveFormNotCentered');
       check(measured.detailsCount === 1 && measured.renderedRouteTokens >= 3, 'NativeRouteOrDisclosureMissing');
       measured.seriousOrCriticalAxe = await seriousViolations(page);
       check(measured.seriousOrCriticalAxe === 0, 'LiveAccessibilityFailure');
@@ -100,7 +115,7 @@ const check = (condition, code) => { if (!condition) throw new Error(code); };
   } catch (error) {
     // Error messages from page/transport can contain identifiers. Only our fixed
     // assertion codes enter receipts; otherwise keep the constructor name.
-    const allowed = new Set(['OriginalEvidenceUnavailable','LiveRiskNoticeMismatch','LiveHorizontalOverflow','LiveCTAObscured','NativeRouteOrDisclosureMissing','LiveRuntimeError','TradeRuntimeError','LiveAccessibilityFailure']);
+    const allowed = new Set(['OriginalEvidenceUnavailable','LiveRiskNoticeMismatch','LiveHorizontalOverflow','LiveCTAObscured','NativeRouteOrDisclosureMissing','LiveRuntimeError','TradeRuntimeError','LiveAccessibilityFailure','LiveFooterVisibility','LiveFormNotCentered','LiveRouteSpacing','LiveRedundantStatus']);
     receipt.overall = 'FAIL';
     receipt.failure = allowed.has(error.message) ? error.message : error.constructor.name;
   } finally { await browser.close(); }

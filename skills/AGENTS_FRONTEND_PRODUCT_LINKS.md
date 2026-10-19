@@ -1,5 +1,13 @@
 # Agent playbook: official CL8Y product links (footer)
 
+Mobile shell follow-up (#1561): the explicit user request supersedes the older
+mobile-footer placement rules below. Below 768px the content footer is hidden;
+environment, official product and legal information remain in a separate About
+and legal section of mobile More. Desktop footer and link security stay unchanged.
+Swap centers in spare space between the header and measured bottom navigation;
+long/zoomed content scrolls normally. [Evidence and invariant](../docs/qa/issues-1560-1561/MOBILE-CENTERING.md).
+
+
 Use when changing the **shell footer product row**, **Homepage / Bridge outbound links**, or **header More / Swap banners** that might grow an external CL8Y URL ([GitLab **#663**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)).
 
 This DEX does **not** ship the Bridge. Link only. Do **not** iframe `bridge.cl8y.com`. Do **not** add GameFi / Telegram / X / CEX tiles in this chrome.

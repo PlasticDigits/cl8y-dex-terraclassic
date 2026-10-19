@@ -27,3 +27,5 @@ Coordinate [TE1497](AGENTS_TRADE_ENTRY.md), [QL1499](AGENTS_QUOTE_LIFECYCLE.md)
 and [order metrics](AGENTS_ORDER_SLIPPAGE.md). Preserve [OB1480](AGENTS_OFFLINE_SWAP_BUDGET.md),
 [RC1483](AGENTS_ROUTE_COST_ATTRIBUTION.md), [RD1489](AGENTS_ROUTE_DISCOVERY.md)
 and [TQ1473](AGENTS_TRADING_QUOTE_OUTCOMES.md).
+
+Mobile shell follow-up: hide the content footer below 768px and center Swap in the spare space between the sticky header and measured bottom navigation. Use normal-flow auto margins, never a fixed-height clipping/absolute positioning scheme; long content and zoom still scroll. Desktop footer/geometry remain unchanged. Environment/product/legal information stays accessible in mobile More. See [#1561 shell follow-up](../docs/qa/issues-1560-1561/MOBILE-CENTERING.md).

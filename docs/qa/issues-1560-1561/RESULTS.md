@@ -168,3 +168,7 @@ The follow-up evidence/observer-helper commit changes no deployed frontend files
 the runtime remains the independently attested 6a5118f release. See the
 [original baseline](availability-before.json), [prior frontend pin](deployment-before.json)
 and [pre-release monitoring](monitoring-before.json) for comparison.
+
+## Mobile shell correction
+
+The prior release still rendered the checked None status despite the audit intent above. The [mobile centering/compact route follow-up](MOBILE-CENTERING.md) corrects it and supersedes the older mobile footer placement. Historical screenshots and receipts above remain unchanged.

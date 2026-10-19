@@ -199,18 +199,16 @@ test.describe('Footer environment ribbon & sticky header clearance', () => {
     }
   })
 
-  test('mobile footer still shows the environment ribbon above the bottom nav', async ({ page }) => {
+  test('mobile hides the footer and exposes environment information in More', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const ribbon = page.locator('footer.app-footer-shell .app-env-ribbon')
-    await expect(ribbon).toBeVisible()
-    const ribbonBox = await ribbon.boundingBox()
-    const navBox = await page.locator('nav.app-mobile-nav-shell').boundingBox()
-    expect(ribbonBox).not.toBeNull()
-    expect(navBox).not.toBeNull()
-    expect(ribbonBox!.y + ribbonBox!.height).toBeLessThanOrEqual(navBox!.y + 1)
+    await expect(page.locator('footer.app-footer-shell')).toBeHidden()
+    await page.getByRole('button', { name: 'More', exact: true }).click()
+    const about = page.getByRole('region', { name: 'About and legal' })
+    await expect(about.locator('.app-env-ribbon')).toBeVisible()
+    await expect(about.getByTestId('security-posture-doc-link')).toBeVisible()
   })
 })
 

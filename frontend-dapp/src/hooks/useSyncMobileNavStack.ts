@@ -22,7 +22,8 @@ export function useSyncMobileNavStack(mobileNavRef: RefObject<HTMLElement | null
 
     sync()
     const ro = new ResizeObserver(sync)
-    ro.observe(nav)
+    // Safe-area/padding changes alter the covered space even when content height stays fixed.
+    ro.observe(nav, { box: 'border-box' })
     window.addEventListener('resize', sync)
     return () => {
       ro.disconnect()
