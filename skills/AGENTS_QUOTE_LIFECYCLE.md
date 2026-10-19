@@ -60,3 +60,15 @@ the wrapper and retains a bounded negative until a validated positive, returning
 existing `unsupported_semantics` to solve/progress. Keep this a genuine semantic
 negative that clears executable display/payload; never downgrade it to a
 recoverable missing-observation error or renew prior quote expiry.
+
+
+Swap direction changes start a new exact-input intent on every device. Move the
+current eligible receive amount into the new pay asset using that asset's exact
+raw units/decimals, never Number, display rounding or the old pay amount. A fresh
+same-intent retained output may seed the new draft during refresh, but never
+carry its execution payload or consent. Missing, revoked, previous-intent or
+originally expired output clears the new amount; recheck original expiry at the
+click. An explicitly edited valid receive target may seed the new pay amount
+without inverse pricing; excess nonzero token precision clears rather than
+silently rounds. Reset old-direction manual book budgets and quote-bound consent.
+See [direction regression checks](../docs/qa/issues-1560-1561/DIRECTION-AMOUNT.md).

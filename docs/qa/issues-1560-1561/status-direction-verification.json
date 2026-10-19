@@ -1,0 +1,41 @@
+{
+  "scope": "Frontend-only follow-up; synthetic/browser evidence does not establish funded or physical-device acceptance",
+  "tests": [
+    {
+      "check": "make verify-issue-1498 first and retest after expectation update",
+      "verdict": "PASS WITH SKIPS",
+      "tests_per_run": 186,
+      "passed_checks": 6,
+      "failed_checks": 0,
+      "skipped_checks": 4
+    },
+    {
+      "check": "make verify-issue-1500 first and retest",
+      "verdict": "PASS WITH SKIPS",
+      "tests_per_run": 171,
+      "passed_checks": 8,
+      "failed_checks": 0,
+      "skipped_checks": 4
+    },
+    {
+      "check": "make verify-issue-1497",
+      "verdict": "PASS source; live device wallet scope separate",
+      "tests": 161
+    },
+    {
+      "check": "focused eslint and production types/build",
+      "verdict": "PASS"
+    }
+  ],
+  "prior_failures": [
+    {
+      "check": "initial verify-1498 frontend batch",
+      "verdict": "FAIL",
+      "reason": "One obsolete regression expected old input to carry into reverse denomination when receive quote unavailable",
+      "repair": "Assert empty fields, then a fresh amount edit successfully quotes reversed pair",
+      "subsequent_run": "186/186 twice"
+    }
+  ],
+  "test_timeout_seconds": 55,
+  "runtime_source_sha256": "a59e1c8e9b88b66572e211df0379cf082532a77a055acbbc172dfec0cb006272"
+}

@@ -1,0 +1,1268 @@
+{
+  "recorded_at": "2026-10-19T06:12:22.422Z",
+  "environment": "Full Google Chrome in headless foreground mode, production Vite build served over native local HTTP with synthetic indexer; each case owns an independent browser process; initialization/fonts/network idle excluded and measured separately; wallet disconnected unless the geometry receipt declares a synthetic unsigned extension with intercepted balances/legal status; no broadcast; not production reference evidence",
+  "measurement": "Browser input event capture to useful DOM result; document MutationObserver and 5 ms fallback; foreground page; native HTTP transport; risk acknowledgement accepted before timing",
+  "browser_channel": "chrome",
+  "browser_version": "151.0.7922.137",
+  "launch_flags": [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
+    "--disable-backgrounding-occluded-windows"
+  ],
+  "shared_memory_mode": "native_shared_memory",
+  "quote_requests": 3,
+  "provider_requests": 0,
+  "receipts": [],
+  "geometry": [
+    {
+      "width": 375,
+      "height": 667,
+      "connected": true,
+      "theme": "light",
+      "wallet_scope": "synthetic unsigned extension, intercepted balances and legal acceptance status",
+      "verdict": "PASS",
+      "findings": [
+        {
+          "name": "initial-collapsed-short-viewport-CTA-route-and-status",
+          "verdict": "PASS",
+          "cta": {
+            "top": 487.0077209472656,
+            "bottom": 541.0076904296875,
+            "height": 53.999969482421875,
+            "width": 350
+          },
+          "scrollY": 0,
+          "visibleTop": 0,
+          "visibleBottom": 667,
+          "navTop": 594,
+          "headerBottom": 64,
+          "form": {
+            "top": 116.3125,
+            "bottom": 541.703125,
+            "height": 425.390625
+          },
+          "footerDisplayed": false,
+          "measuredNavStack": "73px",
+          "shellPaddingBottom": "73px",
+          "unobstructed": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "pageWidth": 366,
+          "viewportWidth": 375,
+          "regions": [
+            {
+              "id": "swap-route-summary",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 17,
+              "scrollHeight": 17,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 2,
+              "visibleSegments": [
+                {
+                  "left": 126.78125,
+                  "right": 235.140625
+                },
+                {
+                  "left": 237.140625,
+                  "right": 248.140625
+                },
+                {
+                  "left": 250.140625,
+                  "right": 358
+                }
+              ],
+              "tokenBounds": [
+                {
+                  "left": 126.78125,
+                  "right": 235.140625,
+                  "width": 108.359375
+                },
+                {
+                  "left": 250.140625,
+                  "right": 358,
+                  "width": 107.859375
+                }
+              ]
+            },
+            {
+              "id": "swap-quote-status",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 32,
+              "scrollHeight": 32,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 0,
+              "visibleSegments": [],
+              "tokenBounds": []
+            }
+          ],
+          "controls": {
+            "swap-you-pay-amount": {
+              "x": 21,
+              "y": 175.3125,
+              "width": 148.5625,
+              "height": 44
+            },
+            "swap-you-receive": {
+              "x": 21,
+              "y": 300.3125,
+              "width": 148.5625,
+              "height": 44
+            },
+            "swap-quote-summary": {
+              "x": 8,
+              "y": 359.3125,
+              "width": 350,
+              "height": 48
+            },
+            "swap-quote-status": {
+              "x": 8,
+              "y": 407.3125,
+              "width": 350,
+              "height": 32.390625
+            }
+          }
+        },
+        {
+          "name": "mobile-footer-hidden-and-about-accessible-in-more",
+          "verdict": "PASS",
+          "footer_displayed": false,
+          "environment_product_and_legal_available_in_more": true
+        },
+        {
+          "name": "axe-critical-serious-and-keyboard-focus",
+          "verdict": "PASS",
+          "critical_or_serious": 0,
+          "focus": {
+            "tag": "BUTTON",
+            "name": "25%",
+            "outline": "auto",
+            "shadow": "none"
+          }
+        },
+        {
+          "name": "primary-action-keyboard-and-wallet-modal",
+          "verdict": "PASS",
+          "action_enabled": true,
+          "wallet_modal": "synthetic connection already active"
+        },
+        {
+          "name": "concise-current-error-remains-inline-and-unobscured",
+          "verdict": "PASS",
+          "cta": {
+            "top": 487.703125,
+            "bottom": 541.703125,
+            "height": 54,
+            "width": 350
+          },
+          "scrollY": 0,
+          "visibleTop": 0,
+          "visibleBottom": 667,
+          "navTop": 594,
+          "headerBottom": 64,
+          "form": {
+            "top": 116.3125,
+            "bottom": 541.703125,
+            "height": 425.390625
+          },
+          "footerDisplayed": false,
+          "measuredNavStack": "73px",
+          "shellPaddingBottom": "73px",
+          "unobstructed": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "pageWidth": 366,
+          "viewportWidth": 375,
+          "regions": [
+            {
+              "id": "swap-route-summary",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 17,
+              "scrollHeight": 17,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 2,
+              "visibleSegments": [
+                {
+                  "left": 349.40625,
+                  "right": 358
+                }
+              ],
+              "tokenBounds": []
+            },
+            {
+              "id": "swap-quote-status",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 32,
+              "scrollHeight": 32,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 0,
+              "visibleSegments": [],
+              "tokenBounds": []
+            }
+          ],
+          "chrome": {
+            "padding": "0px",
+            "border": "0px",
+            "background": "rgba(0, 0, 0, 0)",
+            "crossLineDelta": 0
+          },
+          "accessibility": {
+            "critical_or_serious": 0
+          }
+        },
+        {
+          "name": "measured-navigation-clearance-and-shortened-visual-viewport",
+          "verdict": "PASS",
+          "inset_simulation_px": 20,
+          "inset": {
+            "cta": {
+              "top": 482.703125,
+              "bottom": 536.703125,
+              "height": 54,
+              "width": 350
+            },
+            "scrollY": 0,
+            "visibleTop": 0,
+            "visibleBottom": 667,
+            "navTop": 584,
+            "headerBottom": 64,
+            "form": {
+              "top": 111.3125,
+              "bottom": 536.703125,
+              "height": 425.390625
+            },
+            "footerDisplayed": false,
+            "measuredNavStack": "83px",
+            "shellPaddingBottom": "83px",
+            "unobstructed": [
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            "pageWidth": 366,
+            "viewportWidth": 375,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 350,
+                "scrollWidth": 350,
+                "height": 17,
+                "scrollHeight": 17,
+                "overflowX": "visible",
+                "overflowY": "visible",
+                "left": 8,
+                "right": 358,
+                "specifiedGap": 2,
+                "visibleSegments": [
+                  {
+                    "left": 126.78125,
+                    "right": 235.140625
+                  },
+                  {
+                    "left": 237.140625,
+                    "right": 248.140625
+                  },
+                  {
+                    "left": 250.140625,
+                    "right": 358
+                  }
+                ],
+                "tokenBounds": [
+                  {
+                    "left": 126.78125,
+                    "right": 235.140625,
+                    "width": 108.359375
+                  },
+                  {
+                    "left": 250.140625,
+                    "right": 358,
+                    "width": 107.859375
+                  }
+                ]
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 350,
+                "scrollWidth": 350,
+                "height": 32,
+                "scrollHeight": 32,
+                "overflowX": "visible",
+                "overflowY": "visible",
+                "left": 8,
+                "right": 358,
+                "specifiedGap": 0,
+                "visibleSegments": [],
+                "tokenBounds": []
+              }
+            ]
+          },
+          "shortened_viewport": {
+            "cta": {
+              "top": 275.390625,
+              "bottom": 329.390625,
+              "height": 54,
+              "width": 350
+            },
+            "scrollY": 168,
+            "visibleTop": 0,
+            "visibleBottom": 420,
+            "navTop": 337,
+            "headerBottom": 64,
+            "form": {
+              "top": -96,
+              "bottom": 329.390625,
+              "height": 425.390625
+            },
+            "footerDisplayed": false,
+            "measuredNavStack": "83px",
+            "shellPaddingBottom": "83px",
+            "unobstructed": [
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            "pageWidth": 366,
+            "viewportWidth": 375,
+            "regions": [
+              {
+                "id": "swap-route-summary",
+                "width": 350,
+                "scrollWidth": 350,
+                "height": 17,
+                "scrollHeight": 17,
+                "overflowX": "visible",
+                "overflowY": "visible",
+                "left": 8,
+                "right": 358,
+                "specifiedGap": 2,
+                "visibleSegments": [
+                  {
+                    "left": 126.78125,
+                    "right": 235.140625
+                  },
+                  {
+                    "left": 237.140625,
+                    "right": 248.140625
+                  },
+                  {
+                    "left": 250.140625,
+                    "right": 358
+                  }
+                ],
+                "tokenBounds": [
+                  {
+                    "left": 126.78125,
+                    "right": 235.140625,
+                    "width": 108.359375
+                  },
+                  {
+                    "left": 250.140625,
+                    "right": 358,
+                    "width": 107.859375
+                  }
+                ]
+              },
+              {
+                "id": "swap-quote-status",
+                "width": 350,
+                "scrollWidth": 350,
+                "height": 32,
+                "scrollHeight": 32,
+                "overflowX": "visible",
+                "overflowY": "visible",
+                "left": 8,
+                "right": 358,
+                "specifiedGap": 0,
+                "visibleSegments": [],
+                "tokenBounds": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "200-percent-text-vertical-reflow-and-keyboard-reachability",
+          "verdict": "PASS",
+          "cta": {
+            "top": 479.640625,
+            "bottom": 585.640625,
+            "height": 106,
+            "width": 350
+          },
+          "scrollY": 1523,
+          "visibleTop": 0,
+          "visibleBottom": 667,
+          "navTop": 594,
+          "headerBottom": 101,
+          "form": {
+            "top": -1414,
+            "bottom": 585.640625,
+            "height": 1999.640625
+          },
+          "footerDisplayed": false,
+          "measuredNavStack": "73px",
+          "shellPaddingBottom": "73px",
+          "unobstructed": [
+            true,
+            true,
+            true,
+            true,
+            true
+          ],
+          "pageWidth": 366,
+          "viewportWidth": 375,
+          "regions": [
+            {
+              "id": "swap-route-summary",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 17,
+              "scrollHeight": 17,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 2,
+              "visibleSegments": [
+                {
+                  "left": 126.78125,
+                  "right": 235.140625
+                },
+                {
+                  "left": 237.140625,
+                  "right": 248.140625
+                },
+                {
+                  "left": 250.140625,
+                  "right": 358
+                }
+              ],
+              "tokenBounds": [
+                {
+                  "left": 126.78125,
+                  "right": 235.140625,
+                  "width": 108.359375
+                },
+                {
+                  "left": 250.140625,
+                  "right": 358,
+                  "width": 107.859375
+                }
+              ]
+            },
+            {
+              "id": "swap-quote-status",
+              "width": 350,
+              "scrollWidth": 350,
+              "height": 65,
+              "scrollHeight": 65,
+              "overflowX": "visible",
+              "overflowY": "visible",
+              "left": 8,
+              "right": 358,
+              "specifiedGap": 0,
+              "visibleSegments": [],
+              "tokenBounds": []
+            }
+          ]
+        }
+      ],
+      "page_errors": []
+    }
+  ],
+  "build_provenance": {
+    "source_revision": "725eeca1333e9537754e868a51f8ed7035eb7a48",
+    "source_dirty": true,
+    "built_at_utc": "2026-10-19T06:07:59.845Z",
+    "source_tree_hash": "a59e1c8e9b88b66572e211df0379cf082532a77a055acbbc172dfec0cb006272",
+    "fixture_origin": "http://127.0.0.1:18151",
+    "fixture_provider": "http://127.0.0.1:18152",
+    "served_assets": [
+      {
+        "path": "/assets/ChartsPage-D7SF_y9c.js",
+        "sha256": "95a909ec80612703b719777e3ebb7d64651533eb1441e66b7ee1084111dbe31f"
+      },
+      {
+        "path": "/assets/ChartsPage-DzrOiHbU.js",
+        "sha256": "7f663ba9434577ae0e2b040993db93096ece9243bb21c3e4b58ff7cb64fc2c18"
+      },
+      {
+        "path": "/assets/ChartsPage-iE9K-hj_.js",
+        "sha256": "05273966bc7a206bb17d06bec06d19f90d173e13e724e0c201098704df27ad86"
+      },
+      {
+        "path": "/assets/CreatePairPage-BrFAZvsG.js",
+        "sha256": "805b2be0e45cd65d36cbb5f9d6c0d1f36a8365294afa13ab92f93449975995b3"
+      },
+      {
+        "path": "/assets/CreatePairPage-DEpkigq7.js",
+        "sha256": "b3a98f9bb1fc9ad7017650d0b62cb9f75c29ca8b1df818d5bb7b5773ffdbf96c"
+      },
+      {
+        "path": "/assets/CreatePairPage-sccfm_MO.js",
+        "sha256": "8f961c114d465d2eea08a4a216cc6ff8b1b83f568ce42382fd37e19d560e0ee1"
+      },
+      {
+        "path": "/assets/CreateTokenPage-DZK3vUAe.js",
+        "sha256": "1379a047a7b1656c4ef16b0288a66f546a3cf66d4519863bc667a9d4bda9feff"
+      },
+      {
+        "path": "/assets/CreateTokenPage-Niz-NRK0.js",
+        "sha256": "f2c35fa2b96ab797148e1cf0e3c434a633aad41eacc12ebd17611d08f7b0c51c"
+      },
+      {
+        "path": "/assets/CreateTokenPage-b76J_Wla.js",
+        "sha256": "a92ea8352499b2aa0093f08d989458526172f6290b59a9e76e25731db0b1a634"
+      },
+      {
+        "path": "/assets/LcdQueryGate-2qz2RXSi.js",
+        "sha256": "57662165cd5529b8160c3b28faf693d3403768cb91ad9262e68506e2cb8ecb2a"
+      },
+      {
+        "path": "/assets/LcdQueryGate-Cek2vT6A.js",
+        "sha256": "05ca6c0a56845466518ae4ac8ce1509051bfe6fc6dec397d64a0335732c27585"
+      },
+      {
+        "path": "/assets/LcdQueryGate-D_hPmsgV.js",
+        "sha256": "5f2030daa0e937449d1aed7e0f8e38558b348ea74dcd4afd880552369f048519"
+      },
+      {
+        "path": "/assets/LimitOrdersPage-B9gKQRkN.js",
+        "sha256": "5a987067f02d50f07c80cf6df6666be10f52538af1b8e5ca6233909db5e343de"
+      },
+      {
+        "path": "/assets/LimitOrdersPage-BItudjbx.js",
+        "sha256": "1ba76e687f4a8ec9660a0acff2fe9d029510078ad4e5fedbebee67cdf26f7dbf"
+      },
+      {
+        "path": "/assets/LimitOrdersPage-CYTLDqME.js",
+        "sha256": "f983ba4ad1a6236c24b334d3449a315233f4d3f26df8fd2d65d278e55c8a7d65"
+      },
+      {
+        "path": "/assets/ManageTokenPage-BmwegIP3.js",
+        "sha256": "64774aaac4ab8cc5415141b4a2deb2dcd31da86ea3c3bbe557266475e619fa3f"
+      },
+      {
+        "path": "/assets/ManageTokenPage-DO7lj6TA.js",
+        "sha256": "f8a22ae27534fd561aa6094512e0a00452aff22f82189ebe7b653280bd315616"
+      },
+      {
+        "path": "/assets/ManageTokenPage-PeR2838i.js",
+        "sha256": "bb095872a09c89fef43e976da93dbc16cdf88e13ee03655f5b8f31ff37e4958e"
+      },
+      {
+        "path": "/assets/MigrateTokenPage-BwSwBBAj.js",
+        "sha256": "b186487d0028b252b11bb732149f64e5d89f87e3c69822244a33dcf12a916021"
+      },
+      {
+        "path": "/assets/MigrateTokenPage-D6NswsJ5.js",
+        "sha256": "14f6dec2c02cf1273ba99c1b453b75b6f094be0ccff19cf6925554c51bb46400"
+      },
+      {
+        "path": "/assets/MigrateTokenPage-WvsJMs7P.js",
+        "sha256": "57242e0bc1688ca39c213e25235dda935d00ed55fef8793c54c45bb45547939c"
+      },
+      {
+        "path": "/assets/MintPage-DiSM-pq3.js",
+        "sha256": "3c166ef65f13f2b641e0513c3e3f3fcafe6abe9ba1bee6d746a5643825b54c7d"
+      },
+      {
+        "path": "/assets/MintPage-DjMC9SyF.js",
+        "sha256": "64e74f1f0da947ced8f0ac65547ae126b3a49e5cb2e1d5eea6bf3cc01b15b773"
+      },
+      {
+        "path": "/assets/MintPage-OcfNMvSw.js",
+        "sha256": "a70ba5eeaadfc6bb2ff51bbc27bbead305c6d70f98e58f5116ddf1fa89656e25"
+      },
+      {
+        "path": "/assets/MyCommunityTokensPage-CFMrJ_sP.js",
+        "sha256": "f21c7d76247f55346be40397923000ed01391bb1bab6819cb04a6b5086d8a818"
+      },
+      {
+        "path": "/assets/MyCommunityTokensPage-CuhUkEEF.js",
+        "sha256": "fb594b7d4029552b34a705c7dbcffe283ffc8d74890dfc59c261717fd6e33510"
+      },
+      {
+        "path": "/assets/MyCommunityTokensPage-DRYL6a5D.js",
+        "sha256": "9b222046717a77d62f947b69d8ba7b0e93b74798b0984e82b98aeb10e345b92b"
+      },
+      {
+        "path": "/assets/PairCodeIdFrozenBanner-BQxjHXQp.js",
+        "sha256": "c7ea29a622e9f7b6b690abf8ef970922e64bcd6277e1a40dbf9526328da3b416"
+      },
+      {
+        "path": "/assets/PairCodeIdFrozenBanner-SSkY9hQY.js",
+        "sha256": "85fb9519caee4af4a1c4ba9b06ed74e4210d2e0b8b864b1047e2c709d994b319"
+      },
+      {
+        "path": "/assets/PairCodeIdFrozenBanner-zTrT0ZQz.js",
+        "sha256": "457a18683d1afb7f86ae3f092f83272ae78c10c26f494f2428a82c1e6c1cc6dc"
+      },
+      {
+        "path": "/assets/PairTokenLinks-DBxHrLVX.js",
+        "sha256": "7ba823fd309e2576d1684ed96774eaef8ac460ec6f9e413c02992ae895bed719"
+      },
+      {
+        "path": "/assets/PairTokenLinks-DUoJgvz7.js",
+        "sha256": "db5d58c8414e8921c7674b89d1f88db352a4b33dca70e4c4353c4867e7a9d22c"
+      },
+      {
+        "path": "/assets/PairTokenLinks-yjjfwoEW.js",
+        "sha256": "b5713feef02683af5ed6a84239efe30df44182afd2e200dfe039a47dbed9200d"
+      },
+      {
+        "path": "/assets/PnlValue-Cq3IQPNT.js",
+        "sha256": "144d6d1180c80d1ea9a5bc3e3f94d2bdc9022d72d0fd13c36b817fc94fd591dc"
+      },
+      {
+        "path": "/assets/PnlValue-Cs1V3fO_.js",
+        "sha256": "5472b4a70773e989e6ff2295402e0806e7ee3abd3db87e66c93d5d05c47fcfc2"
+      },
+      {
+        "path": "/assets/PnlValue-DXQH4pAu.js",
+        "sha256": "56577450f0c02f279824ad9cc8b52df922517bac688053fcb392b41d6ec7fd4f"
+      },
+      {
+        "path": "/assets/PoolPage-CIkJ9wSM.js",
+        "sha256": "7495b2644d122b8d409d99f68d1238d4d73a242e14025943a025491ba1ceb7c0"
+      },
+      {
+        "path": "/assets/PoolPage-Dga6SD_G.js",
+        "sha256": "3518d503e1b387dfcf850af10d39811316836ec77c53f881b0131968db3adfcb"
+      },
+      {
+        "path": "/assets/PoolPage-DgilKPfL.js",
+        "sha256": "1634ffe23fffa67a9ccea99de3a02de25705fd5ca14f5d04f665f71a76e3fd08"
+      },
+      {
+        "path": "/assets/PortfolioPage-BRXkr-R8.js",
+        "sha256": "f5985489879ac63be983cd14bd00f57db2ce5f02a0c62d842bc565bab18f151f"
+      },
+      {
+        "path": "/assets/PortfolioPage-C3Vc8hKz.js",
+        "sha256": "2a82e415029abec91311757d310f7d0c3d3b0f924fe8781857a2b4ca3423e5e9"
+      },
+      {
+        "path": "/assets/PortfolioPage-DWsOlLLi.js",
+        "sha256": "39f56327f56e33d1e5499d7ccd68c8f3423b1bc5be258197265eacdd9b65d677"
+      },
+      {
+        "path": "/assets/ProtocolPage-37npwNfC.js",
+        "sha256": "e98718a9547b58806bc048b182af885bdff3d4ee408551940425d05c70cad68b"
+      },
+      {
+        "path": "/assets/ProtocolPage-B8EQly9d.js",
+        "sha256": "477b9f373c08b4b4155034e630d034bca912994da80ed71037891987f74bd204"
+      },
+      {
+        "path": "/assets/ProtocolPage-BgW8sZ-I.js",
+        "sha256": "2ced5dd693b668de573508305fe5aa6b66f3e3763ed5b3523c82479c082d6c40"
+      },
+      {
+        "path": "/assets/ShareLinkButton-CeAuWl_P.js",
+        "sha256": "fa7afbd15306fcd96e71585680b1b65ec33fe83fffa0d1e526ef4e4cab510f4b"
+      },
+      {
+        "path": "/assets/ShareLinkButton-CiJ3dLga.js",
+        "sha256": "d39cd968627c0d69efefe8c92f07a455fc8d5d1824da22cfd6dc2a7a72dbf7cf"
+      },
+      {
+        "path": "/assets/ShareLinkButton-uvsV12Eg.js",
+        "sha256": "ebfc08652eac4d70db6736b8fe24ebc92f6128803b51095ce3dd30b9393aa585"
+      },
+      {
+        "path": "/assets/StatBox-C1W0LyZB.js",
+        "sha256": "8ca1d78af70f2ff381f25604cdee817a0e5fd6338b3bd18131e8e45ae31c0717"
+      },
+      {
+        "path": "/assets/StatBox-CCmWQ9y0.js",
+        "sha256": "d0ec27e010235c0d6fd0f3590a0462048a50a11212ea7fdde1c7ca7f7ca5dffe"
+      },
+      {
+        "path": "/assets/StatBox-DpWGeg7L.js",
+        "sha256": "4abec371bda7145a149e1ca61f1456d1e3a28e3967f6ce46372dd402d89c5914"
+      },
+      {
+        "path": "/assets/SwapPage-CGSayl2l.js",
+        "sha256": "414c1639f2635078032e321c54dd13c00a11314f7f255eab52ca1b57c61e8dc1"
+      },
+      {
+        "path": "/assets/SwapPage-COsqx99h.js",
+        "sha256": "2d80e77fa4f5eb245de1046860f56c58b75e2baa4eaa49685ae3940bcb23387e"
+      },
+      {
+        "path": "/assets/SwapPage-Jr3sOEPA.js",
+        "sha256": "e70353062da0ba0ad2fc3d00e95a1e5630b430989c7dd68d328c275d22a61f46"
+      },
+      {
+        "path": "/assets/TiersPage-Bicc9gIg.js",
+        "sha256": "cf07519eb9495ffb9cce677a4707d8afa00aa3a48fe050c1b2e6058439ae0f06"
+      },
+      {
+        "path": "/assets/TiersPage-DEf6CFQk.js",
+        "sha256": "b65d6c4f24b6f2a2b2ca1b0e3d11ad8f5a005956561a3c4f6b27d24beebabafa"
+      },
+      {
+        "path": "/assets/TiersPage-Uhq1uOhD.js",
+        "sha256": "ac95eb8ff252ebe9966d7675e40c17173fdff7c2a608f439bf29ca48be0d2c2f"
+      },
+      {
+        "path": "/assets/TokenLogo-Ch2AIUiY.js",
+        "sha256": "5868ee662861d562ea6ac01371aa93bb57130acc895abd02cde9f775f6bdc0a6"
+      },
+      {
+        "path": "/assets/TokenLogo-XSp4Aeqw.js",
+        "sha256": "de806e61e012bbed4eb19623f89070726f14b62d30f6848de9c855c54e236d2b"
+      },
+      {
+        "path": "/assets/TokenLogo-uEk38ptd.js",
+        "sha256": "53839f30d992654cef5a727ae00d1f0bb8f6712078fca416800d242e00993f79"
+      },
+      {
+        "path": "/assets/TokenSearchSelect-CYMwtt2C.js",
+        "sha256": "00738774d0ee59b886a980dd1a3d0f72dff7f51b2bdaed560bd88f3a93271cf8"
+      },
+      {
+        "path": "/assets/TokenSearchSelect-DkY4AQVR.js",
+        "sha256": "bcd4d8a4f1c11cf1dd206737620786fe2534333bae6cec4d324291f99e46786e"
+      },
+      {
+        "path": "/assets/TokenSearchSelect-btudz2Fx.js",
+        "sha256": "93a9ef21a1462d066e4bbb95e47f1afbd4c0b7a43a98f2ee5a82bb8f3e859397"
+      },
+      {
+        "path": "/assets/TradeMarketDataUnavailableNotice-9WhUZGju.js",
+        "sha256": "e84b19d7dce7e64cb5a13080428d25a676abd40f9d217d1755ab506220fad013"
+      },
+      {
+        "path": "/assets/TradeMarketDataUnavailableNotice-CUuJi-uB.js",
+        "sha256": "674b67db2c2f2033c1067f0bf0bc2823050c0ee6b5585a9158ae2b5fc3eaa565"
+      },
+      {
+        "path": "/assets/TradeMarketDataUnavailableNotice-CvPnfVa_.js",
+        "sha256": "1691b2f8cee6a23235a5a2cc7c49461b08096846300939981617d4ce644e0b16"
+      },
+      {
+        "path": "/assets/TradePage-BB4uBja1.js",
+        "sha256": "14b092719c000ff86b12c9483597021f1a00f17b64b9814740a601a0ff64f326"
+      },
+      {
+        "path": "/assets/TradePage-CuLHLBi5.js",
+        "sha256": "04fb15826e835fa5f7c8d1673b6a973ee54e9bc34bc22e6cef7245865a423895"
+      },
+      {
+        "path": "/assets/TradePage-PanYPCx5.js",
+        "sha256": "61103254652a6c2af964692dfab7abc928bfb2b5ef42f939007a7f581864976f"
+      },
+      {
+        "path": "/assets/TraderLeaderboard-CLKVJfXX.js",
+        "sha256": "8a663b34ef6f245484a5e6beef972ff21d1635f9ccb3bd10320e3a5544ddc6f3"
+      },
+      {
+        "path": "/assets/TraderLeaderboard-p8_6ZXAY.js",
+        "sha256": "62b9bac31e2c61dfe7e71d55b3f9d9d9df9a79ec88c78a9be02fb9beb9a75a62"
+      },
+      {
+        "path": "/assets/TraderLeaderboard-sk83561M.js",
+        "sha256": "bfd01acdb40e5a56db27e123c5f3f189987c2634707681da44ab4dfb97b4f2b6"
+      },
+      {
+        "path": "/assets/TraderPage-B5MAnj30.js",
+        "sha256": "bb15e5c41b313c5c3fbc6380d18716a23cd08f63b9b37fd765b2ced8b8bd0613"
+      },
+      {
+        "path": "/assets/TraderPage-BKkhRF17.js",
+        "sha256": "b60aa04fa1e3bb6da62a0aeb67dd4f3715f881902b3578ad5dc1cd076da2dcdf"
+      },
+      {
+        "path": "/assets/TraderPage-Cds0iBUY.js",
+        "sha256": "b492a41f2cbe53aa4fb70e56692a61fe794b745bf8a7f10da1171874810962a5"
+      },
+      {
+        "path": "/assets/TraderPositionsTable-Gz2u3sWg.js",
+        "sha256": "cabbdcee23e1607119c9c2d97c807dbf503f5ddae06b4386277a68d8d2f8e313"
+      },
+      {
+        "path": "/assets/TraderPositionsTable-K3aAD0Oh.js",
+        "sha256": "bc9c0f3e1d474e95ad3a3e89ec516bbfb073aa077a7aefad8fd28f1c66786c80"
+      },
+      {
+        "path": "/assets/TraderPositionsTable-qrAgL1lU.js",
+        "sha256": "f425bc7c9592802ce257c967fbdc1019635fd2d7316b46c36c34cb0a8763a099"
+      },
+      {
+        "path": "/assets/TradesTable-C1AOw1mC.js",
+        "sha256": "a4d502b143775025cba1e3bdc3bc13a5e93aad215a8c752dd9181c72ba359bc1"
+      },
+      {
+        "path": "/assets/TradesTable-k2sr3ZZv.js",
+        "sha256": "cc811f7e61f04803ca3357073012f9632d75111833284c1d7e5bd15b6bb612a4"
+      },
+      {
+        "path": "/assets/TradesTable-oTfwL4rR.js",
+        "sha256": "035de35c0a46e23cfc97932761f24e061070d7f49518e6d695826f669990bd2e"
+      },
+      {
+        "path": "/assets/TxResultAlert-BF3z54Or.js",
+        "sha256": "61bad469ddda845d1a8ecafc9c5c72cd89de86621dc93830c2efaf71ad498303"
+      },
+      {
+        "path": "/assets/TxResultAlert-BIbWhq4e.js",
+        "sha256": "4cb58c8b8892638d8fa0a6a70b653466a1a26958a0f2d4a4b337aa841fdd8074"
+      },
+      {
+        "path": "/assets/TxResultAlert-C5B0ENt4.js",
+        "sha256": "2fce7fef1fd9711449bf9e6739c14fce1878097dd10d232a561118105c47c78e"
+      },
+      {
+        "path": "/assets/Ust1Page-BHwPSJ9l.js",
+        "sha256": "f5e76981e9660488e9be5296577dc34f0f60856854948c6810a993907f644651"
+      },
+      {
+        "path": "/assets/Ust1Page-BQs4jWC4.js",
+        "sha256": "7026c0c44a09f3974a092a6f31073e326785161835b70f5eec0f0136946728c0"
+      },
+      {
+        "path": "/assets/Ust1Page-D1RLu2ge.js",
+        "sha256": "7eeceb0274c43254a141a620d5e612d55c5661c9d0d47ca23ff5edb28818877d"
+      },
+      {
+        "path": "/assets/WrapPage-C86aekAR.js",
+        "sha256": "daa37c499f6deec7cf82065abc4aec16d9a89206b899d1eb2cac8ac9fd78092e"
+      },
+      {
+        "path": "/assets/WrapPage-CsqmQ7OO.js",
+        "sha256": "9d341a1f9700c7949442a03de1a76d782d7ee01b2a24d8eaac834367555d0fd2"
+      },
+      {
+        "path": "/assets/WrapPage-DjX5Rn-2.js",
+        "sha256": "4e9530e83e5beab54585d17a3c4447367f765ec60b8bef4d4fdba13a25bbd33f"
+      },
+      {
+        "path": "/assets/assetCodeIdFreeze-6rpq0B12.js",
+        "sha256": "718f0d6fa08efc994d74fdeab0645d1c0192ff7ed2c583db0b956d1d1d175d31"
+      },
+      {
+        "path": "/assets/assetCodeIdFreeze-D1tLP-SN.js",
+        "sha256": "45cb81b5987b79de309d8f78878c13808a62cc41ac3780c1f6f57222b002a57e"
+      },
+      {
+        "path": "/assets/assetCodeIdFreeze-DF8aAqDD.js",
+        "sha256": "5531c844151b8698dea4dcfb3f445ed00d5cb53f382d202573f43b278c6b5e73"
+      },
+      {
+        "path": "/assets/chartsPairRoute-BrimvkwH.js",
+        "sha256": "1acdf527b2f3f96a56ef846fd04c5e4d5b4cb101e2272883fb6c829ca4181c45"
+      },
+      {
+        "path": "/assets/chartsPairRoute-CESpgY9p.js",
+        "sha256": "8183eed8b4bba993693d201c24139f40b1d79e3288654b94a24384c181a65626"
+      },
+      {
+        "path": "/assets/chartsPairRoute-DxJ6Pt5g.js",
+        "sha256": "0e2d4f088c284c22e079011ba467c9b5781a6ae857a74e7ac762ad4284d5b390"
+      },
+      {
+        "path": "/assets/communityTaxInvoice-0ZXKX8kS.js",
+        "sha256": "56da8666c6b6b2f62b74922cd16dd57e84e0cc1309bc4e0734dccdc76689022e"
+      },
+      {
+        "path": "/assets/communityTaxInvoice-1kaBw4qn.js",
+        "sha256": "5e140cc097a04c0f65ca1ceca42c9f5693356fa0c34b137a8c173bd9631a618d"
+      },
+      {
+        "path": "/assets/communityTaxInvoice-DpWWKsis.js",
+        "sha256": "fceb8cb16ae6fc6a88523deda55fdb2c9628555a0e7966538435025004ef09a8"
+      },
+      {
+        "path": "/assets/communityTaxManager-f_eVvv2z.js",
+        "sha256": "7b8c1ab25763690309a45940033fc0f7b9a657a693aa1415f64b7ab8c95c3cc1"
+      },
+      {
+        "path": "/assets/communityTaxRegisterPair-C2_rK0VX.js",
+        "sha256": "2ac0e88eab59d5e08018705658360ff0d599b08ee8fdcc279f39b4c32e5bb534"
+      },
+      {
+        "path": "/assets/communityTaxRegisterPair-Cd-85kVn.js",
+        "sha256": "012fea18439f855fae8a5d4d7458e3d1a889e5c4de0d12fc44e9758ab4b03e37"
+      },
+      {
+        "path": "/assets/communityTaxRegisterPair-DRzBvzhe.js",
+        "sha256": "d3e5165bba9d41060c891d4597dc6406cdebe0660ee520134a2f617ad596bc42"
+      },
+      {
+        "path": "/assets/communityTaxToken-DecAq7GW.js",
+        "sha256": "22e7d6d5b4a3755a42b32e44af1fcc30b697173076ef40381eb3d95589300503"
+      },
+      {
+        "path": "/assets/communityTaxToken-Dk8Oy8K2.js",
+        "sha256": "930c95f7ea9fc4146e77902451ca2be114265f666ea03bad048f7d4c508e224a"
+      },
+      {
+        "path": "/assets/communityTaxToken-tys8A7PT.js",
+        "sha256": "bb6d423f48485356dbdabc8646811f63d96a8bf49dd7191d03421a9e8e8a30ab"
+      },
+      {
+        "path": "/assets/crypto-DTQ8O1tF.js",
+        "sha256": "b22b41c782eeb64de40f5599903d38d619efe1ca140511fdc3967185f18522f1"
+      },
+      {
+        "path": "/assets/dex-50IMmXQL.js",
+        "sha256": "0cdcee4fa7f7b1a727d7a0c9d99392626f6c5095a159c4a44322a03de7f40ff7"
+      },
+      {
+        "path": "/assets/factory-B8e0W_mx.js",
+        "sha256": "bcf4a41307df21eb20dbdc20e7247d96f29b38b1be8994ba59c8f15a339e0fa6"
+      },
+      {
+        "path": "/assets/factory-CCEfk7N9.js",
+        "sha256": "4cf4c3dbc9641e68d11708fbff7dc719a320e79bbe92447af09a4a7f5d20f71a"
+      },
+      {
+        "path": "/assets/factory-DUelbCyb.js",
+        "sha256": "1cb707bef895e805c01c1bc55cc5eec5e9e57c2d389f10d87bbb5613731dc0f9"
+      },
+      {
+        "path": "/assets/feeDiscount-BtE-gctc.js",
+        "sha256": "35ed9463f74a95b49f7876788f124d49ce1b1df23d43ade6f6ff55ee7c0b2d2f"
+      },
+      {
+        "path": "/assets/feeDiscount-CANtm5KB.js",
+        "sha256": "86f9e70ad030d424d47634bfdc769e01508090b0ccba28cdf39f75e134f67707"
+      },
+      {
+        "path": "/assets/feeDiscount-gz625WU1.js",
+        "sha256": "805180485064ea319f56de89b81fd370a32fd2d586cb6c10f6316d00211ceeaf"
+      },
+      {
+        "path": "/assets/formatDate-B5ADE9dq.js",
+        "sha256": "87f05fc289a8032639e7e7863044ffc81221bf224a359635c60f6efdd1e7a7d4"
+      },
+      {
+        "path": "/assets/formatDate-CfMO5HkT.js",
+        "sha256": "3df2a621743009d6becd144495075073e866ac71fc8a7a880943796edf6baa8e"
+      },
+      {
+        "path": "/assets/formatDate-ylQC8Gsd.js",
+        "sha256": "0febc46da264dbe98de87acecef657b9f9e64785b815cf192fac2703dfbd0939"
+      },
+      {
+        "path": "/assets/index-BaZowFhO.js",
+        "sha256": "9bde7beef65ac888e6660168c5f69e9e404dcbaa8d4c7961dcf5129cf1058dd0"
+      },
+      {
+        "path": "/assets/index-DwGzHDHy.js",
+        "sha256": "762947e1c21f60b41d39cac3adf172a6e150d81707fbba652350cb716c8bece0"
+      },
+      {
+        "path": "/assets/index-_dijC6Df.js",
+        "sha256": "693db6a002212bbfd4cc8d8ab34dc2b0052610d5153fafb1c804e7b11443cea7"
+      },
+      {
+        "path": "/assets/indexerErrors-DkE3Opv4.js",
+        "sha256": "275a2c238b02061672030f613aac7c93ad2d25ea2560c7b53798bfbd6b2e9c72"
+      },
+      {
+        "path": "/assets/indexerErrors-b-e0pgTH.js",
+        "sha256": "68cbf610b7c8ff4889c10e3c5c29a47f5402fba22d7ac095f0552e00981feb0e"
+      },
+      {
+        "path": "/assets/indexerErrors-ieKBEkIl.js",
+        "sha256": "55b892521570b3a32d783375e32fa8998599df59cd3e21d8a3c436557daff059"
+      },
+      {
+        "path": "/assets/lightweight-charts.production-B8Uekivy.js",
+        "sha256": "22ec05473f3b09b65c5c8a9bc5fb7241a5ec34743c944c0f41346570243bf60f"
+      },
+      {
+        "path": "/assets/limitOrderPriceEdit-CYa0V21O.js",
+        "sha256": "468a232bf7926f12215035defb02d0f97faf657b1cfa6bd027e37259c4c764ee"
+      },
+      {
+        "path": "/assets/limitOrderPriceEdit-faXEs3Kq.js",
+        "sha256": "477fbd8d2de411b1475ecd36cc6b9ddde9d9dcc088e61e09bfc7b0b5779390ab"
+      },
+      {
+        "path": "/assets/limitOrderPriceEdit-sAa9xx-I.js",
+        "sha256": "7c0705645ecdbee9a6b7a76ff3f5827b2925ba620ab505845e6e5255409aa7fe"
+      },
+      {
+        "path": "/assets/limitPlacementLifecycle-BrKxP5EP.js",
+        "sha256": "85f1f7b89c4c895f3148fff900ec7bcef3f2c59a0ca8ee044f90dcbe9125443d"
+      },
+      {
+        "path": "/assets/limitPlacementLifecycle-CXZe1kEW.js",
+        "sha256": "43609172ce750a2d5d385a9b4f7a7c86232b0c7bfa0aa19d15189e5feb9da357"
+      },
+      {
+        "path": "/assets/limitPlacementLifecycle-DYjzuP_q.js",
+        "sha256": "89ae67c1140ac362303dfed49e12b3ca08948e79cace26511c60907556b68833"
+      },
+      {
+        "path": "/assets/marketDataOutage-BweVQeMR.js",
+        "sha256": "5e3937c29add799565705aa5fc63982bdc083bad387a1527ec1c890e6c56c852"
+      },
+      {
+        "path": "/assets/marketDataOutage-DyeuPZ_l.js",
+        "sha256": "f8271e071cfcf949931ae1044247ff3e5c937ae7f035d724e4a13fa4cbb7166b"
+      },
+      {
+        "path": "/assets/marketDataOutage-ikhdoRbG.js",
+        "sha256": "9b3d90b6d756f98b0e522d85efeee2c29986509a56effd3fda757c62053d1a08"
+      },
+      {
+        "path": "/assets/maxSpendableAmount-BWgGS5R3.js",
+        "sha256": "7fe4fcf118d7702477a6717da417f64df9a3a47929b23f705a2e27a3c505a2ea"
+      },
+      {
+        "path": "/assets/maxSpendableAmount-Dk-lFJr7.js",
+        "sha256": "785b91f1c3b9f3f1266a69fc4f1f296297f86d38343250cb936b9c94be290769"
+      },
+      {
+        "path": "/assets/maxSpendableAmount-p-CgYyWA.js",
+        "sha256": "412189956efe52d6196bf66cc8592f60077599f62b4e4f7c791ea56f989649d4"
+      },
+      {
+        "path": "/assets/pairPriceUsd-BoZb3FuY.js",
+        "sha256": "4c101645c460c994d920ceafbd8425485dc51135e903d03663ef836e21c02c3c"
+      },
+      {
+        "path": "/assets/pairPriceUsd-DPW-MGKW.js",
+        "sha256": "0e8e1468a61c2aa4cdae9d2a8ba8afbf2e06d343969d5d2b885cd59c91b638e5"
+      },
+      {
+        "path": "/assets/pairPriceUsd-a5Da9mG_.js",
+        "sha256": "19d47375376881b7a015a981b16cad3fd464cc8fe62e79c37092256c18ead6d5"
+      },
+      {
+        "path": "/assets/portalListboxKeyboard-Bt9X0hG-.js",
+        "sha256": "2c689a52f5711fef1f4a0fefca2c3db44e0b5f6d15a0b3c7009f7e442b7dcd91"
+      },
+      {
+        "path": "/assets/portalListboxKeyboard-Ct6wBe-p.js",
+        "sha256": "19b5b38b7e9d3984e05f64021e88d0c6768f8d536cb4e33774b6d340a4bdeac5"
+      },
+      {
+        "path": "/assets/portalListboxKeyboard-DPU4JG_q.js",
+        "sha256": "1aaa312e93cc041e0a182bc2006a835acceed46e48405139e133b55a056ebef8"
+      },
+      {
+        "path": "/assets/quoteDebounce-BD-ynTDY.js",
+        "sha256": "28a2a6ed291c25be646ea772f4be169fa66969d192e7316f3c2ec7ae32f30709"
+      },
+      {
+        "path": "/assets/quoteDebounce-CgZbxAoq.js",
+        "sha256": "aedcb400845d12f3dc5cd7e6042540c270bb8a8fe05495311e431ee330120f54"
+      },
+      {
+        "path": "/assets/quoteDebounce-CnfJIOB8.js",
+        "sha256": "4360ef47cf51a22aaec102ad605e250cf6ae34c51e81958c485652ab718e9439"
+      },
+      {
+        "path": "/assets/rawAmountMath-BKSRMu16.js",
+        "sha256": "28874409b1f9effca67436723590505ee915a3d33ebdcd93a7e82877ce46b64f"
+      },
+      {
+        "path": "/assets/rawAmountMath-Bu_JTQFY.js",
+        "sha256": "bfcd10d99a38ddeb588379529c89c8a46f16666de76e739a1858a25721a7f91e"
+      },
+      {
+        "path": "/assets/rawAmountMath-DEcwdtmH.js",
+        "sha256": "c13174d60af8ea048abed3d0359017336562441bf3b76d7f0360605df430ce22"
+      },
+      {
+        "path": "/assets/router-CdZcu2Z2.js",
+        "sha256": "82ba05c65cccd704b382c89026bb1bda03b6a044eb17e0a8df6e8d38ec653c97"
+      },
+      {
+        "path": "/assets/router-DaXcKAeD.js",
+        "sha256": "015f704efa8e33bb2e93411aeae9bcf1449b3f23caf9ef17c7e4628145bb81fc"
+      },
+      {
+        "path": "/assets/router-vybDXfM9.js",
+        "sha256": "b3f2e3266d5ff18896902f306fcffcc8fcac73434a6b77a8ef2b41dac5795517"
+      },
+      {
+        "path": "/assets/settings-1jB4waN_.js",
+        "sha256": "1c5ed942d52a3f38d3b66384788a743525559fc57b64716e4b3a779471b0c160"
+      },
+      {
+        "path": "/assets/settings-BQ7BLOmc.js",
+        "sha256": "b93851d1c3ba14e7750b672c37fec0949eb4b0aab6e28f3b2aaea1a7cf7ccd78"
+      },
+      {
+        "path": "/assets/settings-yxTNQUPe.js",
+        "sha256": "43a1e8990e7102249289c2de23c721fd994be7ca3e1e6bff413db19a568549f5"
+      },
+      {
+        "path": "/assets/swapDisclosure-B5LBQtIQ.js",
+        "sha256": "639d58cadb43f3d7dec47cf85756c2f052a6fb7d797ce926fbac08d2c42e0ab5"
+      },
+      {
+        "path": "/assets/swapDisclosure-BhWd5MNo.js",
+        "sha256": "f60b3fb1a4437bc99d8bd1e58e26128bb0cdad9e8a86b6e52185cbd977e3d1be"
+      },
+      {
+        "path": "/assets/swapDisclosure-D1QdBm3T.js",
+        "sha256": "cab5672aa0952d2781ee2f1e97331ae8276a2f036148e904fb6de650feddd081"
+      },
+      {
+        "path": "/assets/swapQueryParams-BmzkTiW1.js",
+        "sha256": "67f6560a7035d16e401d66569ac524596d77b44074a2709767462e8a2862c05b"
+      },
+      {
+        "path": "/assets/swapQueryParams-Dtl7VBaX.js",
+        "sha256": "dbbf1713554e0ce278fc0aba46bcdc231d6d44eef3a40a9f79d1d0b9bcc9650b"
+      },
+      {
+        "path": "/assets/swapQueryParams-VqAxu3CU.js",
+        "sha256": "3ac652fed760b9b71451cd87730d3857b1b0b06b6403de754dfa99275985270c"
+      },
+      {
+        "path": "/assets/trailingWindowCopy-CwZfRH-q.js",
+        "sha256": "47ecf676da93f76a9180bae7d796ba164405079f0050e85b88dbaa80f2c77367"
+      },
+      {
+        "path": "/assets/transactions-C_eexK6l.js",
+        "sha256": "7580c361c268a66e81a1e09221e69e903d2ac2a9cd7677b851da5c1b16ce0172"
+      },
+      {
+        "path": "/assets/transactions-Cf9-sRJy.js",
+        "sha256": "f0c1472b9b4874b680c05cfed9dd7ac653b03e44d0ce2fe208f2e172f2675c7c"
+      },
+      {
+        "path": "/assets/transactions-DP70KKAa.js",
+        "sha256": "015ab171e08610074cd7ddbea74f51f8bd2cababb7ff5dbac800bbb1027dea06"
+      },
+      {
+        "path": "/assets/useDebouncedValue-COobZORi.js",
+        "sha256": "2d981cf9b3891b894490c943ba4838e222fc5a119c2ca473ce8caf3a73cf854d"
+      },
+      {
+        "path": "/assets/usePairCodeIdFreeze-0nR-eyUm.js",
+        "sha256": "86bf907bfa49bc65ea7332bd3ab95903df647a77f4935fb4a62deb4cc259ab2e"
+      },
+      {
+        "path": "/assets/usePairCodeIdFreeze-C1gSPoOk.js",
+        "sha256": "e849c24a6f6c6ecb69c68957b4c5c83d10daedcc9498c124dabb656aaf2dd4b6"
+      },
+      {
+        "path": "/assets/usePairCodeIdFreeze-Cpzg-_jv.js",
+        "sha256": "625e28601d22defa5a3dce49da557304030893fcbbc61e2f3c26ed5e282f594c"
+      },
+      {
+        "path": "/assets/usePairDisplayOrientation-Cd6jekhl.js",
+        "sha256": "f7ef870e2345c984e62ed488712de2083ecb2f7473ba9dd4c8253d273f505d99"
+      },
+      {
+        "path": "/assets/usePairDisplayOrientation-DA4d_6I6.js",
+        "sha256": "f4e1756f1d0a2d89d9418e3159b7fbe6073c38f58e2c187d3ff807549a3cb0ed"
+      },
+      {
+        "path": "/assets/usePairDisplayOrientation-pVn3LRDk.js",
+        "sha256": "fd50a5d2c50e0de627c2e5bae335852bd36c1ab3cde76a4d13485db21a71b8c6"
+      },
+      {
+        "path": "/assets/usePairPaused-BJtMUf5V.js",
+        "sha256": "23aab9268feb57a93b3fec727c61da13fa007728570d53c00df4847d6a35c8f4"
+      },
+      {
+        "path": "/assets/usePairPaused-Bet2O1Aa.js",
+        "sha256": "d8be5d7d8e6a961190211b2c28b35dea1804c522a1c7d2981d10acd91687400c"
+      },
+      {
+        "path": "/assets/usePairPaused-BobQVh8F.js",
+        "sha256": "7afdb869c674b6323d2c8e0ee1f27939b64d8a630322139a31e476fe063f8143"
+      },
+      {
+        "path": "/assets/useProtocolHubPricesQuery-B755AZkz.js",
+        "sha256": "63a20f7a2df184752eca21042ce46a4b2d678e9460bf6e660a875eb62e8113f6"
+      },
+      {
+        "path": "/assets/useProtocolHubPricesQuery-Bo3lhs3D.js",
+        "sha256": "b84acdd3f039621e84c537dcd7f09bf9872eb092a7f9c143b83469e1e148235f"
+      },
+      {
+        "path": "/assets/useProtocolHubPricesQuery-C1xVzDKE.js",
+        "sha256": "f961027e778ead2f4ab32a0d283297dfce5d0492498d11dc1151027a55911a0e"
+      },
+      {
+        "path": "/assets/useTerraBroadcastMutation-C3T_Edey.js",
+        "sha256": "f52e05012df51b0605acefd21f41a2355836b700ad7c4d774d277a052976b6a7"
+      },
+      {
+        "path": "/assets/useTerraBroadcastMutation-D07gXT7C.js",
+        "sha256": "5c40847c7a8179b54570f9788c8481ab74da5357b81a72fa1f248a9dcaf03366"
+      },
+      {
+        "path": "/assets/useTerraBroadcastMutation-d_WYmP24.js",
+        "sha256": "bf2aff23ec94e8f5bd5eb585e95d6208437e66a089a355786c72128d26d8eadf"
+      },
+      {
+        "path": "/assets/useTradingBlacklist-D7Yhftry.js",
+        "sha256": "db63003c8c5bb85946fdfc8019c85b4bf2ff0eb34f8d68cb6edda5cbda44a78d"
+      },
+      {
+        "path": "/assets/useTradingBlacklist-DjDrSJl_.js",
+        "sha256": "c1ddde6a2334c7a9dab542c30cafb716be593f47fd4756ee9f8d8de2ffdbc0cb"
+      },
+      {
+        "path": "/assets/useTradingBlacklist-lkEtifFD.js",
+        "sha256": "aea819ea318d17d99ac05c3b1649cd4334fee217690778b3b3040519fd315575"
+      },
+      {
+        "path": "/assets/ust1Window-B6Hg4MRA.js",
+        "sha256": "42cb2834ccf23084e0d836f18274b840ec9f0f9d5a5fcfe82f18405a8697892c"
+      },
+      {
+        "path": "/assets/ust1Window-CWfpRdLf.js",
+        "sha256": "339f797cc6af23b76501cf044da99d363be041082843b47ba27db03b052fae69"
+      },
+      {
+        "path": "/assets/ust1Window-FjBsYF6t.js",
+        "sha256": "6fc16b3c7e7696f3d3661c676d7bc9b065807b21524bf5210f99c270ded55e18"
+      },
+      {
+        "path": "/assets/vendor-react-_peu2KPp.js",
+        "sha256": "cdc3f95b11e668f7a4c84a3dab54dee9af84ab8aafc9831f080e4b3eefa563de"
+      },
+      {
+        "path": "/assets/vendor-state-DbRNHhEP.js",
+        "sha256": "4d5c92a590790327532deb70c93b49c8acecf3b5f088070c35c85ece4fbb1675"
+      },
+      {
+        "path": "/assets/wallet-terra-CL0ybbQF.js",
+        "sha256": "8d5a9ed88f3f607bbf5be9f65491085358123c3db84b08ad1dc10c132db536ca"
+      }
+    ]
+  },
+  "geometry_measurement": "Owned production-build bounding rectangles after initialized quote; independent browser contexts, foreground, reduced motion and 200% root text. Timing trials are separate and retain original input clocks."
+}

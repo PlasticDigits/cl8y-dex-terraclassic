@@ -2571,8 +2571,57 @@ input[type='number'] {
  * The cross and first sentence share a text line; shared alert cards elsewhere
  * retain their chrome. There is no nested status scroller or dismiss control. */
 .swap-quote-status {
-  min-height: 6em;
+  min-height: 2.7em;
+  line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.swap-impact-notice {
+  line-height: 1.35;
+}
+
+.swap-inline-action {
+  margin-inline-start: 0.35em;
+}
+
+/* Inline actions keep normal text leading. Their transparent hit area retains
+ * a 44px target without stretching every wrapped line to the button height. */
+.swap-quote-status button,
+.swap-quote-status a,
+.swap-inline-action {
+  position: relative;
+  display: inline-block;
+  min-width: 44px;
+  min-height: 0;
+  padding-block: 0;
+  line-height: inherit;
+  vertical-align: baseline;
+  overflow: visible;
+}
+
+.swap-quote-status button::after,
+.swap-quote-status a::after,
+.swap-inline-action::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: max(44px, 100%);
+  transform: translateY(-50%);
+}
+
+.swap-quote-status:has(button, a) {
+  /* Keep expanded hit areas clear of the following DETAILS control. */
+  padding-bottom: max(0px, calc((44px - 1.35em) / 2));
+}
+
+.swap-inline-action:focus-visible {
+  outline: none;
+}
+
+.swap-inline-action:focus-visible::after {
+  border-radius: 4px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .swap-quote-status[data-notice]:not([data-notice='pricing']) {
@@ -2609,11 +2658,7 @@ input[type='number'] {
 
 .swap-quote-status button,
 .swap-quote-status a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
   margin: 0 0 0 0.35em;
-  vertical-align: middle;
 }
 
 .swap-quote-status [data-testid$='retry-error'] button {
@@ -2840,7 +2885,6 @@ input[type='number'] {
   }
 
   .swap-quote-status {
-    min-height: 3em;
     margin-bottom: 0;
   }
 }

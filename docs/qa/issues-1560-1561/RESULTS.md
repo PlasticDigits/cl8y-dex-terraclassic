@@ -172,3 +172,5 @@ and [pre-release monitoring](monitoring-before.json) for comparison.
 ## Mobile shell correction
 
 The prior release still rendered the checked None status despite the audit intent above. The [mobile centering/compact route follow-up](MOBILE-CENTERING.md) corrects it and supersedes the older mobile footer placement. Historical screenshots and receipts above remain unchanged.
+
+Follow-up: [compact error/status density](STATUS-DENSITY.md) and [exact direction-switch amount](DIRECTION-AMOUNT.md).

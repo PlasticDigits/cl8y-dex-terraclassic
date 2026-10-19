@@ -427,6 +427,46 @@ async function verifyCompactStates({
     },
   );
 }
+// Presentation-only probes retain a valid blocked quote; the longer sentence
+// replaces only its DOM text to reproduce the reported wrapping, never economics.
+async function verifyCompactStatus(page) {
+  const status = page.getByTestId("swap-quote-status");
+  const notice = page.getByTestId("swap-impact-aside");
+  const action = notice.getByRole("button", {name: "Enable Expert Mode", exact: true});
+  await expect(action).toBeVisible();
+  const results = [];
+  for (const sentence of [null, "Order slippage 63.28%; fair-reference deviation 64.91% requires Expert Mode."]) {
+    if (sentence) await notice.locator("p").evaluate((p, text) => { p.firstChild.textContent = text; }, sentence);
+    const result = await status.evaluate(el => {
+      const button = el.querySelector("button");
+      const r = button.getBoundingClientRect();
+      const p = button.closest("p");
+      const range = document.createRange(); range.selectNodeContents(p.firstChild);
+      const rects = [...range.getClientRects()];
+      const style = getComputedStyle(el), bs = getComputedStyle(button);
+      const hitHeight = parseFloat(getComputedStyle(button, "::after").height);
+      const cx = r.left + r.width/2, cy = r.top+r.height/2;
+      const details = document.querySelector('[data-testid="swap-details"] summary').getBoundingClientRect();
+      return {height:el.getBoundingClientRect().height, font:parseFloat(style.fontSize), lineHeight:parseFloat(style.lineHeight), minHeight:parseFloat(style.minHeight),
+        actionHeight:r.height, hitHeight, hitWidth:r.width, actionBottom:cy+hitHeight/2, detailsTop:details.top,
+        textLineTops:rects.map(x=>x.top), hits:[cy-21,cy,cy+21].map(y=>button.contains(document.elementFromPoint(cx,y)))};
+    });
+    expect(result.lineHeight/result.font, "compact text leading").toBeLessThanOrEqual(1.4);
+    expect(result.minHeight/result.font, "compact reserved height on every breakpoint").toBeLessThanOrEqual(2.71);
+    expect(result.actionHeight, "inline action does not inflate text line boxes").toBeLessThanOrEqual(result.lineHeight+1);
+    expect(result.hitHeight, "motor-accessible action hit area").toBeGreaterThanOrEqual(44);
+    expect(result.hitWidth).toBeGreaterThanOrEqual(44);
+    expect(result.hits).toEqual([true,true,true]);
+    expect(result.actionBottom, "action target clear of DETAILS").toBeLessThanOrEqual(result.detailsTop+1);
+    for (let i=1;i<result.textLineTops.length;i++) expect(result.textLineTops[i]-result.textLineTops[i-1]).toBeLessThanOrEqual(result.lineHeight+1);
+    results.push(result);
+  }
+  await action.focus(); await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape"); await expect(action).toBeFocused();
+  const accessibility = await assertAccessible(page);
+  return {cases:results, accessibility, expert_action_keyboard:"opens modal and returns focus without enabling or signing"};
+}
 async function verifyOrdinaryReview({ page, fixture, pay, ready, connected }) {
   expect(connected, "ordinary review uses an isolated connected fixture").toBe(
     true,
@@ -482,4 +522,5 @@ module.exports = {
   installSyntheticWallet,
   verifyCompactStates,
   verifyOrdinaryReview,
+  verifyCompactStatus,
 };
