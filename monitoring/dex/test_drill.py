@@ -3,9 +3,48 @@ import copy
 import json
 import tempfile
 import unittest
+import subprocess
+import sys
 from pathlib import Path
 
 import drill
+
+
+class LoopSignalTests(unittest.TestCase):
+    def execute(self, body):
+        program = ("import importlib.util, os, signal, threading, time\n"
+                   f"s=importlib.util.spec_from_file_location('drill_fixture',{str(Path(drill.__file__).resolve())!r})\n"
+                   "m=importlib.util.module_from_spec(s);s.loader.exec_module(m)\n" + body)
+        return subprocess.run([sys.executable, "-I", "-c", program], capture_output=True,
+                              check=True, timeout=10).stdout.decode()
+
+    def test_term_and_int_handlers_return_while_event_condition_lock_is_held(self):
+        for number in (15, 2):
+            with self.subTest(signal=number):
+                output = self.execute(
+                    "event=threading.Event(); steps=[]\n"
+                    "previous=signal.getsignal(signal.SIGTERM)\n"
+                    "m.run_once=lambda:steps.append('step')\n"
+                    "def idle(seconds):\n"
+                    " assert seconds==5\n"
+                    " with event._cond:\n"
+                    f"  os.kill(os.getpid(),{number})\n"
+                    "  print('handler_returned',flush=True)\n"
+                    "m.time.sleep=idle\n"
+                    "assert m.run_loop()==0 and steps==['step']\n"
+                    "assert signal.getsignal(signal.SIGTERM)==previous\n")
+                self.assertEqual(output.strip(), "handler_returned")
+
+    def test_signal_finishes_inflight_transition_and_does_not_start_another(self):
+        output = self.execute(
+            "steps=[]\n"
+            "def finite_step():\n"
+            " steps.append('started');os.kill(os.getpid(),signal.SIGTERM)\n"
+            " time.sleep(0.02);steps.append('completed')\n"
+            "m.run_once=finite_step\n"
+            "assert m.run_loop()==0 and steps==['started','completed']\n"
+            "print('finite_step_completed',flush=True)\n")
+        self.assertEqual(output.strip(), "finite_step_completed")
 
 
 class DrillTests(unittest.TestCase):

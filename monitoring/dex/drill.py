@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import os
+import signal
 import time
 from datetime import datetime, timezone
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -176,21 +177,49 @@ def step(state_path=STATE_PATH, receipt_path=RECEIPT_PATH, *, read=request, cloc
     return result
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--step", action="store_true", required=True)
-    parser.parse_args()
+def run_once():
+    """Run the existing finite transition without starting another process."""
     try:
         result = step()
     except Exception:
-        # Invalid persistent state must never re-enable a previous drill.
         result = {"issue": 1544, "overall": "FAIL", "reason": "invalid_persistent_state"}
         try:
             persist(RECEIPT_PATH, result)
         except OSError:
             pass
-    print(json.dumps(result, separators=(",", ":"), sort_keys=True))
+    print(json.dumps(result, separators=(",", ":"), sort_keys=True), flush=True)
     return int(result["overall"] == "FAIL")
+
+
+def run_loop():
+    # PID 1 owns termination. An in-flight finite transition completes before
+    # exiting. The handler only assigns a flag: Event.set() could deadlock when
+    # a signal interrupts its own non-reentrant condition lock. Idle shutdown
+    # can take up to five seconds; it does not claim an immediate wakeup.
+    stopped = False
+    def stop(_signal, _frame):
+        nonlocal stopped
+        stopped = True
+    previous = {number: signal.signal(number, stop)
+                for number in (signal.SIGTERM, signal.SIGINT)}
+    try:
+        while not stopped:
+            run_once()
+            if not stopped:
+                time.sleep(5)
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number, handler)
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--step", action="store_true")
+    mode.add_argument("--loop", action="store_true")
+    args = parser.parse_args()
+    return run_loop() if args.loop else run_once()
 
 
 if __name__ == "__main__":

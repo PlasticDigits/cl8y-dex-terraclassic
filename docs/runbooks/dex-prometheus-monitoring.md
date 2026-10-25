@@ -484,6 +484,14 @@ observed pending state. A missing pending observation remains FAIL even if
 later firing and recovery work. Each step makes at most two private monitoring
 requests; it has no DEX endpoint or credential access.
 
+The drill runs directly as Python PID 1 with `--loop`. SIGTERM/SIGINT set only
+a stop flag, finish an admitted finite step, and exit zero without starting a
+new loop iteration. The handler takes no Event/condition lock: a signal that
+interrupts a main-thread Event wait could otherwise deadlock inside Event.set.
+Idle termination can include the remaining five-second sleep plus scheduling
+overhead. Compose preserves `stop_grace_period: 60s` for this service. The flag
+does not reset durable state, renew the drill, or change the step deadline.
+
 Its `/state/drill-state.json` and sanitized `/state/drill-receipt.json` survive
 worker replacement. PASS/FAIL is terminal across replacement, so a restart
 cannot erase failure evidence or re-enable the drill. Preserve the terminal
