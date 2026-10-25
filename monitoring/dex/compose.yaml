@@ -59,7 +59,8 @@ services:
     build:
       context: .
       dockerfile: monitoring/dex/Dockerfile
-    command: ["/bin/sh", "-c", "while true; do python3 -I /app/drill.py --step; sleep 5; done"]
+    command: ["python3", "-I", "/app/drill.py", "--loop"]
+    stop_grace_period: 60s
     volumes:
       - drill-receipts:/state
     mem_limit: 64m
