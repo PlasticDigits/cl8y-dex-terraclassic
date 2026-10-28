@@ -9,7 +9,7 @@ COPY .gitleaks.toml /source/.gitleaks.toml
 COPY scripts/ci/functional-run.sh scripts/ci/gitleaks-scan-tracked.sh /source/scripts/ci/
 RUN /trusted-policy bundle /source > /config.json
 
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
+FROM debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
 COPY --from=build /trusted-policy /usr/local/bin/trusted-policy
 COPY --from=build /config.json /policy/config.json
 # The signing key is public; its readability must not depend on checkout umask.
